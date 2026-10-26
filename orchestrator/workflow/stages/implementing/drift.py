@@ -45,12 +45,8 @@ spawn actually quoted.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
-from pathlib import Path
-
 from github.Issue import Issue
 
-from orchestrator.agents import models as _agent_models
 from orchestrator.config import models as _config_models
 from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import naming as _naming
@@ -59,9 +55,6 @@ from orchestrator.workflow.engine import (
     comments as _comments,
     drift_delivery as _drift_delivery,
     guards as _guards,
-    messages as _messages,
-    prompt_delivery as _delivery,
-    report_redelivery as _report_redelivery,
     retry_ledger as _retry_ledger,
     usage as _usage,
 )
@@ -75,6 +68,8 @@ from orchestrator.workflow.stages.implementing import (
     session_read as _session_read,
     worktree as _worktree,
 )
+from orchestrator.workflow.stages.implementing.drift_models import _ImplementingDriftRun
+from orchestrator.workflow.stages.implementing.resume_request import _DevResumeRequest
 from orchestrator.workflow.stages.implementing.state import (
     _BRANCH,
     _CODEX_SESSION_ID,
@@ -128,64 +123,13 @@ def _handle_user_content_drift(
     return _drift_preflight._handle_pre_session_drift(gh, spec, issue, state)
 
 
-@dataclass(frozen=True)
-class _ImplementingDriftRun:
-    worktree: Path
-    agent_result: _agent_models.AgentResult
-    before_sha: str | None
-    paused: bool
-    committed: bool
-    # The record of what this resume's prompt actually quoted, which is what
-    # the disposition settles. It travels with the run rather than being
-    # re-read after it: the thread moves while an agent is out, and a mark
-    # taken off what it ends on crosses replies nobody delivered.
-    delivery: _delivery.PromptDeliverySnapshot
-
-    @classmethod
-    def finished(
-        cls,
-        before_sha: str | None,
-        resumed: tuple[Path, _agent_models.AgentResult, bool],
-        delivery: _delivery.PromptDeliverySnapshot,
-    ) -> _ImplementingDriftRun:
-        """One finished resume, told from the head it started on."""
-        worktree, agent_result, paused = resumed
-        after_sha = _verification_probes._head_sha(worktree)
-        return cls(
-            worktree=worktree,
-            agent_result=agent_result,
-            before_sha=before_sha,
-            paused=paused,
-            committed=bool(after_sha) and after_sha != before_sha,
-            delivery=delivery,
-        )
-
-    def publishes(
-        self,
-        spec: _config_models.RepoSpec,
-        state: _pinned_state.PinnedState,
-    ) -> bool:
-        if self.agent_result.unfinished_steps:
-            return False
-        return self.committed or _report_redelivery.redelivers_an_owed_report(
-            spec, state, self.agent_result, self.worktree,
-        )
-
-    def ack_reason(self) -> str | None:
-        if self.agent_result.unfinished_steps:
-            return None
-        return _messages._drift_ack_reason(
-            self.agent_result.last_message or "",
-        )
-
-
 def _run_implementing_drift_resume(
     gh: _client.GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: _pinned_state.PinnedState,
 ) -> _ImplementingDriftRun:
     worktree = _worktree._ensure_resume_worktree(spec, issue, state)
     before_sha = _verification_probes._head_sha(worktree)
     answered = _drift_delivery._drift_resume_prompt(gh, issue, state)
-    resumed = _resume._resume_dev_with_text(
+    resumed = _resume._resume_dev_with_text(_DevResumeRequest(
         gh, spec, issue, state, answered.text, pause_guard=True,
         # The re-grounding conversation a rotated, retired or poisoned
         # session's respawn is given, handed over rather than read again:
@@ -193,7 +137,7 @@ def _run_implementing_drift_resume(
         # record this tick settles, and the comment written in between would
         # reach the agent and be handed to it again on the next poll.
         thread_text=answered.delivery.rendered_text,
-    )
+    ))
     return _ImplementingDriftRun.finished(before_sha, resumed, answered.delivery)
 
 

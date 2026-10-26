@@ -272,7 +272,7 @@ def _reviewer_feedback(github):
 
 def _assert_validating_retry_prompt(test_case) -> None:
     test_case.assertIsNone(
-        test_case._call.kwargs.get(RESUME_SESSION_ID),
+        test_case._call.kwargs["options"].resume_session_id,
     )
     test_case.assertIn(
         "please fix the last-frame-wins docstring",
@@ -423,7 +423,7 @@ class ValidatingContinueCommandTest(
             self.assertIn(batch_body, self._prompt)
         # Replayed on a fresh session (poisoned one dropped), no refusal note.
         self.assertIsNone(
-            self._agent_call.kwargs.get(RESUME_SESSION_ID),
+            self._agent_call.kwargs["options"].resume_session_id,
         )
         self.assertFalse(
             any(
@@ -554,7 +554,7 @@ class ValidatingQuotaParkContinueTest(unittest.TestCase, _PatchedWorkflowMixin):
         )
         agent_call = mocks[RUN_AGENT].call_args
         self.assertEqual(
-            (agent_call.args[0], agent_call.args[2], agent_call.kwargs.get(RESUME_SESSION_ID)),
+            (agent_call.args[0], agent_call.args[2], agent_call.kwargs["options"].resume_session_id),
             (DEV_AGENT, worktree, None),
         )
         self.assertEqual((worktree / _DIRTY_FILE_NAME).read_text(), _DIRTY_CONTENT)

@@ -643,9 +643,12 @@ per-handler routing in
 
 ## Agent subprocess (`agents.runner.run_agent`)
 
-`run_agent(backend, prompt, cwd, ...)` dispatches to the per-backend runner (`codex.run_codex` /
+`run_agent(backend, prompt, cwd, *, options)` dispatches to the per-backend runner (`codex.run_codex` /
 `claude.run_claude` / `agy.run_agy`); `backend` is one of `"codex"` / `"claude"` / `"agy"` and is re-validated
-at call time so misuse fails loudly. All runners return a unified
+at call time so misuse fails loudly. `options` is the one `AgentRunOptions` record every runner takes -- the session
+to resume, any extra environment, the deadline, and the role spec's extra arguments -- handed to the backend
+unchanged; `_run_agent_tracked` builds it from its request (`run_requests._AgentRunRequest.run_options`). All runners
+return a unified
 `AgentResult(session_id, last_message, exit_code, timed_out, stdout, stderr,`
 `interrupted, usage, invoked, unfinished_steps, terminal_failure)`.
 `interrupted`
@@ -677,7 +680,6 @@ output (such as Antigravity active commands); when present, the terminal respons
 and the result is forced non-zero so recovery can act on it. `terminal_failure` (default `None`) is the
 `TerminalFailure` record a backend attaches to a run it normalized to a failure, so a consumer can tell why the run
 stopped without reading `last_message`; only Antigravity fills it, as its command entry below describes.
-`CodexResult` is kept as a transitional alias.
 
 Being the only call that starts an agent process is also what makes `_run_agent_tracked` the place the lifetime
 agent-run ledger is charged. `workflow/engine/run_circuit.py` is asked immediately around it: two durable writes

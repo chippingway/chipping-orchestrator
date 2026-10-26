@@ -51,7 +51,7 @@ class RecordedQuestionTest(LateContentCase):
         _outcome, spawn = self._run()
 
         self.assertEqual(
-            spawn.call_args.kwargs["resume_session_id"], _support.LATE_SESSION,
+            spawn.call_args.kwargs["options"].resume_session_id, _support.LATE_SESSION,
         )
 
     def test_a_stale_session_is_not_resumed(self) -> None:
@@ -64,9 +64,8 @@ class RecordedQuestionTest(LateContentCase):
 
         _outcome, spawn = self._run()
 
-        # The tracked runner forwards the kwarg only when there is a session
-        # to resume, so a fresh conversation is its absence.
-        self.assertNotIn("resume_session_id", spawn.call_args.kwargs)
+        # A fresh conversation names no session to resume.
+        self.assertIsNone(spawn.call_args.kwargs["options"].resume_session_id)
 
     def test_a_second_question_is_announced_too(self) -> None:
         # Q1 answered, and the resumed adjudicator asks Q2. A park quieted

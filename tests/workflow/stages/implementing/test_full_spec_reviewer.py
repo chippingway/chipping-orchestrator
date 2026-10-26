@@ -73,7 +73,7 @@ class FullSpecReviewerPersistenceTest(
         # Reviewer ran with backend+args from current config.
         call = mocks[RUN_AGENT].call_args
         self.assertEqual(call.args[0], BACKEND_CODEX)
-        self.assertEqual(call.kwargs.get(EXTRA_ARGS), CODEX_ARGS)
+        self.assertEqual(call.kwargs["options"].extra_args, CODEX_ARGS)
         # And the FULL spec is what gets persisted -- not just the backend.
         pinned_data = gh.pinned_data(FRESH_REVIEW_ISSUE)
         self.assertEqual(pinned_data["review_agent"], CODEX_SPEC)

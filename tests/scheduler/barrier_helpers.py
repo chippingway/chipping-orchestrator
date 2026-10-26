@@ -19,6 +19,7 @@ import threading
 import unittest
 from functools import partial
 
+from orchestrator.scheduler.models import SubmissionRequest
 from orchestrator.scheduler.service import IssueScheduler
 from tests.scheduler.coordination_helpers import _release_after
 from tests.scheduler.worker_helpers import _worker
@@ -130,11 +131,11 @@ class _BarrierTestCase(unittest.TestCase):
     def start_gated_worker(self, release: threading.Event) -> None:
         """Put one counted worker in the pool and wait until it is running."""
         start = threading.Event()
-        self.assertTrue(self.scheduler.submit(
+        self.assertTrue(self.scheduler.submit(SubmissionRequest(
             PRIMARY_REPO,
             WORKER_ISSUE_NUMBER,
             partial(_worker, start, release),
-        ))
+        )))
         self.assertTrue(start.wait(timeout=EVENT_TIMEOUT_SECONDS))
 
     def release_shortly(self, gate: threading.Event) -> None:

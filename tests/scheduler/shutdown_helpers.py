@@ -8,6 +8,7 @@ import time
 from concurrent.futures import Future
 from functools import partial
 
+from orchestrator.scheduler.models import SubmissionRequest
 from orchestrator.scheduler.service import IssueScheduler
 from tests.scheduler.worker_helpers import _failing_worker
 
@@ -59,7 +60,7 @@ class _CallbackRegistrationRace:
         self._real_add(future, callback)
 
     def _submit(self) -> None:
-        self._scheduler.submit("owner/repo", 1, _failing_worker)
+        self._scheduler.submit(SubmissionRequest("owner/repo", 1, _failing_worker))
         self._submit_done.set()
 
     def _shutdown(self) -> None:
@@ -91,9 +92,9 @@ class _ShutdownTrial:
 
     def _submit_range(self, start: int, stop: int) -> None:
         for issue_number in range(start, stop):
-            accepted = self._scheduler.submit(
+            accepted = self._scheduler.submit(SubmissionRequest(
                 f"owner/repo-{self._trial_number}",
                 issue_number,
                 _failing_worker,
-            )
+            ))
             self._accepted += int(accepted)

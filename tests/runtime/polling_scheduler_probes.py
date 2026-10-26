@@ -8,6 +8,8 @@ import threading
 import time
 from contextlib import contextmanager
 
+from orchestrator.scheduler.models import SubmissionRequest
+
 _ALPHA_REPO = "alpha/one"
 _BETA_REPO = "beta/two"
 _WORKER_WAIT_SECONDS = 5.0
@@ -60,7 +62,7 @@ class GlobalCapProbe:
     def tick(self, gh, spec, *, scheduler=None) -> None:
         with self._received_lock:
             self.received.append(scheduler)
-        scheduler.submit(spec.slug, 1, self.worker)
+        scheduler.submit(SubmissionRequest(spec.slug, 1, self.worker))
 
     def release_when_two_admitted(self) -> None:
         for _ in range(2):
@@ -101,9 +103,9 @@ class CrossPollProbe:
 
     def tick(self, gh, spec, *, scheduler=None) -> None:
         if self.current_pass == 1 and spec.slug == _ALPHA_REPO:
-            scheduler.submit(spec.slug, 1, self.slow_alpha)
+            scheduler.submit(SubmissionRequest(spec.slug, 1, self.slow_alpha))
         elif self.current_pass == 2 and spec.slug == _BETA_REPO:
-            scheduler.submit(spec.slug, 2, self.quick_beta)
+            scheduler.submit(SubmissionRequest(spec.slug, 2, self.quick_beta))
 
 
 class DuplicateActiveProbe:
@@ -121,7 +123,8 @@ class DuplicateActiveProbe:
         self.release.wait(timeout=_WORKER_WAIT_SECONDS)
 
     def tick(self, gh, spec, *, scheduler=None) -> None:
-        self.submit_results.append(scheduler.submit(spec.slug, 7, self.worker))
+        request = SubmissionRequest(spec.slug, 7, self.worker)
+        self.submit_results.append(scheduler.submit(request))
 
 
 class FinishedWorkerProbe:
@@ -138,7 +141,8 @@ class FinishedWorkerProbe:
 
     def tick(self, gh, spec, *, scheduler=None) -> None:
         self.done_events.append(threading.Event())
-        self.submit_results.append(scheduler.submit(spec.slug, 3, self.worker))
+        request = SubmissionRequest(spec.slug, 3, self.worker)
+        self.submit_results.append(scheduler.submit(request))
 
 
 def wait_until_inactive(scheduler, repo: str, issue_number: int) -> None:

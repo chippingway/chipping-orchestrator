@@ -103,7 +103,9 @@ class ClaudeInterruptedResultTest(unittest.TestCase):
             _agent_cases._POPEN_TARGET,
             return_value=_support.completed(returncode=-signal.SIGKILL),
         ):
-            agent_result = _claude.run_claude(_agent_cases._PROMPT, _agent_cases._CWD)
+            agent_result = _claude.run_claude(
+                _agent_cases._PROMPT, _agent_cases._CWD, options=_models.AgentRunOptions(),
+            )
         self.assertTrue(agent_result.interrupted)
         self.assertFalse(agent_result.timed_out)
 
@@ -123,7 +125,9 @@ class ClaudeLastMessageGatingTest(unittest.TestCase):
                 returncode=-signal.SIGTERM,
             ),
         ):
-            agent_result = _claude.run_claude(_agent_cases._PROMPT, _agent_cases._CWD)
+            agent_result = _claude.run_claude(
+                _agent_cases._PROMPT, _agent_cases._CWD, options=_models.AgentRunOptions(),
+            )
         self.assertTrue(agent_result.interrupted)
         self.assertEqual(agent_result.last_message, "")
 
@@ -132,7 +136,9 @@ class ClaudeLastMessageGatingTest(unittest.TestCase):
             _agent_cases._POPEN_TARGET,
             return_value=_support.completed(stdout=_agent_cases._PARTIAL_CLAUDE_OUTPUT, returncode=1),
         ):
-            agent_result = _claude.run_claude(_agent_cases._PROMPT, _agent_cases._CWD)
+            agent_result = _claude.run_claude(
+                _agent_cases._PROMPT, _agent_cases._CWD, options=_models.AgentRunOptions(),
+            )
         self.assertFalse(agent_result.interrupted)
         self.assertEqual(agent_result.exit_code, 1)
         self.assertEqual(agent_result.last_message, "")
@@ -148,7 +154,9 @@ class ClaudeLastMessageGatingTest(unittest.TestCase):
                 returncode=-signal.SIGKILL,
             ),
         ):
-            agent_result = _claude.run_claude(_agent_cases._PROMPT, _agent_cases._CWD)
+            agent_result = _claude.run_claude(
+                _agent_cases._PROMPT, _agent_cases._CWD, options=_models.AgentRunOptions(),
+            )
         self.assertTrue(agent_result.interrupted)
         self.assertEqual(agent_result.last_message, _agent_cases._RESULT_BEFORE_KILL)
 
@@ -160,7 +168,9 @@ class ClaudeLastMessageGatingTest(unittest.TestCase):
             _agent_cases._POPEN_TARGET,
             return_value=_support.completed(stdout=_agent_cases._PARTIAL_CLAUDE_OUTPUT, returncode=0),
         ):
-            agent_result = _claude.run_claude(_agent_cases._PROMPT, _agent_cases._CWD)
+            agent_result = _claude.run_claude(
+                _agent_cases._PROMPT, _agent_cases._CWD, options=_models.AgentRunOptions(),
+            )
         self.assertFalse(agent_result.interrupted)
         self.assertEqual(agent_result.last_message, "partial work so far")
 

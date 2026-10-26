@@ -87,14 +87,11 @@ class ImplementingContinueCommandTest(
                 # The dev retry/resume path is entered -- the session is resumed
                 # intentionally on the neutral retry prompt.
                 mocks[RUN_AGENT].assert_called_once()
-                prompt = mocks[RUN_AGENT].call_args[0][1]
-                self.assertIn("agent_execution_failed", prompt)
-                self.assertIn("session/usage limit", prompt)
-                self.assertNotIn(CONTINUE_COMMAND, prompt)
-                self.assertEqual(
-                    mocks[RUN_AGENT].call_args.kwargs.get("resume_session_id"),
-                    DEV_SESSION,
-                )
+                launch = mocks[RUN_AGENT].call_args
+                self.assertIn("agent_execution_failed", launch.args[1])
+                self.assertIn("session/usage limit", launch.args[1])
+                self.assertNotIn(CONTINUE_COMMAND, launch.args[1])
+                self.assertEqual(launch.kwargs["options"].resume_session_id, DEV_SESSION)
                 # No drift notice of any kind.
                 self.assertFalse(
                     any(

@@ -106,8 +106,6 @@ DISCUSSION_TOPIC = "should the sink own its own schema?"
 DISCUSSION_RESPONSE = "Two branches: own it, or borrow the writer's."
 DISCUSSION_SESSION = "d-sess-1"
 
-RESUME_SESSION_ID = "resume_session_id"
-
 DIRTY_FILE_COUNT = 15
 DIRTY_DISPLAY_LIMIT = 10
 DIRTY_OVERFLOW_COUNT = DIRTY_FILE_COUNT - DIRTY_DISPLAY_LIMIT

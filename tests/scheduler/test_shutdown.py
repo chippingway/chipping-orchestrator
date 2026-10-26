@@ -17,6 +17,7 @@ from concurrent.futures import Future
 from functools import partial
 from unittest.mock import patch
 
+from orchestrator.scheduler.models import SubmissionRequest
 from orchestrator.scheduler.service import IssueScheduler
 from tests.scheduler.coordination_helpers import (
     _release_after,
@@ -121,11 +122,11 @@ class ShutdownRepeatableWaitTest(unittest.TestCase):
 
         with _release_on_exit(release):
             self.assertTrue(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     PRIMARY_REPO,
                     1,
                     partial(_finishing_worker, start, release, finished),
-                )
+                ))
             )
             self.assertTrue(start.wait(timeout=EVENT_TIMEOUT_SECONDS))
 
@@ -158,7 +159,7 @@ class ShutdownRepeatableWaitTest(unittest.TestCase):
 
         with _release_on_exit(release):
             self.assertTrue(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     PRIMARY_REPO,
                     7,
                     partial(
@@ -167,7 +168,7 @@ class ShutdownRepeatableWaitTest(unittest.TestCase):
                         release,
                         "late worker exploded",
                     ),
-                )
+                ))
             )
             self.assertTrue(start.wait(timeout=EVENT_TIMEOUT_SECONDS))
             sched.shutdown(wait=False)

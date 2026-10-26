@@ -93,10 +93,9 @@ class QuestionSpawnTrackedReposTest(
                 ),
             )
         prompt = support._prompt_of(mocks[support._RUN_AGENT_ATTR])
+        launch = mocks[support._RUN_AGENT_ATTR].call_args
         # Fresh spawn (no resume) carrying the full question prompt + block.
-        self.assertIsNone(
-            mocks[support._RUN_AGENT_ATTR].call_args.kwargs.get("resume_session_id")
-        )
+        self.assertIsNone(launch.kwargs["options"].resume_session_id)
         self.assertIn(support._BLOCK_MARKER, prompt)
         self.assertIn(support._OTHER_REPO_SLUG, prompt)
         self.assertIn("answering a standing question", prompt)

@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Unpack
 
 from orchestrator import config
 from orchestrator.agents import (
@@ -56,20 +55,18 @@ def run_claude(
     prompt: str,
     cwd: Path,
     *,
-    options: _agent_models.AgentRunOptions | None = None,
-    **option_fields: Unpack[_agent_models.AgentRunOptionFields],
+    options: _agent_models.AgentRunOptions,
 ) -> _agent_models.AgentResult:
     """Run Claude through the shared process owner."""
-    run_options = _agent_runner.resolve_agent_run_options(options, option_fields)
-    _agent_runner.log_agent_spawn("claude", cwd, run_options)
+    _agent_runner.log_agent_spawn("claude", cwd, options)
     process_result = _agent_processes.run_subprocess(
-        claude_command(prompt, run_options),
+        claude_command(prompt, options),
         cwd,
-        _agent_environment.agent_env(run_options.extra_env),
-        run_options.timeout_seconds,
+        _agent_environment.agent_env(options.extra_env),
+        options.timeout_seconds,
     )
     return _agent_runner.build_agent_result(
-        run_options,
+        options,
         process_result,
         claude_process_last_message(process_result),
     )

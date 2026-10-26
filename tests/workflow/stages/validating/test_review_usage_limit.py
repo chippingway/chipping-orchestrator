@@ -190,7 +190,7 @@ class ReviewerUsageLimitJourneyTest(unittest.TestCase, _CodexReviewTicks):
         bought = self._ticks(github, issue)[RUN_AGENT]
         bought.assert_called_once()
         self.assertEqual(bought.call_args.args[0], CODEX)
-        self.assertIsNone(bought.call_args.kwargs.get("resume_session_id"))
+        self.assertIsNone(bought.call_args.kwargs["options"].resume_session_id)
         self.assertEqual(
             [event.get("agent_role") for event in _events(github, "agent_spawn")], [ROLE_REVIEWER, ROLE_REVIEWER],
         )

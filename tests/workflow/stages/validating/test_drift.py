@@ -467,7 +467,7 @@ class ValidatingReviewerParkRecoveryTest(
         self.assertEqual(reviewer_mocks[RUN_AGENT].call_count, 1)
         call = reviewer_mocks[RUN_AGENT].call_args
         self.assertEqual(call.args[0], config.REVIEW_AGENT)
-        self.assertNotIn("resume_session_id", call.kwargs)
+        self.assertIsNone(call.kwargs["options"].resume_session_id)
         # Park flags cleared and the human's comment is consumed so it
         # cannot replay on the next tick.
         reviewer_state = reviewer_gh.pinned_data(VALIDATING_ISSUE)
@@ -500,7 +500,7 @@ class ValidatingReviewerParkRecoveryTest(
         self.assertEqual(reviewer_mocks[RUN_AGENT].call_count, 1)
         call = reviewer_mocks[RUN_AGENT].call_args
         self.assertEqual(call.args[0], config.REVIEW_AGENT)
-        self.assertNotIn("resume_session_id", call.kwargs)
+        self.assertIsNone(call.kwargs["options"].resume_session_id)
         reviewer_state = reviewer_gh.pinned_data(VALIDATING_ISSUE)
         self.assertFalse(reviewer_state.get(AWAITING_HUMAN))
         self.assertIsNone(reviewer_state.get(PARK_REASON))
@@ -580,7 +580,7 @@ class ValidatingDevParkRecoveryTest(
         # The dev was resumed with the human's feedback (NOT the reviewer).
         developer_mocks[RUN_AGENT].assert_called_once()
         call = developer_mocks[RUN_AGENT].call_args
-        self.assertEqual(call.kwargs.get("resume_session_id"), DEV_SESSION)
+        self.assertEqual(call.kwargs["options"].resume_session_id, DEV_SESSION)
         followup = call.args[1]
         self.assertIn(REBASE_REQUEST, followup)
 

@@ -17,9 +17,6 @@ committed by the same call that publishes every other durable field.
 """
 from __future__ import annotations
 
-import inspect
-from typing import Any
-
 from orchestrator.git.base_sync.models import _ConflictRouteContext
 from orchestrator.git.base_sync.state import (
     _CONFLICT_HANDED_SHA,
@@ -29,18 +26,6 @@ from orchestrator.git.base_sync.state import (
     log,
 )
 from orchestrator.workflow.state import WorkflowLabel, stage_name
-
-_CONFLICT_ROUTE_SIGNATURE = inspect.Signature((
-    inspect.Parameter("gh", inspect.Parameter.POSITIONAL_OR_KEYWORD),
-    inspect.Parameter("spec", inspect.Parameter.POSITIONAL_OR_KEYWORD),
-    inspect.Parameter("issue", inspect.Parameter.POSITIONAL_OR_KEYWORD),
-    inspect.Parameter("state", inspect.Parameter.POSITIONAL_OR_KEYWORD),
-    inspect.Parameter("pr_number", inspect.Parameter.POSITIONAL_OR_KEYWORD),
-    inspect.Parameter("label", inspect.Parameter.KEYWORD_ONLY),
-    inspect.Parameter("behind", inspect.Parameter.KEYWORD_ONLY),
-    inspect.Parameter("conflicted_files", inspect.Parameter.KEYWORD_ONLY),
-    inspect.Parameter("pr_head_sha", inspect.Parameter.KEYWORD_ONLY),
-))
 
 
 def _post_conflict_route_notice(context: _ConflictRouteContext) -> None:
@@ -82,10 +67,27 @@ def _emit_conflict_route_event(context: _ConflictRouteContext) -> None:
     )
 
 
-def _route_pr_worktree_conflict_context(
+def _route_pr_worktree_to_resolving_conflict(
     context: _ConflictRouteContext,
 ) -> None:
-    """Persist and announce a normalized auto-rebase conflict route."""
+    """Relabel a PR-having issue to `resolving_conflict` for real conflicts.
+
+    Called by `_handle_failed_auto_rebase` when the auto-rebase left
+    unresolved conflicted files. Seeds `conflict_round` only when
+    absent (so a re-entry preserves the cap counter and a perpetually-
+    stuck PR can't ping-pong indefinitely), posts a PR notice naming
+    the conflicted files, emits the `conflict_round` "entered" audit
+    event, and flips the workflow label so the existing
+    `_handle_resolving_conflict` handler picks the work up on the
+    same tick (the handler runs after the refresh in `tick()`).
+
+    `context.pr_head_sha` is the remote PR head SHA at the time the
+    rebase was attempted -- threaded in by the caller from the pull
+    request it rebased -- so the emitted `conflict_round`
+    `action="entered"` record carries the same `sha` field every other
+    emit site populates (`docs/observability.md` documents it as part of
+    the event shape).
+    """
     # Match `_handle_in_review`'s seeding: only initialize `conflict_round`
     # when absent, so a re-entry preserves the cap counter and a
     # perpetually-stuck PR can't ping-pong between handlers indefinitely.
@@ -119,36 +121,3 @@ def _route_pr_worktree_conflict_context(
         WorkflowLabel.RESOLVING_CONFLICT,
     )
     context.gh.write_pinned_state(context.issue, context.state)
-
-
-def _route_pr_worktree_to_resolving_conflict(
-    *args: Any,
-    **kwargs: Any,
-) -> None:
-    """Relabel a PR-having issue to `resolving_conflict` for real conflicts.
-
-    Called by `_sync_pr_worktree_to_base` when the auto-rebase left
-    unresolved conflicted files. Seeds `conflict_round` only when
-    absent (so a re-entry preserves the cap counter and a perpetually-
-    stuck PR can't ping-pong indefinitely), posts a PR notice naming
-    the conflicted files, emits the `conflict_round` "entered" audit
-    event, and flips the workflow label so the existing
-    `_handle_resolving_conflict` handler picks the work up on the
-    same tick (the handler runs after the refresh in `tick()`).
-
-    `pr_head_sha` is the remote PR head SHA at the time the rebase
-    was attempted -- threaded in by the caller from the same
-    `gh.get_pr(pr_number)` it uses for the PR-state gate -- so the
-    emitted `conflict_round` `action="entered"` record carries the
-    same `sha` field every other emit site populates
-    (`docs/observability.md` documents it as part of the event shape).
-    """
-    bound_fields = _CONFLICT_ROUTE_SIGNATURE.bind(*args, **kwargs)
-    _route_pr_worktree_conflict_context(
-        _ConflictRouteContext(**bound_fields.arguments),
-    )
-
-
-_route_pr_worktree_to_resolving_conflict.__signature__ = (
-    _CONFLICT_ROUTE_SIGNATURE
-)

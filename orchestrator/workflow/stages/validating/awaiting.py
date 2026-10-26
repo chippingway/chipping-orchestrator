@@ -102,7 +102,10 @@ from orchestrator.workflow.engine import (
     prompt_notes as _prompt_notes,
     report_delivery as _report_delivery,
 )
-from orchestrator.workflow.stages.implementing import resume as _dev_resume
+from orchestrator.workflow.stages.implementing import (
+    resume as _dev_resume,
+    resume_request as _dev_resume_request,
+)
 from orchestrator.workflow.stages.validating import models as _models, recovery as _recovery, state as _state
 
 
@@ -300,7 +303,7 @@ def _resume_awaiting_dev_agent(
             pause_guard=True,
         )
     context.consume_comments()
-    return _dev_resume._resume_dev_with_text(
+    return _dev_resume._resume_dev_with_text(_dev_resume_request._DevResumeRequest(
         context.gh,
         context.spec,
         context.issue,
@@ -308,7 +311,7 @@ def _resume_awaiting_dev_agent(
         _prompt_notes._DEVELOPER_CONTINUE_RETRY_PROMPT,
         pause_guard=True,
         thread_text=context.batch.retry_thread_text,
-    )
+    ))
 
 
 def _run_awaiting_dev(

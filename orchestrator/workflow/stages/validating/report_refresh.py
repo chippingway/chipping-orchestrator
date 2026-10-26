@@ -86,6 +86,7 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.stages.implementing import (
     late_receipt_damage as _receipt_damage,
     resume as _dev_resume,
+    resume_request as _dev_resume_request,
     worktree as _resume_worktree,
 )
 from orchestrator.workflow.stages.validating import (
@@ -284,13 +285,13 @@ def _refreshes_the_report(refresh: _models._ReportRefresh) -> None:
         refresh.issue.number, refresh.debt.pr_number, refresh.head[:8],
         refresh.debt.previous_head[:8],
     )
-    worktree, agent_result, paused = _dev_resume._resume_dev_with_text(
+    worktree, agent_result, paused = _dev_resume._resume_dev_with_text(_dev_resume_request._DevResumeRequest(
         refresh.gh, refresh.spec, refresh.issue, refresh.state,
         _prompts._build_report_refresh_prompt(
             refresh.issue, refresh.debt.previous_head, refresh.head, refresh.approved,
         ),
         pause_guard=True,
-    )
+    ))
     if _guards._ignore_if_never_invoked(refresh.issue, agent_result) or paused:
         return
     if _guards._ignore_if_interrupted(refresh.issue, agent_result):

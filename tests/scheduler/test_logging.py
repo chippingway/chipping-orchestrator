@@ -14,6 +14,7 @@ import logging
 import threading
 import unittest
 
+from orchestrator.scheduler.models import SubmissionRequest
 from orchestrator.scheduler.service import IssueScheduler
 from tests.scheduler.log_helpers import _contains_log
 from tests.scheduler.worker_helpers import (
@@ -58,12 +59,12 @@ class SubmitSkipLoggingTest(unittest.TestCase):
         release = threading.Event()
         with _release_on_exit(release):
             self.assertTrue(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     PRIMARY_REPO,
                     FIRST_FAMILY_ISSUE_NUMBER,
                     lambda: _worker(start, release),
                     family=True,
-                )
+                ))
             )
             self.assertTrue(start.wait(timeout=EVENT_TIMEOUT_SECONDS))
 
@@ -72,12 +73,12 @@ class SubmitSkipLoggingTest(unittest.TestCase):
                 level=logging.INFO,
             ) as logs:
                 self.assertFalse(
-                    sched.submit(
+                    sched.submit(SubmissionRequest(
                         PRIMARY_REPO,
                         SECOND_FAMILY_ISSUE_NUMBER,
                         lambda: self.fail(FORBIDDEN_WORKER_MESSAGE),
                         family=True,
-                    )
+                    ))
                 )
                 log_output = logs.output
             self.assertTrue(
@@ -97,12 +98,12 @@ class SubmitSkipLoggingTest(unittest.TestCase):
         release = threading.Event()
         with _release_on_exit(release):
             self.assertTrue(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     PRIMARY_REPO,
                     1,
                     lambda: _worker(start, release),
                     per_repo_cap=1,
-                )
+                ))
             )
             self.assertTrue(start.wait(timeout=EVENT_TIMEOUT_SECONDS))
 
@@ -111,12 +112,12 @@ class SubmitSkipLoggingTest(unittest.TestCase):
                 level=logging.INFO,
             ) as logs:
                 self.assertFalse(
-                    sched.submit(
+                    sched.submit(SubmissionRequest(
                         PRIMARY_REPO,
                         2,
                         lambda: self.fail(FORBIDDEN_WORKER_MESSAGE),
                         per_repo_cap=1,
-                    )
+                    ))
                 )
                 log_output = logs.output
             self.assertTrue(
@@ -134,11 +135,11 @@ class SubmitSkipLoggingTest(unittest.TestCase):
         release = threading.Event()
         with _release_on_exit(release):
             self.assertTrue(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     PRIMARY_REPO,
                     1,
                     lambda: _worker(start, release),
-                )
+                ))
             )
             self.assertTrue(start.wait(timeout=EVENT_TIMEOUT_SECONDS))
 
@@ -147,11 +148,11 @@ class SubmitSkipLoggingTest(unittest.TestCase):
                 level=logging.DEBUG,
             ) as logs:
                 self.assertFalse(
-                    sched.submit(
+                    sched.submit(SubmissionRequest(
                         PRIMARY_REPO,
                         1,
                         lambda: self.fail(FORBIDDEN_WORKER_MESSAGE),
-                    )
+                    ))
                 )
                 log_output = logs.output
             self.assertTrue(

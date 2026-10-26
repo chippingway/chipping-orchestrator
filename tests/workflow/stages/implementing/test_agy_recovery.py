@@ -608,7 +608,7 @@ class AGYQuotaRetirementTest(_AGYRecoveryBase):
         # when the quota stops the continuation without naming one.
         with mock.patch(_RUNNER_RUN_AGENT, side_effect=[_incomplete_result(), _UNNAMED_QUOTA]) as run_agent:
             self._coordinate()
-            self.assertEqual(run_agent.call_args.kwargs[_RESUME_SESSION_KEY], _SESSION_ID)
+            self.assertEqual(run_agent.call_args.kwargs["options"].resume_session_id, _SESSION_ID)
         self._assert_retired(_SESSION_ID)
         self.assertEqual(self.gh.pinned_data(_ISSUE_NUMBER)[_RUNS_USED], _EXPECTED_RUNS)
 

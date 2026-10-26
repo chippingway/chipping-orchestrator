@@ -6,7 +6,11 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.stages.implementing import resume as _implementing_resume, state as _implementing_state
+from orchestrator.workflow.stages.implementing import (
+    resume as _implementing_resume,
+    resume_request as _resume_request,
+    state as _implementing_state,
+)
 from tests.workflow.stages import full_spec_test_support as support
 
 BACKEND_CLAUDE = support.BACKEND_CLAUDE
@@ -37,6 +41,8 @@ RESUMED_DEV_ISSUE = support.RESUMED_DEV_ISSUE
 RESUME_SESSION_ID = support.RESUME_SESSION_ID
 REVIEW_CHANGES_REQUESTED_MESSAGE = support.REVIEW_CHANGES_REQUESTED_MESSAGE
 RUN_AGENT = support.RUN_AGENT
+# The keyword a run's optional controls are handed to the runner under.
+OPTIONS = "options"
 TEST_AUTHOR = support.TEST_AUTHOR
 UNCHANGED_SHA = support.UNCHANGED_SHA
 _FAKE_WT = support._FAKE_WT
@@ -74,11 +80,9 @@ class FullSpecDevPersistenceTest(unittest.TestCase, _FullSpecFixtureMixin):
             push_branch=True,
         )
 
-        self.assertEqual(mocks[RUN_AGENT].call_args.args[0], BACKEND_CODEX)
-        self.assertEqual(
-            mocks[RUN_AGENT].call_args.kwargs[EXTRA_ARGS],
-            CODEX_ARGS,
-        )
+        launch = mocks[RUN_AGENT].call_args
+        self.assertEqual(launch.args[0], BACKEND_CODEX)
+        self.assertEqual(launch.kwargs[OPTIONS].extra_args, CODEX_ARGS)
         pinned_data = gh.pinned_data(FRESH_DEV_ISSUE)
         # Full spec verbatim, NOT just the parsed backend.
         self.assertEqual(pinned_data[DEV_AGENT_KEY], CODEX_SPEC)
@@ -126,9 +130,9 @@ class FullSpecDevPersistenceTest(unittest.TestCase, _FullSpecFixtureMixin):
         self.assertEqual(self._mocks[RUN_AGENT].call_count, 2)
         dev_call = self._mocks[RUN_AGENT].call_args_list[1]
         self.assertEqual(dev_call.args[0], BACKEND_CODEX)
-        self.assertEqual(dev_call.kwargs.get(RESUME_SESSION_ID), "dev-67002")
+        self.assertEqual(dev_call.kwargs[OPTIONS].resume_session_id, "dev-67002")
         # Args came from the stored spec, NOT the current config.
-        self.assertEqual(dev_call.kwargs.get(EXTRA_ARGS), CODEX_ARGS)
+        self.assertEqual(dev_call.kwargs[OPTIONS].extra_args, CODEX_ARGS)
 
     def test_legacy_bare_backend_still_works(self) -> None:
         # An issue pinned with the pre-#67 bare-backend value (`"codex"`)
@@ -173,7 +177,7 @@ class FullSpecDevPersistenceTest(unittest.TestCase, _FullSpecFixtureMixin):
         call = mocks[RUN_AGENT].call_args
         self.assertEqual(call.args[0], BACKEND_CODEX)
         # No args -- the legacy pinned form had none.
-        self.assertEqual(call.kwargs.get(EXTRA_ARGS), ())
+        self.assertEqual(call.kwargs[OPTIONS].extra_args, ())
         # No proactive migration -- a resume does NOT rewrite `dev_agent`.
         self.assertEqual(gh.pinned_data(LEGACY_BACKEND_ISSUE).get(DEV_AGENT_KEY), BACKEND_CODEX)
 
@@ -217,8 +221,8 @@ class FullSpecDevPersistenceTest(unittest.TestCase, _FullSpecFixtureMixin):
 
         call = mocks[RUN_AGENT].call_args
         self.assertEqual(call.args[0], BACKEND_CODEX)
-        self.assertEqual(call.kwargs.get(RESUME_SESSION_ID), "sess-legacy-67004")
-        self.assertEqual(call.kwargs.get(EXTRA_ARGS), ())
+        self.assertEqual(call.kwargs[OPTIONS].resume_session_id, "sess-legacy-67004")
+        self.assertEqual(call.kwargs[OPTIONS].extra_args, ())
 
     def test_poisoned_drop_keeps_full_spec(self) -> None:
         # After hitting the silent-park threshold, the resume drops the
@@ -243,13 +247,15 @@ class FullSpecDevPersistenceTest(unittest.TestCase, _FullSpecFixtureMixin):
             patch.object(_worktree_creation, "_ensure_worktree", lambda spec, issue_number, **_: _FAKE_WT),
             patch.object(_agent_runner, RUN_AGENT, run_agent),
         ):
-            _implementing_resume._resume_dev_with_text(gh, _TEST_SPEC, issue, state, "go")
+            _implementing_resume._resume_dev_with_text(_resume_request._DevResumeRequest(
+                gh, _TEST_SPEC, issue, state, "go",
+            ))
 
         call = run_agent.call_args
         self.assertEqual(call.args[0], BACKEND_CODEX)
-        self.assertIsNone(call.kwargs.get(RESUME_SESSION_ID))
+        self.assertIsNone(call.kwargs[OPTIONS].resume_session_id)
         # Critical: the args from the stored spec survived the drop.
-        self.assertEqual(call.kwargs.get(EXTRA_ARGS), CODEX_ARGS)
+        self.assertEqual(call.kwargs[OPTIONS].extra_args, CODEX_ARGS)
         # Stored spec is untouched -- not overwritten with the bare backend.
         self.assertEqual(state.get(DEV_AGENT_KEY), CODEX_SPEC)
         self.assertEqual(state.get(DEV_SESSION_ID), "fresh-67005")
@@ -288,12 +294,14 @@ class FullSpecDevPersistenceTest(unittest.TestCase, _FullSpecFixtureMixin):
             patch.object(_worktree_creation, "_ensure_worktree", lambda spec, issue_number, **_: _FAKE_WT),
             patch.object(_agent_runner, RUN_AGENT, run_agent),
         ):
-            _implementing_resume._resume_dev_with_text(gh, _TEST_SPEC, issue, state, "go")
+            _implementing_resume._resume_dev_with_text(_resume_request._DevResumeRequest(
+                gh, _TEST_SPEC, issue, state, "go",
+            ))
 
         # Backend stays locked to codex (the legacy implicit spec).
         call = run_agent.call_args
         self.assertEqual(call.args[0], BACKEND_CODEX)
-        self.assertEqual(call.kwargs.get(EXTRA_ARGS), ())
+        self.assertEqual(call.kwargs[OPTIONS].extra_args, ())
         # Migrated to the new key with the legacy backend pinned, legacy
         # field cleared.
         self.assertEqual(state.get(DEV_AGENT_KEY), BACKEND_CODEX)

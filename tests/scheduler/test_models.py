@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Submission binding and normalization owned by the scheduler models."""
+"""Submission normalization owned by the scheduler models."""
 
 from __future__ import annotations
 
@@ -12,11 +12,6 @@ from orchestrator.scheduler import models
 _REPO_SLUG = "owner/repo"
 _ISSUE_NUMBER = 7
 _DEFAULT_PER_REPO_CAP = 3
-_RAISED_CAP = 5
-_REJECTED_TYPED_CALLS = (
-    ((), {"family": True}, "keyword field 'family'"),
-    (("extra",), {}, "additional positional fields"),
-)
 _COERCED_CAPS = (("2", 2), (0, 1), (-4, 1))
 
 
@@ -28,54 +23,6 @@ def _request(**overrides: object) -> models.SubmissionRequest:
     }
     fields.update(overrides)
     return models.SubmissionRequest(**fields)
-
-
-class BindSubmissionRequestTest(unittest.TestCase):
-    def test_positional_call_applies_defaults(self) -> None:
-        worker = MagicMock()
-
-        request = models.bind_submission_request(
-            (_REPO_SLUG, _ISSUE_NUMBER, worker),
-            {},
-        )
-
-        self.assertEqual(
-            (request.repo_slug, request.issue_number, request.fn),
-            (_REPO_SLUG, _ISSUE_NUMBER, worker),
-        )
-        self.assertEqual(
-            (request.family, request.cap_exempt, request.per_repo_cap),
-            (False, False, None),
-        )
-
-    def test_keyword_only_fields_bind(self) -> None:
-        request = models.bind_submission_request(
-            (_REPO_SLUG, _ISSUE_NUMBER, MagicMock()),
-            {"family": True, "cap_exempt": True, "per_repo_cap": _RAISED_CAP},
-        )
-
-        self.assertEqual(
-            (request.family, request.cap_exempt, request.per_repo_cap),
-            (True, True, _RAISED_CAP),
-        )
-
-    def test_typed_request_is_passed_through(self) -> None:
-        request = _request()
-
-        self.assertIs(models.bind_submission_request((request,), {}), request)
-
-    def test_missing_required_field_raises(self) -> None:
-        with self.assertRaises(TypeError):
-            models.bind_submission_request((_REPO_SLUG, _ISSUE_NUMBER), {})
-
-    def test_typed_request_rejection_names_extra(self) -> None:
-        request = _request()
-        for extra_positional, extra_keywords, detail in _REJECTED_TYPED_CALLS:
-            with self.subTest(detail=detail), self.assertRaisesRegex(TypeError, detail):
-                models.bind_submission_request(
-                    (request, *extra_positional),
-                    extra_keywords,
-                )
 
 
 class NormalizeSubmissionTest(unittest.TestCase):

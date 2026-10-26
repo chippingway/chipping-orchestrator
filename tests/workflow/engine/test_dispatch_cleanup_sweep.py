@@ -52,8 +52,8 @@ class _RecordingScheduler:
         self.routes: dict[int, object] = {}
         self.settled: list[int] = []
 
-    def submit(self, _slug, issue_number, callable_, **_options) -> bool:
-        self.routes[issue_number] = callable_
+    def submit(self, request) -> bool:
+        self.routes[request.issue_number] = request.fn
         return True
 
     def deferred_cleanups(self, _slug) -> frozenset:

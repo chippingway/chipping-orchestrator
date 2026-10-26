@@ -45,8 +45,6 @@ _WINDOW_HOURS = 1
 
 _RESUME_BUDGET = 3
 
-_RESUME_SESSION_ID = "resume_session_id"
-
 _MAX_RESUMES = "DEV_SESSION_MAX_RESUMES"
 
 
@@ -96,7 +94,7 @@ class CappedLaunchTest(unittest.TestCase, _PatchedWorkflowMixin):
 
         spawn_call = driven.mocks[support.RUN_AGENT].call_args
         self.assertEqual(driven.spawns, 1)
-        self.assertIsNone(spawn_call.kwargs.get(_RESUME_SESSION_ID))
+        self.assertIsNone(spawn_call.kwargs["options"].resume_session_id)
         self.assertEqual(driven.spent, support.SPENT_BEFORE + 1)
 
     def test_a_poisoned_fresh_spawn_buys_no_retry(self) -> None:

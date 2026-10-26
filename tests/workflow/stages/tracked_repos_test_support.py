@@ -12,7 +12,11 @@ from orchestrator.agents import runner as _agent_runner
 from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import creation as _worktree_creation
 from orchestrator.workflow.stages.decomposition import run as _decomposing
-from orchestrator.workflow.stages.implementing import handler as _implementing, resume as _implementing_resume
+from orchestrator.workflow.stages.implementing import (
+    handler as _implementing,
+    resume as _implementing_resume,
+    resume_request as _resume_request,
+)
 from tests.support import fakes as _fakes
 from tests.workflow import fixtures as _helpers
 
@@ -139,13 +143,13 @@ def _resume_prompt(github, issue, *, threshold: int) -> str:
         patch.object(_worktree_creation, "_ensure_worktree", _fake_worktree),
         patch.object(_agent_runner, _RUN_AGENT_ATTR, run_mock),
     ):
-        _implementing_resume._resume_dev_with_text(
+        _implementing_resume._resume_dev_with_text(_resume_request._DevResumeRequest(
             github,
             _TEST_SPEC,
             issue,
             state,
             "fix it",
-        )
+        ))
     return _prompt_of(run_mock)
 
 

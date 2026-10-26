@@ -133,7 +133,7 @@ class HandleDecomposingResumeTest(
         mocks[RUN_AGENT].assert_called_once()
         call = mocks[RUN_AGENT].call_args
         self.assertEqual(call.args[0], _support.BACKEND_CLAUDE)
-        self.assertEqual(call.kwargs.get("resume_session_id"), DECOMPOSER_SESSION)
+        self.assertEqual(call.kwargs["options"].resume_session_id, DECOMPOSER_SESSION)
         self.assertIn("please split into 2", call.args[1])
 
         self.assertIn((RESUME_ISSUE_NUMBER, _support.LABEL_BLOCKED), gh.label_history)
@@ -213,11 +213,9 @@ class HandleDecomposingResumeTest(
                 run_agent=_support._agent(session_id=DECOMPOSER_SESSION, last_message=manifest),
             )
 
-        self.assertEqual(mocks[RUN_AGENT].call_args.args[0], _support.BACKEND_CLAUDE)
-        self.assertEqual(
-            mocks[RUN_AGENT].call_args.kwargs.get("resume_session_id"),
-            DECOMPOSER_SESSION,
-        )
+        launch = mocks[RUN_AGENT].call_args
+        self.assertEqual(launch.args[0], _support.BACKEND_CLAUDE)
+        self.assertEqual(launch.kwargs["options"].resume_session_id, DECOMPOSER_SESSION)
 
     def test_decompose_says_a_stranded_notice(self) -> None:
         # A park routes this tick to the resume path, which never reaches the

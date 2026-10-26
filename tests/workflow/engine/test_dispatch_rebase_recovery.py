@@ -21,6 +21,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from orchestrator.git import branch_transport
+from orchestrator.git.base_sync.models import _AutoRebaseRequest
 from orchestrator.git.verification import probes as _probes
 from orchestrator.git.worktrees import (
     creation as _worktree_creation,
@@ -138,10 +139,10 @@ class _InterruptedRebaseCase(unittest.TestCase):
     def _refreshes_with_an_unreadable_pr(self) -> None:
         """The refresh pass that returns before its recovery can run."""
         with patch.object(self.gh, "get_pr", side_effect=_UNREADABLE_PR):
-            _base_rewrite._sync_pr_worktree_to_base(
+            _base_rewrite._sync_pr_worktree_to_base(_AutoRebaseRequest(
                 self.gh, _TEST_SPEC, self.issue,
                 self.gh.read_pinned_state(self.issue), _FAKE_WT, PR_NUMBER, 0,
-            )
+            ))
 
     def _refreshes_with_a_failed_fetch(self) -> None:
         """The refresh pass that returns before it walks any worktree."""

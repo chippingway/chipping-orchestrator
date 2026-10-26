@@ -70,6 +70,7 @@ from orchestrator.workflow.stages.conflicts import (
 from orchestrator.workflow.stages.implementing import (
     resume as _dev_resume,
     resume_batch as _resume_batch,
+    resume_request as _dev_resume_request,
 )
 
 
@@ -383,10 +384,10 @@ def _run_conflict_resume(
     `delivered` is that record itself, carried back on the run for the road
     that settles it.
     """
-    wt, conflict_result, paused = _dev_resume._resume_dev_with_text(
+    wt, conflict_result, paused = _dev_resume._resume_dev_with_text(_dev_resume_request._DevResumeRequest(
         ctx.gh, ctx.spec, ctx.issue, ctx.state, followup, pause_guard=True,
         thread_text=thread_text,
-    )
+    ))
     ctx.state.set("last_agent_action_at", _usage._now_iso())
     return _models._ConflictResumeRun(
         worktree=wt, dev_result=conflict_result, paused=paused,

@@ -49,7 +49,6 @@ from pathlib import Path
 from github.Issue import Issue
 
 from orchestrator.agents.models import AgentResult, is_shutdown_sweep_interrupted
-from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.observability.usage import protocol as _protocol
@@ -87,46 +86,39 @@ _BACKEND = "backend"
 
 @dataclass(frozen=True)
 class _DevResumeContext:
-    gh: GitHubClient
-    spec: _config_models.RepoSpec
-    issue: Issue
-    state: PinnedState
-    followup_text: str
-    options: _resume_request._DevResumeOptions
+    request: _resume_request._DevResumeRequest
     worktree: Path
     plan: _models._DevResumePlan
     stage: str
+    # The split rationale a FRESH spawn is re-grounded with, read once off the
+    # issue's own record as the run is built (`resume_request`). None is a
+    # record holding none.
+    split_rationale: str | None
 
     @classmethod
     def build(
         cls, request: _resume_request._DevResumeRequest,
     ) -> _DevResumeContext:
-        if len(request.resume_args) != 2:
-            raise TypeError("expected state and followup_text")
-        state, followup_text = request.resume_args
-        options = _resume_request._DevResumeOptions.from_fields(request.option_fields, state)
-        worktree = _worktree._ensure_resume_worktree(request.spec, request.issue, state)
+        split_rationale = request.split_rationale
+        worktree = _worktree._ensure_resume_worktree(request.spec, request.issue, request.state)
         # A quota retirement an earlier tick could not land is landed ahead of
         # the plan, so the plan reads it. One that still will not land, or will
         # not read, withholds the state, and the coordinator refuses the launch
         # on it -- whatever a second attempt there answers, or an operator
         # does to the record meanwhile -- so this tick, which can no longer
         # record what the launch leads to, makes none.
-        _quota_retirement._reconcile(request.gh, request.issue, state)
-        plan = _session._resolve_dev_session_for_resume(request.issue, state)
+        _quota_retirement._reconcile(request.gh, request.issue, request.state)
+        plan = _session._resolve_dev_session_for_resume(request.issue, request.state)
         return cls(
-            gh=request.gh,
-            spec=request.spec,
-            issue=request.issue,
-            state=state,
-            followup_text=followup_text,
-            options=options,
+            request=request,
             worktree=worktree,
             plan=plan,
             stage=request.resolved_stage,
+            split_rationale=split_rationale,
         )
 
     def execute(self) -> tuple[Path, AgentResult, bool]:
+        state = self.request.state
         agent_result, paused = self._run_attempt(
             fresh=self.plan.fresh_spawn,
             session_id=self.plan.session.session_id,
@@ -138,9 +130,9 @@ class _DevResumeContext:
             log.info(
                 "issue=#%d dropping poisoned dev session %r after poisoned-session "
                 "marker (stale or context overflow); retrying once as a fresh spawn",
-                self.issue.number, self.plan.session.session_id,
+                self.request.issue.number, self.plan.session.session_id,
             )
-            _session._drop_poisoned_dev_session(self.state)
+            _session._drop_poisoned_dev_session(state)
             fresh_spawn = True
             agent_result, paused = self._run_attempt(
                 fresh=True, session_id=None,
@@ -148,7 +140,7 @@ class _DevResumeContext:
             if paused:
                 return self.worktree, agent_result, True
         _session._persist_dev_session_after_run(
-            self.state,
+            state,
             agent_result,
             fresh_spawn=fresh_spawn,
             resume_count=self.plan.resume_count,
@@ -156,31 +148,26 @@ class _DevResumeContext:
         )
         # A resume answers a fresh human signal, so the park it was waiting
         # on is over once the run is back.
-        self.state.set(_state._AWAITING_HUMAN, False)
+        state.set(_state._AWAITING_HUMAN, False)
         return self.worktree, agent_result, False
 
     def _run_attempt(
         self, *, fresh: bool, session_id: str | None,
     ) -> tuple[AgentResult, bool]:
         session = self.plan.session
+        request = self.request
         return _coordinate_developer_run(
-            self.gh,
+            request.gh,
             _run_charge_state.AgentRunBudget(
-                issue=self.issue, state=self.state, owed=self.options.owed,
+                issue=request.issue, state=request.state, owed=request.owed,
             ),
-            issue=self.issue,
-            state=self.state,
+            issue=request.issue,
+            state=request.state,
             worktree=self.worktree,
-            prompt=_session._build_dev_spawn_prompt(
-                self.spec,
-                self.issue,
-                self.followup_text,
-                self.options,
-                fresh=fresh,
-            ),
+            prompt=_session._build_dev_spawn_prompt(request, self.split_rationale, fresh=fresh),
             extra_args=session.extra_args,
-            pause_guard=self.options.pause_guard,
-            **_launch_identity(self.state, self.stage, session, session_id),
+            pause_guard=request.pause_guard,
+            **_launch_identity(request.state, self.stage, session, session_id),
         )
 
     def _needs_fresh_retry(self, agent_result: AgentResult) -> bool:
@@ -201,14 +188,13 @@ class _DevResumeContext:
             )
         ):
             return False
-        if not _observations.close_observed(
-            self.spec.slug, self.issue.number,
-        ):
+        slug, issue_number = self.request.spec.slug, self.request.issue.number
+        if not _observations.close_observed(slug, issue_number):
             return True
         log.warning(
             "repo=%s issue=#%d was observed closed by a poll while its "
             "developer ran; not retrying the poisoned session as a second "
-            "fresh spawn", self.spec.slug, self.issue.number,
+            "fresh spawn", slug, issue_number,
         )
         return False
 

@@ -15,6 +15,7 @@ import threading
 import unittest
 from functools import partial
 
+from orchestrator.scheduler.models import SubmissionRequest
 from orchestrator.scheduler.service import IssueScheduler
 from tests.scheduler.worker_helpers import (
     _release_on_exit,
@@ -52,12 +53,16 @@ class DuplicateActiveIssueSkipTest(unittest.TestCase):
         start = threading.Event()
         release = threading.Event()
         with _release_on_exit(release):
-            self.assertTrue(sched.submit(PRIMARY_REPO, 1, lambda: _worker(start, release)))
+            self.assertTrue(sched.submit(SubmissionRequest(
+                PRIMARY_REPO, 1, lambda: _worker(start, release),
+            )))
             self.assertTrue(start.wait(timeout=EVENT_TIMEOUT_SECONDS))
 
             # Same (repo_slug, issue_number) is rejected even though both
             # global and per-repo caps still have spare slots.
-            self.assertFalse(sched.submit(PRIMARY_REPO, 1, lambda: self.fail(FORBIDDEN_WORKER_MESSAGE)))
+            self.assertFalse(sched.submit(SubmissionRequest(
+                PRIMARY_REPO, 1, lambda: self.fail(FORBIDDEN_WORKER_MESSAGE),
+            )))
             self.assertEqual(sched.active_count(), 1)
             self.assertTrue(sched.is_active(PRIMARY_REPO, 1))
 
@@ -65,7 +70,9 @@ class DuplicateActiveIssueSkipTest(unittest.TestCase):
             # key and IS accepted -- the in-flight set is keyed on the
             # pair, not the number alone.
             start_b = threading.Event()
-            self.assertTrue(sched.submit(OTHER_REPO, 1, lambda: _worker(start_b, release)))
+            self.assertTrue(sched.submit(SubmissionRequest(
+                OTHER_REPO, 1, lambda: _worker(start_b, release),
+            )))
             self.assertTrue(start_b.wait(timeout=EVENT_TIMEOUT_SECONDS))
             self.assertEqual(sched.active_count(), 2)
 
@@ -76,7 +83,7 @@ class CompletionClearingTest(unittest.TestCase):
         self.addCleanup(sched.shutdown)
         done = threading.Event()
 
-        self.assertTrue(sched.submit(PRIMARY_REPO, 7, done.set))
+        self.assertTrue(sched.submit(SubmissionRequest(PRIMARY_REPO, 7, done.set)))
         self.assertTrue(done.wait(timeout=EVENT_TIMEOUT_SECONDS))
 
         # Wait for the done-callback to clear the marker. The callback
@@ -91,7 +98,9 @@ class CompletionClearingTest(unittest.TestCase):
         start = threading.Event()
         release = threading.Event()
         with _release_on_exit(release):
-            self.assertTrue(sched.submit(PRIMARY_REPO, 7, lambda: _worker(start, release)))
+            self.assertTrue(sched.submit(SubmissionRequest(
+                PRIMARY_REPO, 7, lambda: _worker(start, release),
+            )))
             self.assertTrue(start.wait(timeout=EVENT_TIMEOUT_SECONDS))
 
     def test_completion_logs_worker_failure_via_reap(self) -> None:
@@ -100,11 +109,11 @@ class CompletionClearingTest(unittest.TestCase):
         done = threading.Event()
 
         self.assertTrue(
-            sched.submit(
+            sched.submit(SubmissionRequest(
                 PRIMARY_REPO,
                 9,
                 partial(_signaling_failure, done, WORKER_FAILURE),
-            )
+            ))
         )
         self.assertTrue(done.wait(timeout=EVENT_TIMEOUT_SECONDS))
         # The marker must clear regardless of the exception: a failed
@@ -130,11 +139,11 @@ class GlobalCapEnforcementTest(unittest.TestCase):
         release = threading.Event()
         with _release_on_exit(release):
             self.assertTrue(
-                sched.submit(REPO_A, 1, partial(_worker, starts[0], release)),
+                sched.submit(SubmissionRequest(REPO_A, 1, partial(_worker, starts[0], release))),
                 "first worker was rejected",
             )
             self.assertTrue(
-                sched.submit(REPO_B, 2, partial(_worker, starts[1], release)),
+                sched.submit(SubmissionRequest(REPO_B, 2, partial(_worker, starts[1], release))),
                 "second worker was rejected",
             )
             for start in starts:
@@ -142,16 +151,18 @@ class GlobalCapEnforcementTest(unittest.TestCase):
             self.assertEqual(sched.active_count(), 2)
 
             # Third submit on a fresh repo still exceeds the global cap.
-            self.assertFalse(sched.submit("owner/c", 3, lambda: self.fail(FORBIDDEN_WORKER_MESSAGE)))
+            self.assertFalse(sched.submit(SubmissionRequest(
+                "owner/c", 3, lambda: self.fail(FORBIDDEN_WORKER_MESSAGE),
+            )))
             # And on any of the existing repos (with a distinct issue
             # so the duplicate-key rule does not falsely account for
             # the skip).
             self.assertFalse(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     REPO_A,
                     CAP_REJECTION_ISSUE_NUMBER,
                     lambda: self.fail(FORBIDDEN_WORKER_MESSAGE),
-                )
+                ))
             )
             self.assertEqual(sched.active_count(), 2)
 
@@ -164,11 +175,11 @@ class PerRepoCapEnforcementTest(unittest.TestCase):
         release = threading.Event()
         with _release_on_exit(release):
             self.assertTrue(
-                sched.submit(PRIMARY_REPO, 1, partial(_worker, starts[0], release)),
+                sched.submit(SubmissionRequest(PRIMARY_REPO, 1, partial(_worker, starts[0], release))),
                 "first worker was rejected",
             )
             self.assertTrue(
-                sched.submit(PRIMARY_REPO, 2, partial(_worker, starts[1], release)),
+                sched.submit(SubmissionRequest(PRIMARY_REPO, 2, partial(_worker, starts[1], release))),
                 "second worker was rejected",
             )
             for start in starts:
@@ -177,10 +188,14 @@ class PerRepoCapEnforcementTest(unittest.TestCase):
 
             # A third issue on the same repo is rejected even though
             # the global cap (10) has plenty of room.
-            self.assertFalse(sched.submit(PRIMARY_REPO, 3, lambda: self.fail(FORBIDDEN_WORKER_MESSAGE)))
+            self.assertFalse(sched.submit(SubmissionRequest(
+                PRIMARY_REPO, 3, lambda: self.fail(FORBIDDEN_WORKER_MESSAGE),
+            )))
             # A different repo IS still accepted under the global cap.
             start_b = threading.Event()
-            self.assertTrue(sched.submit(OTHER_REPO, 4, lambda: _worker(start_b, release)))
+            self.assertTrue(sched.submit(SubmissionRequest(
+                OTHER_REPO, 4, lambda: _worker(start_b, release),
+            )))
             self.assertTrue(start_b.wait(timeout=EVENT_TIMEOUT_SECONDS))
             self.assertEqual(
                 (
@@ -199,19 +214,19 @@ class PerRepoCapEnforcementTest(unittest.TestCase):
         release = threading.Event()
         with _release_on_exit(release):
             self.assertTrue(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     PRIMARY_REPO,
                     1,
                     lambda: _worker(start, release),
                     per_repo_cap=1,
-                )
+                ))
             )
             self.assertTrue(start.wait(timeout=EVENT_TIMEOUT_SECONDS))
             self.assertFalse(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     PRIMARY_REPO,
                     2,
                     lambda: self.fail(FORBIDDEN_WORKER_MESSAGE),
                     per_repo_cap=1,
-                )
+                ))
             )

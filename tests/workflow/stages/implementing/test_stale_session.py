@@ -6,7 +6,11 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.stages.implementing import resume as _implementing_resume, session_read as _session_read
+from orchestrator.workflow.stages.implementing import (
+    resume as _implementing_resume,
+    resume_request as _resume_request,
+    session_read as _session_read,
+)
 from tests.workflow.observation_support import ObservedCloseCase
 from tests.workflow.stages.implementing import retry_test_support as support
 
@@ -148,9 +152,9 @@ class StaleRetryStopsAtAnObservedCloseTest(
             ),
             patch.object(_agent_runner, RUN_AGENT, run_agent),
         ):
-            _implementing_resume._resume_dev_with_text(
+            _implementing_resume._resume_dev_with_text(_resume_request._DevResumeRequest(
                 self.github, _TEST_SPEC, self.issue, state, RESUME_TEXT,
-            )
+            ))
 
 
 def _stale():
@@ -188,9 +192,11 @@ class StaleSessionImmediateRetryTest(
             patch.object(_worktree_creation, ENSURE_WORKTREE, return_value=_FAKE_WT),
             patch.object(_agent_runner, RUN_AGENT, run_agent),
         ):
-            _implementing_resume._resume_dev_with_text(scenario.github, _TEST_SPEC, scenario.issue, state, RESUME_TEXT)
+            _implementing_resume._resume_dev_with_text(_resume_request._DevResumeRequest(
+                scenario.github, _TEST_SPEC, scenario.issue, state, RESUME_TEXT,
+            ))
 
-        resume_ids = [agent_call.kwargs.get(RESUME_SESSION_ID) for agent_call in run_agent.call_args_list]
+        resume_ids = [agent_call.kwargs["options"].resume_session_id for agent_call in run_agent.call_args_list]
         self.assertEqual(
             resume_ids,
             [POISONED_SESSION, None],
@@ -225,7 +231,9 @@ class StaleSessionImmediateRetryTest(
             patch.object(_worktree_creation, ENSURE_WORKTREE, return_value=_FAKE_WT),
             patch.object(_agent_runner, RUN_AGENT, run_agent),
         ):
-            _implementing_resume._resume_dev_with_text(gh, _TEST_SPEC, issue, state, RESUME_TEXT)
+            _implementing_resume._resume_dev_with_text(_resume_request._DevResumeRequest(
+                gh, _TEST_SPEC, issue, state, RESUME_TEXT,
+            ))
 
         self.assertIsNone(
             state.get(KEY_DEV_SESSION_ID),
@@ -250,15 +258,15 @@ class StaleSessionImmediateRetryTest(
             patch.object(_worktree_creation, ENSURE_WORKTREE, return_value=_FAKE_WT),
             patch.object(_agent_runner, RUN_AGENT, run_agent),
         ):
-            _, agent_result, _ = _implementing_resume._resume_dev_with_text(
+            _, agent_result, _ = _implementing_resume._resume_dev_with_text(_resume_request._DevResumeRequest(
                 scenario.github,
                 _TEST_SPEC,
                 scenario.issue,
                 self._state,
                 RESUME_TEXT,
-            )
+            ))
 
-        resume_ids = [agent_call.kwargs.get(RESUME_SESSION_ID) for agent_call in run_agent.call_args_list]
+        resume_ids = [agent_call.kwargs["options"].resume_session_id for agent_call in run_agent.call_args_list]
         self.assertEqual(
             resume_ids,
             [POISONED_SESSION, None],
@@ -287,10 +295,12 @@ class StaleSessionImmediateRetryTest(
             patch.object(_worktree_creation, ENSURE_WORKTREE, return_value=_FAKE_WT),
             patch.object(_agent_runner, RUN_AGENT, run_agent),
         ):
-            _implementing_resume._resume_dev_with_text(gh, _TEST_SPEC, issue, state, RESUME_TEXT)
+            _implementing_resume._resume_dev_with_text(_resume_request._DevResumeRequest(
+                gh, _TEST_SPEC, issue, state, RESUME_TEXT,
+            ))
 
         self.assertEqual(
-            [run_agent.call_args.kwargs.get(RESUME_SESSION_ID)],
+            [run_agent.call_args.kwargs["options"].resume_session_id],
             [POISONED_SESSION],
             "codex backend must NOT trigger the claude-only immediate retry",
         )

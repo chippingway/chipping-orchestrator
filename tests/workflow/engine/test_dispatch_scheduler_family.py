@@ -6,6 +6,7 @@ import logging
 import time
 from pathlib import Path
 
+from orchestrator.scheduler.models import SubmissionRequest
 from orchestrator.workflow.engine import tick as _tick
 from tests.support.fakes import FakeGitHubClient, FakeLabel, make_issue
 from tests.workflow.engine.dispatch_scheduler_test_support import (
@@ -194,7 +195,7 @@ class FamilyBucketRoutingTest(_SchedulerWorkflowTest):
         )
 
         self.assertTrue(
-            sched.submit(REPO_SLUG, RELABELLED_FANOUT_ISSUE_NUMBER, fanout),
+            sched.submit(SubmissionRequest(REPO_SLUG, RELABELLED_FANOUT_ISSUE_NUMBER, fanout)),
         )
         self.assertTrue(fanout.started.wait(timeout=EVENT_TIMEOUT_SECONDS))
 

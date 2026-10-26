@@ -38,9 +38,8 @@ OLDER_ID = 9
 SETTLED_SCOPE = "the importer reads CSV only"
 
 RUN_GRANT = "/orchestrator add-agent-runs 3"
-
-# The spawn keyword that names the session a run resumes.
-RESUMED = "resume_session_id"
+# The keyword a run's optional controls are handed to the runner under.
+OPTIONS = "options"
 
 
 class IssueBaselineCase(RevisionCase):
@@ -87,7 +86,7 @@ class FirstBaselineTest(IssueBaselineCase):
         outcome, spawn = self._revise()
 
         self.assertEqual(outcome.disposition, _LateDisposition.REVISED)
-        self.assertEqual(spawn.call_args.kwargs[RESUMED], DEV_SESSION)
+        self.assertEqual(spawn.call_args.kwargs[OPTIONS].resume_session_id, DEV_SESSION)
         self.assertIn(UNREAD, spawn.call_args.args[1])
         self._assert_read_as_it_stands()
 
@@ -99,7 +98,7 @@ class FirstBaselineTest(IssueBaselineCase):
 
         _outcome, spawn = self._revise()
 
-        self.assertEqual(spawn.call_args.kwargs[RESUMED], DEV_SESSION)
+        self.assertEqual(spawn.call_args.kwargs[OPTIONS].resume_session_id, DEV_SESSION)
         self.assertIn(UNREAD, spawn.call_args.args[1])
 
     def test_a_run_grant_is_no_guidance(self) -> None:
@@ -155,7 +154,7 @@ class FirstBaselineTest(IssueBaselineCase):
         outcome, spawn = self._revise()
 
         self.assertEqual(outcome.disposition, _LateDisposition.REVISED)
-        self.assertEqual(spawn.call_args.kwargs[RESUMED], DEV_SESSION)
+        self.assertEqual(spawn.call_args.kwargs[OPTIONS].resume_session_id, DEV_SESSION)
         self.assertIn(UNREAD, spawn.call_args.args[1])
         self._assert_read_as_it_stands()
 
@@ -177,7 +176,7 @@ class RevertedEditTest(IssueBaselineCase):
 
         self.assertEqual(outcome.disposition, _LateDisposition.DECIDED)
         spawn.assert_called_once()
-        self.assertNotEqual(spawn.call_args.kwargs.get(RESUMED), DEV_SESSION)
+        self.assertNotEqual(spawn.call_args.kwargs[OPTIONS].resume_session_id, DEV_SESSION)
         pinned = self._pinned()
         self.assertFalse(pinned[KEYS.awaiting])
         self.assertIsNone(pinned[KEYS.park_reason])
@@ -193,7 +192,7 @@ class RevertedEditTest(IssueBaselineCase):
         outcome, spawn = self._revise()
 
         self.assertEqual(outcome.disposition, _LateDisposition.REVISED)
-        self.assertEqual(spawn.call_args.kwargs[RESUMED], DEV_SESSION)
+        self.assertEqual(spawn.call_args.kwargs[OPTIONS].resume_session_id, DEV_SESSION)
         self.assertIn(UNREAD, spawn.call_args.args[1])
         self._assert_read_as_it_stands()
 

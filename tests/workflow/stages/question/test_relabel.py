@@ -47,7 +47,6 @@ CLEANUP_QUESTION_WORKTREE = "_cleanup_question_worktree"
 PUSH_BRANCH = "_push_branch"
 RUN_AGENT = "run_agent"
 WORKTREE_PATH = "_worktree_path"
-RESUME_SESSION_ID = "resume_session_id"
 
 UNEXPECTED_AGENT_MESSAGE = "should not run"
 QUESTION_TEXT = "Where does X live?"
@@ -186,8 +185,8 @@ class QuestionRelabelToImplementingTest(
         # validating -- the relabel was honored as an unblock signal.
         mocks[RUN_AGENT].assert_called_once()
         spawn_call = mocks[RUN_AGENT].call_args
-        # Fresh spawn -- no resume_session_id forwarded.
-        self.assertNotIn(RESUME_SESSION_ID, spawn_call.kwargs)
+        # Fresh spawn -- no session to resume.
+        self.assertIsNone(spawn_call.kwargs["options"].resume_session_id)
         self.assertIn("You are the implementer", spawn_call.args[1])
 
         self.assertEqual(len(gh.opened_prs), 1)
@@ -241,10 +240,8 @@ class QuestionRelabelToImplementingTest(
             )
 
         mocks[RUN_AGENT].assert_called_once()
-        self.assertNotIn(
-            RESUME_SESSION_ID,
-            mocks[RUN_AGENT].call_args.kwargs,
-        )
+        launch = mocks[RUN_AGENT].call_args
+        self.assertIsNone(launch.kwargs["options"].resume_session_id)
         # The relabel exercises the implementing fresh-spawn path,
         # which now hands off straight to `validating` (no pre-review
         # docs hop).

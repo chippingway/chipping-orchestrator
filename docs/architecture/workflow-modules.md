@@ -2155,7 +2155,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             rebase is handed to `rewrite_publication.py`, a pinned anchor's recovery to
                             `rewrite_recovery.py`, the abort over an uncountable lag to
                             `rewrite_recovery.answers_an_unreadable_checkout`, with the recovery's answer to its
-                            reset, and the keyword adapter binds the refresh's argument list into their typed context
+                            reset. Both of its entries take the request the refresh built
+                            (`git/base_sync/models._AutoRebaseRequest`) and derive the attempt's context from it
     rewrite_publication.py  the ordinary publication of a clean rebase, from the candidate the git owner reads
                             (`git/base_sync/rewrite_facts.py`) to the shared finish: an unreadable head reset and
                             parked and a rebase that moved nothing cleared, both before the replay is recorded --
@@ -3983,8 +3984,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             directory entries reaching it before it counts; a resolution the host would not take held in
                             process memory only while the record still shows its arming, and a record naming no
                             retirement -- one that will not read, or an arming nothing resolved -- never landed
-      resume.py             the two resume entry points and the historical call shape they keep. The
-                            human-reply one is handed its caller's frozen batch rather than reading the
+      resume.py             the two resume entry points: the generic one every stage owning a dev session hands one
+                            typed request (`resume_request.py`), and the human-reply one, handed its caller's
+                            frozen batch rather than reading the
                             thread itself, hands that batch's frozen conversation down for the re-grounding
                             a retired session's fresh spawn needs, and settles the consumed issue watermark
                             from the batch AFTER the run -- only for an outcome that counts the input as
@@ -4012,12 +4014,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             recovery read it; the authorization park keeps its own first cut (the id ledger alone)
                             and takes the grant out through this one too. A reply counted on one side of those
                             hand-offs and not the other is a tick each road leaves to the next on every poll
-      resume_request.py     what one such call supplied, frozen and checked before a run is built: the stage
-                            its records are attributed to, the frozen conversation a fresh spawn is
-                            re-grounded from where the caller holds one, the launch a resume owed once is -- the
-                            run count it is charged against and the hold it is made behind -- and the unknown option
-                            a named parameter would have refused on its own; beside them, the split rationale a fresh
-                            spawn is re-grounded with, read off the resumed issue's pinned state and never a caller's
+      resume_request.py     the typed request one resume is handed, frozen before a run is built: the issue, the
+                            pinned state, and the text, the stage its records are attributed to, whether the text
+                            already lists the tracked repositories, the live-pause guard, the frozen conversation a
+                            fresh spawn is re-grounded from where the caller holds one, and the launch a resume owed
+                            once is -- the run count it is charged against and the hold it is made behind -- as
+                            named fields, so a mistyped option fails where the request is built; beside them, the
+                            split rationale a fresh spawn is re-grounded with, read off the resumed issue's pinned
+                            state and never a caller's
       execution.py          one resume, its poisoned-session retry -- withheld on an issue a poll observed closed,
                             since that retry is a SECOND agent -- and what each attempt is allowed to persist; the
                             bounded AGY command-recovery coordinator (`_coordinate_developer_run`) that recognizes
@@ -4712,6 +4716,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             before anything is written. That settlement is also what records the new baseline:
                             nothing here stages it ahead of a run, since a baseline written for a prompt nobody
                             read marks the edit answered and hands the words under it on as already delivered
+      drift_models.py       the frozen record that route's resume hands its disposition: the checkout it ran in,
+                            the run, the head before it and whether the run moved it, the live-pause decision, and
+                            the delivery record of what its prompt quoted -- kept beside the route that alone builds
+                            and reads it, so its dataclass, path, and agent-result imports stay out of the route
       drift_preflight.py    a pre-session edit -- handed on rather than consumed, since clearing a park delivers
                             nothing at all -- the refusal that records nothing about the edit and its own reason
                             durably instead, so the tick after it recognizes that park, says nothing again and

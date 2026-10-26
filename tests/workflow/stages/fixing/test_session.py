@@ -97,7 +97,7 @@ def _assert_limit_retry_result(test_case, scenario) -> None:
     test_case._mocks[RUN_AGENT].assert_called_once()
     test_case._agent_call = test_case._mocks[RUN_AGENT].call_args
     test_case.assertIsNone(
-        test_case._agent_call.kwargs.get(RESUME_SESSION_ID),
+        test_case._agent_call.kwargs["options"].resume_session_id,
     )
     test_case.assertIn(
         "please fix the flaky test",

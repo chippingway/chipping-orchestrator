@@ -1,24 +1,21 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""What one historical resume call supplied, checked before the run is built.
+"""What one dev resume asks for, frozen before the run is built.
 
-The dev resume entry point still accepts the positional-and-keyword call its
-several callers were written against, so its arguments arrive as an
-`inspect`-bound blob rather than as named parameters. These two records are
-what turns that blob back into something typed. `_DevResumeRequest` freezes
-exactly what one call supplied and answers which stage every record the run
-emits is attributed to; `_DevResumeOptions` rejects an unknown keyword that
-named parameters would have refused on their own, so a mistyped `pause_guard=`
-raises the `TypeError` it deserves instead of being swallowed and quietly
-resuming without a live-pause guard.
+Every stage that resumes a dev session hands the resume over as one
+`_DevResumeRequest`: the issue and the pinned state it runs over, the text the
+developer is handed, and the options that shape the run. They are named fields
+rather than a keyword blob, so a mistyped option fails where the request is
+built instead of quietly resuming without, say, the live-pause guard its caller
+asked for. The request also answers which stage every record the run emits is
+attributed to.
 
-They validate rather than carry, which is why they live apart from the frozen
-handoff records: nothing here has to survive a boundary the spawn cannot see
-across, and both are finished before the first attempt runs. The one option no
-call supplies is the split rationale a fresh spawn is re-grounded with: it is
-read off the pinned state the resume runs over as the options are built, so
-every caller's fresh spawn quotes the issue's own record and none can hand it
-another.
+It lives apart from the frozen handoff records because nothing here has to
+survive a boundary the spawn cannot see across. The split rationale a fresh
+spawn is re-grounded with is no field of it: the request reads it off the pinned
+state it carries, and the run is built with that reading
+(`execution._DevResumeContext`), so every caller's fresh spawn quotes the
+issue's own record and none can hand it another.
 """
 from __future__ import annotations
 
@@ -40,9 +37,29 @@ class _DevResumeRequest:
     gh: GitHubClient
     spec: _config_models.RepoSpec
     issue: Issue
-    resume_args: tuple
-    option_fields: dict
-    stage: str | None
+    state: PinnedState
+    followup_text: str
+    stage: str | None = None
+    # Whether `followup_text` already lists the tracked repositories, as a
+    # documentation prompt does, so a fresh spawn's preamble does not list
+    # them a second time.
+    followup_has_tracked_repos: bool = False
+    pause_guard: bool = False
+    # The conversation a FRESH spawn is re-grounded with, where the caller
+    # froze one. A retired session turns a resume into a spawn with no
+    # transcript, so its prompt quotes the thread -- and read at spawn time
+    # that is a second reading minutes newer than the batch the caller will
+    # settle, which delivers a comment nothing records. None is every caller
+    # holding no frozen read, where the prompt builder takes its own; an
+    # empty string is a frozen conversation with nothing in it, and is quoted
+    # as that.
+    thread_text: str | None = None
+    # The launch the resume is, where it is owed exactly once -- a handed
+    # change request's developer: the lifetime run count it is owed at and
+    # what else it stands on, which the run circuit holds it to on the
+    # readings it charges and starts it from (`run_charge_state.OwedLaunch`).
+    # None for every other resume.
+    owed: OwedLaunch | None = None
 
     @property
     def resolved_stage(self) -> str:
@@ -63,40 +80,13 @@ class _DevResumeRequest:
             or _state._IMPLEMENTING_STAGE
         )
 
+    @property
+    def split_rationale(self) -> str | None:
+        """The split rationale a fresh spawn is re-grounded with: the issue's own record's.
 
-@dataclass(frozen=True)
-class _DevResumeOptions:
-    followup_has_tracked_repos: bool = False
-    pause_guard: bool = False
-    # The conversation a FRESH spawn is re-grounded with, where the caller
-    # froze one. A retired session turns a resume into a spawn with no
-    # transcript, so its prompt quotes the thread -- and read at spawn time
-    # that is a second reading minutes newer than the batch the caller will
-    # settle, which delivers a comment nothing records. None is every caller
-    # holding no frozen read, where the prompt builder takes its own; an
-    # empty string is a frozen conversation with nothing in it, and is quoted
-    # as that.
-    thread_text: str | None = None
-    # The launch the resume is, where it is owed exactly once -- a handed
-    # change request's developer: the lifetime run count it is owed at and
-    # what else it stands on, which the run circuit holds it to on the
-    # readings it charges and starts it from (`run_charge_state.OwedLaunch`).
-    # None for every other resume.
-    owed: OwedLaunch | None = None
-    # The split rationale a FRESH spawn is re-grounded with: the issue's own
-    # record (`decomposition_prompts._handed_split_rationale`), read by
-    # `from_fields` off the state the resume runs over. Never a caller's
-    # keyword, so no call can hand a replacement session residual scope the
-    # record does not hold. None is a record holding none.
-    split_rationale: str | None = None
-
-    @classmethod
-    def from_fields(cls, fields: dict, state: PinnedState | None = None) -> _DevResumeOptions:
-        unknown = set(fields) - {
-            "followup_has_tracked_repos", "pause_guard", "thread_text", "owed",
-        }
-        if unknown:
-            raise TypeError(f"unexpected resume option(s): {sorted(unknown)!r}")
-        if state is None:
-            return cls(**fields)
-        return cls(**fields, split_rationale=_decomposition_prompts._handed_split_rationale(state))
+        Read off `state` (`decomposition_prompts._handed_split_rationale`)
+        rather than taken from any caller, so no call can hand a replacement
+        session residual scope the record does not hold. None is a record
+        holding none.
+        """
+        return _decomposition_prompts._handed_split_rationale(self.state)

@@ -90,8 +90,8 @@ class _AdmitsTheSubmit:
     def __init__(self) -> None:
         self.task = None
 
-    def submit(self, _slug, _issue_number, callable_, **_options) -> bool:
-        self.task = callable_
+    def submit(self, request) -> bool:
+        self.task = request.fn
         return True
 
 

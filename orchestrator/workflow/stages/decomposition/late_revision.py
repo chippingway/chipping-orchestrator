@@ -84,7 +84,11 @@ from orchestrator.workflow.stages.decomposition import (
 from orchestrator.workflow.stages.decomposition.late_content_models import _LateContentSettlement, _LateContentSignal
 from orchestrator.workflow.stages.decomposition.late_models import _LateContext
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
-from orchestrator.workflow.stages.implementing import resume as _dev_resume, session_read as _session_read
+from orchestrator.workflow.stages.implementing import (
+    resume as _dev_resume,
+    resume_request as _dev_resume_request,
+    session_read as _session_read,
+)
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -207,7 +211,7 @@ def _resumed(
     latched = _latched_close(context)
     if latched is not None:
         return latched
-    worktree, agent_result, paused = _dev_resume._resume_dev_with_text(
+    worktree, agent_result, paused = _dev_resume._resume_dev_with_text(_dev_resume_request._DevResumeRequest(
         context.gh,
         context.spec,
         context.issue,
@@ -215,7 +219,7 @@ def _resumed(
         _revision_prompt(context.issue, signal.guidance),
         stage=_DECOMPOSING_STAGE,
         pause_guard=True,
-    )
+    ))
     if paused or _guards._ignore_if_interrupted(context.issue, agent_result):
         return _LateContentSettlement(
             disposition=_LateDisposition.DEFERRED,

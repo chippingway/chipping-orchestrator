@@ -208,7 +208,7 @@ class _DiscussionConversation:
         return _DiscussionRoundRecord(
             pinned=dict(self.gh.pinned_data(self.issue.number)),
             prompt=spawn_call.args[1],
-            resume_session_id=spawn_call.kwargs.get(_support.RESUME_SESSION_ID),
+            resume_session_id=spawn_call.kwargs["options"].resume_session_id,
             rebuilt_worktree=bool(mocks[_support.ENSURE_WORKTREE].call_count),
         )
 

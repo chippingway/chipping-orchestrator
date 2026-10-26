@@ -99,6 +99,7 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.stages.implementing import (
     resume as _dev_resume,
     resume_batch as _resume_batch,
+    resume_request as _dev_resume_request,
 )
 from orchestrator.workflow.stages.in_review import (
     feedback as _feedback,
@@ -187,7 +188,7 @@ def _resume_dev_for_drift(
     answered = _drift_delivery._pr_drift_resume_prompt(
         ctx.gh, ctx.issue, ctx.state, unread_pr_conv,
     )
-    wt, dev_result, paused = _dev_resume._resume_dev_with_text(
+    wt, dev_result, paused = _dev_resume._resume_dev_with_text(_dev_resume_request._DevResumeRequest(
         ctx.gh, ctx.spec, ctx.issue, ctx.state, answered.text,
         pause_guard=True,
         # The frozen conversation a rotated, retired or poisoned session's
@@ -195,7 +196,7 @@ def _resume_dev_for_drift(
         # taken there it would be a second reading, newer than the record this
         # tick settles, carrying a comment the settlement would leave unread.
         thread_text=answered.delivery.rendered_text,
-    )
+    ))
     ctx.state.set("last_agent_action_at", _usage._now_iso())
     return _models._DriftResume(
         worktree=wt, dev_result=dev_result, paused=paused, before_sha=before_sha,

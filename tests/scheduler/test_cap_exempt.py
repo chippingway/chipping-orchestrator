@@ -13,6 +13,7 @@ from __future__ import annotations
 import threading
 import unittest
 
+from orchestrator.scheduler.models import SubmissionRequest
 from orchestrator.scheduler.service import IssueScheduler
 from tests.scheduler.worker_helpers import (
     _release_on_exit,
@@ -43,8 +44,8 @@ TRACKED_ISSUE_NUMBER = 42
 
 
 class CapExemptSubmitTest(unittest.TestCase):
-    """``submit(cap_exempt=True)`` skips the global and per-repo cap
-    counters while still honoring the duplicate-active gate and the
+    """A ``SubmissionRequest(..., cap_exempt=True)`` skips the global and
+    per-repo cap counters while still honoring the duplicate-active gate and the
     family mutex. Production uses this for no-agent family buckets so
     blocked / umbrella parent dep-graph walks always get their turn even
     when the parallel caps are saturated by ordinary implementation work.
@@ -58,11 +59,11 @@ class CapExemptSubmitTest(unittest.TestCase):
         release = threading.Event()
         with _release_on_exit(release):
             self.assertTrue(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     REPO_A,
                     1,
                     lambda: _worker(start_a, release),
-                )
+                ))
             )
             self.assertTrue(start_a.wait(timeout=EVENT_TIMEOUT_SECONDS))
             self.assertEqual(sched.active_count(), 1)
@@ -70,22 +71,22 @@ class CapExemptSubmitTest(unittest.TestCase):
             # Normal submit on a different repo is rejected: global cap=1
             # and one slot is in use.
             self.assertFalse(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     REPO_B,
                     2,
                     lambda: self.fail(FORBIDDEN_WORKER_MESSAGE),
-                )
+                ))
             )
 
             # Cap-exempt submit on the same different repo IS accepted
             # even though the global cap is saturated.
             self.assertTrue(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     REPO_B,
                     3,
                     lambda: _worker(start_b, release),
                     cap_exempt=True,
-                )
+                ))
             )
             self.assertTrue(start_b.wait(timeout=EVENT_TIMEOUT_SECONDS))
             # The exempt submit must NOT have inflated the global
@@ -102,32 +103,32 @@ class CapExemptSubmitTest(unittest.TestCase):
         release = threading.Event()
         with _release_on_exit(release):
             self.assertTrue(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     PRIMARY_REPO,
                     1,
                     lambda: _worker(start_a, release),
-                )
+                ))
             )
             self.assertTrue(start_a.wait(timeout=EVENT_TIMEOUT_SECONDS))
             self.assertEqual(sched.active_count(PRIMARY_REPO), 1)
 
             # Normal submit on the same repo is rejected by per_repo_cap.
             self.assertFalse(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     PRIMARY_REPO,
                     2,
                     lambda: self.fail(FORBIDDEN_WORKER_MESSAGE),
-                )
+                ))
             )
 
             # Cap-exempt submit on the same repo IS accepted.
             self.assertTrue(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     PRIMARY_REPO,
                     3,
                     lambda: _worker(start_b, release),
                     cap_exempt=True,
-                )
+                ))
             )
             self.assertTrue(start_b.wait(timeout=EVENT_TIMEOUT_SECONDS))
             self.assertEqual(sched.active_count(PRIMARY_REPO), 1)
@@ -147,25 +148,25 @@ class CapExemptSubmitTest(unittest.TestCase):
         release = threading.Event()
         with _release_on_exit(release):
             self.assertTrue(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     PRIMARY_REPO,
                     FIRST_FAMILY_ISSUE_NUMBER,
                     lambda: _worker(start, release),
                     family=True,
-                )
+                ))
             )
             self.assertTrue(start.wait(timeout=EVENT_TIMEOUT_SECONDS))
 
             # Cap-exempt family submit on the same repo is rejected by
             # the family mutex even though both caps are wide open.
             self.assertFalse(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     PRIMARY_REPO,
                     SECOND_FAMILY_ISSUE_NUMBER,
                     lambda: self.fail(FORBIDDEN_WORKER_MESSAGE),
                     family=True,
                     cap_exempt=True,
-                )
+                ))
             )
 
     def test_submit_honors_duplicate_active(self) -> None:
@@ -178,32 +179,32 @@ class CapExemptSubmitTest(unittest.TestCase):
         release = threading.Event()
         with _release_on_exit(release):
             self.assertTrue(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     PRIMARY_REPO,
                     7,
                     lambda: _worker(start, release),
                     cap_exempt=True,
-                )
+                ))
             )
             self.assertTrue(start.wait(timeout=EVENT_TIMEOUT_SECONDS))
             self.assertTrue(sched.is_active(PRIMARY_REPO, 7))
 
             # Duplicate key, cap-exempt: rejected.
             self.assertFalse(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     PRIMARY_REPO,
                     7,
                     lambda: self.fail(FORBIDDEN_WORKER_MESSAGE),
                     cap_exempt=True,
-                )
+                ))
             )
             # Duplicate key, non-exempt: also rejected.
             self.assertFalse(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     PRIMARY_REPO,
                     7,
                     lambda: self.fail(FORBIDDEN_WORKER_MESSAGE),
-                )
+                ))
             )
 
     def test_pool_is_independent_of_global_cap(self) -> None:
@@ -224,13 +225,13 @@ class CapExemptSubmitTest(unittest.TestCase):
         release = threading.Event()
         with _release_on_exit(release):
             self.assertTrue(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     REPO_A,
                     0,
                     lambda: _worker(start_a, release),
                     family=True,
                     cap_exempt=True,
-                )
+                ))
             )
             self.assertTrue(start_a.wait(timeout=EVENT_TIMEOUT_SECONDS))
 
@@ -241,13 +242,13 @@ class CapExemptSubmitTest(unittest.TestCase):
             # only thing that could keep the second submit waiting is
             # an executor pool that re-imposes the global cap.
             self.assertTrue(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     REPO_B,
                     0,
                     lambda: _worker(start_b, release),
                     family=True,
                     cap_exempt=True,
-                )
+                ))
             )
             self.assertTrue(
                 start_b.wait(timeout=EVENT_TIMEOUT_SECONDS),
@@ -264,13 +265,13 @@ class CapExemptSubmitTest(unittest.TestCase):
         self.addCleanup(sched.shutdown)
         done = threading.Event()
         self.assertTrue(
-            sched.submit(
+            sched.submit(SubmissionRequest(
                 PRIMARY_REPO,
                 COMPLETED_FAMILY_ISSUE_NUMBER,
                 lambda: done.set(),
                 family=True,
                 cap_exempt=True,
-            )
+            ))
         )
         self.assertTrue(done.wait(timeout=EVENT_TIMEOUT_SECONDS))
 
@@ -289,12 +290,12 @@ class CapExemptSubmitTest(unittest.TestCase):
         release = threading.Event()
         with _release_on_exit(release):
             self.assertTrue(
-                sched.submit(
+                sched.submit(SubmissionRequest(
                     PRIMARY_REPO,
                     FOLLOW_UP_FAMILY_ISSUE_NUMBER,
                     lambda: _worker(start, release),
                     family=True,
-                )
+                ))
             )
             self.assertTrue(start.wait(timeout=EVENT_TIMEOUT_SECONDS))
 
@@ -305,12 +306,12 @@ class CapExemptSubmitTest(unittest.TestCase):
     ) -> None:
         started = threading.Event()
         self.assertTrue(
-            scheduler.submit(
+            scheduler.submit(SubmissionRequest(
                 PRIMARY_REPO,
                 4,
                 lambda: _worker(started, release),
                 cap_exempt=True,
-            )
+            ))
         )
         self.assertTrue(started.wait(timeout=EVENT_TIMEOUT_SECONDS))
         self.assertEqual(scheduler.active_count(PRIMARY_REPO), 1)

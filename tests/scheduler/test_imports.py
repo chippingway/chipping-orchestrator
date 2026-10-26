@@ -20,11 +20,10 @@ _MODULES = (
 )
 
 # Owner-only names the facade must not resolve: the normalized submission and
-# its binding belong to `models`, the composition layers and the exempt pool
-# size to `service`. Code that needs one imports its owner directly.
+# the function that builds it belong to `models`, the composition layers and the
+# exempt pool size to `service`. Code that needs one imports its owner directly.
 _OWNER_ONLY_NAMES = (
     "Submission",
-    "bind_submission_request",
     "normalize_submission",
     "_SchedulerViewMixin",
     "_SchedulerReservationMixin",

@@ -84,6 +84,7 @@ from orchestrator.workflow.stages.fixing import (
 from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
     resume as _dev_resume,
+    resume_request as _dev_resume_request,
 )
 from orchestrator.workflow.stages.validating import (
     dev_fix as _dev_fix,
@@ -199,7 +200,7 @@ def _run_fixing_resume(
         ctx.issue, _comments._orchestrator_ids(ctx.state),
         comments=delivered.read,
     )
-    wt, dev_result, paused = _dev_resume._resume_dev_with_text(
+    wt, dev_result, paused = _dev_resume._resume_dev_with_text(_dev_resume_request._DevResumeRequest(
         ctx.gh, ctx.spec, ctx.issue, ctx.state, followup, pause_guard=True,
         # The same read, for the spawn a retired or missing session turns this
         # resume into: that prompt quotes the thread, and left to take its own
@@ -207,7 +208,7 @@ def _run_fixing_resume(
         # agent a comment no watermark here records and the next poll pays a
         # second developer to answer.
         thread_text=delivered.thread_text,
-    )
+    ))
     ctx.state.set("last_agent_action_at", _usage._now_iso())
     ctx.state.set("user_content_hash", requirements)
     return _models._FixingResumeRun(

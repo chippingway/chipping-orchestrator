@@ -219,7 +219,7 @@ class FixingDebounceAndAckTest(unittest.TestCase, _FixingFixtureMixin):
         self.assertIn("PR comments", self._prompt)
         # Dev session resumed (not a fresh spawn) on the locked backend.
         self.assertEqual(
-            self._call_args.kwargs.get(RESUME_SESSION_ID),
+            self._call_args.kwargs["options"].resume_session_id,
             DEV_SESSION,
         )
         self.assertEqual(backend, DEV_AGENT)

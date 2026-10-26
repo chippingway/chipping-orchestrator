@@ -19,7 +19,11 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator.workflow.engine import comments as _comments
 from orchestrator.workflow.stages.decomposition import blocked as _blocked
-from orchestrator.workflow.stages.implementing import handler as _implementing, resume as _resume
+from orchestrator.workflow.stages.implementing import (
+    handler as _implementing,
+    resume as _resume,
+    resume_request as _resume_request,
+)
 from tests.support.fakes import FakeGitHubClient, FakeIssue, make_issue
 from tests.workflow.fixtures import (
     _TEST_SPEC,
@@ -38,7 +42,6 @@ KEY_SPLIT_RATIONALE = "split_rationale"
 KEY_SPLIT_ATTEMPT = "split_attempt"
 KEY_UMBRELLA = "umbrella"
 KEY_SILENT_PARK_COUNT = "silent_park_count"
-RESUME_SESSION_ID = "resume_session_id"
 PARENT_NUMBER = 94
 DECOMPOSER_SESSION = "dec-sess"
 DEV_SESSION = "dev-sess"
@@ -163,12 +166,14 @@ class HandedBackParentTest(_HandoffCase):
         run_agent = MagicMock(return_value=_agent(session_id=REPLACEMENT_SESSION))
 
         self._run(
-            lambda: _resume._resume_dev_with_text(gh, _TEST_SPEC, parent, state, FOLLOWUP),
+            lambda: _resume._resume_dev_with_text(
+                _resume_request._DevResumeRequest(gh, _TEST_SPEC, parent, state, FOLLOWUP),
+            ),
             run_agent=run_agent,
         )
 
         prompt = _spawned_prompt(run_agent)
-        self.assertIsNone(run_agent.call_args.kwargs.get(RESUME_SESSION_ID), "a fresh conversation, not a resume")
+        self.assertIsNone(run_agent.call_args.kwargs["options"].resume_session_id, "a fresh conversation, not a resume")
         self.assertIn("You are resuming work on GitHub issue", prompt)
         self._assert_handed(prompt)
         self.assertTrue(prompt.endswith(FOLLOWUP), "the stage's own instruction follows the re-grounding")

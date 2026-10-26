@@ -13,6 +13,7 @@ from __future__ import annotations
 import threading
 import time
 
+from orchestrator.scheduler.models import SubmissionRequest
 from orchestrator.scheduler.service import IssueScheduler
 
 PRIMARY_REPO = "owner/repo"
@@ -42,7 +43,7 @@ def _submit_then_signal(
     worker,
     done: threading.Event,
 ) -> None:
-    scheduler.submit(PRIMARY_REPO, 1, worker)
+    scheduler.submit(SubmissionRequest(PRIMARY_REPO, 1, worker))
     done.set()
 
 

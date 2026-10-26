@@ -1,12 +1,10 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Typed scheduler submissions and legacy call binding."""
+"""Typed scheduler submissions and the normalization slot accounting reads them through."""
 from __future__ import annotations
 
-import inspect
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
 
 
 @dataclass(frozen=True)
@@ -35,57 +33,6 @@ class Submission:
     @property
     def key(self) -> tuple[str, int]:
         return self.repo_slug, self.issue_number
-
-
-_LEGACY_SUBMIT_SIGNATURE = inspect.Signature((
-    inspect.Parameter("repo_slug", inspect.Parameter.POSITIONAL_OR_KEYWORD),
-    inspect.Parameter("issue_number", inspect.Parameter.POSITIONAL_OR_KEYWORD),
-    inspect.Parameter("fn", inspect.Parameter.POSITIONAL_OR_KEYWORD),
-    inspect.Parameter(
-        "family",
-        inspect.Parameter.KEYWORD_ONLY,
-        default=False,
-    ),
-    inspect.Parameter(
-        "cap_exempt",
-        inspect.Parameter.KEYWORD_ONLY,
-        default=False,
-    ),
-    inspect.Parameter(
-        "per_repo_cap",
-        inspect.Parameter.KEYWORD_ONLY,
-        default=None,
-    ),
-))
-_SUBMIT_METHOD_SIGNATURE = _LEGACY_SUBMIT_SIGNATURE.replace(parameters=(
-    inspect.Parameter("self", inspect.Parameter.POSITIONAL_ONLY),
-    *_LEGACY_SUBMIT_SIGNATURE.parameters.values(),
-))
-
-
-def bind_submission_request(
-    positional_fields: tuple[Any, ...],
-    keyword_fields: dict[str, Any],
-) -> SubmissionRequest:
-    """Bind either a typed request or the historical submit arguments."""
-    if positional_fields and isinstance(
-        positional_fields[0],
-        SubmissionRequest,
-    ):
-        if len(positional_fields) != 1 or keyword_fields:
-            if keyword_fields:
-                unexpected_name = next(iter(keyword_fields))
-                detail = f"keyword field {unexpected_name!r}"
-            else:
-                detail = "additional positional fields"
-            raise TypeError(f"typed scheduler submission does not accept {detail}")
-        return positional_fields[0]
-    bound_fields = _LEGACY_SUBMIT_SIGNATURE.bind(
-        *positional_fields,
-        **keyword_fields,
-    )
-    bound_fields.apply_defaults()
-    return SubmissionRequest(**bound_fields.arguments)
 
 
 def normalize_submission(

@@ -93,16 +93,12 @@ REVISION = "revision"
 LEASE = "force_with_lease"
 
 
-# What a run resumed on an existing session names it by.
-_RESUMED_SESSION = "resume_session_id"
-
-
 def _resumed_sessions(mocks) -> list:
     """The sessions an agent was resumed on, in the order they ran."""
     return [
-        called.kwargs[_RESUMED_SESSION]
+        called.kwargs["options"].resume_session_id
         for called in mocks[RUN_AGENT].call_args_list
-        if called.kwargs.get(_RESUMED_SESSION)
+        if called.kwargs["options"].resume_session_id
     ]
 
 

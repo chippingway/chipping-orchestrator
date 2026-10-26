@@ -61,7 +61,7 @@ class FullSpecDecomposerPersistenceTest(
 
         call = mocks[RUN_AGENT].call_args
         self.assertEqual(call.args[0], BACKEND_CODEX)
-        self.assertEqual(call.kwargs.get(EXTRA_ARGS), CODEX_ARGS)
+        self.assertEqual(call.kwargs["options"].extra_args, CODEX_ARGS)
         self._pinned_data = gh.pinned_data(FRESH_DECOMPOSER_ISSUE)
         # Full spec, not the bare backend.
         self.assertEqual(self._pinned_data[DECOMPOSER_AGENT], CODEX_SPEC)
@@ -108,8 +108,8 @@ class FullSpecDecomposerPersistenceTest(
         # Resume call used the stored backend AND the stored args.
         call = mocks[RUN_AGENT].call_args
         self.assertEqual(call.args[0], BACKEND_CODEX)
-        self.assertEqual(call.kwargs.get(RESUME_SESSION_ID), "dec-67021")
-        self.assertEqual(call.kwargs.get(EXTRA_ARGS), CODEX_ARGS)
+        self.assertEqual(call.kwargs["options"].resume_session_id, "dec-67021")
+        self.assertEqual(call.kwargs["options"].extra_args, CODEX_ARGS)
         # Stored spec untouched.
         self.assertEqual(
             gh.pinned_data(RESUMED_DECOMPOSER_ISSUE).get(DECOMPOSER_AGENT),

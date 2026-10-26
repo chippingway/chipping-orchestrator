@@ -102,7 +102,7 @@ class PendingCollapseRouteTest(
         )
         # The developer's own session, resumed on the edit -- not a reviewer.
         self.assertEqual(
-            (resumed.call_count, resumed.call_args.kwargs.get("resume_session_id")),
+            (resumed.call_count, resumed.call_args.kwargs["options"].resume_session_id),
             (1, DEV_SESSION),
         )
         self.assertNotIn(HANDED_ON, github.label_history)

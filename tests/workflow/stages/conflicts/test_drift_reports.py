@@ -317,7 +317,7 @@ class ResolvingConflictDriftReportTest(
                 launch = retried.call_args
                 self.assertIn(_prompt_notes._CONTINUE_RETRY_PROMPT, launch.args[1])
                 self.assertNotIn(f"@alice: {CONTINUE}", launch.args[1])
-                self.assertEqual(launch.kwargs.get("resume_session_id") is None, reason != AGENT_TIMEOUT)
+                self.assertEqual(launch.kwargs["options"].resume_session_id is None, reason != AGENT_TIMEOUT)
 
     def test_a_capped_report_alone_still_settles(self) -> None:
         # The counter has spent every round, and the session answers the edit
@@ -437,7 +437,7 @@ class ResolvingConflictReportReplyTest(
                     self.pinned()[LAST_ACTION],
                     self.issue.comments[-1].id,
                 )
-                self.assertEqual(resumed.kwargs.get("resume_session_id") is None, rotated)
+                self.assertEqual(resumed.kwargs["options"].resume_session_id is None, rotated)
                 stamped = self.records()[PENDING].subject.requirements_revision
                 handed = self.handed()
                 self.assertEqual((stamped, self.pinned()[USER_CONTENT_HASH]), (handed, handed))
@@ -462,8 +462,9 @@ class ResolvingConflictReportReplyTest(
                 self.assertIn(_prompt_notes._CONTINUE_RETRY_PROMPT, retried.args[1])
                 self.assertNotIn(CONTINUE, retried.args[1])
                 pinned = self.pinned()
+                resumed_on = retried.kwargs["options"].resume_session_id
                 self.assertEqual(
-                    (retried.kwargs.get("resume_session_id") is None, pinned[LAST_ACTION], pinned[USER_CONTENT_HASH]),
+                    (resumed_on is None, pinned[LAST_ACTION], pinned[USER_CONTENT_HASH]),
                     (rotated, self.issue.comments[-1].id, self.handed()),
                 )
                 _assert_handed_to_review(self)

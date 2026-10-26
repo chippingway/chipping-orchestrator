@@ -837,7 +837,7 @@ class HandleValidatingAwaitingHumanResumeTest(unittest.TestCase, _PatchedWorkflo
         self.assertEqual(mocks[RUN_AGENT].call_count, 1)
         agent_call = mocks[RUN_AGENT].call_args
         self.assertEqual(agent_call.args[0], BACKEND_CODEX)
-        self.assertEqual(agent_call.kwargs.get("resume_session_id"), DEV_SESSION)
+        self.assertEqual(agent_call.kwargs["options"].resume_session_id, DEV_SESSION)
         self.assertIn("use sqlite please", agent_call.args[1])
         mocks[PUSH_BRANCH].assert_called_once()
         state = github.pinned_data(7)

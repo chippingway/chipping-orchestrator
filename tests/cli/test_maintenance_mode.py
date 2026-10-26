@@ -32,6 +32,7 @@ from unittest.mock import patch
 from orchestrator import cli, config
 from orchestrator.git.worktrees.maintenance_results import MaintenanceOutcome, MaintenanceReason
 from orchestrator.runtime import artifacts, exclusion, shutdown, startup
+from orchestrator.scheduler.models import SubmissionRequest
 from tests.cli.composition_test_support import RUN, composed_run
 from tests.runtime import polling_test_support as _support, refused_pass_support as _refused
 
@@ -78,11 +79,11 @@ class MaintenanceOnlyRunTest(unittest.TestCase):
 
             self.assertTrue(run.state.shutdown_complete.is_set())
             self.assertFalse(
-                run.scheduler.submit(
+                run.scheduler.submit(SubmissionRequest(
                     _support.REPO,
                     _support.UNUSED_ISSUE_NUMBER,
                     lambda: None,
-                ),
+                )),
                 "scheduler was not shut down before main() returned",
             )
 

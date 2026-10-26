@@ -1014,9 +1014,9 @@ The two caps below are the levers:
   issue under the wrong label for as long as the guard stayed on. Invalid values abort at startup.
 
 Both caps are enforced by a single `IssueScheduler` (`orchestrator/scheduler/`) built once at startup and threaded
-through every `workflow.engine.tick.tick` call. New callers may pass a frozen `SubmissionRequest`; the historical
-`submit(repo_slug, issue_number, fn, *, ...)` positional/all-keyword API remains supported. A submit is skipped this
-tick (and retried next pass) when:
+through every `workflow.engine.tick.tick` call. Every caller hands `submit` one frozen `SubmissionRequest` naming
+the repository, the issue, the worker, and its family, cap-exemption, and per-repository-cap fields. A submit is
+skipped this tick (and retried next pass) when:
 
 - the `(repo_slug, issue_number)` pair is already in flight (duplicate-active gate),
 - the global or per-repo cap is reached,

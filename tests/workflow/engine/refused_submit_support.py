@@ -92,10 +92,10 @@ class Scheduler:
         # a worker already holding the issue would have read at that moment.
         self.latched: list[bool] = []
 
-    def submit(self, slug, issue_number, callable_, **_answering) -> bool:
+    def submit(self, request) -> bool:
         """Answer the way this double was asked to, holding the callable."""
-        self.task = callable_
-        self.latched.append(observations.close_observed(slug, issue_number))
+        self.task = request.fn
+        self.latched.append(observations.close_observed(request.repo_slug, request.issue_number))
         return self._admits
 
 

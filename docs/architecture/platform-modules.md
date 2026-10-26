@@ -799,14 +799,15 @@ orchestrator/
     processes.py        the shared process registry, the agent runs spawned into it, and the shutdown sweep
                         that SIGTERMs every registered group before spending the escalation beside it under
                         one deadline
-    runner.py           `run_agent`: backend dispatch, result assembly, and spawn logging
+    runner.py           `run_agent`: backend dispatch handing each backend the caller's `AgentRunOptions`
+                        unchanged, result assembly, and spawn logging
     backends/
       codex.py          Codex command construction, scratch output, and execution
       claude.py         Claude command construction and execution
       agy.py            Antigravity command construction, terminal-result gating, the failure record a
                         failed run carries, and conversation resumes
   scheduler/            publishes `IssueScheduler` and `SubmissionRequest` from their defining owners
-    models.py           the typed submission, the historical `submit` binding, and field normalization
+    models.py           the typed submission `submit` takes, and its field normalization
     service.py          the concrete scheduler: the caps, the tracked claims, the family mutex, dispatch, and
                         shutdown, plus the reversible maintenance barrier -- both admission paths closed, the
                         already-admitted work waited out within one finite bound, and the hold given back around
@@ -945,7 +946,7 @@ orchestrator/
                         before that park keeps the attempt -- and whether a park a stage left
                         still owes a standing anchor its recovery -- which the workflow's recovery coordinator
                         runs; a terminal PR ends an anchored attempt's whole handoff through `terminal_handoff`
-      pre_pr.py         the hardened rebase / merge probes and the aborting pre-PR local rebase
+      pre_pr.py         the hardened rebase and rebase-state probes and the aborting pre-PR local rebase
       startup.py        the pre-rebase HEAD guard, and the anchor, the attempt's terms, and the base tip the rebase
                         will replay onto -- frozen off `<remote>/<base>` and blanked where that ref moved while git
                         ran -- persisted before git runs: the write that spends the reply a park of the refresh's
@@ -1677,5 +1678,5 @@ off a facade:
   `recovery_push` calls one of the three, to read a recovery's candidate: the workflow's publication, retry, and
   recovery of a landed push read, publish, and observe through them, and its evidence proof
   (`workflow/engine/rewrite_evidence_proof.py`) reads a landed head's base standing through `rewrite_facts`. The
-  keyword-call adapter here — the conflict route — like the PR sync on the workflow's coordinator, still takes the
-  argument list its caller spells and normalizes it into the typed context entry point beside it.
+  conflict route takes the `_ConflictRouteContext` its caller in `startup` builds, as the PR sync on the workflow's
+  coordinator takes the `_AutoRebaseRequest` the refresh builds, each as its one signature.

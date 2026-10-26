@@ -12,6 +12,7 @@ from unittest.mock import patch
 from orchestrator import cli, config
 from orchestrator.agents import processes as _agent_processes
 from orchestrator.runtime import artifacts, loop, shutdown
+from orchestrator.scheduler.models import SubmissionRequest
 from tests.cli.composition_test_support import RUN, RUN_ONCE, composed_run
 from tests.runtime import polling_test_support as _support
 
@@ -172,11 +173,11 @@ class ComposedExitTest(unittest.TestCase):
             run.main()
 
             self.assertFalse(
-                run.scheduler.submit(
+                run.scheduler.submit(SubmissionRequest(
                     _support.REPO,
                     _support.UNUSED_ISSUE_NUMBER,
                     lambda: None,
-                ),
+                )),
                 "scheduler was not shut down before main() returned",
             )
 

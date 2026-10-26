@@ -803,7 +803,7 @@ class HandleValidatingReviewerUsageLimitTest(unittest.TestCase, _PatchedWorkflow
         ran = self._ticks(github, issue)[RUN_AGENT].call_args
 
         self.assertEqual(ran.args[0], config.REVIEW_AGENT)
-        self.assertIsNone(ran.kwargs.get("resume_session_id"))
+        self.assertIsNone(ran.kwargs["options"].resume_session_id)
         self.assertEqual(_spawned_roles(github), [ROLE_REVIEWER])
         released = github.pinned_data(QUOTA_ISSUE)
         self.assertEqual(

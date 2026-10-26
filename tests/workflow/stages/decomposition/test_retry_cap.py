@@ -139,9 +139,8 @@ class ContinuationTest(unittest.TestCase, support._RetryCapParkCase):
         # A fresh conversation rather than a resume: the park was taken by the
         # spawn gate, so what it owes the issue is the spawn it refused.
         mocks[RUN_AGENT].assert_called_once()
-        self.assertIsNone(
-            mocks[RUN_AGENT].call_args.kwargs.get("resume_session_id"),
-        )
+        launch = mocks[RUN_AGENT].call_args
+        self.assertIsNone(launch.kwargs["options"].resume_session_id)
         pinned = self._pinned()
         self.assertEqual(
             {key: pinned.get(key) for key in GRANT_SPENT},

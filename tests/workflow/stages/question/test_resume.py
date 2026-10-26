@@ -35,7 +35,6 @@ CLEANUP_QUESTION_WORKTREE = "_cleanup_question_worktree"
 PUSH_BRANCH = "_push_branch"
 RUN_AGENT = "run_agent"
 WORKTREE_PATH = "_worktree_path"
-RESUME_SESSION_ID = "resume_session_id"
 
 UNEXPECTED_AGENT_MESSAGE = "should not run"
 QUESTION_TEXT = "Where does X live?"
@@ -187,7 +186,7 @@ class HandleQuestionAwaitingHumanResumeTest(
         # Resume hit the locked session id of the prior tick.
         spawn_call = mocks[RUN_AGENT].call_args
         self.assertEqual(
-            spawn_call.kwargs.get(RESUME_SESSION_ID),
+            spawn_call.kwargs["options"].resume_session_id,
             QUESTION_SESSION,
         )
         # The resume prompt (positional arg 1) quotes the human's reply

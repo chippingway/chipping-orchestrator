@@ -125,7 +125,7 @@ class DiscussionFirstRoundTest(unittest.TestCase, _DiscussionWorkflowMixin):
         call = mocks[_support.RUN_AGENT].call_args
         self.assertEqual(call.args[0], config.DECOMPOSE_AGENT)
         self.assertEqual(
-            call.kwargs.get("extra_args"), config.DECOMPOSE_AGENT_ARGS,
+            call.kwargs["options"].extra_args, config.DECOMPOSE_AGENT_ARGS,
         )
         # One run means one role: nothing implements or reviews a design the
         # humans have not confirmed yet.

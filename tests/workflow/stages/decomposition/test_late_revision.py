@@ -66,7 +66,7 @@ class DeveloperResumeTest(RevisionCase):
         self.assertEqual(outcome.disposition, _LateDisposition.REVISED)
         spawn.assert_called_once()
         self.assertEqual(
-            spawn.call_args.kwargs["resume_session_id"], _stage_support.DEV_SESSION,
+            spawn.call_args.kwargs["options"].resume_session_id, _stage_support.DEV_SESSION,
         )
 
     def test_the_run_is_a_developer_decomposing(self) -> None:

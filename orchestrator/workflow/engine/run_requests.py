@@ -9,8 +9,8 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
+from orchestrator.agents import models as _agent_models
 from orchestrator.workflow.engine import (
     run_budget_models as _run_budget_models,
 )
@@ -76,12 +76,16 @@ class _AgentRunRequest:
             agent_role=self.agent_role,
         )
 
+    @property
+    def run_options(self) -> _agent_models.AgentRunOptions:
+        """The runner's optional controls: the session it continues, its deadline, and the spec's arguments.
 
-def _agent_run_kwargs(request: _AgentRunRequest) -> dict[str, Any]:
-    """Forward only optional runner kwargs that the caller supplied."""
-    kwargs: dict[str, Any] = {"extra_args": request.extra_args}
-    if request.resume_session_id is not None:
-        kwargs["resume_session_id"] = request.resume_session_id
-    if request.timeout is not None:
-        kwargs["timeout"] = request.timeout
-    return kwargs
+        None of the audit or analytics context rides along -- the runner never
+        reads it -- and no environment is added, so the spawn runs under the
+        filtered environment every agent gets.
+        """
+        return _agent_models.AgentRunOptions(
+            resume_session_id=self.resume_session_id,
+            timeout=self.timeout,
+            extra_args=self.extra_args,
+        )

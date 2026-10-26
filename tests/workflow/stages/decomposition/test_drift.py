@@ -428,8 +428,8 @@ class DecomposingHashChangeResetsSessionTest(
 
         # The decomposer ran fresh (no resume of the stale session).
         mocks["run_agent"].assert_called_once()
-        kwargs = mocks["run_agent"].call_args.kwargs
-        self.assertIsNone(kwargs.get("resume_session_id"))
+        launch = mocks["run_agent"].call_args
+        self.assertIsNone(launch.kwargs["options"].resume_session_id)
         state = gh.pinned_data(DECOMPOSING_DRIFT_ISSUE_NUMBER)
         # The new session id from the fresh spawn was persisted, not the
         # stale one.

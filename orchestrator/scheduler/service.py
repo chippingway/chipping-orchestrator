@@ -30,7 +30,6 @@ import time
 from collections import defaultdict
 from collections.abc import Iterator
 from concurrent.futures import Future, ThreadPoolExecutor
-from typing import Any
 
 from orchestrator.scheduler import models
 
@@ -323,9 +322,8 @@ class _SchedulerBarrierMixin(_SchedulerReservationMixin):
 class _SchedulerExecutionMixin(_SchedulerBarrierMixin):
     """Worker dispatch, completion draining, and shutdown coordination."""
 
-    def submit(self, *args: Any, **kwargs: Any) -> bool:
-        """Dispatch a typed request or the historical submit call shape."""
-        request = models.bind_submission_request(args, kwargs)
+    def submit(self, request: models.SubmissionRequest) -> bool:
+        """Admit and dispatch one issue worker, or log why it was skipped."""
         submission = models.normalize_submission(
             request,
             self._per_repo_cap,
@@ -429,6 +427,3 @@ class IssueScheduler(_SchedulerExecutionMixin):
         # both admission paths -- the counted submit and the tracked claim --
         # since the pass behind it is entitled to the absence of both.
         self._barred = False
-
-
-IssueScheduler.submit.__signature__ = models._SUBMIT_METHOD_SIGNATURE
