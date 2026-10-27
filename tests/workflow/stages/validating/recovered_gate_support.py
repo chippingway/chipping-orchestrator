@@ -99,6 +99,7 @@ REVIEW_ROUND = "review_round"
 # retired by the write that granted them.
 KEY_APPROVED_SHA = "late_approved_sha"
 KEY_APPROVED_LEASE = "late_approved_lease"
+KEY_APPROVED_BASIS = "late_approved_basis"
 
 # The receipt a landed gated push writes: the commit that reached the remote,
 # the head that push replaced, and the pull request it went onto. The three
@@ -222,6 +223,7 @@ class _RecoveredPublicationMixin(
             **{
                 KEY_APPROVED_SHA: STRANDED_CANDIDATE,
                 KEY_APPROVED_LEASE: PUBLICATION_HEAD,
+                KEY_APPROVED_BASIS: "reading",
                 **extra_state,
             },
         )

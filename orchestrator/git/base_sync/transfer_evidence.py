@@ -54,12 +54,11 @@ def _rewritten_by_the_rebase(
 
     Empty where either half cannot be shown, and that is a claim withheld
     rather than a refusal reported. A comment with no semantic record -- an
-    issue that never earned an exemption, one written before the record
-    existed, one whose fingerprint could not be taken -- has no accepted pair
-    to name, and a base the remote would not name, or one this host does not
-    hold even after a fetch, is no commit to read a contribution over. In both
-    the rebase goes to the ordinary cumulative gate and is measured like any
-    other candidate.
+    issue that never earned an exemption, or a settlement whose fingerprint
+    could not be taken -- has no accepted pair to name, and a base the remote
+    would not name, or one this host does not hold even after a fetch, is no
+    commit to read a contribution over. In both the rebase goes to the
+    ordinary cumulative gate and is measured like any other candidate.
 
     The PUBLICATION is the caller's where it hands one in, and that is the
     difference between the tick that makes the rewrite and the tick that comes

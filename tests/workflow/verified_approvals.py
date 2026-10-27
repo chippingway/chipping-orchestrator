@@ -48,9 +48,11 @@ CHECKOUT = EXISTING_CHECKOUT
 
 TREE = _FAKE_TREE_SHA
 
-# The stamps the final-docs pass behind an approval leaves, which the approval
-# itself retires: a case that seeded them is set after that pass.
-_DOCS_STAMPS = ("docs_checked_sha", "docs_verdict")
+# The stamps the final-docs pass behind an approval leaves -- its verdict, and
+# the receipt and lease of a commit it published and still owes the completion
+# of -- which the approval itself retires: a case that seeded them is set after
+# that pass.
+_DOCS_STAMPS = ("docs_checked_sha", "docs_verdict", "docs_settled_sha", "docs_settled_lease")
 
 
 def proving(github, issue) -> dict:

@@ -30,7 +30,9 @@ class IneligibleLabelTest(seed.TransferCase):
 
     def setUp(self) -> None:
         super().setUp()
-        self._fresh(pending_rewrite=seed.ABSENT)
+        # The terms an attempt pins with its anchor, and nothing past them:
+        # an attempt that never got as far as git.
+        self._fresh(pending_rewrite=seed.DECLARED)
         self.state.set(_recovery_cases.ANCHOR_KEY, seed.ACCEPTED_SHA)
 
     def test_an_untouched_anchor_is_cleared(self) -> None:
@@ -60,9 +62,12 @@ class IneligibleLabelTest(seed.TransferCase):
         for described, recorded, granted, announced, head in (
             ("a recorded replay", seed.RECORDED, False, "", seed.ACCEPTED_SHA),
             ("a damaged record", seed.DAMAGED, False, "", seed.ACCEPTED_SHA),
-            ("an announcement", seed.ABSENT, False, seed.REPLAYED_SHA, seed.ACCEPTED_SHA),
-            ("an unspent permission", seed.ABSENT, True, "", seed.ACCEPTED_SHA),
-            ("a moved checkout", seed.ABSENT, False, "", seed.REPLAYED_SHA),
+            ("an announcement", seed.DECLARED, False, seed.REPLAYED_SHA, seed.ACCEPTED_SHA),
+            ("an unspent permission", seed.DECLARED, True, "", seed.ACCEPTED_SHA),
+            ("a moved checkout", seed.DECLARED, False, "", seed.REPLAYED_SHA),
+            # No attempt leaves its anchor without the terms, so a clear would
+            # discard a record nothing can account for.
+            ("an anchor with no terms", seed.ABSENT, False, "", seed.ACCEPTED_SHA),
         ):
             with self.subTest(described):
                 self._fresh(pending_rewrite=recorded)

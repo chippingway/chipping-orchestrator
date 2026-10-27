@@ -123,6 +123,9 @@ never taken over the comment as it stands with less beside it: its write is
 what makes the squash's own record drop durable, so a comment with no room for
 it is posted on and written to not at all -- the tick that died before its
 write, which the squash recovery already answers.
+
+The same park is taken through the same writer ahead of anything that would
+publish a recorded squash no approval stands behind (`squash_approval`).
 """
 from __future__ import annotations
 

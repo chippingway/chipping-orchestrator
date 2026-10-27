@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 from orchestrator import config
 from tests.support.fakes import FakeGitHubClient, FakePR, FakePRRef, FakePRReview, FakeUser, make_issue
-from tests.workflow import verified_approvals as _verified
+from tests.workflow import approval_records as _approval_records, verified_approvals as _verified
 from tests.workflow.fixtures import _agent, _issue_branch, _PatchedWorkflowMixin
 
 REVIEW_SUMMARY_ISSUE = 90
@@ -59,6 +59,7 @@ class _ReviewSummaryFixtureMixin(_PatchedWorkflowMixin):
         github.seed_state(
             REVIEW_SUMMARY_ISSUE,
             pr_number=REVIEW_SUMMARY_PR,
+            **_approval_records.approved_in_review(issue, REVIEW_SUMMARY_PR),
             branch=_issue_branch(REVIEW_SUMMARY_ISSUE),
             dev_agent="claude",
             dev_session_id="dev-sess",

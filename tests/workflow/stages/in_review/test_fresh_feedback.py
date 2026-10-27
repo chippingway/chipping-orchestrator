@@ -27,7 +27,7 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
-from tests.workflow import verified_approvals as _verified
+from tests.workflow import approval_records as _approval_records, verified_approvals as _verified
 from tests.workflow.fixtures import (
     _TEST_SPEC,
     LABEL_FIXING,
@@ -54,6 +54,9 @@ DRIFT_FEEDBACK_WATERMARK = 6999
 REVIEWED_SHA = "cafe1234" * 5
 CHECKS_SUCCESS = "success"
 HUMAN_LOGIN = "alice"
+# The requirements revision the approval was given, before the human comment
+# the thread now carries.
+_BEFORE_THE_COMMENT = _approval_records.STALE_REQUIREMENTS
 
 
 class _FreshFeedbackFixtureMixin(_PatchedWorkflowMixin):
@@ -78,6 +81,7 @@ class _FreshFeedbackFixtureMixin(_PatchedWorkflowMixin):
             "pr_last_comment_id": FEEDBACK_WATERMARK,
             "pr_last_review_comment_id": 0,
             "pr_last_review_summary_id": 0,
+            **_approval_records.approved_in_review(issue, pr.number),
         }
         if extra_state:
             seed_state.update(extra_state)
@@ -127,7 +131,7 @@ class _FreshFeedbackFixtureMixin(_PatchedWorkflowMixin):
             pr_last_comment_id=DRIFT_FEEDBACK_WATERMARK,
             pr_last_review_comment_id=0,
             pr_last_review_summary_id=0,
-            user_content_hash="stale-hash-from-before-the-human-comment",
+            **_approval_records.approved_in_review(issue, DRIFT_FEEDBACK_PR, baseline=_BEFORE_THE_COMMENT),
         )
         return github, issue
 
@@ -352,7 +356,7 @@ class InReviewRoutesFreshFeedbackToFixingTest(
         # handler (or an operator) bounces the issue back to `in_review`.
         self.assertNotEqual(
             pinned_state.get("user_content_hash"),
-            "stale-hash-from-before-the-human-comment",
+            _BEFORE_THE_COMMENT,
         )
 
 

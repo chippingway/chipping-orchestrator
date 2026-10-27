@@ -276,8 +276,18 @@ def _record_stops_the_tick(
     that holds the tick is the base sync's to say; it sits below this
     layer, so it is bound at module scope.
 
-    It is asked again BEHIND the reconciliation, because the late claim that
-    released it may be the very record the reconciliation spends. A pair the
+    A squash `validating` recorded is asked beside it, ahead of the
+    reconciliation too, on every label that reconciliation publishes from:
+    the debt or frozen pair its size gate recorded before the push is that
+    squash's own push, and the reconciliation would pay it before the stage's
+    recovery could hold it to the approval the squash was begun under, or
+    from a stage a relabel moved the issue to. Whether an approval still
+    stands behind it is the stage's to say
+    (`stages/validating/squash_approval.py`), which parks a squash no approval
+    stands behind and stops the tick.
+
+    The anchor is asked again BEHIND the reconciliation, because the late
+    claim that released it may be the very record the reconciliation spends. A pair the
     size gate froze on an interrupted rebase's own head is one: settled here
     by the leased push it earns, it leaves the pull request carrying the
     replay and the anchor still pinned, and the handler behind would run
@@ -323,7 +333,9 @@ def _record_stops_the_tick(
             spec.slug, issue.number, label,
         )
         return True
-    if _anchor_holds_the_tick(gh, spec, issue, label, state):
+    if _anchor_holds_the_tick(gh, spec, issue, label, state) or importlib.import_module(
+        _stage_targets._VALIDATING_SQUASH_APPROVAL_OWNER,
+    ).holds_the_dispatch(gh, spec, issue, label, state):
         return True
     late_reconcile = importlib.import_module(_stage_targets._LATE_RECONCILE_OWNER)
     if late_reconcile._reconciles_published_work(

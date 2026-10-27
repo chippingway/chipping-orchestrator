@@ -36,9 +36,10 @@ retained on the unchanged head, a run of the docs commit, or, under an empty
 configuration, nothing but the tree no run tested. Each pings once with the
 approval, its claim, and its report left as they were. A plain docs stamp on
 a docs commit no completion names, a damaged completion, a run that failed or
-is still owed, the approval's claim gone, the suite configured since a pass
-that ran under none, a push past the final head, and a docs commit that does
-not descend from the head the pass was entered on each ping nobody, and so
+is still owed, the suite configured since a pass that ran under none, a push
+past the final head, and a docs commit that does not descend from the head the
+pass was entered on each ping nobody -- an approval whose claim is gone is
+handed back for review before any of this is asked -- and so
 does everything above that lands while the gate decides, behind the
 checkpoints, on a recovered attempt, or behind the proof's last reading. A
 reply beside a completion is still feedback, and a standing veto still holds
@@ -122,9 +123,9 @@ _MOVED_BINDINGS = (
 # completion names, on either changed head; a completion damaged beside a docs
 # stamp on a head the approval's own evidence answers for, which the ordinary
 # proof would ping; a run of the docs commit that failed, or is still owed;
-# the approval's claim gone; the suite configured since a pass that ran under
-# none; a push past the final head that GitHub approves; and a docs commit
-# that does not descend from the head the pass was entered on.
+# the suite configured since a pass that ran under none; a push past the final
+# head that GitHub approves; and a docs commit that does not descend from the
+# head the pass was entered on.
 _A_PLAIN_STAMP = (completion.CompletionEdits.drops_the_completion, completion.CompletionEdits.stamps_the_docs)
 
 _COMPLETION_REFUSALS = (
@@ -136,10 +137,6 @@ _COMPLETION_REFUSALS = (
     ),
     ("a failed run", completion.EXECUTED, {"run": completion.FAILED_RUN}, ()),
     ("a run still owed", completion.EXECUTED, {"settled": False}, ()),
-    (
-        "the approval's claim gone", completion.EXECUTED, {},
-        (partial(support.RecordEdits.restates, **{completion.APPROVED_EVIDENCE: None}),),
-    ),
     ("the suite configured since", completion.UNCONFIGURED, {}, (completion.WorldMoves.configures_the_suite,)),
     ("a push approved on GitHub", completion.EXECUTED, {}, (completion.WorldMoves.pushes_approved_on_github,)),
     ("no descent", completion.UNCONFIGURED, {}, (completion.WorldMoves.descends_nowhere,)),
@@ -157,7 +154,7 @@ _UNPASSING = (
 
 # Each of those on either route, with the approval's claim naming the evidence
 # and with no claim recorded at all.
-_UNPASSING_CASES = tuple(product(support.ROUTES, _UNPASSING, (True, False)))
+_UNPASSING_CASES = tuple(product(support.ROUTES, _UNPASSING))
 
 # What lands while the gate asks GitHub about the pull request: a push, the
 # issue edited, the report edited, the artifact edited or deleted, and the
@@ -285,11 +282,11 @@ class _Unanswered:
             self._refused.stop()
 
 
-def _unpassing(commands: tuple | None, *, claimed: bool):
-    """The move leaving the current evidence carrying `commands` -- or none at all, for None -- `claimed` or not."""
+def _unpassing(commands: tuple | None):
+    """The move leaving the current evidence carrying `commands` -- or none at all, for None -- the claim naming it."""
     if commands is None:
-        return partial(support.RecordEdits.drops_the_evidence, claimed=claimed)
-    return partial(support.RecordEdits.rewrites_the_evidence, commands=commands, claimed=claimed)
+        return support.RecordEdits.drops_the_evidence
+    return partial(support.RecordEdits.rewrites_the_evidence, commands=commands)
 
 
 class ReadinessProofTest(completion._CompletionFixture, unittest.TestCase):
@@ -352,21 +349,21 @@ class ReadinessProofTest(completion._CompletionFixture, unittest.TestCase):
 
     def test_unpassing_evidence_withholds(self) -> None:
         # The record and its artifact each describe the other, so the evidence
-        # proves current, and what its commands say is what refuses it --
-        # whether the approval's claim names it, or the approval was never
-        # held to any evidence at all.
-        for route, (name, commands), claimed in _UNPASSING_CASES:
-            with self.subTest(route=route, evidence=name, claimed=claimed):
-                self.withheld_over(route, _unpassing(commands, claimed=claimed))
+        # proves current, and what its commands say is what refuses it, with
+        # the approval's claim naming it. An approval with no claim at all is
+        # handed back before the proof is asked (`test_report_freshness`).
+        for route, (name, commands) in _UNPASSING_CASES:
+            with self.subTest(route=route, evidence=name):
+                self.withheld_over(route, _unpassing(commands))
 
     def test_nothing_run_never_passes_unconfigured(self) -> None:
         # With no `VERIFY_COMMANDS` configured, a record that nothing ran
         # still covers the configuration -- and is still no evidence that
         # anything passed.
-        for route, claimed in product(support.ROUTES, (True, False)):
-            with self.subTest(route=route, claimed=claimed):
+        for route in support.ROUTES:
+            with self.subTest(route=route):
                 self.enterContext(patch.object(config, "VERIFY_COMMANDS", ()))
-                self.withheld_over(route, _unpassing((), claimed=claimed))
+                self.withheld_over(route, _unpassing(()))
 
 
 class LateReadinessTest(completion._CompletionFixture, unittest.TestCase):

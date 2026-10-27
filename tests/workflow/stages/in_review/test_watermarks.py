@@ -18,6 +18,7 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
+from tests.workflow import approval_records as _approval_records
 from tests.workflow.fixtures import (
     _agent,
     _PatchedWorkflowMixin,
@@ -236,6 +237,7 @@ class InReviewParkWatermarkTest(unittest.TestCase, _PatchedWorkflowMixin):
         gh.seed_state(
             PARK_ISSUE,
             pr_number=PARK_PR,
+            **_approval_records.approved_in_review(issue, PARK_PR),
             branch=PARK_BRANCH,
             dev_agent="claude",
             dev_session_id="dev-sess",
@@ -263,6 +265,7 @@ class _SplitWatermarkFixtureMixin(_PatchedWorkflowMixin):
             "branch": SPLIT_WATERMARK_BRANCH,
             "dev_agent": "claude",
             "dev_session_id": "dev-sess",
+            **_approval_records.approved_in_review(issue, SPLIT_WATERMARK_PR),
         }
         if state_extra:
             state.update(state_extra)

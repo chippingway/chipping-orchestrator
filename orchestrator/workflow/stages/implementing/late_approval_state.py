@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Write publication approval coordinates together and retain their existing basis.
 
-An approval already naming the candidate keeps its known, unknown, or
-legacy basis. Clearing the approval also clears route spends, since those
-steps are owed only by that publication.
+An approval already naming the candidate keeps its basis exactly as the
+record holds it, readable or not. Clearing the approval also clears route
+spends, since those steps are owed only by that publication.
 """
 from __future__ import annotations
 
@@ -41,18 +41,13 @@ def _approve(
     the same on every road, and a reader can tell them apart only if the
     writer said so.
 
-    `None` is a caller that has an approval to re-record and NO grounds to
-    record for it, which is the shape an older build left. It goes down as an
-    absence rather than as a value, because the two say opposite things to the
-    reader: a basis names a decision, while an absence hands the question to
-    the exemption beside it -- and a caller inventing one here would answer a
-    question it was never in a position to.
-
-    A bare string is the third of those and is written back unchanged: a
-    caller carrying forward a basis this build cannot read is preserving the
-    record's own claim to grounds it cannot name, which the readers fail
-    closed on. Turned into either of the two above it would become a decision
-    nobody made or an absence the exemption answers for.
+    `None` and a bare string are a caller carrying forward the basis a
+    standing approval holds where that basis does not read -- the field
+    absent or `null`, or a value outside the vocabulary -- and each is written
+    back as it was: the record's own claim to grounds it cannot show, which
+    the readers fail closed on (`_unreadable_approval`). A caller inventing a
+    basis here would answer a question it was never in a position to, and
+    turn that claim into a decision nobody made.
     """
     state.set(_state._APPROVED_SHA, candidate_sha)
     state.set(_state._APPROVED_LEASE, lease or None)
@@ -74,12 +69,10 @@ def _owes_a_publication(
 
     The grounds are CARRIED where an approval already stands for this very
     commit, since nothing about a checkout that moved changes what the
-    publication was allowed on -- and an approval that never said what it
-    rested on is carried as saying nothing, not upgraded. An older build wrote
-    exactly that shape, and what a reader owes it is the exemption beside it
-    rather than a claim this write invented: turned into `unmeasured` here, a
-    legacy record would stop being read as unknown and become debt this
-    workflow owns, which is a bypass nobody would ever revalidate.
+    publication was allowed on -- and an approval whose basis does not read is
+    carried as it stands, not upgraded: turned into `unmeasured` here, a claim
+    the readers refuse would become debt this workflow owns, which is a bypass
+    nobody would ever revalidate.
 
     Where no approval stands for the commit, the grounds are the record's.
     The exemption CLAIM decides -- presence, not readability, since a field a
@@ -134,26 +127,25 @@ def _standing_basis(
     about a checkout that stopped being what went out changes the grounds a
     publication was allowed on.
 
-    None where the record never said, which is the shape an older build left
-    and the one the exemption beside it answers for. Answered `unmeasured`
-    instead, an unknown would be promoted to a decision nobody made: the
-    reader would stop falling back, and a legacy `late_approved_sha` standing
-    over the very commit an exemption names would read as debt this workflow
-    owns and be spent without anybody being asked.
-
-    A value this build cannot read is handed back VERBATIM rather than as
-    either of those. It is neither a decision nor an absence -- it is a record
-    claiming grounds it cannot name -- and the readers fail closed on exactly
-    that shape. Rewritten as an absence here, one carry-forward would launder
-    the damage into the legacy road and the next tick would spend the debt
+    A basis that does not read -- absent, `null`, or a value this build
+    cannot name -- is handed back VERBATIM: it is no decision, it is a record
+    claiming grounds it cannot show, and the readers fail closed on exactly
+    that shape. Answered `unmeasured` instead, one carry-forward would promote
+    it to a decision nobody made, and the next tick would spend the debt
     without asking anyone.
+
+    Where no approval stands at all -- the whole group null, the record of no
+    transaction -- there are no grounds to carry, and the answer is what a
+    debt minted now rests on (`_minted_basis`): a claim put back over a landed
+    commit no debt was standing for is the push a record this workflow made
+    licensed, or the adjudication's, never one without a basis.
     """
+    if all(state.get(key) is None for key in _late_approval_reading._APPROVAL_KEYS):
+        return _minted_basis(state)
     standing = _late_approval_reading._approved_basis(state)
     if standing:
         return _late_approval_reading.LateApprovalBasis(standing)
-    if _late_approval_reading._unreadable_basis(state):
-        return state.get(_state._APPROVED_BASIS)
-    return None
+    return state.get(_state._APPROVED_BASIS)
 
 
 def _forget_approval(state: _pinned_state.PinnedState) -> None:

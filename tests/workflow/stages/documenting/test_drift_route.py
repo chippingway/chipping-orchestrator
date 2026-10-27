@@ -21,6 +21,7 @@ from tests.workflow.stages.documenting.documenting_drift_test_support import (
     _run_drift_reconcile,
 )
 from tests.workflow.stages.documenting.documenting_scenario_test_support import (
+    STALE_BODY_HASH,
     _DocumentingDriftFixture,
 )
 from tests.workflow.stages.documenting.documenting_test_support import (
@@ -199,7 +200,7 @@ class HandleDocumentingDriftRouteTest(unittest.TestCase, _DocumentingDriftFixtur
         # Drift hash updated -- a second tick would not re-fire drift.
         self.assertNotEqual(
             state.get("user_content_hash"),
-            "stale-hash-from-original-body",
+            STALE_BODY_HASH,
         )
 
     def test_a_relabel_alone_settles_no_human_input(self) -> None:
@@ -235,7 +236,7 @@ class HandleDocumentingDriftRouteTest(unittest.TestCase, _DocumentingDriftFixtur
         # says this stage has already rerouted for the edit, so the next poll
         # does not announce the same one again.
         self.assertNotEqual(
-            state.get("user_content_hash"), "stale-hash-from-original-body",
+            state.get("user_content_hash"), STALE_BODY_HASH,
         )
 
     def test_unparked_body_edit_routes_to_validating(self) -> None:
@@ -260,7 +261,7 @@ class HandleDocumentingDriftRouteTest(unittest.TestCase, _DocumentingDriftFixtur
         pinned_state = gh.pinned_data(self.issue_number)
         self.assertNotEqual(
             pinned_state.get("user_content_hash"),
-            "stale-hash-from-original-body",
+            STALE_BODY_HASH,
         )
         self.assertIn(
             USER_CONTENT_CHANGED,

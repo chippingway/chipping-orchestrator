@@ -7,10 +7,11 @@ from __future__ import annotations
 import contextlib
 import subprocess
 from pathlib import Path
+from types import MappingProxyType
 from unittest.mock import patch
 
 from orchestrator.config import models as _config_models
-from orchestrator.git.base_sync import models
+from orchestrator.git.base_sync import attempt_records as _attempt_records, models
 from tests.git.base_sync.refresh_test_support import GATE_CANDIDATE_SHA
 from tests.support.fakes import (
     FakeComment,
@@ -68,6 +69,12 @@ KEY_AWAITING_HUMAN = "awaiting_human"
 KEY_PARK_REASON = "park_reason"
 
 KEY_PENDING_PUSH_SHA = "pending_auto_base_rebase_push_sha"
+KEY_REWRITE_PR = "pending_auto_base_rebase_rewrite_pr"
+KEY_REWRITE_STAGE = "pending_auto_base_rebase_rewrite_stage"
+
+# The terms an attempt records beside its anchor: the pull request it
+# publishes onto and the stage it was entered from.
+_ATTEMPT_TERMS = MappingProxyType({KEY_REWRITE_PR: PR_NUMBER, KEY_REWRITE_STAGE: LABEL})
 
 KEY_REVIEW_ROUND = "review_round"
 
@@ -106,13 +113,15 @@ def _recovery_context(
     """Seed issue #7 with PR #42 pinned and wrap it in a recovery context.
 
     `state_fields` merge into the pinned state, so a test names only the
-    fields its case reads back.
+    fields its case reads back -- over the terms the attempt behind the
+    anchor recorded in that anchor's own write, as every attempt does, which
+    the context reads back as its record.
     """
     gh = FakeGitHubClient()
     issue = make_issue(ISSUE, label=LABEL)
     gh.add_issue(issue)
     gh.seed_state(
-        ISSUE, pr_number=PR_NUMBER, branch=BRANCH, **state_fields,
+        ISSUE, pr_number=PR_NUMBER, branch=BRANCH, **{**_ATTEMPT_TERMS, **state_fields},
     )
     # The pull request the recovered push joins. A number in pinned state
     # with nothing behind it is a state the size gate refuses before any
@@ -134,6 +143,7 @@ def _recovery_context(
         pending_pre_rebase_sha=PRE_REBASE_SHA,
         behind=behind,
         unparking_consumed_max=unparking_consumed_max,
+        pending_rewrite=_attempt_records._pending_rewrite(gh.read_pinned_state(issue)),
     )
 
 
@@ -162,6 +172,9 @@ def _sync_context(
             ),
         )
     gh.add_issue(issue)
+    if pending_pre_rebase_sha or KEY_PENDING_PUSH_SHA in state_fields:
+        # The terms every attempt records in its anchor's own write.
+        state_fields = {**_ATTEMPT_TERMS, KEY_REWRITE_STAGE: label, **state_fields}
     gh.seed_state(
         ISSUE, pr_number=PR_NUMBER, branch=BRANCH, **state_fields,
     )

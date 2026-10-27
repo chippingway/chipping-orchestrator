@@ -39,6 +39,8 @@ UNKNOWN_COMPARISON = "_reject_unknown_recovery_comparison"
 DIVERGED = "_park_diverged_recovery"
 RETRY = "retries"
 RECOVERS = "recovers"
+UNREADABLE_CHECKOUT = "answers_an_unreadable_checkout"
+ABORT = "_abort_recovery_unverified"
 
 RETRY_COMMENT_ID = 200
 
@@ -63,11 +65,25 @@ ROUTE_CASES = (
 )
 
 _OWNERS = MappingProxyType({
+    ABORT: snapshot,
     CLEAR_INELIGIBLE: snapshot,
     CLEAR_UNCHANGED: snapshot,
     COMPLETE_SNAPSHOT: snapshot,
     FETCH_SNAPSHOT: snapshot,
 })
+
+
+def _entered_termless(entry: str):
+    """Enter the recovery at `entry` over an anchor with no terms; its context, and whether it owns the tick."""
+    termless = {fixtures.KEY_REWRITE_PR: None, fixtures.KEY_REWRITE_STAGE: None}
+    if entry == RECOVERS:
+        context = fixtures._recovery_context(**termless)
+        return context, _rewrite_recovery.recovers(context)
+    context = fixtures._sync_context(
+        pending_pre_rebase_sha=fixtures.PRE_REBASE_SHA,
+        **{fixtures.KEY_PENDING_PUSH_SHA: fixtures.PRE_REBASE_SHA, **termless},
+    )
+    return context, _rewrite_recovery.answers_an_unreadable_checkout(context, None)
 
 
 def _handled(recovered: bool = True) -> MagicMock:
@@ -195,6 +211,28 @@ class RecoveryComparisonTest(unittest.TestCase):
 
         for unselected in selected.values():
             unselected.assert_not_called()
+
+
+    def test_an_anchor_with_no_terms_takes_no_road(self) -> None:
+        # No attempt leaves its anchor without the pull request and stage it
+        # was made for, so nothing says whose the branch is: the comparison is
+        # never taken, the fail-closed abort never resets, and the anchor
+        # parks for a human, its record kept.
+        for entry in (RECOVERS, UNREADABLE_CHECKOUT):
+            with self.subTest(entry=entry):
+                selected = {FETCH_SNAPSHOT: MagicMock(), ABORT: MagicMock()}
+
+                with _every_answer(selected), _routed(
+                    **{FETCH_SNAPSHOT: selected[FETCH_SNAPSHOT], ABORT: selected[ABORT]},
+                ):
+                    context, owned = _entered_termless(entry)
+
+                self.assertTrue(owned)
+                for untaken in selected.values():
+                    untaken.assert_not_called()
+                self.assertEqual(
+                    context.gh.pinned_data(fixtures.ISSUE)[fixtures.KEY_PARK_REASON], "auto_base_rebase_failed",
+                )
 
 
 class RecoveryDecisionTest(unittest.TestCase):

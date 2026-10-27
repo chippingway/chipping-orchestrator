@@ -25,6 +25,7 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
+from tests.workflow import approval_records as _approval_records
 from tests.workflow.fixtures import (
     DEFAULT_PR_HEAD_SHA,
     LABEL_IN_REVIEW,
@@ -62,7 +63,7 @@ READ_THROUGH = 100
 EARLIER_REPLY_ID = 50
 
 UPDATED_BODY = "new acceptance criteria"
-STALE_HASH = "stale-hash"
+STALE_HASH = _approval_records.STALE_REQUIREMENTS
 EARLIER_REPLY = "the criterion we agreed on last week"
 LATE_PR_COMMENT = "and keep the CLI flag spelled the way it is"
 OUTSIDER_URL = "https://example.invalid/malicious-patch.zip"
@@ -213,6 +214,7 @@ class _EditedUnderReview(_PatchedWorkflowMixin):
             dev_session_id=DEV_SESSION,
             review_round=1,
             **{
+                **_approval_records.approved(SETTLEMENT_PR, head=BEFORE_SHA, requirements=STALE_HASH),
                 USER_CONTENT_HASH: STALE_HASH,
                 LAST_ACTION_COMMENT_ID: READ_THROUGH,
                 # The prompts quoted the thread from its beginning through
@@ -279,7 +281,16 @@ class _EditedUnderReview(_PatchedWorkflowMixin):
             )
 
     def enters_review_again(self):
-        """The next `in_review` tick, after a human puts the label back."""
+        """The next `in_review` tick, back in review over an approval of the requirements the baseline now holds.
+
+        The drift road moved the baseline past the approval it found, which
+        hands any later `in_review` tick back for a review; the case is about
+        the tick after that review approved the edited requirements.
+        """
+        pinned = self.github._pinned[SETTLEMENT_ISSUE].data
+        pinned.update(_approval_records.approved(
+            SETTLEMENT_PR, head=self.pull_request.head.sha, requirements=pinned[USER_CONTENT_HASH],
+        ))
         self.github.apply_foreign_label(self.issue, LABEL_IN_REVIEW)
         return self._run_in_review(
             self.github, self.issue, run_agent=_agent(session_id=DEV_SESSION),

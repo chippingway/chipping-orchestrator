@@ -4,7 +4,9 @@
 
 A changed checkout is held without resetting work this squash did not make.
 An approval, receipt, or live generation keeps its squash standing, and a
-receipt for that exact rewrite lets recovery lease the already-published tip.
+receipt for that exact rewrite lets recovery lease the already-published tip --
+which, over a checkout standing on that tip with no other push owed, makes the
+recovery a leased no-op that publishes nothing new.
 """
 from __future__ import annotations
 
@@ -18,6 +20,7 @@ from orchestrator.workflow.late_split import (
 )
 from orchestrator.workflow.stages.implementing import (
     late_approval_reading as _late_approval_reading,
+    late_claims as _claims,
     late_gate_models as _late_gate_models,
     late_park_notices as _late_park_notices,
     late_publication_state as _late_publication_state,
@@ -195,7 +198,14 @@ def _leased_head(
     naming a commit this stage pushed rounds ago; what dates it to THIS
     collapse is the head it was pinned to, which is the head the record says
     was rewritten.
+
+    A recovery handed the one commit it may publish as a no-op
+    (`_Gate.no_op_of`) is entered on that commit and nothing else, whatever
+    the receipt reads by now, so its push can only find the remote already
+    there.
     """
+    if gate.no_op_of:
+        return gate.no_op_of
     if _already_published(
         gate.state, recorded.head, squashed,
         _late_publication_state._recorded_pull_request(gate.state),
@@ -229,3 +239,36 @@ def _already_published(
     return _late_publication_state._publication_from(
         state, replaced, pull_request,
     ) == squashed
+
+
+def _receipted_landing(gate: _late_gate_models._Gate, recorded: _collapses.LateCollapse) -> str:
+    """The commit finishing `recorded` publishes as a no-op, a push this issue's own receipt proves landed; or "".
+
+    The receipt has to name the commit this issue pushed from the head the
+    record says was rewritten, onto the pull request it records
+    (`_already_published`), and the checkout has to stand on exactly that
+    commit, proved rather than read -- so the resume is entered, and its push
+    leased, on that very commit (`_leased_head`): a remote standing anywhere
+    else refuses the push rather than receiving it. A checkout still on the
+    recorded head is no rewrite at all, and one on any other commit would be
+    published under the recorded head's lease instead.
+
+    And nothing else may be left owing a push of its own: no approval naming a
+    commit, and no generation still awaiting its count, either of which the
+    publication reconciliation pays whatever this answered.
+
+    The commit is handed on rather than a yes, because the proof is a reading
+    of a checkout that stays writable: the recovery is bound to it
+    (`_Gate.no_op_of`), refusing a checkout that has moved off it since and
+    leasing its push on it whatever the receipt reads by then.
+    """
+    proved = _measurement_commits._prove_candidate_commit(gate.worktree, _HEAD)
+    if not proved.is_frozen or proved.sha == recorded.head:
+        return ""
+    pull_request = _late_publication_state._recorded_pull_request(gate.state)
+    if not _already_published(gate.state, recorded.head, proved.sha, pull_request):
+        return ""
+    owed = _late_approval_reading._approved_commit(gate.state) or _claims._awaits_its_count(
+        _late_state.read_late_generation(gate.state),
+    )
+    return "" if owed else proved.sha

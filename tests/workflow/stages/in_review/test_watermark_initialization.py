@@ -29,7 +29,7 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
-from tests.workflow import verified_approvals as _verified
+from tests.workflow import approval_records as _approval_records, verified_approvals as _verified
 from tests.workflow.fixtures import (
     _agent,
     _issue_branch,
@@ -166,6 +166,9 @@ class _EntryFixtureMixin(_PatchedWorkflowMixin):
         gh.seed_state(
             ENTRY_ISSUE,
             pr_number=ENTRY_PR,
+            **_approval_records.approved_in_review(
+                issue, ENTRY_PR, orchestrator_ids=records["orchestrator_comment_ids"],
+            ),
             branch=_issue_branch(ENTRY_ISSUE),
             dev_agent=BACKEND_CLAUDE,
             dev_session_id=DEV_SESSION,
@@ -386,6 +389,7 @@ class FailedSnapshotInitializationTest(unittest.TestCase, _EntryFixtureMixin):
         gh.seed_state(
             EMPTY_PR_ISSUE,
             pr_number=EMPTY_PR,
+            **_approval_records.approved_in_review(issue, EMPTY_PR),
             branch=_issue_branch(EMPTY_PR_ISSUE),
             dev_agent=BACKEND_CLAUDE,
             dev_session_id=DEV_SESSION,

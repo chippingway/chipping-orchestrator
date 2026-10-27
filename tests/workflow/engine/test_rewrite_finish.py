@@ -153,8 +153,12 @@ _UNACCOUNTED = (
     ("the attempt's replay record is damaged", {support.KEY_REWRITE_SHA: "not-a-commit"}, support.FOUND),
     ("the attempt was made for another pull request", {support.KEY_REWRITE_PR: 43}, support.FOUND),
     ("the attempt was made from another stage", {support.KEY_REWRITE_STAGE: "workflow:in_review"}, support.FOUND),
-    ("the attempt recorded no replay", _UNRECORDED, support.FOUND),
-    ("a publication over an attempt that recorded no replay", _UNRECORDED, support.PUBLISHED),
+    ("the attempt recorded no terms", _UNRECORDED, support.FOUND),
+    ("a publication over an attempt that recorded no terms", _UNRECORDED, support.PUBLISHED),
+    # No attempt leaves its anchor without the terms, so a push over one --
+    # answered or not -- is no attempt's to finish.
+    ("a recovered push over an attempt that recorded no terms", _UNRECORDED, support.PUSHED_AGAIN),
+    ("a recovered push lost over an attempt that recorded no terms", _UNRECORDED, _PUSHED_UNANSWERED),
     ("its lag against the base was not counted", {}, replace(support.FOUND, behind=None)),
     ("no anchor is pinned", {support.KEY_PENDING_PUSH: None}, support.PUBLISHED),
     ("the anchor is another head", {support.KEY_PENDING_PUSH: support.OTHER}, support.PUBLISHED),
@@ -403,20 +407,6 @@ class UnaccountedLandingTest(unittest.TestCase):
         self.assertEqual(world.finalizes(support.FOUND), FinishOutcome.ROUTED)
 
         self.assertEqual(support.attempt(world.pinned()), _RETIRED)
-
-    def test_an_unrecorded_retry_is_finished(self) -> None:
-        # An attempt from before its record existed is retried on the counts
-        # alone, and the push the recovery made and saw land is that retry's
-        # own -- whichever answer git gave it. A landing found standing over
-        # the same comment is nobody's.
-        for road in (support.PUSHED_AGAIN, _PUSHED_UNANSWERED):
-            with self.subTest(outcome=road.outcome.value):
-                world = support.FinishWorld.seeded(**_UNRECORDED)
-
-                self.assertEqual(world.finalizes(road), FinishOutcome.ROUTED)
-
-                self.assertEqual(support.attempt(world.pinned()), _RETIRED)
-                self.assertEqual(world.said()[1], [effects.rebased(_PUSHED_METHOD)])
 
     def test_a_finished_landing_is_not_finished_again(self) -> None:
         world = support.FinishWorld.seeded()

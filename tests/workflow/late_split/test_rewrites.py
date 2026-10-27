@@ -166,8 +166,9 @@ def authorized_state(*, operator: bool = False) -> PinnedState:
 
     `operator` adds the terms an operator authorized that commit's publication
     on, which is the half of a bypass the exemption is not. Off by default,
-    because a comment carrying none is the legacy shape a settled transfer
-    has to leave alone.
+    because a comment carrying none -- an exemption whose authorization went
+    with the answer it was given for -- is a shape a settled transfer has to
+    leave alone.
     """
     state = PinnedState(data={})
     _exemption.record_exemption(state, CANDIDATE_SHA)
@@ -324,10 +325,10 @@ class SpentAuthorizationTest(unittest.TestCase):
         self.assertEqual(carried.base_sha, MERGE_BASE_SHA)
         self.assertEqual(carried.comment_id, AUTHORIZING_COMMENT_ID)
 
-    def test_a_legacy_exemption_gains_none(self) -> None:
-        # The compatibility answer, and the right one: a comment carrying no
-        # authorization has none to carry, so the rewritten commit is measured
-        # exactly as the accepted one would have been.
+    def test_a_bare_exemption_gains_none(self) -> None:
+        # A comment carrying no authorization has none to carry, so the
+        # rewritten commit is measured exactly as the accepted one would have
+        # been: absence of the authorization moves nothing.
         state = authorized_state()
 
         _rewrites.record_rewrite_publication(state, _SETTLING_PROOF)
@@ -474,9 +475,9 @@ class DamagedAuthorizationTest(unittest.TestCase):
 
     def test_a_null_member_is_still_a_claim(self) -> None:
         # A pinned comment is JSON, so a field can be PRESENT and null -- a
-        # hand edit, or an older binary writing a value this one reads as
-        # nothing. Asked for a value rather than for the key, the minimal
-        # damaged group would answer "no group at all" and be overwritten.
+        # hand edit's, say. Asked for a value rather than for the key, the
+        # minimal damaged group would answer "no group at all" and be
+        # overwritten.
         state = PinnedState(data={_TO: None})
 
         self.assertTrue(_rewrite_reading.carries_rewrite_authorization(state))

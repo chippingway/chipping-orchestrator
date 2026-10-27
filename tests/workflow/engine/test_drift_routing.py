@@ -18,7 +18,7 @@ from orchestrator.workflow.stages.decomposition import blocked as _blocked
 from orchestrator.workflow.stages.in_review import handler as _in_review
 from orchestrator.workflow.stages.validating import handler as _validating
 from tests.support.fakes import DEFAULT_PR_HEAD_SHA
-from tests.workflow import published_reports as _published_reports
+from tests.workflow import approval_records as _approval_records, published_reports as _published_reports
 from tests.workflow.engine import drift_test_support as support
 from tests.workflow.repo_values import EXISTING_CHECKOUT
 
@@ -451,6 +451,7 @@ class NoCommitAckDoesNotParkTest(
         gh.seed_state(
             support._IN_REVIEW_ACK_ISSUE_NUMBER,
             pr_number=pr.number,
+            **_approval_records.approved(pr.number, requirements=support.STALE_HASH),
             dev_agent=support.BACKEND_CLAUDE,
             dev_session_id=support.DEV_SESSION,
             user_content_hash=support.STALE_HASH,

@@ -12,8 +12,8 @@ is about the number rather than about what a gate does with one it was handed.
 
 What the boundary is, and what a child may carry over from the issue that
 created it, are the other half. Exactly at the ceiling publishes and one line
-past it is held; an exemption an older binary wrote buys a child no more than
-it buys anybody; and neither the exemption nor the authorization beside it is
+past it is held; an exemption with no authorization beside it buys a child no
+more than it buys anybody; and neither the exemption nor the authorization beside it is
 something the split hands down or a later commit inherits. A replacement an
 ordinary re-decomposition cut inside the lineage is held to all of it too,
 and its gate mints its generation one level below the root rather than as a
@@ -33,7 +33,7 @@ from tests.workflow.fixtures import (
     LABEL_DECOMPOSING,
     LABEL_VALIDATING,
     _authorized_exemption,
-    _legacy_exemption,
+    _bare_exemption,
 )
 from tests.workflow.stages import (
     late_child_test_support as support,
@@ -211,7 +211,7 @@ class ChildUnauthorizedExemptionTest(
 
     def setUp(self) -> None:
         super().setUp()
-        self._seed_child(**_legacy_exemption(self.checkout.candidate))
+        self._seed_child(**_bare_exemption(self.checkout.candidate))
 
     def test_it_publishes_on_its_own_count(self) -> None:
         # The exemption changes nothing about a change the ceiling would have

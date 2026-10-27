@@ -13,6 +13,7 @@ and another road's later round over the squashed head.
 """
 from __future__ import annotations
 
+from orchestrator.git.measurement.models import FrozenCommit
 from orchestrator.workflow.engine import review_subjects as _review_subjects
 from tests.workflow import approved_squash as _approved_squash, published_reports as _published_reports
 from tests.workflow.stages.validating import evidence_round_test_support as _round
@@ -34,6 +35,9 @@ SQUASH_NOTICE = _approved_squash.SQUASH_NOTICE
 
 # The squash that publishes, and one dispatcher tick in a case's hermetic world.
 LandsTheSquash = _approved_squash.LandsTheSquash
+
+# The checkout a squash whose push landed leaves: standing on the squash itself.
+ON_THE_SQUASH = FrozenCommit(sha=SQUASHED)
 
 dispatches = _approved_squash.dispatches
 

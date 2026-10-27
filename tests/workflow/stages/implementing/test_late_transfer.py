@@ -126,10 +126,10 @@ class RefusedEvidenceTest(_transfer_case._TransferCase, unittest.TestCase):
         self.assertEqual(carried, "")
         self._assert_untouched()
 
-    def test_a_legacy_exemption_carries_nothing(self) -> None:
-        # A comment written before the semantic record existed, or one whose
-        # fingerprint could not be taken, exempts the exact commit and can
-        # prove nothing about what it contributes.
+    def test_an_unidentified_exemption_moves_none(self) -> None:
+        # A settlement whose fingerprint could not be taken exempts the exact
+        # commit and can prove nothing about what it contributes, so no
+        # permission is granted to move it.
         self._adjudicated(identity=False)
 
         self.assertEqual(self._carried(), "")

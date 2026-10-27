@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator import config
 from orchestrator.github.labels import PAUSED_LABEL
-from orchestrator.workflow.engine import content_hash as _content_hash
+from orchestrator.workflow.engine import content_hash as _content_hash, review_subjects as _review_subjects
 from tests.support import agy_stream as stream
 from tests.support.fakes import (
     FakeComment,
@@ -16,7 +16,11 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
-from tests.workflow.agent_failure_values import agy_quota_stop, agy_responded
+from tests.workflow import (
+    agent_failure_values as _failures,
+    approval_records as _approval_records,
+    verified_approvals as _verified,
+)
 
 # --- Workflow labels this stage routes between --------------------------
 from tests.workflow.fixtures import (
@@ -88,6 +92,9 @@ TRUSTED_AUTHOR = "alice"
 USER_CONTENT_CHANGED = "issue body changed"
 AUTHED_FETCH = "_authed_fetch"
 ORIGINAL_BODY = "original body"
+# The requirements revision the approval was given, which no reading of the
+# thread as it stands reproduces: the body was edited since.
+STALE_BODY_HASH = _approval_records.STALE_REQUIREMENTS
 UPDATED_BODY_AFTER_DOCS = "updated body after prior docs commit"
 WORKTREE_PATH = "_worktree_path"
 GIT_HARDENED = "_git_hardened"
@@ -188,6 +195,7 @@ class _ContinueDocumentingFixture(_DocumentingWorkflowMixin):
         _open_pr_for(
             gh, issue_number=number, pr_number=CONTINUE_PR_NUMBER,
         )
+        _verified.verifies_the_approval(gh, issue)
         return gh, issue
 
 
@@ -203,7 +211,7 @@ _EARLIER_GUIDANCE_ID = 800
 SHA_STOPPED = documenting_support.SHA_UNREFERENCED
 FRESH_SESSION = "fresh-docs-conversation"
 _CONFIRMED = replace(
-    agy_responded("The preserved commit documents --dry-run.\nDOCS: NO_CHANGE"),
+    _failures.agy_responded("The preserved commit documents --dry-run.\nDOCS: NO_CHANGE"),
     session_id=FRESH_SESSION,
 )
 # What the checkout's head reads as across the stopped pass's tick: the head it
@@ -263,7 +271,8 @@ class _AgyContinueDocumentingFixture(_DocumentingWorkflowMixin):
             user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
         )
         _open_pr_for(gh, issue_number=QUOTA_ISSUE_NUMBER, pr_number=CONTINUE_PR_NUMBER)
-        run_agent = MagicMock(side_effect=[stop or agy_quota_stop(), _CONFIRMED])
+        _verified.verifies_the_approval(gh, issue)
+        run_agent = MagicMock(side_effect=[stop or _failures.agy_quota_stop(), _CONFIRMED])
         with (held or self._edits_taken)(gh):
             self._run_documenting(
                 gh,
@@ -319,9 +328,10 @@ class _ParkedDocumentingFixture(_DocumentingWorkflowMixin):
     issue_number = 601
     pr_number = 61
 
-    def _seeded(self, **state):
+    def _seeded(self, *, comments=(), **state):
         gh = FakeGitHubClient()
         issue = make_issue(self.issue_number, label=DOCUMENTING)
+        issue.comments.extend(comments)
         gh.add_issue(issue)
         defaults = {
             PR_NUMBER: self.pr_number,
@@ -345,6 +355,8 @@ class _ParkedDocumentingFixture(_DocumentingWorkflowMixin):
                 issue_number=self.issue_number,
                 pr_number=defaults[PR_NUMBER],
             )
+        if _review_subjects.APPROVED_SUBJECT not in defaults:
+            _verified.verifies_the_approval(gh, issue)
         return gh, issue
 
 
@@ -352,20 +364,21 @@ class _DocumentingDriftFixture(_DocumentingWorkflowMixin):
     issue_number = 701
     pr_number = 71
 
-    def _seeded(self, **state):
+    def _seeded(self, *, comments=(), **state):
         gh = FakeGitHubClient()
         issue = make_issue(
             self.issue_number,
             label=DOCUMENTING,
             body=ORIGINAL_BODY,
         )
+        issue.comments.extend(comments)
         gh.add_issue(issue)
         defaults = {
             PR_NUMBER: self.pr_number,
             "branch": _branch(self.issue_number),
             "dev_agent": DEV_AGENT,
             "dev_session_id": DEV_SESSION,
-            "user_content_hash": "stale-hash-from-original-body",
+            "user_content_hash": STALE_BODY_HASH,
             "review_round": 2,
         }
         defaults.update(state)
@@ -376,6 +389,8 @@ class _DocumentingDriftFixture(_DocumentingWorkflowMixin):
                 issue_number=self.issue_number,
                 pr_number=defaults[PR_NUMBER],
             )
+        if _review_subjects.APPROVED_SUBJECT not in defaults:
+            _verified.verifies_the_approval(gh, issue)
         return gh, issue
 
 
@@ -384,9 +399,10 @@ class _FinalDocsFixture(_DocumentingWorkflowMixin):
     pr_number = 71
     branch_name = _branch(issue_number)
 
-    def _seeded(self, **state):
+    def _seeded(self, *, comments=(), **state):
         gh = FakeGitHubClient()
         issue = make_issue(self.issue_number, label=DOCUMENTING)
+        issue.comments.extend(comments)
         gh.add_issue(issue)
         defaults = {
             PR_NUMBER: self.pr_number,
@@ -404,4 +420,6 @@ class _FinalDocsFixture(_DocumentingWorkflowMixin):
                 issue_number=self.issue_number,
                 pr_number=defaults[PR_NUMBER],
             )
+        if _review_subjects.APPROVED_SUBJECT not in defaults:
+            _verified.verifies_the_approval(gh, issue)
         return gh, issue

@@ -86,6 +86,7 @@ _AGENT_TIMEOUT = "agent_timeout"
 # with it rather than leaving it passing against a module nothing calls.
 _STAGE_CHAIN = (
     ("adjudication", _stage_targets._LATE_RELABEL_OWNER, "_holds_the_label"),
+    ("squash", _stage_targets._VALIDATING_SQUASH_APPROVAL_OWNER, "holds_the_dispatch"),
     ("publication", _stage_targets._LATE_RECONCILE_OWNER, "_reconciles_published_work"),
     ("reuse", _stage_targets._LATE_REUSE_OWNER, "_refuses_reuse"),
 )
@@ -102,7 +103,7 @@ _RECOVERY = "recovery"
 # protects: each neighbour stands aside, so where each was called is all there
 # is left to observe.
 _REQUIRED_ORDER = (
-    "adjudication", _RECOVERY, "publication", _RECOVERY, "report", "evidence",
+    "adjudication", _RECOVERY, "squash", "publication", _RECOVERY, "report", "evidence",
     "rewrite", "reuse", "handler",
 )
 

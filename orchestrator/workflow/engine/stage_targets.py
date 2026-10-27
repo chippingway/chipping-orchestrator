@@ -120,6 +120,14 @@ _VALIDATING_REVIEW_VERDICTS_OWNER = f"{_VALIDATING_PACKAGE}.review_verdicts"
 # pull the handlers that import it back.
 _VALIDATING_REVIEW_COVERAGE_OWNER = f"{_VALIDATING_PACKAGE}.review_coverage"
 
+# The owner that holds publishing a recorded squash to the approval it was
+# begun under. Named here and resolved when called for the same reason: the
+# dispatcher asks it ahead of the publication reconciliation, which would
+# otherwise pay the squash's own debt before this stage's handler is reached,
+# and asking the stage directly would make the engine's own import pull the
+# handlers that import it back.
+_VALIDATING_SQUASH_APPROVAL_OWNER = f"{_VALIDATING_PACKAGE}.squash_approval"
+
 # The owner of what a reviewer round writes onto the pinned comment -- its
 # spec and subject, its launch charge, its return, and its approval. Named here
 # and resolved when called for the reason the hand-back owners are: a report

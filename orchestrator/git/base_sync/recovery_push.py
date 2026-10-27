@@ -46,13 +46,15 @@ def _recovered_candidate(
     overwritten, and it is the head a landing's finish holds the pinned anchor
     to. The publication and stage are the ones the attempt recorded before git
     ran, where it recorded them -- the refusals ahead of either road have
-    already held them to the ones this tick reads -- and the tick's own for an
-    attempt from before that record existed, which only the counts vouched
-    for. The remote is the head the recovery fetched and classified the
-    checkout against, and the checkout is read afresh, so a checkout that
-    moved since is a candidate naming another commit than the one the recovery
-    verified -- which a retry refuses to push and a landing's finish refuses
-    to call landed.
+    already held them to the ones this tick reads -- and the tick's own only
+    for a record in pieces, which every road refuses before it publishes or
+    finishes anything on it. An anchor with no terms at all never reaches
+    here: the recovery parks it first (`workflow/engine/rewrite_recovery.py`).
+    The remote is the head the recovery fetched and classified the checkout
+    against, and the checkout is read afresh, so a checkout that moved since
+    is a candidate naming another commit than the one the recovery verified
+    -- which a retry refuses to push and a landing's finish refuses to call
+    landed.
     """
     recorded = context.pending_rewrite
     attempt = _RewriteAttempt(

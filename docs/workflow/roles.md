@@ -1206,9 +1206,10 @@ command entirely — an edited title, body or counted comment parks the issue on
 the decision is made again against the requirements as they now read.
 
 The same command ends one other park, which `implementing/late_authority.py` decides is owed and
-`implementing/late_consent.py` takes and answers. A live issue can carry an exemption with no `late_override_*` group
-beside it — an older build wrote one on a `single` verdict alone — and so can any issue whose authorization was
-hand-edited or half-written. The candidate there is measured like every other one: at or below the ceiling it
+`implementing/late_consent.py` takes and answers. An issue can carry an exemption with no `late_override_*` group
+beside it — an answer thrown away and re-earned takes its authorization with it and leaves the exemption standing —
+and so can any issue whose authorization was hand-edited or no longer proves on this host. The candidate there is
+measured like every other one: at or below the ceiling it
 publishes on its count, exactly `MAX_ADDED_LINES` included, and past it the issue parks
 `late_unauthorized_exemption` rather than going back to an adjudication that has already answered — routing it there
 would pay for a second adjudicator over a settled question and risk a `split` cutting children out of work somebody
@@ -1224,12 +1225,12 @@ The publication DEBT such a commit leaves is that question one field over, and i
 recorded `late_approved_basis` rather than inferred from the records beside it. The settlement writes the exemption
 and the approval in one breath, so an `adjudication` or `authorization` basis is a debt an operator's gesture is
 behind and may be spent only while that gesture can still be read; a `reading` basis is the gate's own count at or
-below the ceiling and is spent by the tick after a crash without asking anybody. An approval an older binary wrote
-carries no basis at all, and there the exemption is the only evidence left — read conservatively, so a comment that
-CLAIMS an exemption and cannot say which commit it is about is the adjudication's debt rather than this workflow's
-own. The rewrite TRANSFER asks the same first question before it grants a permit: moving an exemption nothing
-authorizes would hand the rewritten commit a permission the accepted one never had, and what follows a granted one is
-the authorization, so a squash of an authorized candidate stays authorized and a squash of a legacy one gains nothing.
+below the ceiling and is spent by the tick after a crash without asking anybody. Every writer records a basis, so a
+standing approval with none this build can read — absent, `null`, or a value from elsewhere — claims grounds it cannot
+show and is never the gate's own: the candidate is measured unless the exemption and its authorization prove out. The
+rewrite TRANSFER asks the same first question before it grants a permit: moving an exemption nothing authorizes would
+hand the rewritten commit a permission the accepted one never had, and what follows a granted one is the
+authorization, so a squash of an authorized candidate stays authorized and a squash of a bare one gains nothing.
 
 The one candidate that park never holds is a commit the pull request already stands on, where the push would move
 nothing and only the bookkeeping behind a publication that has happened is left.

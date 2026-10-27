@@ -8,7 +8,7 @@ latch is read from the shared observation registry for this issue.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from github.Issue import Issue
@@ -197,6 +197,18 @@ class _Gate:
     # publish. Off for every ordinary caller, and on for the crash recovery,
     # which reaches this gate holding a transfer it already knows about.
     permit_only: bool = False
+    # The one commit the recovery of a recorded squash may publish, where no
+    # approval stands behind publishing anything else: the commit this
+    # issue's own receipt proves its push already put on the pull request. A
+    # recovery handed one finishes nothing but that commit, pushed under a
+    # lease on that very commit, so a remote anywhere else refuses it; a
+    # checkout off it is refused before anything publishes. Empty for every
+    # caller an approval stands behind.
+    no_op_of: str = ""
+
+    def bound_to(self, no_op_of: str) -> _Gate:
+        """This gate, its recovery bound to publish only `no_op_of` as a no-op; itself where that is empty."""
+        return replace(self, no_op_of=no_op_of) if no_op_of else self
 
     @property
     def close_was_observed(self) -> bool:

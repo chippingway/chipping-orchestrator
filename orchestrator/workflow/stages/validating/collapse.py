@@ -73,6 +73,18 @@ label moves -- or, where the tail could not read what deciding the carry
 needs, decided here by the same rule (`squash_evidence`), the move left for
 the next tick. That proof goes ahead of the approval's coverage, so the pull
 request is read last, immediately ahead of the move.
+
+A push this recovery resumes publishes only under the approval the squash was
+begun under, which went onto the comment beside the collapse record. Where
+that approval does not stand behind it -- its subject or its evidence claim
+not read whole, the subject of another head, the evidence no longer standing,
+or a collapse record no approval can be bound to -- nothing is pushed,
+whatever the pull request seems to stand on: the issue parks under
+`squash_failed` instead (`squash_approval`), which the dispatcher asks as
+well, ahead of the reconciliation that would pay the squash's own debt. The
+one landing finished without that approval is one this issue's own receipt
+proves, whose push is leased on the very commit it already published, and
+the move past it is then left to a fresh review.
 """
 from __future__ import annotations
 
@@ -102,6 +114,7 @@ from orchestrator.workflow.stages.validating import (
     handoff as _handoff,
     models as _models,
     review_coverage as _review_coverage,
+    squash_approval as _squash_approval,
     squash_evidence as _squash_evidence,
     state as _state,
 )
@@ -158,12 +171,12 @@ def _retires_an_unanswered_carry(gh: GitHubClient, issue: Issue, state: PinnedSt
     stage hands the issue back here, the ready ping is held, and `in_review`
     hands a stale approval back. This stage owns the carry, so it is
     invalidated here, ahead of any round it could be handed to, and the
-    approval it was carried for with it (`squash_evidence._invalidates`), so
-    no reader takes that approval for one recorded before approvals named
-    evidence; an approval another road recorded in its place, of another
-    subject, stands. That is staged on the comment read afresh, held to every
-    record the evidence is bound through -- the report debt its review
-    subject stands only without among them -- and to the approval's claim
+    approval it was carried for with it (`squash_evidence._invalidates`),
+    written null rather than left claiming evidence that is gone; an approval
+    another road recorded in its place, of another subject, stands. That is
+    staged on the comment read afresh, held to every record the evidence is
+    bound through -- the report debt its review subject stands only without
+    among them -- and to the approval's claim
     (`squash_evidence.CARRY_ANSWERS_ON`), and committed guarded by that
     reading (`verification_durable`), owning only what it retires
     (`squash_evidence.INVALIDATES`) -- every other field, a returned verdict
@@ -206,8 +219,19 @@ def _finished_collapse(
     state: PinnedState,
     held: _handoff._Held,
 ) -> bool:
-    """Take the recovery, or hold the tick for a park it did not word."""
+    """Take the recovery, or hold the tick for a park it did not word or a push no approval stands behind.
+
+    The squash this recovery finishes was begun under an approval recorded
+    beside it, and a push it resumes publishes under that approval alone.
+    Where the approval does not stand behind it, the squash is refused and
+    parked ahead of the push rather than resumed
+    (`squash_approval.allowance`), save a landing this issue's own receipt
+    proves, which the recovery is bound to finish as the no-op it is.
+    """
     if _held_by_another_park(gh, spec, issue, state):
+        return True
+    no_op_of = _squash_approval.allowance(gh, spec, issue, state, held)
+    if no_op_of is None:
         return True
     # The subject the size gate decides about, built over the checkout this
     # route read rather than one rebuilt a layer down: what a recovery may do
@@ -217,7 +241,7 @@ def _finished_collapse(
     _approval._squashed_and_handed_off(
         _late_records._gate(
             gh, spec, issue, state, _checkout_of(spec, issue, state),
-        ),
+        ).bound_to(no_op_of),
         _naming._resolve_branch_name(state, spec, issue.number),
         state.get(_approval._PR_NUMBER),
         held,
@@ -404,8 +428,8 @@ def _handoff_stands(
 ) -> bool | None:
     """Whether what the settled handoff was owed over still stands, None unread.
 
-    The approval -- the evidence it was proved over still the current,
-    passing evidence where it was proved over any, the report it covered
+    The approval -- recorded whole, the evidence its claim names still the
+    current, passing evidence, the report it covered
     still the current one, still reading at its location as it settled, and
     the issue still carrying the requirements it was given -- and the pull
     request, still standing on the commit the handoff named

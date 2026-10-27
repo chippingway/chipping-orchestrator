@@ -175,9 +175,9 @@ class MeasuredRebaseTest(_CleanRebaseCase, unittest.TestCase):
         self.assertEqual(pushed[LEASE], _support.BEFORE_SHA)
         self.assertIn((_support.ISSUE, _support.LABEL_VALIDATING), self.gh.label_history)
 
-    def test_a_legacy_exemption_claims_nothing(self) -> None:
-        # A comment with no semantic record has no accepted pair to name, so
-        # the refresh assembles no evidence at all.
+    def test_an_unidentified_exemption_claims_nothing(self) -> None:
+        # A settlement that recorded no semantic identity has no accepted pair
+        # to name, so the refresh assembles no evidence at all.
         adjudicated(self, identity=False)
 
         self._rebases()

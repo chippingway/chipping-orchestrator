@@ -74,7 +74,8 @@ _PENDING_REWRITE_SHA = "pending_auto_base_rebase_rewrite_sha"
 # counted level with its base says nothing about WHICH base: one rewound or
 # repointed under it after the rebase leaves it level with a commit it was
 # never replayed onto, and only the tip the rebase actually used tells the two
-# apart. Additive: a legacy attempt carries none, which proves nothing.
+# apart. An attempt whose base ref moved while git ran carries none
+# (`startup._start_auto_rebase`), which proves nothing.
 _PENDING_REWRITE_BASE = "pending_auto_base_rebase_rewrite_base"
 
 # The head a finish has already said it published. Written after the notice and

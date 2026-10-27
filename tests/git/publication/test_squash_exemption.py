@@ -241,9 +241,11 @@ class UntransferredSquashRealGitTest(
             (gate.issue.number, LABEL_DECOMPOSING), gate.gh.label_history,
         )
 
-    def test_a_legacy_exemption_is_adjudicated(self) -> None:
-        # An issue whose pinned comment predates the semantic record exempts
-        # the exact commit and can prove nothing about what it contributes.
+    def test_an_unidentified_exemption_is_adjudicated(self) -> None:
+        # A settlement that could not fingerprint the accepted contribution
+        # records the exact commit with no semantic identity: it can prove
+        # nothing about what that commit contributes, so no squash of it is
+        # exempt.
         gate = _squash_gate(self, PublicationSeed())
         accepted = self._head_sha()
         _exemption.record_exemption(gate.state, accepted)

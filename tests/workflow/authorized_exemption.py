@@ -74,11 +74,13 @@ def _authorized_exemption(
     return seeded.data
 
 
-def _legacy_exemption(candidate_sha: str = MEASURED_CANDIDATE_SHA) -> dict:
-    """The exemption an older binary wrote, with no gesture behind it.
+def _bare_exemption(candidate_sha: str = MEASURED_CANDIDATE_SHA) -> dict:
+    """An exemption with no authorization beside it.
 
-    A `single` verdict used to record this on its own, so a live issue can
-    carry it. The candidate it names goes to the ordinary cumulative gate.
+    What a settlement's exemption leaves once the answer it was authorized
+    for is thrown away and re-earned, which takes the authorization with it
+    and leaves the exemption standing. The candidate it names goes to the
+    ordinary cumulative gate.
     """
     seeded = PinnedState(data={})
     _exemption.record_exemption(seeded, candidate_sha)
@@ -109,7 +111,7 @@ def _damaged_authorization(
 
     A hand edit, a half-written crash, and an older scheme all reach the same
     place: a group short of a member it needs is no authorization, and the
-    candidate is measured exactly as the legacy record's is.
+    candidate is measured exactly as a bare exemption's is.
     """
     seeded = _authorized_exemption(candidate_sha)
     seeded.pop(_overrides.LATE_OVERRIDE_FINGERPRINT, None)

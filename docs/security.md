@@ -763,8 +763,8 @@ deletes the snapshot it was cut from
   <commit>` writes, both naming the same commit — and the group is PROVED rather than read, since every term of it
   but one is the pinned comment agreeing with itself: the contribution between the pair it records is fingerprinted
   again at the gate and held to the digest it carries, so a hand edit that names this candidate over a pair nobody
-  froze costs a measurement rather than buying a bypass. A record an older build wrote with no authorization beside
-  it, one a crash half-wrote, and one whose digest no longer agrees are the same answer, and none of them is
+  froze costs a measurement rather than buying a bypass. An exemption whose authorization went with the answer it was
+  given for, one a hand edit damaged, and one whose digest no longer agrees are the same answer, and none of them is
   repaired or deleted to reach it. The same question is asked of a publication DEBT before it is spent and of a
   rewrite before an exemption may move onto the commit it produced
   ([`state-machine/labels-and-state.md`](state-machine/labels-and-state.md#pinned-state)). Both halves are bound to
@@ -776,6 +776,26 @@ deletes the snapshot it was cut from
   are each measured afresh, and no addition count, commit subject, similarity score, or `git patch-id` is ever read as
   that proof
   ([`state-machine/labels-and-state.md#exemption-identity-and-rotation`](state-machine/labels-and-state.md#exemption-identity-and-rotation)).
+- **A record nobody wrote authorizes nothing.** Every writer of an approval or a permission records the whole of
+  it, so a reader takes the absence of a required member as no grounds rather than as an earlier producer's default.
+  An approval with no `review_approved_subject` read whole covers no report and no requirements, whether or not a
+  report has settled; one beside no `review_approved_evidence` claim rests on no evidence; either is handed back
+  for a review rather than moved on, documented, or announced as ready. A recorded squash is published -- by its
+  recovery, or by the reconciliation paying its size gate's debt on any label -- only while its approval reads whole,
+  names the head the squash was planned over, rests on evidence still standing, and still covers the report and
+  requirements standing now; where the pull request seems to stand waives none of that, and a collapse record that will
+  not read binds no approval. Otherwise it is parked rather than published -- save a landing the issue's own publication
+  receipt proves, over a checkout on exactly the receipted commit with no other push owed. The recovery is bound to that
+  commit: a checkout that moves off it refuses, and the push is leased on it, so it publishes nothing new before a fresh
+  review. A `late_approved_sha` with no `late_approved_basis` this build can read is damage, never the gate's own debt,
+  so it buys no unmeasured push. A rewrite permission beside an attempt record with no declared terms is bound to no
+  publication and is *unvouched*, and the anchor itself is parked with every record kept: nothing is pushed, reset,
+  cleared, or finished on it.
+  The one absence still read as current is an exempt commit with no semantic identity, which the settlement records
+  whenever the accepted contribution would not fingerprint: it exempts that exact commit and nothing else, and
+  confers no transfer and no authorization
+  ([C-03](contracts.md#c-03-persisted-and-externally-consumed-formats),
+  [C-09](contracts.md#c-09-reports-review-subjects-and-verification)).
 - **A base-relative reading is only as good as the base, and the base ref is agent-writable.** A transfer moves an
   exemption onto a rewritten commit only where both contributions fingerprint alike, and a contribution is what a
   candidate adds *over its base*. A rebase chooses that base, and the fork point behind the object it produces is

@@ -51,11 +51,11 @@ rather than refusing it, on the squash's own roads (`squash_evidence`): the
 reconciliation stood down on it for want of room, and a later tick settles
 it.
 
-Every approval reaches the arc proved over the evidence its verdict names, so
-every approval records that claim; one recorded before approvals were proved
-over evidence carries none and is held to none -- unless the current evidence
-is a carry, which only a claim ever puts there: with the claim gone, the
-approval does not stand over it. Nor does any approval over a carry whose
+Every approval reaches the arc proved over the evidence its verdict names
+(`unverified_approvals` refuses one whose verdict claims none), so every
+approval records that claim, and an approval beside none -- the record absent
+or written null -- rests on no evidence and does not stand. Nor does any
+approval over a carry whose
 review subject no longer stands (`review_coverage._approval_stands`), which
 every later reader asks before moving the approval on; `validating`, which
 owns the carry, invalidates it when the issue comes back (`collapse`).
@@ -122,20 +122,13 @@ def stands(gh: GitHubClient, state: PinnedState) -> bool | None:
     context configured now. Then its artifact, re-read at the comment it
     settled as on the pull request it was published on, which no rewrite
     moves: still the one that settled, passing, and carrying every configured
-    command. True where no claim is recorded -- absent or written null -- for
-    an approval recorded before approvals were proved over evidence, save
-    over current evidence carried onto a head it did not run on: only an
-    approval squash's claim ever puts that there, so an approval with none
-    has lost the word that evidence answers on, and it does not stand. A
-    record that will not read names nothing anyone could hold the approval
-    to, so it is no approval's evidence; a pull request or thread nobody
-    could read is None.
+    command. No claim recorded -- absent or written null -- is an approval
+    resting on no evidence, and a record that will not read names nothing
+    anyone could hold the approval to: neither stands. A pull request or
+    thread nobody could read is None.
     """
-    recorded = state.get(APPROVED_EVIDENCE)
     current = _settlement.read_current_evidence(state)
-    if recorded is None:
-        return current is None or current.binding.tested_sha == current.binding.target.target_head
-    claim = _verdicts.EvidenceClaim.read(recorded)
+    claim = _verdicts.EvidenceClaim.read(state.get(APPROVED_EVIDENCE))
     if claim is None or not _on_the_records(state, current, claim):
         return False
     pr_number = current.binding.target.publication.pr_number

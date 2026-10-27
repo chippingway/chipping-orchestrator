@@ -95,8 +95,8 @@ DECLARED = models._PendingRewrite(
 )
 DAMAGED = models._PendingRewrite(damaged=True)
 
-# The comment an older binary left, which claims no record of the attempt at
-# all -- the one shape a permission standing here is not cross-bound against.
+# An anchor with no record of the attempt beside it at all, which no attempt
+# this build makes leaves -- the terms go down in the anchor's own write.
 ABSENT = models._PendingRewrite()
 
 
@@ -122,9 +122,9 @@ def owes(state, commit: str, lease: str) -> None:
 def adjudicated(state, *, accepted: str = ACCEPTED_SHA, identity: bool = True):
     """Record the verdict a settled `single` left, on the head it accepted.
 
-    `identity=False` is the legacy shape: a comment written before the
-    semantic record existed, so the exact commit is exempt and nothing on it
-    says what that commit contributes.
+    `identity=False` is what the settlement records when the accepted
+    contribution would not fingerprint: the exact commit is exempt and nothing
+    on it says what that commit contributes.
 
     The terms an operator authorized the publication on go down either way,
     since an exemption is half a bypass and a rewrite of a commit only it

@@ -82,8 +82,8 @@ def deletes_report(case) -> None:
 def forgets_approval(case, member: str = "") -> None:
     """Leave the approval unrecorded, or recorded without one `member`.
 
-    Unrecorded is what an approval made before approvals named a subject
-    leaves; a member missing is a truncated write or a hand edit.
+    Unrecorded is an approval no approval arc leaves, which names no subject
+    it was of; a member missing is a truncated write or a hand edit.
     """
     state = case.github.read_pinned_state(case.issue)
     if member:

@@ -16,11 +16,15 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator.github.labels import PAUSED_LABEL
 from tests.support.fakes import FakeGitHubClient, FakeLabel, FakePR, make_issue
+from tests.workflow import approval_records as _approval_records
 from tests.workflow.fixtures import AGENT_RUN_CHARGE_WRITES, _agent, _PatchedWorkflowMixin
 
 ISSUE = 85
 PR_NUMBER = 805
 BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-85"
+# The requirements revision the approval was given, which the edited body no
+# longer reproduces.
+STALE_HASH = _approval_records.STALE_REQUIREMENTS
 
 
 def _paused_view(number: int) -> object:
@@ -37,7 +41,7 @@ class InReviewLivePauseDriftTest(unittest.TestCase, _PatchedWorkflowMixin):
         github.add_pr(FakePR(number=PR_NUMBER, head_branch=BRANCH))
         github.seed_state(
             ISSUE,
-            user_content_hash="stale-hash",
+            **_approval_records.approved_in_review(issue, PR_NUMBER, baseline=STALE_HASH),
             dev_agent="claude",
             dev_session_id="dev-sess",
             pr_number=PR_NUMBER,
@@ -51,7 +55,7 @@ class InReviewLivePauseDriftTest(unittest.TestCase, _PatchedWorkflowMixin):
 
     def assert_pause_state(self, github) -> None:
         pinned_state = github.pinned_data(ISSUE)
-        self.assertEqual(pinned_state.get("user_content_hash"), "stale-hash")
+        self.assertEqual(pinned_state.get("user_content_hash"), STALE_HASH)
         self.assertEqual(pinned_state.get("review_round"), 2)
         self.assertFalse(pinned_state.get("awaiting_human"))
 

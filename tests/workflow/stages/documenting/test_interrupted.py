@@ -17,6 +17,7 @@ from tests.workflow.fixtures import (
     AGENT_RUN_CHARGE_WRITES,
     MEASURED_CANDIDATE_SHA,
     _agent,
+    _open_pr_for,
 )
 
 # --- Workflow labels this stage routes between --------------------------
@@ -28,6 +29,7 @@ from tests.workflow.stages.documenting.documenting_test_support import (
     _branch,
     _DocumentingWorkflowMixin,
 )
+from tests.workflow.verified_approvals import verifies_the_approval
 
 DOCUMENTING = "workflow:documenting"
 IN_REVIEW = "in_review"
@@ -153,6 +155,12 @@ PARK_COMMENT_ID = 950
 HUMAN_REPLY_ID = 1100
 
 
+def _approved(github, issue, pr_number: int) -> None:
+    """The pull request the issue's state names, and the approval the docs pass was entered over."""
+    _open_pr_for(github, issue_number=issue.number, pr_number=pr_number)
+    verifies_the_approval(github, issue)
+
+
 def _interrupted_fixture(dev_agent: str = DEV_AGENT):
     github = FakeGitHubClient()
     issue = make_issue(INTERRUPTED_ISSUE_NUMBER, label=DOCUMENTING)
@@ -165,6 +173,7 @@ def _interrupted_fixture(dev_agent: str = DEV_AGENT):
         dev_session_id=DEV_SESSION,
         user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
     )
+    _approved(github, issue, INTERRUPTED_PR_NUMBER)
     return github, issue, github.write_state_calls
 
 
@@ -242,14 +251,11 @@ class HandleDocumentingInterruptedTest(unittest.TestCase, _DocumentingWorkflowMi
         self,
     ) -> None:
         gh = FakeGitHubClient()
-        issue = make_issue(INTERRUPTED_RESUME_ISSUE_NUMBER, label=DOCUMENTING)
-        issue.comments.append(
+        issue = make_issue(INTERRUPTED_RESUME_ISSUE_NUMBER, label=DOCUMENTING, comments=[
             FakeComment(
-                id=INTERRUPTED_RESUME_COMMENT_ID,
-                body="add a note about flag X",
-                user=FakeUser(TRUSTED_AUTHOR),
-            )
-        )
+                id=INTERRUPTED_RESUME_COMMENT_ID, body="add a note about flag X", user=FakeUser(TRUSTED_AUTHOR),
+            ),
+        ])
         gh.add_issue(issue)
         gh.seed_state(
             INTERRUPTED_RESUME_ISSUE_NUMBER,
@@ -261,6 +267,7 @@ class HandleDocumentingInterruptedTest(unittest.TestCase, _DocumentingWorkflowMi
             dev_session_id=DEV_SESSION,
             user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
         )
+        _approved(gh, issue, INTERRUPTED_RESUME_PR_NUMBER)
         before_writes = gh.write_state_calls
 
         mocks = self._run_documenting(

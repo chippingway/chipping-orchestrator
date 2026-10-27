@@ -119,7 +119,9 @@ def _seed_pending_unwind(case, *, parked: bool):
         )
     github, issue = case._seeded(**seed_options)
     issue.body = ORIGINAL_BODY
-    github.seed_state(case.issue_number, **_pending_state(case, issue, parked))
+    # Over the approval the seed recorded, which the unwind was entered past.
+    seeded = github.pinned_data(case.issue_number)
+    github.seed_state(case.issue_number, **{**seeded, **_pending_state(case, issue, parked)})
     return github, issue
 
 

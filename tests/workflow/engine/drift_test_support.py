@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from orchestrator.github import pinned_state as _pinned_state
 from orchestrator.workflow.engine import content_hash as _content_hash, messages as _messages
 from tests.support import fakes as _fakes
-from tests.workflow import fixtures as _helpers
+from tests.workflow import approval_records as _approval_records, fixtures as _helpers
 
 BACKEND_CLAUDE = _helpers.BACKEND_CLAUDE
 KEY_AWAITING_HUMAN = _helpers.KEY_AWAITING_HUMAN
@@ -39,7 +39,9 @@ KEY_USER_CONTENT_HASH = "user_content_hash"
 
 TRUSTED_AUTHOR = "alice"
 DEV_SESSION = "dev-sess"
-STALE_HASH = "stale-hash"
+# A requirements revision no reading of the thread as it stands reproduces --
+# for an issue in review, the one its approval was given.
+STALE_HASH = _approval_records.STALE_REQUIREMENTS
 SAME_SHA = "same-sha"
 SHA_AFTER = "after"
 

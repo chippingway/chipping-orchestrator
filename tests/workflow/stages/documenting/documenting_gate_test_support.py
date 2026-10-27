@@ -335,18 +335,17 @@ class _DocsGateFixtureMixin(
 
     def _seeded_resume(self, **state):
         """A parked docs pass with the human reply that wakes it."""
-        github, issue = self._seeded(
+        return self._seeded(
+            comments=[FakeComment(
+                id=RESUME_COMMENT_ID,
+                body=RESUME_REPLY,
+                user=FakeUser(documenting.TRUSTED_AUTHOR),
+            )],
             awaiting_human=True,
             last_action_comment_id=RESUME_WATERMARK,
             park_reason=documenting.PARK_PUSH_FAILED,
             **state,
         )
-        issue.comments.append(FakeComment(
-            id=RESUME_COMMENT_ID,
-            body=RESUME_REPLY,
-            user=FakeUser(documenting.TRUSTED_AUTHOR),
-        ))
-        return github, issue
 
     def _no_change_tick(self, github, issue, **run_options):
         """A resumed dev that added nothing over a commit still waiting.

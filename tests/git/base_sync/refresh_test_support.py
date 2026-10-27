@@ -226,6 +226,10 @@ class _SyncWorktreeWithBaseFixture:
         for name in extra_labels:
             issue.labels.append(FakeLabel(name))
         self.gh.add_issue(issue)
+        if KEY_PENDING_PUSH_SHA in state:
+            # The terms every attempt records in its anchor's own write, where
+            # the case names none of its own.
+            state = {KEY_PENDING_REWRITE_PR: PR_NUMBER, KEY_PENDING_REWRITE_STAGE: label, **state}
         self.gh.seed_state(
             ISSUE,
             pr_number=PR_NUMBER,

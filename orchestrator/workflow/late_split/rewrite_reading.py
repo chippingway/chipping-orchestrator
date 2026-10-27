@@ -30,10 +30,10 @@ def carries_rewrite_authorization(state: PinnedState) -> bool:
 
     The key being THERE is the whole test, rather than the value under it
     being something. A pinned comment is JSON, so a field can be present and
-    `null` -- a hand edit, or an older binary writing a value this one reads
-    as nothing -- and a group carrying one member spelled that way is exactly
-    the minimal damaged claim this exists to catch. Asked for a value instead,
-    it would answer "no group at all" and let the write past.
+    `null` -- a hand edit's, say -- and a group carrying one member spelled
+    that way is exactly the minimal damaged claim this exists to catch. Asked
+    for a value instead, it would answer "no group at all" and let the write
+    past.
     """
     return any(key in state.data for key in _rewrite_fields._AUTHORIZATION_KEYS)
 

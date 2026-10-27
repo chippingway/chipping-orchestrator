@@ -10,7 +10,11 @@ from orchestrator.workflow.stages.validating import (
     watermarks as validating_watermarks,
 )
 from tests.support import fakes as _fakes
-from tests.workflow import fixtures as _helpers, published_reports as _published_reports
+from tests.workflow import (
+    approval_records as _approval_records,
+    fixtures as _helpers,
+    published_reports as _published_reports,
+)
 
 BACKEND_CLAUDE = _helpers.BACKEND_CLAUDE
 EVENT_AGENT_EXIT = _helpers.EVENT_AGENT_EXIT
@@ -145,7 +149,10 @@ def _seed_in_review(issue_number=50, *, pr=None, extra_state=None):
         "review_round": 1,
     }
     if pr is not None:
+        # The approval that put the issue in review, given the thread as it
+        # reads now.
         state[KEY_PR_NUMBER] = pr.number
+        state.update(_approval_records.approved_in_review(issue, pr.number))
     if extra_state:
         state.update(extra_state)
     github.seed_state(issue_number, **state)

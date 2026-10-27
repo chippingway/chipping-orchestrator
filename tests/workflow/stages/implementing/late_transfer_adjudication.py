@@ -41,9 +41,9 @@ def adjudicated(
 ) -> Adjudicated:
     """The pinned comment a settled `single` verdict leaves behind.
 
-    `identity=False` is the legacy shape: a comment written before the
-    semantic record existed, or one whose fingerprint could not be taken, so
-    only the exact commit is exempt.
+    `identity=False` is what the settlement records when the accepted
+    contribution's fingerprint could not be taken: only the exact commit is
+    exempt.
 
     `authorized=False` is the OTHER legacy shape, one policy further back: an
     exemption a `single` verdict recorded before an operator's own

@@ -6,8 +6,9 @@ The approval records the claim it was proved over beside the subject it
 covers, and the collapse record its squash puts down carries both. Past the
 squash no proof of the evidence can be taken again, since the pull request
 stands on a commit the evidence was never bound to, so each later move -- the
-squash tail's relabel, the recovery that finishes a collapse an earlier tick
-recorded, the merge gate's ready ping -- holds the approval to every part of
+squash tail's relabel, the recovery of a collapse an earlier tick recorded,
+which publishes nothing such an approval does not stand behind, the merge
+gate's ready ping -- holds the approval to every part of
 that proof the rewrite left standing (`approved_evidence.stands`): the claim
 still naming the current record, with no revision past it spent, minted under
 the verification context configured now, and its artifact, re-read on the pull
@@ -48,6 +49,13 @@ COLLAPSED = 3
 
 IN_REVIEW = "in_review"
 
+PARK_REASON = "park_reason"
+
+SQUASH_FAILED = "squash_failed"
+
+# The seam the squash is stood in for, which a refused recovery never reaches.
+SQUASH_SEAM = "_squash_and_force_push"
+
 HANDED_BACK = (_world.ISSUE, "workflow:validating")
 
 DONE = "done"
@@ -62,8 +70,9 @@ REVISION_FLOOR = "verification_evidence_revision"
 
 READY_PING = "ready for review/merge"
 
-# The squash that finishes the recorded collapse on the recovery tick,
-# standing the pull request where it already stands.
+# The squash a recovery tick would finish the recorded collapse with,
+# standing the pull request where it already stands -- reached only under an
+# approval still standing behind it.
 _FINISHED = _SquashOutcome(success=True, sha=_world.HEAD, count=0)
 
 
@@ -92,8 +101,9 @@ class _RecordsItsCollapseThen:
         self._road = road
 
     def __call__(self, gate, _branch, _pr_number) -> _SquashOutcome:
+        # Over the head the approval was given, as every squash is planned.
         _late_collapse_state._records_the_collapse(
-            gate, head=COLLAPSED_HEAD, base_sha=COLLAPSED_BASE, count=COLLAPSED,
+            gate, head=_world.HEAD, base_sha=COLLAPSED_BASE, count=COLLAPSED,
         )
         self._road(self._case)
         return _SquashOutcome(success=True, sha=_world.HEAD, count=COLLAPSED)
@@ -131,9 +141,9 @@ class SquashRecoveryTest(_proof.ApprovedVerdictWorld, unittest.TestCase):
     def test_a_later_revision_holds_the_recovery(self) -> None:
         # The approval's tick records its collapse beside the approval and
         # its evidence, then stops once the later revision lands -- settled,
-        # or recorded and still owed. The recovery finishes the collapse but
-        # leaves the label where it is, with the handoff standing for the
-        # next tick to drop.
+        # or recorded and still owed. The evidence the approval rests on no
+        # longer stands, so the recovery publishes nothing over it: the
+        # squash is parked with its record kept, and nothing is relabelled.
         for name, road in _LATER_REVISIONS:
             with self.subTest(name):
                 self.setUp()
@@ -141,10 +151,15 @@ class SquashRecoveryTest(_proof.ApprovedVerdictWorld, unittest.TestCase):
                 self.approves(squash_result=_RecordsItsCollapseThen(self, road))
                 recorded = _collapses.LATE_COLLAPSE_HEAD in self.pinned()
 
-                self._run_validating(self.github, self.issue, run_agent=[], squash_result=_FINISHED)
+                mocks = self._run_validating(self.github, self.issue, run_agent=[], squash_result=_FINISHED)
 
+                pinned = self.pinned()
                 self.assertTrue(recorded)
-                self.assertEqual(self._handed(), ([], _world.HEAD))
+                self.assertEqual(
+                    (mocks[SQUASH_SEAM].call_count, _collapses.LATE_COLLAPSE_HEAD in pinned, pinned.get(PARK_REASON)),
+                    (0, True, SQUASH_FAILED),
+                )
+                self.assertEqual(self._handed(), ([], None))
 
     def test_unproved_evidence_holds_the_tail(self) -> None:
         # Nothing on the pinned comment moves, so the tail finishes the

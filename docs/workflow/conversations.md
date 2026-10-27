@@ -561,7 +561,9 @@ division of labour between the developer and the orchestrator never changes.
   the report's revision and digest — is recorded as `review_subject` at the launch and as `review_returned_subject`
   once it returns, an approval's as `review_approved_subject`. A new
   report on an unchanged head is a new subject, so it reaches a fresh reviewer rather than riding an earlier
-  approval, and the verify gate and final-docs pass still follow that approval in their usual order.
+  approval, and the verify gate and final-docs pass still follow that approval in their usual order. An approval
+  with no `review_approved_subject` read whole, or beside no `review_approved_evidence` claim, covers nothing and is
+  handed back to a fresh reviewer, whether or not a report has settled.
 - **Fix-round accounting.** What a handover spends depends on the road that earned it, and a replay applies the pair
   the record froze rather than counting again:
   - a requirements-drift resume on `workflow:validating` spends one round for a commit and nothing for a report

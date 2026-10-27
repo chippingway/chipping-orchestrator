@@ -37,14 +37,7 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
-from tests.workflow.fixtures import (
-    _TEST_SPEC,
-    MEASURED_CANDIDATE_SHA,
-    _agent,
-    _issue_branch,
-    _open_pr_for,
-    _PatchedWorkflowMixin,
-)
+from tests.workflow import approval_records as _approval_records, fixtures as _fixtures
 
 DEV_SESSION = "dev-sess"
 
@@ -53,9 +46,13 @@ DEV_SESSION = "dev-sess"
 # with code leaves, which is the one the size gate proves the checkout to.
 PUBLISHED_HEAD = DEFAULT_PR_HEAD_SHA
 
-FIXED_HEAD = MEASURED_CANDIDATE_SHA
+FIXED_HEAD = _fixtures.MEASURED_CANDIDATE_SHA
 
 EDITED_BODY = "updated acceptance criteria"
+
+# The requirements revision the issue was last handed -- and an issue in review
+# approved -- which the edited body no longer reproduces.
+STALE_HASH = _approval_records.STALE_REQUIREMENTS
 
 # What a human changes, or says, while the resumed session is out.
 LATER_BODY = "the criteria moved again while the agent worked"
@@ -182,7 +179,7 @@ class _MidRunChange:
             self._case.issue.comments.append(FakeComment(
                 id=LATER_COMMENT_ID, body=LATER_COMMENT, user=FakeUser("alice"),
             ))
-        return _agent(session_id=DEV_SESSION, last_message=self._reply)
+        return _fixtures._agent(session_id=DEV_SESSION, last_message=self._reply)
 
     def _edits(self) -> None:
         edits(self._case, LATER_BODY)
@@ -206,7 +203,7 @@ class _LandingPush:
         return True
 
 
-class _DriftReportMixin(_PatchedWorkflowMixin):
+class _DriftReportMixin(_fixtures._PatchedWorkflowMixin):
     """Review-stage ticks over an issue edited under its open pull request.
 
     `seeded` builds the world on the case -- `github`, `issue`, and the
@@ -222,19 +219,27 @@ class _DriftReportMixin(_PatchedWorkflowMixin):
     delivers_a_report = False
 
     def seeded(self, issue_number: int, pr_number: int, label: str, **extra) -> None:
-        """The issue, its open pull request, and a baseline the edit moved off."""
+        """The issue, its open pull request, and a baseline the edit moved off.
+
+        An issue in review carries the approval given that baseline, which is
+        what put it there.
+        """
         self.github = FakeGitHubClient()
         self.issue = make_issue(issue_number, label=label, body=EDITED_BODY)
         self.github.add_issue(self.issue)
-        self.pull_request = _open_pr_for(
+        self.pull_request = _fixtures._open_pr_for(
             self.github, issue_number=issue_number, pr_number=pr_number,
         )
+        approval = {}
+        if label == WorkflowLabel.IN_REVIEW:
+            approval = _approval_records.approved(pr_number, requirements=STALE_HASH)
         self.github.seed_state(issue_number, **{
-            "user_content_hash": "stale-hash",
+            **approval,
+            "user_content_hash": STALE_HASH,
             "dev_agent": "claude",
             "dev_session_id": DEV_SESSION,
             "pr_number": pr_number,
-            "branch": _issue_branch(issue_number),
+            "branch": _fixtures._issue_branch(issue_number),
             "review_round": 0,
             "pr_last_comment_id": 0,
             "pr_last_review_comment_id": 0,
@@ -255,7 +260,7 @@ class _DriftReportMixin(_PatchedWorkflowMixin):
         commit it sends, as GitHub would answer it.
         """
         if isinstance(run_agent, str):
-            run_agent = _agent(session_id=DEV_SESSION, last_message=run_agent)
+            run_agent = _fixtures._agent(session_id=DEV_SESSION, last_message=run_agent)
         standing = self.pull_request.head.sha
         after = FIXED_HEAD if run_options.pop("committed", True) else standing
         options = {
@@ -277,10 +282,10 @@ class _DriftReportMixin(_PatchedWorkflowMixin):
             return self._run(
                 partial(
                     _report_transaction._reconciles_pending_report,
-                    self.github, _TEST_SPEC, self.issue, None,
+                    self.github, _fixtures._TEST_SPEC, self.issue, None,
                     self.github.read_pinned_state(self.issue),
                 ),
-                run_agent=_agent(),
+                run_agent=_fixtures._agent(),
                 head_shas=(head,),
                 fetched_branch_tip=head,
             )

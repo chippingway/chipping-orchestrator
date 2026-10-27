@@ -22,7 +22,7 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
-from tests.workflow import verified_approvals as _verified
+from tests.workflow import approval_records as _approval_records, verified_approvals as _verified
 from tests.workflow.fixtures import (
     LABEL_FIXING,
     LABEL_IN_REVIEW,
@@ -159,6 +159,7 @@ class SameAccountHumanFeedbackTest(unittest.TestCase, _DebouncedInReviewMixin):
         gh.seed_state(
             SAME_ACCOUNT_ISSUE,
             pr_number=SAME_ACCOUNT_PR,
+            **_approval_records.approved_in_review(issue, SAME_ACCOUNT_PR),
             branch=_issue_branch(SAME_ACCOUNT_ISSUE),
             dev_agent=BACKEND_CLAUDE,
             dev_session_id=DEV_SESSION,
@@ -311,6 +312,7 @@ class OrchestratorMarkerFeedbackFilterTest(
         gh.seed_state(
             MARKER_FILTER_ISSUE,
             pr_number=MARKER_FILTER_PR,
+            **_approval_records.approved_in_review(issue, MARKER_FILTER_PR),
             branch=_issue_branch(MARKER_FILTER_ISSUE),
             dev_agent=BACKEND_CLAUDE,
             dev_session_id=DEV_SESSION,
@@ -406,6 +408,7 @@ class OrchestratorMarkerFeedbackFilterTest(
         scenario.github.seed_state(
             ZERO_MARK_ISSUE,
             pr_number=ZERO_MARK_PR,
+            **_approval_records.approved_in_review(scenario.issue, ZERO_MARK_PR),
             branch=_issue_branch(ZERO_MARK_ISSUE),
             dev_agent=BACKEND_CLAUDE,
             dev_session_id=DEV_SESSION,
@@ -472,6 +475,7 @@ class OperatorControlFeedbackFilterTest(
         gh.seed_state(
             CONTROL_FILTER_ISSUE,
             pr_number=CONTROL_FILTER_PR,
+            **_approval_records.approved_in_review(issue, CONTROL_FILTER_PR),
             branch=_issue_branch(CONTROL_FILTER_ISSUE),
             dev_agent=BACKEND_CLAUDE,
             dev_session_id=DEV_SESSION,
@@ -522,6 +526,7 @@ class CrossNamespaceFilterTest(unittest.TestCase, _DebouncedInReviewMixin):
         gh.seed_state(
             INLINE_COLLISION_ISSUE,
             pr_number=INLINE_COLLISION_PR,
+            **_approval_records.approved_in_review(issue, INLINE_COLLISION_PR),
             branch=_issue_branch(INLINE_COLLISION_ISSUE),
             dev_agent=BACKEND_CLAUDE,
             dev_session_id=DEV_SESSION,
@@ -570,6 +575,7 @@ class CrossNamespaceFilterTest(unittest.TestCase, _DebouncedInReviewMixin):
         gh.seed_state(
             SUMMARY_COLLISION_ISSUE,
             pr_number=SUMMARY_COLLISION_PR,
+            **_approval_records.approved_in_review(issue, SUMMARY_COLLISION_PR),
             branch=_issue_branch(SUMMARY_COLLISION_ISSUE),
             dev_agent=BACKEND_CLAUDE,
             dev_session_id=DEV_SESSION,

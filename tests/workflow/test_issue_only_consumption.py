@@ -34,6 +34,7 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
+from tests.workflow import approval_records as _approval_records
 from tests.workflow.fixtures import (
     DEFAULT_PR_HEAD_SHA,
     LABEL_FIXING,
@@ -120,6 +121,10 @@ class _ConsumptionFixtureMixin(_PatchedWorkflowMixin):
         ])
         gh.add_issue(issue)
         gh.add_pr(pr)
+        # An issue in review stands on the approval that put it there.
+        approval = {}
+        if label == LABEL_IN_REVIEW:
+            approval = _approval_records.approved_in_review(issue, PR_NUMBER, orchestrator_ids=[PARK_NOTICE_ID])
         gh.seed_state(
             ISSUE,
             pr_number=PR_NUMBER,
@@ -134,6 +139,7 @@ class _ConsumptionFixtureMixin(_PatchedWorkflowMixin):
             **{
                 DELIVERED_AFTER: 0,
                 DELIVERED_THROUGH: state_fields.get(LAST_ACTION_COMMENT_ID),
+                **approval,
                 **state_fields,
             },
         )
@@ -218,7 +224,10 @@ class DeliveredIssueReplyTest(unittest.TestCase, _ConsumptionFixtureMixin):
         self.assertIsNone(self._state(gh).get(PENDING_FIX_ISSUE_MAX_ID))
 
     def test_relabel_routes_the_unread_surface(self) -> None:
+        # Back in review over an approval of the requirements the resume left,
+        # which is what a stage reading the thread past the reply stands on.
         gh, issue = self._deliver_through_validating()[:2]
+        self._approved_meanwhile(gh)
         gh.apply_foreign_label(issue, LABEL_IN_REVIEW)
 
         review_mocks = self._run_dev_stage(LABEL_IN_REVIEW, gh, issue)
@@ -242,6 +251,11 @@ class DeliveredIssueReplyTest(unittest.TestCase, _ConsumptionFixtureMixin):
         self.assertEqual(
             self._state(gh).get(PR_LAST_COMMENT_ID), PR_CONVERSATION_ID,
         )
+
+    def _approved_meanwhile(self, gh) -> None:
+        """Record the approval of the requirements the baseline now holds, as a reviewer's leaves it."""
+        pinned = gh._pinned[ISSUE].data
+        pinned.update(_approval_records.approved(PR_NUMBER, requirements=pinned["user_content_hash"]))
 
     def _deliver_through_validating(self, *, unread_pr_comment: bool = True):
         """Answer the reply on `workflow:validating`, and count what that cost.

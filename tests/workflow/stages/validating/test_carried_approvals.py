@@ -5,7 +5,7 @@
 A carry answers for the head it was carried onto only on the approval's word,
 so the approval is retired with it -- its subject written null, which no
 reader takes for an approval at all, rather than left without a claim, which
-readers would take for one recorded before approvals named evidence. Whichever
+every reader refuses too while the record still names the subject. Whichever
 road invalidated the carry -- the arrival in `validating` of one its claim no
 longer names, removed or written null, or the relabel's retry no longer
 proving it, even with no room on the comment for the evidence's own history

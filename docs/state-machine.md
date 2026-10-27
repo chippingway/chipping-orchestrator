@@ -204,8 +204,8 @@ whose post or settlement did not resolve holds the route with nothing announced 
 does a base that moved
 after the head was counted against it (`workflow/engine/rewrite_evidence_proof.py`). The attempt's record also
 carries the base tip its rebase replays onto, frozen before git runs and blank where the base ref moved while git ran
-(`pending_auto_base_rebase_rewrite_base`); a legacy attempt without one still reads whole and simply proves no base,
-so nothing is run or carried for its head. The recovery resumes that decision with no developer launched: the
+(`pending_auto_base_rebase_rewrite_base`); an attempt without one still reads whole and simply proves no base, so
+nothing is run or carried for its head. The recovery resumes that decision with no developer launched: the
 commands run again only where no completed run was captured, and a captured one is settled -- over an artifact an
 earlier post landed, found under its receipt -- and routed only once it proves again
 (`workflow/engine/rewrite_finish_captured.py`), one an earlier finish already settled is routed with nothing posted

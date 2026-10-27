@@ -41,7 +41,7 @@ from tests.support.fakes import (
     make_issue,
 )
 from tests.support.publication import LandingPush
-from tests.workflow import published_reports as _published_reports
+from tests.workflow import verified_approvals as _verified
 from tests.workflow.drift_reports import reported
 from tests.workflow.fixtures import (
     DEFAULT_PR_HEAD_SHA,
@@ -235,12 +235,13 @@ class _RebasedUnderAnEdit(_PatchedWorkflowMixin):
     def _moves_to_review(self) -> dict:
         """A human's manual move onto `in_review`, and the tick it earns.
 
-        Over an approval of the report the resume settled, which is what a
-        review of that head would have left: without one, `in_review` hands
-        the issue straight back rather than acting on a report nobody
-        reviewed, and the crossing below never happens.
+        Over an approval of the report the resume settled, proved over passing
+        evidence of its head, which is what a review of that head would have
+        left: without one, `in_review` hands the issue straight back rather
+        than acting on a report nobody reviewed, and the crossing below never
+        happens.
         """
-        _published_reports.approves_the_report(self.github, self.issue)
+        _verified.verifies_the_approval(self.github, self.issue)
         self.github.apply_foreign_label(self.issue, LABEL_IN_REVIEW)
         return self._run_in_review(
             self.github, self.issue, run_agent=_agent(session_id=DEV_SESSION),

@@ -257,10 +257,12 @@ def _whole_proof(ctx: _models._DocumentingContext, checked: str) -> _evidence_mo
     evidence proved current is then held to what the approval needed of it
     (`approved_evidence._artifact_refusal`) -- its artifact, re-read on the
     pull request the proof read, still the one that settled, every command
-    exiting 0, and every configured `VERIFY_COMMANDS` command among them. An
-    approval with no evidence claim was never held to that by the opening,
-    and a failed or uncovering run is no evidence a pass may be completed
-    over. Every one of those readings is a request long enough for the issue
+    exiting 0, and every configured `VERIFY_COMMANDS` command among them. The
+    opening held the approval's claim to that before the pass ran -- an
+    approval beside no claim, absent or written null, rests on nothing and was
+    handed back there -- but the artifact can be deleted or edited while the
+    pass runs, and a failed or uncovering run is no evidence a pass may be
+    completed over. Every one of those readings is a request long enough for the issue
     to be edited or the pull request pushed to behind the reading that proved
     it, so the last word is the one every road about to move an approval on
     takes (`_holds_last`).

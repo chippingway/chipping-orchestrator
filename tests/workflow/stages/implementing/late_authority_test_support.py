@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """The one candidate the authorization cases are all about.
 
-A commit exempt on a record no operator authorization stands behind: the shape
-an older binary left on a live issue, where a `single` verdict wrote the
-exemption by itself before a human's own decision was required at publication.
-Every case here starts from that comment and differs only in what the reading
-of the candidate then says.
+A commit exempt on a record no operator authorization stands behind: what a
+settlement's exemption is left as once the answer it was authorized for is
+thrown away and re-earned, taking the authorization with it. Every case here
+starts from that comment and differs only in what the reading of the candidate
+then says.
 
 Beside the gate's own support module rather than inside it, because what these
 seed is a different subject: that module is about what one committed candidate
@@ -15,7 +15,7 @@ earns from the owner past it.
 """
 from __future__ import annotations
 
-from tests.workflow.fixtures import _legacy_exemption
+from tests.workflow.fixtures import _bare_exemption
 from tests.workflow.stages.implementing import late_gate_test_support as _support
 from tests.workflow.stages.implementing.late_gate_test_support import _GateCase
 
@@ -24,12 +24,12 @@ from tests.workflow.stages.implementing.late_gate_test_support import _GateCase
 KEY_OVERRIDE_CANDIDATE_SHA = "late_override_candidate_sha"
 
 
-class _LegacyExemptionCase(_GateCase):
+class _BareExemptionCase(_GateCase):
     """A candidate exempt on a record no operator authorization stands behind."""
 
-    def _seed_legacy(self, **extra) -> None:
+    def _seed_bare(self, **extra) -> None:
         """The pinned comment that exemption leaves, and nothing beside it."""
-        self._seed(**{**_legacy_exemption(), **extra})
+        self._seed(**{**_bare_exemption(), **extra})
 
     def _park_awaiting_authorization(self, reply: str = "", **recorded) -> None:
         """Seed the park an oversized one takes, and any reply to it.
@@ -47,7 +47,7 @@ class _LegacyExemptionCase(_GateCase):
             _support.LAST_ACTION_COMMENT_ID: _support.PRIOR_ACTION_COMMENT_ID,
             "dev_agent": "codex",
             "dev_session_id": _support.DEV_SESSION,
-            **_legacy_exemption(),
+            **_bare_exemption(),
             **_support.recorded_generation(),
             **recorded,
         })

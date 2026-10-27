@@ -33,6 +33,7 @@ from orchestrator.workflow.engine import (
     verification_transaction as _transaction,
 )
 from orchestrator.workflow.late_split import collapses as _collapses, handoffs as _late_handoffs
+from orchestrator.workflow.stages.implementing import late_publication_state as _late_publication_state
 from tests.workflow import review_world as _world
 from tests.workflow.fixtures import _agent
 from tests.workflow.repo_values import _TEST_SPEC, EXISTING_CHECKOUT
@@ -56,7 +57,10 @@ SQUASH_NOTICE = f":package: squashed {COLLAPSED} commits to 1"
 class LandsTheSquash:
     """A squash that rewrites the approved head into `head`, `count` commits collapsed, and publishes it.
 
-    Where `then` is given it is another road's work behind the push, on the case.
+    It leaves what the real push does: the collapse recorded, the pull
+    request standing on `head`, and this issue's receipt of that push from
+    the approved head onto the pull request. Where `then` is given it is
+    another road's work behind the push, on the case.
     """
 
     def __init__(self, case, *, head: str = SQUASHED, count: int = COLLAPSED, then=None) -> None:
@@ -67,6 +71,7 @@ class LandsTheSquash:
 
     def __call__(self, gate, _branch, _pr_number) -> _SquashOutcome:
         _collapses.record_pending_collapse(gate.state, head=_world.HEAD, base_sha=COLLAPSED_BASE, count=self._count)
+        _late_publication_state._record_publication(gate.state, self._head, _world.HEAD, _world.PR)
         self._case.pull_request.head.sha = self._head
         if self._then is not None:
             self._then(self._case)

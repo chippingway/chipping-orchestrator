@@ -18,13 +18,10 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
-from tests.workflow.fixtures import (
-    _TEST_SPEC,
-    MEASURED_CANDIDATE_SHA,
-    _agent,
-)
+from tests.workflow import fixtures as _fixtures, verified_approvals as _verified
 from tests.workflow.stages.documenting.documenting_assertion_test_support import _issue_comment_text
 from tests.workflow.stages.documenting.documenting_scenario_test_support import (
+    STALE_BODY_HASH,
     _FinalDocsFixture,
 )
 
@@ -50,9 +47,9 @@ SHA_BEFORE = _SHA_BEFORE
 # worktree: the stage names the commit it means to publish and the gate
 # refuses a checkout standing anywhere else, so a fixture that spelled them
 # differently would be modelling the race rather than the tick.
-SHA_AFTER = MEASURED_CANDIDATE_SHA
-SHA_DOCS = MEASURED_CANDIDATE_SHA
-SHA_RECOVERED = MEASURED_CANDIDATE_SHA
+SHA_AFTER = _fixtures.MEASURED_CANDIDATE_SHA
+SHA_DOCS = _fixtures.MEASURED_CANDIDATE_SHA
+SHA_RECOVERED = _fixtures.MEASURED_CANDIDATE_SHA
 SHA_PR_HEAD = "pr-head-sha"
 
 # --- Pinned-state field keys read back from `gh.pinned_data(...)` -------
@@ -174,7 +171,7 @@ class HandleDocumentingFinalDocsHandoffTest(unittest.TestCase, _FinalDocsFixture
         mocks = self._run_documenting(
             gh,
             issue,
-            run_agent=_agent(
+            run_agent=_fixtures._agent(
                 session_id=DEV_SESSION,
                 last_message=("Inspected diff; no user-facing change.\nDOCS: NO_CHANGE"),
             ),
@@ -199,19 +196,16 @@ class HandleDocumentingFinalDocsHandoffTest(unittest.TestCase, _FinalDocsFixture
         # ahead-push branch; the recovered commit is now the new PR
         # head, completed straight into `in_review` -- stamped as the
         # docs commit it is, with the park the reply answered ended.
-        gh, issue = self._seeded(awaiting_human=True, park_reason=PARK_PUSH_FAILED)
-        issue.comments.append(
-            FakeComment(
-                id=FINAL_DOCS_REPLY_ID,
-                body="retry please",
-                user=FakeUser(TRUSTED_AUTHOR),
-            ),
+        gh, issue = self._seeded(
+            comments=[FakeComment(id=FINAL_DOCS_REPLY_ID, body="retry please", user=FakeUser(TRUSTED_AUTHOR))],
+            awaiting_human=True,
+            park_reason=PARK_PUSH_FAILED,
         )
 
         mocks = self._run_documenting(
             gh,
             issue,
-            run_agent=_agent(
+            run_agent=_fixtures._agent(
                 session_id=DEV_SESSION,
                 last_message=("Re-checked diff; the existing docs commit already covers it.\nDOCS: NO_CHANGE"),
             ),
@@ -240,12 +234,12 @@ class HandleDocumentingFinalDocsHandoffTest(unittest.TestCase, _FinalDocsFixture
         # -- WITHOUT spawning the docs agent (a docs commit against
         # the old body would just need to be re-reviewed alongside
         # any impl change).
-        gh, issue = self._seeded(user_content_hash="oldhash")
+        gh, issue = self._seeded(user_content_hash=STALE_BODY_HASH)
 
         mocks = self._run_documenting(
             gh,
             issue,
-            run_agent=_agent(),
+            run_agent=_fixtures._agent(),
             push_branch=True,
             head_shas=[],
             branch_ahead_behind=(0, 0),
@@ -280,6 +274,60 @@ class HandleDocumentingFinalDocsHandoffTest(unittest.TestCase, _FinalDocsFixture
         # tick scans `comments_after(900)`, sees 1100 as fresh PR
         # feedback, and bounces to `fixing` over work the docs pass
         # already addressed.
+        gh, issue = self._parked_on_its_question()
+
+        # Documenting tick: awaiting-human resume consumes id=1100,
+        # the docs need nothing more, advance to in_review.
+        with evidence_proved():
+            self._run_documenting(
+                gh,
+                issue,
+                run_agent=_fixtures._agent(
+                    session_id=DEV_SESSION,
+                    last_message="Edge case X is already covered.\nDOCS: NO_CHANGE",
+                ),
+                push_branch=True,
+                head_shas=[SHA_BEFORE, SHA_BEFORE],
+                branch_ahead_behind=(0, 0),
+            )
+
+        self.assertIn(
+            (WATERMARK_ISSUE_NUMBER, IN_REVIEW),
+            gh.label_history,
+        )
+        pinned_state = gh.pinned_data(WATERMARK_ISSUE_NUMBER)
+        self.assertEqual(
+            pinned_state.get(LAST_ACTION_COMMENT_ID),
+            HUMAN_REPLY_ID,
+        )
+        self.assertGreaterEqual(
+            pinned_state.get("pr_last_comment_id"),
+            HUMAN_REPLY_ID,
+            "pr_last_comment_id must ratchet past the consumed human "
+            "issue-thread reply on the final-docs handoff so the next "
+            "in_review tick does not replay it as fresh PR feedback",
+        )
+
+        # In_review tick: ensure the consumed reply is NOT replayed as
+        # fresh feedback (the actual route-to-fixing bug the ratchet
+        # guards against).
+        if not any(label.name == IN_REVIEW for label in issue.labels):
+            issue.labels = [FakeLabel(IN_REVIEW)]
+        mocks_ir = self._run(
+            lambda: _in_review._handle_in_review(gh, _fixtures._TEST_SPEC, issue),
+            run_agent=_fixtures._agent(),
+        )
+
+        mocks_ir[RUN_AGENT].assert_not_called()
+        self.assertNotIn(
+            (709, "workflow:fixing"),
+            gh.label_history,
+            "in_review must not bounce to `fixing` over a human reply "
+            "the documenting awaiting-human resume already consumed",
+        )
+
+    def _parked_on_its_question(self):
+        """A docs pass parked on its question, the human reply on the thread, and the approval it was entered over."""
         gh = FakeGitHubClient()
         long_ago = datetime.now(UTC) - timedelta(hours=1)
         issue = make_issue(
@@ -333,56 +381,8 @@ class HandleDocumentingFinalDocsHandoffTest(unittest.TestCase, _FinalDocsFixture
             delivered_after_comment_id=0,
             delivered_through_comment_id=PARK_COMMENT_ID,
         )
-
-        # Documenting tick: awaiting-human resume consumes id=1100,
-        # the docs need nothing more, advance to in_review.
-        with evidence_proved():
-            self._run_documenting(
-                gh,
-                issue,
-                run_agent=_agent(
-                    session_id=DEV_SESSION,
-                    last_message="Edge case X is already covered.\nDOCS: NO_CHANGE",
-                ),
-                push_branch=True,
-                head_shas=[SHA_BEFORE, SHA_BEFORE],
-                branch_ahead_behind=(0, 0),
-            )
-
-        self.assertIn(
-            (WATERMARK_ISSUE_NUMBER, IN_REVIEW),
-            gh.label_history,
-        )
-        pinned_state = gh.pinned_data(WATERMARK_ISSUE_NUMBER)
-        self.assertEqual(
-            pinned_state.get(LAST_ACTION_COMMENT_ID),
-            HUMAN_REPLY_ID,
-        )
-        self.assertGreaterEqual(
-            pinned_state.get("pr_last_comment_id"),
-            HUMAN_REPLY_ID,
-            "pr_last_comment_id must ratchet past the consumed human "
-            "issue-thread reply on the final-docs handoff so the next "
-            "in_review tick does not replay it as fresh PR feedback",
-        )
-
-        # In_review tick: ensure the consumed reply is NOT replayed as
-        # fresh feedback (the actual route-to-fixing bug the ratchet
-        # guards against).
-        if not any(label.name == IN_REVIEW for label in issue.labels):
-            issue.labels = [FakeLabel(IN_REVIEW)]
-        mocks_ir = self._run(
-            lambda: _in_review._handle_in_review(gh, _TEST_SPEC, issue),
-            run_agent=_agent(),
-        )
-
-        mocks_ir[RUN_AGENT].assert_not_called()
-        self.assertNotIn(
-            (709, "workflow:fixing"),
-            gh.label_history,
-            "in_review must not bounce to `fixing` over a human reply "
-            "the documenting awaiting-human resume already consumed",
-        )
+        _verified.verifies_the_approval(gh, issue)
+        return gh, issue
 
 
 class FinalDocsWatermarkOwnerTest(unittest.TestCase):

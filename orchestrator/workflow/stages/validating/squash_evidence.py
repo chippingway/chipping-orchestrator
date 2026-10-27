@@ -440,8 +440,10 @@ def _invalidates(state: PinnedState) -> bool:
     The approval goes with its evidence: its subject is written null, which
     every reader of an approval refuses (`review_subjects.approval_covers_current`)
     until a fresh reviewer's approval is recorded in its place. Retiring the
-    evidence alone would leave an approval whose claim is gone looking like
-    one recorded before approvals named evidence, and readers would take it.
+    evidence alone would leave the approval claiming evidence that is gone --
+    which every reader refuses as well (`approved_evidence.stands`), but which
+    would still name the subject as approved -- so the record says it
+    instead.
     Only that approval, though -- the very subject the evidence answers for
     (`verification_carries.retires_its_approval`), as for a carry abandoned
     before it settled: one another road recorded in its place, of another

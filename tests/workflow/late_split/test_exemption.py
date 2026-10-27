@@ -31,7 +31,7 @@ from tests.workflow.late_split.generation_test_support import (
     measured_generation,
 )
 
-# Values a hand edit or an older binary could leave in the field, none of
+# Values a hand edit could leave in the field, none of
 # which names one commit: an abbreviation, prose, a number, and a flag.
 _NOT_A_COMMIT = (CANDIDATE_SHA[:7], "one coherent change", 7, True)
 DESCENDANT_SHA = "d" * SHA_LENGTH
@@ -272,9 +272,10 @@ class SemanticIdentityTest(unittest.TestCase):
                 # a human already made.
                 self.assertTrue(_exemption_reading.is_exempt(state, CANDIDATE_SHA))
 
-    def test_a_legacy_comment_transfers_nothing(self) -> None:
-        # The whole of what an older binary wrote, and what every issue that
-        # earned a verdict before this group existed still carries.
+    def test_an_unidentified_exemption_moves_none(self) -> None:
+        # What a settlement records when the accepted contribution would not
+        # fingerprint: the exact commit, exempt, and no identity a transfer
+        # could move.
         state = _exemption_support.exempted_state()
 
         self.assertIsNone(_exemption_reading.read_semantic_identity(state))
@@ -316,10 +317,10 @@ class ClaimedExemptionTest(unittest.TestCase):
     def test_a_whole_record_shows_its_claim(self) -> None:
         self.assertFalse(_exemption_reading.unreadable_exemption(_exemption_support.identified_state()))
 
-    def test_a_legacy_comment_is_complete(self) -> None:
-        # The exempt commit and nothing beside it, which is the whole of what
-        # an older binary wrote. It costs a later tick the transfer rather
-        # than the verdict, so it may not read as damage.
+    def test_an_unidentified_exemption_is_whole(self) -> None:
+        # The exempt commit and nothing beside it, which is what a settlement
+        # records when fingerprinting fails. It costs a later tick the
+        # transfer rather than the verdict, so it may not read as damage.
         self.assertFalse(_exemption_reading.unreadable_exemption(_exemption_support.exempted_state()))
 
     def test_an_exemption_that_is_not_a_commit(

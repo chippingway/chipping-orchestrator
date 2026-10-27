@@ -130,10 +130,9 @@ def _unauthorized_exemption(
     GATE asks it through, so an authorization means the same thing on both
     roads past the measurement.
 
-    The record an older binary left reaches it too: a `single` verdict wrote
-    the exemption alone before a human's own decision was required at
-    publication, and so does any comment whose authorization this build cannot
-    read back whole.
+    So does any comment whose authorization this build cannot read back
+    whole, or none at all beside the exemption: absence of the authorization
+    is never a permission to move the verdict.
 
     Refused, nothing moves and the rewritten commit is measured by the
     ordinary cumulative gate exactly as every other refusal here leaves it.

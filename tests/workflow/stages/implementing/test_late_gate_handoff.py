@@ -38,6 +38,10 @@ _DECOMPOSING = (support.GATE_ISSUE_NUMBER, LABEL_DECOMPOSING)
 _CANDIDATE_MOVED = "late_candidate_moved"
 _KEY_APPROVED_SHA = "late_approved_sha"
 _KEY_APPROVED_BASIS = "late_approved_basis"
+# What the gate's own count, and an authorized settlement, record an approval as resting on.
+_GATE_READING = "reading"
+_ADJUDICATED = "adjudication"
+_KEY_APPROVED_BASIS = "late_approved_basis"
 _MOVED_SHA = "e" * SHA_LENGTH
 # The session a resume continues, seeded so a resumed run is the pinned one
 # rather than a fresh spawn.
@@ -152,7 +156,7 @@ class UnpublishedCommitTest(support._GateCase, unittest.TestCase):
         for checkout, seeded in _WITHOUT_THE_COMMIT:
             with self.subTest(checkout=checkout):
                 self.setUp()
-                self._seed(**{_KEY_APPROVED_SHA: MEASURED_CANDIDATE_SHA})
+                self._seed(**{_KEY_APPROVED_SHA: MEASURED_CANDIDATE_SHA, _KEY_APPROVED_BASIS: _GATE_READING})
 
                 mocks = self._run_gate(has_new_commits=False, **seeded)
 
@@ -169,6 +173,7 @@ class UnpublishedCommitTest(support._GateCase, unittest.TestCase):
         self._seed(**{
             **_authorized_exemption(),
             _KEY_APPROVED_SHA: MEASURED_CANDIDATE_SHA,
+            _KEY_APPROVED_BASIS: _ADJUDICATED,
         })
 
         mocks = self._run_gate(**_MISSING_OBJECT)
@@ -201,7 +206,7 @@ class ApprovedCommitPublicationTest(support._GateCase, unittest.TestCase):
 
     def setUp(self) -> None:
         super().setUp()
-        self._seed(**{_KEY_APPROVED_SHA: MEASURED_CANDIDATE_SHA})
+        self._seed(**{_KEY_APPROVED_SHA: MEASURED_CANDIDATE_SHA, _KEY_APPROVED_BASIS: _GATE_READING})
 
     def test_it_publishes_without_measuring_again(self) -> None:
         # A count seeded well past the ceiling is never taken: re-deciding a
@@ -250,6 +255,7 @@ class ApprovedCommitPublicationTest(support._GateCase, unittest.TestCase):
         self._seed(**{
             **_authorized_exemption(),
             _KEY_APPROVED_SHA: MEASURED_CANDIDATE_SHA,
+            _KEY_APPROVED_BASIS: _ADJUDICATED,
         })
 
         mocks = self._run_gate()
@@ -400,6 +406,7 @@ class GuidedPastTheApprovalTest(support._GateCase, unittest.TestCase):
             support.AWAITING_HUMAN: True,
             support.PARK_REASON: _CANDIDATE_MOVED,
             _KEY_APPROVED_SHA: MEASURED_CANDIDATE_SHA,
+            _KEY_APPROVED_BASIS: _GATE_READING,
             "dev_agent": "codex",
             "dev_session_id": _DEV_SESSION,
         })
@@ -589,6 +596,7 @@ class MovedCheckoutRecoveryTest(support._GateCase, unittest.TestCase):
             support.AWAITING_HUMAN: True,
             support.PARK_REASON: _CANDIDATE_MOVED,
             _KEY_APPROVED_SHA: MEASURED_CANDIDATE_SHA,
+            _KEY_APPROVED_BASIS: _GATE_READING,
             "dev_agent": "codex",
             "dev_session_id": _DEV_SESSION,
         })

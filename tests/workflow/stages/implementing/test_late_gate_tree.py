@@ -28,6 +28,7 @@ from tests.workflow.stages.implementing import late_gate_test_support as support
 _VALIDATING = (support.GATE_ISSUE_NUMBER, LABEL_VALIDATING)
 _CANDIDATE_MOVED = "late_candidate_moved"
 _KEY_APPROVED_SHA = "late_approved_sha"
+_KEY_APPROVED_BASIS = "late_approved_basis"
 _KEY_PUBLISHED_SHA = "implementing_published_sha"
 _DECOMPOSE = "DECOMPOSE"
 _DEV_SESSION = "sess-1"
@@ -191,6 +192,7 @@ class CleanedTreeRecoveryTest(support._GateCase, unittest.TestCase):
             support.AWAITING_HUMAN: True,
             support.PARK_REASON: _CANDIDATE_MOVED,
             _KEY_APPROVED_SHA: MEASURED_CANDIDATE_SHA,
+            _KEY_APPROVED_BASIS: "reading",
             "dev_agent": "codex",
             "dev_session_id": _DEV_SESSION,
         })

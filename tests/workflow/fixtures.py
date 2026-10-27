@@ -25,9 +25,9 @@ from tests.workflow import (
 from tests.workflow.authorized_exemption import (
     _authorize_command as _make_authorize_command,
     _authorized_exemption as _make_authorized_exemption,
+    _bare_exemption as _make_bare_exemption,
     _damaged_authorization as _make_damaged_authorization,
     _fabricated_authorization as _make_fabricated_authorization,
-    _legacy_exemption as _make_legacy_exemption,
 )
 from tests.workflow.engine import event_values as _event_values
 from tests.workflow.other_labels import (
@@ -151,7 +151,7 @@ _authorize_command = _make_authorize_command
 _authorized_exemption = _make_authorized_exemption
 _damaged_authorization = _make_damaged_authorization
 _fabricated_authorization = _make_fabricated_authorization
-_legacy_exemption = _make_legacy_exemption
+_bare_exemption = _make_bare_exemption
 
 _agent = _agent_result
 _named_description = _named_pr_description

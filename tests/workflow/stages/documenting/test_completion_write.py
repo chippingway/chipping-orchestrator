@@ -27,8 +27,11 @@ MEASURED_CANDIDATE_SHA = gate.MEASURED_CANDIDATE_SHA
 UNDER_THE_CEILING = gate.UNDER_THE_CEILING
 
 # The roads that leave no receipt behind an unconfirmed write, as how the write
-# went: a clean no-change publishes nothing, whichever way its write went.
-UNRECEIPTED = (completion.REFUSED, completion.LOST)
+# went, and how many passes the tick reading what is left runs before it hands
+# the issue to `in_review`: a clean no-change publishes nothing, whichever way
+# its write went, and only a write that landed leaves its completion to finish
+# from.
+UNRECEIPTED = ((completion.REFUSED, 1), (completion.LOST, 0))
 
 # A receipt a maintainer strips off the comment while the notice is out, and
 # how many passes the tick reading what is left runs before it hands the issue
@@ -70,11 +73,13 @@ class UnresolvedCompletionTest(unittest.TestCase, gate._DocsGateFixtureMixin):
     def test_an_unreceipted_write_reruns_the_pass(self) -> None:
         # The tick that sent a no-change pass's write cannot tell one that
         # landed from one that never did, and relabels nothing. The next one
-        # reads what landed -- a stamp where it landed, none where it did not,
-        # and no receipt either way -- and runs the pass again rather than
-        # handing off on a record no receipt vouches for; only that pass's
-        # confirmed write hands the issue on.
-        for how in UNRECEIPTED:
+        # reads what landed, and no receipt either way. A refused write left
+        # nothing, so the pass runs again rather than handing off on a record
+        # nothing vouches for, and only that pass's confirmed write hands the
+        # issue on; one that landed left the stamp and the completion beside
+        # it, which is finished from with no second pass
+        # (`test_owed_completion`).
+        for how, passes in UNRECEIPTED:
             with self.subTest(how=how):
                 github, issue = self._seeded()
                 self._unresolved_tick(github, issue, how, publishes=False)
@@ -82,7 +87,7 @@ class UnresolvedCompletionTest(unittest.TestCase, gate._DocsGateFixtureMixin):
 
                 mocks = self._rerun(github, issue)
 
-                mocks[documenting.RUN_AGENT].assert_called_once()
+                self.assertEqual(mocks[documenting.RUN_AGENT].call_count, passes)
                 self.assertEqual(github.label_history, [(self.issue_number, documenting.IN_REVIEW)])
 
     def _unresolved_tick(self, github, issue, how: str, publishes: bool) -> None:

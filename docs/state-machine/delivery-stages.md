@@ -1182,6 +1182,7 @@ because there it is the claim that this stage has already rerouted rather than a
   settlement whose write was lost.
 - **Where in the order**: behind the pause (the dispatcher's hard-skip screen, one level up in `_process_issue`),
   the restart and cancellation guards, the agent-run-limit hold above, the live-adjudication refusal, the
+  hold on a recorded squash no approval stands behind publishing (`squash_approval.holds_the_dispatch`), the
   outstanding-publication reconciliation (`late_reconcile._reconciles_published_work`), and **both** readings of
   the auto-rebase anchor — the one ahead of that reconciliation and the one asked again behind it; ahead of the
   reuse guard below it and the stage handler. It is last of the reconciliations because its own evidence asks
@@ -2875,8 +2876,10 @@ and handed off -- and this is what it guarantees and what stops it.
        which an adjudicator's own `single` never writes -- that parks for the decision) *and* an operator
        authorized (the `late_override_*` group, whose recorded pair is fingerprinted again here and held to the
        digest it carries — an exemption alone is half a bypass and goes to the ordinary reading), the one the
-       gate approved and has still to push (`late_approved_sha`, unless its `late_approved_basis` says the debt
-       rests on that same unauthorized exemption), the one this stage already pushed
+       gate approved and has still to push (`late_approved_sha`, only where its `late_approved_basis` reads as one
+       of the gate's own -- `reading` or `unmeasured`; a debt resting on an operator's gesture, or on no basis this
+       build can read, absent and `null` included, is measured unless that exemption and its authorization prove
+       out), the one this stage already pushed
        (`implementing_published_sha`), and
        the one an open pull request this call froze is already standing on, where the push would move nothing and
        only the bookkeeping behind a publication that has happened is owed. None of the four crosses between issues:
@@ -3188,8 +3191,9 @@ and handed off -- and this is what it guarantees and what stops it.
      `validating` invalidating the carry ahead of any round — and a report or evidence nobody could read holds the
      tick without moving the label. A relabel that fails raises; the records are still there for the next tick. An
      ordinary tick carries neither record and an approval of what the comment carries, and costs one reading of the
-     report at its location — and of the evidence, for an approval proved over any — and one of the pinned comment
-     behind them (`_approval_still_stands`): those readings are requests long enough for another road to settle a
+     report at its location — and of the evidence its claim names, an approval beside none going back — and one of
+     the pinned comment behind them (`_approval_still_stands`): those readings are requests long enough for another
+     road to settle a
      later report, persist a verdict, record a later verification revision, or replace or remove a review subject or
      the approval's evidence claim, so where the report, `pr_number`, verdict, evidence, or approval records moved
      the issue goes back too, and whatever else moved is carried onto the state the docs pass writes, rather than
@@ -4499,15 +4503,34 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      getting further, and the park's own writer stays quiet while that reason stands. A park the **size gate**
      worded behind it is held rather than re-entered, since the gate posts a fresh notice for every reading it
      cannot take; the human's reply then clears that park and is spent on the recovery rather than on a dev resumed
-     over a branch mid-rewrite. A recovery that finishes clears the park it found, so nothing carries an
-     `awaiting_human` into `documenting` — and it moves the label there only while the approval it finishes under
-     still covers the evidence it was proved over (`review_approved_evidence` still naming the current, passing
-     evidence, where it names any, with no revision past it recorded and the verification context unchanged), the
+     over a branch mid-rewrite. Whatever publishes the squash publishes it only under the approval it was begun under,
+     which every squash records beside its collapse: `review_approved_subject` read whole and naming the head the
+     collapse was planned over, the evidence `review_approved_evidence` names still standing
+     (`approved_evidence.stands`), the report it covered still current and reading at its location as it settled, and
+     the issue, read afresh, still carrying the requirements it was given -- every reading a road moving an approval on
+     takes, short of where the pull request stands. That proves nothing about what a resumed push would publish -- its
+     lease is taken from a reading of its own -- so it waives nothing. Work that has ended is the stage terminal's,
+     asked first. A landing this issue's own publication receipt proves -- the receipt dating a push of exactly the
+     commit the checkout stands on to this collapse and its pull request, with no late approval or uncounted generation
+     owing a push of its own (`late_squash_proof._receipted_landing`) -- needs no approval. The recovery is bound to
+     that very commit (`late_gate_models._Gate.no_op_of`): a checkout that has moved off it since, or a record that no
+     longer reads, refuses before anything publishes, and the push is entered and leased on that commit, so it publishes
+     nothing new; the record ends and the move past `validating` is held for a fresh review. Otherwise, a collapse
+     record that will not read whole included, nothing is pushed or squashed afresh, every record is kept, and the issue
+     parks under the same `squash_failed` reason, once (`squash_approval.allowance`); evidence, a report, or an issue
+     nobody could read holds the tick instead. The dispatcher asks the same ahead of the publication reconciliation, on
+     every label that reconciliation publishes from, since the debt or frozen pair the squash's size gate recorded
+     before its push is that push (`squash_approval.holds_the_dispatch`). A recovery that finishes clears the park it
+     found, so nothing carries an `awaiting_human` into `documenting` — and it moves the label there only while the
+     approval it finishes under still covers the evidence it was proved over (`review_approved_evidence` still naming
+     the current, passing evidence — an approval beside none rests on nothing — with no revision past it recorded and
+     the verification context unchanged), the
      report the pull request carries, the requirements the issue carries, and the
-     commit the rewrite published, each read afresh (`review_coverage._approval_holds`): the rewrite is finished
-     either way, since no
-     branch may be left standing mid-rewrite, but the move is held and the handoff it leaves is dropped on the next
-     tick — for a fresh reviewer, or for the drift check to answer the edit. An issue with nothing recorded costs one
+     commit the rewrite published, each read afresh again once it is published (`review_coverage._approval_holds`):
+     one that moved while the push was being made, and a landing finished as a no-op with no approval behind it,
+     leave the rewrite finished, since no branch may be left standing mid-rewrite, but the move is held and the
+     handoff it leaves is dropped on the next tick — for a fresh reviewer, or for the drift check to answer the
+     edit. An issue with nothing recorded costs one
      lookup on the pinned comment and a reading of `verification_evidence_current`: evidence an approval's squash
      carried onto a head it did not run on, whose review subject no longer stands
      (`verification_current.carry_answers`) or that `review_approved_evidence` no longer names, is invalidated there
@@ -5410,8 +5433,12 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      (`state.approval_covers_requirements`) — requirements somebody was handed since, a developer resumed on an edit
      or a reply spent on a park, that no reviewer was. A
      location nobody could read holds the whole tick, since every route below would act on an approval nothing could
-     vouch for. An approval recorded before that record existed carries none, and is handed back on this reading
-     whenever a report is recorded — nothing says that report was the one approved. Each way the issue stands on an
+     vouch for. An approval with no record at all names no subject, and is handed back on this reading whether or
+     not a report is recorded — nothing says what it was of — as one whose record names no requirements is by the
+     baseline's. So is one beside no `review_approved_evidence` claim read whole, absent or `null`
+     (`state.approval_claims_evidence`): it rests on no evidence, whatever evidence is current; whether the evidence a
+     whole claim names still proves is the readiness proof's, which holds the ping instead. Each way the issue stands
+     on an
      approval earned against requirements or a report that no longer stand. Left here the report is never bound, since
      the hold that binds it is `validating`'s, and the ready ping below could invite a merge on the stale approval. So
      `review_round` resets to 0 and the marker goes down in a write taken

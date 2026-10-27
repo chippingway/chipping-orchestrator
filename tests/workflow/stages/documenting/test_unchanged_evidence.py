@@ -39,7 +39,11 @@ from orchestrator.workflow.engine import (
     verification_settlement_state as _settlement,
 )
 from orchestrator.workflow.stages.validating import review_coverage as _review_coverage, state as _validating_state
-from tests.workflow import approved_squash as _approved_squash, review_world as _world
+from tests.workflow import (
+    approval_records as _approval_records,
+    approved_squash as _approved_squash,
+    review_world as _world,
+)
 from tests.workflow.fixtures import LABEL_DOCUMENTING, LABEL_IN_REVIEW, LABEL_VALIDATING, _agent
 from tests.workflow.stages.documenting import (
     documenting_completion_test_support as completion,
@@ -296,13 +300,13 @@ class InvalidatedEvidenceTest(evidence.EvidenceWorld, unittest.TestCase):
                     self.assertEqual(self.standing()[:2], (_HANDED_ON, _RUN_ON_THE_HEAD))
 
     def test_unpassing_evidence_is_never_kept(self) -> None:
-        # No squash, and an approval whose evidence claim is gone, which the
-        # opening holds to no evidence at all. The current record and its
-        # artifact are then rewritten -- in the current format, each still
-        # describing the other -- to a run whose command failed, or to a
-        # passing run that leaves the configured suite out: current, and
-        # nothing an approval may rest on. The pass completes over neither:
-        # the evidence is invalidated and the issue goes back.
+        # No squash, and an approval whose evidence claim is gone -- written
+        # null -- over current evidence rewritten, in the current format and
+        # each record still describing the other, to a run whose command
+        # failed or to a passing run that leaves the configured suite out. An
+        # approval beside no claim rests on no evidence, so the opening hands
+        # the issue back before any pass runs: nothing completes over the
+        # evidence, and nothing is stamped or announced.
         for commands in _UNPASSING:
             with self.subTest(command=commands[0].command, exit_status=commands[0].exit_status):
                 self.setUp()
@@ -310,9 +314,11 @@ class InvalidatedEvidenceTest(evidence.EvidenceWorld, unittest.TestCase):
                 self.tick(_world.reviewer(_world.declared_run()))
                 evidence.records_instead(self, commands)
 
-                self.assertEqual(self.documents()[RUN_AGENT].call_count, 1)
+                self.assertEqual(self.documents()[RUN_AGENT].call_count, 0)
 
-                self._assert_handed_back((None, None, ("invalidated",)))
+                self.assertEqual(self.labels(), _HANDED_BACK)
+                self.assertIsNone(self.pinned().get(evidence.DOCS_VERDICT))
+                self.assertFalse(self.announced())
 
     def test_an_unlanded_invalidation_moves_nothing(self) -> None:
         # The invalidation's write is refused, or lands and loses its answer:
@@ -474,22 +480,25 @@ class UnprovenEvidenceTest(unittest.TestCase, scenario._FinalDocsFixture):
     """What an issue carrying no evidence anything could prove does behind a pass that changed nothing."""
 
     def test_unproven_evidence_never_passes(self) -> None:
-        # No evidence recorded at all, or a current record that will not read
-        # -- cleared, with nothing to index: the pass ran, but nothing is
-        # stamped or announced, and the issue goes back. A claim on evidence
-        # the comment does not carry goes back before any pass runs.
-        for seeded, ran in (
-            ({}, 1),
-            ({evidence.CURRENT_EVIDENCE: {"receipt": "damaged"}}, 1),
-            ({"review_approved_evidence": {"receipt": "gone"}}, 0),
+        # An approval of the head with no evidence it could rest on -- none
+        # recorded at all, a current record that will not read, or a claim on
+        # evidence the comment does not carry -- stands for nothing: the
+        # opening hands the issue back before any pass runs, the records left
+        # as they stand, and nothing is stamped or announced.
+        for seeded in (
+            {},
+            {evidence.CURRENT_EVIDENCE: {"receipt": "damaged"}},
+            {"review_approved_evidence": {"receipt": "gone"}},
         ):
             with self.subTest(seeded=sorted(seeded)):
-                gh, issue = self._seeded(**seeded)
+                approval = {**_approval_records.approved(self.pr_number), **seeded}
+                gh, issue = self._seeded(**approval)
 
-                self.assertEqual(self._documents(gh, issue)[RUN_AGENT].call_count, ran)
+                self.assertEqual(self._documents(gh, issue)[RUN_AGENT].call_count, 0)
                 self.assertEqual(gh.label_history, [(self.issue_number, LABEL_VALIDATING)])
-                self.assertIsNone(gh.pinned_data(self.issue_number).get(evidence.CURRENT_EVIDENCE))
-                self.assertIsNone(gh.pinned_data(self.issue_number).get(evidence.DOCS_VERDICT))
+                pinned = gh.pinned_data(self.issue_number)
+                self.assertEqual(pinned.get(evidence.CURRENT_EVIDENCE), seeded.get(evidence.CURRENT_EVIDENCE))
+                self.assertIsNone(pinned.get(evidence.DOCS_VERDICT))
                 self.assertEqual(gh.posted_pr_comments, [])
 
     def _documents(self, gh, issue) -> dict:

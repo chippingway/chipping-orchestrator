@@ -30,6 +30,7 @@ from tests.workflow.stages.documenting.documenting_test_support import (
     _branch,
     _DocumentingWorkflowMixin,
 )
+from tests.workflow.verified_approvals import verifies_the_approval
 
 DOCUMENTING = "workflow:documenting"
 IN_REVIEW = "in_review"
@@ -50,7 +51,7 @@ SHA_BEFORE = documenting_support.SHA_BEFORE
 SHA_AFTER = MEASURED_CANDIDATE_SHA
 SHA_DOCS = MEASURED_CANDIDATE_SHA
 SHA_RECOVERED = MEASURED_CANDIDATE_SHA
-SHA_PR_HEAD = "pr-head-sha"
+SHA_PR_HEAD = "e" * len(MEASURED_CANDIDATE_SHA)
 
 # --- Pinned-state field keys read back from `gh.pinned_data(...)` -------
 DOCS_VERDICT = "docs_verdict"
@@ -163,6 +164,12 @@ def _registered(gh, issue, pr_number: int) -> None:
     _open_pr_for(gh, issue_number=issue.number, pr_number=pr_number)
 
 
+def _parked_over_its_approval(gh, issue, **state) -> None:
+    """Seed the parked docs pass `state` names, over the approval it was entered past."""
+    gh.seed_state(issue.number, **state)
+    verifies_the_approval(gh, issue)
+
+
 class HandleDocumentingAwaitingHumanResumeTest(unittest.TestCase, _DocumentingWorkflowMixin):
     """Awaiting-human resume: a human reply re-runs the full
     documentation prompt (NOT the short human-reply followup that
@@ -184,8 +191,9 @@ class HandleDocumentingAwaitingHumanResumeTest(unittest.TestCase, _DocumentingWo
             )
         )
         _registered(gh, issue, COMMIT_REPLY_PR_NUMBER)
-        gh.seed_state(
-            COMMIT_REPLY_ISSUE_NUMBER,
+        _parked_over_its_approval(
+            gh,
+            issue,
             pr_number=COMMIT_REPLY_PR_NUMBER,
             branch=_branch(COMMIT_REPLY_ISSUE_NUMBER),
             awaiting_human=True,
@@ -265,8 +273,9 @@ class HandleDocumentingAwaitingHumanResumeTest(unittest.TestCase, _DocumentingWo
             )
         )
         _registered(gh, issue, NO_COMMIT_REPLY_PR_NUMBER)
-        gh.seed_state(
-            NO_COMMIT_REPLY_ISSUE_NUMBER,
+        _parked_over_its_approval(
+            gh,
+            issue,
             pr_number=NO_COMMIT_REPLY_PR_NUMBER,
             branch=_branch(NO_COMMIT_REPLY_ISSUE_NUMBER),
             awaiting_human=True,
@@ -329,8 +338,9 @@ class HandleDocumentingAwaitingHumanResumeTest(unittest.TestCase, _DocumentingWo
             )
         )
         _registered(gh, issue, RECOVERED_REPLY_PR_NUMBER)
-        gh.seed_state(
-            RECOVERED_REPLY_ISSUE_NUMBER,
+        _parked_over_its_approval(
+            gh,
+            issue,
             pr_number=RECOVERED_REPLY_PR_NUMBER,
             branch=_branch(RECOVERED_REPLY_ISSUE_NUMBER),
             awaiting_human=True,
@@ -401,8 +411,9 @@ class HandleDocumentingAwaitingHumanResumeTest(unittest.TestCase, _DocumentingWo
             )
         )
         _registered(gh, issue, FAILED_PUSH_REPLY_PR_NUMBER)
-        gh.seed_state(
-            FAILED_PUSH_REPLY_ISSUE_NUMBER,
+        _parked_over_its_approval(
+            gh,
+            issue,
             pr_number=FAILED_PUSH_REPLY_PR_NUMBER,
             branch=_branch(FAILED_PUSH_REPLY_ISSUE_NUMBER),
             awaiting_human=True,
@@ -440,8 +451,9 @@ class HandleDocumentingAwaitingHumanResumeTest(unittest.TestCase, _DocumentingWo
         gh = FakeGitHubClient()
         issue = make_issue(NO_NEW_COMMENT_ISSUE_NUMBER, label=DOCUMENTING)
         _registered(gh, issue, NO_NEW_COMMENT_PR_NUMBER)
-        gh.seed_state(
-            NO_NEW_COMMENT_ISSUE_NUMBER,
+        _parked_over_its_approval(
+            gh,
+            issue,
             pr_number=NO_NEW_COMMENT_PR_NUMBER,
             branch=_branch(NO_NEW_COMMENT_ISSUE_NUMBER),
             awaiting_human=True,
@@ -497,8 +509,9 @@ class HandleDocumentingAwaitingHumanResumeTest(unittest.TestCase, _DocumentingWo
             )
         )
         _registered(gh, issue, FULL_PROMPT_REPLY_PR_NUMBER)
-        gh.seed_state(
-            FULL_PROMPT_REPLY_ISSUE_NUMBER,
+        _parked_over_its_approval(
+            gh,
+            issue,
             pr_number=FULL_PROMPT_REPLY_PR_NUMBER,
             branch=_branch(FULL_PROMPT_REPLY_ISSUE_NUMBER),
             awaiting_human=True,
@@ -561,8 +574,9 @@ class HandleDocumentingAwaitingHumanResumeTest(unittest.TestCase, _DocumentingWo
         _registered(gh, issue, NO_CHANGE_REPLY_PR_NUMBER)
         # The pull request stands on the head the dev verifies.
         gh.pulls[NO_CHANGE_REPLY_PR_NUMBER].head.sha = SHA_PR_HEAD
-        gh.seed_state(
-            NO_CHANGE_REPLY_ISSUE_NUMBER,
+        _parked_over_its_approval(
+            gh,
+            issue,
             pr_number=NO_CHANGE_REPLY_PR_NUMBER,
             branch=_branch(NO_CHANGE_REPLY_ISSUE_NUMBER),
             awaiting_human=True,
