@@ -54,8 +54,7 @@ class _BaseStanding(StrEnum):
     the head is not behind -- rewound or repointed under it after the rebase
     -- so the head carries a base the branch no longer is, and no later tick
     changes that. UNPROVEN is an attempt that recorded no tip to hold the base
-    to, a legacy attempt recorded before the tip was among its members
-    included, and UNREAD a reading that did not happen.
+    to, and UNREAD a reading that did not happen.
     """
 
     STANDING = "standing"

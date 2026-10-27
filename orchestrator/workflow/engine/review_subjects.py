@@ -34,12 +34,10 @@ report edited in place at its location is a question for a fresh reading of
 that location (`stages/validating/review_coverage.py`), never for these
 records. The in_review stage, which would advertise the approval to a human,
 asks the same of the requirements the approval was given
-(`stages/in_review/state.py`). An approval with no record at all covers only
-an issue that has no report either: one approved before the record existed,
-over a pull request that has since settled a report, is an approval nothing
-says was of that report, so the issue goes back for a review that is. A record
-present in any shape its reader refuses covers nothing, so a hand edit sends
-the issue back to a reviewer rather than past one.
+(`stages/in_review/state.py`). Only an approval record read whole covers
+anything: one missing, written `null`, or in any shape its reader refuses names
+no subject the approval was of -- whether or not a report has settled since --
+so the issue goes back to a reviewer rather than past one.
 """
 from __future__ import annotations
 
@@ -308,15 +306,12 @@ def record_approved(state: PinnedState, subject: ReviewSubject) -> None:
 def approval_covers_current(state: PinnedState) -> bool:
     """Whether the recorded approval was given the report recorded as current.
 
-    With no approval record at all, only where no report is recorded either
-    -- claimed, readable or not -- since an approval nothing identifies may
-    have been of any report, or of none. Otherwise the pull request and the
-    report revision have to agree -- no report on either side is agreement,
-    one report on one side is not -- and an unreadable record on either side
-    agrees with nothing.
+    The pull request and the report revision have to agree -- no report on
+    either side is agreement, one report on one side is not -- and a record
+    on either side that does not read whole agrees with nothing. An approval
+    with no record at all is one of those: nothing identifies what it was of,
+    so it covers no report, and no issue without one either.
     """
-    if not state.carries(APPROVED_SUBJECT):
-        return not _settlement.carries_settled_record(state)
     covered = ReviewSubject.identity_recorded_in(state.get(APPROVED_SUBJECT))
     return covered is not None and covered == _current_identity(state)
 

@@ -59,15 +59,14 @@ def _agrees_with_the_attempt(recorded, rewrite, local_head) -> bool:
     publication is entered from -- can say neither, which is not the same as
     saying nothing.
 
-    Silent only where there is no record at all. A comment written before this
-    group existed carries the anchor and nothing beside it, and the permission
-    is then held by its lease and the adjudicated pair alone -- which is the
-    compatibility this owner owes issues that earned a verdict first.
+    No record at all is refused too. The attempt's terms go down in the very
+    write that pins the anchor (`startup._record_auto_rebase_attempt`), so an
+    anchor standing with none beside it is no attempt this build made, and a
+    permission held by its lease and the adjudicated pair alone would be
+    bound to a publication nothing names: its absence vouches for nothing.
     """
-    if recorded.damaged:
-        return False
     if not recorded.is_declared:
-        return True
+        return False
     if recorded.sha and not recorded.names(local_head):
         return False
     return (rewrite.pr_number, rewrite.source_stage) == (

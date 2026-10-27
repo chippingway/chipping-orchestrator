@@ -26,7 +26,7 @@ from orchestrator import config
 from orchestrator.agents.models import AgentResult
 from orchestrator.workflow.stages.documenting import handler as _documenting
 from tests.support.fakes import FakePR, FakePRRef
-from tests.workflow import fixtures as _support
+from tests.workflow import approval_records as _approval_records, fixtures as _support, verified_approvals as _verified
 from tests.workflow.engine.charged_run_test_support import (
     DEV_SESSION,
     SHA_AFTER,
@@ -71,8 +71,9 @@ _KEY_PR_NUMBER = "pr_number"
 _KEY_REVIEW_ROUND = "review_round"
 
 # A baseline that no longer describes the issue body, which is the drift the
-# in_review stage resumes the developer on.
-_STALE_CONTENT_HASH = "stale-hash"
+# in_review stage resumes the developer on -- and the requirements the approval
+# that put the issue in review was given.
+_STALE_CONTENT_HASH = _approval_records.STALE_REQUIREMENTS
 
 
 def _drive_implementing_fresh(case, agent_result: AgentResult, **state) -> Driven:
@@ -159,6 +160,7 @@ def _drive_documenting(case, agent_result: AgentResult, **state) -> Driven:
     _support._open_pr_for(
         github, issue_number=DOCUMENTING_ISSUE, pr_number=_DOCUMENTING_PR,
     )
+    _verified.verifies_the_approval(github, issue)
     # Driven through the shared patch context directly: documenting is the one
     # road here whose handler no stage-family adapter already names.
     mocks = case._run(
@@ -185,6 +187,7 @@ def _drive_in_review(case, agent_result: AgentResult, **state) -> Driven:
             "pr_last_review_comment_id": 0,
             "pr_last_review_summary_id": 0,
             "user_content_hash": _STALE_CONTENT_HASH,
+            **_approval_records.approved(_IN_REVIEW_PR, requirements=_STALE_CONTENT_HASH),
         },
         **state,
     )

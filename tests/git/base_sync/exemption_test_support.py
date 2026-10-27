@@ -127,9 +127,9 @@ def adjudicated(
 ) -> None:
     """Record the verdict a settled `single` left, on the head it accepted.
 
-    `identity=False` is the legacy shape: a comment written before the
-    semantic record existed, so the exact commit is exempt and nothing on it
-    says what that commit contributes.
+    `identity=False` is what the settlement records when the accepted
+    contribution would not fingerprint: the exact commit is exempt and nothing
+    on it says what that commit contributes.
 
     The terms an operator authorized the publication on go down with it
     either way, since an exemption is half a bypass and a rewrite of a commit

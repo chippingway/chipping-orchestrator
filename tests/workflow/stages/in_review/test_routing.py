@@ -11,7 +11,8 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 from orchestrator import config
-from orchestrator.workflow.engine import comments as _comments
+from orchestrator.workflow.engine import comments as _comments, review_subjects as _review_subjects
+from orchestrator.workflow.state import WorkflowLabel
 from tests.support.fakes import (
     FakeComment,
     FakeGitHubClient,
@@ -20,7 +21,11 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
-from tests.workflow import published_reports as _published_reports, verified_approvals as _verified
+from tests.workflow import (
+    approval_records as _approval_records,
+    published_reports as _published_reports,
+    verified_approvals as _verified,
+)
 from tests.workflow.fixtures import (
     _TEST_SPEC,
     _agent,
@@ -112,7 +117,10 @@ class _InReviewRoutingFixtureMixin(_PatchedWorkflowMixin):
             "review_round": 1,
         }
         if with_pr_number and pr is not None:
+            # The approval that put the issue in review, given the thread as
+            # it reads now.
             state["pr_number"] = pr.number
+            state.update(_approval_records.approved_in_review(issue, pr.number, head=pr.head.sha))
         if extra_state:
             state.update(extra_state)
         gh.seed_state(issue_number, **state)
@@ -159,7 +167,7 @@ class HandleInReviewTest(
     unittest.TestCase,
     _InReviewRoutingFixtureMixin,
 ):
-    """Route terminal pull-request states from in-review."""
+    """Route terminal pull-request states, and an approval nothing records, from in-review."""
 
     def test_in_review_pr_merged_externally(self) -> None:
         pr = self._open_pr(merged=True, state="closed")
@@ -208,6 +216,23 @@ class HandleInReviewTest(
             ROUTING_ISSUE,
             branch=_issue_branch(ROUTING_ISSUE),
         )
+
+    def test_an_unrecorded_approval_goes_back(self) -> None:
+        # No approval recorded at all, over a pull request that carries no
+        # report either: nothing identifies what was approved, so a
+        # mergeable, approved, green pull request is announced to nobody, no
+        # feedback route runs, and the issue goes back for a review whose
+        # approval names its subject.
+        pr = self._open_pr(approved=True, mergeable=True, check_state=CHECKS_SUCCESS)
+        github, issue = self._seed(pr=pr)
+        github._pinned[ROUTING_ISSUE].data.pop(_review_subjects.APPROVED_SUBJECT)
+
+        mocks = self._run_in_review(github, issue, run_agent=_agent())
+
+        mocks[RUN_AGENT].assert_not_called()
+        self.assertEqual(github.label_history, [(ROUTING_ISSUE, WorkflowLabel.VALIDATING)])
+        self.assertEqual((github.merge_calls, self._ready_ping_comments(github)), ([], []))
+        self.assertIsNone(github.pinned_data(ROUTING_ISSUE).get(READY_PING_SHA))
 
 
 class InReviewReadyPingRoutingTest(

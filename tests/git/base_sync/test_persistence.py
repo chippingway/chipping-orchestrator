@@ -165,6 +165,7 @@ _IN_FLIGHT = MappingProxyType({
     KEY_ANNOUNCED_SHA: fixtures.RECOVERED_SHA,
     "late_approved_sha": fixtures.RECOVERED_SHA,
     "late_approved_lease": fixtures.PRE_REBASE_SHA,
+    "late_approved_basis": "unmeasured",
 })
 
 

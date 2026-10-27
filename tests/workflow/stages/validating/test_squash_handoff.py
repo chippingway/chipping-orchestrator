@@ -212,7 +212,8 @@ class SquashHandoffTest(
             self._lands_a_collapse(github, issue)
 
         pinned = github.pinned_data(_support.APPROVAL_ISSUE)
-        self.assertEqual(pinned[_support.COLLAPSE_KEY], _support.COLLAPSED_HEAD)
+        planned = _support.planned_head(github.read_pinned_state(issue))
+        self.assertEqual(pinned[_support.COLLAPSE_KEY], planned)
         self.assertEqual(pinned[COUNT_KEY], _support.COLLAPSED_COMMITS)
         self.assertNotIn(HANDED_ON, github.label_history)
 

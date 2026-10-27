@@ -292,18 +292,16 @@ def _requirements_stand(
     and an edit landing since is requirements nobody has been handed, let
     alone reviewed, while a baseline that has moved on to the edited issue
     since the approval -- a developer resumed on the edit, a reply settled --
-    says nothing about what the reviewer read. An approval nothing recorded
-    names no revision, and is held to the baseline alone. None where the issue
+    says nothing about what the reviewer read. An approval with no record read
+    whole names no revision, so no reading stands for it. None where the issue
     could not be read again, which is no proof either way.
     """
     fresh = _fresh_requirements(gh, issue, state)
     if fresh is None:
         return None
-    approved = fresh
-    if state.carries(_review_subjects.APPROVED_SUBJECT):
-        approved = _review_subjects.ReviewSubject.requirements_recorded_in(
-            state.get(_review_subjects.APPROVED_SUBJECT),
-        )
+    approved = _review_subjects.ReviewSubject.requirements_recorded_in(
+        state.get(_review_subjects.APPROVED_SUBJECT),
+    )
     if fresh == state.get(_USER_CONTENT_HASH) and fresh == approved:
         return True
     log.info(

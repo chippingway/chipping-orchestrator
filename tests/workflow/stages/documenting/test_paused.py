@@ -37,6 +37,7 @@ from tests.workflow.fixtures import (
 from tests.workflow.stages.documenting import (
     documenting_test_support as documenting_support,
 )
+from tests.workflow.verified_approvals import verifies_the_approval
 
 LABEL_DOCUMENTING = "workflow:documenting"
 DEV_SESSION_ID = "dev-sess"
@@ -101,6 +102,7 @@ def _seed_parked_docs(gh: FakeGitHubClient, *, comments):
         park_reason="agent_question",
         last_action_comment_id=LAST_ACTION_COMMENT_WATERMARK,
     )
+    verifies_the_approval(gh, issue)
     return issue
 
 
@@ -138,6 +140,7 @@ def _seed_live_pause(
             else {}
         ),
     )
+    verifies_the_approval(github, issue)
     return github, issue, github.write_state_calls
 
 

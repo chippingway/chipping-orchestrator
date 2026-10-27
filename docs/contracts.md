@@ -126,7 +126,12 @@ the orchestrator's own posts, that delivered stretch, and bare run-grant control
 above what its two thread reads prove complete -- with the review surfaces scanned from 0. A fix round's settlement
 moves `pr_last_comment_id` over nothing above what its thread and pull-request reads prove complete, so an issue reply
 landing between them is left to the next scan, and a `/orchestrator continue` replay is rebuilt only from the id lists
-its route recorded, a list missing or damaged replaying nothing.
+its route recorded, a list missing or damaged replaying nothing. An approval or permission is read only as its current
+writers record it whole: no approval record, an approval beside no evidence claim, a `late_approved_sha` with no
+`late_approved_basis` this build can read, and a rewrite permission beside an attempt record with no declared terms are
+each no grounds -- never an earlier producer's default -- and authorize no publication, transfer, or ready notification.
+An exempt commit with no semantic identity, the settlement's when fingerprinting fails, stays a current record that
+exempts that commit alone.
 
 Unsupported input cannot serve as fresh work, current evidence, or authorization to publish or delete artifacts. Neither
 a format change nor a refusal grants permission to discard that input or the artifacts it names; the owning
@@ -181,7 +186,9 @@ or lost write interrupted are current state, not historical compatibility.
 [delivered thread](../tests/workflow/engine/test_thread_delivery.py),
 [timeout parks](../tests/workflow/stages/documenting/test_timeout_delivery.py),
 [fix settlement](../tests/workflow/stages/fixing/test_cross_read_race.py),
-[replay batches](../tests/workflow/stages/fixing/test_batch.py).
+[replay batches](../tests/workflow/stages/fixing/test_batch.py),
+[approval bases](../tests/workflow/stages/implementing/test_late_approval_basis.py),
+[rewrite permissions](../tests/git/base_sync/test_transfers.py).
 
 ## C-04: Authentic state and trusted input
 
@@ -254,7 +261,9 @@ exclusivity, and every other maintenance gate stay required beside it.
 
 **Why:** An unconfirmed write proves neither success nor absence of an effect.
 
-**Limits:** Recovery rechecks prerequisites. An unreadable record or artifact does not prove the write failed. Close
+**Limits:** Recovery rechecks prerequisites. An unreadable record or artifact does not prove the write failed, and an
+incomplete one proves nothing landed: recovery finishes a current transaction from its whole record -- a debt with
+its basis, a rewrite permission bound to its attempt's declared terms -- and refuses one missing either. Close
 recovery answers a record admission refuses as an unreadable one: the close it read is kept, and nothing is posted,
 marked, or reclaimed over it. Snapshot recovery over a ref already gone tells no consumer admission refuses and keeps
 that notice owed rather than recording it delivered.
@@ -319,10 +328,13 @@ Credential filtering does not enforce push authority; see [C-11].
 **Why:** Changed requirements or reports invalidate approval even on an unchanged head.
 
 **Limits:** Evidence and approval may carry across a rewrite only when the verification protocol proves they apply
-to the new revision. The ready ping announces an approval only over current passing evidence proved at the ping, or,
-over a final docs pass's recorded completion, only over that completion proved whole at the ping. Evidence is what an
-artifact comment of ours carries in its hidden payload, the whole body re-rendering exactly in the current format; the
-commands a comment shows count for nothing, and one without the payload binds no approval and settles no transaction.
+to the new revision. An approval stands only on its own records read whole -- the subject it covers and the evidence
+claim it was proved over -- so one missing either is handed back for review, with no squash publication, move, docs
+pass, or ready ping over it. The ready ping announces an approval only over current passing
+evidence proved at the ping, or, over a final docs pass's recorded completion, only over that completion proved whole
+at the ping. Evidence is what an artifact comment of ours carries in its hidden payload, the whole body re-rendering
+exactly in the current format; the commands a comment shows count for nothing, and one without the payload binds no
+approval and settles no transaction.
 
 The final-documentation exception records a docs pass apart from the approval it followed: the approved review
 subject, the settled report and its source commit, and the evidence the approval rests on stay as they were, and the
@@ -345,6 +357,9 @@ and a docs commit the configured run does not pass on is offered to nobody.
 [final-documentation records](state-machine/labels-and-state.md#pinned-state).
 
 **Checks:** [subjects](../tests/workflow/engine/test_review_subjects.py),
+[unrecorded approvals](../tests/workflow/stages/in_review/test_routing.py),
+[unapproved squash recoveries](../tests/workflow/stages/validating/test_squash_approval_real_git.py),
+[claimless approvals](../tests/workflow/stages/documenting/test_unchanged_evidence.py),
 [verification](../tests/workflow/engine/test_verification_current.py),
 [readiness](../tests/workflow/stages/in_review/test_readiness_proof.py),
 [final documentation](../tests/workflow/engine/test_final_docs_proof.py),

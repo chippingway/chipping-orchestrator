@@ -823,16 +823,17 @@ the ledger that comment carries — the park before its notice, and the retireme
 another road's move refuses — or one nobody confirmed — stops the finish with nothing behind it made, and the
 next finish picks up from the mark or the anchor it left. A landing the record does not account for — a rewrite that
 moved nothing, a publication a guard refused for anything but the remote already standing on it, a replay record
-(`pending_auto_base_rebase_rewrite_*`) naming another head, made under other terms, damaged, or never written -- save
-the push the recovery's own retry made and saw land over an attempt from before that record existed, which the counts
-alone vouched for -- a lag against the base that could not be counted, and a finish already retired included — makes
-nothing, leaving the
-attempt, the label, and the round as they are. A record whose terms stand with no head yet is the window before the
-rebase recorded its replay, left to the recovery's vouching ahead of the hand-over; a publication refused because the
-remote already stands on the replay sent nothing, and is announced on either road as a push found standing. A
-refusal for room alone over a comment that still reads as the tick read it — a debt park that cannot fit included —
-leaves the tick's state to be written, since that comment is only full; every other refusal, and an edit nobody
-confirmed, withholds it. It takes no writer claim of its own: the caller's claim, held through the route, covers it.
+(`pending_auto_base_rebase_rewrite_*`) naming another head, made under other terms, damaged, or never written, a lag
+against the base that could not be counted, and a finish already retired included — makes nothing, leaving the
+attempt, the label, and the round as they are. No count vouches for an attempt whose record was never written: its
+terms go down in the write that pins its anchor, so an anchor beside none is no attempt this build made, and the
+recovery parks it before any push rather than retrying it on the counts. A record whose terms stand with no head yet
+is the window before the rebase recorded its replay, left to the recovery's vouching ahead of the hand-over; a
+publication refused because the remote already stands on the replay sent nothing, and is announced on either road as
+a push found standing. A refusal for room alone over a comment that still reads as the tick read it — a debt park
+that cannot fit included — leaves the tick's state to be written, since that comment is only full; every other
+refusal, and an edit nobody confirmed, withholds it. It takes no writer claim of its own: the caller's claim, held
+through the route, covers it.
 Ahead of the checkpoint -- once the debt it carries is measured to fit -- sits the step where the evidence a landed
 head is routed with is decided (`workflow/engine/rewrite_evidence.py`) and, for a head the base has not advanced past
 again, made durable before the announcement (`workflow/engine/rewrite_finish_evidence.py`, the
@@ -1935,7 +1936,10 @@ The keys that matter for the state machine fall into a few groups:
   `squash_failed` in the park's own guarded commit as well (`review_parks.parks_the_failed_squash`), prepared before
   its notice, landing only behind one identified, over the report, `pr_number`, `review_returned_verdict`, and
   `verification_evidence_*` records the squash tail holds -- and, on the approval road, over the approved subject
-  standing behind that notice --
+  standing behind that notice. The recovery of a squash an earlier tick began, and the dispatcher ahead of the
+  reconciliation that would pay its debt, take the same park ahead of anything that publishes the squash where the
+  approval it was begun under does not stand behind it and no publication receipt of this issue's proves finishing
+  it a leased no-op (`stages/validating/squash_approval.py`) --
   and what reads it back is the recovery that took it: that route retries on every tick and stays silent while its
   own reason stands, so the reason is what tells a notice already on the thread from one to post afresh — and a park
   worded by the size gate behind it, which says its own piece on every reading it cannot take, is held for a human
@@ -2041,7 +2045,7 @@ The keys that matter for the state machine fall into a few groups:
   rather than a reading or a look at a checkout. `late_exempt_sha` records that an ADJUDICATOR ruled a change one
   coherent whole, which is an agent's answer, and the `late_override_*` group beside it records the operator who
   read the change and agreed to publish past the ceiling. Only the two together are a bypass, so a candidate the
-  first names alone — an older build's automatic exemption, or one whose authorization was hand-edited or
+  first names alone — one whose authorization went with the answer it was given for, or was hand-edited or
   half-written — is measured like any other: at or below the ceiling it publishes on its count, and past it this
   park holds it. It is a HOLD rather than a route back to `workflow:decomposing`, deliberately: the change has
   already been ruled one change, so re-adjudicating it would pay for a second agent over an answered question and
@@ -2731,19 +2735,20 @@ The keys that matter for the state machine fall into a few groups:
   landed meanwhile is kept, and the verdict dropped; a comment that will not read, or is no longer the pinned comment
   the tick read, is written over by nothing -- and
   the whole subject resolved again equals `review_subject`.
-  Both are additive: an issue without `review_approved_subject` was approved before it existed, and that approval
-  covers only an issue with no `developer_report_current` either — over a report, nothing says it was the one
-  approved, so the issue goes back for a fresh review — while one present in any shape its reader refuses, `null`
-  included, covers nothing. That reader takes the record whole: exactly the five members its writer spells, each in
+  Every approval records `review_approved_subject`, so only a record read whole covers anything: none at all, `null`,
+  or any shape its reader refuses names no subject the approval was of and covers nothing -- not even over an issue
+  with no `developer_report_current` either -- so the issue goes back for a fresh review rather than past one. That
+  reader takes the record whole: exactly the five members its writer spells, each in
   that writer's shape -- a whole commit id as `sha` wherever `pr` names a pull request, and both report members or
   neither -- so a record short of its `sha` or its `requirements` is no approval either.
   `review_approved_evidence` is the evidence claim that approval was proved over, written beside
   `review_approved_subject` in the same write and in the shape `review_returned_verdict` carries its `evidence` in
   (`stages/validating/approved_evidence.py`). Every approval records one, since an approval reaches the arc only once
-  proved over its evidence, so an issue without the key carries an approval recorded before the key existed, held to
-  no evidence -- save where `verification_evidence_current` is a carry onto a head it did not run on, which only a
-  claim ever puts there: without one (the key removed or written `null`) that approval does not stand, and the
-  settled handoff's retry invalidates the carry and drops the handoff for a fresh reviewer. Nor does any approval over
+  proved over its evidence (`unverified_approvals` refuses one whose verdict claims none), so an approval beside no
+  claim -- the key absent or written `null` -- rests on no evidence and does not stand on any road that holds it to
+  this record: the documenting stage and `in_review` hand the issue back (`in_review/state.approval_claims_evidence`),
+  and the squash tail, the settled handoff, and the merge gate move nothing on it, a carry beside it invalidated by the
+  settled handoff's retry. Nor does any approval over
   a carry whose review subject no longer stands, or that no claim names (`squash_evidence.carry_unanswered`): the
   documenting stage and `in_review` hand the issue back, and `validating` invalidates the carry on arrival, ahead of
   any round, in a guarded commit of its own staged on the pinned comment read afresh -- held to the bound evidence
@@ -2756,9 +2761,9 @@ The keys that matter for the state machine fall into a few groups:
   on retires the approval it was recorded for in the same write -- only that one, spelled exactly as the evidence
   recorded it: an approval another road recorded in its place, of another subject or spelled otherwise, stands -- even
   where the comment has no room for the evidence's own history entry --
-  `review_approved_subject` written `null`, which `approval_covers_current` refuses -- so no reader takes it for an
-  approval recorded before claims, and nothing moves it on until a fresh reviewer's approval replaces it. The claim is
-  guarded like the review subjects across the tail's proof, relabel, and the write
+  `review_approved_subject` written `null`, which `approval_covers_current` refuses -- so the record names no subject
+  approved over evidence that is gone, and nothing moves it on until a fresh reviewer's approval replaces it. The
+  claim is guarded like the review subjects across the tail's proof, relabel, and the write
   ending its handoff. Past the squash the evidence can no longer be proved against the pull request, which stands on a
   commit it was never bound to, so every road that would move the approval on -- the squash tail's relabel, the
   settled handoff, the recovery of a squash an earlier tick did not finish, the `workflow:documenting` tick's opening,
@@ -3556,8 +3561,12 @@ The keys that matter for the state machine fall into a few groups:
   The group is read whole or not at all and typed against the same shapes every other late field is — an abbreviation
   or a value that is not a whole git object id is no head, a pull request that is not an identity is none, and a stage
   no publication is entered from describes an attempt this workflow never made. Absent, IN FLIGHT, and DAMAGED are
-  three answers rather than one. A comment carrying none of the three is an attempt from before this record existed,
-  or one whose anchor is all that was ever pinned. A comment carrying the terms and no head is the window between git
+  three answers rather than one. A comment carrying none of the three beside its anchor is no attempt this build makes
+  -- the terms go down in the anchor's own write -- so it names no publication: an incomplete transaction the recovery
+  parks once at entry, under `auto_base_rebase_failed`, with every record kept and nothing fetched, pushed, reset,
+  cleared, or finished (`workflow/engine/rewrite_recovery.py`, the fail-closed abort over an uncountable lag and a label
+  the refresh does not drive included), and one no rewrite permission is bound to (`git/base_sync/transfer_attempts.py`
+  answers such a permission *unvouched*). A comment carrying the terms and no head is the window between git
   returning and the write that records what it produced: nothing names the commit in the checkout, but the terms still
   say which publication the attempt in flight was for. And a comment that claims the record and cannot show it — a
   member taken out, terms missing under a head that is there, a head that is not a commit — is neither, because read
@@ -4753,26 +4762,25 @@ rather than preserving.
 
   Inferred from the records standing around them — *an approval naming a commit some exemption also names is the
   settlement's* — it is wrong in both directions: a candidate the gate measured at or below the ceiling on an issue
-  still carrying an older build's exemption would have its own approval refused and be re-judged against a base that
+  whose exemption no authorization proves would have its own approval refused and be re-judged against a base that
   has moved, and a settlement's debt whose exemption somebody hand-edited would read as the gate's own. So the owner
-  granting one says which it is. Read fail-closed like every other late field, so a value from outside that
-  vocabulary is no basis this build can act on — and the two ways a record fails to say are told APART rather than
-  read alike, since only one of them earns the compatibility. An approval an older build wrote carries no field at
-  all, and there the exemption beside it is the only evidence there ever was, so it is the one that is read. One
-  whose field a hand edit or a half-written crash left unreadable is the opposite record: it CLAIMS grounds and
-  cannot name them, so it is refused outright rather than handed to the exemption. Read as the absence, that
-  truncated value is the single edit a bypass turns on — the one field the fallback keys off, touched, and the
-  approval beside it answers as the gate's own. The claim an unproven landing puts back reads the standing basis
-  BEFORE the write that pays and drops the debt it replaces, since read after it that claim would say `unmeasured`
-  for a debt an operator's gesture was behind. Written, dropped, and spent with the approval it describes, never on
+  granting one says which it is, and every writer does. Read fail-closed like every other late field: a standing
+  `late_approved_sha` with no basis this build can read — the field absent, `null`, or a value from outside that
+  vocabulary — CLAIMS a debt and cannot name its grounds, so `_unreadable_approval` reads the group as damage and the
+  gate never takes it for its own (`late_authority._unauthorized_debt`): the candidate is measured unless the
+  exemption and the authorization beside it prove out, whatever the exemption says or omits. Only the whole group
+  null is no transaction at all. The claim an unproven landing puts back reads the standing basis BEFORE the write
+  that pays and drops the debt it replaces, since read after it that claim would say `unmeasured` for a debt an
+  operator's gesture was behind; where no debt stood at all — the group null — it rests on what a debt minted then
+  would (`late_approval_state._minted_basis`), never on no basis. Written, dropped, and spent with the approval it
+  describes, never on
   its own — including on the **implementing** seam, where nothing froze a publication head to lease a push against,
   so the gate's own debt writer declines and the seam mints its own. That happens in one place for two callers: the
   publication that names the commit it is about to push, and the guard that refuses a checkout which has left the
   approved commit, which stands exactly where that publication would have recorded one. Neither invents grounds.
-  An approval already standing for that very commit is carried exactly as it reads — an absence as an absence,
-  since promoting a legacy record to `unmeasured` would turn "fall back to the exemption" into debt this workflow
-  owns and nothing would ever revalidate, and an unreadable value VERBATIM, since rewriting one as an absence would
-  launder the damage onto the legacy road and the next tick would spend the debt without asking anybody. Where none
+  An approval already standing for that very commit is carried exactly as it reads — a basis that does not read,
+  absent, `null`, or unreadable, VERBATIM, since promoting it to `unmeasured` would turn a claim the readers refuse
+  into debt this workflow owns, which the next tick would spend without asking anybody. Where none
   stands, the grounds come off the exemption CLAIM: presence rather
   than readability, so a field a hand edit truncated still leaves the adjudication's debt, and only an issue
   carrying no such field at all leaves `unmeasured`. So it
@@ -4829,8 +4837,8 @@ rather than preserving.
   are not comparable and nothing about the ids themselves would say so. The group is read whole or not at all: a
   missing member, a member that is not the shape its field takes (an abbreviated end, a truncated digest, a version
   spelled as text), a candidate that is not the commit `late_exempt_sha` names, a version this build does not
-  compute, and a pinned comment written before the group existed each read back as no transferable identity — while
-  the exact-SHA exemption beside them goes on exempting the matching commit exactly as it did. A settlement whose
+  compute, and no identity recorded at all each read back as no transferable identity — while the exact-SHA
+  exemption beside them goes on exempting the matching commit exactly as it did. A settlement whose
   fingerprint reading could not be taken records none of them and settles anyway, for the same reason: what an
   absent identity costs a later tick is the transfer, never the decision a human already made.
   `record_semantic_identity` refuses on the way in too — a field that is not a whole object id or a whole digest,
@@ -4842,10 +4850,12 @@ rather than preserving.
   hand-edited digest, and a field carrying `null` all read as nothing there. `unreadable_exemption` on the
   [`exemption_reading`](../../orchestrator/workflow/late_split/exemption_reading.py) owner tells the two apart: a
   comment carrying a member of the group whose exempt commit cannot be read back claims one it cannot show, as does
-  an identity group with a member present that does not read back whole. The legacy shape is neither, which is why
-  the identity half is asked by presence rather than by truth — a comment written before the group existed carries
-  the exempt commit alone and is complete for what it says. It is read by the transfer classification below, on
-  the base refresh's crash recovery.
+  an identity group with a member present that does not read back whole. The exact commit with no identity member
+  at all is neither, which is why the identity half is asked by presence rather than by truth: `late_settlement`
+  records exactly that whenever the accepted contribution would not fingerprint, and it is complete for what it says.
+  It exempts that exact commit alone and names nothing a transfer could move, so it confers no transfer and no
+  authorization (`read_semantic_identity` hands out no identity for it). It is read by the transfer classification
+  below, on the base refresh's crash recovery.
 
   The group belongs to the commit `late_exempt_sha` named when it was written, so `record_exemption` **drops it
   whenever it moves that field to another commit**. Nothing else would: a verdict whose fingerprint could not be read
@@ -5098,7 +5108,7 @@ rather than preserving.
   the authorization was written in are what a human decided rather than facts about an object, and the digest
   already describes the rewritten pair, since a transfer is granted only over contributions that fingerprint alike.
   `carry_publication_override` is silent where there is nothing to move: a comment carrying no authorization this
-  build can read whole has none to carry, which is the legacy record's answer and the right one, and one whose
+  build can read whole has none to carry, which confers nothing on the rewritten pair either, and one whose
   authorization is about some other commit is left exactly as found rather than redirected onto a commit nobody
   granted it for.
 
@@ -5709,10 +5719,12 @@ each park `push_failed` with the rewritten commits still on the branch, and leav
 any permission beside it standing, so the push a later tick retries is the same replay that record and permission
 describe.
 
-**Legacy and damaged records fail closed.** None of them is repaired or deleted to reach its answer:
+**Identity-less and damaged records fail closed.** None of them is repaired or deleted to reach its answer:
 
-- `late_exempt_sha` with no identity beside it — a settlement an older build wrote, or one whose fingerprint reading
-  could not be taken — keeps exact-SHA behavior and never permits a transfer: a rewrite of that commit is measured.
+- `late_exempt_sha` with no identity beside it — what the settlement records whenever the accepted contribution would
+  not fingerprint (`late_settlement._recorded_identity`) — is a whole current record: it keeps exact-SHA behavior,
+  reads as no claim `unreadable_exemption` refuses, and confers nothing beyond that commit. It never permits a
+  transfer, settles one, or authorizes a publication: a rewrite of that commit is measured.
 - An identity group with a member missing, a field that is not a whole object id or digest, a format this build does
   not compute, or a candidate other than the exempt commit reads back as no transferable identity. The exact-SHA
   exemption beside it goes on working, and the base refresh's crash recovery asks `unreadable_exemption` and answers

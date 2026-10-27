@@ -22,10 +22,13 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.engine import report_delivery as _report_delivery
+from orchestrator.workflow.engine import review_subjects as _review_subjects
+from orchestrator.workflow.late_split import collapses as _collapses
+from orchestrator.workflow.stages.validating import approved_evidence as _approved_evidence
 from tests.workflow.stages.validating import squash_approval_support as _support
 from tests.workflow.stages.validating.squash_approval_support import (
     _CollapseWorldMixin,
+    _LandsWithACollapseRecorded,
     _RefusesTheCollapse,
     _SquashApprovalFixtureMixin,
 )
@@ -36,8 +39,25 @@ LABEL_FIXING = "workflow:fixing"
 
 HANDED_ON = (_support.APPROVAL_ISSUE, _support.LABEL_DOCUMENTING)
 
-# The developer session the fixture seeds, which a drift resume continues.
-DEV_SESSION = "dev-sess"
+# What the park a recovery takes over an approval that does not stand says first.
+NOT_RESUMED = "squash-on-approval was not resumed"
+
+# Each way a recorded squash can be left with no approval standing behind
+# publishing it, as the edit that leaves it so: an approval record removed,
+# written null, or in a shape its reader refuses; a subject of another head
+# than the collapse was planned over; and a collapse record that will not
+# read whole, which no approval can be bound to.
+_REMOVED = object()
+
+_UNBACKED = (
+    (_review_subjects.APPROVED_SUBJECT, lambda _recorded: _REMOVED),
+    (_approved_evidence.APPROVED_EVIDENCE, lambda _recorded: _REMOVED),
+    (_review_subjects.APPROVED_SUBJECT, lambda _recorded: None),
+    (_approved_evidence.APPROVED_EVIDENCE, lambda _recorded: None),
+    (_review_subjects.APPROVED_SUBJECT, lambda _recorded: "approved"),
+    (_review_subjects.APPROVED_SUBJECT, lambda recorded: {**recorded, "sha": _support.COLLAPSED_HEAD}),
+    (_collapses.LATE_COLLAPSE_COUNT, lambda _recorded: _REMOVED),
+)
 
 
 class PendingCollapseRouteTest(
@@ -81,31 +101,25 @@ class PendingCollapseRouteTest(
     def test_a_drifted_body_waits_for_the_collapse(self) -> None:
         # Ahead of the drift route as well as of the reviewer: resumed on an
         # edited body, the dev is pointed at a branch standing on a commit
-        # nothing has accounted for -- and past the refusal that would take,
-        # an ordinary tick never reaches the recovery again. The rewrite is
-        # finished, but the edit is requirements the approval was never
-        # given, so the move to documenting is held; the handoff that leaves
-        # goes on the next tick, and the drift route answers the edit.
+        # nothing has accounted for. And the edit is requirements the approval
+        # was never given, so no approval stands behind publishing the squash
+        # either: nothing is pushed on either tick, no developer is resumed,
+        # and the squash parks with its record kept.
         github, issue = self._approved_issue()
         self._records_a_collapse(github)
         self._edits_the_body(github)
 
-        mocks = self._lands_a_collapse(github, issue)
-        held = github.pinned_data(_support.APPROVAL_ISSUE).get(_support.HANDOFF_KEY)
-        resumed = self._lands_a_collapse(github, issue)[_support.RUN_AGENT]
+        ticks = [self._lands_a_collapse(github, issue), self._lands_a_collapse(github, issue)]
 
-        mocks[_support.RUN_AGENT].assert_not_called()
-        mocks[_support.SQUASH_SEAM].assert_called_once()
+        pinned = github.pinned_data(issue.number)
         self.assertEqual(
-            (held, github.pinned_data(_support.APPROVAL_ISSUE).get(_support.HANDOFF_KEY)),
-            (_support.SQUASHED_SHA, None),
+            [(tick[_support.RUN_AGENT].call_count, tick[_support.SQUASH_SEAM].call_count) for tick in ticks],
+            [(0, 0), (0, 0)],
         )
-        # The developer's own session, resumed on the edit -- not a reviewer.
         self.assertEqual(
-            (resumed.call_count, resumed.call_args.kwargs["options"].resume_session_id),
-            (1, DEV_SESSION),
+            (pinned[_support.PARK_REASON], _support.COLLAPSE_KEY in pinned, HANDED_ON in github.label_history),
+            (_support.PARK_SQUASH_FAILED, True, False),
         )
-        self.assertNotIn(HANDED_ON, github.label_history)
 
     def test_a_gate_park_is_left_alone(self) -> None:
         # The size gate posts a fresh notice for every reading it cannot take,
@@ -137,30 +151,91 @@ class PendingCollapseRouteTest(
         self.assertEqual(github.posted_comments, [])
 
     def test_a_human_reply_retries_the_collapse(self) -> None:
-        # And the reply is the answer that park asked for -- a branch
-        # reconciled, a comment repaired -- so it is spent on the recovery,
-        # which finishes the collapse and ends the park. The reply is words
-        # on the thread the approval was never given, though, so the move to
-        # documenting is held; the next tick drops the handoff for the round
-        # below, which refuses the report written before that reply, so the
-        # developer answers it ahead of any reviewer.
+        # And the reply is the answer that park asked for, so it clears that
+        # park and is spent on the recovery rather than on the dev. It is also
+        # words on the thread the approval was never given, though, so no
+        # approval stands behind publishing the squash: nothing is pushed, and
+        # the recovery's own park takes the gate's place for a human to
+        # reconcile the branch.
         github, issue = self._approved_issue()
         self._records_a_collapse(github)
         self._parks(github)
         self._human_replies(issue)
 
-        mocks = self._lands_a_collapse(github, issue)
-        cleared = github.pinned_data(_support.APPROVAL_ISSUE)[_support.AWAITING_HUMAN]
-        self._lands_a_collapse(github, issue)[_support.RUN_AGENT].assert_not_called()
+        tick = self._lands_a_collapse(github, issue)
 
-        mocks[_support.RUN_AGENT].assert_not_called()
-        mocks[_support.SQUASH_SEAM].assert_called_once()
-        pinned = github.pinned_data(_support.APPROVAL_ISSUE)
+        pinned = github.pinned_data(issue.number)
         self.assertEqual(
-            (cleared, pinned.get(_support.HANDOFF_KEY), pinned.get(_support.PARK_REASON)),
-            (False, None, _report_delivery.UNDELIVERABLE_REPORT),
+            (tick[_support.RUN_AGENT].call_count, tick[_support.SQUASH_SEAM].call_count),
+            (0, 0),
         )
-        self.assertNotIn(HANDED_ON, github.label_history)
+        self.assertEqual(
+            (pinned[_support.AWAITING_HUMAN], pinned[_support.PARK_REASON]),
+            (True, _support.PARK_SQUASH_FAILED),
+        )
+
+
+class UnapprovedCollapseRouteTest(
+    unittest.TestCase,
+    _SquashApprovalFixtureMixin,
+    _CollapseWorldMixin,
+):
+    """A recorded squash is published by nothing an approval does not stand behind."""
+
+    def test_an_unbacked_squash_parks_instead(self) -> None:
+        # The pull request stands where a landed push would leave it, which
+        # is no proof that resuming the push publishes nothing: nothing is
+        # pushed, every record is kept, and the park is taken once -- the
+        # next tick asks again and mentions nobody.
+        for key, edit in _UNBACKED:
+            with self.subTest(key=key, edit=edit):
+                ran, left = self._two_ticks(key, edit)
+
+                self.assertEqual(ran, [(0, 0), (0, 0)])
+                self.assertEqual(left, (1, _support.PARK_SQUASH_FAILED, True, False))
+
+    def _two_ticks(self, key: str, edit) -> tuple:
+        """Two ticks over a recorded squash whose `key` was edited by `edit`: what each ran, and what they left.
+
+        The squash calls and agent runs of each tick, and what is left on the
+        issue (`_left`).
+        """
+        world = self._approved_issue()
+        self._records_a_collapse(world[0])
+        planned = world[0].pinned_data(world[1].number)[_support.COLLAPSE_KEY]
+        self._edits(world[0], key, edit)
+        ran = [self._ticks(*world), self._ticks(*world)]
+        return ran, self._left(world, planned)
+
+    def _left(self, world, planned: str) -> tuple:
+        """How many notices said the squash was not resumed, the park reason, whether the record still names `planned`.
+
+        And whether the label moved to documenting.
+        """
+        github = world[0]
+        pinned = github.pinned_data(world[1].number)
+        return (
+            sum(NOT_RESUMED in body for _, body in github.posted_comments),
+            pinned[_support.PARK_REASON],
+            pinned[_support.COLLAPSE_KEY] == planned,
+            HANDED_ON in github.label_history,
+        )
+
+    def _ticks(self, github, issue) -> tuple[int, int]:
+        """Run one tick whose squash would land; how many times it ran the squash, and an agent."""
+        tick = self._run_squash_approval(github, issue, _LandsWithACollapseRecorded())
+        return tick[_support.SQUASH_SEAM].call_count, tick[_support.RUN_AGENT].call_count
+
+    def _edits(self, github, key: str, edit) -> None:
+        """Leave the pinned record `key` as `edit` makes it, taken off the comment where that is `_REMOVED`."""
+        issue = github.get_issue(_support.APPROVAL_ISSUE)
+        state = github.read_pinned_state(issue)
+        edited = edit(state.get(key))
+        if edited is _REMOVED:
+            state.data.pop(key)
+        else:
+            state.set(key, edited)
+        github.write_pinned_state(issue, state)
 
 
 if __name__ == "__main__":

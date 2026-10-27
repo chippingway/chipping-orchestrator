@@ -99,12 +99,13 @@ class UncarriedVerdictTest(unittest.TestCase):
             _transfer_values._Handoff.NOTHING,
         )
 
-    def test_a_legacy_exemption_still_carries(self) -> None:
-        """An exemption written before the identity existed is not damage.
+    def test_an_unidentified_exemption_still_carries(self) -> None:
+        """An exemption a settlement recorded with no identity is not damage.
 
-        It carries the exempt commit and nothing beside it, which is complete
-        for what it says -- so it costs the tick the transfer rather than the
-        verdict, and reads as a rewrite no permission was ever written for.
+        The settlement writes exactly that when the accepted contribution
+        would not fingerprint, and it is complete for what it says -- so it
+        costs the tick the transfer rather than the verdict, and reads as a
+        rewrite no permission was ever written for.
         """
         context = seed.context()
         seed.adjudicated(context.state, identity=False)
@@ -134,17 +135,19 @@ class HandoffWindowTest(seed.TransferCase):
 
         self.assertEqual(self._carried(), _transfer_values._Handoff.SETTLED)
 
-    def test_a_permission_binds_without_a_record(self) -> None:
-        """A comment from before that record existed still carries a claim.
+    def test_a_recordless_permission_is_unvouched(self) -> None:
+        """An anchor standing with no terms beside it binds no permission.
 
-        There is nothing to cross-bind the terms to, so the permission is held
-        by its lease and the adjudicated pair alone -- which is the
-        compatibility this owner owes issues that earned a verdict first.
+        The terms go down in the anchor's own write, so a comment carrying the
+        anchor and no record is no attempt this build made: the permission
+        beside it has nothing to be cross-bound to, and its lease and the
+        adjudicated pair alone are no account of which publication it was
+        granted for. Absence vouches for nothing.
         """
         self._fresh(pending_rewrite=seed.ABSENT)
         seed.granted(self.state)
 
-        self.assertEqual(self._carried(), _transfer_values._Handoff.OUTSTANDING)
+        self.assertEqual(self._carried(), _transfer_values._Handoff.UNVOUCHED)
 
     def test_a_permission_binds_before_the_replay(self) -> None:
         """The window before that write leaves no terms to cross-bind to.

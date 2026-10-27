@@ -20,6 +20,7 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
+from tests.workflow import approval_records as _approval_records
 from tests.workflow.agent_failure_values import agy_quota_stop
 from tests.workflow.fixtures import (
     AGENT_RUN_CHARGE_WRITES,
@@ -55,7 +56,9 @@ UNTRUSTED_DRIFT_ISSUE = 85
 UNTRUSTED_DRIFT_PR = 805
 UNTRUSTED_COMMENT_ID = 500
 UPDATED_BODY = "new acceptance"
-STALE_HASH = "stale-hash"
+# The requirements revision the approval was given, which the edited body no
+# longer reproduces.
+STALE_HASH = _approval_records.STALE_REQUIREMENTS
 BACKEND_CLAUDE = "claude"
 DEV_SESSION = "dev-sess"
 # The head this route reads before the resume, the head it leaves the checkout
@@ -81,6 +84,7 @@ class HandleInReviewResumeOnHashChangeTest(
         github.add_pr(FakePR(number=pr_number, head_branch=_issue_branch(issue_number)))
         state = {
             "user_content_hash": STALE_HASH,
+            **_approval_records.approved(pr_number, requirements=STALE_HASH),
             "dev_agent": BACKEND_CLAUDE,
             "dev_session_id": DEV_SESSION,
             "pr_number": pr_number,
@@ -330,6 +334,7 @@ class FreshFeedbackBothSurfacesTest(
             dev_agent=BACKEND_CLAUDE,
             dev_session_id=DEV_SESSION,
             user_content_hash=STALE_HASH,
+            **_approval_records.approved(pr.number, requirements=STALE_HASH),
             pr_last_comment_id=100,
             pr_last_review_comment_id=0,
             pr_last_review_summary_id=0,
@@ -381,6 +386,7 @@ class FreshFeedbackBothSurfacesTest(
             dev_agent=BACKEND_CLAUDE,
             dev_session_id=DEV_SESSION,
             user_content_hash=STALE_HASH,
+            **_approval_records.approved(pr.number, requirements=STALE_HASH),
             pr_last_comment_id=100,
             pr_last_review_comment_id=0,
             pr_last_review_summary_id=0,
@@ -435,6 +441,7 @@ class InReviewDriftPromptTrustFilterTest(
         gh.seed_state(
             UNTRUSTED_DRIFT_ISSUE,
             user_content_hash=STALE_HASH,
+            **_approval_records.approved(pr.number, requirements=STALE_HASH),
             dev_agent=BACKEND_CLAUDE,
             dev_session_id=DEV_SESSION,
             pr_number=pr.number,

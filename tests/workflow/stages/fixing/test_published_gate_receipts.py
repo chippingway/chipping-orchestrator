@@ -172,9 +172,10 @@ class ApprovedRetryTest(unittest.TestCase, _SizeGateFixtureMixin):
         # keeps the retry off a pull request somebody moved, and the head read
         # NOW is exactly the move it exists to catch -- so an approval whose
         # lease never landed is refused rather than pinned to the present.
-        scenario = self._seed_fix_round(
-            **{support.KEY_APPROVED_SHA: MEASURED_CANDIDATE_SHA},
-        )
+        scenario = self._seed_fix_round(**{
+            support.KEY_APPROVED_SHA: MEASURED_CANDIDATE_SHA,
+            support.KEY_APPROVED_BASIS: support.GATE_READING,
+        })
 
         mocks = self._run_fix_round(scenario)
 
@@ -215,6 +216,7 @@ class ApprovedRetryTest(unittest.TestCase, _SizeGateFixtureMixin):
         return {
             support.KEY_APPROVED_SHA: MEASURED_CANDIDATE_SHA,
             support.KEY_APPROVED_LEASE: PR_HEAD_SHA,
+            support.KEY_APPROVED_BASIS: support.GATE_READING,
         }
 
 
@@ -300,6 +302,7 @@ class LostReceiptTest(unittest.TestCase, _SizeGateFixtureMixin):
         scenario = self._seed_fix_round(**{
             support.KEY_APPROVED_SHA: MEASURED_CANDIDATE_SHA,
             support.KEY_APPROVED_LEASE: lease,
+            support.KEY_APPROVED_BASIS: support.GATE_READING,
         })
         # The dead tick's push landed, so this is where the remote is.
         scenario.github.get_pr(PR_NUMBER).head.sha = MEASURED_CANDIDATE_SHA

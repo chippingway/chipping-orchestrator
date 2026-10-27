@@ -72,8 +72,10 @@ a fresh reviewer.
 
 The tail both roads share holds its relabel until the approval still covers
 the report, the requirements, and the head the rewrite published, each read
-afresh once it is published -- the only time any is asked on the road that
-finishes a squash an earlier tick began -- and posts its notice, writes its
+afresh once it is published -- on the road that finishes a squash an earlier
+tick began, a second asking: the report and requirements are held to that
+approval before anything is pushed as well (`squash_approval`) -- and posts
+its notice, writes its
 handoff, parks its failure, and moves the label only while the pinned comment
 still carries the report, pull-request, verdict, and evidence records in hand
 (`handoff._holds_its_records`). Each of those writes is laid over the comment
@@ -314,7 +316,11 @@ def _squashed_and_handed_off(gate, branch: str, pr_number, held: _handoff._Held)
     same relabel. Both roads reach it because the answer is about the BRANCH
     rather than about which reading sent them -- a recovery that finished a
     landed collapse owes the pull request exactly the announcement the tick
-    that made it would have posted, and the label it never moved.
+    that made it would have posted, and the label it never moved. The
+    recovery reaches it only under the approval its squash was begun under,
+    still standing behind the push, or over a landing this issue's own receipt
+    proves, whose push is leased on the commit it already published: anything
+    else is parked ahead of it (`squash_approval`).
 
     The subject the size gate decides about, and the branch the rewrite
     lands on, are handed in rather than rebuilt: each road already holds

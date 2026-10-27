@@ -257,17 +257,15 @@ def _vouched(finish: LandedFinish) -> bool:
     landing there (the transfer permission that licensed its push) is the
     recovery's, ahead of handing it over.
 
-    One record never written is vouched for all the same: an attempt from
-    before the record existed, whose replay the recovery retried on the counts
-    alone -- a strictly-ahead checkout, pushed under the anchor's lease. The
-    push this tick made and saw land is that retry's own. A landing it only
-    found standing is still nobody's, since nothing says whose push that was.
+    A record whose terms do not read vouches for nothing, a record never
+    written included: no attempt this build makes leaves its anchor without
+    the terms, and the recovery parks one that does before any push
+    (`rewrite_recovery.recovers`), so no landing is finished on it.
     """
     recorded = _attempt_records._pending_rewrite(finish.state)
     attempt = finish.landed.candidate.attempt
     if not recorded.is_declared:
-        unwritten = not recorded.left_a_replay
-        return unwritten and finish.road is FinishRoad.RECOVERY and finish.pushed
+        return False
     terms = (recorded.pr_number, recorded.stage) == (attempt.pr_number, attempt.stage)
     return terms and recorded.sha in {"", finish.head}
 

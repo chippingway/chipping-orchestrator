@@ -4,7 +4,11 @@
 
 The exact SHA stands on its own. A transferable identity additionally needs
 every frozen term, a candidate matching that SHA, and this build's digest
-format. A claimed but unreadable record stays distinct from no record.
+format. A claimed but unreadable record stays distinct from no record. An
+exact commit with no identity beside it is a current record -- the
+settlement's whenever it could not fingerprint the accepted contribution --
+and exempts that commit alone: it names nothing a transfer could move, and
+it is never an authorization.
 """
 from __future__ import annotations
 
@@ -83,8 +87,8 @@ def read_exemption(state: PinnedState) -> str | None:
     """Return the commit this issue currently exempts, or None.
 
     Read through the domain's own object-id reader, so an abbreviation, prose,
-    or a value an older binary wrote in some other shape reads back as no
-    exemption at all rather than as one nothing can be compared against.
+    or a value in any other shape reads back as no exemption at all rather
+    than as one nothing can be compared against.
     """
     return _payloads.as_hex(
         state.get(LATE_EXEMPT_SHA), _formats.COMMIT_LENGTHS,
@@ -97,14 +101,18 @@ def read_semantic_identity(state: PinnedState) -> LateSemanticIdentity | None:
     None wherever the record cannot vouch for itself, which is every way it
     can fail to: a field that is missing, a group where only some of them are
     there, a value that is not the shape its field takes, a candidate that is
-    not the commit the exemption names, a pinned comment written before this
-    field existed, and a digest taken under a scheme this build does not
-    compute. Each of those is an id nothing may act on, and answering with a
-    partial one would hand a caller a comparison it has no grounds to make.
+    not the commit the exemption names, and a digest taken under a scheme
+    this build does not compute. Each of those is an id nothing may act on,
+    and answering with a partial one would hand a caller a comparison it has
+    no grounds to make. None as well where no identity was recorded at all --
+    the settlement's answer when the accepted contribution would not
+    fingerprint -- which names no contribution to compare either.
 
     What none of them touches is the exemption. The exact commit is exempt on
-    its own field and stays exempt here, so a damaged identity costs a later
-    tick the transfer and never the decision a human already made.
+    its own field and stays exempt here, so a missing or damaged identity
+    costs a later tick the transfer and never the decision a human already
+    made -- and buys nothing either: no transfer is granted, settled, or
+    finished over an identity this does not hand out.
     """
     exempt = read_exemption(state)
     recorded = {
@@ -146,11 +154,13 @@ def unreadable_exemption(state: PinnedState) -> bool:
     whole is a claim about what that commit contributes which nothing can
     check.
 
-    The LEGACY shape is neither, and it is why the identity is asked by
-    presence rather than by truth: a comment written before this group existed
-    carries the exempt commit and nothing beside it, which is complete for
-    what it says. It reads as sound here, and what it costs a later tick is
-    the transfer rather than the verdict.
+    The exact commit with no identity member at all is neither, and it is why
+    the identity is asked by presence rather than by truth: the settlement
+    writes exactly that whenever the accepted contribution would not
+    fingerprint, and it is complete for what it says. It reads as sound here,
+    which licenses nothing beyond the exact commit: what it costs a later
+    tick is the transfer, which `read_semantic_identity` refuses it, rather
+    than the verdict.
     """
     if not any(key in state.data for key in _EXEMPTION_KEYS):
         return False

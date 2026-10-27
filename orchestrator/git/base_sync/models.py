@@ -45,14 +45,18 @@ class _PendingRewrite:
     the issue says on the tick that finds it.
 
     Absent, DECLARED, and DAMAGED are three answers rather than one. Absent is
-    a comment carrying no member at all -- an attempt from before this record
-    existed, or one whose anchor is all that was ever pinned. Declared is the
-    in-flight window above. Damaged is a comment that claims the record and
-    cannot show it -- a member taken out, a head that is not a whole git
-    object id, a pull request that is not an identity, a stage no publication
-    is entered from -- and reading that as either of the other two would let
-    exactly the state nobody can vouch for take a road reserved for one that
-    can.
+    a comment carrying no member at all, which no attempt this build makes
+    leaves beside its anchor -- the terms go down in the anchor's own write --
+    so it names no publication: an incomplete transaction the recovery parks
+    with every record kept, publishing, resetting, clearing, and finishing
+    nothing (`workflow/engine/rewrite_recovery.py`), and one no rewrite
+    permission is bound to (`transfer_attempts`). Declared is the in-flight
+    window above. Damaged is
+    a comment that claims the record and cannot show it -- a member taken
+    out, a head that is not a whole git object id, a pull request that is not
+    an identity, a stage no publication is entered from -- and reading that as
+    either of the other two would let exactly the state nobody can vouch for
+    take a road reserved for one that can.
     """
 
     sha: str = ""
@@ -78,6 +82,11 @@ class _PendingRewrite:
     def is_recorded(self) -> bool:
         """Whether all three facts came back in the shape they claim."""
         return self.is_declared and bool(self.sha)
+
+    @property
+    def carries_no_terms(self) -> bool:
+        """Whether the comment carries no member of the group at all, beside an anchor no attempt leaves alone."""
+        return not (self.damaged or self.is_declared)
 
     @property
     def left_a_replay(self) -> bool:

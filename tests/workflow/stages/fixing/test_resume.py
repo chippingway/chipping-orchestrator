@@ -14,6 +14,9 @@ IssueScenario = support.IssueScenario
 ALICE = support.ALICE
 AWAITING_HUMAN = support.AWAITING_HUMAN
 LATE_APPROVED_SHA = "late_approved_sha"
+LATE_APPROVED_BASIS = "late_approved_basis"
+# What an approval the size gate granted on its own count rests on.
+GATE_READING = "reading"
 LATE_APPROVED_LEASE = "late_approved_lease"
 PR_HEAD_SHA = support.PR_HEAD_SHA
 PARK_MEASUREMENT_FAILED = "late_measurement_failed"
@@ -261,6 +264,7 @@ class FixingTransientParkRecoveryTest(
                 # again, so the only pinned write on this tick is the one the
                 # follow-up rides out on.
                 LATE_APPROVED_SHA: MEASURED_CANDIDATE_SHA,
+                LATE_APPROVED_BASIS: GATE_READING,
                 LATE_APPROVED_LEASE: PR_HEAD_SHA,
             },
         )
@@ -317,6 +321,7 @@ class FixingTransientParkRecoveryTest(
                 PENDING_FIX_ISSUE_MAX_ID: None,
                 REVIEW_ROUND: 1,
                 LATE_APPROVED_SHA: MEASURED_CANDIDATE_SHA,
+                LATE_APPROVED_BASIS: GATE_READING,
                 LATE_APPROVED_LEASE: PR_HEAD_SHA,
             },
         )
@@ -399,6 +404,7 @@ class FixingTransientParkRecoveryTest(
                 PENDING_FIX_ISSUE_MAX_ID: None,
                 REVIEW_ROUND: 1,
                 LATE_APPROVED_SHA: MEASURED_CANDIDATE_SHA,
+                LATE_APPROVED_BASIS: GATE_READING,
                 LATE_APPROVED_LEASE: PR_HEAD_SHA,
             },
         )

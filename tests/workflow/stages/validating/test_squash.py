@@ -366,17 +366,20 @@ class SquashSubjectReferenceTest(
                     _support.APPROVAL_PR,
                 )
 
-    def test_a_damaged_number_references_nothing(self) -> None:
-        # Read as an identity first: a value that is not a whole positive
-        # number would otherwise be spelled into a force-pushed subject as a
-        # reference no pull request answers to.
+    def test_a_damaged_number_publishes_nothing(self) -> None:
+        # On the recovery road the number is the pinned one, and a value that
+        # is not a whole positive number names no pull request the approval's
+        # report could have settled on: no approval stands behind the
+        # recorded squash, so it parks rather than being published -- under
+        # a reference no pull request answers to, or any other.
         github, issue = self._approved_issue()
         self._records_a_collapse(github)
         self._pins(github, _support.PR_NUMBER_KEY, True)
 
         mocks = self._run_squash_approval(github, issue, _RefusesTheCollapse())
 
-        self.assertIsNone(mocks[_support.SQUASH_SEAM].call_args.args[-1])
+        mocks[_support.SQUASH_SEAM].assert_not_called()
+        self.assertEqual(github.pinned_data(issue.number)[_support.PARK_REASON], _support.PARK_SQUASH_FAILED)
 
 
 if __name__ == "__main__":

@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Read the whole publication approval and its bounded permission basis.
 
-A candidate, optional lease, and basis form one claim. Damaged or legacy
-bases remain distinguishable from a known approval, and operator-backed
-bases are named explicitly rather than inferred from adjacent records.
+A candidate, optional lease, and basis form one claim. A standing approval
+whose basis is absent, null, or outside the vocabulary is damage rather than
+an approval of any kind, and operator-backed bases are named explicitly
+rather than inferred from adjacent records.
 """
 from __future__ import annotations
 
@@ -47,9 +48,10 @@ class LateApprovalBasis(StrEnum):
     a reading would be true and useless: what let it through was the human,
     and a record damaged before the push would have it publish unmeasured.
 
-    A value from anywhere else, and an approval an older binary wrote with no
-    basis at all, read back as no basis -- and what a reader does with that is
-    fall back to the exemption, which is the only evidence such a record left.
+    Every writer of an approval records one of these. A value from anywhere
+    else, and none at all, read back as no basis -- and an approval standing
+    without one claims a debt it cannot show the grounds of, which buys no
+    unmeasured push (`_unreadable_approval`).
     """
 
     READING = "reading"
@@ -116,43 +118,15 @@ def _approved_basis(state: _pinned_state.PinnedState) -> str:
     """What the standing approval rests on, or "" where the record cannot say.
 
     Read fail-closed like every other late field: only a value this build's
-    own vocabulary carries reads back, so a hand edit and a spelling from
-    somewhere else are both "no basis" rather than a basis nothing checked.
-
-    "" is also what an approval an older binary wrote reads back as, which
-    carried no basis at all -- and a reader that acts on the two ALIKE is the
-    one thing this may not be used for. `_unreadable_basis` beside it is what
-    tells them apart, because only the absent one earns the compatibility.
+    own vocabulary carries reads back, so a hand edit, a spelling from
+    somewhere else, and a field absent or `null` beside a standing approval
+    are all "no basis" rather than a basis nothing checked -- and none of them
+    is read as the gate's own.
     """
     written = state.get(_state._APPROVED_BASIS)
     if written in tuple(LateApprovalBasis):
         return str(written)
     return ""
-
-
-def _unreadable_basis(state: _pinned_state.PinnedState) -> bool:
-    """Whether the record CARRIES a basis this build cannot read.
-
-    Presence and truth asked together, because the answer is the gap between
-    them, and it is a gap a reader has to act on differently at each end. An
-    approval an older binary wrote carries no field at all: there the
-    exemption beside it is the only evidence there ever was, and reading it is
-    the compatibility this domain owes live issues. One whose field a hand
-    edit or a half-written crash left unreadable is the opposite record -- it
-    CLAIMS grounds and cannot say which -- and reading that as the absence
-    above hands a bypass to the one shape an attacker or an accident reaches
-    by touching the single field the fallback turns on.
-
-    So this is what the readers key the fail-closed road on, and the absence
-    keeps the fallback to itself. `None` is asked beside the key because the
-    payload is JSON and a field can be present and null, which is an older
-    binary's value or a hand edit and is an absence either way.
-    """
-    if not state.carries(_state._APPROVED_BASIS):
-        return False
-    if state.get(_state._APPROVED_BASIS) is None:
-        return False
-    return not _approved_basis(state)
 
 
 def _unreadable_approval(state: _pinned_state.PinnedState) -> bool:
@@ -172,12 +146,15 @@ def _unreadable_approval(state: _pinned_state.PinnedState) -> bool:
     the debt names no commit and the record is still claiming one. A lease
     present that is not a commit is another, since the head a published
     approval was frozen against is what its retry is pinned to and a value
-    nothing can read is no pin. And a basis the record carries and cannot name
-    is the third, on the terms `_unreadable_basis` beside it already states.
+    nothing can read is no pin. And a commit standing with no basis this build
+    can name is the third: every writer records one beside it, so a basis
+    absent, `null`, or spelled outside the vocabulary is a claim to grounds
+    the record cannot show.
 
     False for the ordinary comment, which carries a group of nulls: the write
     that ends a debt blanks these fields rather than removing them, so all
-    three absent is the record nobody wrote.
+    three absent is the record nobody wrote -- no transaction at all, rather
+    than one claimed and incomplete.
     """
     if all(state.get(key) is None for key in _APPROVAL_KEYS):
         return False
@@ -186,4 +163,4 @@ def _unreadable_approval(state: _pinned_state.PinnedState) -> bool:
     leased = state.get(_state._APPROVED_LEASE) is not None
     if leased and not _approved_lease(state):
         return True
-    return _unreadable_basis(state)
+    return not _approved_basis(state)

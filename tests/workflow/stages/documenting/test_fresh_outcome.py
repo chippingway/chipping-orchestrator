@@ -229,9 +229,13 @@ class HandleDocumentingFreshOutcomeTest(
         state = gh.pinned_data(self.issue_number)
         self.assertEqual(state.get(DOCS_VERDICT), VERDICT_UPDATED)
         self.assertEqual(state.get(DOCS_CHECKED_SHA), SHA_AFTER)
-        # With no approval recorded for a completion to follow, the pass is
-        # handed on with its stamp alone: no completion claims it verified.
-        self.assertIsNone(state.get(FINAL_DOCS))
+        # The completion the pass records follows the approval it was entered
+        # over, and with no `VERIFY_COMMANDS` configured it names no evidence:
+        # nothing ran on the docs commit, and nothing claims it passed.
+        self.assertEqual(
+            tuple(state[FINAL_DOCS][member] for member in ("verification", "entry_head", "final_head", "evidence")),
+            ("unconfigured", SHA_BEFORE, SHA_AFTER, None),
+        )
         # A docs pass is no review: the round the approval left is the one
         # the issue keeps.
         self.assertEqual(state.get(REVIEW_ROUND), 2)

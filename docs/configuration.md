@@ -760,7 +760,9 @@ examples.
   downstream tooling depends on that history). What the switch decides is whether a **new** rewrite
   is made: one an earlier tick already made is finished either way, because the commits it replaced are off the branch
   and the remote either carries the object that replaced them or does not, so an install that flips the switch off
-  between the rewrite and the push does not abandon reviewer-approved work off the pull request. An issue with no
+  between the rewrite and the push does not abandon reviewer-approved work off the pull request. Finishing it still
+  publishes only under the approval it was begun under, still standing, or as the no-op of a push the issue's own
+  receipt proves already landed; anything else parks under `squash_failed` for a human. An issue with no
   squash recorded costs such an install nothing at all — no probe, no reading, and no write. Parsed as a boolean:
   `1` / `true` / `on` / `yes` enable, anything else disables.
 - `PR_REF_IN_SUBJECT` — default `on`. end the subject of each commit the orchestrator publishes onto a pull request

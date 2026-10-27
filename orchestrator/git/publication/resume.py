@@ -110,6 +110,14 @@ _UNREADABLE_COLLAPSE = (
 )
 
 
+_OFF_THE_RECEIPT = (
+    "this issue's receipt proves only `{receipted}` already published, and no "
+    "approval stands behind publishing anything else -- but the checkout "
+    "stands on `{head}`, or the record of the squash no longer reads, so "
+    "nothing here is the no-op that receipt allows"
+)
+
+
 _VANISHED_COLLAPSE = (
     "this issue records a squash of `{head}` and the branch carries nothing "
     "over its base at all, so there is no rewrite here to finish and no "
@@ -216,6 +224,12 @@ def _resumed_squash(
     here that could say: waved past, it is reported as a success that measured
     and published nothing.
 
+    A gate handed the one commit it may publish as a no-op (`no_op_of`) is
+    held to it before anything else: no approval stands behind publishing any
+    other commit, so a checkout standing anywhere else -- or a record that no
+    longer reads, which would hand the branch to a fresh squash -- refuses
+    with the branch as it is, and only the finish of that very commit is left.
+
     The tree is part of the same proof for a reason the probes ahead of this
     call cannot cover: they refuse on what git NAMED, so a status that
     established nothing reads to them as a clean tree -- and handing on from
@@ -227,6 +241,10 @@ def _resumed_squash(
     from orchestrator.workflow.stages.implementing import late_collapse_state
 
     recorded = late_collapse_state._recorded_collapse(gate.state)
+    if gate.no_op_of and (recorded is None or plan.original_head != gate.no_op_of):
+        return rewrite._squash_failure(
+            _OFF_THE_RECEIPT.format(receipted=gate.no_op_of, head=plan.original_head),
+        )
     if recorded is None:
         if late_collapse_state._claims_a_collapse(gate.state):
             return rewrite._squash_failure(_UNREADABLE_COLLAPSE)

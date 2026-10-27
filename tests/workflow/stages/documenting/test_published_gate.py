@@ -29,7 +29,7 @@ from unittest.mock import patch
 from orchestrator import config
 from orchestrator.git.measurement.models import FrozenCommit
 from tests.support.fakes import FakeLabel
-from tests.workflow import fixtures
+from tests.workflow import approval_records as _approval_records, fixtures
 from tests.workflow.mid_run_effects import (
     _ClosesThePullRequest,
     _MovesThePullRequest,
@@ -402,6 +402,7 @@ class DocsHandoffCrashTest(unittest.TestCase, gate._DocsGateFixtureMixin):
         self._fresh_tick(github, issue, added_lines=UNDER_THE_CEILING)
         self.assertIsNone(self._pinned(github)[gate.KEY_SETTLED_DOCS_SHA])
 
+        _approval_records.approves_again(github, issue)
         issue.labels = [FakeLabel(documenting.DOCUMENTING)]
         mocks = self._rerun(github, issue)
 

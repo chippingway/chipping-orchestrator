@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """An adjudicated commit nobody authorized, on the side that already published.
 
-The exemption an older binary wrote lets nothing past the size gate on its
-own, and what that costs on a pull request the remote already carries is not
-what it costs before one exists. A commit the pull request is standing on has
+An exemption with no authorization beside it lets nothing past the size gate
+on its own, and what that costs on a pull request the remote already carries is
+not what it costs before one exists. A commit the pull request is standing on has
 already been delivered: the push would move nothing, so what is left is the
 bookkeeping behind it, and holding that back would strand published work under
 a stage no later tick advances. A commit it is NOT standing on is an
@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import unittest
 
-from tests.workflow.fixtures import _authorize_command, _legacy_exemption
+from tests.workflow.fixtures import _authorize_command, _bare_exemption
 from tests.workflow.stages.fixing import (
     fixing_test_support as fixing,
     published_gate_support as support,
@@ -64,7 +64,7 @@ class DeliveredExemptionTest(unittest.TestCase, _SizeGateFixtureMixin):
         self.scenario = self._seed_fix_round(
             pr_head=MEASURED_CANDIDATE_SHA,
             **{
-                **_legacy_exemption(),
+                **_bare_exemption(),
                 _KEY_APPROVED_SHA: MEASURED_CANDIDATE_SHA,
             },
         )
@@ -89,7 +89,7 @@ class UndeliveredExemptionTest(unittest.TestCase, _SizeGateFixtureMixin):
 
     def setUp(self) -> None:
         self.scenario = self._seed_fix_round(**{
-            **_legacy_exemption(),
+            **_bare_exemption(),
             _KEY_APPROVED_SHA: MEASURED_CANDIDATE_SHA,
         })
         with patch.object(config, support.MAX_ADDED_LINES, CEILING):
@@ -129,7 +129,7 @@ class _ParkedFixRound(_SizeGateFixtureMixin):
 
     def setUp(self) -> None:
         self.scenario = self._seed_fix_round(**{
-            **_legacy_exemption(),
+            **_bare_exemption(),
             _KEY_APPROVED_SHA: MEASURED_CANDIDATE_SHA,
             _KEY_APPROVED_LEASE: fixing.PR_HEAD_SHA,
         })

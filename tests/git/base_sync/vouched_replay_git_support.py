@@ -49,9 +49,10 @@ class VouchedReplayGitFixtureMixin(fixtures.RecoveryGitFixtureMixin):
         histories diverged -- and the anchor lease they would be pushed under
         is satisfied. Only the record of what the attempt produced tells them
         apart, so this leaves the branch here and `forget_record` says
-        whether it goes too -- kept, the record disowns the checkout by
-        naming another commit; dropped, nothing on the comment says anything
-        about it at all.
+        whether its head goes too -- kept, the record disowns the checkout by
+        naming another commit; dropped, the terms alone are left, as the window
+        between git returning and the write naming what it produced leaves
+        them, and nothing names the checkout at all.
         """
         fixtures.run_git(
             fixtures.CHECKOUT, "--detach", f"{self.anchor}^", cwd=self.work,
@@ -63,7 +64,7 @@ class VouchedReplayGitFixtureMixin(fixtures.RecoveryGitFixtureMixin):
             fixtures.CHECKOUT, "-B", fixtures.BRANCH, stranded, cwd=self.work,
         )
         if forget_record:
-            self.forget_the_rewrite_record()
+            self.forget_the_rewrite_record(head_only=True)
         return stranded
 
     def roll_back_to_the_anchor(self) -> None:

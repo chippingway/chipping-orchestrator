@@ -25,18 +25,23 @@ and it is asked off that debt's own recorded basis rather than inferred from
 the records around it. The settlement writes the exemption and the approval in
 one breath, so its approval is that adjudication wearing another field; every
 other approval is this gate's own answer brought back by a crash, and no human
-was ever owed a decision about one. An approval an older binary wrote says
-nothing about its grounds, and there the exemption is the only evidence left.
+was ever owed a decision about one. Every writer records that basis, so an
+approval standing with none this build can read claims grounds it cannot show
+and is never taken for the gate's own.
 
-What that leaves is the record an older binary wrote. Before an authorization
-was required, a `single` verdict recorded an exemption by itself, so a live
-issue can carry an exemption with no gesture behind it. Nothing here deletes
-one, migrates one, or reads one as consent. A candidate an unauthorized
-exemption names goes to the ordinary cumulative gate, and the reading decides:
-at or below the ceiling it publishes exactly as any small candidate does --
-the boundary is inclusive, so a change measuring exactly `MAX_ADDED_LINES`
-goes out -- and past the ceiling it parks, which `late_consent` beside this
-owns along with the command that ends one.
+What that leaves is an exemption no authorization proves. The settlement
+writes one only behind an operator's authorization, but the exemption
+outlives it: an answer thrown away and re-earned takes its authorization with
+it and leaves the exemption standing (`late_session._drop_late_result`, the
+revision reconciliation), and an authorization still there can stop reading
+back whole -- a member hand-edited -- or stop proving on this host, where the
+contribution it was taken over no longer digests to what it records. Nothing
+here deletes such an exemption, rewrites one, or reads one as consent. A
+candidate it names goes to the ordinary cumulative gate, and the reading
+decides: at or below the ceiling it publishes exactly as any small candidate
+does -- the boundary is inclusive, so a change measuring exactly
+`MAX_ADDED_LINES` goes out -- and past the ceiling it parks, which
+`late_consent` beside this owns along with the command that ends one.
 
 One thing is never held back by any of it. A commit the pull request this call
 FROZE is already standing on publishes: a push of a commit the remote holds
@@ -47,9 +52,8 @@ publication has no frozen entry and asks the same question of its receipt
 instead, which `late_delivery` owns.
 
 And nothing here rewrites work that is over: a merged or closed issue is
-finalized before any handler reaches this gate, so the compatibility is asked
-at publication time and never as a pass over records nobody is publishing
-from.
+finalized before any handler reaches this gate, so the question is asked at
+publication time and never as a pass over records nobody is publishing from.
 
 The rewrite TRANSFER asks this owner's first question before it grants a
 permit, since a transfer is the one road past the reading that no record names
@@ -57,7 +61,7 @@ in advance: moving an exemption nothing authorizes would hand the rewritten
 commit a permission the accepted one never had. What DOES follow the exemption
 is the authorization: the write that rotates one carries the other onto the
 same pair, so a squash of an authorized candidate stays authorized and a
-squash of a legacy one gains nothing it did not have.
+squash of an unauthorized one gains nothing it did not have.
 """
 from __future__ import annotations
 
@@ -157,15 +161,14 @@ def _unauthorized_exemption(
 ) -> bool:
     """Whether this commit is exempt on a record no human stands behind.
 
-    True for the record an older binary wrote, where a `single` verdict
-    recorded an exemption on its own, and true for one whose authorization
-    this build cannot read back whole -- a member missing, a field
-    hand-edited, a digest taken under a scheme this build does not compute, a
-    reading at or under its own ceiling, and a recorded pair that no longer
-    contributes the change the digest was taken over. Those are one answer on
-    purpose: a bypass nobody can show the terms of is worth exactly what a
-    bypass nobody granted is worth, and the cost of both is the measurement
-    the gate would have taken anyway.
+    True for an exemption with no authorization beside it, and for one whose
+    authorization this build cannot read back whole -- a member missing, a
+    field hand-edited, a digest taken under a scheme this build does not
+    compute, a reading at or under its own ceiling, and a recorded pair that
+    no longer contributes the change the digest was taken over. Those are one
+    answer on purpose: a bypass nobody can show the terms of is worth exactly
+    what a bypass nobody granted is worth, and the cost of both is the
+    measurement the gate would have taken anyway.
 
     False for every candidate no exemption names, which is the ordinary one.
     Nothing here is a claim about a commit this issue never adjudicated.
@@ -223,7 +226,7 @@ def _already_on_its_pull_request(
 
 
 def _unauthorized_debt(gate: _late_gate_models._Gate, candidate_sha: str) -> bool:
-    """Whether the push this commit is owed rests on an unauthorized exemption.
+    """Whether the push this commit is owed rests on grounds no human is shown to stand behind.
 
     Asked of the approval's own recorded basis rather than of the records
     standing around it, because provenance is a thing only the owner that
@@ -235,7 +238,7 @@ def _unauthorized_debt(gate: _late_gate_models._Gate, candidate_sha: str) -> boo
 
     Inferred from the exemption alone it is wrong in both directions, and both
     are reachable. A candidate the gate measured at or below the ceiling on an
-    issue that still carries an older binary's exemption earns a genuine gate
+    issue whose exemption no authorization proves earns a genuine gate
     approval -- refusing it would re-judge a settled reading against a base
     that has moved since, which is the one thing the approval bypass exists to
     prevent. And a settlement's debt whose exemption somebody hand-edited
@@ -256,42 +259,13 @@ def _unauthorized_debt(gate: _late_gate_models._Gate, candidate_sha: str) -> boo
     record damaged between the approval and the push publish an oversized
     change nothing could show the grounds for.
 
-    A record whose basis this build cannot READ is the sharpest of them, and
-    it is the one shape a single hand edit reaches: the field the fallback
-    turns on, touched, and the approval beside it reads as the gate's own. It
-    is refused outright rather than handed to the exemption, because what it
-    says is that the record claims grounds and cannot name them -- and grounds
-    nobody can show are worth what grounds nobody granted are worth.
-
-    A record with NO basis on it is the opposite record and earns the
-    compatibility: an approval an older binary wrote, where the exemption is
-    the only evidence there ever was -- so it is read, and read
-    conservatively. A commit that exemption names is the adjudication's debt.
-    So is a comment that CLAIMS an exemption and cannot say which commit it is
-    about: a truncated or hand-edited field is not the same thing as an issue
-    that never entered an adjudication, and reading the two alike is how a
-    settlement's debt with a damaged exemption beside it publishes unmeasured
-    -- the shape a hand edit reaches by touching the one field the bypass
-    would otherwise have turned on. An issue carrying no exemption field at
-    all is that other thing, and its approval is the gate's own.
+    So does an approval with no basis this build can read -- absent, `null`,
+    or spelled outside the vocabulary. Every writer records one, so such a
+    record claims a debt and cannot say what granted it, and grounds nobody
+    can show are worth what grounds nobody granted are worth: it is never read
+    as the gate's own, whatever the exemption beside it says or omits.
     """
     basis = _late_approval_reading._approved_basis(gate.state)
-    if basis:
-        return (
-            basis in _late_approval_reading.AUTHORIZED_BASES
-            and not _publishes_on_an_exemption(gate, candidate_sha)
-        )
-    if _late_approval_reading._unreadable_basis(gate.state):
-        return not _publishes_on_an_exemption(gate, candidate_sha)
-    if _exemption_reading.is_exempt(gate.state, candidate_sha):
-        return not _publishes_on_an_exemption(gate, candidate_sha)
-    # Presence and truth asked together, because the answer is the gap between
-    # them. `read_exemption` is fail-closed, so a truncated or hand-edited
-    # field comes back as no exemption -- right for a caller deciding whether
-    # a commit may publish, and wrong for one deciding whose DECISION a debt
-    # is. An issue that never entered an adjudication carries no field; one
-    # whose field cannot be read carries the claim that an adjudication
-    # happened and no way to say which commit it was about.
-    if not gate.state.carries(_exemption_reading.LATE_EXEMPT_SHA):
+    if basis and basis not in _late_approval_reading.AUTHORIZED_BASES:
         return False
-    return _exemption_reading.read_exemption(gate.state) is None
+    return not _publishes_on_an_exemption(gate, candidate_sha)

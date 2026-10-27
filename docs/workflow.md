@@ -152,7 +152,9 @@ rebase of that docs commit is a rewrite like any other, and the approved report 
 recorded completion proves the lineage from the approved commit to the docs commit it replaced. Each reviewer
 is then handed the report re-read where it settled, and what it approves is
 recorded as `review_approved_subject` — pull request, head, requirements, and report — so a report that changes on
-an unchanged head goes back to a fresh reviewer rather than riding an earlier approval
+an unchanged head goes back to a fresh reviewer rather than riding an earlier approval. Beside it goes the
+`review_approved_evidence` claim on the evidence the approval was proved over, and an approval missing either record
+covers nothing: no squash move, docs pass, or ready ping is taken over it, and the issue goes back to a fresh reviewer
 ([`state-machine/labels-and-state.md`](state-machine/labels-and-state.md#pinned-state)).
 The additive `developer_report_*` pinned records (`workflow/engine/report_record*`,
 `report_delivery_state.py` and `report_settlement_state.py`) carry that report and the publication transaction it is

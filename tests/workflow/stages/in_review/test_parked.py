@@ -19,6 +19,7 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
+from tests.workflow import approval_records as _approval_records
 from tests.workflow.fixtures import (
     _agent,
     _issue_branch,
@@ -62,6 +63,7 @@ class _ParkedInReviewFixtureMixin(_PatchedWorkflowMixin):
         gh.seed_state(
             PARKED_ISSUE,
             pr_number=PARKED_PR,
+            **_approval_records.approved_in_review(issue, PARKED_PR),
             branch=_issue_branch(PARKED_ISSUE),
             dev_agent="claude",
             dev_session_id="dev-sess",
@@ -172,6 +174,7 @@ class _ClosedInReviewFixtureMixin(_PatchedWorkflowMixin):
         gh.seed_state(
             CLOSED_ISSUE,
             pr_number=CLOSED_ISSUE_PR,
+            **_approval_records.approved_in_review(issue, CLOSED_ISSUE_PR),
             branch=_issue_branch(CLOSED_ISSUE),
             dev_agent="claude",
             dev_session_id="dev-sess",
@@ -328,6 +331,7 @@ class StaleParkReasonClearedOnFixingRouteTest(unittest.TestCase, _PatchedWorkflo
         gh.seed_state(
             STALE_PARK_ISSUE,
             pr_number=STALE_PARK_PR,
+            **_approval_records.approved_in_review(issue, STALE_PARK_PR),
             branch=_issue_branch(STALE_PARK_ISSUE),
             dev_agent="claude",
             dev_session_id="dev-sess",

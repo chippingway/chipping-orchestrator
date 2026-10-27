@@ -134,10 +134,10 @@ class ReconstructedTest(seed.TransferCase):
     def test_a_half_that_cannot_be_shown(self) -> None:
         """Withheld rather than refused: the ordinary gate measures instead.
 
-        A legacy verdict has no accepted pair for a transfer to be moved off,
-        and a base the remote would not answer for is no commit to read a
-        contribution over. Neither is a refusal reported -- in both the rebase
-        is measured exactly as it always was.
+        A verdict settled with no identity has no accepted pair for a transfer
+        to be moved off, and a base the remote would not answer for is no
+        commit to read a contribution over. Neither is a refusal reported -- in
+        both the rebase is measured exactly as it always was.
         """
         _exemption.clear_exemption(self.state)
         seed.adjudicated(self.state, identity=False)

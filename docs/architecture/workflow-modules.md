@@ -461,6 +461,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             nobody confirmed holds the tick; a park the handoff leaves standing that its road does
                             not answer holds the adjudication until a human replies to it, and a retry the attempt's
                             notice drew past the handoff is recorded read ahead of it (`rewrite_takeover_parks.py`).
+                            Beside the first anchor reading, ahead of the publication reconciliation and on every
+                            label it publishes from, a squash `validating` recorded is held to the approval it was
+                            begun under (`stages/validating/squash_approval.py`): the debt or frozen pair its size
+                            gate recorded before the push is that push, which the reconciliation would otherwise
+                            pay before the stage's own recovery could refuse it.
                             The developer-report transaction is
                             answered last of the reconciliations -- behind that second anchor reading as well as
                             behind the reconciliation itself -- and ahead of the reuse guard: its own evidence asks
@@ -1428,8 +1433,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             but the remote already standing on it, no attempt anchored to the head it replaced, another
                             pull request pinned, a replay record naming another head, made under other terms, damaged,
                             or never written (one whose terms stand with no head yet is left to the caller's vouching,
-                            and one never written is vouched for only by the recovery's own retry pushing on the
-                            counts),
+                            and one never written is vouched for by nothing, its anchor parked by the recovery before
+                            any push),
                             a mark naming another head, a lag against the base that could not be counted, or an attempt
                             a finish already retired -- makes nothing, leaving the attempt, the label, and the round as
                             they are, save a transaction an earlier finish captured for its head, proved again first and
@@ -1721,10 +1726,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             number names, read as a recorded pull request is, the one a subject is on
                             (`ReviewSubject.is_on_pull_request`); and the question every later reader of an approval
                             asks, whether the report recorded as current is the one it covered, compared on the pinned
-                            records alone. An approval with no record covers
-                            only an issue with no report either -- one approved before the record existed over a pull
-                            request that has settled a report goes back for a fresh review -- and a record nobody can
-                            read covers nothing: it is read whole, exactly the five members its writer spells, each in
+                            records alone. An approval with no record covers nothing, with or without a report
+                            settled -- the issue goes back for a fresh review -- and nor does a record nobody can
+                            read: it is read whole, exactly the five members its writer spells, each in
                             its shape -- requirements that are a digest or "", both report members or neither, a whole
                             commit id as the head wherever a pull request is named, and neither a head nor a report
                             where none is -- or neither its identity, its head, nor its requirements are read
@@ -2218,9 +2222,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     rewrite_recovery.py     the recovery an interrupted attempt is owed, in the order it has always been asked: the
                             decision the coordinator takes ahead of any rebase (a recovery that answered the anchor
                             owns the tick, and a reply it spent is not spent again by the rebase behind it); a label
-                            the refresh does not drive cleared or parked, and a checkout still on the anchor cleared
-                            or parked, both before any comparison (`git/base_sync/replay_cleanup.py`) -- the rebase
-                            going on behind a clear only once that clear landed; the fetch and
+                            the refresh does not drive cleared or parked, an anchor carrying none of its attempt's
+                            terms parked with every record kept, there and ahead of the abort over an uncountable
+                            lag (`git/base_sync/replay_publication_parks.py`), and a checkout still on the anchor
+                            cleared or parked, both before any comparison (`git/base_sync/replay_cleanup.py`) --
+                            the rebase going on behind a clear only once that clear landed; the fetch and
                             the remote comparison (`git/base_sync/snapshot.py`) and the transfer the attempt left
                             (`git/base_sync/transfers.py`), every road off that comparison taken only once the
                             comment still spells the attempt and its evidence as the tick last confirmed them
@@ -2464,7 +2470,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             another depth leaves the depth unproven, never read as a fresh root at 0
     exemption_reading.py    exact-commit exemption reads, their key groups, and whole semantic identities; a transferable
                             identity requires the frozen pair, matching exempt candidate, digest, and supported format,
-                            while a claimed but unreadable group stays distinct from no record
+                            while a claimed but unreadable group stays distinct from no record; an exact commit with
+                            no identity -- the settlement's when fingerprinting fails -- exempts that commit alone
     exemption.py            exemption and semantic-identity writes outside the generation's lifetime; moving the exempt
                             commit drops its old identity, and writing the same commit retains the identity it earned
     rewrite_values.py       persisted rewrite kinds, phases, and proof vocabulary, frozen authorization values, and the
@@ -4158,10 +4165,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             or closed issue is finalized before any handler reaches the gate. The publication DEBT
                             such a commit leaves is the same question one field over, answered off the approval's
                             own recorded basis rather than inferred: the two bases an operator's gesture is behind
-                            defer to this reading, a gate-owned `reading` approval is untouched, and an approval an
-                            older binary wrote with no basis falls back to the exemption -- read conservatively, so
-                            a comment that CLAIMS one and cannot say which commit it is about is the
-                            adjudication's debt rather than this workflow's own
+                            defer to this reading, a gate-owned `reading` approval is untouched, and an approval
+                            with no basis this build can read -- absent, `null`, or from elsewhere -- is never the
+                            gate's own: it defers to the same reading, whatever the exemption beside it says
       late_delivery.py      what the publication receipt has to prove before it vouches for anything, and the pull
                             request that proof was ABOUT. The note names what this stage last PUSHED and nothing
                             about where it went or whether it is still there, and it is never cleared -- so a
@@ -4422,7 +4428,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             immutable pre-squash values and durable head/base/count claims written before reset;
                             failed writes restore in-memory state, and handoff or proved rollback clears the claim
       late_squash_proof.py  prove the checkout still holds the squash, decide whether approval, receipt, generation,
-                            or a changed checkout keeps it standing, and choose the receipt-proved retry lease
+                            or a changed checkout keeps it standing, and choose the receipt-proved retry lease -- and
+                            name the commit finishing a recorded collapse publishes as a leased no-op
+                            (`_receipted_landing`): this issue's receipt dating a push of exactly the commit the
+                            checkout stands on to that collapse and its pull request, with no approval or uncounted
+                            generation owing a push -- and lease a recovery bound to that commit
+                            (`_Gate.no_op_of`) on it alone
       late_rewrite.py       enter and publish a squash, with the switch governing measurement and every push retaining
                             its terminal barrier; hand the actual pre-squash pair to transfer, name a resumed candidate,
                             and drop abandoned approval, transfer permission, and collapse claim after proved rollback
@@ -4560,7 +4571,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             stops the tick rather than being ignored, since the stage behind it would run over a
                             publication the approved commit never reached
       late_gate_models.py   frozen gate calls, publication provenance, caller-owned route spending, and gate verdicts;
-                            publication ids distinguish absence from damaged claims, and the close latch stays shared
+                            publication ids distinguish absence from damaged claims, and the close latch stays shared;
+                            a squash recovery's gate can be bound to the one commit it may publish as a no-op
+                            (`_Gate.no_op_of`, `bound_to`)
       late_identity_reading.py
                             retained measurement misses, inherited root/depth, and generation identity validation;
                             unreadable or foreign records cannot supply a reportable identity
@@ -4584,11 +4597,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       late_verdict.py       approve accepted or authorized work, route oversized work with its unpublished notice,
                             retire answered parks, and coordinate generation retirement with route and publication debt
       late_approval_reading.py
-                            whole candidate/lease/basis approval reads and explicit operator-backed bases; damaged
-                            and legacy bases remain distinct from known permissions
+                            whole candidate/lease/basis approval reads and explicit operator-backed bases; a
+                            standing approval whose basis is absent, null, or unknown reads as damage, never as a
+                            known permission
       late_approval_state.py
-                            coordinated approval writes, preservation of an existing candidate's basis, and debt
-                            retirement together with its owed route spends
+                            coordinated approval writes, verbatim preservation of an existing candidate's basis,
+                            a minted basis where no approval stood, and debt retirement together with its owed
+                            route spends
       late_publication_state.py
                             exact commit, lease, and PR receipt reads and writes; the recorded issue pointer stays
                             distinct, and recovery receipts must match the attempt's head and publication
@@ -4945,8 +4960,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             stamped with, off the one read
       state.py              the issue-side watermark key they share, the marker saying this issue owes
                             `workflow:validating` a label move its own relabel did not land, the predicate reading
-                            that marker beside a report still owed, an approval of another report, and one of other
-                            requirements than `user_content_hash` holds -- whose own test is spelled here -- and the one
+                            that marker beside a report still owed, an approval of another report, one of other
+                            requirements than `user_content_hash` holds, and one beside no evidence claim read whole
+                            -- whose own tests are spelled here -- and the one
                             staged write spelled here rather than at the owner that makes it: every field the
                             hand-back puts down, asked by the report reservation so a field added moves it too
     question/               `question`
@@ -5026,7 +5042,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             on the pinned comment is the whole test, so an issue with nothing recorded costs one
                             lookup; ABOVE the drift resume and the awaiting-human branch both, which is what makes
                             the park its own to answer -- its own refusals park under a durable `squash_failed`
-                            and are retried every tick without a second mention, while a park the size gate worded
+                            and are retried every tick without a second mention, a squash no approval stands
+                            behind parked so rather than published (`squash_approval.allowance`), the recovery
+                            bound to the one commit a receipt proves where that is all it may publish,
+                            while a park the size gate worded
                             is held until the human replies and that reply is then spent on the recovery rather
                             than on the dev; neither road holds a returned verdict, so one waiting beside the handoff
                             holds the move while the handoff record ends; and the checkout is READ where it is there
@@ -5063,8 +5082,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the tail makes, and the squash is taken; the relabel that tail owes is held wherever that
                             approval no longer covers the report the pull request carries, the requirements the issue
                             carries, or the head the rewrite published (the approved head where it rewrote nothing),
-                            each read afresh, the rewrite finished either way -- the one check the recovery of a
-                            squash an earlier tick did not finish gets -- and nothing it holds is posted or written
+                            each read afresh, the rewrite finished either way -- on the recovery of a squash an
+                            earlier tick did not finish, the second asking, behind the one `squash_approval.py`
+                            makes before anything is pushed -- and nothing it holds is posted or written
                             past a published rewrite, nor the label moved on either road, where the pinned comment no
                             longer carries the report, pointer, verdict, or evidence records in hand or the review
                             subjects, claim, report debt, park, or collapse records the tail last read or wrote, nor
@@ -5126,6 +5146,24 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             approval notice: the round's checkout still on the head the approval was of and clean
                             (`checkout_stands`), since the branch is handed on from it, and the evidence its verdict
                             was proved over (`evidence_stands`)
+      squash_approval.py    what a recorded squash may publish under the approval it was begun under, asked by the
+                            recovery (`allowance`, from `collapse.py`: nothing, anything that approval covers, or the
+                            one commit a receipt proves, which the recovery is then bound to) and by the dispatcher
+                            ahead of the publication reconciliation that would pay the debt or settle the frozen pair
+                            the squash's size gate recorded (`holds_the_dispatch`, on every label that reconciliation
+                            publishes from): the approval stands only while the review subject reads whole and names the
+                            head the collapse was planned over, the evidence its claim names still stands
+                            (`approved_evidence.stands`), the report it covered still reads as settled
+                            (`review_coverage._approval_stands`), and the issue still carries the requirements it was
+                            given (`review_coverage._requirements_stand`). Nothing else stands in for it -- a collapse
+                            record that will not read whole binds no approval, and a pull request seeming to carry the
+                            squash proves nothing about what a push leased from its own reading would publish -- so
+                            otherwise nothing is pushed or squashed afresh, every record is kept, and the issue parks
+                            under `squash_failed` once (`review_parks.parks_the_failed_squash`). Work that has ended is
+                            the stage terminal's (`late_terminal._work_has_ended`), asked ahead of every hold; a landing
+                            this issue's own receipt proves (`late_squash_proof._receipted_landing`) is finished without
+                            the approval, as the leased no-op of that one commit, with the move past it held for a fresh
+                            review; and only then does a reading nobody could take hold the tick
       squash_writes.py      the guarded commit every write of an approval's tail lands through (`lands`), under the
                             developer report's tick-state guard (`engine/report_commits.py`): a refusal or an edit
                             never confirmed writes nothing, withholds the tick's state, and licenses nothing behind
@@ -5900,7 +5938,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             keeping any verdict it does not retire (`review_writes._prepares_the_park`), held behind
                             that notice to the records the squash tail holds (`handoff._holds_its_records`) and, on
                             the approval road, to the approved subject, landing only behind a notice that was
-                            identified, and reported only once that commit is down (`handoff.SQUASH_PARK`)
+                            identified, and reported only once that commit is down (`handoff.SQUASH_PARK`), which
+                            `squash_approval.py` takes as well ahead of publishing a squash no approval stands behind
       approved_evidence.py  the evidence an approval was proved over: the proof of a claim (`refusal`) -- the
                             current evidence named exactly, proved current again, its artifact re-read as the one that
                             settled, passing and covering `VERIFY_COMMANDS` -- which the arc takes again behind the
@@ -5912,7 +5951,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             never bound to -- the current record named exactly, no revision past it spent, settled or
                             still owed, its handoff describing it, the verification context it was minted under still
                             the configured one, and its artifact, re-read on the pull request it was published on,
-                            still the one that settled, passing and covering the configuration; unread holds. A
+                            still the one that settled, passing and covering the configuration; unread holds, and an
+                            approval beside no claim, absent or `null`, rests on no evidence and does not stand. A
                             squash's carry points that record at the carried transaction (`squash_evidence.py`). The
                             artifact's own refusal (`_artifact_refusal`) -- at least one command, every one exiting
                             0, `VERIFY_COMMANDS` covered -- is what a docs pass that changed nothing

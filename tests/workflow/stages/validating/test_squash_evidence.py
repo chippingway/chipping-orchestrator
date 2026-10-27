@@ -481,10 +481,14 @@ class RefusedCarryTest(_support.SquashedRoundWorld, unittest.TestCase):
         return {}
 
     def _owes_the_announcement(self) -> dict:
-        """An approval whose squash notice was refused, its collapse -- and carry -- left for the recovery to finish."""
+        """An approval whose squash notice was refused, its collapse -- and carry -- left for the recovery to finish.
+
+        The push landed, so the checkout stands on the squash that push's
+        receipt names, and the recovery finishes it as the no-op it is.
+        """
         with patch.object(self.github, PR_COMMENT, _support.RefusesTheNotice(self.github)):
             self.approves()
-        return {"squash_result": _support.LandsTheSquash(self)}
+        return {"squash_result": _support.LandsTheSquash(self), "candidate_commit": _support.ON_THE_SQUASH}
 
     def _publishes_unconfirmed(self) -> None:
         """A tick whose publication of the carry nobody could confirm, held for the next."""

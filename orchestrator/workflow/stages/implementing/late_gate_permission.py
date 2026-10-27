@@ -107,11 +107,10 @@ def _already_decided(
     it agreed to publish past the ceiling. Only the two together are a bypass
     -- a guard against agents putting unreviewed bulk on a pull request may
     not be waived by an agent saying it should be -- so a commit only the
-    exemption names goes to the ordinary cumulative gate, which is what an
-    older binary's automatic exemption gets and what a hand-edited or
-    half-written authorization costs. The pair outlives the publication
-    because the gate would otherwise measure the same candidate past the same
-    ceiling forever.
+    exemption names goes to the ordinary cumulative gate, which is what a
+    missing, hand-edited, or half-written authorization costs. The pair
+    outlives the publication because the gate would otherwise measure the
+    same candidate past the same ceiling forever.
 
     The approval is this gate's own -- with two exceptions, a permit that
     granted it, which defers to that permit rather than answering on the

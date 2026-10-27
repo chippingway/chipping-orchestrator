@@ -15,6 +15,7 @@ from orchestrator.workflow.stages.in_review.surfaces import _unread_issue_thread
 from tests.support.fakes import FakeComment, FakeGitHubClient, FakeUser, make_issue
 from tests.workflow.fixtures import _TEST_SPEC, _agent, _open_pr_for
 from tests.workflow.stages.documenting.documenting_test_support import SHA_BEFORE, _branch, _DocumentingWorkflowMixin
+from tests.workflow.verified_approvals import verifies_the_approval
 
 DOCUMENTING = "workflow:documenting"
 ISSUE_NUMBER = 411
@@ -122,7 +123,11 @@ class TimeoutParkDeliveryTest(unittest.TestCase, _DocumentingWorkflowMixin):
         return prompt, [seen.id for seen in _unread_issue_thread(github, issue, state)]
 
     def _parked_with(self, reply: str) -> tuple:
-        """An issue the timeout parked at `NOTICE_ID` over a reply the run never saw, answered by `reply`."""
+        """An issue the timeout parked at `NOTICE_ID` over a reply the run never saw, answered by `reply`.
+
+        Over the approval a docs pass is entered under, recorded as
+        production leaves it (`verified_approvals.verifies_the_approval`).
+        """
         issue = make_issue(ISSUE_NUMBER, label=DOCUMENTING, comments=[
             _comment(DURING_RUN_ID, AUDIT_REPLY),
             _comment(NOTICE_ID, f"agent timed out\n\n{ORCHESTRATOR_COMMENT_MARKER}"),
@@ -138,6 +143,7 @@ class TimeoutParkDeliveryTest(unittest.TestCase, _DocumentingWorkflowMixin):
                 LAST_ACTION: NOTICE_ID, "delivered_after_comment_id": 0, DELIVERED_THROUGH: DELIVERED_ID,
             },
         )
+        verifies_the_approval(github, issue)
         return github, issue
 
 

@@ -609,6 +609,10 @@ nothing on its road answers until a human replies to it (`workflow/engine/rewrit
 refresh does not drive is answered on its ineligible road by the dispatcher itself, and a missing checkout on one it
 drives is restored for the refresh to walk
 ([`state-machine/labels-and-state.md`][pinned-state])
+— a squash `validating` recorded, held on every label the late reconciliation publishes from, ahead of that
+reconciliation paying the debt its size gate recorded, and parked once, while the approval it was begun under does
+not stand behind publishing it -- save work that has ended, left to its terminal, and a landing the issue's own
+receipt proves, finished as a leased no-op (`workflow/stages/validating/squash_approval.py`)
 — a developer report the issue recorded and never finished publishing, which is answered last of the
 reconciliations and ahead of the reuse guard below: the record is durable and the publication that follows it is
 not, so a tick that died in between leaves a pull request without the report the next reviewer is meant to read,
@@ -1132,9 +1136,11 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   records. It runs under its caller's issue writer claim.
   The ordinary publication, the recovery's retry, and the recovery of a push already landed all hand their landings
   there, so the three share one post-push policy and one evidence decision -- the recovery's two on the recovery road
-  (`rewrite_finish.finishes_the_recovery`), with the reply that brought the attempt back, and over an attempt from
-  before its replay record existed the push a retry made is that retry's own. Nothing in `git/base_sync` announces,
-  routes, stages report debt, or enters the size gate for a landing any more.
+  (`rewrite_finish.finishes_the_recovery`), with the reply that brought the attempt back. A retry owns its push only
+  over an attempt whose record declares its terms: in the window before the rebase recorded its replay those terms
+  stand with no head yet, and the replay the retry pushed is the one the finish accepts; an anchor with no terms
+  beside it is no attempt this build made, and the recovery parks it before any push. Nothing in `git/base_sync`
+  announces, routes, stages report debt, or enters the size gate for a landing any more.
 - The bare `HEAD` form is left for the one push that could name no commit at all: a gated push on an install running
   with `DECOMPOSE=off` whose checkout would not prove its own head. The switch keeps candidates out of the
   MEASUREMENT and not out of a push that knows what it is publishing, so the commit is named off the checkout there

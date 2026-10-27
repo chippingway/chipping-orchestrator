@@ -88,6 +88,7 @@ _SWEPT_STAGES = (_IMPLEMENTING, fixing.VALIDATING, fixing.DOCUMENTING)
 _OWED_PUBLICATION = MappingProxyType({
     support.KEY_APPROVED_SHA: MEASURED_CANDIDATE_SHA,
     support.KEY_APPROVED_LEASE: fixing.PR_HEAD_SHA,
+    support.KEY_APPROVED_BASIS: support.GATE_READING,
 })
 
 # The step the gated publication takes last before its barrier, which is the

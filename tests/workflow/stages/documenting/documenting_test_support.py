@@ -5,7 +5,11 @@ from __future__ import annotations
 from contextlib import ExitStack, contextmanager
 from unittest.mock import patch
 
-from orchestrator.workflow.engine import report_evidence_models as _evidence_models, verification_proof as _proof
+from orchestrator.workflow.engine import (
+    report_evidence_models as _evidence_models,
+    review_subjects as _review_subjects,
+    verification_proof as _proof,
+)
 from orchestrator.workflow.stages.documenting import handler as _documenting
 from orchestrator.workflow.stages.validating import (
     approved_evidence as _approved_evidence,
@@ -22,6 +26,7 @@ from tests.workflow.fixtures import (
     _open_pr_for,
     _PatchedWorkflowMixin,
 )
+from tests.workflow.verified_approvals import verifies_the_approval
 
 # --- Workflow labels this stage routes between --------------------------
 DOCUMENTING = "workflow:documenting"
@@ -201,9 +206,19 @@ class _DocumentingWorkflowMixin(_PatchedWorkflowMixin):
 
 
 class _BasicDocumentingFixture(_DocumentingWorkflowMixin):
-    def _seeded(self, **state):
+    def _seeded(self, *, comments=(), **state):
+        """An issue the reviewer approved into this stage: its state, its pull request, and the approval it rests on.
+
+        The approval is what a docs pass is entered over, so wherever the case
+        seeded none of its own it is recorded as production leaves it: of the
+        report the pull request carries, over settled passing evidence of the
+        head that report is about (`verified_approvals.verifies_the_approval`).
+        `comments` are on the thread before that, so the requirements the
+        report and the drift baseline record are the thread with them.
+        """
         gh = FakeGitHubClient()
         issue = make_issue(self.issue_number, label=DOCUMENTING)
+        issue.comments.extend(comments)
         gh.add_issue(issue)
         defaults = {
             "pr_number": self.pr_number,
@@ -219,6 +234,8 @@ class _BasicDocumentingFixture(_DocumentingWorkflowMixin):
                 issue_number=self.issue_number,
                 pr_number=defaults["pr_number"],
             )
+        if _review_subjects.APPROVED_SUBJECT not in defaults:
+            verifies_the_approval(gh, issue)
         return gh, issue
 
 

@@ -974,7 +974,7 @@ orchestrator/
                           validate interrupted replay terms and head as absent, declared, recorded, or damaged,
   sharing the replay
                         field group with the lifecycle clear, and read the base tip the replay was made onto
-                        apart from that group (`_recorded_onto`), "" where a legacy attempt names none. Commit
+                        apart from that group (`_recorded_onto`), "" where an attempt names none. Commit
                         validation uses the late domain's format reader through a call-time import
       rewrite_handoffs.py
                         the frozen, data-only handoffs an automatic PR base rewrite crosses the git boundary as:
@@ -1018,7 +1018,8 @@ orchestrator/
                         the pending attempt to vouch for its actual checkout before reconstructing a grant
       transfer_attempts.py
                         agreement between the authorization's lease, pending publication, and adjudicated pair;
-                        settled permissions name the rewritten pair and outstanding ones name the accepted pair
+                        settled permissions name the rewritten pair and outstanding ones name the accepted pair,
+                        and an attempt record with no declared terms binds none
       transfer_publication.py
                         whole debt and receipt proofs for recovered publication and rollback; an unreadable approval
                         or a receipt for another head or PR cannot prove this attempt settled, and a leased no-op's
@@ -1049,9 +1050,11 @@ orchestrator/
                         `eligibility`
       recovery_push.py  the git half of the workflow's two recovery roads (`workflow/engine/rewrite_retry.py`,
                         `rewrite_landed.py`): the candidate an interrupted attempt left, read in its own terms --
-                        the anchor as the lease, the recorded publication and stage (the tick's own for an attempt
-                        from before that record) -- over the remote head the recovery's fetch verified, and the
-                        reason a landing that left the verdict behind may not be finished. No workflow import
+                        the anchor as the lease, the publication and stage the attempt declared (the tick's own
+                        only for a record in pieces, which every road refuses before publishing or finishing on
+                        it; an anchor with no terms is parked by the recovery and never reaches here) -- over the
+                        remote head the recovery's fetch verified, and the reason a landing that left the verdict
+                        behind may not be finished. No workflow import
       landed_recovery.py
                         why a head the pull request already carries may not be finished, for the workflow's
                         recovery of it (`workflow/engine/rewrite_landed.py`) to park on: a foreign mark, a landing
@@ -1082,7 +1085,8 @@ orchestrator/
                         guarded rollback for unrecorded work, an out-of-band remote rollback, an announced publication
                         the remote lost, or an undone rebase whose abandoned bookkeeping must be retired
       replay_publication_parks.py
-                        keep the checkout and pinned evidence when the issue's publication or label changed; a
+                        keep the checkout and pinned evidence when the issue's publication or label changed, or
+                        when the anchor carries none of its attempt's terms (`_park_termless_recovery`); a
                         stranded park is recorded once so repeated ticks do not advance the reply watermark, and
                         beside a live adjudication it asks for the record to be reconciled by hand rather than for
                         a label that adjudication's guard restores
@@ -1262,9 +1266,11 @@ orchestrator/
                         gate authorized, one the remote already carries, and one whose handoff never finished are
                         all finished through the same leased publication -- entered on the head the record names,
                         or on the rewritten commit itself where a receipt dates that tip to this attempt, so an
-                        already-landed collapse is a leased no-op rather than a fresh reading. Nothing is resumed
-                        on the record's SHAPE, and none of the roads above is either: the tree is proved clean,
-                        both recorded ends are peeled as objects
+                        already-landed collapse is a leased no-op rather than a fresh reading. A gate bound to the
+                        one commit it may publish (`no_op_of`) refuses a checkout off that commit, or a record
+                        that no longer reads, before any road -- and is entered and leased on that commit alone.
+                        Nothing is resumed on the record's SHAPE, and none of the roads above is either: the tree
+                        is proved clean, both recorded ends are peeled as objects
                         this host really holds, the base has to be one the head was really built on -- a walk
                         between two histories that never met reports a number like any other, so the count is no
                         ancestry proof -- the history between them is walked against the recorded count, and the

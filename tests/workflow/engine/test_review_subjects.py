@@ -128,8 +128,6 @@ class ApprovalCoverageTest(unittest.TestCase):
     def test_the_report_revision_decides(self) -> None:
         first = _report(1, _FIRST_DIGEST)
         cases = (
-            ("no approval, no report", _state(), True),
-            ("no approval, but a report", _state((2, _SECOND_DIGEST)), False),
             (
                 "the approved report is current",
                 _approved(_state((1, _FIRST_DIGEST)), _subject(first)),
@@ -169,12 +167,16 @@ class ApprovalCoverageTest(unittest.TestCase):
                 self.assertIs(review_subjects.approval_covers_current(state), covers)
 
     def test_an_unreadable_record_covers_nothing(self) -> None:
-        # Damage on either side, `null` included, is never agreement -- not
-        # even with an approval that saw no report at all, over an issue that
-        # has none, and not an approval whose head is no commit, or none under
-        # its pull request, though the report it names is the current one.
+        # No approval record read whole is never agreement: none at all,
+        # `null`, an approval whose head is no commit, or none under its pull
+        # request, though the report it names is the current one -- and
+        # damage on the current side. Not even over an issue with no report
+        # either: an approval nothing identifies may have been of any report,
+        # or of none, so it is no approval of this one.
         approved_first = _subject(_report(1, _FIRST_DIGEST)).recorded()
         cases = (
+            ("no approval, no report", _state()),
+            ("no approval, but a report", _state((2, _SECOND_DIGEST))),
             ("approval is null", _state(**{_APPROVED: None})),
             ("a head that is no commit", _state((1, _FIRST_DIGEST), **{
                 _APPROVED: {**approved_first, _SHA: "not-a-commit"},

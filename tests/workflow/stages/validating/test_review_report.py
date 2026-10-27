@@ -56,6 +56,9 @@ RUN_AGENT = world.RUN_AGENT
 
 HANDOFF_SHA = _late_handoffs.LATE_COLLAPSE_HANDOFF
 
+# The park a squash no approval stands behind takes.
+_SQUASH_FAILED = "squash_failed"
+
 # A report a maintainer published on the pull request, which a round verifies.
 HUMAN_REPORT = "### Report\n\nRan the suite by hand; every check is green."
 
@@ -507,9 +510,9 @@ class SquashHandoffTest(unittest.TestCase, world._ReviewedReports):
     """The label a finished squash owes moves only under an approval that stands."""
 
     def test_an_unrecorded_approval_voids_handoff(self) -> None:
-        # An approval recorded before approvals named a subject, over a pull
-        # request that carries a report: nothing says that report was the one
-        # approved, so the handoff goes and a reviewer is handed it.
+        # An approval with no record at all, over a pull request that carries
+        # a report: nothing says that report was the one approved, so the
+        # handoff goes and a reviewer is handed it.
         self._approved_and_relabelled()
         world.restate(self, **{HANDOFF_SHA: self.pull_request.head.sha})
         world.forgets_approval(self)
@@ -573,11 +576,11 @@ class SquashHandoffTest(unittest.TestCase, world._ReviewedReports):
         )
 
     def test_an_edited_report_holds_squash_recovery(self) -> None:
-        # A squash the approval began and did not finish is finished -- no
-        # branch may be left standing mid-rewrite -- but the report its
-        # approval covered has been edited since, so the label is not moved
-        # past a reviewer: the next tick drops the handoff that squash left,
-        # and its reviewer round refuses the edited report.
+        # A squash the approval began and did not finish publishes only under
+        # that approval, and the report it covered has been edited since: no
+        # approval stands behind publishing it, and nothing proves its push
+        # already landed. Nothing is pushed, the squash parks with its record
+        # kept, and the label is not moved past a reviewer.
         self._approved_and_relabelled()
         self._owes_a_collapse()
         world.edits_report(self)
@@ -587,12 +590,17 @@ class SquashHandoffTest(unittest.TestCase, world._ReviewedReports):
             squash_result=(True, self.pull_request.head.sha, 1, None),
         )
 
-        recovered["_squash_and_force_push"].assert_called_once()
+        pinned = self.pinned()
+        recovered["_squash_and_force_push"].assert_not_called()
         recovered[RUN_AGENT].assert_not_called()
         self.assertEqual(
-            self.github.label_history.count((ISSUE, LABEL_DOCUMENTING)), 1,
+            (
+                self.github.label_history.count((ISSUE, LABEL_DOCUMENTING)),
+                pinned[world.PARK_REASON],
+                _collapses.LATE_COLLAPSE_HEAD in pinned,
+            ),
+            (1, _SQUASH_FAILED, True),
         )
-        self.assert_refused(self.reviewed(), _review_report._EDITED)
 
     def _approved_and_relabelled(self) -> None:
         """Approve the first report, and put the issue back on `validating`."""

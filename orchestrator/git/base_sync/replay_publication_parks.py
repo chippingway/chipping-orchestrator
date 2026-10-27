@@ -1,8 +1,9 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Keep an interrupted attempt whose publication or workflow label moved.
+"""Keep an interrupted attempt whose publication or workflow label moved, or that names no publication at all.
 
-Neither a reset nor a clear can be justified against another publication.
+Neither a reset nor a clear can be justified against another publication, or
+against an anchor whose attempt recorded no terms to name one by.
 The recovery leaves the checkout and pinned evidence intact, and
 records a stranded park once so repeated ticks do not consume human replies.
 Beside a live adjudication the stranded park asks for the record to be
@@ -196,6 +197,51 @@ def _park_stranded_recovery(context: _AutoRebaseRecoveryContext) -> bool:
         context.issue,
         context.state,
         message=_stranded_notice(context),
+        reason=_REASON_AUTO_BASE_REBASE_FAILED,
+    )
+    return True
+
+
+def _park_termless_recovery(context: _AutoRebaseRecoveryContext) -> bool:
+    """Hold an anchor standing with none of the terms its attempt records beside it.
+
+    Every attempt this build makes writes the pull request it publishes onto
+    and the stage it was entered from in the anchor's own write
+    (`startup._record_auto_rebase_attempt`), so an anchor with neither is an
+    incomplete transaction: nothing on the comment says which publication the
+    branch in front of this tick belongs to. A lease and a measurement say
+    where a push may land and how big it is, never whose it is, so no road
+    may decide that for it -- not a retry, a landing's finish, a reset, or the
+    clear of an attempt that looks unstarted.
+
+    So nothing is pushed, reset, cleared, or finished, and the park is taken
+    once, as the stranded one is (`_already_stranded`), with the record kept
+    for the human it asks to inspect the branch and clear it. Asked first
+    whether the park may go on (`persistence._proves_before_the_park`).
+    """
+    if _already_stranded(context.state) or not persistence._proves_before_the_park(context):
+        return True
+    log.warning(
+        "issue=#%d auto-rebase recovery: the anchor carries none of the terms "
+        "an attempt records beside it; keeping every record and parking "
+        "awaiting human rather than publishing for a pull request nothing names",
+        context.issue.number,
+    )
+    persistence._park_auto_rebase_failure(
+        context.gh,
+        context.issue,
+        context.state,
+        message=(
+            f"{config.HITL_MENTIONS} crash recovery for this issue's auto "
+            "rebase: the pinned comment carries the attempt's anchor "
+            "(`pending_auto_base_rebase_push_sha`) and none of the terms every "
+            "attempt records beside it -- the pull request and the stage it "
+            "was made for -- so nothing says which publication the branch "
+            "belongs to. Nothing was pushed, reset, or cleared. Inspect the "
+            "branch, then clear the `pending_auto_base_rebase_*` fields and "
+            "this park's `awaiting_human` and `park_reason` on the pinned "
+            "comment; the next tick then rebases afresh."
+        ),
         reason=_REASON_AUTO_BASE_REBASE_FAILED,
     )
     return True

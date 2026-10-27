@@ -373,8 +373,8 @@ def _hands_a_stale_approval_back(ctx: _models._InReviewContext) -> bool:
 
     An approval of a developer report other than the one the pull request
     carries is the third: recorded against another revision than the one the
-    issue now records as current, recorded before approvals named a subject
-    over a pull request that carries a report, or of the current one since
+    issue now records as current, no approval record read whole at all, or
+    of the current one since
     edited or removed at its location, which only a fresh reading of that
     location can see. The head can be the very one that approval, its docs pass, and its
     ready ping were about, so nothing keyed on the commit notices -- and a

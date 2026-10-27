@@ -68,8 +68,8 @@ The keys sit outside `LATE_STATE_KEYS` for the reason the exemption's do: this
 is what a generation is cleared AGAINST, and a clear that took it would send
 the authorized candidate back into the adjudication a human already answered.
 Everything else on the pinned comment is left exactly as found -- the fields
-this owner names and no others -- so an unknown field, and an exemption group
-an older binary wrote, are preserved verbatim by both the write and the clear.
+this owner names and no others -- so an unknown field, and the exemption
+group beside it, are preserved verbatim by both the write and the clear.
 
 What the record does not do is publish anything. It is durable evidence, and
 what a candidate publishes under is decided where publications are.

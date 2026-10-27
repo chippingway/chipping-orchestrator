@@ -5,8 +5,8 @@
 An oversized candidate publishes without a reading only where two records name
 it: the exemption a settlement wrote, and the terms an operator authorized
 that publication on. These pin down the second half -- what the gate does with
-an exemption standing alone, which is the shape an older binary left on live
-issues and the shape a damaged authorization leaves on any of them.
+an exemption standing alone, which is what an answer thrown away and re-earned
+leaves, and the shape a damaged authorization leaves on any issue.
 
 What that costs is the measurement, and the reading then decides: a candidate
 at or below the ceiling publishes exactly as it always did, and an oversized
@@ -30,12 +30,12 @@ from tests.workflow.fixtures import (
     SHA_LENGTH,
     _authorize_command,
     _authorized_exemption,
+    _bare_exemption,
     _damaged_authorization,
     _fabricated_authorization,
-    _legacy_exemption,
 )
 from tests.workflow.stages.implementing import (
-    late_authority_test_support as legacy,
+    late_authority_test_support as bare,
     late_gate_test_support as support,
 )
 
@@ -53,19 +53,19 @@ _DESCENDANT_SHA = "d" * SHA_LENGTH
 # an exemption field reads back from as no exemption at all.
 _ABBREVIATED = 7
 
-# An approval an older binary wrote: the commit alone, with no account of what
-# the push it licenses rests on.
-_LEGACY_DEBT = MappingProxyType({_KEY_APPROVED_SHA: MEASURED_CANDIDATE_SHA})
+# An approval naming its commit and no basis: a debt no writer records, which
+# claims a push and cannot say what granted it.
+_BASELESS_DEBT = MappingProxyType({_KEY_APPROVED_SHA: MEASURED_CANDIDATE_SHA})
 
 # The debt an authorized settlement's handoff records, and the debt this
 # gate's own count at or below the ceiling records.
 _ADJUDICATION_DEBT = MappingProxyType({
-    **_LEGACY_DEBT,
+    **_BASELESS_DEBT,
     _KEY_APPROVED_BASIS: str(_late_approval_reading.LateApprovalBasis.ADJUDICATION),
 })
 
 _READING_DEBT = MappingProxyType({
-    **_LEGACY_DEBT,
+    **_BASELESS_DEBT,
     _KEY_APPROVED_BASIS: str(_late_approval_reading.LateApprovalBasis.READING),
 })
 
@@ -73,24 +73,24 @@ _READING_DEBT = MappingProxyType({
 # the two a later tick may not spend without re-reading that gesture.
 _REVALIDATED_DEBTS = MappingProxyType({
     "recorded as the adjudication's": _ADJUDICATION_DEBT,
-    "an older binary's, with no basis": _LEGACY_DEBT,
+    "one with no basis": _BASELESS_DEBT,
 })
 
 
 class UnauthorizedExemptionTest(
-    legacy._LegacyExemptionCase, unittest.TestCase,
+    bare._BareExemptionCase, unittest.TestCase,
 ):
     """An exemption alone lets nothing past: the candidate is measured."""
 
     def test_an_unauthorized_exemption_is_measured(self) -> None:
-        # Three shapes reach the same place. The legacy comment never had an
-        # authorization on it; the damaged one has a group this build cannot
+        # Three shapes reach the same place. The bare exemption has no
+        # authorization beside it; the damaged one has a group this build cannot
         # read whole; and the fabricated one parses, names this candidate, and
         # describes a decision nobody made over a pair nobody froze -- the
         # digest being the one term the OBJECTS answer. A bypass nobody can
         # show the terms of is worth what a bypass nobody granted is worth.
         for shape, seeded in (
-            ("legacy", _legacy_exemption()),
+            ("bare", _bare_exemption()),
             ("damaged", _damaged_authorization()),
             ("fabricated", _fabricated_authorization()),
         ):
@@ -117,7 +117,7 @@ class UnauthorizedExemptionTest(
 
         self._assert_measured(mocks)
         self._assert_held(mocks)
-        self.assertIn(legacy.KEY_OVERRIDE_CANDIDATE_SHA, self._pinned())
+        self.assertIn(bare.KEY_OVERRIDE_CANDIDATE_SHA, self._pinned())
 
     def test_a_descendant_is_a_fresh_candidate(self) -> None:
         # Both claims are about ONE object id, and neither is widened here: a
@@ -142,7 +142,7 @@ class UnauthorizedExemptionTest(
 
     def test_the_ceiling_still_decides_the_rest(self) -> None:
         # What "measured like any other candidate" means at the other end of
-        # the reading: nothing about a legacy exemption holds a change the
+        # the reading: nothing about a bare exemption holds a change the
         # ceiling would have let through, and the boundary stays inclusive --
         # a candidate exactly at the configured value is not oversized, so it
         # never reaches the park at all.
@@ -152,7 +152,7 @@ class UnauthorizedExemptionTest(
         ):
             with self.subTest(reading=described):
                 self.setUp()
-                self._seed_legacy()
+                self._seed_bare()
 
                 with support.patch.object(
                     config, _MAX_ADDED_LINES, ceiling,
@@ -165,7 +165,7 @@ class UnauthorizedExemptionTest(
                 self._assert_published(mocks)
 
 
-class UnauthorizedDebtTest(legacy._LegacyExemptionCase, unittest.TestCase):
+class UnauthorizedDebtTest(bare._BareExemptionCase, unittest.TestCase):
     """Whose decision a publication debt rests on, and who may spend it.
 
     An approval is spent by the tick that comes back after a crash without
@@ -179,13 +179,12 @@ class UnauthorizedDebtTest(legacy._LegacyExemptionCase, unittest.TestCase):
         # so an approval it recorded is that adjudication wearing another
         # field rather than a reading this gate took. Read as an ordinary
         # approval it would publish the very candidate the record above it may
-        # not. An approval an older binary wrote says nothing about its own
-        # grounds, and there the exemption is the only evidence left -- so it
-        # is read, and read conservatively.
+        # not. An approval with no basis says nothing about its own grounds,
+        # and grounds nobody can show buy no bypass either.
         for described, debt in _REVALIDATED_DEBTS.items():
             with self.subTest(debt=described):
                 self.setUp()
-                self._seed_legacy(**debt)
+                self._seed_bare(**debt)
 
                 mocks = self._run_gate(
                     added_lines=support.OVERSIZED_ADDITIONS,
@@ -196,13 +195,11 @@ class UnauthorizedDebtTest(legacy._LegacyExemptionCase, unittest.TestCase):
 
     def test_a_damaged_exemption_frees_nothing(self) -> None:
         # The crash state the other way round. A recorded basis says the debt
-        # is the settlement's whatever the exemption beside it reads as.
-        # Without one -- an approval an older binary wrote -- the exemption is
-        # the only evidence there is, and a field this build cannot read is
-        # not the same thing as an issue that never entered an adjudication:
-        # it CLAIMS one and cannot say which commit, which is exactly what a
-        # hand edit of that one field produces. Read alike, the truncated
-        # record is the shape that publishes an adjudication's debt unmeasured.
+        # is the settlement's whatever the exemption beside it reads as, and a
+        # debt with none is no grounds for a bypass whatever it reads as. An
+        # exemption field this build cannot read CLAIMS an adjudication and
+        # cannot say which commit, which is exactly what a hand edit of that
+        # one field produces -- and it frees neither debt.
         for described, debt in _REVALIDATED_DEBTS.items():
             with self.subTest(debt=described):
                 self.setUp()
@@ -220,20 +217,19 @@ class UnauthorizedDebtTest(legacy._LegacyExemptionCase, unittest.TestCase):
 
     def test_a_damaged_basis_bypasses_nothing(self) -> None:
         # The sharpest shape of all, and the one a single hand edit reaches:
-        # the field the legacy fallback turns on, touched. Read as the absence
-        # an older binary left, the approval beside it would answer as the
-        # gate's own and an oversized candidate would publish with no
-        # measurement and no exemption anywhere on the record.
-        for described, written in (
-            ("a spelling from nowhere", "damaged-basis"),
-            ("a value of another type", 7),
+        # the basis taken out, spelled null, or touched, on a record with no
+        # exemption anywhere. Read as the gate's own, the approval would let
+        # an oversized candidate publish with no measurement and nothing on
+        # the record saying what granted it.
+        for described, basis in (
+            ("taken out", {}),
+            ("spelled null", {_KEY_APPROVED_BASIS: None}),
+            ("a spelling from nowhere", {_KEY_APPROVED_BASIS: "damaged-basis"}),
+            ("a value of another type", {_KEY_APPROVED_BASIS: 7}),
         ):
             with self.subTest(basis=described):
                 self.setUp()
-                self._seed(**{
-                    _KEY_APPROVED_SHA: MEASURED_CANDIDATE_SHA,
-                    _KEY_APPROVED_BASIS: written,
-                })
+                self._seed(**{_KEY_APPROVED_SHA: MEASURED_CANDIDATE_SHA, **basis})
 
                 mocks = self._run_gate(
                     added_lines=support.OVERSIZED_ADDITIONS,
@@ -249,7 +245,7 @@ class UnauthorizedDebtTest(legacy._LegacyExemptionCase, unittest.TestCase):
         # and the push has to take the bypass down with it. Recorded as an
         # ordinary reading it would look like a count under the ceiling and
         # publish an oversized change nothing can show the grounds for.
-        self._seed_legacy(**{
+        self._seed_bare(**{
             _KEY_APPROVED_SHA: MEASURED_CANDIDATE_SHA,
             _KEY_APPROVED_BASIS: str(_late_approval_reading.LateApprovalBasis.AUTHORIZATION),
         })
@@ -278,13 +274,13 @@ class UnauthorizedDebtTest(legacy._LegacyExemptionCase, unittest.TestCase):
     def test_a_gate_owned_approval_still_bypasses(self) -> None:
         # And the approval this gate owns is untouched, exemption or no
         # exemption. A candidate the reading found at or below the ceiling on
-        # an issue still carrying an older binary's exemption earns a genuine
+        # an issue still carrying a bare exemption earns a genuine
         # approval, and a crash before the push must not re-judge it against a
         # base that has moved since -- which is the whole of what the approval
         # bypass is for.
         for described, seeded in (
             ("no exemption", {}),
-            ("a legacy exemption beside it", _legacy_exemption()),
+            ("a bare exemption beside it", _bare_exemption()),
         ):
             with self.subTest(record=described):
                 self.setUp()

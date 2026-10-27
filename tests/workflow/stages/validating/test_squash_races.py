@@ -111,7 +111,8 @@ class _SettlesAReportAheadOfItsRecord:
         _published_reports.republishes_the_report(self._github, gate.issue, "A later report.")
         _spends_a_round(self._github, gate.issue)
         refusal = _late_collapse_state._records_the_collapse(
-            gate, head=_support.COLLAPSED_HEAD, base_sha=_support.COLLAPSED_BASE, count=_support.COLLAPSED_COMMITS,
+            gate, head=_support.planned_head(gate.state), base_sha=_support.COLLAPSED_BASE,
+            count=_support.COLLAPSED_COMMITS,
         )
         if refusal:
             return _SquashOutcome(error=refusal, standing=BRANCH_INTACT)
@@ -136,7 +137,8 @@ class _RecordsItsCollapse:
 
     def _records(self, gate) -> _SquashOutcome:
         refusal = _late_collapse_state._records_the_collapse(
-            gate, head=_support.COLLAPSED_HEAD, base_sha=_support.COLLAPSED_BASE, count=_support.COLLAPSED_COMMITS,
+            gate, head=_support.planned_head(gate.state), base_sha=_support.COLLAPSED_BASE,
+            count=_support.COLLAPSED_COMMITS,
         )
         if refusal:
             return _SquashOutcome(error=refusal, standing=BRANCH_INTACT)

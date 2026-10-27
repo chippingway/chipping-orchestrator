@@ -122,14 +122,13 @@ class RecordEdits:
         pinned = self.github._pinned[_ping.ISSUE]
         pinned.data.update(fields)
 
-    def rewrites_the_evidence(self, commands: tuple, *, claimed: bool = True) -> None:
+    def rewrites_the_evidence(self, commands: tuple) -> None:
         """Leave the current evidence carrying `commands`, its artifact and record each describing the other.
 
         The artifact rendered afresh in the current format, and the record's
         digest and pass flag the ones those commands earn, so the evidence
-        proves current and only what the commands say decides. `claimed`, the
-        approval's claim names the rewritten evidence exactly; otherwise the
-        approval records no claim at all, as one nothing held to evidence.
+        proves current and only what the commands say decides, with the
+        approval's claim naming the rewritten evidence exactly.
         """
         current = _current_evidence(self)
         rerun = _records.PendingEvidence(
@@ -139,14 +138,12 @@ class RecordEdits:
         rewritten = replace(current, content_revision=rerun.content_revision, passed=rerun.passed)
         self.restates(**{
             CURRENT_EVIDENCE: _settled_fields.current_object(rewritten),
-            _approved_evidence.APPROVED_EVIDENCE: _verified.claim_on(rerun).recorded() if claimed else None,
+            _approved_evidence.APPROVED_EVIDENCE: _verified.claim_on(rerun).recorded(),
         })
 
-    def drops_the_evidence(self, *, claimed: bool = True) -> None:
-        """Leave no current evidence recorded: the approval's claim naming what was there, or no claim at all."""
+    def drops_the_evidence(self) -> None:
+        """Leave no current evidence recorded, the approval's claim naming what was there."""
         self.restates(**{CURRENT_EVIDENCE: None})
-        if not claimed:
-            self.restates(**{_approved_evidence.APPROVED_EVIDENCE: None})
 
     def moves_the_context(self) -> None:
         """An operator changing `VERIFY_TIMEOUT` for the rest of the case, which moves the verification context."""

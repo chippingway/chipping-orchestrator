@@ -10,8 +10,9 @@ handoff of an unpublished replay to a late generation
 reads back whole.
 
 The base tip the replay was made onto is read apart from that group
-(`_recorded_onto`): it is no member of it, so a legacy attempt that names no
-tip still reads whole, and an unreadable tip is simply no tip. The
+(`_recorded_onto`): it is no member of it, so an attempt that names no tip --
+one whose base ref moved while git ran -- still reads whole, and an
+unreadable tip is simply no tip. The
 publication's replay record carries it on (`workflow/engine/rewrite_publication.py`),
 and the evidence proof of a landed head holds the base to it
 (`workflow/engine/rewrite_evidence_proof.py`).
@@ -84,10 +85,11 @@ def _pending_rewrite(state: PinnedState) -> _PendingRewrite:
 def _recorded_onto(state: PinnedState) -> str:
     """The base tip the attempt's replay was recorded as made onto, or "" for none readable.
 
-    Kept apart from the record `_pending_rewrite` reads whole, since a
-    legacy attempt that carries no tip is still a whole attempt: it simply
-    names no base, and a caller that needs one has nothing to prove with. A
-    value that is not a whole commit id is read the same way.
+    Kept apart from the record `_pending_rewrite` reads whole, since an
+    attempt that carries no tip -- its base ref moved while git ran -- is
+    still a whole attempt: it simply names no base, and a caller that needs
+    one has nothing to prove with. A value that is not a whole commit id is
+    read the same way.
     """
     # Lazy for the reason `_pending_rewrite` spells out: one shape for a
     # recorded commit, owned by the late domain.

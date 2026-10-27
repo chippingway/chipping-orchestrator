@@ -102,10 +102,12 @@ class HandBackTest(
     def test_the_recovery_answers_the_handoff(self) -> None:
         # Handed back, the record reaches the recovery ahead of the reviewer,
         # which spends it only under an approval still covering the head it
-        # names. This comment records none, so the record is dropped and the
-        # review runs, rather than the label going straight back here.
+        # names. This comment's approval is retired -- written null -- so the
+        # record is dropped and the review runs, rather than the label going
+        # straight back here.
         gh, issue = self._seeded(
-            review_round=0, **{AWAITING_HUMAN: False, HANDOFF_KEY: DEFAULT_PR_HEAD_SHA},
+            review_round=0,
+            **{AWAITING_HUMAN: False, HANDOFF_KEY: DEFAULT_PR_HEAD_SHA, _review_subjects.APPROVED_SUBJECT: None},
         )
         self._docs_tick(gh, issue)
 

@@ -26,6 +26,7 @@ settled about the docs commit, it is handed back for review, pinging nobody.
 from __future__ import annotations
 
 import unittest
+from functools import partial
 from itertools import product
 from unittest.mock import patch
 
@@ -92,6 +93,15 @@ class _ChangedWhileMerging:
     def __call__(self, *_called, **_options) -> bool:
         self._change(self._case)
         return self._answer
+
+
+# Each way an approval comes to name nothing it rests on, as a hand edit or a
+# truncated write leaves it.
+_UNNAMED_APPROVALS = (
+    ("unrecorded", world.forgets_approval),
+    ("a subject without its head", partial(world.forgets_approval, member="sha")),
+    ("an evidence claim written null", lambda case: world.restate(case, review_approved_evidence=None)),
+)
 
 
 class ReportFreshnessTest(unittest.TestCase, world._ReviewedReports):
@@ -212,15 +222,17 @@ class ApprovedReportRereadTest(unittest.TestCase, world._ReviewedReports, _readi
                 self.assert_refused(self.reviewed(), detail)
 
     def test_an_unnamed_approval_goes_back(self) -> None:
-        # An approval recorded before approvals named a subject, and one whose
-        # record has lost its head, over a pull request that carries a report:
-        # the docs verdict and the head stand, but nothing says the report was
-        # the one approved, so no ping is taken on it and the issue goes back
-        # for a review that is.
-        for member in ("", "sha"):
-            with self.subTest(member=member or "unrecorded"):
+        # An approval with no record at all, one whose record has lost its
+        # head, and one beside no evidence claim -- written null, which reads
+        # as the claim taken out does -- over a pull request that carries a report and the passing
+        # evidence the approval was proved over: the docs verdict and the head
+        # stand, but nothing says the report was the one approved, or what
+        # evidence the approval rests on, so no ping is taken on it and the
+        # issue goes back for a review that is.
+        for unnamed, damage in _UNNAMED_APPROVALS:
+            with self.subTest(unnamed):
                 self._approved_and_documented(pinged=False)
-                world.forgets_approval(self, member)
+                damage(self)
 
                 self.in_review_tick()
 

@@ -136,6 +136,7 @@ class RefreshLateHandoffRealGitTest(
             awaiting_human=True,
             park_reason=MOVED_CHECKOUT_PARK,
             late_approved_sha=approved,
+            late_approved_basis="reading",
         )
         self._advance_base(conflicting=False)
 

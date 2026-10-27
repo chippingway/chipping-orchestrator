@@ -13,6 +13,12 @@ found already landed -- hand it to the one finish every landing gets
 
 - A label the refresh does not drive is answered first, with a clear or a
   park and nothing fetched (`git/base_sync/replay_cleanup.py`).
+- An anchor carrying none of the terms every attempt records beside it --
+  the pull request and the stage -- is an incomplete transaction no attempt
+  this build makes leaves, and nothing says which publication it belongs to:
+  it parks once with every record kept, and nothing is fetched, pushed,
+  reset, cleared, or finished (`git/base_sync/replay_publication_parks.py`).
+  So does the fail-closed abort over a checkout whose lag would not count.
 - The branch is fetched and the checkout read (`git/base_sync/snapshot.py`).
   A checkout still standing on the anchor is the unstarted attempt's clear,
   which -- once its write landed, and only then -- lets this tick's rebase go
@@ -102,6 +108,7 @@ from orchestrator.git.base_sync.models import (
     _AutoRebaseRecoverySnapshot,
 )
 from orchestrator.git.base_sync.replay_checkout_parks import _park_rolled_back_recovery
+from orchestrator.git.base_sync.replay_publication_parks import _park_termless_recovery
 from orchestrator.git.base_sync.state import _AWAITING_HUMAN, _PR_REFRESH_DETOUR_LABELS
 from orchestrator.git.base_sync.transfer_values import _Handoff
 from orchestrator.workflow.engine import (
@@ -146,6 +153,12 @@ def answers_an_unreadable_checkout(context: _AutoRebaseContext, consumed_comment
     the receipt on the attempt, announced or not -- goes in the write that
     releases the attempt, or neither does.
     """
+    recovering = replace(
+        _recovery._recovery_context(context, consumed_comment_id),
+        proves_before_a_park=_landing_moved.abandons_unproved,
+    )
+    if recovering.pending_rewrite.carries_no_terms:
+        return _park_termless_recovery(recovering)
     return _recovery_holds._answers_an_unreadable_checkout(
         context,
         consumed_comment_id,
@@ -184,6 +197,8 @@ def recovers(context: _AutoRebaseRecoveryContext) -> bool:
     )
     if owing.label not in _PR_REFRESH_DETOUR_LABELS:
         return _replay_cleanup._answers_an_ineligible_label(owing)
+    if owing.pending_rewrite.carries_no_terms:
+        return _park_termless_recovery(owing)
     observed = _snapshot._fetch_recovery_snapshot(owing)
     if observed is None:
         return True
@@ -280,8 +295,9 @@ def _routes_an_unpublished_head(
     for -- reached on the pair of heads the attempt recorded, on the
     transfer that vouches for a replay the attempt was still recording, or,
     for a remote neither of them accounts for, on the counts over an attempt
-    that recorded nothing at all. Where the transfer is the only voucher, it
-    is the only thing the retry may publish on.
+    whose terms stand with no replay recorded yet -- one that recorded no
+    terms at all was parked at entry (`recovers`). Where the transfer is the
+    only voucher, it is the only thing the retry may publish on.
 
     Never over a replay a finish of this attempt already recorded evidence
     for (`rewrite_landing_records.saw_land`): a finish records it only once it

@@ -298,13 +298,13 @@ class MovedCheckoutDebtTest(support._GateCase, unittest.TestCase):
             str(_late_approval_reading.LateApprovalBasis.UNMEASURED),
         )
 
-    def test_a_legacy_debt_is_not_upgraded(self) -> None:
-        # The shape an older build left: the exempt commit named as owed a
-        # push, with no account of what that debt rests on. Stamped
-        # `unmeasured` as the park goes up, it would stop reading as unknown
-        # and become debt this workflow owns -- so the checkout coming back
-        # would publish an adjudicated commit without anything revalidating
-        # the operator authorization behind it.
+    def test_a_baseless_debt_is_not_upgraded(self) -> None:
+        # The exempt commit named as owed a push with no account of what that
+        # debt rests on, which no writer leaves: a claim to grounds it cannot
+        # show. Stamped `unmeasured` as the park goes up, it would stop
+        # reading as damage and become debt this workflow owns -- so the
+        # checkout coming back would publish an adjudicated commit without
+        # anything revalidating the operator authorization behind it.
         self._seed(**{
             **_fixtures._authorized_exemption(),
             _KEY_APPROVED_SHA: _fixtures.MEASURED_CANDIDATE_SHA,

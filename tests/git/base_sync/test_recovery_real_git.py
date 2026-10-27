@@ -158,9 +158,10 @@ class VouchedReplayRealGitTest(
 
         recovered = self.recover()
 
-        # A comment carrying no record of a replay is the one state the
-        # ahead/behind counts still answer for, and a branch with commits the
-        # remote does not have parks rather than force-pushing over them.
+        # A comment carrying the terms and no record of a replay is the one
+        # state the ahead/behind counts still answer for, and a branch with
+        # commits the remote does not have parks rather than force-pushing
+        # over them.
         self.assertTrue(recovered)
         self.assertEqual(self.push.leases, [])
         self._assert_parked(fixtures.PARK_PUSH_FAILED)
@@ -222,6 +223,30 @@ def _assert_announcement_parks(case, announced: str) -> None:
     case.assertEqual(case.push.leases, [])
     case.assertEqual(case._remote_head(), case.anchor)
     case._assert_parked(fixtures.PARK_PUSH_FAILED)
+
+
+class TermlessAnchorRealGitTest(VouchedReplayGitFixtureMixin, unittest.TestCase):
+    """An anchor whose attempt recorded none of its terms beside it."""
+
+    def test_an_anchor_with_no_terms_moves_nothing(self) -> None:
+        stranded = self.strand_an_unrelated_head()
+        self.forget_the_rewrite_record()
+
+        recovered = self.recover()
+
+        # No attempt leaves its anchor without the terms, so nothing says
+        # which publication the branch belongs to: nothing is pushed, reset,
+        # or cleared, and the record stands for the human the park asks.
+        self.assertTrue(recovered)
+        self.assertEqual(self.push.leases, [])
+        self.assertEqual(
+            (fixtures.head_sha(self.work), fixtures.head_sha(self.remote, fixtures.BRANCH_REF)),
+            (stranded, self.anchor),
+        )
+        published = self.gh.pinned_data(fixtures.ISSUE)
+        self.assertEqual(published.get(fixtures.KEY_PENDING_PUSH_SHA), self.anchor)
+        self.assertTrue(published.get(fixtures.KEY_AWAITING_HUMAN))
+        self.assertEqual(published.get(fixtures.KEY_PARK_REASON), PARK_FAILED)
 
 
 if __name__ == "__main__":

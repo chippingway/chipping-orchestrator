@@ -160,6 +160,9 @@ AWAITING_HUMAN = world.AWAITING_HUMAN
 
 PARK_REASON = world.PARK_REASON
 
+# The park a squash no approval stands behind takes.
+_SQUASH_FAILED = "squash_failed"
+
 # Another road's write right ahead of a commit of the round's own, behind the
 # reading the commit was decided on: a later report settled on the same head,
 # the issue pointed at another pull request, and a verdict another round
@@ -540,10 +543,10 @@ class SettledPairTest(unittest.TestCase, _ApprovedReports):
         )
 
     def test_an_unpaired_pair_holds_recovery(self) -> None:
-        # A squash an earlier tick began and did not finish is finished -- no
-        # branch may be left standing mid-rewrite -- but the label is not
-        # moved past a reviewer: the next tick drops the handoff the squash
-        # left, and its reviewer round refuses the pair.
+        # A squash an earlier tick began and did not finish publishes only
+        # under the approval it was begun under, which covers no report a pair
+        # that no longer pairs could be: nothing is pushed, the squash parks
+        # with its record kept, and the label is not moved past a reviewer.
         self._approved_and_relabelled()
         state = self.github.read_pinned_state(self.issue)
         _collapses.record_pending_collapse(
@@ -559,9 +562,12 @@ class SettledPairTest(unittest.TestCase, _ApprovedReports):
             squash_result=(True, self.pull_request.head.sha, 1, None),
         )
 
-        recovered["_squash_and_force_push"].assert_called_once()
-        self.assertEqual(self.github.label_history.count(DOCUMENTED), 1)
-        self.assert_refused(self.reviewed(), _review_report._STALE)
+        pinned = self.pinned()
+        recovered["_squash_and_force_push"].assert_not_called()
+        self.assertEqual(
+            (self.github.label_history.count(DOCUMENTED), pinned[PARK_REASON], _collapses.LATE_COLLAPSE_HEAD in pinned),
+            (1, _SQUASH_FAILED, True),
+        )
 
     def test_an_unpaired_pair_pings_nobody(self) -> None:
         # Unpaired before the tick, the hand-back sends the issue back to

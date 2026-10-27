@@ -30,8 +30,9 @@ issue without it owes no move.
 
 `owes_validating_a_move` reads it back beside the other things that say the
 same: a developer report still owed, and an approval recorded against a report
-other than the one the issue now records as current, or against requirements
-other than the ones its drift baseline holds. It is asked here
+other than the one the issue now records as current, against requirements
+other than the ones its drift baseline holds, or beside no evidence claim
+(`approval_claims_evidence`). It is asked here
 because the marker is what it chiefly reads, and every road that stages the
 move is answered by it.
 
@@ -50,6 +51,10 @@ from orchestrator.workflow.engine import (
     report_delivery as _report_delivery,
     review_subjects as _review_subjects,
 )
+from orchestrator.workflow.stages.validating import (
+    approved_evidence as _approved_evidence,
+    review_verdicts as _verdicts,
+)
 
 _PR_LAST_COMMENT_ID = "pr_last_comment_id"
 
@@ -65,15 +70,37 @@ def owes_validating_a_move(state: PinnedState) -> bool:
     """Whether the approval this label stands on no longer covers the work.
 
     A report still owed, a move staged and not made, or an approval of some
-    other report than the current one, or of other requirements than the
-    drift baseline holds the issue to -- each answered by the same move.
+    other report than the current one, of other requirements than the drift
+    baseline holds the issue to, or beside no evidence claim -- each answered
+    by the same move.
     """
+    approval_stands = (
+        _review_subjects.approval_covers_current(state)
+        and approval_covers_requirements(state)
+        and approval_claims_evidence(state)
+    )
     return (
         _report_delivery.owes_a_report(state)
         or bool(state.get(_HANDOFF_PENDING))
-        or not _review_subjects.approval_covers_current(state)
-        or not approval_covers_requirements(state)
+        or not approval_stands
     )
+
+
+def approval_claims_evidence(state: PinnedState) -> bool:
+    """Whether the recorded approval names, read whole, the evidence it was proved over.
+
+    Every approval records that claim beside its subject, since none reaches
+    the approval arc unproved (`stages/validating/unverified_approvals.py`),
+    so one beside no claim -- absent, `null`, or in a shape its reader
+    refuses -- rests on no evidence, and the issue owes `validating` a fresh
+    review rather than standing here on an approval nothing proved. Whether
+    the evidence a whole claim names still proves is the readiness proof's,
+    which holds the ping rather than handing the issue back: a base refresh
+    that re-verifies the head moves that evidence without making the review
+    stale.
+    """
+    recorded = state.get(_approved_evidence.APPROVED_EVIDENCE)
+    return _verdicts.EvidenceClaim.read(recorded) is not None
 
 
 def approval_covers_requirements(state: PinnedState) -> bool:
@@ -84,17 +111,14 @@ def approval_covers_requirements(state: PinnedState) -> bool:
     resumed on an edit, a reply spent on a park -- that no reviewer was.
     Asked here, where the approval is about to be advertised as ready to
     merge; the roads that finish a squash already under way do not ask it. An
-    approval nothing recorded names no requirements, and is held to its
-    report alone. An edit landing after the baseline was measured is
-    `review_coverage`'s to find, over the issue read afresh at the ping.
+    approval with no record read whole names no requirements, and covers none.
+    An edit landing after the baseline was measured is `review_coverage`'s to
+    find, over the issue read afresh at the ping.
     """
-    approved = state.get(_review_subjects.APPROVED_SUBJECT)
-    if not isinstance(approved, dict):
-        return True
-    return (
-        _review_subjects.ReviewSubject.requirements_recorded_in(approved)
-        == state.get(_USER_CONTENT_HASH)
+    approved = _review_subjects.ReviewSubject.requirements_recorded_in(
+        state.get(_review_subjects.APPROVED_SUBJECT),
     )
+    return approved is not None and approved == state.get(_USER_CONTENT_HASH)
 
 
 def stages_the_handoff(

@@ -18,7 +18,7 @@ from orchestrator.workflow.stages.implementing import (
     resume_request as _resume_request,
 )
 from tests.support import fakes as _fakes
-from tests.workflow import fixtures as _helpers
+from tests.workflow import fixtures as _helpers, verified_approvals as _verified
 
 REVIEW_APPROVED_MESSAGE = _helpers.REVIEW_APPROVED_MESSAGE
 _PatchedWorkflowMixin = _helpers._PatchedWorkflowMixin
@@ -99,9 +99,10 @@ def _implementer_prompt(case) -> str:
     return _prompt_of(mocks[_RUN_AGENT_ATTR])
 
 
-def _documentation_seed(**state):
+def _documentation_seed(*, comments=(), **state):
     github = FakeGitHubClient()
     issue = make_issue(_DOCUMENTATION_ISSUE_NUMBER, label="workflow:documenting")
+    issue.comments.extend(comments)
     github.add_issue(issue)
     defaults = {
         "pr_number": _DOCUMENTATION_PR_NUMBER,
@@ -111,6 +112,9 @@ def _documentation_seed(**state):
     }
     defaults.update(state)
     github.seed_state(_DOCUMENTATION_ISSUE_NUMBER, **defaults)
+    # The pull request and the approval a docs pass is entered over.
+    _helpers._open_pr_for(github, issue_number=_DOCUMENTATION_ISSUE_NUMBER, pr_number=defaults["pr_number"])
+    _verified.verifies_the_approval(github, issue)
     return github, issue
 
 

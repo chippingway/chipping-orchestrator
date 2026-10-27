@@ -59,16 +59,14 @@ class DocumentationSpawnTrackedReposTest(
 
     def test_human_reply_resume_carries_block(self) -> None:
         gh, issue = support._documentation_seed(
-            awaiting_human=True,
-            last_action_comment_id=support._DOCUMENTATION_WATERMARK,
-            park_reason="agent_timeout",
-        )
-        issue.comments.append(
-            support.FakeComment(
+            comments=[support.FakeComment(
                 id=support._DOCUMENTATION_REPLY_ID,
                 body="please retry",
                 user=support.FakeUser("alice"),
-            )
+            )],
+            awaiting_human=True,
+            last_action_comment_id=support._DOCUMENTATION_WATERMARK,
+            park_reason="agent_timeout",
         )
         with support._multi_repo():
             mocks = self._run(

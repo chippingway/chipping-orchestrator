@@ -394,6 +394,7 @@ class LateRecordBaseRefreshSkipTest(_SkipCase, unittest.TestCase):
             awaiting_human=True,
             park_reason="late_candidate_moved",
             late_approved_sha=_ACCEPTED_COMMIT,
+            late_approved_basis="reading",
         )
 
     def test_an_accepted_commit_holds_the_branch(self) -> None:

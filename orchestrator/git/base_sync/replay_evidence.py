@@ -45,11 +45,11 @@ def _made_for_another_publication(
     would be measured, force-pushed, and finalized under terms nothing
     checked.
 
-    Silent where the attempt recorded no TERMS, which is the window between
-    the anchor going down and git being allowed to run, and a comment from
-    before this record existed. There is no claim to disagree with there, and
-    the roads behind this one already refuse to publish anything they cannot
-    show the terms of.
+    Silent where the record's terms do not read. An anchor carrying none never
+    reaches this road -- no attempt this build makes leaves one, and the
+    recovery parks it at entry (`workflow/engine/rewrite_recovery.py`) -- and
+    a record in pieces is refused below as the damage it is
+    (`_unclaimed_checkout`), so neither is a claim to disagree with here.
 
     Asked of the terms alone rather than through `answers_for`, which requires
     the replay beside them. The terms go down before git runs and the head
@@ -182,11 +182,12 @@ def _unclaimed_checkout(
     """Whether a record was written and does not vouch for this checkout.
 
     The counts behind this refusal are a fallback for one state and one only:
-    an attempt that reached no record of a REPLAY, which is either a comment
-    from before this record existed or the window between git returning and
-    the write that names what it produced. There they are all a recovery has
-    on its own, and a strictly-ahead branch is a fast-forward the anchor lease
-    loses nothing to.
+    an attempt that reached no record of a REPLAY -- the window between git
+    returning and the write that names what it produced, under the terms that
+    went down with the anchor. There they are all a recovery has on its own,
+    and a strictly-ahead branch is a fast-forward the anchor lease loses
+    nothing to. An anchor with no terms at all is parked before this road
+    (`workflow/engine/rewrite_recovery.py`).
 
     Every other absence is a claim. A group something took a member out of,
     and a whole group naming some OTHER commit, both leave a checkout the
@@ -227,10 +228,11 @@ def _is_this_attempts_rewrite(
     emptiness it is. A comment carrying the attempt's terms and no head is the
     window between git returning and the write that records the replay, and
     the road beside this one answers for it on the evidence rather than on an
-    id. A comment carrying nothing at all is an attempt from before this
-    record existed, and there the recovery falls back to the counts it always
-    used: a strictly-ahead branch is a fast-forward the anchor lease loses
-    nothing to, and a divergent one parks.
+    id, and past it the recovery has only the counts: a strictly-ahead branch
+    is a fast-forward the anchor lease loses nothing to, and a divergent one
+    parks. A comment carrying nothing at all beside its anchor never gets this
+    far: no attempt this build makes leaves one, and the recovery parks it at
+    entry.
     """
     if completed.remote_head != context.pending_pre_rebase_sha:
         return False

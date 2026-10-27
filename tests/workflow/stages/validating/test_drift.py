@@ -247,6 +247,7 @@ class ValidatingTransientParkRecoveryTest(
             # write on this tick is the one the follow-up rides out on.
             late_approved_sha=MEASURED_CANDIDATE_SHA,
             late_approved_lease=PR_HEAD_SHA,
+            late_approved_basis="reading",
         )
 
         with patch.object(
@@ -292,6 +293,7 @@ class ValidatingTransientParkRecoveryTest(
             user_content_hash=UNCHANGED_CONTENT_HASH,
             late_approved_sha=MEASURED_CANDIDATE_SHA,
             late_approved_lease=PR_HEAD_SHA,
+            late_approved_basis="reading",
         )
         gh = refused[0]
 

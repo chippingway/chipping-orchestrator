@@ -35,7 +35,7 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
-from tests.workflow import published_reports as _published_reports, verified_approvals as _verified
+from tests.workflow import verified_approvals as _verified
 from tests.workflow.fixtures import (
     _agent,
     _PatchedWorkflowMixin,
@@ -98,6 +98,10 @@ NOTHING_TO_SQUASH = _SquashOutcome(success=True, sha=SQUASHED_SHA, count=0)
 
 # A human answering the park a refused recovery took.
 HUMAN_REPLY_ID = 950
+
+# The pinned record of the approval a squash is begun under, read for the head
+# it was given: every squash is planned over exactly that head.
+_APPROVED_SUBJECT = "review_approved_subject"
 HUMAN_LOGIN = "maintainer"
 
 
@@ -115,19 +119,32 @@ class _MeasurementPark:
         return _SquashOutcome(held=True)
 
 
+def planned_head(state) -> str:
+    """The head a squash begun under the approval `state` records is planned over, `COLLAPSED_HEAD` where none is.
+
+    A squash is taken only over a checkout standing on the head its approval
+    was given, so the collapse it records names that head, and the approval
+    stands behind publishing it only while it does.
+    """
+    approved = state.get(_APPROVED_SUBJECT)
+    if isinstance(approved, dict) and approved.get("sha"):
+        return approved["sha"]
+    return COLLAPSED_HEAD
+
+
 class _LandsWithACollapseRecorded:
     """A squash that published and left its collapse recorded.
 
     What the real rewrite leaves on the pinned comment by the time it hands
     back: the push is on the remote, the receipt is written, and the terms of
-    the collapse are still there because the notice they are worded from has
-    not gone out yet.
+    the collapse -- over the head its approval was given -- are still there
+    because the notice they are worded from has not gone out yet.
     """
 
     def __call__(self, gate, _branch, _pr_number) -> _SquashOutcome:
         _collapses.record_pending_collapse(
             gate.state,
-            head=COLLAPSED_HEAD,
+            head=planned_head(gate.state),
             base_sha=COLLAPSED_BASE,
             count=COLLAPSED_COMMITS,
         )
@@ -345,14 +362,15 @@ class _CollapseWorldMixin:
         """Put the terms of an unfinished squash on the pinned comment.
 
         Beside the approval that began it, of the report the pull request
-        carries: a squash is only ever begun under one.
+        carries and over settled passing evidence of its head: a squash is
+        only ever begun under one, over the head it was given.
         """
         issue = github.get_issue(APPROVAL_ISSUE)
-        _published_reports.approves_the_report(github, issue)
+        _verified.verifies_the_approval(github, issue)
         state = github.read_pinned_state(issue)
         _collapses.record_pending_collapse(
             state,
-            head=COLLAPSED_HEAD,
+            head=planned_head(state),
             base_sha=COLLAPSED_BASE,
             count=COLLAPSED_COMMITS,
         )

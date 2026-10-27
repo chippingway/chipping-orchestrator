@@ -286,7 +286,8 @@ def _hands_back_what_validating_owes(
     records are still on the comment, and the next tick asks again. The
     ordinary issue carries neither record and an approval of what the
     comment carries, so it costs a reading of the report at its location --
-    and of the evidence, for an approval proved over any.
+    and of the evidence the approval's claim names, which every approval
+    carries: one beside no claim rests on nothing and goes back.
     """
     owed = (
         _verdicts.read_returned_verdict(state) is not None

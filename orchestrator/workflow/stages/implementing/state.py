@@ -238,13 +238,14 @@ _APPROVED_SHA = "late_approved_sha"
 #
 # Inferred instead -- "an approval naming a commit some exemption also names is
 # the settlement's" -- it is wrong in both directions: a candidate the gate
-# measured small on an issue that still carries an older binary's exemption
-# would have its own approval refused and be re-judged against a base that has
+# measured small on an issue whose exemption no authorization proves would
+# have its own approval refused and be re-judged against a base that has
 # moved, and a settlement's debt whose exemption somebody hand-edited would
 # read as the gate's own and publish unmeasured. So the owner that grants one
 # says which it is, and only a value from this build's own vocabulary reads
-# back: an approval an older binary wrote carries none, and the exemption is
-# the only evidence left for those.
+# back. Every writer records one, so an approval standing with none -- the
+# field absent, `null`, or spelled outside that vocabulary -- claims grounds
+# it cannot show, and buys no unmeasured push.
 #
 # Written, dropped, and spent with the approval it describes, never on its own.
 _APPROVED_BASIS = "late_approved_basis"

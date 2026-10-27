@@ -69,11 +69,16 @@ def _answers_an_ineligible_label(
     decomposition tick is free to start over on a change a human already ruled
     on.
 
+    An anchor carrying none of the terms its attempt records beside it is
+    the same refusal again: no attempt this build makes leaves one, so the
+    clear would discard a record nothing can account for, and the park keeps
+    it for a human.
+
     The head is read locally, which costs no fetch and no request. A reading
     that could not be taken is no evidence the branch is where the attempt
     left it, so it parks with everything else this route cannot prove.
     """
-    if context.pending_rewrite.left_a_replay:
+    if context.pending_rewrite.left_a_replay or context.pending_rewrite.carries_no_terms:
         return _replay_publication_parks._park_stranded_recovery(context)
     if attempts._carries_an_announcement(context.state):
         return _replay_publication_parks._park_stranded_recovery(context)

@@ -98,9 +98,8 @@ def record_rewrite_publication(
     held for a decision that was already made. What moves with it is the pair
     alone -- the size, the ceiling, and the comment are what a human decided
     rather than facts about an object -- and a comment carrying no
-    authorization moves nothing, which is the legacy record's answer and the
-    right one: an exemption no gesture stands behind gains none by being
-    carried.
+    authorization moves nothing: an exemption no gesture stands behind gains
+    none by being carried.
 
     Held to the RECORD rather than to the caller. The permission is read back
     whole and has to still be outstanding, so what is spent is a transfer this

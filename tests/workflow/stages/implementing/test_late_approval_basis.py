@@ -117,14 +117,6 @@ class ApprovalBasisRecordTest(unittest.TestCase):
 
         self.assertEqual(_late_approval_reading._approved_basis(state), "")
 
-    def test_an_older_binarys_approval_says_nothing(self) -> None:
-        # The compatibility answer, and the honest one: a comment written
-        # before this field existed carries an approval and no account of its
-        # grounds, so the reader falls back rather than guessing.
-        state = PinnedState(data={_state._APPROVED_SHA: MEASURED_CANDIDATE_SHA})
-
-        self.assertEqual(_late_approval_reading._approved_basis(state), "")
-
     def test_the_drop_takes_the_basis_with_it(self) -> None:
         # The basis describes one approval and outlives none: left behind, it
         # would stand beside whatever debt this issue records next and claim
@@ -142,6 +134,9 @@ class ApprovalBasisRecordTest(unittest.TestCase):
         # a group a hand edit left unreadable exactly as they answer for one
         # the write that pays a debt blanked, so a group standing over a
         # commit nobody can name would otherwise pass as a debt somebody paid.
+        # Every writer records the basis beside the commit, so a commit
+        # standing without one -- the field absent, `null`, or a value of any
+        # other kind -- claims grounds it cannot show, and is damage too.
         for described, key, written in (
             ("a commit that is not one", _state._APPROVED_SHA, "not-a-commit"),
             ("a commit taken from under its lease", _state._APPROVED_SHA, None),
@@ -150,34 +145,37 @@ class ApprovalBasisRecordTest(unittest.TestCase):
                 _state._APPROVED_LEASE,
                 MEASURED_CANDIDATE_SHA[:7],
             ),
-            (
-                "a basis this build cannot name",
-                _state._APPROVED_BASIS,
-                _NOT_A_BASIS,
-            ),
+            ("a basis this build cannot name", _state._APPROVED_BASIS, _NOT_A_BASIS),
+            ("a basis of another type", _state._APPROVED_BASIS, 7),
+            ("a basis spelled null", _state._APPROVED_BASIS, None),
         ):
             with self.subTest(described):
                 state = _approved(_late_approval_reading.LateApprovalBasis.READING)
                 state.set(key, written)
 
                 self.assertTrue(_late_approval_reading._unreadable_approval(state))
+        with self.subTest("a commit with no basis at all"):
+            self.assertTrue(_late_approval_reading._unreadable_approval(
+                PinnedState(data={_state._APPROVED_SHA: MEASURED_CANDIDATE_SHA}),
+            ))
 
         # And every shape a sound comment arrives in. The paid one is a group
         # of nulls, since the write that ends a debt blanks these fields
-        # rather than removing them, and the legacy one carries the commit
-        # alone, which is complete for what it says.
+        # rather than removing them, and a comment carrying none of them is no
+        # transaction at all: both are the record nobody owes a push on.
         paid = _approved(_late_approval_reading.LateApprovalBasis.AUTHORIZATION)
         _late_approval_state._forget_approval(paid)
 
         for described, state in (
             ("one a settlement paid", paid),
-            ("a whole group", _approved(_late_approval_reading.LateApprovalBasis.READING)),
+            ("none ever written", PinnedState(data={})),
             ("a pre-publication approval", _approved(
                 _late_approval_reading.LateApprovalBasis.READING, lease="",
             )),
-            ("an older binary's approval", PinnedState(
-                data={_state._APPROVED_SHA: MEASURED_CANDIDATE_SHA},
-            )),
+            *(
+                (f"a whole group resting on {basis}", _approved(basis))
+                for basis in _late_approval_reading.LateApprovalBasis
+            ),
         ):
             with self.subTest(described):
                 self.assertFalse(_late_approval_reading._unreadable_approval(state))
@@ -207,57 +205,42 @@ class StandingBasisTest(unittest.TestCase):
                     _late_approval_state._standing_basis(_approved(basis)), basis,
                 )
 
-    def test_a_record_that_never_said_says_nothing(self) -> None:
-        # The comment an older build left: an approval and no account of its
-        # grounds. Answered `unmeasured` instead, an unknown would be promoted
-        # to a decision nobody made and the reader would stop falling back to
-        # the exemption, which is the only evidence such a record ever had.
-        state = _approved(_late_approval_reading.LateApprovalBasis.READING)
-        state.set(_state._APPROVED_BASIS, None)
-
-        self.assertIsNone(_late_approval_state._standing_basis(state))
-
-    def test_a_damaged_one_is_carried_verbatim(self) -> None:
-        # The opposite record, and the one a carry-forward may not launder: a
-        # field a hand edit moved outside the vocabulary CLAIMS grounds it
-        # cannot name, which the readers fail closed on. Put back as an
-        # absence, one re-record would turn it into the legacy shape above and
-        # the tick after that would spend the debt without asking anybody.
-        state = _approved(_late_approval_reading.LateApprovalBasis.READING)
-        state.set(_state._APPROVED_BASIS, _NOT_A_BASIS)
-
-        self.assertEqual(_late_approval_state._standing_basis(state), _NOT_A_BASIS)
-
-        _late_approval_state._owes_a_publication(state, MEASURED_CANDIDATE_SHA)
-
-        self.assertEqual(state.get(_state._APPROVED_BASIS), _NOT_A_BASIS)
-
-    def test_a_field_this_build_cannot_read_is_damage(self) -> None:
-        # Presence and truth asked together, which is what tells the two
-        # apart: an approval an older binary wrote carries no field and earns
-        # the fallback to the exemption beside it, while one whose field
-        # cannot be read claims grounds it cannot name and earns nothing.
-        for described, written in (
-            ("a spelling from nowhere", _NOT_A_BASIS),
-            ("a value of another type", 7),
-        ):
-            with self.subTest(basis=described):
+    def test_an_unread_basis_is_carried_verbatim(self) -> None:
+        # `null`, or a value a hand edit moved outside the vocabulary: each
+        # CLAIMS grounds it cannot name, which the readers fail closed on, and
+        # a carry-forward may not launder either. Put back as a decision, one
+        # re-record would have the tick after that spend the debt without
+        # asking anybody. A basis taken out altogether is
+        # `SeamMintedDebtTest`'s.
+        for written in (None, _NOT_A_BASIS):
+            with self.subTest(basis=written):
                 state = _approved(_late_approval_reading.LateApprovalBasis.READING)
                 state.set(_state._APPROVED_BASIS, written)
 
-                self.assertTrue(_late_approval_reading._unreadable_basis(state))
+                self.assertEqual(_late_approval_state._standing_basis(state), written)
 
-    def test_nothing_else_is_damage(self) -> None:
-        # Both shapes an absence arrives in -- a comment that never carried
-        # the field, and one carrying it as JSON null, which is an older
-        # binary's value or a hand edit -- and every value this build writes.
-        unwritten = _approved(_late_approval_reading.LateApprovalBasis.READING)
-        unwritten.set(_state._APPROVED_BASIS, None)
-        defensible = [_approved(basis) for basis in _late_approval_reading.LateApprovalBasis]
+                _late_approval_state._owes_a_publication(state, MEASURED_CANDIDATE_SHA)
 
-        for state in (PinnedState(data={}), unwritten, *defensible):
-            with self.subTest(basis=state.get(_state._APPROVED_BASIS)):
-                self.assertFalse(_late_approval_reading._unreadable_basis(state))
+                self.assertEqual(state.get(_state._APPROVED_BASIS), written)
+                self.assertTrue(_late_approval_reading._unreadable_approval(state))
+
+    def test_no_approval_mints_the_basis(self) -> None:
+        # No approval standing at all -- the group of nulls, the record of no
+        # transaction -- has no grounds to carry, so what it answers is what a
+        # debt minted now rests on, on the exemption CLAIM: never no basis.
+        for described, seeded, minted in (
+            ("an issue no adjudication touched", {}, _late_approval_reading.LateApprovalBasis.UNMEASURED),
+            (
+                "one carrying an exemption",
+                {_KEY_EXEMPT_SHA: MEASURED_CANDIDATE_SHA},
+                _late_approval_reading.LateApprovalBasis.ADJUDICATION,
+            ),
+        ):
+            with self.subTest(described):
+                paid = PinnedState(data=dict(seeded))
+                _late_approval_state._forget_approval(paid)
+
+                self.assertEqual(_late_approval_state._standing_basis(paid), minted)
 
 
 class SeamMintedDebtTest(unittest.TestCase):
@@ -279,16 +262,18 @@ class SeamMintedDebtTest(unittest.TestCase):
 
                 self.assertEqual(_late_approval_reading._approved_basis(state), str(basis))
 
-    def test_an_unknown_one_stays_unknown(self) -> None:
-        # The legacy shape: an older build recorded the commit alone. Upgraded
-        # to `unmeasured`, it would stop being read as unknown and become debt
-        # this workflow owns -- a bypass nobody would ever revalidate.
+    def test_a_commit_with_no_basis_is_not_upgraded(self) -> None:
+        # An approval standing for the commit with no basis beside it claims a
+        # debt and cannot say what granted it. Upgraded to `unmeasured`, it
+        # would become debt this workflow owns -- a bypass nobody would ever
+        # revalidate -- so it is carried as the damage it is.
         state = PinnedState(data={_state._APPROVED_SHA: MEASURED_CANDIDATE_SHA})
 
         _late_approval_state._owes_a_publication(state, MEASURED_CANDIDATE_SHA)
 
         self.assertEqual(_late_approval_reading._approved_basis(state), "")
         self.assertIsNone(state.get(_state._APPROVED_BASIS))
+        self.assertTrue(_late_approval_reading._unreadable_approval(state))
 
     def test_a_minted_one_reads_the_exemption_claim(self) -> None:
         # Where no approval stands, the record decides -- on the CLAIM rather
@@ -390,6 +375,22 @@ class PaidPublicationBasisTest(unittest.TestCase):
                 self.assertEqual(
                     gate.state.get(_state._APPROVED_SHA), MEASURED_CANDIDATE_SHA,
                 )
+
+    def test_an_owed_nothing_landing_mints_grounds(self) -> None:
+        # An unproven landing over a comment that owed no push puts back a
+        # claim with no debt behind it to carry grounds from, so it rests on
+        # what a debt minted now would: never a commit with no basis, which
+        # the next tick would read as damage.
+        gate = _gate(PinnedState(data={}))
+
+        _push._publication_paid(gate, _LANDED, unproven=True)
+
+        self.assertEqual(gate.state.get(_state._APPROVED_SHA), MEASURED_CANDIDATE_SHA)
+        self.assertEqual(
+            _late_approval_reading._approved_basis(gate.state),
+            str(_late_approval_reading.LateApprovalBasis.UNMEASURED),
+        )
+        self.assertFalse(_late_approval_reading._unreadable_approval(gate.state))
 
     def test_a_proven_landing_leaves_no_debt(self) -> None:
         # The other exit: nothing is owed, so the whole group goes -- a basis
