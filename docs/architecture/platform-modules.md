@@ -1225,7 +1225,9 @@ orchestrator/
                           exact commit an authorized settlement accepted may carry that exemption over and both ends
   of both
                         contributions are what says so -- and
-                        the rollback a post-reset failure takes -- the ref and the index, never the working tree,
+                        the rollback a post-reset failure takes -- made only once the checkout is proven the
+                        issue's own again (`creation._proven_checkout`), since the gate's refusing reading came
+                        after the squash's own proof -- the ref and the index, never the working tree,
                         since a squash has the same tree as the head it replaces and the only thing taking the
                         worktree too would restore is an edit somebody made while the rewrite ran -- which drops the
                         approval it abandons, and the permission a granted transfer will never spend, only once the

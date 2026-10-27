@@ -30,6 +30,7 @@ from pathlib import Path
 from orchestrator.git import commands
 from orchestrator.git.publication import commits, models, planning
 from orchestrator.git.verification import probes as verification_probes
+from orchestrator.git.worktrees import creation as _worktree_creation
 
 # The channel is named for the branch-publication domain rather than for this
 # module's path: operators filter the rendered `orchestrator.branch_publication`
@@ -100,7 +101,15 @@ def _rollback_squash(
     squash it had nothing to do with, and it is the one repair a human cannot
     get back. Left where it is, it survives the restore as the uncommitted
     change it was, and the retry refuses on the same tree until it is settled.
+
+    The checkout is proven the issue's own first (`creation._proven_checkout`):
+    the reset moves whatever branch HEAD names, and the gate's reading that
+    refused came after the squash's own proof -- a tree switched onto the flat
+    branch at the squash in that window would have that branch put back. It
+    raises `naming.BranchRefused` with nothing reset, and the collapse record
+    standing for the recovery that finds the checkout restored.
     """
+    _worktree_creation._proven_checkout(gate.spec, gate.issue.number, gate.worktree)
     rollback_result = commands._git_hardened(
         "reset", "--mixed", restored, cwd=gate.worktree,
     )
