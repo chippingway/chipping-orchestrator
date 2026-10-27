@@ -3381,19 +3381,19 @@ The keys that matter for the state machine fall into a few groups:
   every poll. Additive: an issue parked before the field existed falls back to `last_action_comment_id`, which is where
   that park left its mark.
 - **Fix routing.** `pending_fix_at` + per-namespace `pending_fix_issue_max_id` / `pending_fix_review_max_id` /
-  `pending_fix_review_summary_max_id` recorded by the `in_review → fixing` route, plus the full
-  `pending_fix_issue_ids` / `pending_fix_review_ids` / `pending_fix_review_summary_ids` batch lists. They are hints, not
-  watermarks — the in_review watermarks are deliberately left behind so the `fixing` rescan can re-discover the
-  triggering comments, and the id lists let `_reconstruct_pending_fix_batch` rebuild the exact triggering batch after
-  every reader has advanced past it. Each surface is rebuilt from its list alone: a list missing or damaged — not a
-  list, or carrying anything but whole comment ids — rebuilds nothing, whatever max id stands beside it, and a park
-  with nothing to rebuild refuses a bare `/orchestrator continue` rather than resume on the command text. Settling a
-  delivered batch never touches them: an explicit `/orchestrator continue` retry and a genuine
-  question or disagreement park both depend on the bookmarks outliving the readers the same round moved. The batch an
-  accepted retry rebuilds keeps each surface apart, because the replay is delivered and so is settled: its issue-thread
-  half advances `last_action_comment_id` beside the PR-side cursor and its PR-conversation half advances that PR-side
-  cursor alone — and what the retry settles is that batch JOINED with the fresh rescan, so the bare
-  `/orchestrator continue` the prompt deliberately drops is still recorded as answered.
+  `pending_fix_review_summary_max_id` recorded by the `in_review → fixing` route, plus the full `pending_fix_issue_ids`
+  / `pending_fix_review_ids` / `pending_fix_review_summary_ids` batch lists. They are hints, not watermarks — the
+  in_review watermarks are deliberately left behind so the `fixing` rescan can re-discover the triggering comments, and
+  the id lists let `_reconstruct_pending_fix_batch` rebuild the exact triggering batch after every reader has advanced
+  past it. Each surface is rebuilt from its list alone: a list missing or damaged — not a list, or carrying anything but
+  whole comment ids — rebuilds nothing, whatever max id stands beside it, and a park with nothing to rebuild refuses a
+  bare `/orchestrator continue` rather than resume on the command text. Settling a delivered batch never touches them:
+  an explicit `/orchestrator continue` retry and a genuine question or disagreement park both depend on the bookmarks
+  outliving the readers the same round moved. The batch an accepted retry rebuilds keeps each surface apart, because the
+  replay is delivered and so is settled: its issue-thread half advances `last_action_comment_id` and the delivered
+  stretch beside the PR-side cursor and its PR-conversation half advances that PR-side cursor alone — and what the retry
+  settles is that batch JOINED with the fresh rescan, so the bare `/orchestrator continue` the prompt deliberately drops
+  is still recorded as answered.
 
   The `validating → fixing` route instead records a single `pending_fix_reviewer_comment_id` — the id of the
   PR conversation comment carrying the reviewer's CHANGES_REQUESTED feedback — and does NOT set `pending_fix_at` (that
