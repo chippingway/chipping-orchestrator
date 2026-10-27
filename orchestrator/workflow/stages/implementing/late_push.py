@@ -45,7 +45,8 @@ import logging
 from dataclasses import dataclass, replace as _replace
 
 from orchestrator.git import branch_transport as _branch_transport
-from orchestrator.git.worktrees import creation as _worktree_creation
+from orchestrator.git.worktrees import creation as _worktree_creation, evidence as _evidence
+from orchestrator.git.worktrees.models import ProbeAnswer
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.stages.implementing import (
     checkout_guards as _checkout,
@@ -157,7 +158,12 @@ def _publishes(
     but the issue's current one -- the flat layout's, another repository's, a
     detached HEAD no unfinished rebase of that branch accounts for -- raises
     `naming.BranchRefused` with nothing measured, held, pushed, or written,
-    however its commits compare with the remote.
+    however its commits compare with the remote. The same proof is taken
+    again last before the push, behind the ending barrier, because the
+    gate's and the transport's readings run between the first and the push,
+    and a tree switched onto the flat branch at the measured commit passes
+    every reading of the commit and the tree. Past the push it is the first
+    of the handoff's questions (`_unproven_checkout`).
     """
     _worktree_creation._proven_checkout(gate.spec, gate.issue.number, gate.worktree, rebasing=True)
     gate = _replace(
@@ -181,6 +187,7 @@ def _publishes(
     ready = transport is None or transport.reads(gate, branch, published)
     if _publication_gate._publication_ended(gate):
         return _PushedCandidate(held=True)
+    _worktree_creation._proven_checkout(gate.spec, gate.issue.number, gate.worktree, rebasing=True)
     push = _pushed if transport is None else transport.pushes
     if not (ready and push(gate, branch, published)):
         return _PushedCandidate()
@@ -246,13 +253,18 @@ def _unproven_checkout(gate: _late_gate_models._Gate, published: str) -> bool:
     The window the pre-push proof cannot cover, and the same one the initial
     publication asks about on the far side of its own push -- so it is asked
     with the checkout owner's two questions rather than a second pair worded
-    here. The push is a request and the worktree is writable while it runs: a
-    descendant an agent or a cleanup left, or an unstaged edit beside it, is
-    enough. What went out is exactly the commit that was named, so the branch
-    and its pull request are right; what is wrong is the CHECKOUT, and the
-    checkout is what every stage behind this gate works from -- the reviewer
-    reads a head ahead of the pushed branch as unpushed work, the squash
-    rewrites what is on it, the docs pass commits on top.
+    here, behind the one the identity owner answers: whether the tree is still
+    the issue's own (`evidence._checkout_identity`). One switched onto the
+    flat branch at the pushed commit, clean, passes both of the others, and it
+    is held without a park, as every refused checkout is, with the claim below
+    recorded for the tick that finds it restored. The push is a request and
+    the worktree is writable while it runs: a descendant an agent or a cleanup
+    left, or an unstaged edit beside it, is enough. What went out is exactly
+    the commit that was named, so the branch and its pull request are right;
+    what is wrong is the CHECKOUT, and the checkout is what every stage behind
+    this gate works from -- the reviewer reads a head ahead of the pushed
+    branch as unpushed work, the squash rewrites what is on it, the docs pass
+    commits on top.
 
     So the publication stands and the HANDOFF stops: the caller is told the
     tick is finished, and it relabels nothing, announces nothing, and spends
@@ -275,6 +287,14 @@ def _unproven_checkout(gate: _late_gate_models._Gate, published: str) -> bool:
     """
     if not published:
         return False
+    identity = _evidence._checkout_identity(gate.spec, gate.issue.number, gate.worktree, rebasing=True)
+    if identity is not ProbeAnswer.CONFIRMED:
+        log.warning(
+            "issue=#%d checkout %s is not proven this issue's own (%s) after %s was pushed; "
+            "holding the handoff and leaving it for manual disposition",
+            gate.issue.number, gate.worktree, identity, published,
+        )
+        return True
     moved = _checkout._moved_after_the_push(
         gate.gh, gate.issue, gate.state, published, gate.worktree,
     )

@@ -32,6 +32,7 @@ import logging
 
 from orchestrator.git import branch_transport as _branch_transport
 from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.worktrees import creation as _worktree_creation
 from orchestrator.github import pull_request_reads as _pr_reads
 from orchestrator.workflow.stages.discussion import (
     artifact as _artifact,
@@ -132,6 +133,15 @@ def _publish_plan(
     written and nothing else is: the tick that asks again is one poll away, and
     the write is what carries the round's own records there, since a round
     holding its session id only in memory would come back unattributable.
+
+    The checkout the artifact was read from was proven the issue's own before
+    that reading (`artifact._plan_worktree`), and the marker, the pull-request
+    reads, and the remote tip all come after it. So it is proven again
+    (`creation._proven_checkout`) last before the push, and once more before
+    the pull request is opened over what the push left: a tree switched onto
+    the flat branch in either window raises `naming.BranchRefused` with
+    nothing pushed or opened past it, and the marker standing for the
+    recovery that finds the checkout restored.
     """
     landed = _settled_prs._settled_plan_pr(run, artifact, artifact.head_sha)
     if landed is _pr_reads.PR_LOOKUP_UNREADABLE:
@@ -145,6 +155,7 @@ def _publish_plan(
     lease = _permitted_lease(run, artifact)
     if lease is None:
         return
+    _worktree_creation._proven_checkout(run.spec, run.issue.number, artifact.worktree)
     pushed = _branch_transport._push_branch(
         run.spec,
         artifact.worktree,
@@ -155,6 +166,7 @@ def _publish_plan(
     if not pushed:
         _publication_parks._park_failed_plan_push(run, artifact)
         return
+    _worktree_creation._proven_checkout(run.spec, run.issue.number, artifact.worktree)
     plan_pr = _plan_pr._reuse_or_open_plan_pr(run, artifact)
     _records._record_published_plan(run, artifact, plan_pr.number)
     _publication_parks._park_published_plan(run, artifact, plan_pr.number)

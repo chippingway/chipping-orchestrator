@@ -17,6 +17,7 @@ from unittest.mock import MagicMock, patch
 from orchestrator.git import commands as _commands
 from orchestrator.git.base_sync import persistence
 from tests.git.base_sync import base_sync_helpers as fixtures
+from tests.support.checkout_identity import stated_identity
 
 # The commit an approval owes a push for, which the rollback would abandon.
 _ABANDONED_SHA = "ab5e0000" * 5
@@ -67,6 +68,11 @@ class RolledBackDebtTest(unittest.TestCase):
     to, and the route bookkeeping that push closes are the only things naming
     any of it.
     """
+
+    def setUp(self) -> None:
+        # The tail proves the checkout the issue's own before it resets, and
+        # the context's checkout here is no real worktree at a layout path.
+        stated_identity(self)
 
     def test_a_failed_reset_keeps_the_whole_debt(self) -> None:
         owing = fixtures._sync_context(**_OWED)

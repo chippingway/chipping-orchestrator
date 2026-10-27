@@ -311,7 +311,9 @@ intervening work.
 handle. The publication protocol defines the commit and remote branch head checks and commit-selection fallbacks.
 The orchestrator publishes only to an issue's current-layout branch the live resolver names: a recorded pull request
 whose branch is missing, invalid, flat, another repository's, or otherwise not that name stops before any checkout,
-agent launch, or push, and no newly derived branch is substituted for it. Current unpushed work, a current pull
+agent launch, or push, and no newly derived branch is substituted for it. Each push is made only once the checkout it
+is made from is proven the issue's own again, behind the reads and writes on its road, so a tree switched onto the flat
+branch meanwhile publishes nothing. Current unpushed work, a current pull
 request's restoration from its remote head, uncertain remote reads, and exact-head pushes keep their protocols.
 Credential filtering does not enforce push authority; see [C-11].
 
@@ -327,7 +329,10 @@ Credential filtering does not enforce push authority; see [C-11].
 [refused resume](../tests/workflow/stages/implementing/test_resume_checkout.py),
 [refused refresh](../tests/workflow/engine/test_base_refresh_branch_refusal.py),
 [refused adjudication](../tests/workflow/stages/decomposition/test_late_charged_run.py),
-[refused accepted push](../tests/workflow/stages/decomposition/test_late_accepted_checkout.py).
+[refused accepted push](../tests/workflow/stages/decomposition/test_late_accepted_checkout.py),
+[switched seam push](../tests/workflow/stages/implementing/test_publication_checkout.py),
+[switched plan publication](../tests/workflow/stages/discussion/test_publication_checkout.py),
+[switched plan handoff](../tests/workflow/stages/implementing/test_plan_handoff_checkout.py).
 
 ## C-08: Agent reply protocols
 

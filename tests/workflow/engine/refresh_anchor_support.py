@@ -7,15 +7,15 @@ recorded how it ended, so the refresh hands the checkout to its recovery,
 whose reset takes whatever the tree holds. What the tree is decides whether
 that recovery may run: the checkout an interrupted rebase of the issue's own
 branch leaves, detached mid-replay, or a tree somebody switched onto the flat
-branch since. The remote cannot be read, which is the recovery's
-reset-and-park road.
+branch since -- before the pass, or while its fetch runs. The remote cannot be
+read, which is the recovery's reset-and-park road.
 """
 from __future__ import annotations
 
 import subprocess
 import tempfile
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from orchestrator import config
 from orchestrator.git import branch_transport
@@ -33,6 +33,8 @@ _HEAD = "HEAD"
 _REMOTE_BASE = "refs/remotes/origin/main"
 _PLAN = "plan.md"
 _IDENTITY = ("-c", "user.name=Review", "-c", "user.email=review@example.invalid")
+_ADD_WORKTREE = ("worktree", "add")
+_SWITCH = ("checkout", "-q")
 
 _UNREACHABLE = subprocess.CompletedProcess(["git", "fetch"], 1, "", "remote unavailable")
 
@@ -88,10 +90,17 @@ class AnchoredCheckout:
         self.gh.add_pr(pull_request)
         _anchored_at(self.gh, self.branch, tip)
 
+    def on_its_branch(self) -> None:
+        """The issue's own checkout, on its branch at the anchored tip."""
+        _git(self.target, *_ADD_WORKTREE, str(self.checkout), self.branch)
+
     def switched_to_the_flat_branch(self) -> None:
-        """A checkout on `orchestrator/issue-<n>`, carrying a commit of its own."""
+        """A checkout on `orchestrator/issue-<n>`, carrying a commit of its own -- switched there where one stands."""
         flat = f"orchestrator/issue-{ISSUE}"
-        _git(self.target, "worktree", "add", "-b", flat, str(self.checkout), _BASE)
+        if self.checkout.exists():
+            _git(self.checkout, *_SWITCH, "-b", flat)
+        else:
+            _git(self.target, *_ADD_WORKTREE, "-b", flat, str(self.checkout), _BASE)
         _commits(self.checkout, FOREIGN_FILE, "Foreign work must survive.\n")
 
     def left_mid_rebase(self) -> None:
@@ -100,12 +109,12 @@ class AnchoredCheckout:
         The branch and the base each change one line, so the rebase stops on
         the conflict with the issue's branch named as the one it rewrites.
         """
-        _git(self.target, "worktree", "add", str(self.checkout), self.branch)
+        _git(self.target, *_ADD_WORKTREE, str(self.checkout), self.branch)
         _commits(self.checkout, _PLAN, "the branch's line\n")
-        _git(self.checkout, "checkout", "-q", "--detach", _BASE)
+        _git(self.checkout, *_SWITCH, "--detach", _BASE)
         _commits(self.checkout, _PLAN, "the base's line\n")
         _git(self.checkout, "update-ref", _REMOTE_BASE, _HEAD)
-        _git(self.checkout, "checkout", "-q", self.branch)
+        _git(self.checkout, *_SWITCH, self.branch)
         _anchored_at(self.gh, self.branch, self.head())
         subprocess.run(
             ["git", *_IDENTITY, "rebase", "origin/main"], cwd=self.checkout,
@@ -119,7 +128,12 @@ class AnchoredCheckout:
         """The checkout's head and the issue's record, as one reading."""
         return self.head(), self.gh.pinned_data(ISSUE)
 
-    def syncs(self) -> None:
-        """One refresh pass over the checkout, with the remote unreachable."""
-        with patch.object(branch_transport, "_authed_fetch", return_value=_UNREACHABLE):
+    def syncs(self, during_the_fetch=None) -> None:
+        """One refresh pass over the checkout, with the remote unreachable.
+
+        `during_the_fetch` is called with each fetch's arguments before it
+        fails, and answers `mock.DEFAULT` to let that failure through.
+        """
+        fetch = MagicMock(side_effect=during_the_fetch, return_value=_UNREACHABLE)
+        with patch.object(branch_transport, "_authed_fetch", fetch):
             base_refresh._sync_worktree_with_base(self.gh, self.spec, self.checkout, ISSUE)

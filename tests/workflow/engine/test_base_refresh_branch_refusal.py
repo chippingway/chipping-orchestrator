@@ -10,13 +10,14 @@ written, posted, or relabelled. The current checkouts walked beside them are
 carried over as ever. An interrupted attempt's anchor is held to the same
 question before its recovery resets anything: the issue's own checkout, left
 detached in the middle of rebasing its branch, is still recovered, and a tree
-switched onto the flat branch since keeps its head and every file.
+switched onto the flat branch since -- before the pass, or while its fetch runs
+-- keeps its head and every file.
 """
 from __future__ import annotations
 
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import DEFAULT, patch
 
 from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import evidence as _evidence
@@ -137,6 +138,7 @@ class AnchoredRefreshTest(unittest.TestCase):
 
     def setUp(self) -> None:
         self.world = _anchored.AnchoredCheckout(self)
+        self.switched_at = None
 
     def test_an_anchor_authorizes_no_flat_checkout(self) -> None:
         # The anchor was pinned over the issue's checkout, and the tree at the
@@ -163,6 +165,30 @@ class AnchoredRefreshTest(unittest.TestCase):
         pinned = self.world.gh.pinned_data(_anchored.ISSUE)
         self.assertEqual(pinned.get("park_reason"), _RECOVERY_PARK)
         self.assertIsNone(pinned.get("pending_auto_base_rebase_push_sha"))
+
+    def test_a_switch_mid_fetch_resets_nothing(self) -> None:
+        # The refresh proves the issue's own checkout, and the tree is switched
+        # onto the flat branch, with a commit of its own, while the recovery's
+        # fetch fails. The reset that answers an unreadable remote would take
+        # that commit, so it is proven again first: nothing is reset, cleaned,
+        # or parked, and the anchor stands.
+        self.world.on_its_branch()
+
+        self.world.syncs(during_the_fetch=self._switches_once)
+
+        pinned = self.world.gh.pinned_data(_anchored.ISSUE)
+        self.assertIsNotNone(self.switched_at)
+        self.assertEqual(self.world.head(), self.switched_at)
+        self.assertTrue((self.world.checkout / _anchored.FOREIGN_FILE).exists())
+        self.assertIsNone(pinned.get("park_reason"))
+        self.assertIsNotNone(pinned.get("pending_auto_base_rebase_push_sha"))
+
+    def _switches_once(self, *_args, **_kwargs):
+        """Switch the checkout onto the flat branch the first time a fetch runs; the fetch's own failure."""
+        if self.switched_at is None:
+            self.world.switched_to_the_flat_branch()
+            self.switched_at = self.world.head()
+        return DEFAULT
 
 
 if __name__ == "__main__":

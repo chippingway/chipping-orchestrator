@@ -3,10 +3,11 @@
 """The checkout an accepted plan handoff moves onto its plan pull request's head, over a real clone.
 
 The move hard-resets the tree standing at the issue's path, so the tree is
-held to the issue's own branch first: one switched onto the flat branch,
-carrying an operator's uncommitted edit, refuses the handoff with its head,
-its files, and the issue's branch exactly as they were, and nothing launched
-or pushed.
+held to the issue's own branch first, and again at the reset behind the
+move's fetch: one switched onto the flat branch, carrying an operator's
+uncommitted edit -- before the tick or while that fetch runs -- refuses the
+handoff with its head, its files, and the issue's branch exactly as they
+were, and nothing launched or pushed.
 """
 from __future__ import annotations
 
@@ -33,8 +34,8 @@ class PlanHandoffCheckoutTest(unittest.TestCase):
         self.repo = _AmendedPlanRepo()
         self.branch = naming._branch_name(self.repo.spec, ISSUE)
         self.repo.plant(self, ISSUE, self.branch)
-        _run_git("checkout", "-b", f"orchestrator/issue-{ISSUE}", cwd=self.repo.worktree)
-        (self.repo.worktree / _README).write_text(OPERATOR_EDIT)
+        self.switched = False
+        self._fetch = branch_transport._authed_target_fetch
         self.gh = FakeGitHubClient()
         self.issue = make_issue(ISSUE, label="workflow:implementing")
         self.gh.add_issue(self.issue)
@@ -46,6 +47,30 @@ class PlanHandoffCheckoutTest(unittest.TestCase):
         )
 
     def test_a_flat_checkout_keeps_its_edits(self) -> None:
+        self._switch()
+
+        self._assert_refused_and_kept()
+
+    def test_a_switch_mid_fetch_keeps_its_edits(self) -> None:
+        with patch.object(branch_transport, "_authed_target_fetch", side_effect=self._fetched):
+            self._assert_refused_and_kept()
+
+        self.assertTrue(self.switched)
+
+    def _fetched(self, spec, branch: str):
+        """The real fetch, switching the checkout onto the flat branch the first time one runs."""
+        if not self.switched:
+            self._switch()
+        return self._fetch(spec, branch)
+
+    def _switch(self) -> None:
+        """Switch the checkout onto the flat branch at its head, with an operator's edit beside it."""
+        _run_git("checkout", "-b", f"orchestrator/issue-{ISSUE}", cwd=self.repo.worktree)
+        (self.repo.worktree / _README).write_text(OPERATOR_EDIT)
+        self.switched = True
+
+    def _assert_refused_and_kept(self) -> None:
+        """One tick refuses the handoff: head, edit, and branch as they were, nothing launched or pushed."""
         before = self.repo.head_of(self.repo.worktree)
         launch = MagicMock()
         push = MagicMock(return_value=True)

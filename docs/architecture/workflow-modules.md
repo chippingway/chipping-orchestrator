@@ -3540,7 +3540,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             their routing
       publication.py        the re-runnable order a publishable commit earns: the durable marker that makes the
                             attempt recognizable, the lease the push is held to, the push itself, and the hold that
-                            stops where GitHub could not say whether the commit is already on a PR
+                            stops where GitHub could not say whether the commit is already on a PR -- the checkout
+                            proven the issue's own again last before the push and before the pull request is opened
+                            (`creation._proven_checkout`), since the marker and the remote reads come after the
+                            artifact's own proof, with the marker left standing for the recovery where it refuses
       artifact.py           one reading of what the branch carries -- the tree, the base-relative diff, the plan in
                             HEAD, and whether HEAD is the branch -- taken from the checkout the round ran in, once
                             it is proven the issue's own, and rebuilt only where that directory has gone, plus the
@@ -4409,9 +4412,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the push and nowhere else here, since every guard above spends a reading, a diff or a
                             request after it and an ending landing in one of those windows would be answered one
                             push too late (the question itself is `late_publication`'s, beside the entry it is the
-                            far end of), and prove the checkout again on the far
+                            far end of), with the checkout proven the issue's own again behind it, last before the
+                            push, since the gate's and the transport's readings ran after the first proof and a
+                            tree switched onto the flat branch at the measured commit passes all of them, and prove
+                            the checkout again on the far
                             side of the effect -- AHEAD of that write, so what the proof answers rides it: a
-                            checkout that moved or was dirtied holds the handoff rather than the publication, and
+                            checkout no longer the issue's own, or one that moved or was dirtied, holds the handoff
+                            rather than the publication -- the refused one with nothing parked -- and
                             the claim it owes lands with the receipt rather than one write behind it, where a crash
                             would take it and leave the stage below reading a dirty worktree as no stranded work;
                             asked through `checkout_guards` below, the same owner the initial publication is
@@ -4655,7 +4662,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       late_parks.py         quiet transport retries and announce-once measurement failure handling; changed frozen bases
                             remain durable during a quiet repeat, and a different failure earns its own notice;
                             an unreadable candidate retains its resolved object id for recovery
-      publication.py        the push -- from a checkout proven the issue's own first, named against the commit the
+      publication.py        the push -- from a checkout proven the issue's own first, and again last before the
+                            push and before the pull request is opened or reused, since the intent's write and the
+                            barrier's readings come between, named against the commit the
                             gate decided and pinned to the head the
                             answer that admitted it was about: a published approval's frozen head where there is
                             one, and the CANDIDATE itself where the gate admitted it because its pull request is

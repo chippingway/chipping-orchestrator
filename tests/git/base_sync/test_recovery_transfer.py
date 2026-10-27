@@ -13,10 +13,17 @@ from tests.git.base_sync import (
     recovery_transfer_test_support as _recovery_cases,
     transfers_test_support as seed,
 )
+from tests.support.checkout_identity import stated_identity
 
 
 class RefusedResetRetentionTest(seed.TransferCase):
     """A reset git refuses keeps the claim the park was taken over."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        # The tail proves the checkout the issue's own before it resets, and
+        # the context's checkout here is no real worktree at a layout path.
+        stated_identity(self)
 
     def test_a_foreign_debt_survives_a_refused_reset(self) -> None:
         # The reset is what abandons the replay, and so what licenses dropping

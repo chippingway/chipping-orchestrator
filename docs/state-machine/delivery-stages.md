@@ -3541,7 +3541,12 @@ where an Antigravity quota retired the old one, which runs under that same pinne
 
 Every push onto a pull request the remote already carries goes through the same late size gate
 (`implementing/late_push._publishes`, over the `late_overflow` entry, the `late_publication` answer, and the
-`late_gate` owners that answer for the implementing seam too). There are nine
+`late_gate` owners that answer for the implementing seam too). The checkout it pushes from is proven the issue's own
+on entry, again last before the push, and again before the handoff
+([branch refusal](labels-and-state.md#branch-refusal)): the gate's and a transport's readings run between the first
+proof and the push, and a tree switched onto the flat branch at the measured commit passes every reading of that commit
+and tree, so the push refuses with nothing sent, and a switch while the push runs holds the handoff with the claim the
+push owes recorded and nothing parked. There are nine
 such pushes and no others:
 
 - the shared dev-fix publication `validating/dev_fix._publish_dev_fix` (the reviewer's `CHANGES_REQUESTED` loop, the

@@ -272,7 +272,13 @@ def _on_commits(
     every push onto an existing pull request goes through
     (`creation._proven_checkout`): a tree at the issue's path on any other
     branch raises `naming.BranchRefused` with no intent recorded and nothing
-    pushed, whatever its commits are.
+    pushed, whatever its commits are. It is proven again last before the push
+    and before the pull request is opened, because the intent's write, the
+    barrier's readings, and the push itself all come after that first proof,
+    and a tree switched onto the flat branch at the published commit passes
+    the tree and barrier readings: refused there, nothing is pushed or opened
+    past it, and the intent stands for the retry over the issue's own
+    checkout, as it would behind a process that died at the same point.
     """
     wt = _worktree_creation._proven_checkout(
         spec, issue.number, _worktree_paths._worktree_path(spec, issue.number), rebasing=True,
@@ -285,6 +291,7 @@ def _on_commits(
     ) or _barrier._ended_before_the_push(gh, spec, issue, state, approved):
         return
     branch = _naming._resolve_branch_name(state, spec, issue.number)
+    _worktree_creation._proven_checkout(spec, issue.number, wt, rebasing=True)
     if not _branch_transport._push_branch(
         spec, wt, branch, revision=published,
         force_with_lease=_leased_against(state, approved, published),
@@ -300,6 +307,7 @@ def _on_commits(
         )
         # _handle_implementing writes pinned state after we return.
         return
+    _worktree_creation._proven_checkout(spec, issue.number, wt, rebasing=True)
     pr, opened = _dev_pr._reuse_or_open_pr(
         gh, spec, issue, state,
         _models._PRWork(

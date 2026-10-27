@@ -543,13 +543,19 @@ first, reading only (`git/worktrees/creation._retained_checkout`, over `git/work
 worktree of the clone on exactly the issue's branch, reached at that path through no symlink. The creators ask it before
 they reuse or remove a tree, the resume roads before any session is resumed in one, a resumed question or discussion
 round before its agent runs, the conflict stage before it works in one, an accepted plan handoff before its marker and
-before the move that resets the tree, an interrupted squash's recovery before it resets or recommits anything, a
-recovered plan publication before it reads or pushes the artifact, a documenting drift unwind before its notice and
-again before the reset that discards the tree's work, a late adjudication at its admission gate and an accepted verdict
-again before its push and before its handoff, the base refresh before any route, and the publication seam every push
-onto a pull request goes through (`implementing/late_push._publishes`) before it measures or pushes anything. Where no
-tree stands, the issue's path itself has to resolve to its layout location before anything is created there, so a
-symlinked per-repository directory cannot send a new checkout into the flat layout.
+again at the reset its move makes behind its fetch (`git/worktrees/anchoring._move_branch_onto`), an interrupted
+squash's recovery before it resets or recommits anything, a plan publication before it reads the artifact and again
+before its push and before the pull request it opens, a documenting drift unwind before its notice and again before the
+reset that discards the tree's work, a late adjudication at its admission gate and an accepted verdict again before its
+push and before its handoff, the base refresh before any route and its reset-and-park tail again before the reset and
+the clean (`git/base_sync/checkout_proof`), the initial publication before its intent and again before its push and
+before the pull request it opens or reuses, and the publication seam every push onto a pull request goes through
+(`implementing/late_push._publishes`) before it measures anything, again before the push, and again before the handoff,
+where a refused tree holds it with the claim its push owes recorded and nothing parked. Each second proof is there
+because the fetches and reads between the first and the step it guards are a window a tree can be switched in, and one
+switched onto the flat branch at the same commit passes every reading of that commit and tree. Where no tree stands, the
+issue's path itself has to resolve to its layout location before anything is created there, so a symlinked
+per-repository directory cannot send a new checkout into the flat layout.
 Only that checkout's unpushed commits are reused as an interrupted run's work, and only that checkout is force-removed
 when it carries none. A tree on the flat branch, on another repository's, or on a detached HEAD, one reached through a
 symlink, and one whose identity could not be read refuse the road with every commit and file in place, however far

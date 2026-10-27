@@ -960,6 +960,10 @@ orchestrator/
                         workflow's handoff of an unpublished replay to a late generation
                         (`workflow/engine/rewrite_takeover.py`) retires the whole record through the same clear,
                         and with it any `auto_base_rebase_*` park the attempt's own road left (`_retires_its_park`)
+      checkout_proof.py the identity the reset-and-park tail asks last before `reset --hard` and the clean behind
+                        it: the checkout proven the issue's own again as a recovery proves it, since the refresh's
+                        proof came before every fetch and read the road made, and a refusal logged with nothing
+                        reset, cleaned, or parked
       checkpoints.py    the checkpoints an attempt's road makes over the reading its tick last confirmed: every
                         auto-rebase park, and a recovery's clear, abandonment of a captured transaction, and record
                         of a gate's hold, landed through the tick-state guarded commit
@@ -1127,7 +1131,8 @@ orchestrator/
                         its answer lost, or over an attempt or evidence record that moved without it, it is logged
                         and puts nothing back for the next tick to read; the tail's reset is made only once the
                         comment still spells those records as the tick last confirmed them
-                        (`checkpoints._still_owns_the_attempt`), with nothing reset, cleaned, or parked otherwise.
+                        (`checkpoints._still_owns_the_attempt`) and the checkout is still proven the issue's own
+                        (`checkout_proof._still_its_checkout`), with nothing reset, cleaned, or parked otherwise.
                         The finish of a landing -- its report debt,
                         notice, event, announcement mark, and route -- is the workflow's
                         (`workflow/engine/rewrite_finish.py`)
@@ -1450,7 +1455,9 @@ orchestrator/
                         checkout's path has to resolve to its layout location before anything is created
                         there -- and the unpushed-commit probe reuse turns on
       anchoring.py      the shared restore fetch and the guarded move that re-anchors a reused checkout onto a PR
-                        head or its merged base, with the target-root lock held across refresh and movement
+                        head or its merged base, with the target-root lock held across refresh and movement; the
+                        reset that moves a standing checkout is made only once `evidence` proves it the issue's own
+                        again, behind that fetch, and raises `naming.BranchRefused` with the tree untouched otherwise
       cleanup.py        lock-held worktree removal and local branch deletion, each behind its best-effort boundary,
                         plus the fail-closed read a caller that has to RECORD the teardown asks afterwards. The
                         forced removal is spent only on a checkout `evidence` proves a worktree of the clone on the

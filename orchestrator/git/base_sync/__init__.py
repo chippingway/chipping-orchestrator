@@ -6,9 +6,10 @@ The frozen contexts, requests, snapshots, and decisions one auto-rebase attempt
 is threaded through live in ``models``; the pinned-state keys, park reasons,
 detour labels, and the shared logger those attempts read and write live in
 ``state``; the parks every failure ends in and the reset-and-park tail a
-rollback takes live in ``persistence``, and the parks a verified recovery
-comparison that cannot go on produces live in ``outcomes``. The reads that
-comparison is built from -- the authenticated branch fetch, the local and
+rollback takes live in ``persistence``, the tail's reset made only once
+``checkout_proof`` proves the checkout the issue's own again, and the parks a
+verified recovery comparison that cannot go on produces live in ``outcomes``.
+The reads that comparison is built from -- the authenticated branch fetch, the local and
 remote head SHAs, and the divergence counts -- live in ``snapshot``, and the
 context a recovery resumes an interrupted attempt in is bound by ``recovery``.
 The per-tick refresh that drives one tick's base fetch, the scheduler and
