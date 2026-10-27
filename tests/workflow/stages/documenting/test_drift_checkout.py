@@ -19,10 +19,10 @@ from unittest.mock import MagicMock, patch
 from orchestrator import config
 from orchestrator.git import branch_transport
 from orchestrator.git.worktrees import naming, paths
-from orchestrator.workflow.engine import content_hash
 from orchestrator.workflow.stages.documenting import handler
 from tests.support.fakes import FakeGitHubClient, FakePR, make_issue
 from tests.support.git import _run_git
+from tests.workflow import verified_approvals as _verified
 
 ISSUE = 7
 PR_NUMBER = 42
@@ -33,11 +33,18 @@ _TRACKED = "tracked.txt"
 _NOTES = "notes.txt"
 _EDITS = "operator edits\n"
 _PUBLISHED = "base\n"
+_EDITED_BODY = "the requirements, edited since the approval"
 
 
-def _earlier_hash() -> str:
-    """The requirements hash the reviewer approved, over a body edited since."""
-    return content_hash._compute_user_content_hash(make_issue(ISSUE, body="earlier body"), set())
+def _approved(github: FakeGitHubClient, issue, **fields) -> dict:
+    """Seed `issue`'s record of `fields` on its pull request, under the approval the hop entered on; the record.
+
+    The approval records the requirements as they stand, so an edit to the
+    body after it is the drift the unwind answers.
+    """
+    github.seed_state(ISSUE, pr_number=PR_NUMBER, **fields)
+    _verified.verifies_the_approval(github, issue)
+    return github.pinned_data(ISSUE)
 
 
 def _published_clone(clone: Path) -> None:
@@ -76,7 +83,8 @@ class DriftCheckoutTest(unittest.TestCase):
 
     def test_the_issue_s_own_checkout_is_reset(self) -> None:
         self._worked_on(self.branch)
-        self.gh.seed_state(ISSUE, branch=self.branch, pr_number=PR_NUMBER, user_content_hash=_earlier_hash())
+        _approved(self.gh, self.issue, branch=self.branch)
+        self.issue.body = _EDITED_BODY
 
         handler._handle_documenting(self.gh, self.spec, self.issue)
 
@@ -86,8 +94,8 @@ class DriftCheckoutTest(unittest.TestCase):
 
     def test_a_flat_checkout_announces_nothing(self) -> None:
         before = self._worked_on(_FLAT_BRANCH)
-        self.gh.seed_state(ISSUE, branch=self.branch, pr_number=PR_NUMBER, user_content_hash=_earlier_hash())
-        recorded = self.gh.pinned_data(ISSUE)
+        recorded = _approved(self.gh, self.issue, branch=self.branch)
+        self.issue.body = _EDITED_BODY
 
         self.assertRaises(naming.BranchRefused, handler._handle_documenting, self.gh, self.spec, self.issue)
 
@@ -96,11 +104,7 @@ class DriftCheckoutTest(unittest.TestCase):
 
     def test_a_switch_during_the_fetch_resets_nothing(self) -> None:
         before = self._worked_on(self.branch)
-        self.gh.seed_state(
-            ISSUE, branch=self.branch, pr_number=PR_NUMBER, docs_drift_unwind_pending=True,
-            user_content_hash=content_hash._compute_user_content_hash(self.issue, set()),
-        )
-        recorded = self.gh.pinned_data(ISSUE)
+        recorded = _approved(self.gh, self.issue, branch=self.branch, docs_drift_unwind_pending=True)
         self.switch_on_fetch = True
 
         self.assertRaises(naming.BranchRefused, handler._handle_documenting, self.gh, self.spec, self.issue)

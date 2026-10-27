@@ -27,6 +27,7 @@ ISSUE = 7
 PR_NUMBER = 42
 FOREIGN_FILE = "foreign.txt"
 
+_LABEL = "workflow:validating"
 _BASE = "main"
 _HEAD = "HEAD"
 _REMOTE_BASE = "refs/remotes/origin/main"
@@ -49,9 +50,12 @@ def _commits(checkout: Path, name: str, text: str) -> None:
 
 
 def _anchored_at(github: FakeGitHubClient, branch: str, anchor: str) -> None:
+    """Pin `anchor` with the terms every attempt records in its own write: its pull request and stage."""
     github.seed_state(
         ISSUE, branch=branch, pr_number=PR_NUMBER,
         pending_auto_base_rebase_push_sha=anchor,
+        pending_auto_base_rebase_rewrite_pr=PR_NUMBER,
+        pending_auto_base_rebase_rewrite_stage=_LABEL,
     )
 
 
@@ -78,7 +82,7 @@ class AnchoredCheckout:
         self.checkout.parent.mkdir(parents=True)
         tip = _seeded_clone(self.target, self.branch)
         self.gh = FakeGitHubClient()
-        self.gh.add_issue(make_issue(ISSUE, label="workflow:validating"))
+        self.gh.add_issue(make_issue(ISSUE, label=_LABEL))
         pull_request = FakePR(number=PR_NUMBER, head_branch=self.branch)
         pull_request.head.sha = tip
         self.gh.add_pr(pull_request)
