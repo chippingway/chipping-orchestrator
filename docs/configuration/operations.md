@@ -753,6 +753,20 @@ which paths reach an issue decides what keeps it away:
   earlier build parked with only its `pending_fix_*_max_id` bookmarks, and no recorded id lists, replays nothing: a
   bare `/orchestrator continue` on it is refused, so answer it with the feedback written out instead. Accept that
   extra fix round per such issue, or leave its repository out.
+- **Decomposition records and pull-request holds.** A build that reads a recorded decomposition outcome only whole
+  under the current manifest contract reads, as no answer, a late `single` an earlier build recorded with no
+  `late_result_split_blocker`, and a late split whose `late_result_children` leave a `depends_on` list missing or
+  `null` or a slice with no `estimated_added_lines`: nothing is created, released, or announced on it, and a
+  `late_single_decision` park standing on it comes down with its unsaid sentence. Before that split's transaction
+  has begun, the candidate is adjudicated again, charged as any fresh run is; once it has begun, the issue parks
+  `late_children_failed` with its snapshot, its children, and the record as they stand, for you to settle. A late
+  hold in a spelling the build does not write — one an earlier build marked by generation as well as cycle — is never
+  rewritten, released, or taken over. On an open pull request it is reported displaced, so no adjudicator starts
+  under it, and every step that would release it — a settlement, the move of a hold onto the pull request a record
+  crossed to, a supersession, a cancelled cycle's cleanup — parks or stays owed instead, so the description the record
+  preserved (`late_plan_pr_body`) stays in the pinned comment. Put that description back on the pull request by hand,
+  or close it, and the next tick goes on; on one already merged or closed the notice is left as it stands and nothing
+  waits on it. Accept that extra run or that manual settlement per such issue, or leave its repository out.
 - **A whole repository.** A repository the selected build is not configured for is never polled, swept, or
   refreshed, and the maintenance pass leaves alone every artifact whose name marks it as that repository's. Flat
   `orchestrator/issue-<n>` branches and `WORKTREES_DIR/issue-<n>` checkouts are no entry's, whichever entries are

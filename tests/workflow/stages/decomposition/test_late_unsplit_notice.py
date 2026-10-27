@@ -34,6 +34,7 @@ from orchestrator.github.pinned_state import (
     PINNED_STATE_BODY_RE,
     pinned_state_body,
 )
+from orchestrator.workflow.late_split.models import LateVerdict
 from orchestrator.workflow.stages.decomposition import (
     late_notice as _late_notice,
     late_park_state as _late_park_state,
@@ -49,12 +50,69 @@ from tests.workflow.stages.decomposition.late_content_support import (
 )
 from tests.workflow.stages.decomposition.late_settlement_support import (
     ERROR,
+    PARK_QUESTION,
+    PARK_SINGLE_DECISION,
+    QUESTION_RUN,
     SAID_ONCE,
     SINGLE_RUN,
     WORKFLOW_LOG,
     GuardedLateCase,
 )
-from tests.workflow.stages.decomposition.late_test_support import KEYS
+from tests.workflow.stages.decomposition.late_test_support import KEYS, QUESTION_ASKED, SPLIT_BLOCKER
+
+WARNING = "WARNING"
+
+
+class UnexplainedOwedNoticeTest(GuardedLateCase, unittest.TestCase):
+    """A `single` park whose record no longer holds the explanation it names.
+
+    The obligation names the recorded explanation rather than copying it, so a
+    record that lost it leaves the sentence nothing true to say, and leaves the
+    park waiting on a decision nobody can be shown the grounds for. The
+    sentence is not said over it, and the park comes down ahead of the
+    adjudication the record buys: whatever that run decides is what the issue
+    stops for next, and that is what the thread is told.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        with RefusedComment(self.github), self.assertRaises(RuntimeError):
+            self._decide(SINGLE_RUN)
+        self.github.seed_state(self.issue.number, **{
+            key: kept for key, kept in self._pinned().items() if key != KEYS.split_blocker
+        })
+
+    def test_a_fresh_single_says_its_own_sentence(self) -> None:
+        outcome, spawn = self._unexplained_tick(SINGLE_RUN)
+
+        spawn.assert_called_once()
+        self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
+        self.assertEqual(self._pinned()[KEYS.park_reason], PARK_SINGLE_DECISION)
+        self.assertEqual(len(self.github.posted_comments), SAID_ONCE)
+        said = self.github.posted_comments[-1][1]
+        self.assertIn(SPLIT_BLOCKER, said)
+        self.assertNotIn(_late_notice.RECORDED_EXPLANATION, said)
+        self.assertNotIn(_late_notice.PARK_NOTICE, self._pinned())
+
+    def test_a_fresh_question_is_announced(self) -> None:
+        # The question that replaces the verdict is what the issue waits on,
+        # so it parks on its own reason and is said -- and the next tick
+        # reuses it with nothing left owed and nothing said twice.
+        self._unexplained_tick(QUESTION_RUN)
+
+        reused, unspawned = self._adjudicate()
+
+        unspawned.assert_not_called()
+        self.assertEqual(reused.adjudication.verdict, LateVerdict.QUESTION)
+        self.assertEqual(self._pinned()[KEYS.park_reason], PARK_QUESTION)
+        self.assertEqual(len(self.github.posted_comments), SAID_ONCE)
+        self.assertIn(QUESTION_ASKED, self.github.posted_comments[-1][1])
+        self.assertNotIn(_late_notice.PARK_NOTICE, self._pinned())
+
+    def _unexplained_tick(self, run):
+        """Tick once over the record, the delivery it withholds logged."""
+        with self.assertLogs(WORKFLOW_LOG, level=WARNING):
+            return self._adjudicate(run)
 
 
 class LegacyRecordParkTest(_notice_case._RefusedDeliveryCase, unittest.TestCase):

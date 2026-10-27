@@ -4,9 +4,9 @@
 
 Recorded answers retain their exact source commit, cycle, and generation.
 A split carries its children, a question needs its category and text, and a
-legacy single answer retains the explanation fallback used by park notices.
-A single or a split also keeps the agent's rationale, cut to a fixed bound
-with a visible marker where it was cut.
+single needs the explanation of what stopped a split; a record missing any of
+them is no answer. A single or a split also keeps the agent's rationale, cut
+to a fixed bound with a visible marker where it was cut.
 """
 from __future__ import annotations
 
@@ -21,17 +21,6 @@ from orchestrator.workflow.late_split.models import LateGeneration, LateVerdict
 # beside the run rather than assumed, because the same coordinator owns the
 # developer revision a trusted answer earns, which records its own role.
 _DECOMPOSER_ROLE = "decomposer"
-
-# What a `single` with no explanation beside it answers with. A fresh reply
-# that omits one is refused where it is read, so the absence a reader meets is
-# always a RECORD's: live issues carry results written before this domain kept
-# an explanation, and those still decide this candidate. So it has a sentence
-# of its own rather than an empty string a reader would render as nothing.
-# Re-running the adjudicator to recover the prose is the one thing it must not
-# cost: a second run is not free and is free to decide differently.
-UNRECORDED_SPLIT_BLOCKER = (
-    "no explanation of what stopped a split was recorded with this verdict"
-)
 
 # The verdicts a record keeps a rationale for. A `question` asks rather than
 # argues, and a split refused at the lineage bound is recorded as the question
@@ -84,9 +73,10 @@ class _LateAdjudication:
     somebody deciding what to do about an oversized candidate, and it is kept
     apart from `rationale` -- the prose arguing for the verdict -- because
     they answer different questions and are held to different rules. The
-    explanation is required of a fresh `single` and recorded whole or not at
-    all; the rationale is optional, is recorded only beside a `single` or a
-    `split`, and is cut to `MAX_RATIONALE` on its way into the record.
+    explanation is required of every `single`, fresh or recorded, and
+    recorded whole or not at all; the rationale is optional, is recorded only
+    beside a `single` or a `split`, and is cut to `MAX_RATIONALE` on its way
+    into the record.
 
     A fresh answer carries the rationale as the agent wrote it, and one
     rebuilt from the record carries the bounded text the record kept -- so a
@@ -100,22 +90,6 @@ class _LateAdjudication:
     question: str = ""
     split_blocker: str = ""
     children: tuple[dict, ...] = ()
-
-    @property
-    def split_blocker_explanation(self) -> str:
-        """What this verdict says stopped a split, or that nothing says.
-
-        Asked instead of the field, so every reader of a `single` gets a
-        sentence: an outcome recorded before this domain kept one answers
-        with the stand-in rather than with nothing, which is the only way the
-        field is ever empty on this verdict, since a reply that declared it
-        without an explanation never became one of these. Empty on the other
-        two verdicts, which are not answers about a split that did not
-        happen.
-        """
-        if self.verdict != LateVerdict.SINGLE:
-            return ""
-        return self.split_blocker or UNRECORDED_SPLIT_BLOCKER
 
     @property
     def child_count(self) -> int | None:
@@ -152,11 +126,11 @@ class _LateRun:
     gone.
 
     A `single` or a `split` also carries the rationale it argued with, as the
-    record bounded it. That decides nothing: a record written before this
-    domain kept one, or holding a value no reader can use, is still this
-    candidate's answer, so the field reads empty rather than the verdict
-    reading incomplete. It is written and dropped with the result, which is
-    what binds it to the same cycle, generation, and commit.
+    record bounded it. That decides nothing: a record with none, or holding a
+    value no reader can use, is still this candidate's answer, so the field
+    reads empty rather than the verdict reading incomplete. It is written and
+    dropped with the result, which is what binds it to the same cycle,
+    generation, and commit.
     """
 
     role: str = _DECOMPOSER_ROLE
@@ -181,21 +155,19 @@ class _LateRun:
         Asked per verdict, because what "complete" means differs by verdict
         and a half-written one is worse than none: a `question` with no
         sentence and no category suppresses the next spawn and then announces
-        nothing, and a `split` with no children suppresses it and then names
-        no children to create. Either would leave the issue decided, silent,
-        and going nowhere -- so an incomplete record is not an answer, and the
-        adjudicator runs again.
-
-        A `single` is complete on its verdict alone, and the explanation
-        beside it does not change that: it is what a reader shows rather than
-        what a caller acts on, so a result recorded before this domain kept
-        one is still this candidate's answer. Reading it as incomplete would
-        buy a second agent run to recover prose.
+        nothing, a `split` with no children it may create -- none recorded,
+        or a manifest the reply's own rules refuse -- suppresses it and then
+        names no children to create, and a `single` with no explanation parks
+        a candidate on a decision a human is given nothing to decide on.
+        Each would leave the issue decided, silent, or acted on over grounds
+        nobody recorded -- so an incomplete record is not an answer, and
+        nothing it names is acted on. Blank text is no text, as it is in a
+        reply; the record keeps whatever it holds.
         """
         if self.verdict == LateVerdict.SINGLE:
-            return True
+            return bool(self.split_blocker.strip())
         if self.verdict == LateVerdict.QUESTION:
-            return bool(self.question) and self.category is not None
+            return bool(self.question.strip()) and self.category is not None
         if self.verdict == LateVerdict.SPLIT:
             return bool(self.children)
         return False

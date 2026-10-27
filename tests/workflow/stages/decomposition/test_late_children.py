@@ -58,10 +58,6 @@ BUDGET_HEADING = "Estimated all-path addition budget"
 
 ALL_PATHS = "No path is excluded from it"
 
-# The slice a manifest recorded before this domain kept budgets reads back as:
-# scope and nothing about a size.
-UNSIZED_SLICE = MappingProxyType({"title": "A", BODY: "only slice"})
-
 # The children an earlier decomposition of this same issue left behind, and
 # the graph it recorded over them.
 _DONE_CHILD = 900
@@ -214,7 +210,7 @@ class PriorDecompositionTest(SplitChildrenCase, unittest.TestCase):
     def test_the_earlier_graph_does_not_survive(self) -> None:
         # A graph indexed against another manifest would hold this split's
         # children behind dependencies that are not theirs.
-        self._transact(children=(dict(UNSIZED_SLICE),))
+        self._transact(children=(_support.CHILDREN[0],))
 
         self.assertIsNone(self._pinned().get(_support.KEY_DEP_GRAPH))
 
@@ -352,17 +348,6 @@ class ChildBodyTest(SplitChildrenCase, unittest.TestCase):
         for path in ("tests", "documentation"):
             with self.subTest(path=path):
                 self.assertIn(path, body)
-
-    def test_a_slice_nobody_sized_states_no_budget(self) -> None:
-        # What a manifest recorded before this domain kept budgets reads back
-        # as -- and those still create children, with everything else about
-        # the slice unchanged.
-        self._transact(children=(dict(UNSIZED_SLICE),))
-
-        body = _support.first_child(self.github).body
-        self.assertNotIn(BUDGET_HEADING, body)
-        self.assertTrue(body.startswith(UNSIZED_SLICE[BODY]))
-        self.assertIn(_support.SNAPSHOT_REF, body)
 
     def _body(self) -> str:
         """The body the first slice's child was opened with."""

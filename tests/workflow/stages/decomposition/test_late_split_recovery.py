@@ -16,6 +16,12 @@ so a second manifest over the top of them strands every one. A generation that
 advances at all carries none of the previous one's positional register or its
 link receipt -- the two values that would otherwise have a new manifest adopt
 an old child by index and swallow the announcement it owes.
+
+The same holds for a transaction that died in flight with nobody saying
+anything: its whole recorded verdict resumes it with no second run and no
+second child, and a recorded verdict that no longer answers -- a manifest the
+reply's own rules refuse -- parks it rather than buying a new verdict over the
+children already made.
 """
 from __future__ import annotations
 
@@ -34,6 +40,7 @@ from orchestrator.workflow.stages.decomposition.late_result_models import _LateD
 from tests.workflow.stages.decomposition.late_content_support import (
     KEY_GENERATION,
 )
+from tests.workflow.stages.decomposition.late_crash_support import killed_after
 from tests.workflow.stages.decomposition.late_revision_support import (
     RevisionCase,
 )
@@ -53,6 +60,38 @@ from tests.workflow.stages.decomposition.late_test_support import (
 PARK_SNAPSHOT_FAILED = "late_snapshot_failed"
 
 PARK_REVISION_UNANSWERED = "late_revision_unanswered"
+
+PARK_CHILDREN_FAILED = "late_children_failed"
+
+# The key a recorded slice carries its budget under.
+ESTIMATE = "estimated_added_lines"
+
+# What a split in flight has written that the park over it may not move: the
+# recorded verdict and manifest, the lifetime run count, and the register,
+# count, and graph its children are recovered and released by.
+_KEPT_IN_FLIGHT = (
+    KEYS.verdict, KEYS.children, KEYS.agent_runs,
+    "late_split_children", "expected_children_count", "dep_graph",
+)
+
+# A verdict no build reads, written where the record keeps its verdict.
+_UNREAD_VERDICT = "unsupported-verdict"
+
+# A fresh split naming slices the crashed one never did, so a run that reached
+# the transaction would be settling a different manifest over its children.
+_DIFFERENT_SPLIT = SPLIT_REPLY.replace('"A"', '"Different A"').replace('"B"', '"Different B"')
+
+_BLOCKED = "workflow:blocked"
+
+# The ways a crashed split's record can stop answering, each the fields it is
+# rewritten with: slices that declare no budget, and a verdict no build reads.
+_UNANSWERING = (
+    ("no budgets", lambda pinned: {KEYS.children: [
+        {field: declared for field, declared in child.items() if field != ESTIMATE}
+        for child in pinned[KEYS.children]
+    ]}),
+    ("an unread verdict", lambda _pinned: {KEYS.verdict: _UNREAD_VERDICT}),
+)
 
 # A child an earlier pass of this split created and recorded.
 CREATED_CHILD = 4242
@@ -121,6 +160,85 @@ class ParkedTransactionTest(unittest.TestCase):
             transact=True, **run_fields,
         )
         return outcome
+
+
+class InFlightTransactionTest(unittest.TestCase):
+    """A split that died creating its last child, resumed by the next tick.
+
+    The death lands between that child's create and the write recording it,
+    so the register names the first child and the second exists on GitHub
+    with nothing but its receipt pointing at it.
+    """
+
+    def setUp(self) -> None:
+        seeded = seeded_late_issue()
+        self.github = seeded[0]
+        self.issue = seeded[1]
+        with (
+            killed_after(self.github, "create_child_issue", after=2),
+            self.assertRaises(KeyboardInterrupt),
+        ):
+            adjudicate(self.github, self.issue, agent_reply(SPLIT_REPLY), transact=True)
+        self.created = self._created()
+
+    def test_a_whole_record_finishes_the_same_split(self) -> None:
+        # The recorded verdict is what the transaction resumes from, so the
+        # next tick pays for no run and adopts the unrecorded child by its
+        # receipt rather than opening its slice a second time.
+        settled, spawn = adjudicate(self.github, self.issue, transact=True)
+
+        spawn.assert_not_called()
+        self.assertEqual(settled.disposition, _LateDisposition.SETTLED)
+        self.assertEqual(len(self.created), 2)
+        self.assertEqual(self._created(), self.created)
+        register = generation_of(self.github, self.issue).split_children
+        self.assertEqual(list(register), self.created)
+
+    def test_an_unanswering_record_parks(self) -> None:
+        # A record that no longer answers -- slices with no budget, or a
+        # verdict in no spelling this build reads -- is still somebody's
+        # writing, and a fresh verdict here would be taken beside the children
+        # already created, adopting them, by index, as slices of a different
+        # split. So nothing is paid for, created, adopted, or released, and the
+        # record and the register stay exactly as the crash left them.
+        for name, rewrite in _UNANSWERING:
+            with self.subTest(record=name):
+                self.setUp()
+                before = self._reseeded(rewrite)
+
+                parked, spawn = adjudicate(
+                    self.github, self.issue, agent_reply(_DIFFERENT_SPLIT), transact=True,
+                )
+
+                spawn.assert_not_called()
+                self.assertEqual(parked.disposition, _LateDisposition.PARKED)
+                self._assert_left_as(before)
+
+    def _created(self) -> list[int]:
+        """Every child issue this split has opened so far, in order."""
+        return [child.number for child in self.github.created_child_issues]
+
+    def _labels(self) -> list[str]:
+        """The workflow label each child this split opened carries now."""
+        return [
+            next(label.name for label in self.github.get_issue(number).labels)
+            for number in self._created()
+        ]
+
+    def _reseeded(self, rewrite) -> dict:
+        """Rewrite the crashed split's record one way, and read it back."""
+        pinned = self.github.pinned_data(LATE_ISSUE_NUMBER)
+        self.github.seed_state(LATE_ISSUE_NUMBER, **{**pinned, **rewrite(pinned)})
+        return self.github.pinned_data(LATE_ISSUE_NUMBER)
+
+    def _assert_left_as(self, before: dict) -> None:
+        """Parked over its children, with nothing it recorded, created, or released moved."""
+        after = self.github.pinned_data(LATE_ISSUE_NUMBER)
+        self.assertEqual(after[KEYS.park_reason], PARK_CHILDREN_FAILED)
+        for kept in _KEPT_IN_FLIGHT:
+            self.assertEqual(after.get(kept), before.get(kept), kept)
+        self.assertEqual(self._created(), self.created)
+        self.assertEqual(set(self._labels()), {_BLOCKED})
 
 
 class RevisedAfterChildrenTest(RevisionCase, unittest.TestCase):

@@ -74,6 +74,16 @@ _DEAD_AUTHORIZATIONS = tuple(
 )
 
 
+# The records a command finds no `single` on to publish: the verdict gone, and a
+# `single` recorded without the explanation every one owes, or with only
+# whitespace where it goes.
+_UNANSWERED_SINGLES = (
+    ("no verdict", {_stage_support.KEYS.verdict: None, _stage_support.KEYS.source_sha: None}),
+    ("no explanation", {_stage_support.KEYS.split_blocker: None}),
+    ("a blank explanation", {_stage_support.KEYS.split_blocker: " \n "}),
+)
+
+
 class AuthorizationRecoveryTest(_authorize_case._AuthorizeCase):
     """A process that died between the decision and what it licenses."""
 
@@ -247,24 +257,29 @@ class ReadjudicatedAuthorizationTest(_authorize_case._AuthorizeCase):
     """
 
     def setUp(self) -> None:
-        self._park(**{_stage_support.KEYS.verdict: None, _stage_support.KEYS.source_sha: None})
+        self._park(**_UNANSWERED_SINGLES[0][1])
         self._command()
 
     def test_it_says_so_and_readjudicates(self) -> None:
-        outcome = self._tick(reply=_stage_support.SINGLE_REPLY)
-
-        self.spawn.assert_called_once()
-        self.assertIn(
-            _authorize_case.NO_VERDICT_NOTICE, "".join(self._bodies()),
-        )
         # The fresh answer is the adjudicator's own, so the issue waits on the
         # decision again rather than publishing on a permission for an answer
-        # nothing could show.
-        self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
-        pinned = self._pinned()
-        self.assertIsNone(self._authorized())
-        self.assertNotIn(_stage_support.KEYS.exempt_sha, pinned)
-        self.assertEqual(pinned.get(_stage_support.KEYS.park_reason), _support.PARK_SINGLE_DECISION)
+        # nothing could show -- a `single` with no explanation included.
+        for name, record in _UNANSWERED_SINGLES:
+            with self.subTest(record=name):
+                self._park(**record)
+                self._command()
+
+                outcome = self._tick(reply=_stage_support.SINGLE_REPLY)
+
+                self.spawn.assert_called_once()
+                self.assertIn(
+                    _authorize_case.NO_VERDICT_NOTICE, "".join(self._bodies()),
+                )
+                self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
+                pinned = self._pinned()
+                self.assertIsNone(self._authorized())
+                self.assertNotIn(_stage_support.KEYS.exempt_sha, pinned)
+                self.assertEqual(pinned.get(_stage_support.KEYS.park_reason), _support.PARK_SINGLE_DECISION)
 
     def test_a_question_is_still_announced(self) -> None:
         outcome = self._tick(reply=_stage_support.QUESTION_REPLY)

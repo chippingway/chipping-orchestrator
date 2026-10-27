@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Read frozen late-run records and recover their adjudication and resume identity.
 
-Stored children pass the shared manifest validation a record is read with,
-where a missing or null `depends_on` still means no prerequisites, stored
-agent specs stay locked, a stored rationale reads back only where it is one a
+Stored children pass the rules a fresh split reply is held to -- the shared
+manifest validation, every child's stated `depends_on` list included, and a
+declared budget on every slice -- or read back as no manifest. Stored agent
+specs stay locked, a stored rationale reads back only where it is one a
 `single` or `split` could have recorded, and a session resumes only against
 the same candidate generation.
 """
@@ -21,6 +22,7 @@ from orchestrator.workflow.late_split import (
     payloads as _payloads,
 )
 from orchestrator.workflow.stages.decomposition import (
+    late_budget as _budget,
     validation as _split_validation,
 )
 from orchestrator.workflow.stages.decomposition.late_result_models import (
@@ -114,22 +116,24 @@ def _recorded_rationale(
 def _recorded_children(state: _pinned_state.PinnedState) -> tuple[dict, ...]:
     """Return the recorded child manifest, or nothing if it is not one.
 
-    Held to the shared rules the reply was: the child cap, the shape of each
-    child, and the acyclicity of the graph they declare. A manifest a hand
-    edit or an older binary left in a shape this validator refuses is not one
-    children may be created from, and reading it back as empty is what sends
-    the adjudicator round again instead of creating half of a split.
+    Held to the rules the reply was: the child cap, the shape of each child,
+    a stated `depends_on` list on every one of them, the acyclicity of the
+    graph they declare, and a declared budget on every slice. A manifest left
+    in a shape these refuse -- a list missing or null, a slice nobody sized --
+    is not one children may be created from or released by: a child read as
+    having no prerequisites is released at once, and one created without a
+    budget states a size nobody estimated. Reading it back as empty is what
+    keeps the split it names from being acted on.
 
-    What it is NOT held to is the fresh reply's demand that every child state
-    its `depends_on` list. A slice recorded with the list missing or null was
-    recorded under the reading where that means no prerequisites, so it is
-    read back and released that way rather than refused, which would buy a
-    second run free to decide something else entirely.
+    The ceiling a fresh reply is held under is not asked again. That is a
+    bound on what an agent may propose, asked before the record is written.
     """
     recorded = state.get(_LATE_RESULT_CHILDREN)
     if not isinstance(recorded, list) or not recorded:
         return ()
     if _split_validation._split_manifest_error({"children": recorded}):
+        return ()
+    if _budget._estimates_error(tuple(recorded), None):
         return ()
     return tuple(recorded)
 
@@ -163,11 +167,12 @@ def _recovered_adjudication(run: _LateRun) -> _LateAdjudication:
     `split` argued with comes back beside them, as the bounded text the record
     kept rather than the reply the agent sent.
 
-    A record with no explanation is rebuilt with none, and the carrier answers
-    for the absence; a record with no rationale is rebuilt with none either,
-    and a reader showing one says so for itself. What the record holds is what
-    an agent wrote, and a rebuilt outcome that manufactured a sentence would
-    be indistinguishable from one that had it all along.
+    Asked only of a record that answers, which is what makes it whole: a
+    `single` with no explanation is no answer to rebuild. A record with no
+    rationale is rebuilt with none, and a reader showing one says so for
+    itself. What the record holds is what an agent wrote, and a rebuilt
+    outcome that manufactured a sentence would be indistinguishable from one
+    that had it all along.
     """
     return _LateAdjudication(
         verdict=run.verdict,

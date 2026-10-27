@@ -813,10 +813,9 @@ The reply ends in exactly one fenced `orchestrator-late-manifest` block — a di
   what generates it, the invariant a half-landed slice would break — and the pinned comment keeps it whole or not at
   all. It is REQUIRED: the prompt states it as an obligation and the parser enforces it, so a fresh reply that
   declares the verdict and names no obstacle is refused whatever its `"rationale"` says, because what would be
-  recorded otherwise is the one answer a human has to act on with the one thing it turns on missing. The refusal is
-  about a REPLY and never about a record — results predating the key are on live issues, still decide their
-  candidate, and are read back with a fixed stand-in sentence rather than sent round for a second run to recover
-  prose.
+  recorded otherwise is the one answer a human has to act on with the one thing it turns on missing. A record is
+  held to the same rule: a recorded `single` with no explanation is no answer, so it parks nothing and no sentence
+  stands in for it, and the candidate is adjudicated again.
 - `split` — a child manifest that partitions the declared scope completely, held to the shared split rules the initial
   mode also uses: the child cap, each child's shape, and the acyclicity of the graph they declare. A fresh late reply
   goes through the same fresh-reply entry point an initial reply does, so every child states its `depends_on`
@@ -824,9 +823,9 @@ The reply ends in exactly one fenced `orchestrator-late-manifest` block — a di
   shows — and one that leaves it missing or `null` is refused by the child's zero-based index and the field
   (`child 1 missing depends_on`, `child 1 depends_on is null`). That refusal parks the reply `late_manifest_invalid`
   before a split is recorded or a child created: read as no prerequisites, the child would be released beside the
-  sibling its own body says it waits on. It is about a REPLY and never about a record — a `late_result_children`
-  manifest whose slices leave the list missing or `null` is still this candidate's answer, recovered without another
-  run, and its slices are created and released as having no prerequisites. The prompt requires
+  sibling its own body says it waits on. A record is held to the same rule — a `late_result_children` manifest whose
+  slices leave the list missing or `null`, or declare no budget, is no manifest, so nothing is created or released
+  from it ([pinned state](../state-machine/labels-and-state.md#pinned-state)). The prompt requires
   dependency-ordered implementation slices to be considered *before* a `single` is answered, because that is the way
   out an agent otherwise talks itself out of: work that will not cut across features almost always cuts along its
   dependencies, and a prerequisite may land dormant — built, tested directly, reached by nothing in production — with
@@ -843,8 +842,12 @@ The reply ends in exactly one fenced `orchestrator-late-manifest` block — a di
   verbatim, so a standing figure would be a refused child on every repository configured under it. The number itself
   travels: it is recorded with the manifest and stated on the child issue created from the slice, so a tick that
   crashed between the verdict and the transaction still opens children that say what they were sized at. The
-  requirement is what stays on the late parser rather than moving to the shared split validator, which also reads
-  recorded manifests back off pinned comments written before any budget was asked for.
+  requirement stays on the late parser and the late record reader rather than moving to the shared split validator,
+  because the initial decomposer's children carry no budget and that validator is the rule both modes share. A late
+  record is held to it on the way back all the same: a recorded manifest with a slice that declares none is no
+  manifest, so nothing is recovered from it, and the candidate is adjudicated again — or, once its split transaction
+  has begun, the issue parks over what it made. Children an earlier build already created from such a manifest are
+  issues like any other: nothing reads their parent's record to reopen, resize, or recreate them.
 - `question` — a categorized question for a human, which is also where artifacts that look like they should NOT have
   been committed go. The category is mapped onto the closed vocabulary, so an agent's own spelling records as
   `unknown` rather than widening the field.
@@ -860,9 +863,9 @@ became. One longer than `MAX_RATIONALE` (2,048 characters of the value, a bound 
 owner like its others) is stored as a prefix ending in the visible marker `[... rationale truncated by the
 orchestrator]`, inside the bound, instead of costing the verdict — while the explanation, the question, and the
 manifest still go in whole, or the result is refused (`late_result_unrecordable`) with nothing of it written. A record
-with no rationale a reader can use — one written before the key existed, a blank or non-string value, one past the
-bound — is still this candidate's answer: no second run is paid for to recover the argument, and nothing writes a
-stand-in, or anything derived from the explanation or the category, into the pinned comment. Where it is shown is
+with no rationale a reader can use — no key, a blank or non-string value, one past the bound — is still this
+candidate's answer: the rationale is optional, no second run is paid for to recover the argument, and nothing writes a
+substitute, or anything derived from the explanation or the category, into the pinned comment. Where it is shown is
 the notice an authorized publication posts ([below](#authorizing-one-oversized-candidate-to-publish)), which quotes
 the record rather than a reply, so a process that dies after the result write or after the authorization settles with
 the same words and no agent run. It stays issue prose: no late event and no analytics record carries it
@@ -882,12 +885,17 @@ split, a `question` carries its category and the sentence it asked, and a `split
 that *is* its decision — rewritten from the fields a child issue is created out of, the declared budget among them,
 since the issue created from a slice states the size that slice was proposed at. So a result this binary writes
 persists every budget its reply declared, and a tick that crashed between the verdict and the transaction still opens
-children that say what they were sized at. A manifest a live issue already carries was recorded before any budget was
-asked for and reads back without one, which is no bar to answering: the rules a record is read through ask for none,
-those children are created exactly as they always were, and their issues state no size, because nothing here invents a
-number an agent did not give. The compatibility rule is the same for the explanation — results predating that key are
-on live issues and still decide their candidate — and so is the other half of it: a fresh reply that omits either
-field never becomes a record at all, because the reply contract refuses one.
+children that say what they were sized at. A record is read back under the contract its reply was held to, and is an
+answer only while it is whole by it: a `single` with no explanation, or only whitespace there, a `question` with no
+sentence or category, and a `split` whose manifest leaves a `depends_on` list missing or `null` or a slice with no
+budget are each no answer, and nothing they name is created, released, parked on, or announced. Before a split
+transaction has begun, the candidate is adjudicated again, a fresh run charged as any other — and a `single` or
+`question` park standing over such a record comes down first, any sentence it still owed going with it unsaid, since
+what the issue stops for next, and is told about, is whatever that run decides. Once
+the transaction stands at one of its own boundaries, a result still there under any of its keys that does not
+answer, a verdict in no spelling this build reads included, parks `late_children_failed` instead
+([below](#what-a-cleared-split-actually-does)). A fresh reply that omits a required field never becomes a record at
+all, because the reply contract refuses one.
 Whether it fits is measured on the whole comment the write would produce — the preserved held-PR body and every other
 stage's keys included — because a result small on its own can still be the one that pushes the comment past what
 GitHub accepts, and learning that from the failed write means the agent has already been paid for. The budget is
@@ -962,15 +970,15 @@ thread, where each reading is announced anyway. What the notice *says* is decide
 nothing else: a pull request nothing has pushed to is being adjudicated before anything is published, while the one
 the work is already **on** was published long before the hold — so telling its author their change is held "before
 anything is published" would describe a change that is not theirs, and what that notice names instead is the push the
-adjudication stands in front of. Being reconstructible is a property of a *spelling*, and a hold outlives the binary
-that wrote it, so the spelling before this one — marked by generation as well as cycle, and quoting the measurement —
-is kept as something to **recognize** and never to write. All three are recognized and only ever one is written: a
-body found in the older spelling is ours, and so is one found in the side of publication the record has since crossed,
-which a developer resumed on guidance and re-measured past their own push is exactly how a cycle reaches. The same
-edit that would have applied a fresh hold rewrites either in the current spelling, so every later comparison has one
-answer to make. A hold a binary cannot reconstruct is a "do not merge" notice nothing can ever take back off, on a
-pull request nothing can start an agent under. Leaving it alone is
-not the same as being *held*, though, and the answer says so: an open pull request whose notice a human removed is a
+adjudication stands in front of. Being reconstructible is a property of a *spelling*, so exactly the two this
+orchestrator writes are this cycle's hold, and only ever one of them is written: a body found in the side of
+publication the record has since crossed — which a developer resumed on guidance and re-measured past their own push
+is exactly how a cycle reaches — is ours, and the edit that would have applied a fresh hold rewrites it in the side
+the record now names, so every later comparison has one answer to make. A body in any other spelling — one marked by
+generation as well as cycle, say, or quoting the measurement — is treated as a human's words: never rewritten, never
+taken back off, and never captured as a description either, since the hidden hold marker it carries is the one
+recognition kept for it, and what that marker refuses is preserving a hold as somebody's text. Leaving a body alone
+is not the same as being *held*, though, and the answer says so: an open pull request whose notice a human removed is a
 change they can merge with nothing on it saying an adjudication is running, so the reconciliation reports it
 **displaced** and no late decomposer is started under it. An answer already recorded may still be settled — settling
 releases a hold that is already gone, and only a NEW run would leave a human free to merge under one. A write
@@ -1132,8 +1140,10 @@ human's decision, and the issue waits for one. Every category lands there, `unsa
 is the verdict rather than the reason offered for it.
 
 The notice names what a human deciding cannot get anywhere else once the run is over: the frozen candidate, the
-additions counted and the ceiling they were counted against, and the recorded explanation of what stopped a split —
-the stand-in sentence where a result kept none. The explanation is **named** rather than copied — the durable
+additions counted and the ceiling they were counted against, and the recorded explanation of what stopped a split;
+a sentence still owed over a record that has since lost the explanation is not said, and the park comes down with it
+ahead of the adjudication that record buys, so the thread is told whatever that run decides instead. The
+explanation is **named** rather than copied — the durable
 obligation holds a marker the delivery replaces with a fenced block at the end of the sentence, so what a human reads
 is the whole of it however long it is and whatever it says, and what the comment has to hold twice is nothing. Nothing
 is taken back, and the only thing written is the park: the durable claim that this issue is waiting on a human, with
@@ -1323,11 +1333,14 @@ the
 description this generation replaced is restored over the hold text, and what happens to that pull request afterwards
 is the ordinary reconciliation's — the publication that follows reuses it when the push lands on it and judges the
 restored description as it judges any reused one, never rewriting it, and leaves it alone when it does not. Only a body
-that IS this cycle's hold, verbatim, in either spelling this orchestrator can reconstruct, is restored — so a
-description a human rewrote, or edited a sentence of, marker and all, while the hold stood stays theirs, and a settled
-pull request still wearing an older binary's hold is still put back. That settled case is the one release the retry
-above cannot have migrated first: a pull request nobody can merge is left exactly as it is by the reconciliation, so
-what the release meets there is whichever spelling wrote it.
+that IS this cycle's hold, verbatim, in either spelling this orchestrator writes, is restored — so a description a
+human rewrote, or edited a sentence of, marker and all, while the hold stood stays theirs, and so does a hold in any
+other spelling, open or settled: it cannot authorize putting the preserved copy back, so it is left on the pull
+request as it stands. One under a marker this cycle never stamped is told apart from an edit of this cycle's own
+notice for one reason: no human touched it, so the preserved copy is still the only one of the description under it.
+On an open pull request that release fails as a refused restoration would, below — the copy stays recorded, and
+nothing that waits on the release moves, the migration of a hold onto the pull request a record has crossed to
+included — until a human settles that pull request.
 
 What a failed release may *stop* is narrower than what a failed hold stops, and for the reason the hold exists: the
 danger is a change a human can still merge while it wears a notice saying not to, which is a property of an **open**
@@ -1375,6 +1388,15 @@ whatever it did not understand. And a manifest whose declared scope carries one 
 markers is refused here rather than where the child body is built, because it is a fact about the manifest rather
 than about one slice and because this is the last point at which refusing costs a new commit instead of a human —
 the children step below says what that receipt would otherwise let a lookup adopt.
+
+A transaction a crash interrupted resumes from its recorded verdict and from nothing else: the next tick pays for no
+run, adopts a child created and never recorded by its receipt, and opens only the slices still missing. That needs
+the record to answer, and a recorded result that no longer does — its manifest refused by the rules its reply was
+held to, a slice with no budget or with its `depends_on` list missing or `null`, a verdict in no spelling this build
+reads — is not adjudicated again once the transaction stands at one of its own boundaries: a fresh verdict would be
+taken beside the snapshot and the children already made, and could adopt those children, by index, as slices of a
+different split. It parks `late_children_failed` instead, with no run spawned, nothing created, adopted, or
+released, and the record, the register, and the run count left as they stood (`late_execution.py`).
 
 **The snapshot, before any child** (`late_snapshot.py`, over `git/snapshots/`). A split ends with the parent's branch
 superseded, its pull request closed, and the parent itself an umbrella that implements nothing — so once children
@@ -1567,8 +1589,8 @@ a child is oversized is the cumulative measurement of the child's own diff, take
 slice that lands past the ceiling is adjudicated and split again however it was sized. The budget is added *beside*
 the declared scope rather than folded into it — what the adjudication wrote about a slice is what its developer is
 owed in full, and a size stated in the orchestrator's own words is not part of it, which is also why the scope
-recorded in `late_declared_scope` is the adjudication's words alone. A slice that declared no budget states none:
-that is what a manifest recorded before this domain kept budgets reads back as, and those still create children.
+recorded in `late_declared_scope` is the adjudication's words alone. Every slice a child is created from declared
+one: a fresh reply is refused without it, and a recorded manifest missing one is no manifest at all.
 
 What a child is *not* born with is anything that let its parent publish. The exemption an authorized settlement
 recorded and the `late_override_*` terms an operator authorized that publication on are each bound to one commit on

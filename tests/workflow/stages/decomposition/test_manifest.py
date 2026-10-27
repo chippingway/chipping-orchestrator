@@ -137,14 +137,14 @@ class ParseManifestChildValidationTest(unittest.TestCase):
     def test_unstated_depends_on_rejected(self) -> None:
         # Read as "no prerequisites", a child whose body says it needs a
         # sibling would be released beside it. A fresh reply is refused
-        # naming the child and the field; a stored record keeps reading the
-        # same children as having none, since a split already acted on that.
+        # naming the child and the field, and so is the same manifest read
+        # as a record: there is one rule, whoever wrote it.
         for children, refusal in _UNSTATED_DEPENDENCIES:
             with self.subTest(refusal=refusal):
                 payload = f'{{"decision": "split", "children": [{children}]}}'
                 self.assertEqual(_decompose_manifest._parse_manifest(_manifest(payload)), (None, refusal))
                 stored, _ = _decompose_manifest._decode_manifest(payload)
-                self.assertIsNone(_validation._split_manifest_error(stored))
+                self.assertEqual(_validation._split_manifest_error(stored), refusal)
 
 
 class ParseManifestEnvelopeTest(unittest.TestCase):

@@ -13,7 +13,6 @@ from orchestrator.workflow.stages.decomposition import (
     late_notice as _late_notice,
     late_park_state as _late_park_state,
 )
-from orchestrator.workflow.stages.decomposition.late_result_models import UNRECORDED_SPLIT_BLOCKER
 from tests.workflow.stages.decomposition import (
     late_notice_case as _notice_case,
     late_notice_payloads as _notice_payloads,
@@ -101,7 +100,6 @@ class CarriedTextNoticeTest(_notice_case._NoticeCase, unittest.TestCase):
 
         said = _notice_payloads._last_said(self.github)
         self.assertIn(_late_notice.RECORDED_EXPLANATION, said)
-        self.assertNotIn(UNRECORDED_SPLIT_BLOCKER, said)
         self.assertEqual(
             self._pinned().get(KEYS.question),
             f"which half {_late_notice.RECORDED_EXPLANATION} of it?",

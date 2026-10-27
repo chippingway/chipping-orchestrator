@@ -2775,13 +2775,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       manifest.py           the fenced-block envelope rules both modes are held to, the JSON decode, and the parse entry
                             point the stage routes on
       child_validation.py   child text and dependency shapes; dependency indices must be real integers naming another
-                            child in this manifest, and every malformed field is refused before graph traversal; a
-                            fresh reply must state each child's `depends_on` list, while a stored record still reads
-                            a missing or null one as no prerequisites
-      validation.py         bounded nonempty child envelopes, umbrella flags, and graph acyclicity after child
-                            validation, asked through two entry points: `_fresh_split_manifest_error` for a fresh
-                            reply, the initial decomposer's or the late adjudicator's, and the shared
-                            `_split_manifest_error` a stored record is read with
+                            child in this manifest, and every malformed field is refused before graph traversal;
+                            every child states its `depends_on` list, fresh or recorded, so a missing or null one is
+                            refused by the child's index and the field
+      validation.py         bounded nonempty child envelopes, optional boolean umbrella flags, and graph acyclicity
+                            after child validation, asked through the one `_split_manifest_error` a fresh reply --
+                            the initial decomposer's or the late adjudicator's -- and a late record are both held to
       outcomes.py           the live-pause and timeout settlement before the worktree check, and the three manifest
                             dispositions after it: the unparsed park, the `single` finalize, which clears an earlier
                             split's rationale in a write ahead of its flip, and the `split` hand-off
@@ -2998,7 +2997,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             both close-latch checks restore the unspent counters before cancellation can write,
                             so a run declined by shutdown or a live pause costs the issue nothing
       late_execution.py     spend the shared retry budget and start one admitted adjudication, checking the close latch
-                            around its durable attempt record
+                            around its durable attempt record; a `single` or `question` park over a record that no
+                            longer answers as that verdict comes down first, and a split transaction in flight over a
+                            recorded result that
+                            does not answer, in whatever spelling, parks `late_children_failed` instead, spawning and
+                            creating nothing
       late_completion.py    account usage, refuse unstarted, timed-out, interrupted, or mutated-candidate answers,
                             and record the session and verdict; re-read the owner for every completed or reused answer
                             before settlement, handing only a guarded split to the transaction; none of its
@@ -3021,9 +3024,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             watermark moves
       late_run_reading.py   read the pinned role, locked spec, session, source pair, and validated verdict payload,
                             with a rationale only beside a `single` or `split` and within its bound, absent otherwise,
-                            and a recorded manifest held to the stored-record split reading, where a missing or null
-                            `depends_on` still means no prerequisites; recover adjudications and resume only a
-                            session bound to this candidate generation
+                            and a recorded manifest held to the reply's rules -- the shared split validation, every
+                            child's stated `depends_on` list, and a declared budget on every slice -- or read as none;
+                            recover adjudications and resume only a session bound to this candidate generation
       late_result_payloads.py
                             encode verdicts, bounded rationales, and child estimates, and measure the actual
                             serialized pinned payload against the whole-comment budget with notice headroom
@@ -3035,11 +3038,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             full after the bounded thread excerpt to every late run, and repaid only by a verdict
                             an adjudicator recorded over them or by the candidate a developer revision's
                             reconciliation re-measures off a run that neither timed out nor stopped before it worked
-      late_hold_text.py     exact cycle-marked descriptions for unpublished, published, and superseded hold forms
+      late_hold_text.py     exact cycle-marked descriptions for the unpublished and published hold forms, the two it
+                            recognizes as this cycle's; the hold marker alone refuses a capture, no other spelling is
+                            rewritten or restored, and a marker this cycle never stamped is told from an edited notice
       late_hold_reading.py  choose the held, published, or issue-recorded pull request, read it once, and require plan
                             provenance for the issue pointer; missing or unreadable evidence refuses the hold
       late_hold_release.py  restore only descriptions matching this cycle's hold, and release a stale hold before its
-                            replacement is taken; an open pull request whose restoration failed keeps the handoff held
+                            replacement is taken; an open pull request whose restoration failed, or that a notice this
+                            cycle never stamped still holds, keeps the handoff held and the preserved body recorded
       late_hold.py          preserve the chosen pull request's identity, head, and body before applying its hold;
                             refuse unrecorded or displaced descriptions and report moved heads without restamping them
       late_verdict.py       what one finished reply decides: the lineage-bound refusal recorded as the categorized
@@ -3070,7 +3076,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             its claim, persists it through `late_park_state`, and releases its notice through
                             `late_park_delivery`; a post-run park is staged with its result and released only
                             after the owner guard. A fresh attempt retires only the reasons it answers, while a
-                            human's answer clears its own park and any sentence that park still owes
+                            human's answer clears its own park and any sentence that park still owes, and so does a
+                            run bought over a `single` or `question` record that no longer holds that verdict whole
       late_park_state.py    the park reasons, pinned keys, standing-claim predicates, and shared generation write
                             every late writer uses. The reply boundary ratchets here so a spent reply is not read
                             as a fresh answer again, and the delivered stretch follows it only over nobody's input --
@@ -3086,14 +3093,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             comment failed has told nobody anything
       late_park_delivery.py the release, redelivery, and reconciliation of a persisted park's notice. A delivered
                             comment is recognized on the thread when its settling write failed, so recovery
-                            discharges the obligation without saying it twice. The shared spawn budget's
+                            discharges the obligation without saying it twice, and a sentence that cannot be said
+                            over what the record holds stays owed. The shared spawn budget's
                             `retry_cap` keeps its delivery and reconciliation phases on the budget's own audit
                             stream. This owner reads state and notice owners directly and never calls back into
                             park decisions
       late_notice_fences.py safe Markdown fencing for a whole recorded explanation; candidate fence caps preserve line
                             endings, split hostile closing runs into blocks, and select the shortest complete rendering
       late_notice.py        durable park notices, explanation insertion, comment-size fallbacks, and authenticated receipt
-                            reads; the notice must still match the standing park, and a failed read leaves it owed
+                            reads; the notice must still match the standing park, and a failed read leaves it owed, as
+                            does a `single` or `question` park's sentence over a record that no longer holds that
+                            verdict whole -- the same reading that takes the park down ahead of its re-adjudication
       late_owner_reading.py fresh open/closed/unreadable owner readings, with the close-observation latch checked before
                             GitHub so a reopen cannot erase a close already observed during the worker's run -- one
                             that ends this cycle, a close held for a cycle restarted since asking GitHub instead
@@ -3349,8 +3359,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             outlives neither the children still to be released nor the branch still to be
                             deleted
       late_budget.py        the declared addition-budget field and positive whole-line reader, plus fresh-reply bounds;
-                            each proposed child needs a count strictly below the frozen ceiling, while legacy records
-                            can still omit a budget
+                            each proposed child needs a count strictly below the frozen ceiling, and each recorded
+                            slice a count at all
       late_prompt.py        the late-only prompt: the committed candidate, the frozen diff, the measurement, the
                             lineage, and the three outcomes with the bounds they are judged against and the two
                             field names they are answered under, read off the owners that read the reply -- the
@@ -3364,11 +3374,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             -- the figure its own JSON template shows scaled to that ceiling, since a template is
                             copied verbatim and a standing one would be a child the reply contract refuses wherever
                             the ceiling is narrower than it
-      late_reply.py         the late reply envelope and its three structured decisions; fresh split replies use the
-                            shared validator's fresh-reply entry point, which refuses a child whose `depends_on` is
-                            missing or null by its index and the field, and then the budget bounds, and a single
-                            decision must explain why no safe split exists before it can be presented for a human
-                            decision
+      late_reply.py         the late reply envelope and its three structured decisions; split replies use the shared
+                            split validator, which refuses a child whose `depends_on` is missing or null by its index
+                            and the field, and then the budget bounds, and a single decision must explain why no safe
+                            split exists before it can be presented for a human decision
       late_content.py       WHICH content the two late-local fingerprints are taken over -- the title and body, and
                             the trusted-thread run the ratcheting watermark covers -- what a comparison against a
                             recorded baseline says moved, and the floor a comment has to clear to be a REPLY rather
@@ -3479,7 +3488,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `engine/retiring_cycles.py` keeps, so no close read before it ends the fresh cycle
       late_result_models.py late-run identity, adjudication answers, guarded splits, and settlement dispositions, plus
                             the rationale bound, its truncation marker, and the two verdicts that keep one; an
-                            actionable answer remains bound to the exact cycle, generation, and candidate it read
+                            actionable answer is whole -- a `single` its explanation, a `question` its category and
+                            sentence, each nonblank, a `split` its manifest -- and remains bound to the exact cycle,
+                            generation, and candidate it read
       late_content_models.py
                             frozen content fingerprints, trusted authorization replies, drift signals carrying the
                             issue-wide requirements hash of the batch they read, and the outcome of consuming one

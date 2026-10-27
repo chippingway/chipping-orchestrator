@@ -3,22 +3,26 @@
 """Cycle-marked pull-request hold text and exact recognition of supported descriptions.
 
 Pre-publication and published candidates explain their hold separately.
-Restoration recognizes only complete descriptions produced for this cycle.
+Restoration recognizes only complete descriptions this binary writes for this
+cycle, in either spelling; any other body under the hold marker is nobody's
+hold to replace or take back off, and one under a marker this cycle never
+stamped is told apart only so its preserved copy is kept.
 """
 from __future__ import annotations
 
 from orchestrator.workflow.late_split.models import LateGeneration
 
 # The marker every late hold opens with. The prefix is what identifies a body
-# as held at all -- by any cycle, including one an older binary wrote -- and
-# it is what decides whether capturing the current body would preserve
-# somebody's description or a hold.
+# as held at all -- by any cycle, in any spelling, whether or not this binary
+# could have written it -- and it is what decides whether capturing the
+# current body would preserve somebody's description or a hold. That is the
+# one recognition kept for a spelling this binary does not write: enough to
+# refuse taking a hold over it, and never enough to replace or restore it.
 _HOLD_PREFIX = "<!--orchestrator-late-hold"
 
 # What every hold says once it has said which change it is holding. Shared
 # rather than repeated because it is the part that is true on both sides of
-# publication, and because the older spelling below has to reproduce it
-# exactly.
+# publication.
 _HOLD_TAIL = (
     "Do not merge this pull request while the hold stands.\n\n"
     "This description is temporary. The original is preserved in the issue's "
@@ -65,11 +69,10 @@ def _hold_body(generation: LateGeneration) -> str:
 def _unpublished_hold_body(generation: LateGeneration) -> str:
     """The notice a pull request nothing has pushed to carries.
 
-    Byte-for-byte what this hold has always said, because a spelling is a
-    compatibility contract: holds written by earlier binaries are standing on
-    live pull requests right now, and a word changed here would read every one
-    of them as a human's own description -- refusing to restore the copy it
-    replaced, and refusing to start anything under it, for good.
+    Byte-for-byte frozen, because a spelling is a current format: holds this
+    binary wrote are standing on live pull requests, and a word changed here
+    would read every one of them as a human's own description -- refusing to
+    restore the copy it replaced, and refusing to start anything under it.
     """
     return (
         f"{_hold_marker(generation)}\n"
@@ -102,64 +105,39 @@ def _published_hold_body(generation: LateGeneration) -> str:
     )
 
 
-def _superseded_hold_body(generation: LateGeneration) -> str:
-    """The same hold as an earlier binary of ours spelled it.
-
-    A hold is bytes on somebody else's pull request, which makes its wording a
-    compatibility contract rather than a detail: an orchestrator upgraded
-    mid-adjudication meets descriptions its predecessor wrote, and a spelling
-    it cannot reconstruct is one it reads as a human's own words -- refusing
-    to restore the preserved copy and refusing to start anything under the
-    pull request, for good.
-
-    So the older spelling is kept, exactly, as something to RECOGNIZE. It is
-    never written: a body found in it is rewritten in the current one by the
-    same reconciliation that would have applied a fresh hold, which is one
-    edit and leaves every later comparison with a single answer to make.
-
-    It is marked by generation as well as cycle and quotes the measurement,
-    which is why it was replaced -- both move inside a cycle, so a
-    re-measurement left the pull request wearing a notice the next tick could
-    no longer rebuild. Reconstructible here for the generation that is
-    actually recorded, which is the upgrade this exists for: the binary
-    changed under a hold, and nothing about the candidate did.
-
-    There is no published counterpart to reconstruct. No binary that wrote
-    this spelling ever marked a pull request the work was already on, so a
-    body found in it was written before publication whatever the record beside
-    it says now.
-    """
-    return (
-        f"{_HOLD_PREFIX}:cycle={generation.cycle_id}"
-        f":generation={generation.generation}-->\n"
-        ":hourglass: **Held by the orchestrator.** The committed "
-        f"implementation for issue #{generation.current_issue} measures "
-        f"{generation.additions} added lines against a ceiling of "
-        f"{generation.threshold}, so it is being adjudicated before anything "
-        f"is published. {_HOLD_TAIL}"
-    )
-
-
 def _wears_our_hold(generation: LateGeneration, body: str) -> bool:
-    """Whether this description is a hold THIS generation wrote, any spelling.
+    """Whether this description is a hold THIS cycle wrote, in either spelling.
 
-    The one question both the retry and the release ask, so an upgrade is
-    handled in one place rather than in two that could disagree about it.
-    Three spellings are reconstructible and no others: the two this binary
-    writes, one per side of publication, and the one the binary before it
-    wrote. Anything else is a human's, whatever hidden marker it happens to
-    carry.
+    The one question both the retry and the release ask, so the answer is
+    given in one place rather than in two that could disagree about it. Two
+    spellings are reconstructible and no others: the two this binary writes,
+    one per side of publication. Anything else is not ours to replace or
+    restore, whatever hidden marker it happens to carry -- a human's words, a
+    notice somebody edited, or a hold in a spelling this binary never writes.
 
-    Both current spellings are recognized, and only ever one of them written.
-    That is what makes a record that crosses publication mid-cycle -- a
-    developer resumed on guidance, a push, a re-measurement entered past it --
-    an upgrade like any other rather than a hold this issue reads as somebody
-    else's: the notice already standing is still ours, so the same edit that
-    would have applied a fresh one rewrites it in the side the record now
-    names, and every later comparison has a single answer to make.
+    Both are recognized, and only ever one of them written. That is what
+    makes a record that crosses publication mid-cycle -- a developer resumed
+    on guidance, a push, a re-measurement entered past it -- still this
+    issue's hold rather than one it reads as somebody else's: the notice
+    already standing is ours, so the same edit that would have applied a
+    fresh one rewrites it in the side the record now names, and every later
+    comparison has a single answer to make.
     """
     return body in (
         _unpublished_hold_body(generation),
         _published_hold_body(generation),
-        _superseded_hold_body(generation),
     )
+
+
+def _wears_unwritten_hold(generation: LateGeneration, body: str) -> bool:
+    """Whether this description is held by a notice this cycle never wrote.
+
+    The hold marker without this cycle's own: another cycle's hold, or one in
+    a spelling this binary does not write. Told apart from a human editing
+    this cycle's notice, which keeps the marker this cycle stamped, because
+    the two leave different things under them. An edited notice is somebody's
+    words, so the copy preserved beside it is no longer a description of
+    anything; a notice nobody here wrote is still a hold, and the copy is still
+    the only one of the description it covers.
+    """
+    return _HOLD_PREFIX in body and _hold_marker(generation) not in body

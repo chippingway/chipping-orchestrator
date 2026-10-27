@@ -48,10 +48,10 @@ def _result_payload(adjudication: _LateAdjudication) -> dict:
     be a second adjudication free to propose a different split entirely.
 
     The explanation goes only where the reply gave one, and so does the
-    budget. What an absent field means is settled on the way back, so writing
-    a stand-in here would put this binary's own number in the comment as
-    though an agent had estimated it, and spend the comment budget saying
-    nothing.
+    budget. A stand-in written here would put this binary's own words or
+    number in the comment as though an agent had given them, and spend the
+    comment budget saying nothing; a record missing either is read back as no
+    answer instead (`late_run_reading`).
 
     The rationale is the one field shortened, and it is cut here, before the
     comment is measured, so what the preflight measures is what gets written.

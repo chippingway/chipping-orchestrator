@@ -207,7 +207,8 @@ def _answered_by_the_record(context: _LateContext, generation) -> bool:
     Asked for the same reason the settlement asks for it: what the command
     authorizes is the publication of an adjudication already taken, so an
     issue whose record cannot show one has nothing for it to license. Reached
-    only where that record was hand-edited or lost, and answered rather than
+    only where that record was hand-edited, lost, or never whole -- a `single`
+    with no explanation is no answer either -- and answered rather than
     ignored, because the human is owed the reason -- and because the park has
     to come down with that answer, which is what the refusal below does.
     """

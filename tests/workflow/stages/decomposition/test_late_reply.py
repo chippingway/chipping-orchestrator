@@ -94,15 +94,13 @@ _REFUSED_REPLIES = (
 )
 
 
-# What each outcome says stopped a split: the reply, and the pair of what the
-# adjudication carries and what a reader of the verdict is told. Only a
-# `single` is an answer about a split that did not happen, and one that named
-# no obstacle is refused above rather than parsed into a verdict with nothing
-# under it.
+# What each outcome says stopped a split. Only a `single` is an answer about a
+# split that did not happen, and one that named no obstacle is refused above
+# rather than parsed into a verdict with nothing under it.
 _SPLIT_BLOCKERS = (
-    ("explained", _support.SINGLE_REPLY, (_support.SPLIT_BLOCKER, _support.SPLIT_BLOCKER)),
-    ("split", _support.SPLIT_REPLY, ("", "")),
-    ("question", _support.QUESTION_REPLY, ("", "")),
+    ("explained", _support.SINGLE_REPLY, _support.SPLIT_BLOCKER),
+    ("split", _support.SPLIT_REPLY, ""),
+    ("question", _support.QUESTION_REPLY, ""),
 )
 
 
@@ -135,13 +133,7 @@ class LateReplyTest(unittest.TestCase):
                 )
 
                 self.assertIsNone(refusal)
-                self.assertEqual(
-                    (
-                        adjudication.split_blocker,
-                        adjudication.split_blocker_explanation,
-                    ),
-                    expected,
-                )
+                self.assertEqual(adjudication.split_blocker, expected)
 
     def test_split_carries_the_children_it_proposed(self) -> None:
         adjudication, error = _late_reply._parse_late_reply(

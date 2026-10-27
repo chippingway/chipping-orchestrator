@@ -191,10 +191,12 @@ RECORDED_QUESTION = MappingProxyType({
     _support.KEYS.session_id: LATE_SESSION,
 })
 
-# A completed adjudication that decided this candidate is one change: the
-# record a later tick reuses instead of paying for a second run.
+# A completed adjudication that decided this candidate is one change, with the
+# explanation that verdict owes: the record a later tick reuses instead of
+# paying for a second run.
 RECORDED_SINGLE = MappingProxyType({
     _support.KEYS.verdict: str(LateVerdict.SINGLE),
+    _support.KEYS.split_blocker: _support.SPLIT_BLOCKER,
     _support.KEYS.run_cycle_id: _support.late_generation().cycle_id,
     _support.KEYS.run_generation: _support.late_generation().generation,
     _support.KEYS.source_sha: _support.CANDIDATE_SHA,

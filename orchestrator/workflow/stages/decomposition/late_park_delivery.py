@@ -52,16 +52,27 @@ def _release_staged_park(context: _LateContext) -> None:
     that leaves the recorded explanation on the record rather than copying it
     reaches the thread whole -- and reaches it identically here and on a
     redelivery, which is what the reconciliation that looks for it depends on.
+    A sentence for a park whose record no longer holds its verdict whole is
+    not said at all: it stays owed, and goes with that park when the
+    adjudication such a record buys takes it down.
     """
     staged = context.staged_park
     if staged is None:
         return
     context.staged_park = None
+    delivered = _late_notice._filled(context, staged)
+    if delivered is None:
+        log.warning(
+            "issue=#%d owes the notice for park %s, but its record no longer "
+            "holds the verdict that park waits on; leaving it owed",
+            context.issue.number, staged.reason,
+        )
+        return
     _guards._park_awaiting_human(
         context.gh,
         context.issue,
         context.state,
-        f"{config.HITL_MENTIONS} {_late_notice._filled(context, staged)}",
+        f"{config.HITL_MENTIONS} {delivered}",
         reason=staged.reason,
     )
     context.state.set(_late_park_state._PARK_REASON, staged.reason)

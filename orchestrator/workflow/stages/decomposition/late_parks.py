@@ -10,7 +10,9 @@ making delivery recovery another park decision.
 
 A fresh attempt retires only the reasons it can answer. A human's answer
 clears its own park and any notice that park still owed; neither path may
-silently dismiss the other reasons that require a human decision.
+silently dismiss the other reasons that require a human decision. The one
+park a run takes down unanswered is a verdict's whose record no longer holds
+that verdict whole, since nothing is left for a human to decide on.
 """
 from __future__ import annotations
 
@@ -212,3 +214,32 @@ def _answer_park(context: _LateContext) -> None:
     _late_notice._notice_settled(context)
     context.state.set(_late_park_state._AWAITING_HUMAN, False)
     context.state.set(_late_park_state._PARK_REASON, None)
+
+
+def _retire_outlived_park(context: _LateContext) -> None:
+    """Take down a verdict's park whose record no longer answers as that verdict.
+
+    A `single` park and a `question` park each wait on a human deciding about
+    the verdict they were taken over, and a record with no whole one of it --
+    the verdict gone, a `single` with no explanation a human could decide on,
+    a `question` with no sentence a human could answer -- leaves no such
+    decision to owe. Asked where a fresh run is about to be bought for that
+    record: left standing, the park would go on claiming the issue waits on a
+    human through that run, and `awaiting_human` is the flag that silences
+    the question it may ask. So it comes down as a human's answer takes it
+    down, with any sentence it still owed -- which the redelivery at the top
+    of the tick has already declined to say over the same reading
+    (`late_notice._outlived_verdict`). The write is whichever one the tick
+    makes next, and whatever the run decides parks on its own.
+    """
+    standing = context.state.get(_late_park_state._PARK_REASON)
+    if not _late_park_state._stands_for(context, standing):
+        return
+    if not _late_notice._outlived_verdict(context, standing):
+        return
+    log.info(
+        "issue=#%d stands on a %s park its record no longer answers; taking "
+        "it down ahead of the adjudication that replaces it",
+        context.issue.number, standing,
+    )
+    _answer_park(context)

@@ -131,7 +131,16 @@ writers record it whole: no approval record, an approval beside no evidence clai
 `late_approved_basis` this build can read, and a rewrite permission beside an attempt record with no declared terms are
 each no grounds -- never an earlier producer's default -- and authorize no publication, transfer, or ready notification.
 An exempt commit with no semantic identity, the settlement's when fingerprinting fails, stays a current record that
-exempts that commit alone.
+exempts that commit alone. A recorded decomposition outcome is read only whole, under the manifest contract its reply
+was held to: a split child with no stated `depends_on` list, a late slice with no `estimated_added_lines`, and a late
+`single` with no `split_blocker` are no outcome, so nothing is created, released, parked, or announced on one, and
+a park waiting on one comes down -- the candidate is adjudicated again before a split transaction begins, and once one
+has begun the issue parks over what it made, whatever spelling its recorded verdict is in. A late pull-request hold is
+recognized only in the two spellings this build writes, on either side of publication; a description in any other is
+never rewritten, released, or restored over: its hold marker refuses capturing it as somebody's description and, on
+an open pull request, holds every release that would drop the preserved copy. An optional rationale, an omitted
+ordinary `umbrella` flag, an
+ordinary child with no budget, and no split marker at all for a split that never started remain current answers.
 
 Unsupported input cannot serve as fresh work, current evidence, or authorization to publish or delete artifacts. Neither
 a format change nor a refusal grants permission to discard that input or the artifacts it names; the owning
@@ -166,7 +175,9 @@ or lost write interrupted are current state, not historical compatibility.
 [analytics readers](observability/analytics-dashboard.md#read-model-orchestratorobservabilityanalyticsquery),
 [requirements baselines](state-machine/delivery-stages.md#user-content-drift-detection),
 [watermark initialization](state-machine/delivery-stages.md#_handle_in_review-label-in_review),
-[replay batches](state-machine/labels-and-state.md#pinned-state).
+[replay batches](state-machine/labels-and-state.md#pinned-state),
+[decomposition records](state-machine/labels-and-state.md#pinned-state),
+[late holds](workflow/roles.md#what-a-late-adjudication-is-asked-and-what-it-may-answer).
 
 **Checks:** [state](../tests/github/test_pinned_state.py), [events](../tests/github/test_events.py),
 [agent surface](../tests/agents/test_imports.py), [submissions](../tests/scheduler/test_submission.py),
@@ -188,7 +199,11 @@ or lost write interrupted are current state, not historical compatibility.
 [fix settlement](../tests/workflow/stages/fixing/test_cross_read_race.py),
 [replay batches](../tests/workflow/stages/fixing/test_batch.py),
 [approval bases](../tests/workflow/stages/implementing/test_late_approval_basis.py),
-[rewrite permissions](../tests/git/base_sync/test_transfers.py).
+[rewrite permissions](../tests/git/base_sync/test_transfers.py),
+[split manifests](../tests/workflow/stages/decomposition/test_manifest.py),
+[late records](../tests/workflow/stages/decomposition/test_late_session.py),
+[unexplained singles](../tests/workflow/stages/decomposition/test_late_unsplit_park.py),
+[hold spellings](../tests/workflow/stages/decomposition/test_late_hold.py).
 
 ## C-04: Authentic state and trusted input
 
@@ -263,7 +278,9 @@ exclusivity, and every other maintenance gate stay required beside it.
 
 **Limits:** Recovery rechecks prerequisites. An unreadable record or artifact does not prove the write failed, and an
 incomplete one proves nothing landed: recovery finishes a current transaction from its whole record -- a debt with
-its basis, a rewrite permission bound to its attempt's declared terms -- and refuses one missing either. Close
+its basis, a rewrite permission bound to its attempt's declared terms, a late split from a recorded verdict that reads
+back whole -- and refuses one missing any of it; a split transaction in flight over a result that no longer answers,
+a verdict no build reads included, parks rather than buying a second verdict beside the children it made. Close
 recovery answers a record admission refuses as an unreadable one: the close it read is kept, and nothing is posted,
 marked, or reclaimed over it. Snapshot recovery over a ref already gone tells no consumer admission refuses and keeps
 that notice owed rather than recording it delivered.
@@ -288,7 +305,9 @@ Writer exclusion comes from [C-05].
 [ready-ping recovery](../tests/workflow/stages/in_review/test_ready_ping_recovery.py),
 [refused close recovery](../tests/workflow/stages/decomposition/test_late_refused_closes.py),
 [admitted read-back](../tests/workflow/engine/test_dispatch_current_recovery.py),
-[ready recovery](../tests/workflow/stages/decomposition/test_ready_recovery.py).
+[ready recovery](../tests/workflow/stages/decomposition/test_ready_recovery.py),
+[split recovery](../tests/workflow/stages/decomposition/test_late_recovery.py),
+[in-flight splits](../tests/workflow/stages/decomposition/test_late_split_recovery.py).
 
 ## C-07: Publication authority and exact revisions
 
