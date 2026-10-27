@@ -171,7 +171,7 @@ pinned comment is admitted before any route reads a branch, a pull request, or a
 admission refuses no route runs at all — no rebase, push, reset, recovery, notice, publication, relabel, or
 settlement — and its checkout, branches, pull request, labels, and comment stay as they stand, the refusal said only
 in a local warning; the base fetch every worktree shares licenses nothing on them. An admitted record naming no branch
-live work may use, and short of a pinned anchor a checkout not proven the issue's own, are left the same way
+live work may use, and a checkout not proven the issue's own, are left the same way
 ([branch refusal](state-machine/labels-and-state.md#branch-refusal)). A pre-PR
 worktree rebases locally; a PR-having one in `workflow:validating` / `workflow:documenting` / `in_review` /
 `workflow:fixing` pushes the clean rebase with a pinned `--force-with-lease`, resets `review_round`, records the report

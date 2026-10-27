@@ -171,12 +171,14 @@ def _stands_on_its_branch(
     recorded pull request with no branch pinned beside it, names no branch a
     rebase, a push, or a recovery may stand on, and nothing is derived in its
     place. The checkout is asked whether it is the issue's own -- a worktree
-    of this clone on exactly that branch, reached at its own path -- before a
-    fresh rebase rewrites it, so a tree on a flat, foreign, or detached HEAD is
-    left with every commit it holds. A pinned anchor is the one exception: it
-    is pinned only over a checkout this refresh proved its own, and its
-    recovery reads that checkout as the interrupted attempt left it, mid-rebase
-    included. Either refusal is said once and leaves everything as it stands.
+    of this clone on exactly that branch, reached at its own path -- before
+    any route rewrites or resets it, so a tree on a flat, foreign, or detached
+    HEAD is left with every commit it holds. A pinned anchor's recovery is
+    asked the same question, since a checkout can be switched between ticks
+    and the recovery's reset takes whatever the tree holds; the one thing it
+    adds is a detached HEAD whose unfinished rebase is rewriting exactly the
+    issue's branch, which is how an interrupted attempt leaves its own
+    checkout. Either refusal is said once and leaves everything as it stands.
     """
     if _naming._trusted_branch(state, spec, issue_number) is None:
         log.warning(
@@ -184,9 +186,9 @@ def _stands_on_its_branch(
             issue_number, state.get(_naming._PINNED_BRANCH), state.get(_naming._PINNED_PR), _REFRESH_REFUSED,
         )
         return False
-    if state.get(_base_sync_state._PENDING_PUSH_SHA):
-        return True
-    identity = _evidence._checkout_identity(spec, issue_number, worktree)
+    identity = _evidence._checkout_identity(
+        spec, issue_number, worktree, rebasing=bool(state.get(_base_sync_state._PENDING_PUSH_SHA)),
+    )
     if identity is _worktree_models.ProbeAnswer.CONFIRMED:
         return True
     log.warning(

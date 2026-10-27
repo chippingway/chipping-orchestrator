@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 
 from orchestrator.agents.models import AgentResult
 from orchestrator.git.publication.commits import _Amendment
+from orchestrator.git.worktrees.models import ProbeAnswer
 from tests.support.fakes import DEFAULT_PR_HEAD_SHA
 from tests.workflow.repo_values import (
     _FAKE_TREE_SHA,
@@ -123,6 +124,11 @@ class _WorkflowRunContext:
     # that ask whether it is on this host at all -- a reviewer's published
     # evidence among them. None leaves the real path, which nothing here holds.
     issue_checkout: Any = None
+    # What the ownership read answers for that checkout: the issue's own by
+    # default, since the checkout here is no real worktree at a layout path
+    # and the git under it is faked, and anything else where a case is about
+    # a foreign tree standing at the issue's path.
+    checkout_identity: ProbeAnswer = ProbeAnswer.CONFIRMED
     # The full tree every commit in that checkout reads as, which a reviewer's
     # declared commands are bound to as the tested tree. None leaves the read
     # as the case stood it in.

@@ -65,6 +65,7 @@ def _worktree_mocks(context: _WorkflowRunContext) -> dict[str, object]:
         "_ensure_pr_worktree": MagicMock(return_value=_FAKE_WT),
         "_ensure_decompose_worktree": MagicMock(return_value=_FAKE_WT),
         "_decompose_worktree_path": MagicMock(return_value=_FAKE_WT),
+        "_checkout_identity": MagicMock(return_value=context.checkout_identity),
     }
     if context.worktree_restore_error is not None:
         # A checkout whose restore fails is one this host no longer holds.

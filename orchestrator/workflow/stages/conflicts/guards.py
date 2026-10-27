@@ -18,7 +18,7 @@ from pathlib import Path
 
 from orchestrator.config import models as _config_models
 from orchestrator.git import branch_transport as _branch_transport, commands as _git_commands
-from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
+from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.stages.conflicts import models as _models
 
@@ -31,13 +31,15 @@ def _ensure_conflict_worktree(ctx: _models._ConflictContext) -> Path:
     the PR branch so the PR's commits survive; `_ensure_worktree` would
     silently rebuild from `origin/<base>` and discard them. The branch is
     resolved first, so a record naming no branch live work may use is refused
-    whether or not the checkout is still on disk.
+    whether or not the checkout is still on disk, and a checkout still
+    standing is worked in only once it is proven the issue's own -- detached
+    in the middle of rebasing exactly that branch included, which is what a
+    `rebase_in_progress` park leaves (`creation._retained_checkout`).
     """
     branch = _naming._resolve_branch_name(ctx.state, ctx.spec, ctx.issue.number)
-    wt = _worktree_paths._worktree_path(ctx.spec, ctx.issue.number)
-    if not wt.exists():
-        wt = _worktree_creation._ensure_pr_worktree(ctx.spec, ctx.issue.number, branch=branch)
-    return wt
+    return _worktree_creation._retained_checkout(
+        ctx.spec, ctx.issue.number, rebasing=True,
+    ) or _worktree_creation._ensure_pr_worktree(ctx.spec, ctx.issue.number, branch=branch)
 
 
 def _pr_head_orchestrator_produced(state: PinnedState, pr) -> bool:

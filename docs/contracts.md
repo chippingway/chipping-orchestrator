@@ -147,8 +147,10 @@ checkout is no repository's artifact, and no ownership, terminal, late-split, or
 deletes one, whether the clone holds it or only the remote does. No live work adopts one either: the branch resolver
 answers only an issue's current-layout name, for fresh work and for a record pinning exactly that name, and refuses
 any other record before a checkout, launch, or push, inferring no flat name from a recorded pull request, taking no
-`orchestrator/` prefix as proof, and deriving no replacement for a pin; a creator reuses or removes a checkout at the
-issue's path only once it is proven a worktree of the clone on that branch, whatever commits the tree carries.
+`orchestrator/` prefix as proof, and deriving no replacement for a pin; no road works in, resumes, reuses, rebases,
+recovers, publishes from, or removes a checkout at the issue's path until it is proven a worktree of the clone on that
+branch, whatever commits the tree carries, a detached HEAD passing only where an unfinished rebase of exactly that
+branch accounts for it.
 Current-format authentication [C-04], writer claims and artifact ownership [C-05], guarded and uncertain-write recovery
 [C-06], approval evidence [C-09], pinned session commands [C-14], lifetime run accounting [C-15], and the audit-log
 recovery exception [C-12] remain required. Optional fields the current format defines and current transactions a crash
@@ -320,6 +322,8 @@ Credential filtering does not enforce push authority; see [C-11].
 [rewrite publication](../tests/workflow/engine/test_rewrite_publication.py),
 [human merge handoff](../tests/workflow/stages/in_review/test_routing.py),
 [refused publication](../tests/workflow/stages/implementing/test_pr_reuse.py),
+[refused seam push](../tests/workflow/stages/fixing/test_bounce.py),
+[refused resume](../tests/workflow/stages/implementing/test_resume_checkout.py),
 [refused refresh](../tests/workflow/engine/test_base_refresh_branch_refusal.py),
 [refused adjudication](../tests/workflow/stages/decomposition/test_late_charged_run.py).
 

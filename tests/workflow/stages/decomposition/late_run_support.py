@@ -26,6 +26,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from orchestrator.agents import runner as _agent_runner
+from orchestrator.git.worktrees import evidence as _worktree_evidence, models as _worktree_models
 from orchestrator.workflow.stages.decomposition import (
     late_coordinator as _coordinator,
     late_transaction as _late_transaction,
@@ -74,6 +75,11 @@ def late_run_context(
         if seed.exists:
             checkout.mkdir()
         hold_late_seams(stack, seed, checkout, measurement, snapshot)
+        # The checkout is a plain directory, so its ownership read is stated.
+        stack.enter_context(patch.object(
+            _worktree_evidence, "_checkout_identity",
+            MagicMock(return_value=_worktree_models.ProbeAnswer.CONFIRMED),
+        ))
         if not transact:
             stack.enter_context(patch.object(
                 _late_transaction,

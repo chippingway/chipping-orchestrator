@@ -8,6 +8,7 @@ import unittest
 from functools import partial
 
 from orchestrator.git.worktrees import naming as _naming
+from orchestrator.git.worktrees.models import ProbeAnswer
 from orchestrator.workflow.engine import content_hash as _content_hash
 from orchestrator.workflow.stages.implementing import handler as _implementing
 from tests.workflow.stages.implementing import pr_test_support as support
@@ -31,6 +32,9 @@ posted_comment_contains = support.posted_comment_contains
 # The flat pre-namespacing spelling of issue 4's branch, which no live work
 # stands on.
 FLAT_BRANCH = "orchestrator/issue-4"
+
+# The current-layout name of issue 4's branch, which an open pull request stands on.
+CURRENT_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-4"
 
 # Every seam a tick refused on its branch must leave uncalled: the launch, both
 # checkout creators, and the push.
@@ -66,6 +70,38 @@ class OnCommitsPRReuseTest(unittest.TestCase, _PatchedWorkflowMixin):
         )
         self.assertIn((4, "workflow:validating"), gh.label_history)
         self.assertEqual(gh.pinned_data(4).get("pr_number"), EXISTING_PR_NUMBER)
+
+    def test_a_foreign_checkout_is_never_published(self) -> None:
+        # The publication proves the checkout it pushes from before it
+        # records an intent or pushes anything. A tree at the issue's path
+        # that is not the issue's own -- here one the ownership read refutes,
+        # beside an open pull request on the current branch -- is refused
+        # there: no push, no pull request, no relabel, whatever the run left
+        # in it.
+        gh = FakeGitHubClient()
+        issue = make_issue(4, label=LABEL_IMPLEMENTING)
+        gh.add_issue(issue)
+        existing = FakePR(
+            number=EXISTING_PR_NUMBER, head_branch=CURRENT_BRANCH,
+            body=support._named_description(4, DEV_SESSION),
+        )
+        gh.add_pr(existing)
+        gh.existing_open_pr[CURRENT_BRANCH] = existing
+
+        mocks = self._run(
+            partial(
+                self.assertRaises, _naming.BranchRefused,
+                _implementing._handle_implementing, gh, support._TEST_SPEC, issue,
+            ),
+            run_agent=_agent(session_id=DEV_SESSION, last_message=DONE_MESSAGE),
+            has_new_commits=[False, True],
+            dirty_files=(),
+            push_branch=True,
+            checkout_identity=ProbeAnswer.REFUTED,
+        )
+
+        mocks["_push_branch"].assert_not_called()
+        self.assertEqual((gh.opened_prs, gh.label_history), ([], []))
 
     def test_a_flat_pinned_branch_is_refused(self) -> None:
         # A record pinning the flat `orchestrator/issue-<n>` names no branch

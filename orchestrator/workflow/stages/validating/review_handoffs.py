@@ -205,7 +205,7 @@ from github.Issue import Issue
 
 from orchestrator import config
 from orchestrator.agents.models import is_shutdown_sweep_interrupted
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.worktrees import naming as _naming, paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
@@ -389,7 +389,13 @@ def _hands_it_off(
     ready carried onto it: a human answers that park, and feedback posted
     under it, or a developer launched, would answer nobody's ask. The request
     waits as it is for the reply that clears it.
+
+    Ahead of all of it the branch the developer would be handed is resolved:
+    a record naming no branch live work may use raises
+    `naming.BranchRefused` before any feedback is posted, any handoff is
+    recorded, or the issue is relabelled to `workflow:fixing`.
     """
+    _naming._resolve_branch_name(context.state, context.spec, context.issue.number)
     gh, issue = context.gh, context.issue
     if context.state.get(_review_writes._AWAITING_HUMAN):
         log.warning(

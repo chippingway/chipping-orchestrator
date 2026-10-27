@@ -1,11 +1,13 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Real commits and ref edits for candidate evidence, including forged tracking refs."""
+"""Real commits and ref edits for candidate evidence, including forged tracking refs and a stopped rebase."""
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 from tests.support.git import (
+    _git_env,
     _run_git,
 )
 
@@ -72,3 +74,16 @@ def _track_file(root: Path, name: str, written: str) -> str:
     _run_git("add", name, cwd=root)
     _run_git("commit", QUIET, "-m", f"track {name}", cwd=root)
     return _revision(root, "HEAD")
+
+
+def _interrupted_rebase(worktree: Path, onto: str) -> int:
+    """Start a rebase of the checkout's branch that stops after its first pick, and say how git exited.
+
+    `--force-rebase` replays the commit even onto the base it already sits
+    on, and an `--exec` that fails stops the rebase right behind it -- HEAD
+    detached, the rebase's state naming the branch it is rewriting.
+    """
+    return subprocess.run(
+        ["git", "rebase", "--force-rebase", "--exec", "false", onto],
+        cwd=str(worktree), check=False, capture_output=True, env=_git_env(),
+    ).returncode

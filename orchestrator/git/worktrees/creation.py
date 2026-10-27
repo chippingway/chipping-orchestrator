@@ -5,8 +5,10 @@
 Both creators work only the issue's current-layout branch and only a checkout
 proven the issue's own: any other branch, and a tree at the issue's path that
 stands on a flat, foreign, or detached HEAD, is refused before anything is
-removed, added, or reused (`naming.BranchRefused`). Over its own checkout a
-creator consults the local contribution before removing it. PR restoration
+removed, added, or reused (`naming.BranchRefused`). The same proof is the one
+every road that works in a checkout already standing there asks first
+(`_retained_checkout`), and it reads only. Over its own checkout a creator
+consults the local contribution before removing it. PR restoration
 requires a fresh remote branch or an established absence, so a failed fetch
 cannot replace a live PR's work with the base. The anchoring owner handles
 branch movement after a caller has separately proved it is safe.
@@ -32,6 +34,50 @@ _WORKTREE_ADD = ("worktree", "add")
 _WORKTREE_REMOVE_FORCE = ("worktree", "remove", "--force")
 
 
+def _proven_checkout(
+    spec: _config_models.RepoSpec, issue_number: int, worktree: Path, *, rebasing: bool = False,
+) -> Path:
+    """`worktree` once it is proven this issue's own checkout, or `BranchRefused`.
+
+    Reads only: the identity (`evidence._checkout_identity`) is a worktree of
+    this clone on exactly the issue's current-layout branch, reached at the
+    issue's path through no symlink. One on the flat `orchestrator/issue-<n>`,
+    on another repository's branch, or on a detached HEAD -- or reached through
+    a symlink -- is foreign however many commits it holds past base, and one
+    whose identity nothing could read is not proven; either keeps every file
+    and refuses the caller. `rebasing` is for a road that resumes an
+    interrupted rebase: a detached HEAD passes there only where the rebase in
+    the tree is rewriting exactly the issue's branch.
+    """
+    identity = evidence._checkout_identity(spec, issue_number, worktree, rebasing=rebasing)
+    if identity is ProbeAnswer.CONFIRMED:
+        return worktree
+    log.warning(
+        "issue=#%d checkout %s is not proven this issue's own on %r (%s); "
+        "refusing to work, reuse, or remove it and leaving it for manual "
+        "disposition", issue_number, worktree,
+        _naming._branch_name(spec, issue_number), identity,
+    )
+    raise _naming.BranchRefused(f"issue #{issue_number} has a checkout that is not its own")
+
+
+def _retained_checkout(
+    spec: _config_models.RepoSpec, issue_number: int, *, rebasing: bool = False,
+) -> Path | None:
+    """The checkout standing at this issue's path once proven its own, or None where none stands.
+
+    Asked by every road that would work in a checkout it finds rather than
+    create one -- a resumed session, a conversation round, a conflict
+    resolution, an adjudication -- before anything runs there, and by the
+    creators before they reuse or remove one (`_proven_checkout`). A path
+    with nothing at it is None, for the caller to create on its own terms.
+    """
+    worktree = paths._worktree_path(spec, issue_number)
+    if not worktree.exists():
+        return None
+    return _proven_checkout(spec, issue_number, worktree, rebasing=rebasing)
+
+
 def _reused_checkout(
     spec: _config_models.RepoSpec, issue_number: int, branch: str,
 ) -> Path | None:
@@ -40,13 +86,10 @@ def _reused_checkout(
     Asked under the target-root lock, before either creator adds anything. The
     branch has to be the issue's current-layout name, which is what the live
     resolver answers with; a caller handing anything else is refused here
-    rather than given a checkout on it. A tree already standing at the path is
-    read for its identity first (`evidence._checkout_identity`), because what
-    it carries is only this issue's work when it is a worktree of this clone on
-    exactly that branch: one on the flat `orchestrator/issue-<n>`, on another
-    repository's branch, or on a detached HEAD -- or one reached through a
-    symlink -- keeps every file and refuses the creator, however many commits
-    it holds past base, and so does one whose identity nothing could read.
+    rather than given a checkout on it. A tree already standing at the path
+    has to be proven the issue's own first (`_retained_checkout`), because
+    what it carries is only this issue's work when it is: anything else is
+    refused with every file in place, whatever it holds past base.
 
     Over its own checkout the unpushed work decides. Commits past base are what
     let the orchestrator survive a crash between an agent committing and the
@@ -61,17 +104,9 @@ def _reused_checkout(
             "current branch %r; refusing it", issue_number, branch, current,
         )
         raise _naming.BranchRefused(f"issue #{issue_number} has no checkout on {branch!r}")
-    wt = paths._worktree_path(spec, issue_number)
-    if not wt.exists():
+    wt = _retained_checkout(spec, issue_number)
+    if wt is None:
         return None
-    identity = evidence._checkout_identity(spec, issue_number, wt)
-    if identity is not ProbeAnswer.CONFIRMED:
-        log.warning(
-            "issue=#%d checkout %s is not proven this issue's own on %r (%s); "
-            "refusing to reuse or remove it and leaving it for manual "
-            "disposition", issue_number, wt, current, identity,
-        )
-        raise _naming.BranchRefused(f"issue #{issue_number} has a checkout that is not its own")
     if _has_new_commits(spec, wt):
         log.info(
             "issue=#%d worktree has unpushed commits; reusing", issue_number,

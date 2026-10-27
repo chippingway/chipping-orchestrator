@@ -35,6 +35,7 @@ from itertools import product
 from types import MappingProxyType
 from unittest.mock import patch
 
+from orchestrator.git.worktrees import naming as _naming
 from tests.workflow.fixtures import LABEL_FIXING, LABEL_VALIDATING
 from tests.workflow.stages.validating import (
     review_handoff_test_support as _support,
@@ -47,6 +48,10 @@ PR_COMMENT = "pr_comment"
 SET_LABEL = "set_workflow_label"
 
 FIXING = (_world.ISSUE, LABEL_FIXING)
+
+# The flat pre-namespacing spelling of the issue's branch, which a record may
+# pin and no developer may be handed.
+FLAT_BRANCH = f"orchestrator/issue-{_world.ISSUE}"
 
 HANDED_BACK = (FIXING, (_world.ISSUE, LABEL_VALIDATING))
 
@@ -340,6 +345,24 @@ class ChangeRequestHandoffTest(_support.HandoffWorld, unittest.TestCase):
 
 class HandedRequestTest(_support.HandoffWorld, unittest.TestCase):
     """A request already handed is finished without posting its feedback again, and by one developer."""
+
+    def test_a_refused_branch_hands_nothing(self) -> None:
+        # A later tick handing a waiting request over, from a record pinning
+        # a branch live work may not use, hands it to nobody: the refusal
+        # comes ahead of the feedback post, the handed record, and the
+        # relabel, so the request is still waiting as it was, and nothing is
+        # charged.
+        self.seeds()
+        state = self.github.read_pinned_state(self.issue)
+        state.set("branch", FLAT_BRANCH)
+        self.github.write_pinned_state(self.issue, state)
+        before = (self.feedback_posts(), tuple(self.github.label_history), self.pinned())
+
+        with self.assertRaises(_naming.BranchRefused):
+            self.hands_over()
+
+        after = (self.feedback_posts(), tuple(self.github.label_history), self.pinned())
+        self.assertEqual(after, before)
 
     def test_a_handed_request_resumes_its_handoff(self) -> None:
         # The relabel behind the write that handed the request over is

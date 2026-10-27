@@ -1,6 +1,11 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Hardened checkout reads and clone reads serialized with worktree mutations."""
+"""Hardened checkout reads and clone reads serialized with worktree mutations.
+
+One checkout read is spelled here rather than at its caller: which branch an
+unfinished rebase in the tree is rewriting, since a rebase leaves HEAD
+detached until it finishes.
+"""
 from __future__ import annotations
 
 import logging
@@ -9,8 +14,15 @@ from pathlib import Path
 
 from orchestrator.config import models as _config_models
 from orchestrator.git import commands, locks
+from orchestrator.git.worktrees.models import ProbeAnswer
 
 log = logging.getLogger("orchestrator.worktree_lifecycle")
+
+# Where git keeps an unfinished rebase's state, one directory per backend, and
+# the file in it naming the branch the rebase is rewriting.
+_REBASE_HEAD_NAMES = ("rebase-merge/head-name", "rebase-apply/head-name")
+
+_LOCAL_BRANCH_PREFIX = "refs/heads/"
 
 
 
@@ -30,6 +42,43 @@ def _hardened_read(
     except OSError as spawn_error:
         log.warning("could not run a git read in %s: %s", root, spawn_error)
         return None
+
+
+def _rebase_head_name(worktree: Path, head_name: str) -> str | None:
+    """What one rebase backend's state file names, "" where it has none, None where it would not read."""
+    located = _hardened_read(worktree, "rev-parse", "--git-path", head_name)
+    if located is None or located.returncode != 0:
+        return None
+    state_file = Path((located.stdout or "").strip())
+    if not state_file.is_absolute():
+        state_file = worktree / state_file
+    try:
+        return state_file.read_text(encoding="utf-8").strip()
+    except FileNotFoundError:
+        return ""
+    except OSError:
+        return None
+
+
+def _rebased_branch(worktree: Path) -> tuple[ProbeAnswer, str]:
+    """Whether an unfinished rebase in this checkout is rewriting a branch, and which one.
+
+    A rebase leaves HEAD detached until it finishes, so a checkout an
+    interrupted rebase or a conflict left mid-replay names no branch through
+    HEAD; the state directory git keeps for the rebase names the branch it is
+    rewriting, and that is the one reading that ties the detached tree to a
+    branch. `REFUTED` is no rebase in progress, or one rewriting a detached
+    HEAD; `UNREADABLE` is a git or a file that would not answer.
+    """
+    for head_name in _REBASE_HEAD_NAMES:
+        named = _rebase_head_name(worktree, head_name)
+        if named is None:
+            return ProbeAnswer.UNREADABLE, ""
+        if named.startswith(_LOCAL_BRANCH_PREFIX):
+            return ProbeAnswer.CONFIRMED, named.removeprefix(_LOCAL_BRANCH_PREFIX)
+        if named:
+            return ProbeAnswer.REFUTED, ""
+    return ProbeAnswer.REFUTED, ""
 
 
 def _clone_read(

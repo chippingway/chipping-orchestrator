@@ -14,13 +14,21 @@ the truncated tip as what the branch arrived carrying.
 
 from __future__ import annotations
 
+import tempfile
 import unittest
+from pathlib import Path
 
 from orchestrator.git.worktrees import naming as _naming
+from orchestrator.git.worktrees.models import ProbeAnswer
 from orchestrator.workflow.stages.discussion import handler as _discussion
 from tests.workflow.fixtures import (
     _TEST_SPEC,
     _agent,
+)
+from tests.workflow.stages.discussion.discussion_resume_test_support import (
+    DISCUSSION_REPLY,
+    _reply,
+    _seed_parked_discussion,
 )
 from tests.workflow.stages.discussion.discussion_test_support import (
     DISCUSSION_RESPONSE,
@@ -35,6 +43,7 @@ from tests.workflow.stages.discussion.discussion_test_support import (
 
 _PR_BACKED_ISSUE_NUMBER = 916
 _UNPINNED_PR_ISSUE_NUMBER = 917
+_FOREIGN_TREE_ISSUE_NUMBER = 918
 _DISCUSSION_PR_NUMBER = 4242
 
 
@@ -91,6 +100,31 @@ class DiscussionRoundWorktreeTest(unittest.TestCase, _DiscussionWorkflowMixin):
         mocks[RUN_AGENT].assert_not_called()
         mocks[ENSURE_PR_WORKTREE].assert_not_called()
         mocks[ENSURE_WORKTREE].assert_not_called()
+        self.assert_nothing_published(gh, mocks)
+        self.assertEqual(gh.write_state_calls, writes_before)
+
+    def test_a_resume_over_a_foreign_tree_is_refused(self) -> None:
+        # A reply resumes the round in the tree its predecessor left, and that
+        # tree is the round's only once it is proven the issue's own: one at
+        # the path on another branch refuses the round before it consumes the
+        # reply, launches the agent, or writes anything.
+        gh, issue = _seed_parked_discussion(
+            _FOREIGN_TREE_ISSUE_NUMBER, replies=(_reply(DISCUSSION_REPLY),),
+        )
+        writes_before = gh.write_state_calls
+
+        with tempfile.TemporaryDirectory() as tree:
+            mocks = self._run(
+                lambda: self.assertRaises(
+                    _naming.BranchRefused, _discussion._handle_discussion, gh, _TEST_SPEC, issue,
+                ),
+                run_agent=_agent(last_message=DISCUSSION_RESPONSE),
+                head_shas=UNMOVED_HEAD,
+                issue_checkout=Path(tree),
+                checkout_identity=ProbeAnswer.REFUTED,
+            )
+
+        mocks[RUN_AGENT].assert_not_called()
         self.assert_nothing_published(gh, mocks)
         self.assertEqual(gh.write_state_calls, writes_before)
 

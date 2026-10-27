@@ -72,22 +72,6 @@ def _patch_base_sync(**mocks):
         yield
 
 
-def _stated_identity(test_case) -> None:
-    """Answer the checkout's ownership read as the issue's own for the whole case.
-
-    The refresh asks it before a fresh rebase, and a fixture whose checkout is
-    no real worktree at a layout path under `WORKTREES_DIR` -- a fake one, or
-    a directory of the fixture's own the issue's path is resolved to -- has
-    nothing to prove it by, so the answer is stated rather than read.
-    """
-    stated = patch.object(
-        evidence, "_checkout_identity",
-        MagicMock(return_value=_worktree_models.ProbeAnswer.CONFIRMED),
-    )
-    stated.start()
-    test_case.addCleanup(stated.stop)
-
-
 def _diverged(ahead: int, behind: int, *, tip: str = "remote-sha"):
     """One divergence reading, as the probe answers it.
 

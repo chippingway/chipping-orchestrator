@@ -25,6 +25,8 @@ import unittest
 from types import MappingProxyType
 
 from orchestrator.git.verification.status import _WorktreeStatus
+from orchestrator.git.worktrees import naming as _naming
+from orchestrator.git.worktrees.models import ProbeAnswer
 from tests.workflow.stages.fixing import fixing_test_support as support
 
 AHEAD_BEHIND = "branch_ahead_behind"
@@ -163,6 +165,24 @@ class NoFeedbackBounceTest(unittest.TestCase, _StrandedFixingFixtureMixin):
         mocks[RUN_AGENT].assert_not_called()
         mocks[PUSH_BRANCH].assert_called_once()
         self._assert_bounced(gh, round_n=SPENT_ROUND)
+
+    def test_a_foreign_checkout_publishes_nothing(self) -> None:
+        # The same stranded commit, in a tree at the issue's path that is not
+        # the issue's own. The seam every push onto the pull request goes
+        # through proves the checkout first, so the bounce is refused with
+        # nothing pushed, no round counted, and no relabel.
+        gh, issue = self._seed_stranded_bounce()
+        pushes = MagicMock(return_value=True)
+
+        with self.assertRaises(_naming.BranchRefused):
+            self._run_stranded_bounce(
+                gh, issue, TEMP_ROOT, branch_ahead_behind=STRANDED,
+                push_branch=pushes, checkout_identity=ProbeAnswer.REFUTED,
+            )
+
+        pushes.assert_not_called()
+        self.assertEqual(gh.pinned_data(ISSUE).get(REVIEW_ROUND), SEEDED_ROUND)
+        self.assertNotIn((ISSUE, VALIDATING), gh.label_history)
 
     def test_missing_worktree_bounces_unprobed(self) -> None:
         # Nothing on disk to publish from. The probe is left armed to prove

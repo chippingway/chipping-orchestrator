@@ -28,8 +28,8 @@ from unittest import mock
 
 from orchestrator.config import models as _config_models
 from orchestrator.git import branch_transport
-from tests.git.base_sync import gate_reads_support as _gate_reads_support, sync_test_support as _sync_support
-from tests.git.base_sync.recovery_entry_support import resumed
+from tests.git.base_sync import gate_reads_support as _gate_reads_support, recovery_entry_support as _recovery_entry
+from tests.support.checkout_identity import stated_identity
 from tests.support.fakes import (
     FakeGitHubClient,
     FakePR,
@@ -327,7 +327,7 @@ class RecoveryGitFixtureMixin:
         # reading the workflow takes of it by that path reads this clone.
         resolved = mock.patch(_WORKTREE_PATH, lambda _spec, _issue: self.work)
         self.enterContext(resolved)
-        _sync_support._stated_identity(self)
+        stated_identity(self)
 
     def recover(self, label: str = LABEL) -> bool:
         """Run the recovery the way the workflow's coordinator enters it; whether it owned the tick.
@@ -335,7 +335,7 @@ class RecoveryGitFixtureMixin:
         The attempt record is read off the comment, since a landed head is
         finished only where that record vouches for it.
         """
-        return not resumed(self, label).should_continue
+        return not _recovery_entry.resumed(self, label).should_continue
 
     def publish_recovered_head(self) -> None:
         """Land the rewritten head the way the interrupted push would have.

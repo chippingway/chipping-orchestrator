@@ -153,8 +153,9 @@ _OWNER_ONLY_NAMES = (
 # and worktree-path derivations, the live resolver with the pinned keys it
 # reads, its non-raising reading, and the refusal it raises, and the
 # `issue-<n>` read that runs back the other way, the commit-count read behind
-# the unpushed-commit probe, the two creators and the ownership gate they
-# share, the new-commit probe, the reported fetch and the start point a restore picks, the
+# the unpushed-commit probe, the two creators and the read-only ownership proof
+# they share with every road that works in a standing checkout, the branch an
+# unfinished rebase is rewriting, the new-commit probe, the reported fetch and the start point a restore picks, the
 # handoff anchor with the target choice, the ref move, and the revision read
 # under it, and the `worktree` argv they run, the decomposer's path, creation,
 # and removal, the per-issue removal and local branch deletion with the
@@ -227,6 +228,7 @@ _OWNER_DEFINED = (
     ("_LISTED", _ATTRIBUTION),
     ("_LISTED", _CHECKOUT_ATTRIBUTION),
     ("_LOCAL_BRANCH_PREFIX", _BRANCH_PROBES),
+    ("_LOCAL_BRANCH_PREFIX", _EVIDENCE_READS),
     ("_LOCAL_REF_PREFIX", _TIP_EVIDENCE),
     ("_LOCAL_REF_PREFIX", _RECLAIM),
     ("_OPEN_PULL_REQUEST", _CLAIMS),
@@ -238,6 +240,7 @@ _OWNER_DEFINED = (
     ("_PINNED_PR", _NAMING),
     ("_QUESTION_PREFIX", _TERMINAL),
     ("_QUIET_PERIOD_SECONDS", _MAINTENANCE_GUARDS),
+    ("_REBASE_HEAD_NAMES", _EVIDENCE_READS),
     ("_REF_DELETE", _RECLAIM),
     ("_REF_SEPARATOR", _ATTRIBUTION),
     ("_REMOTE_BRANCH_PREFIX", _REMOTE_INVENTORY),
@@ -336,11 +339,14 @@ _OWNER_DEFINED = (
     ("_pr_branch_start_point", _CREATION),
     ("_proven_tips", _ELIGIBILITY),
     ("_published_branches", _REMOTE_INVENTORY),
+    ("_proven_checkout", _CREATION),
     ("_published_tip", _TIP_EVIDENCE),
     ("_quiet_checkout", _ACTIVITY_EVIDENCE),
     ("_read_artifacts", _ELIGIBILITY),
     ("_read_orchestrator_refs", _BRANCH_PROBES),
     ("_read_state", _CLAIMS),
+    ("_rebase_head_name", _EVIDENCE_READS),
+    ("_rebased_branch", _EVIDENCE_READS),
     ("_reclaimed", _MAINTENANCE),
     ("_reused_checkout", _CREATION),
     ("_record_attribution", _ATTRIBUTION),
@@ -357,6 +363,7 @@ _OWNER_DEFINED = (
     ("_resolve_branch_name", _NAMING),
     ("_resolved_commit", _ANCHORING),
     ("_resolved_tip", _TIP_EVIDENCE),
+    ("_retained_checkout", _CREATION),
     ("_root_inventory", _INVENTORY),
     ("_run_decompose_worktree_removal", _DECOMPOSITION),
     ("_run_issue_worktree_removal", _CLEANUP),

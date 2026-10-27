@@ -25,7 +25,6 @@ from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import (
     creation as _worktree_creation,
     naming as _naming,
-    paths as _worktree_paths,
 )
 from orchestrator.github.pinned_state import PinnedState
 
@@ -39,10 +38,15 @@ def _ensure_resume_worktree(
     ahead of either answer: every dev resume builds its run through here
     before it launches, so a record naming no branch live work may use
     raises `naming.BranchRefused` before any agent runs over the checkout it
-    finds. A checkout that is gone is recreated on that branch.
+    finds. A checkout still standing at the issue's path is used as it stands
+    only once it is proven the issue's own (`creation._retained_checkout`) --
+    detached in the middle of rebasing exactly that branch included, which is
+    how a conflict resolution parked mid-rebase leaves it -- and any other
+    tree refuses the resume with every file in place. A checkout that is gone
+    is recreated on that branch.
     """
     branch = _naming._resolve_branch_name(state, spec, issue.number)
-    worktree = _worktree_paths._worktree_path(spec, issue.number)
-    if worktree.exists():
-        return worktree
+    retained = _worktree_creation._retained_checkout(spec, issue.number, rebasing=True)
+    if retained is not None:
+        return retained
     return _worktree_creation._ensure_worktree(spec, issue.number, branch=branch)

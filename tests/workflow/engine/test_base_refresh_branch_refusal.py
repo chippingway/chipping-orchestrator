@@ -7,8 +7,10 @@ pull request with no branch beside it, a pinned flat name -- gets no route,
 and neither does a checkout that is not proven the issue's own on its current
 branch: nothing is read, rebased, reset, or pushed for either, and nothing is
 written, posted, or relabelled. The current checkouts walked beside them are
-carried over as ever, and an interrupted attempt's recovery still reads its
-checkout as the attempt left it.
+carried over as ever. An interrupted attempt's anchor is held to the same
+question before its recovery resets anything: the issue's own checkout, left
+detached in the middle of rebasing its branch, is still recovered, and a tree
+switched onto the flat branch since keeps its head and every file.
 """
 from __future__ import annotations
 
@@ -19,9 +21,9 @@ from unittest.mock import patch
 from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import evidence as _evidence
 from orchestrator.git.worktrees.models import ProbeAnswer
-from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import base_refresh
 from tests.support.fakes import FakeGitHubClient, make_issue
+from tests.workflow.engine import refresh_anchor_support as _anchored
 from tests.workflow.engine.refresh_checkouts_support import (
     AFTER_SHA,
     ONE_PUBLICATION,
@@ -55,16 +57,11 @@ _UNNAMED = "records no branch live work may use"
 _UNPROVEN = "is not proven this issue's own"
 _SAID = ((_UNNAMED, _BRANCHLESS_PR), (_UNNAMED, _FLAT_PRE_PR), (_UNPROVEN, _FOREIGN_CHECKOUT))
 
-# An interrupted attempt's anchor, the one record a checkout is routed over
-# without being asked whose it is.
-_ANCHORED = PinnedState(data={
-    "pr_number": pr_of(_FOREIGN_CHECKOUT),
-    "branch": f"orchestrator/acme__widget/issue-{_FOREIGN_CHECKOUT}",
-    "pending_auto_base_rebase_push_sha": "a1c40f2e" * 5,
-})
+# What an unreadable remote parks a recovery under.
+_RECOVERY_PARK = "auto_base_rebase_push_failed"
 
 
-def _identity(_spec, issue_number: int, _worktree) -> ProbeAnswer:
+def _identity(_spec, issue_number: int, _worktree, **_options) -> ProbeAnswer:
     """The foreign checkout's tree is on another branch; every other is its issue's own."""
     if issue_number == _FOREIGN_CHECKOUT:
         return ProbeAnswer.REFUTED
@@ -123,16 +120,6 @@ class UntrustedBranchRefreshTest(unittest.TestCase):
             },
         ))
 
-    def test_an_anchor_is_routed_over_its_checkout(self) -> None:
-        # A pinned anchor is pinned only over a checkout the refresh proved its
-        # own, and its recovery reads that checkout as the interrupted attempt
-        # left it -- mid-rebase, on no branch, included -- so the ownership
-        # question is not asked again over it.
-        with patch.object(_evidence, "_checkout_identity", side_effect=_identity):
-            self.assertTrue(base_refresh._stands_on_its_branch(
-                self.spec, Path("/tmp/refresh-wt"), _FOREIGN_CHECKOUT, _ANCHORED,
-            ))
-
     def _standing(self) -> dict:
         """Each refused issue's record, labels, and thread."""
         return {
@@ -143,6 +130,39 @@ class UntrustedBranchRefreshTest(unittest.TestCase):
             )
             for number in _REFUSED
         }
+
+
+class AnchoredRefreshTest(unittest.TestCase):
+    """An interrupted attempt's recovery, over a real checkout at the issue's path."""
+
+    def setUp(self) -> None:
+        self.world = _anchored.AnchoredCheckout(self)
+
+    def test_an_anchor_authorizes_no_flat_checkout(self) -> None:
+        # The anchor was pinned over the issue's checkout, and the tree at the
+        # path has been switched onto the flat branch since, carrying a commit
+        # of its own. The recovery's reset would take it, so it is refused:
+        # head, file, and record all stand.
+        self.world.switched_to_the_flat_branch()
+        before = self.world.standing()
+
+        self.world.syncs()
+
+        self.assertEqual(self.world.standing(), before)
+        self.assertTrue((self.world.checkout / _anchored.FOREIGN_FILE).exists())
+
+    def test_an_interrupted_rebase_is_still_recovered(self) -> None:
+        # The issue's own checkout, detached mid-replay by an interrupted
+        # rebase of its own branch, is the checkout the anchor was pinned for:
+        # the recovery runs over it, and with the remote unreadable it resets
+        # and parks as ever.
+        self.world.left_mid_rebase()
+
+        self.world.syncs()
+
+        pinned = self.world.gh.pinned_data(_anchored.ISSUE)
+        self.assertEqual(pinned.get("park_reason"), _RECOVERY_PARK)
+        self.assertIsNone(pinned.get("pending_auto_base_rebase_push_sha"))
 
 
 if __name__ == "__main__":

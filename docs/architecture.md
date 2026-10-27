@@ -70,8 +70,9 @@ Live work stands on that same name and on nothing else. The branch resolver answ
 fresh work, which pins no branch and records no pull request, and for a record pinning exactly that name, and it
 refuses every other record before any checkout, agent launch, or push: a recorded pull request with no branch beside
 it, a flat or foreign pin, and any other name are each held for a human, with no flat name inferred, no prefix taken
-as proof, and no derived name substituted. A creator reuses or removes a checkout at the issue's path only once it is
-proven the issue's own, so unpushed commits on a foreign or earlier layout's tree buy it nothing
+as proof, and no derived name substituted. No road resumes, reuses, rebases, recovers, publishes from, or removes a
+checkout at the issue's path until it is proven the issue's own, so unpushed commits on a foreign or earlier layout's
+tree buy it nothing; the one detached tree a road may resume in is an interrupted rebase of exactly the issue's branch
 ([branch refusal](state-machine/labels-and-state.md#branch-refusal)).
 
 The orchestrator is not fully autonomous. When a stage hits uncertainty, an unsafe repository state, a malformed agent

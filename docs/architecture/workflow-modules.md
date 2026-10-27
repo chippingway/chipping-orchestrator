@@ -2175,8 +2175,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             no route at all and its checkout, branches, pull request, labels, and comment stay as
                             they stand, said only in `record_admission.py`'s local line -- the branch question
                             asked of an admitted record (`_stands_on_its_branch`): a record naming no branch live
-                            work may use gets no route either, and nor, short of a pinned anchor's recovery, does
-                            a checkout not proven the issue's own on that branch -- the
+                            work may use gets no route either, and nor does a checkout not proven the issue's own
+                            on that branch, a pinned anchor's recovery included, which adds only the issue's own
+                            checkout left detached by an unfinished rebase of that branch -- the
                             dirty-tree refusal a pre-PR rebase owes, the base-lag probe, and the route: the git
                             `pre_pr` rebase for a branch nobody has pushed yet, the base-rewrite coordinator below
                             for one a pull request carries -- reached even with no lag, so a pinned anchor's
@@ -2595,7 +2596,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             park left by a reading rather than a question is retried rather than waited on, and
                             announced once per reason
       guards.py             the worktree restore, behind the branch resolved whether or not the checkout is on
-                            disk, and the two probes that prove a stale PR head is safe to force-publish over
+                            disk and a standing checkout proven the issue's own (mid-rebase of its branch
+                            included), and the two probes that prove a stale PR head is safe to force-publish over
       divergence.py         admission over a stale orchestrator-produced head, a recorded replay, or the publication a
                             body edit's resume recorded with the report it still owes, and recovered
                             publication through the size gate under the original lease; the behind-base count decides
@@ -2992,8 +2994,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             a recorded answer -- never while a reply is still owed a whole quote -- or buy one fresh
                             adjudication; only the completion guard can hand a cleared split to the transaction
       late_admission.py     recover owed owner reads and park notices before the live-generation gate; behind it,
-                            refuse a record naming no branch live work may use (`naming.BranchRefused`) ahead of
-                            every park, probe, and hold, then hold a spent-budget park ahead of the frozen-evidence
+                            refuse a record naming no branch live work may use (`naming.BranchRefused`), or a
+                            checkout standing at the issue's path that is not proven its own, ahead of every park,
+                            probe, and hold, then hold a spent-budget park ahead of the frozen-evidence
                             proof and pull-request hold;
                             the explicit live-generation predicate leaves initial decomposition to its own gate
       late_evidence.py      prove the record belongs to this issue and carries every frozen field its readers need,
@@ -3525,8 +3528,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             compared against the anchor the last round recorded -- falling back to that round's
                             branch where the directory has gone, and held where neither read could answer. Taken
                             ahead of the restorer in `run`, which is the step that would erase what they report
-      run.py                one round in the issue's own worktree, the restorer that checkout is rebuilt by, and the
-                            branch and SHA it records opening on
+      run.py                one round in the issue's own worktree -- a retained one resumed in only once proven the
+                            issue's own -- the restorer that checkout is rebuilt by, and the branch and SHA it
+                            records opening on
       settlement.py         one reading of the evidence above -- the tree and the round anchor -- and the ownership
                             test the commit it finds is settled by: this stage's to publish where a round was in
                             flight, and somebody else's to report otherwise, under a park this stage wrote and off
@@ -4118,7 +4122,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             read without resuming (`_first_launch_fingerprint`) -- how a handed change request's
                             recovery tells that developer's charge from another road's
       worktree.py           the checkout a resume runs in, its branch resolved first so a record naming none live
-                            work may use is refused before any agent runs, and restored when reaped
+                            work may use is refused before any agent runs, a standing checkout used only once proven
+                            the issue's own (mid-rebase of its branch included), and restored when reaped
       disposition.py        run-output attribution, inherited floors, timeout parks and their recovery, and agent-result
                             settlement; both heads must be readable and the run must leave commits above its floor --
                             with two exceptions: an issue still owing a report it could not deliver, where a run that
@@ -4387,7 +4392,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             are the same refusal, and reading the second as "nothing to check" is how the barrier
                             would skip its request altogether and force-push onto a publication somebody ended
       late_push.py          the one call every gated push onto a pull request the remote already carries goes
-                            through -- measure, push named against the measured candidate and leased against the
+                            through -- the checkout proven the issue's own before anything else, then measure, push
+                            named against the measured candidate and leased against the
                             frozen head, spend the debt it paid, close what the route owed for it (in that same
                             write, since past it neither the approval nor the generation is left to say a round was
                             owed, while the caller still has a relabel and a write to make), record what reached the
@@ -4641,7 +4647,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       late_parks.py         quiet transport retries and announce-once measurement failure handling; changed frozen bases
                             remain durable during a quiet repeat, and a different failure earns its own notice;
                             an unreadable candidate retains its resolved object id for recovery
-      publication.py        the push -- named against the commit the gate decided and pinned to the head the
+      publication.py        the push -- from a checkout proven the issue's own first, named against the commit the
+                            gate decided and pinned to the head the
                             answer that admitted it was about: a published approval's frozen head where there is
                             one, and the CANDIDATE itself where the gate admitted it because its pull request is
                             already standing on it, since a lease the transport reads for itself adopts whatever
@@ -4761,8 +4768,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the silent or quota park a shipped commit got past, and the report this publication
                             could not deliver and since did: the pull request and the branch recorded
                             together, since a state that arrived without a
-                            branch would leave the next tick resolving the legacy name while the live pull
-                            request sits on the slug-namespaced one; the plan SHA, the certified baseline, the
+                            branch would leave the next tick's resolver refusing a record that names a pull
+                            request and no branch while the live pull request sits on the branch this push
+                            published; the plan SHA, the certified baseline, the
                             handoff anchor, the pair an authorization handoff carries while it is still in
                             flight -- which a poll finding them would read as a call into the seam that never
                             came back, and put a spent park back over an issue bounced here later -- and the
@@ -4983,7 +4991,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             read, at the teardown itself, and the exit one also where the run met a pinned record
                             admission refuses (`github/pinned_refusal.RecordRefused`) -- whose checkout and branch are
                             a human's to dispose of
-      run.py                the resume and fresh-spawn routes, the tracked spawn they share, and the park funnel every
+      run.py                the resume and fresh-spawn routes -- a retained checkout resumed in only once proven
+                            the issue's own -- the tracked spawn they share, and the park funnel every
                             exit lands on -- which is also where the bounded correlation every park reports is
                             built: the road off the tick's own record, the role, the pinned conversation, and any
                             recorded pull request, screened against the shared funnel's allow-list and read from
@@ -5730,7 +5739,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             chosen before it is formatted, and the formatting never answers empty, so findings it left
                             nothing of read as a sentence saying so rather than falling back to the raw message; it
                             decides no claim, refusal, or approval
-      review_handoffs.py    a persisted change request handed to the one developer it owes: the disposition calls it,
+      review_handoffs.py    a persisted change request handed to the one developer it owes, behind the branch it
+                            hands resolved before any feedback, record, or relabel: the disposition calls it,
                             right behind proving it ready, and the recovery of a request an earlier tick left waiting
                             (`review_resume.py`), where its launch is still owed: only a change
                             request the pinned comment carries, through the decision it was persisted from -- round,

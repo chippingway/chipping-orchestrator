@@ -29,7 +29,7 @@ from orchestrator.git.worktrees import (
     paths as _worktree_paths,
 )
 from orchestrator.workflow.engine import base_refresh as _base_refresh, base_rewrite as _base_rewrite, dispatch_guards
-from tests.support.fakes import FakeGitHubClient, FakePR, FakePRRef, make_issue
+from tests.support import checkout_identity as _checkout_identity, fakes as _fakes
 from tests.workflow.fixtures import _FAKE_WT, _TEST_SPEC
 
 ISSUE = 7
@@ -84,16 +84,16 @@ STAGE_PARK = "review_cap"
 _STAGE_PARKS = (STAGE_PARK, "agent_timeout", "late_measurement_failed")
 
 
-def _walks(gh: FakeGitHubClient, checkout: Path) -> None:
+def _walks(gh: _fakes.FakeGitHubClient, checkout: Path) -> None:
     """One refresh pass over this checkout, its pull request open and current.
 
     Through the walk's own selection rather than the PR sync behind it, since
     whether a park freezes the walk out is part of what is being asked.
     """
-    gh.add_pr(FakePR(
+    gh.add_pr(_fakes.FakePR(
         number=PR_NUMBER,
         head_branch=BRANCH,
-        head=FakePRRef(sha=ANCHOR),
+        head=_fakes.FakePRRef(sha=ANCHOR),
     ))
     with patch.object(
         branch_transport, "_authed_fetch", return_value=_FETCHED_BRANCH,
@@ -115,6 +115,9 @@ class _InterruptedRebaseCase(unittest.TestCase):
         self.checkout = Path(self.enterContext(
             tempfile.TemporaryDirectory(prefix="orch-dispatch-recovery-"),
         ))
+        # A plain directory rather than a worktree at a layout path, so the
+        # ownership read the refresh asks before routing is stated.
+        _checkout_identity.stated_identity(self)
         self.head = MagicMock(return_value=ANCHOR)
         for name, probe in (
             ("_head_sha", self.head),
@@ -126,8 +129,8 @@ class _InterruptedRebaseCase(unittest.TestCase):
 
     def _opens(self, label) -> None:
         """Start over on an issue under `label`, with nothing pinned yet."""
-        self.gh = FakeGitHubClient()
-        self.issue = make_issue(ISSUE, label=str(label))
+        self.gh = _fakes.FakeGitHubClient()
+        self.issue = _fakes.make_issue(ISSUE, label=str(label))
         self.gh.add_issue(self.issue)
 
     def _seed(self, **pinned) -> None:

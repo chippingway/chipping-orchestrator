@@ -168,7 +168,7 @@ def _head_ref(worktree: Path) -> tuple[ProbeAnswer, str]:
 
 
 def _head_is_own_branch(
-    spec: _config_models.RepoSpec, issue_number: int, worktree: Path,
+    spec: _config_models.RepoSpec, issue_number: int, worktree: Path, rebasing: bool,
 ) -> ProbeAnswer:
     """Whether this checkout's HEAD is on the branch this issue publishes under.
 
@@ -177,8 +177,15 @@ def _head_is_own_branch(
     layout's exact name is accepted: a tree on the flat
     `orchestrator/issue-<n>`, on another repository's branch, or on any other
     name in the namespace is foreign, and its candidate is kept.
+
+    `rebasing` lets a detached HEAD answer for the branch an unfinished rebase
+    in the tree is rewriting (`evidence_reads._rebased_branch`), held to the
+    same exact name: the evidence a caller resuming an interrupted rebase of
+    the issue's own branch has, and nothing else a detached tree can offer.
     """
     answer, branch = _head_ref(worktree)
+    if answer is ProbeAnswer.REFUTED and rebasing:
+        answer, branch = _evidence_reads._rebased_branch(worktree)
     if answer is not ProbeAnswer.CONFIRMED:
         return answer
     if branch != _naming._branch_name(spec, issue_number):
@@ -209,7 +216,7 @@ def _at_layout_path(
 
 
 def _checkout_identity(
-    spec: _config_models.RepoSpec, issue_number: int, worktree: Path,
+    spec: _config_models.RepoSpec, issue_number: int, worktree: Path, *, rebasing: bool = False,
 ) -> ProbeAnswer:
     """Whether this checkout is the one this issue's own creator made.
 
@@ -219,7 +226,10 @@ def _checkout_identity(
     this issue's branch can belong to a repository somebody else made. The
     placement is asked first and the repository next, because a HEAD read
     against a tree that is not ours answers about a ref store this
-    classification is not entitled to reason about.
+    classification is not entitled to reason about. `rebasing` is for a
+    caller that resumes an interrupted rebase of the issue's own branch: a
+    detached HEAD passes there only where the rebase in the tree is
+    rewriting exactly that branch.
     """
     placed = _at_layout_path(spec, issue_number, worktree)
     if placed is not ProbeAnswer.CONFIRMED:
@@ -227,4 +237,4 @@ def _checkout_identity(
     shared = _shared_repository(spec, worktree)
     if shared is not ProbeAnswer.CONFIRMED:
         return shared
-    return _head_is_own_branch(spec, issue_number, worktree)
+    return _head_is_own_branch(spec, issue_number, worktree, rebasing)

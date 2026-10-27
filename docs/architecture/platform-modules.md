@@ -1441,10 +1441,13 @@ orchestrator/
       paths.py          the one per-repository path an issue is checked out at, and the `issue-<n>` read that runs
                         back the other way -- canonical spellings only, so a padded or signed number is no issue
                         at all; a flat `WORKTREES_DIR/issue-<n>` is no repository's derivation
-      creation.py       issue and PR worktree creation on the issue's current-layout branch alone, the ownership
-                        gate a checkout already at the issue's path passes before it is reused or removed -- a
-                        tree on a flat, foreign, or detached HEAD, or reached through a symlink, refuses the
-                        creator whatever it carries -- and the unpushed-commit probe reuse turns on
+      creation.py       issue and PR worktree creation on the issue's current-layout branch alone, the read-only
+                        ownership proof a checkout already at the issue's path passes before any road works in,
+                        resumes, publishes from, reuses, or removes it (`_retained_checkout`, `_proven_checkout`)
+                        -- a tree on a flat, foreign, or detached HEAD, or reached through a symlink, refuses the
+                        road whatever it carries, a detached HEAD passing only where a caller resuming an
+                        interrupted rebase shows the rebase rewriting exactly the issue's branch -- and the
+                        unpushed-commit probe reuse turns on
       anchoring.py      the shared restore fetch and the guarded move that re-anchors a reused checkout onto a PR
                         head or its merged base, with the target-root lock held across refresh and movement
       cleanup.py        lock-held worktree removal and local branch deletion, each behind its best-effort boundary,
@@ -1504,7 +1507,9 @@ orchestrator/
                         report an empty inventory
       evidence_reads.py
                         hardened local reads, with clone reads serialized under the target-root lock so they
-                        cannot land between a worktree mutation and the ref it creates; spawn failures stay unread
+                        cannot land between a worktree mutation and the ref it creates; spawn failures stay unread.
+                        Also the branch an unfinished rebase in a checkout is rewriting, read off the state git
+                        keeps for it, since a rebase leaves HEAD detached until it finishes
       tip_evidence.py   local branch tips, checkout HEAD commits, authenticated remote tips, and containment in
                         the base the remote names. Every read distinguishes absence from an unreadable answer.
                         Tracking refs cannot prove publication because a per-issue checkout can rewrite them;
@@ -1512,7 +1517,9 @@ orchestrator/
       evidence.py       checkout ownership, symbolic HEAD identity, status, and ignored-file evidence. Identity
                         requires the path to resolve to its layout location under `WORKTREES_DIR`, then compares the
                         clone and the issue's exact current-layout branch before content can justify removing it,
-                        so a checkout on a flat or foreign branch, or one a symlink reaches, is kept.
+                        so a checkout on a flat or foreign branch, or one a symlink reaches, is kept. A caller
+                        resuming an interrupted rebase may let a detached HEAD answer for the branch that rebase
+                        is rewriting, held to the same exact name.
                         Loose and ignored files are separate reads because git refuses removal for only the first;
                         either kind keeps the tree, as does a status or identity read that could not be taken
       activity_evidence.py

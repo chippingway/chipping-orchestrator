@@ -527,23 +527,33 @@ or reuses a checkout, charges or launches an agent, posts a resume notice, or pu
 refusal around the handler as it catches `RecordRefused`: the handler is abandoned with nothing past that point done,
 and the next tick refuses again. The resume roads resolve whether or not the checkout is still on disk
 (`implementing/worktree._ensure_resume_worktree`), the read-only relabel guard resolves before it takes or clears a
-park, and a late adjudication resolves once its live-generation gate has passed, before it takes a retry-cap park,
-probes the host, holds the pull request, retires a park, reconciles a reply, settles a recorded answer, or charges and
-spawns an adjudicator. The base refresh asks the same question of the record
+park, a recovered reviewer handoff resolves before it posts feedback, records the handoff, or relabels to
+`workflow:fixing`, and a late adjudication resolves once its live-generation gate has passed, before it takes a
+retry-cap park, probes the host, holds the pull request, retires a park, reconciles a reply, settles a recorded answer,
+or charges and spawns an adjudicator. The base refresh asks the same question of the record
 before any route ([Base refresh](#base-refresh)). The roads that end an issue rather than work its branch refuse
 nothing: a terminal or question teardown reads the branch the record names and deletes only the current-layout one, a
 closed discussion with no publication in flight is rejected without resolving, a cancelled late cycle takes no branch
 on as owed, and the dispatcher's restore of a checkout an anchor names restores nothing, each leaving the branches and
 checkout for a human.
 
-The creators hold the checkout to the same name. `_ensure_worktree` and `_ensure_pr_worktree` take the branch the
-resolver answered and refuse any other, and before reusing or removing a tree already at the issue's path they ask its
-identity (`git/worktrees/evidence._checkout_identity`): a worktree of the clone on exactly the issue's branch, reached
-at that path through no symlink. Only that checkout's unpushed commits are reused as an interrupted run's work, and only
-that checkout is force-removed when it carries none. A tree on the flat branch, on another repository's, or on a
-detached HEAD, one reached through a symlink, and one whose identity could not be read refuse the creator with every
-commit and file in place, however far ahead of base they are. The unpushed-commit probe the read-only relabel guard
-convicts on asks about the current-layout branch alone, so no flat branch is offered as work to recover.
+The checkout is held to the same name. `_ensure_worktree` and `_ensure_pr_worktree` take the branch the resolver
+answered and refuse any other, and every road that works in a tree already at the issue's path proves it the issue's
+own first, reading only (`git/worktrees/creation._retained_checkout`, over
+`git/worktrees/evidence._checkout_identity`): a worktree of the clone on exactly the issue's branch, reached at that
+path through no symlink. The creators ask it before they reuse or remove a tree, the resume roads before any session
+is resumed in one, a resumed question or discussion round before its agent runs, the conflict stage before it works
+in one, a late adjudication at its admission gate, the base refresh before any route, and the publication seam every
+push onto a pull request goes through (`implementing/late_push._publishes`) before it measures or pushes anything.
+Only that checkout's unpushed commits are reused as an interrupted run's work, and only that checkout is force-removed
+when it carries none. A tree on the flat branch, on another repository's, or on a detached HEAD, one reached through a
+symlink, and one whose identity could not be read refuse the road with every commit and file in place, however far
+ahead of base they are. The one detached HEAD a road may resume in is an interrupted rebase's: the resume roads, the
+conflict stage, the publication seam, and a pinned anchor's recovery accept a tree whose unfinished rebase is
+rewriting exactly the issue's branch (`git/worktrees/evidence_reads._rebased_branch`), which is how a conflict
+resolution parked mid-rebase or a refresh killed mid-replay leaves the issue's own checkout. The unpushed-commit probe
+the read-only relabel guard convicts on asks about the current-layout branch alone, so no flat branch is offered as
+work to recover.
 
 A refusal changes nothing for current work: unpushed commits on the issue's own checkout are reused, a current pull
 request's checkout is restored from its remote head, a remote read nobody could answer still refuses that restore, and
@@ -593,11 +603,12 @@ attempt's recovery among them, are unchanged.
 An admitted record is then asked the live resolver's question (`naming._trusted_branch`,
 [Branch refusal](#branch-refusal)) before any route: a recorded `pr_number` with no `branch` beside it, or a pinned
 branch that is not the issue's current-layout name, names no branch a rebase, a push, or a recovery may stand on, and
-the issue is left exactly as a refused record is, with a local warning on the refresh's channel. A fresh rebase asks
-the checkout as well: a tree at the issue's path that is not proven a worktree of the clone on that branch — one on the
+the issue is left exactly as a refused record is, with a local warning on the refresh's channel. Every route asks the
+checkout as well: a tree at the issue's path that is not proven a worktree of the clone on that branch — one on the
 flat branch, another repository's, or a detached HEAD, or one reached through a symlink — is left with every commit it
-holds. A pinned anchor is the one exception to that second question, since an anchor is pinned only over a checkout the
-refresh proved its own and its recovery reads that checkout as the interrupted attempt left it, mid-rebase included.
+holds. A pinned anchor's recovery is asked the same question, since a checkout can be switched between ticks and the
+recovery's reset takes whatever the tree holds; the one tree it adds is the issue's own left detached by an unfinished
+rebase of exactly that branch, which is how an interrupted attempt leaves it.
 
 Two paths depending on whether a PR exists:
 
