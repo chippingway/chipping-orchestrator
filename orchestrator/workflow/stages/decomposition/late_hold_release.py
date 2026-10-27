@@ -3,7 +3,9 @@
 """Restore held pull-request descriptions and settle displaced hold targets.
 
 Only an exact cycle-owned hold is restored. A failed restoration of an
-open pull request refuses the handoff to a different publication target.
+open pull request refuses the handoff to a different publication target, and
+so does an open one still held by a notice this cycle never wrote, which
+nothing here may take off and whose preserved description stays recorded.
 """
 from __future__ import annotations
 
@@ -124,6 +126,15 @@ def _release_hold(
     and one already released, since a preserved copy that is no longer what
     the description says is stale and a human's own words are not this
     generation's to replace.
+
+    Save one: an open pull request still held by a notice this cycle never
+    wrote (`late_hold_text._wears_unwritten_hold`). It is left exactly as it
+    stands, since nothing here may rewrite or restore over it, but it is not
+    released either -- the "do not merge" stands on a change somebody can
+    merge, and the copy recorded beside it is still the only one of the
+    description under it. So it fails as a refused restoration of an open
+    pull request does: every caller holds what depends on the release, and
+    the record keeps the copy for whoever settles that pull request.
     """
     pr_number = generation.plan_pr_number
     if pr_number is None or generation.plan_pr_body is None:
@@ -132,13 +143,29 @@ def _release_hold(
     if held_pr is None:
         return _late_hold_reading._refused(generation)
     if not _late_hold_text._wears_our_hold(generation, held_pr.body):
-        log.info(
-            "issue=#%d PR #%d does not carry this cycle's hold "
-            "verbatim; leaving its description alone",
-            issue.number, pr_number,
-        )
-        return _HeldPrHold(generation=generation)
+        return _left_alone(issue, generation, held_pr)
     return _restored_body(gh, issue, generation, held_pr)
+
+
+def _left_alone(
+    issue: Issue, generation: LateGeneration, held_pr: _HeldPr,
+) -> _HeldPrHold:
+    """Answer for a body this cycle may not restore over, untouched either way."""
+    if held_pr.pr_state == _OPEN_PR_STATE and _late_hold_text._wears_unwritten_hold(
+        generation, held_pr.body,
+    ):
+        log.error(
+            "issue=#%d PR #%d is held by a notice this cycle never wrote; "
+            "leaving it and the preserved description where they are",
+            issue.number, held_pr.number,
+        )
+        return _late_hold_reading._refused(generation)
+    log.info(
+        "issue=#%d PR #%d does not carry this cycle's hold "
+        "verbatim; leaving its description alone",
+        issue.number, held_pr.number,
+    )
+    return _HeldPrHold(generation=generation)
 
 
 def _restored_body(

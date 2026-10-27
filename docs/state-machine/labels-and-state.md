@@ -4465,8 +4465,11 @@ rather than preserving.
   and the re-measurement entered the gate on the pull request the work is now on. The old hold is released, the slot
   freed, and the new one taken, in that order and never both at once, since there is one identity and one preserved
   body to hold them in; a release that could not be made on a reusable pull request parks the tick instead of
-  spawning. A `pr_number` somebody re-aimed is deliberately not that signal — it names whichever pull request the
-  issue currently records rather than the change under adjudication. All three go down in one write before the pull
+  spawning, and so does an open one still held by a notice this cycle never stamped — another cycle's, or one in a
+  spelling this build does not write — which nothing restores over, so its preserved body stays recorded rather than
+  being replaced by the next hold's capture. A `pr_number` somebody re-aimed is deliberately not that signal — it
+  names whichever pull request the issue currently records rather than the change under adjudication. All three go
+  down in one write before the pull
   request is edited, so the only thing a crash can lose is the edit — and a head this orchestrator cannot name refuses
   the hold outright rather than being recorded absent, since the write drops an empty one and what it would leave is
   an identity and a body with no head between them, on a change already wearing the notice. What restores the body is
@@ -5816,29 +5819,43 @@ created from a slice states the size that slice was proposed at, so a manifest r
 leave a tick that crashed between the verdict and the transaction creating children that say nothing about their own
 size — and the only way back to it would be a second adjudication, free to propose a different split entirely.
 
-The budget is written only where the reply declared one, and read back the same way. A manifest on a live issue was
-recorded before this domain kept budgets, and the rules a record is read through are the shared split rules, which
-ask for none: requiring one there would read every such manifest as no split at all and send an adjudicated candidate
-round again. Those children are created exactly as they always were, and their issues state no size, because nothing
-here invents a number an agent did not give. A value that is not a whole count of at least one line is not one
-either — a bool, a float, a numeric string, and zero are each a size nobody estimated — so a hand edit cannot put
-prose where a child issue states a budget.
+The budget, the dependency list, and the explanation are each read back under the rule the reply was held to, so a
+record missing one is no answer rather than an answer read some earlier way. Every slice is written with a declared
+budget and an explicit `depends_on` list, `[]` for none, and a `single` with its `late_result_split_blocker`, because
+a fresh reply missing any of them is refused where it is read (`late_manifest_invalid`) and never becomes a record.
+A `late_result_children` manifest is held on the way back to the same split rules — the child cap, each child's
+shape, every child's stated list, the acyclicity of the graph — and to a declared budget on every slice
+(`_recorded_children`, in
+[`late_run_reading.py`](../../orchestrator/workflow/stages/decomposition/late_run_reading.py)); the ceiling a fresh
+reply is held under is asked of the reply alone. A value that is not a whole count of at least one line is no budget
+— a bool, a float, a numeric string, and zero are each a size nobody estimated — and a list missing or `null` is no
+list: read as no prerequisites, that slice would be created and released beside the sibling its body says it waits
+on. A manifest carrying either reads back as none, so its split is not answered, and nothing is created or released
+from it. A recorded `single` with no explanation, an empty or whitespace-only one, or one that is not text is not
+answered either: the explanation is the one thing a human deciding about the candidate is given, so a park taken
+without it would be a decision with nothing to decide on, and no sentence stands in for it. A `question` whose
+sentence is only whitespace is no question, for the same reason a reply's is: every text field a reply is read
+through is stripped. Nothing rewrites the comment on the way, so the record keeps whatever it held.
 
-The dependency list is held to the opposite rule on the way in and the same one on the way back. Every slice is
-written with an explicit `depends_on` list, `[]` for none, because a fresh reply that leaves one missing or `null`
-is refused where it is read (`late_manifest_invalid`) and never becomes a record: read as no prerequisites, that
-slice would be released beside the sibling its body says it waits on. A record is read through the shared split
-rules, where a missing or `null` list still means no prerequisites, so a manifest carrying one is this candidate's
-answer, recovered without a second run, and its children are created and released as having none.
-
-The explanation is the one of those a result may be missing and still be an answer, and the compatibility rule is the
-same in both directions. `late_result_split_blocker` is written only where the reply gave one, so results recorded
-before this key existed carry nothing under it, and no live issue is migrated to say so; a fresh reply that declares
-the verdict without explaining it is refused where it is read, so it never becomes a record at all. Read back, that
-absence answers with a fixed stand-in sentence rather than with an empty string, and the `single` stays actionable:
-reading it as incomplete would send the adjudicator round again to recover prose, at the price of a second run free
-to decide something else entirely. Nothing writes the stand-in into the comment, so a record that never had an
-explanation stays distinguishable from one that does.
+What such a record costs depends on whether its transaction had begun. Before it — the generation still at an
+adjudication boundary — the candidate is adjudicated again, a fresh run charged as any other, and that run's answer
+replaces the record. A `late_single_decision` or `late_question` park standing over a record that no longer answers
+as that verdict comes down ahead of that run, with any sentence it still owed: it waits on a human deciding about a
+verdict nobody can be shown, and left standing it would keep `awaiting_human` up through the run, silencing the
+question that run may ask. What the run decides is what the issue parks on next, and says so. Once a split
+transaction stands at one of its own boundaries (`snapshotting`, `splitting`, `superseding`), a fresh verdict would
+be taken beside the snapshot
+and the children it may already have put on the remote, and could adopt those children as slices of a different
+split; so a result still there under any of the result keys that does not answer — a verdict in no spelling this
+build reads among them, since a value that does not parse is still one somebody wrote — parks
+`late_children_failed` instead, with no run spawned, nothing created, adopted, or released, and the record, the
+register, the dependency graph, and the run count left as they stood
+([`late_execution.py`](../../orchestrator/workflow/stages/decomposition/late_execution.py)). Only a result
+something deliberately dropped — a human's answer, a certificate — leaves none of those keys, and the run it was
+dropped for replaces it. A notice a `late_single_decision` or `late_question` park still owes over a record that no
+longer holds that verdict whole is never said
+([`late_notice.py`](../../orchestrator/workflow/stages/decomposition/late_notice.py)) — not by the redelivery at the
+top of the tick, which runs before the park comes down, nor by any later one: it stays owed, and goes with the park.
 
 The rationale is looser still, because it decides nothing. `late_result_rationale` is written only beside a `single`
 or a `split`, and only where the reply gave one: a `question` asks rather than argues, and a split refused at the
@@ -5853,10 +5870,10 @@ prompt states the bound read off the same owner). It is the
 only result field ever shortened, and it is cut before the record is measured. Read back, a missing, blank, or
 non-string value, one longer than the bound, and one beside a `question` all read as no rationale while the verdict
 stays actionable — re-adjudicating to recover an argument would buy a second run free to decide differently — and
-nothing rewrites the comment or writes a stand-in into it, nor anything derived from the explanation or the category,
-so an absent key stays distinguishable from a value nobody can use. It is written and dropped with the rest of the
-result: a fresh spawn and every road that throws an answer away remove it, which is what binds it to the same cycle,
-generation, and commit. A recovered outcome carries it back beside the verdict as the text the record kept
+nothing rewrites the comment or writes a substitute into it, nor anything derived from the explanation or the
+category, so an absent key stays distinguishable from a value nobody can use. It is written and dropped with the rest
+of the result: a fresh spawn and every road that throws an answer away remove it, which is what binds it to the same
+cycle, generation, and commit. A recovered outcome carries it back beside the verdict as the text the record kept
 (`_recovered_adjudication`, in
 [`late_run_reading.py`](../../orchestrator/workflow/stages/decomposition/late_run_reading.py)), so a process that died
 past the result write — before the authorization or after it — settles with the same rationale and pays for no second
@@ -5895,23 +5912,27 @@ GitHub's limit afterwards (`MAX_NOTICE_BODY`, a fixed figure because that senten
 rather than copying it), and what the sentence quotes is bounded by the delivery rather than by the record. The issue
 parks instead of being left decided in a way no later tick
 could see, and learning the same thing from a failed write would mean the agent had already been paid for. On the way
-out, an incomplete record reads back unanswered: a `question` with no sentence or no category, and a `split` with no
-manifest or one the split validator refuses, would each suppress the next spawn and then have nothing to announce or
-create. Every field is read through the same defensive readers the domain's are, so a damaged `late_result_verdict`
+out, an incomplete record reads back unanswered: a `question` with no sentence or no category, a `split` with no
+manifest or one the reply's rules refuse, and a `single` with no explanation would each suppress the next spawn and
+then have nothing to announce, create, or hand a human to decide on. Every field is read through the same defensive
+readers the domain's are, so a damaged `late_result_verdict`
 reads back the same way — unanswered — because publishing on a verdict nobody recorded is not recoverable.
 
 A park this mode leaves is attributed durably, because the next attempt has to tell its own park from another stage's.
 Most of them are *superseded* by the attempt that follows: a hold that failed has been reconciled by the time the
 retry gets there, a missing worktree is back, a run that timed out or answered unusably is about to be re-run, and
 each of the three split-transaction steps — `late_snapshot_failed`, `late_children_failed`, and
-`late_supersession_failed` — is about to be reconciled again from the same recorded verdict, at no agent's cost.
+`late_supersession_failed` — is about to be reconciled again from the same recorded verdict, at no agent's cost. A
+split in flight whose recorded verdict no longer answers is parked `late_children_failed` again by every attempt that
+meets it, so retiring that park costs it nothing either.
 Those
 are
 retired — `awaiting_human` and `park_reason` cleared — the moment the hold reconciles, ahead of both the spawn and the
 reuse of a recorded answer, because `awaiting_human` is exactly what suppresses the announcement a question verdict
 earns. A stale one would silence a question durably recorded and never said out loud — whether this attempt produced it
 or a crashed run recorded one whose comment never reached the issue. Eight are not retired, because none of them is a
-step that failed. `late_question` is the announcement itself, and the issue really is waiting on the human it names;
+step that failed. `late_question` is the announcement itself, and the issue really is waiting on the human it names —
+until its record no longer holds a whole question, when it comes down as the `single` park below does;
 `late_content_drift`, `late_revision_dirty`, `late_revision_unmeasured`, and `late_revision_unanswered` are the
 workflow waiting to be told what an edited scope, a worktree the developer left changed, a candidate nobody could
 measure, or a developer that changed nothing and vouched for nothing now means. Retiring one of
@@ -5924,7 +5945,9 @@ trusted `/orchestrator authorize-oversized <commit>` that publishes the candidat
 `late_override_*` group below. One refusal clears it too, and has to: an authorization arriving over an adjudication
 the record can no longer show is answered and the park retired together, since what the issue stops for next is
 whatever the replacement run decides — a flag left standing over that run would suppress the announcement its
-`late_question` earns and would have a `split` create children under a claim that the issue is waiting.
+`late_question` earns and would have a `split` create children under a claim that the issue is waiting. The same
+reason takes it down with no reply at all wherever the record under it no longer answers as a `single`: the run that
+record buys is about to start, and the park comes down ahead of it.
 The shared `retry_cap` is the seventh and the plainest: a retry is exactly what it refuses, so an attempt that
 superseded it would clear the flag and meet the same spent budget one step later — saying the same sentence once a
 poll and taking down, in between, the park a human has to answer. It is held at the top of the adjudication instead,

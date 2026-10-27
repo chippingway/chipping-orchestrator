@@ -112,9 +112,10 @@ def _reconciled_hold(
 
     The middle one is the crash window the persist-first order leaves no room
     for: a body already carrying a hold that this issue preserved no original
-    for was held by something else -- an older cycle, another binary -- and
-    capturing it would record the hold text as somebody's description,
-    destroying the only copy of it. A human settles that; this refuses it.
+    for was held by something else -- an older cycle, or a spelling this
+    binary never writes -- and capturing it would record the hold text as
+    somebody's description, destroying the only copy of it. A human settles
+    that; this refuses it.
     """
     if (
         generation.plan_pr_number == held_pr.number
@@ -249,7 +250,7 @@ def _applied_hold(
     """Write the hold over a body this issue wrote or preserved, and no other.
 
     The one place the retry is made idempotent, and the one place a crash is
-    told apart from a human. Three bodies can be on the pull request when this
+    told apart from a human. Four bodies can be on the pull request when this
     runs, and each answers differently:
 
     * this cycle's hold, VERBATIM -- the edit already landed, so the retry
@@ -260,12 +261,15 @@ def _applied_hold(
     * the description recorded beside the identity -- exactly what a crash
       between the persist and the edit leaves behind, and the first
       application besides;
-    * the same hold in the spelling an earlier binary used, which is the
-      upgrade case: the notice is ours and stands, so it is rewritten in the
-      current spelling by the very edit that would have applied a fresh one;
-    * anything else -- a human writing over the notice. That body is theirs,
-      the preserved copy is no longer a description of it, and the release
-      beside this one already refuses to overwrite it.
+    * this cycle's hold in the other current spelling, which is a record
+      that crossed publication mid-cycle: the notice is ours and stands, so
+      it is rewritten in the side the record now names by the very edit that
+      would have applied a fresh one;
+    * anything else -- a human writing over the notice, or a hold in a
+      spelling this binary never writes. That body is not ours to replace,
+      and the release beside this one already refuses to overwrite it; what
+      it does with the preserved copy beside one this cycle never stamped is
+      that release's to say.
 
     A generation that advanced needs no case of its own: the hold is keyed to
     the cycle and quotes nothing that moves inside one, so a re-measured

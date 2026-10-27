@@ -1,10 +1,11 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Declared child addition budgets and the bounds required by fresh replies.
+"""Declared child addition budgets and the bounds a late split is held to.
 
 The scalar reader accepts only a positive whole-line count. A fresh split
 reply requires one for every child and checks it strictly below the frozen
-threshold; older recorded children can still carry no declared budget.
+threshold; the record that reply is kept as requires one for every child too,
+so a recorded slice with none is no manifest children are created from.
 """
 from __future__ import annotations
 
@@ -55,7 +56,9 @@ def _estimates_error(
     becomes and the child issue it creates both read one back. What an absent
     one costs is this owner's alone: a fresh reply that declared no size for a
     slice is refused, because a proposal nobody sized can still be re-asked
-    for the price of the run that is already over.
+    for the price of the run that is already over -- and a record holding one
+    is read with no ceiling (`threshold` None) and refused the same way, since
+    a child created from it would state a size nobody estimated.
 
     A number at or past the ceiling is refused beside it, because a child that
     big is this same adjudication again with an issue number in front of it.

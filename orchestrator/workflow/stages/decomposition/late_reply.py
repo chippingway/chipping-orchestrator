@@ -22,10 +22,9 @@ a second copy of it. The child cap, the shape of a child, and the acyclicity
 of the graph they declare are properties of a manifest that is about to become
 GitHub issues, and that is the same manifest either mode produces -- so a rule
 tightened there tightens here, and the number the late prompt states is still
-the number the reply is judged against. It is asked through the validator's
-fresh-reply entry point, the one an initial reply is held to as well, so every
-child has to state its `depends_on` list -- `[]` for none -- and one that leaves
-it missing or null is refused naming the child and the field. Read as no
+the number the reply is judged against. That validator requires every child
+to state its `depends_on` list -- `[]` for none -- and one that leaves it
+missing or null is refused naming the child and the field. Read as no
 prerequisites, it would be created and released beside the sibling its own
 body says it waits on.
 
@@ -37,14 +36,10 @@ is given to decide on. It is read off the reply as text rather than left in the
 prose around the block, which nothing keeps, and a fresh reply that declares
 the outcome without it is refused rather than recorded: what would be kept
 otherwise is a verdict missing the one thing it exists to carry, and the park a
-refusal takes names the field that was owed.
-
-What that refusal is NOT is a rule about records. A result recorded before this
-domain kept an explanation is on live issues, and it reads back as this
-candidate's answer with a stand-in beside it -- re-adjudicating to recover
-prose would buy a second run free to decide something else entirely. The
-obligation is the fresh reply's alone, exactly as the per-child budget below
-is.
+refusal takes names the field that was owed. The record is held to the same
+rule on the way back (`late_result_models._LateRun.is_actionable`): a recorded
+`single` with no explanation beside it is no answer, and the candidate is
+adjudicated again.
 
 Every child of a `split` owes one field the initial mode never asks for: the
 lines that child is estimated to ADD across all of its paths. It is required
@@ -66,15 +61,13 @@ still refuses a child that declared no estimate at all: a missing budget is a
 protocol failure whatever the bound is, while a bound nobody can name is not
 one a reply can be measured against.
 
-That rule sits on THIS owner rather than on the shared split validator, for
-the reason the explanation above is asked only of a reply: it is a rule about
-what an agent just said. The same validator reads recorded manifests back off
-the pinned comment, and a live issue's recorded split was written before any
-budget was asked for -- so a requirement placed there would read every one of
-them as no manifest at all and send a candidate that has already been
-adjudicated round again. The dependency list is held apart the same way: the
-fresh entry point demands it, while the shared reading a record goes through
-still takes a missing or null one as no prerequisites.
+That rule sits on THIS owner and the budget owner beside it rather than on
+the shared split validator, because the initial decomposer's children carry no
+budget: the validator is the rule both modes share, and a budget is the late
+mode's alone. The record a late split is kept as is held to the presence half
+of it on the way back (`late_run_reading`), so a recorded slice with no budget
+is no manifest children are created from; the ceiling half is asked of the
+reply alone, before anything is recorded.
 
 What this owner does NOT decide is whether a `split` is allowed at all. The
 lineage bound is the record's invariant and is enforced where the generation
@@ -199,11 +192,11 @@ def _split_adjudication(
 
     The split rules first, because they are what says these are children at
     all: a budget read off something that is not a child object would be
-    reporting the wrong fault about the wrong thing. They are the fresh
-    reply's, so a child with no stated `depends_on` list is refused here,
-    before anything is recorded or created from it.
+    reporting the wrong fault about the wrong thing. A child with no stated
+    `depends_on` list is refused by them, before anything is recorded or
+    created from it.
     """
-    split_error = _validation._fresh_split_manifest_error(late_manifest)
+    split_error = _validation._split_manifest_error(late_manifest)
     if split_error is not None:
         return None, split_error
     children = tuple(late_manifest.get("children") or ())

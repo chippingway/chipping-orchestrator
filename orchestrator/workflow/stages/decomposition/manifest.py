@@ -99,7 +99,7 @@ def _manifest_validation_error(manifest: dict) -> str | None:
         return "decision must be 'single' or 'split'"
     if decision == "single":
         return None
-    return _validation._fresh_split_manifest_error(manifest)
+    return _validation._split_manifest_error(manifest)
 
 
 def _parse_manifest(

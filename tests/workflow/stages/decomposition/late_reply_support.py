@@ -35,7 +35,7 @@ def proposed_slice(
     case declaring a budget nothing estimated -- a string, a bool, a zero --
     hands the parser the shape an agent would really have sent. `None` is the
     slice that declared no budget at all: what the reply contract refuses, and
-    what a manifest recorded before this domain kept budgets reads back as.
+    what a recorded manifest is read back as no manifest for.
     """
     proposed = {"title": title, "body": body, DEPENDS_ON: list(depends_on)}
     if estimated is not None:

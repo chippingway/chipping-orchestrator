@@ -153,8 +153,8 @@ PARK_NOTICE_ID = 100
 RECORDED_SPLIT = MappingProxyType({
     _support.KEYS.verdict: "split",
     _support.KEYS.children: [
-        {"title": "A", "body": "a", "depends_on": []},
-        {"title": "B", "body": "b", "depends_on": [0]},
+        _reply_support.proposed_slice("A", "a", _support.FIRST_ESTIMATE),
+        _reply_support.proposed_slice("B", "b", _support.SECOND_ESTIMATE, depends_on=(0,)),
     ],
     _support.KEYS.run_cycle_id: _support.late_generation().cycle_id,
     _support.KEYS.run_generation: _support.late_generation().generation,

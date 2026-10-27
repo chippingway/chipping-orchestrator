@@ -20,7 +20,7 @@ from __future__ import annotations
 import unittest
 from types import MappingProxyType
 
-from orchestrator.workflow.stages.decomposition.late_result_models import UNRECORDED_SPLIT_BLOCKER, _LateDisposition
+from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.workflow.fixtures import LABEL_DECOMPOSING
 from tests.workflow.stages.decomposition import late_reply_support as _reply_support, late_test_support as _support
 from tests.workflow.stages.decomposition.late_content_support import (
@@ -54,11 +54,9 @@ _CATEGORIES = (
     "unknown_to_this_build",
 )
 
-# A verdict an older binary recorded with no explanation beside it, which live
-# issues carry: the identities that make it this candidate's answer, and
-# nothing under the key this domain later kept. A tick reading it back takes
-# the park without an agent, and the notice answers with the stand-in rather
-# than paying for a second run to recover the prose.
+# A `single` recorded with no explanation beside it: the identities that would
+# make it this candidate's answer, and nothing under the key the verdict owes.
+# That is no answer, so nothing parks on it and nothing is said over it.
 _UNEXPLAINED_RECORD = MappingProxyType({
     **_support.generation_state(_support.late_generation()),
     _support.KEYS.run_cycle_id: _support.CYCLE_ID,
@@ -148,20 +146,20 @@ class UnsplittableParkTest(GuardedLateCase, unittest.TestCase):
         self.assertIn(str(_support.THRESHOLD), said)
         self.assertIn(_support.SPLIT_BLOCKER, said)
 
-    def test_an_unexplained_record_says_so(self) -> None:
-        # An outcome recorded before this domain kept an explanation is still
-        # this candidate's answer, so it is announced with the stand-in
-        # rather than re-run to recover prose an agent may not decide the
-        # same way twice. What a fresh reply owes is the reply contract's,
-        # and no record is held to it.
+    def test_an_unexplained_record_is_readjudicated(self) -> None:
+        # A recorded `single` is held to what its reply was: without the
+        # explanation it gives a human nothing to decide on, so it parks
+        # nothing. The candidate is adjudicated again, and the park the fresh
+        # verdict takes says what that verdict explained.
         self.github.seed_state(self.issue.number, **_UNEXPLAINED_RECORD)
 
-        outcome, spawn = self._adjudicate()
+        outcome, spawn = self._adjudicate(SINGLE_RUN)
 
-        spawn.assert_not_called()
+        spawn.assert_called_once()
         self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
-        said = self.github.posted_comments[-1][1]
-        self.assertIn(UNRECORDED_SPLIT_BLOCKER, said)
+        self.assertEqual(self._pinned().get(_support.KEYS.split_blocker), _support.SPLIT_BLOCKER)
+        self.assertEqual(len(self.github.posted_comments), SAID_ONCE)
+        self.assertIn(_support.SPLIT_BLOCKER, self.github.posted_comments[-1][1])
 
     def test_every_category_takes_the_same_road(self) -> None:
         for category in _CATEGORIES:

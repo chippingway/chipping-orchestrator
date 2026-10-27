@@ -666,14 +666,15 @@ because there it is the claim that this stage has already rerouted rather than a
      `DECOMPOSE=off` handoff's report, say — keeps it too, and so does a reading there that fails, which cannot prove
      the record admitted.
   7. **Parse the manifest** via `_parse_manifest` (regex captures the fenced ` ```orchestrator-manifest ` block):
-     - invalid manifest → park `decomposer_invalid_manifest` with the parse error. A `split` is held to the fresh-reply
-       rules (`_fresh_split_manifest_error`): every child states a `depends_on` list of indexes into the children
+     - invalid manifest → park `decomposer_invalid_manifest` with the parse error. A `split` is held to the shared
+       split rules (`_split_manifest_error`): every child states a `depends_on` list of indexes into the children
        array, `[]` for none, so a child that leaves it missing or `null` is refused by its zero-based index and the
        field (`child 1 missing depends_on`, `child 1 depends_on is null`) — read as no prerequisites, it would be
        released beside a sibling its body says it needs. The refusal lands before the lineage decision below, so no
-       child is created and no split marker is written; the human's reply resumes the decomposer. A split already
-       recorded is never held to it: step 3 finalizes it from its markers, and the dependency walk releases its
-       children by the `dep_graph` it was written with.
+       child is created and no split marker is written; the human's reply resumes the decomposer. The manifest itself
+       is not kept, so a split already recorded is not asked those rules again: step 3 finalizes it from its markers,
+       and the dependency walk releases its children by the `dep_graph` it was written with. An omitted `umbrella`
+       flag and an omitted `rationale` remain current: the first is an ordinary split, the second records none.
      - no fenced block → treat as a question; park.
      - `decision == "single"` → post the collected-context comment (rationale plus the manifest's optional
        `affected_files` / `notes`, built by `_build_single_decision_comment`) so the implementer inherits the

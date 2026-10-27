@@ -182,9 +182,7 @@ class LatePromptContractTest(unittest.TestCase):
             _reply_support.late_block(json.dumps({"decision": "single"})), _support.THRESHOLD,
         )
 
-        self.assertEqual(
-            adjudication.split_blocker_explanation, _support.SPLIT_BLOCKER,
-        )
+        self.assertEqual(adjudication.split_blocker, _support.SPLIT_BLOCKER)
         self.assertIsNone(unexplained)
         self.assertIn(_SPLIT_BLOCKER, refused)
 

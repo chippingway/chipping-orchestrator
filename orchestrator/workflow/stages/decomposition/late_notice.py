@@ -10,9 +10,11 @@ counts only on this bot's authenticated comment.
 from __future__ import annotations
 
 import logging
+from types import MappingProxyType
 
 from orchestrator.github.comments import authored_by_us
 from orchestrator.github.pinned_state import MAX_PINNED_BODY, pinned_state_body
+from orchestrator.workflow.late_split.models import LateVerdict
 from orchestrator.workflow.stages.decomposition import (
     late_notice_fences as _notice_fences,
     late_result_payloads as _late_result_payloads,
@@ -20,7 +22,6 @@ from orchestrator.workflow.stages.decomposition import (
     late_session as _late_session,
 )
 from orchestrator.workflow.stages.decomposition.late_models import _LateContext, _StagedPark
-from orchestrator.workflow.stages.decomposition.late_result_models import UNRECORDED_SPLIT_BLOCKER
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -83,6 +84,14 @@ _CUT_QUOTE = "\n\n(cut: no rendering of the whole explanation fits one comment)"
 # have written, not this owner's to expand.
 _NAMES_THE_EXPLANATION = "late_single_decision"
 
+# The parks that wait on a human deciding about one recorded verdict, each
+# beside the verdict it waits on: a `single` a human may authorize, and a
+# `question` a human may answer. Spelled here for the reason the one above is.
+_VERDICT_PARKS = MappingProxyType({
+    _NAMES_THE_EXPLANATION: LateVerdict.SINGLE,
+    "late_question": LateVerdict.QUESTION,
+})
+
 # The shared park flag this field is the missing half of. Spelled here rather
 # than imported for the reason its neighbours spell it: reaching back into the
 # owner that stages parks would make this leaf part of the cycle it sits
@@ -127,7 +136,25 @@ def _owed_notice(context: _LateContext) -> _StagedPark | None:
     return _StagedPark(message=message, reason=reason)
 
 
-def _filled(context: _LateContext, owed: _StagedPark) -> str:
+def _outlived_verdict(context: _LateContext, reason: str | None) -> bool:
+    """Whether a park of this reason waits on a verdict its record no longer holds whole.
+
+    Only the two parks a human decides a recorded verdict through can outlive
+    it. Either one standing over a record that no longer answers as that
+    verdict -- the verdict gone, a `single` with no explanation, a `question`
+    with no sentence -- waits on a decision nobody can be shown, so its
+    sentence is not said (`_filled`) and the park itself comes down ahead of
+    the run that record buys (`late_execution`). One reading for both, so a
+    notice is never said for a park that is about to come down.
+    """
+    waited_on = _VERDICT_PARKS.get(reason)
+    if waited_on is None:
+        return False
+    recorded = _late_run_reading._read_late_run(context.state)
+    return recorded.verdict != waited_on or not recorded.answers(context.generation)
+
+
+def _filled(context: _LateContext, owed: _StagedPark) -> str | None:
     """Put the recorded explanation back into a notice that named it.
 
     The other half of naming it rather than copying it. Asked ONCE per road a
@@ -150,10 +177,12 @@ def _filled(context: _LateContext, owed: _StagedPark) -> str:
     the sentence posted and the sentence looked for would stop being the same
     one.
 
-    A record with no explanation on it answers with the same stand-in every
-    other reader of a `single` gets. Reaching that is a record something
-    dropped out from under a park still owing its sentence, and telling a
-    human no reason was recorded is the true answer to it.
+    A park whose record no longer holds its verdict whole answers None
+    (`_outlived_verdict`): a `single`'s sentence would name an explanation
+    nothing holds, and a `question`'s would ask what the record no longer
+    asks, so there is nothing true to say. The obligation stays owed rather
+    than being said or dropped here, and goes with its park when that comes
+    down ahead of the adjudication such a record buys.
 
     What goes in is FENCED rather than escaped. A thread is markdown, so an
     explanation opening an HTML comment would swallow the rest of the sentence
@@ -184,16 +213,15 @@ def _filled(context: _LateContext, owed: _StagedPark) -> str:
     pinned-state marker is left as its author wrote it, and what keeps it
     findable afterwards is the reader below.
     """
+    if _outlived_verdict(context, owed.reason):
+        return None
     if owed.reason != _NAMES_THE_EXPLANATION:
         return owed.message
     if RECORDED_EXPLANATION not in owed.message:
         return owed.message
-    recorded = _late_run_reading._recovered_adjudication(
-        _late_run_reading._read_late_run(context.state),
-    )
     return owed.message.replace(
         RECORDED_EXPLANATION,
-        _quoted(recorded.split_blocker_explanation or UNRECORDED_SPLIT_BLOCKER),
+        _quoted(_late_run_reading._read_late_run(context.state).split_blocker),
     )
 
 
@@ -357,8 +385,13 @@ def _delivered_id(context: _LateContext, owed: _StagedPark) -> int | None:
 
     A read that could not be taken answers None, which is the safe direction:
     the notice stays owed and is said again, which costs one repeated comment
-    and never a silence.
+    and never a silence. So does a sentence naming an explanation the record
+    no longer holds, which renders as nothing (`_filled`) and is not looked
+    for at all.
     """
+    delivered = _filled(context, owed)
+    if delivered is None:
+        return None
     try:
         thread = context.gh.comments_after(
             context.issue,
@@ -373,7 +406,6 @@ def _delivered_id(context: _LateContext, owed: _StagedPark) -> int | None:
         )
         return None
     bot_login = getattr(context.gh, "_bot_login", None)
-    delivered = _filled(context, owed)
     said = [
         issue_comment.id
         for issue_comment in thread

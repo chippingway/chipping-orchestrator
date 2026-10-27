@@ -217,17 +217,13 @@ def _child_body(
     reclaimed still opens as a description of work rather than as instructions
     for a ref that is gone. The budget the adjudication sized this slice at
     goes between them, where a developer meets it with the scope it is about.
-
-    A slice that declared no budget states none. That is what a manifest
-    recorded before this domain kept budgets reads back as, and those still
-    create children -- so the section is dropped rather than written with a
-    number nobody estimated.
+    Every slice reaching here declared one: a fresh reply is refused without
+    it, and a recorded manifest missing one is no manifest at all.
     """
     generation = context.generation
-    budget = _budget.declared_budget(child)
     sections = (
         _declared_scope(child),
-        "" if budget is None else _BUDGET_BLOCK.format(budget=budget),
+        _BUDGET_BLOCK.format(budget=_budget.declared_budget(child)),
         _child_marker(generation, index),
         _reuse_block(context.spec, _child_ancestry(context, child, snapshot_ref), generation.base_sha),
     )

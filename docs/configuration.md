@@ -739,7 +739,9 @@ examples.
   refusal: it is recorded with the verdict, so a tick that crashed before the children existed does not pay for a
   second adjudication to recover it, and it is stated on the child issue the slice becomes — over every path that
   child commits, tests, documentation and generated files included — so whoever picks the child up reads the size it
-  was proposed at. A child of a manifest recorded before budgets were asked for states none. So lowering the value
+  was proposed at. A recorded manifest with a slice that declares no budget is no answer, so no child is created from
+  it: its candidate is adjudicated again, or parks once its split has begun, and a child an earlier build already
+  created from one stays as it was opened. So lowering the value
   narrows what an adjudication may propose as well as what may publish — what finally decides a child is the
   cumulative measurement of its own diff, on the value in force when that child is measured. See
   [`state-machine/delivery-stages.md`](state-machine/delivery-stages.md#_handle_implementing-label-workflowimplementing)

@@ -5,7 +5,9 @@
 Only a fresh run spends the shared retry budget. The attempt owner persists
 its identity with that charge held back; pause and launch refusals remain
 free. The completion owner folds usage, proves the candidate unchanged,
-and guards the recorded answer before settlement.
+and guards the recorded answer before settlement. A split transaction that
+has begun over a recorded outcome no longer answering parks instead: no fresh
+run is bought over children and a snapshot already on the remote.
 """
 from __future__ import annotations
 
@@ -16,6 +18,7 @@ from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.workflow.late_split.models import (
     LateFailure,
 )
+from orchestrator.workflow.late_split.phases import IN_FLIGHT_PHASES
 from orchestrator.workflow.stages.decomposition import (
     late_attempt as _late_attempt,
     late_completion as _late_completion,
@@ -41,6 +44,17 @@ _HOLD_DISPLACED_PARK = (
     "candidate is still being adjudicated. Settle the pull request, or put "
     "its description back, and the next tick continues against the same "
     "frozen commit."
+)
+
+
+_UNANSWERED_SPLIT_PARK = (
+    "the committed candidate for this issue was adjudicated as a split and "
+    "its transaction had begun, but the outcome on the record is not one this "
+    "orchestrator can act on, so no child was created and no late decomposer "
+    "was spawned. A fresh verdict would be taken beside whatever that split "
+    "already put on the remote -- its snapshot, and any child it created -- "
+    "and could adopt those children as slices of a different split, so they "
+    "are left exactly as they are. Settle the split by hand."
 )
 
 
@@ -71,13 +85,20 @@ def _run_and_decide(context: _LateContext) -> _LateAdjudicationRun:
     puts an agent on somebody's repository. It is asked with the retry
     accounting handed back, because the cancellation it takes is a write and
     a run nobody started may not be one the issue paid for.
+
+    A split transaction already in flight stops it before any of that. Its
+    recorded outcome is what the transaction resumes from, and reaching here
+    means that outcome no longer answers (`_unanswered_in_flight`): a fresh
+    run would decide again beside whatever the transaction has put on the
+    remote, so nothing is paid for and nothing is created.
+
+    Ahead of all of it, a `single` or `question` park standing over a record
+    that no longer answers as that verdict comes down
+    (`late_parks._retire_outlived_park`): whatever the run this reaches decides
+    is what the issue stops for next.
     """
-    if context.displaced_hold:
-        _late_outcome._emit_failure(context, LateFailure.PLAN_PR_HOLD_FAILED)
-        _late_parks._park(
-            context, _HOLD_DISPLACED_PARK,
-            reason=_late_park_state.PARK_HOLD_FAILED,
-        )
+    _late_parks._retire_outlived_park(context)
+    if _stopped_before_spawn(context):
         return _late_outcome._finished(context, _LateDisposition.PARKED)
     worktree = _worktree_paths._worktree_path(
         context.spec, context.issue.number,
@@ -95,6 +116,54 @@ def _run_and_decide(context: _LateContext) -> _LateAdjudicationRun:
     if stopped is not None:
         return _late_outcome._finished(context, stopped)
     return _spawned(context, unspent, worktree)
+
+
+def _stopped_before_spawn(context: _LateContext) -> bool:
+    """Park where no run may be started under what this tick found, and say so.
+
+    The in-flight transaction first, because what it stands on is the remote
+    rather than one pull request's description.
+    """
+    if _unanswered_in_flight(context):
+        log.error(
+            "issue=#%d has a split transaction in flight over a recorded "
+            "outcome that does not answer; parking rather than adjudicating "
+            "again", context.issue.number,
+        )
+        _late_outcome._emit_failure(context, LateFailure.CHILD_CREATE_FAILED)
+        _late_parks._park(
+            context, _UNANSWERED_SPLIT_PARK,
+            reason=_late_park_state.PARK_CHILDREN_FAILED,
+        )
+        return True
+    if not context.displaced_hold:
+        return False
+    _late_outcome._emit_failure(context, LateFailure.PLAN_PR_HOLD_FAILED)
+    _late_parks._park(
+        context, _HOLD_DISPLACED_PARK,
+        reason=_late_park_state.PARK_HOLD_FAILED,
+    )
+    return True
+
+
+def _unanswered_in_flight(context: _LateContext) -> bool:
+    """Whether a begun split transaction stands over an outcome that no longer answers.
+
+    Begun is the phase: a record at a boundary the transaction owns may have
+    cut a snapshot and created children before writing either down. The
+    outcome is whatever the record holds under the result's keys -- a verdict
+    in no spelling this build reads, a lost field, a manifest the reply's own
+    rules refuse -- and it counts wherever any of them is there and the
+    record does not answer, since a value that does not parse is still one
+    somebody wrote. Only a result deliberately dropped
+    (`late_session._drop_late_result`) leaves none of those keys, and the run
+    it was dropped for is the one that replaces it.
+    """
+    if context.generation.phase not in IN_FLIGHT_PHASES:
+        return False
+    if not any(key in context.state.data for key in _late_session._RESULT_KEYS):
+        return False
+    return not _late_run_reading._read_late_run(context.state).answers(context.generation)
 
 
 def _spawned(

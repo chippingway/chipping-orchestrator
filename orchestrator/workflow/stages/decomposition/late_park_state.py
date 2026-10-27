@@ -97,6 +97,11 @@ PARK_RETRY_CAP = _retry_values.PARK_RETRY_CAP
 # same answer and reaches the same park at no agent's cost. Retiring it would
 # clear the flag and re-take it one step later, saying the same sentence to
 # the same thread once a poll while the human it is addressed to reads it.
+# A record that no longer answers as a `single` is the exception, and so is a
+# `PARK_QUESTION` over one that no longer answers as a question: each comes
+# down where the run replacing that verdict is bought
+# (`late_parks._retire_outlived_park`) rather than here, since only that road
+# knows a run is about to start.
 #
 # `PARK_RETRY_CAP` is left out for the plainest reason of the eight: a retry is
 # exactly what it refuses. The attempt that would supersede it is the one the

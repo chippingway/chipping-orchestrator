@@ -24,6 +24,10 @@ DAMAGED_VERDICT = "probably fine"
 
 ASKED = "which half of this is in scope?"
 
+# Text a reply would be refused for, since a reply's fields are read stripped:
+# a record holding it says nothing either.
+BLANK = " \n\t "
+
 TITLE = "title"
 BODY = "body"
 DEPENDS_ON = "depends_on"
@@ -33,7 +37,7 @@ FIRST_BODY = "a"
 SECOND_BODY = "b"
 
 SPLIT_CHILDREN = (
-    {TITLE: FIRST_TITLE, BODY: FIRST_BODY, ESTIMATE: _support.FIRST_ESTIMATE},
+    {TITLE: FIRST_TITLE, BODY: FIRST_BODY, DEPENDS_ON: [], ESTIMATE: _support.FIRST_ESTIMATE},
     {
         TITLE: SECOND_TITLE,
         BODY: SECOND_BODY,
@@ -59,8 +63,8 @@ def recorded_child(
 ) -> dict:
     """One child as the pinned comment records it, fields and all.
 
-    `estimated` of None is the slice that declared no budget, which is what
-    a manifest written before this domain kept them reads back as.
+    `estimated` of None is the slice that declared no budget, which no
+    current record holds and a reader refuses.
     """
     recorded = {TITLE: title, BODY: body, DEPENDS_ON: []}
     if estimated is not None:
@@ -244,8 +248,8 @@ class LateResultRecordTest(unittest.TestCase):
     def test_a_slice_nobody_sized_records_no_budget(self) -> None:
         # A value that is not a count is one nothing estimated, and writing it
         # back would put a size in the comment as though an agent had given
-        # it. A manifest recorded before this domain kept budgets is the same
-        # record, so both read back the same way.
+        # it. What is written is no manifest children may be created from, so
+        # it reads back as none.
         state = PinnedState()
 
         _session._record_late_result(state, _late_result_models._LateAdjudication(
@@ -267,6 +271,7 @@ class LateResultRecordTest(unittest.TestCase):
                 recorded_child(SECOND_TITLE, SECOND_BODY, estimated=None),
             ],
         )
+        self.assertEqual(_late_run_reading._read_late_run(state).children, ())
 
     def test_a_single_records_what_stopped_a_split(self) -> None:
         # The one thing a human deciding about an oversized candidate cannot
@@ -313,16 +318,19 @@ class LateResultRecordTest(unittest.TestCase):
             [_support.FIRST_ESTIMATE, _support.SECOND_ESTIMATE],
         )
 
-    def test_a_recovered_single_reports_a_reason(self) -> None:
-        # A result recorded before this domain kept an explanation is still
-        # this candidate's answer, and reports the stand-in: re-running the
-        # adjudicator to recover prose would pay for a second run that is
-        # free to decide something else.
+    def test_a_recovered_single_carries_its_reason(self) -> None:
+        # The explanation is what a `single` hands a human to decide on, so a
+        # record answers with the one its reply gave -- and a record holding
+        # none, or none a reader can use, is no answer at all: nothing is
+        # rebuilt from it.
         cases = (
-            ("recorded", {_support.KEYS.split_blocker: _support.SPLIT_BLOCKER}, _support.SPLIT_BLOCKER),
-            ("legacy", {}, _late_result_models.UNRECORDED_SPLIT_BLOCKER),
+            ("recorded", {_support.KEYS.split_blocker: _support.SPLIT_BLOCKER}, True),
+            ("missing", {}, False),
+            ("empty", {_support.KEYS.split_blocker: ""}, False),
+            ("whitespace", {_support.KEYS.split_blocker: BLANK}, False),
+            ("not text", {_support.KEYS.split_blocker: 7}, False),
         )
-        for name, recorded, expected in cases:
+        for name, recorded, answered in cases:
             with self.subTest(case=name):
                 run = _late_run_reading._read_late_run(PinnedState(data={
                     _support.KEYS.run_cycle_id: _support.CYCLE_ID,
@@ -332,13 +340,12 @@ class LateResultRecordTest(unittest.TestCase):
                     **recorded,
                 }))
 
-                self.assertTrue(run.answers(_support.late_generation()))
-                self.assertEqual(
-                    _late_run_reading._recovered_adjudication(
-                        run,
-                    ).split_blocker_explanation,
-                    expected,
-                )
+                self.assertEqual(run.answers(_support.late_generation()), answered)
+                if answered:
+                    self.assertEqual(
+                        _late_run_reading._recovered_adjudication(run).split_blocker,
+                        _support.SPLIT_BLOCKER,
+                    )
 
 
 class LateResultBudgetTest(unittest.TestCase):
@@ -485,6 +492,11 @@ class LateRunAnswersTest(unittest.TestCase):
                 _support.KEYS.verdict: str(LateVerdict.QUESTION),
                 _support.KEYS.question: ASKED,
             }),
+            ("a question that is whitespace", {
+                _support.KEYS.verdict: str(LateVerdict.QUESTION),
+                _support.KEYS.category: str(LateVerdictCategory.UNSAFE_SPLIT),
+                _support.KEYS.question: BLANK,
+            }),
             ("a split with no manifest", {
                 _support.KEYS.verdict: str(LateVerdict.SPLIT),
             }),
@@ -504,23 +516,30 @@ class LateRunAnswersTest(unittest.TestCase):
 
                 self.assertFalse(run.answers(_support.late_generation()))
 
-    def test_a_split_with_no_budgets_reads_answered(self) -> None:
-        # A live issue's split was recorded before this domain kept budgets,
-        # and the rules a record is read through ask for none. Reading such a
-        # manifest as no manifest at all would send a candidate that has
-        # already been adjudicated round again, for a run free to decide
-        # something else entirely.
-        unsized = recorded_child(estimated=None)
-        run = _late_run_reading._read_late_run(PinnedState(data={
-            _support.KEYS.run_cycle_id: _support.CYCLE_ID,
-            _support.KEYS.source_sha: _support.CANDIDATE_SHA,
-            _support.KEYS.run_generation: _support.GENERATION_NUMBER,
-            _support.KEYS.verdict: str(LateVerdict.SPLIT),
-            _support.KEYS.children: [unsized],
-        }))
+    def test_a_refused_manifest_is_no_answer(self) -> None:
+        # The record is held to the rules its reply was: a slice nobody sized
+        # would be created stating no size, and one whose dependency list is
+        # missing or null would be released as having no prerequisites. So
+        # the manifest reads back as none, and nothing is created from it.
+        unstated = {TITLE: FIRST_TITLE, BODY: FIRST_BODY, ESTIMATE: _support.FIRST_ESTIMATE}
+        cases = (
+            ("a slice with no budget", recorded_child(estimated=None)),
+            ("a budget that is not a count", {**recorded_child(), ESTIMATE: UNESTIMATED}),
+            ("a missing dependency list", unstated),
+            ("a null dependency list", {**unstated, DEPENDS_ON: None}),
+        )
+        for name, child in cases:
+            with self.subTest(case=name):
+                run = _late_run_reading._read_late_run(PinnedState(data={
+                    _support.KEYS.run_cycle_id: _support.CYCLE_ID,
+                    _support.KEYS.source_sha: _support.CANDIDATE_SHA,
+                    _support.KEYS.run_generation: _support.GENERATION_NUMBER,
+                    _support.KEYS.verdict: str(LateVerdict.SPLIT),
+                    _support.KEYS.children: [recorded_child(SECOND_TITLE, SECOND_BODY), child],
+                }))
 
-        self.assertTrue(run.answers(_support.late_generation()))
-        self.assertEqual(run.children, (unsized,))
+                self.assertFalse(run.answers(_support.late_generation()))
+                self.assertEqual(run.children, ())
 
     def test_a_budgeted_split_reads_back_whole(self) -> None:
         # The manifest the transaction creates children from, so the budget

@@ -55,6 +55,13 @@ PENDING_PUSH_CLAUSE = "before that commit is pushed onto it"
 
 UNPUBLISHED_CLAUSE = "adjudicated before anything is published"
 
+# A hold on this cycle in a spelling this binary never writes: marked by
+# generation as well as cycle, which no current notice is.
+UNWRITTEN_HOLD = (
+    f"<!--orchestrator-late-hold:cycle={_support.CYCLE_ID}"
+    f":generation={_support.GENERATION_NUMBER}-->\nheld by the orchestrator"
+)
+
 
 class _PublishedHoldCase(unittest.TestCase):
     """One issue whose oversized candidate is already on a pull request."""
@@ -180,6 +187,32 @@ class PublishedHoldBoundaryTest(_PublishedHoldCase):
         self.assertEqual(hold.generation.plan_pr_number, _support.PUBLISHED_PR_NUMBER)
         self.assertEqual(self.plan_pr.body, _support.PLAN_PR_BODY)
         self.assertIn(_support.HOLD_MARKER_PREFIX, self.published_pr.body)
+
+    def test_a_left_unwritten_spelling_stays(self) -> None:
+        # The plan PR this record moved off wears a hold in a spelling this
+        # binary never writes, so the preserved copy is not put back over it
+        # -- and since that copy is the only one of the plan's description,
+        # the hold does not move either: a second one taken now would record
+        # the published PR's body in its place. Both pull requests are left
+        # exactly as they stand, and the caller parks.
+        held = self._crossed_hold()
+        self.github.seed_state(_support.LATE_ISSUE_NUMBER, **{
+            **_support.generation_state(held), KEY_PR_NUMBER: _support.PUBLISHED_PR_NUMBER,
+        })
+        self.plan_pr.body = UNWRITTEN_HOLD
+        published_body = self.published_pr.body
+
+        with self.assertLogs(WORKFLOW_LOG, level=ERROR_LEVEL):
+            hold = self._reconcile(held)
+
+        self.assertTrue(hold.failed)
+        self.assertFalse(hold.held)
+        self.assertEqual(hold.generation.plan_pr_number, _support.PLAN_PR_NUMBER)
+        self.assertEqual(hold.generation.plan_pr_body, _support.PLAN_PR_BODY)
+        self.assertEqual(self._pinned().get(_support.KEYS.plan_pr_body), _support.PLAN_PR_BODY)
+        self.assertEqual(self.plan_pr.body, UNWRITTEN_HOLD)
+        self.assertEqual(self.published_pr.body, published_body)
+        self.assertEqual(self.github.edited_pr_bodies, [])
 
     def test_a_stale_hold_nothing_can_release_parks(self) -> None:
         # The preserved body is the only copy of the plan PR's description,
