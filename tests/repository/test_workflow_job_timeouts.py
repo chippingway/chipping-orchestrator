@@ -40,6 +40,7 @@ _ENCODING = "utf-8"
 # Every workflow this repository ships, whether a pull request waits on one, a
 # push to `main` triggers it, or a schedule runs it.
 _WORKFLOWS = (
+    "ast-metrics.yml",
     "ci.yml",
     "codeql.yml",
     "dependency-review.yml",

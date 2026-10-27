@@ -48,3 +48,9 @@ venv/
 # symlinks
 .venv
 venv
+
+# tools
+# semantic code search (ccc)
+/.cocoindex_code/
+# reports with AST metrics for code quality
+/.ast-metrics-report

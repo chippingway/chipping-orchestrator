@@ -1,0 +1,44 @@
+# AST Metrics for chipping-orchestrator. Run from the repository root:
+#   ast-metrics analyze
+#   ast-metrics lint
+# Configuration reference: https://ast-metrics.dev/ci/linting-architecture/
+
+# Explicit source roots keep environments, generated reports, and the
+# operator-owned analytics-db/data/ volume outside discovery.
+sources:
+  - ./orchestrator
+  - ./tests
+  - ./.github/scripts
+
+# Regular expressions, not globs; directory boundaries also match absolute paths.
+exclude:
+  - '(^|/)(__pycache__|\.pytest_cache|\.ruff_cache|\.mypy_cache|\.venv|venv)(/|$)'
+
+# All generated artifacts belong in the existing gitignored report directory.
+reports:
+  html: ./.ast-metrics-report
+  markdown: ./.ast-metrics-report/report.md
+  json: ./.ast-metrics-report/report.json
+  summary: true
+
+requirements:
+  # Include test scenarios and doubles in reports, but apply these size and
+  # complexity budgets to production code and the documentation build script.
+  exclude:
+    - '(^|/)tests(/|$)'
+  rules:
+    # Package import contracts are checked by the repository's import tests.
+    # AST Metrics 0.43.1 coupling rules match imported symbol names, which
+    # cannot reliably enforce Python package boundaries.
+    volume:
+      # Physical LOC includes comments, docstrings, and blank lines. This
+      # budget accommodates documented modules and multiline data while
+      # keeping large files visible for review.
+      max_loc: 400
+      # Allow space for documentation, signatures, and multiline calls.
+      # WPS213 separately limits expressions; this budget controls physical size.
+      # In AST Metrics 0.43.1 this rule checks top-level functions.
+      max_loc_by_method: 60
+    complexity:
+      # AST Metrics 0.43.1 compares the file's aggregate, not each function.
+      max_cyclomatic: 10

@@ -1,0 +1,13 @@
+name: AST Metrics
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  ast-metrics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: ast-metrics/action-ast-metrics@56f327a0ff791a3468d3ea77dd71084520586f6b # v2.2.0
