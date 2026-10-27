@@ -34,6 +34,8 @@ SHA_BEFORE = support.SHA_BEFORE
 TRANSIENT_PARK_WATERMARK = support.TRANSIENT_PARK_WATERMARK
 TRIGGER_ID = support.TRIGGER_ID
 VALIDATING = support.VALIDATING
+HISTORICAL_BODY = "some old discussion from implementing"
+TRIGGER_BODY = "please rename foo"
 _FixingFixtureMixin = support._FixingFixtureMixin
 _agent = support._agent
 config = support.config
@@ -150,65 +152,33 @@ class FixingPostFeedbackRoutingTest(unittest.TestCase, _FixingFixtureMixin):
         self,
     ) -> None:
         # `_handle_in_review` can route to `fixing` with
-        # `pr_last_comment_id` still unset (e.g. an issue whose state
-        # pre-dates the watermark migration, or a manual relabel
-        # path). The issue thread is then bounded by its own delivery
-        # cursor alone: everything at or below `last_action_comment_id`
-        # has been in a developer prompt already, so the rescan drops it
-        # rather than re-feeding the whole history as fresh feedback.
-        # That cursor is NOT a floor for the pull request -- see
-        # `test_issue_only_consumption` for the PR comment numbered below
-        # it that has to surface.
-        long_ago = datetime.now(timezone.utc) - timedelta(hours=1)
-        historical = FakeComment(
-            id=HISTORICAL_COMMENT_ID,
-            body="some old discussion from implementing",
-            user=FakeUser(ALICE),
-            created_at=long_ago,
-        )
-        triggering = FakeComment(
-            id=TRIGGER_ID,
-            body="please rename foo",
-            user=FakeUser(ALICE),
-            created_at=long_ago,
-        )
-        pr = self._open_pr()
-        scenario = IssueScenario(
-            *self._seed(
-                pr=pr,
-                issue_comments=[historical, triggering],
-                extra_state={
-                    # No `pr_last_comment_id` at all -- the in_review
-                    # legacy migration did not run on this issue.
-                    PR_LAST_COMMENT_ID: None,
-                    # But `last_action_comment_id` is set (a park comment
-                    # id from validating, say) and sits above the
-                    # historical comment.
-                    "last_action_comment_id": 1000,
-                },
-            )
-        )
+        # `pr_last_comment_id` still unset (a manual relabel path). The issue
+        # thread is then bounded by the stretch of it developer prompts were
+        # handed alone: above the floor the first spawn recorded, through
+        # `last_action_comment_id`, everything has been in a developer prompt
+        # already, so the rescan drops it rather than re-feeding the whole
+        # history as fresh feedback. That stretch is NOT a floor for the pull
+        # request -- see `test_issue_only_consumption` for the PR comment
+        # numbered below it that has to surface.
+        prompt = self._rescanned_with_floor(0)
 
-        with patch.object(config, DEBOUNCE_CONFIG, DEBOUNCE_SECONDS):
-            self._mocks = self._run_fixing(
-                scenario.github,
-                scenario.issue,
-                run_agent=_agent(
-                    session_id=DEV_SESSION,
-                    last_message=PUSHED_MESSAGE,
-                ),
-                head_shas=(SHA_BEFORE, SHA_AFTER),
-            )
-
-        self._mocks[RUN_AGENT].assert_called_once()
-        self._agent_call = self._mocks[RUN_AGENT].call_args
-        self._prompt = self._agent_call.args[1]
         # The triggering comment (id=TRIGGER_ID) IS quoted -- it is above
-        # the delivery cursor, so no prompt has carried it yet.
-        self.assertIn("please rename foo", self._prompt)
-        # The historical comment (id=500) is NOT quoted -- it sits below
-        # the delivery cursor (1000), which means a prompt already did.
-        self.assertNotIn("some old discussion from implementing", self._prompt)
+        # the reply boundary, so no prompt has carried it yet.
+        self.assertIn(TRIGGER_BODY, prompt)
+        # The historical comment (id=500) is NOT quoted -- the first prompt
+        # quoted the thread from its beginning, which puts it inside the
+        # delivered stretch (0, 1000].
+        self.assertNotIn(HISTORICAL_BODY, prompt)
+
+    def test_a_comment_the_first_prompt_cut_is_fed(self) -> None:
+        # The same thread, whose first prompt's excerpt bound left the
+        # historical comment out: the floor that spawn recorded stands on it,
+        # so it is below the reply boundary and still unread, and the round
+        # quotes it beside the comment that triggered it.
+        prompt = self._rescanned_with_floor(HISTORICAL_COMMENT_ID)
+
+        self.assertIn(TRIGGER_BODY, prompt)
+        self.assertIn(HISTORICAL_BODY, prompt)
 
     # --- orchestrator comments are filtered from the rescan -------------
 
@@ -248,3 +218,54 @@ class FixingPostFeedbackRoutingTest(unittest.TestCase, _FixingFixtureMixin):
         # No new feedback -> bounce back to validating (rather than
         # treating the orchestrator's own comment as fresh feedback).
         self.assertIn((ISSUE, VALIDATING), gh.label_history)
+
+    def _rescanned_with_floor(self, floor: int) -> str:
+        """The prompt a fix round quotes over a thread delivered above `floor` through 1000."""
+        long_ago = datetime.now(timezone.utc) - timedelta(hours=1)
+        pr = self._open_pr()
+        scenario = IssueScenario(
+            *self._seed(
+                pr=pr,
+                issue_comments=[
+                    FakeComment(
+                        id=HISTORICAL_COMMENT_ID,
+                        body=HISTORICAL_BODY,
+                        user=FakeUser(ALICE),
+                        created_at=long_ago,
+                    ),
+                    FakeComment(
+                        id=TRIGGER_ID,
+                        body=TRIGGER_BODY,
+                        user=FakeUser(ALICE),
+                        created_at=long_ago,
+                    ),
+                ],
+                extra_state={
+                    # No `pr_last_comment_id` at all -- a manual relabel
+                    # straight into `workflow:fixing` that in_review never
+                    # initialized.
+                    PR_LAST_COMMENT_ID: None,
+                    # The reply boundary a park on validating left above
+                    # the historical comment, and the stretch the prompts
+                    # recorded as delivered: from the floor the first spawn
+                    # recorded through that boundary.
+                    "last_action_comment_id": 1000,
+                    "delivered_after_comment_id": floor,
+                    "delivered_through_comment_id": 1000,
+                },
+            )
+        )
+
+        with patch.object(config, DEBOUNCE_CONFIG, DEBOUNCE_SECONDS):
+            mocks = self._run_fixing(
+                scenario.github,
+                scenario.issue,
+                run_agent=_agent(
+                    session_id=DEV_SESSION,
+                    last_message=PUSHED_MESSAGE,
+                ),
+                head_shas=(SHA_BEFORE, SHA_AFTER),
+            )
+
+        mocks[RUN_AGENT].assert_called_once()
+        return mocks[RUN_AGENT].call_args.args[1]

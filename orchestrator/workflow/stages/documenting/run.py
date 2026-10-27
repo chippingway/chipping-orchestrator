@@ -42,7 +42,12 @@ from orchestrator.git import branch_transport as _branch_transport
 from orchestrator.git.publication import probes as _publication_probes
 from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.github.comments import filter_trusted
-from orchestrator.workflow.engine import prompt_context as _prompt_context, prompts as _prompts
+from orchestrator.workflow.engine import (
+    prompt_context as _prompt_context,
+    prompt_delivery as _prompt_delivery,
+    prompts as _prompts,
+    thread_delivery as _thread_delivery,
+)
 from orchestrator.workflow.stages.documenting import (
     failed_pass as _failed_pass,
     models as _models,
@@ -139,14 +144,48 @@ def _prepare_documenting_worktree(ctx: _models._DocumentingContext, wt):
     return (divergence.ahead, divergence.tip)
 
 
-def _documentation_prompt(ctx: _models._DocumentingContext) -> str:
+def _documentation_prompt(ctx: _models._DocumentingContext, conversation: str | None = None) -> str:
     """Build the FULL documentation prompt (issue body + recent comments +
     the `DOCS: NO_CHANGE` marker contract) shared by the resume and fresh
-    docs runs."""
+    docs runs.
+
+    `conversation` is the thread as a resume's recorded read rendered it; the
+    fresh pass, which records nothing, reads the thread itself.
+    """
+    if conversation is None:
+        conversation = _prompt_context._recent_comments_text(ctx.issue)
     return _prompts._build_documentation_prompt(
-        ctx.spec, ctx.issue, _prompt_context._recent_comments_text(ctx.issue),
-        config.default_repo_specs(),
+        ctx.spec, ctx.issue, conversation, config.default_repo_specs(),
     )
+
+
+def _answered_reply(ctx: _models._DocumentingContext) -> _prompt_delivery.PromptDeliverySnapshot | None:
+    """Move the reply boundary over the new trusted replies, and read the thread the resume's prompt quotes.
+
+    None, moving nothing, where no trusted reply has arrived.
+
+    The boundary and delivery are moved apart here because the prompt is
+    bounded. The boundary goes over every new trusted reply -- the park is
+    answered, and its next wait is for a reply above them -- while what the
+    prompt delivered is the record of this read, which the resume settles
+    once a process was launched with it (`thread_delivery.records_delivery`):
+    a long reply can push earlier guidance out of the excerpt, and what the
+    excerpt cut stays unread feedback for the review stages to deliver.
+    """
+    # Drop untrusted authors before the resume signal / watermark advance:
+    # with `ALLOWED_ISSUE_AUTHORS` set an outsider reply must not resume the
+    # docs pass NOR advance the consumed watermark. Only trusted comments are
+    # consumed, so an outsider reply trailing a trusted one is left unconsumed;
+    # an all-untrusted batch reads as "no new reply".
+    new_comments = filter_trusted(
+        ctx.gh.comments_after(
+            ctx.issue, ctx.state.get(_state._LAST_ACTION_COMMENT_ID),
+        ),
+    )
+    if not new_comments:
+        return None
+    ctx.state.set(_state._LAST_ACTION_COMMENT_ID, max(comment.id for comment in new_comments))
+    return _prompt_context._delivered_thread(ctx.gh, ctx.issue, ctx.state)
 
 
 def _resume_documenting_dev(
@@ -163,8 +202,10 @@ def _resume_documenting_dev(
     Without those, the dev could emit a stray `DOCS: NO_CHANGE` it learned
     from an earlier spawn and the issue would advance to validating without
     ever running a real docs pass. `_build_documentation_prompt` quotes the
-    issue body AND the full conversation via `_recent_comments_text`, so the
-    human's latest reply is naturally included.
+    issue body AND the conversation, bounded to its newest 4,000 characters,
+    so the human's latest reply is naturally included -- and delivery is
+    recorded off that prompt's own read, once a process was launched with it
+    (`_answered_reply`).
 
     This is also the continue a failed pass's park is answered by, and which
     conversation it runs in is the shared resume's to decide: one an
@@ -179,22 +220,9 @@ def _resume_documenting_dev(
     or the record an Antigravity launch lands first did not land, and the tick
     should end without disposition.
     """
-    # Drop untrusted authors before the resume signal / watermark advance:
-    # with `ALLOWED_ISSUE_AUTHORS` set an outsider reply must not resume the
-    # docs pass NOR advance the consumed watermark. Only trusted comments are
-    # consumed, so an outsider reply trailing a trusted one is left unconsumed;
-    # an all-untrusted batch reads as "no new reply".
-    new_comments = filter_trusted(
-        ctx.gh.comments_after(
-            ctx.issue, ctx.state.get(_state._LAST_ACTION_COMMENT_ID),
-        ),
-    )
-    if not new_comments:
+    delivered = _answered_reply(ctx)
+    if delivered is None:
         return None
-    ctx.state.set(
-        _state._LAST_ACTION_COMMENT_ID,
-        max(comment.id for comment in new_comments),
-    )
     # Anchor `before_sha` from the just-fetched PR worktree BEFORE the resume
     # so the post-spawn check sees a real difference if (and only if) the
     # resumed dev produced a new commit. Persist `docs_checked_sha` BEFORE the
@@ -205,10 +233,12 @@ def _resume_documenting_dev(
     if not _failed_pass._armed(ctx, before_sha or ""):
         return None
     wt, documentation_result, paused = _dev_resume._resume_dev_with_text(_dev_resume_request._DevResumeRequest(
-        ctx.gh, ctx.spec, ctx.issue, ctx.state, _documentation_prompt(ctx),
+        ctx.gh, ctx.spec, ctx.issue, ctx.state, _documentation_prompt(ctx, delivered.rendered_text),
         followup_has_tracked_repos=True,
         pause_guard=True,
     ))
+    if documentation_result.invoked:
+        _thread_delivery.records_delivery(ctx.state, delivered)
     return _models._DocumentingRun(
         wt, documentation_result, before_sha, False, paused, ahead,
         remote_head,

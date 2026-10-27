@@ -43,6 +43,18 @@ SHELL_SIGNAL_EXIT_BASE = 128
 TRAPPED_SIGTERM_EXIT = SHELL_SIGNAL_EXIT_BASE + signal.SIGTERM
 DIRTY_FILE_COUNT = 15
 _AGENT_NO_OUTPUT = "agent produced no output"
+_DELIVERED_AFTER = "delivered_after_comment_id"
+_DELIVERED_THROUGH = "delivered_through_comment_id"
+# The comment the pickup stood the reply boundary on, above the thread it
+# found.
+_ANCHOR_ID = 30
+# A short comment the first prompt's excerpt cuts part-way, under one long
+# enough to take nearly all of the excerpt's 4000 characters.
+_CUT_ID = 10
+_CUT_BODY = "REQUIRED: keep the old column"
+_LONG_CONTEXT_CHARS = 3980
+_CUT_THREAD = ((_CUT_ID, _CUT_BODY), (20, "x" * _LONG_CONTEXT_CHARS))
+_WHOLE_THREAD = ((_CUT_ID, _CUT_BODY), (20, "short context"))
 
 
 def _seed_fresh_issue(label=LABEL_IMPLEMENTING):
@@ -485,3 +497,39 @@ class HandleImplementingRecoveredWorktreeTest(unittest.TestCase, _PatchedWorkflo
         self.assertEqual(len(gh.opened_prs), 1)
         # Prior session id retained.
         self.assertEqual(gh.pinned_data(3).get("dev_session_id"), "sess-prev")
+
+
+class FreshSpawnDeliveryFloorTest(unittest.TestCase, _PatchedWorkflowMixin):
+    """What the first prompt quoted of the thread is what counts as delivered.
+
+    The road that handed the issue here stood the reply boundary past the
+    thread and recorded no delivery, so nothing on it counts as answered
+    feedback yet. The fresh spawn's prompt is bounded and drops the oldest
+    comments first; its run records the stretch it quoted: above the newest
+    comment that excerpt cut -- part-way included -- or above 0 where it
+    quoted everything, through the newest it quoted. A launch nothing invoked
+    was handed nothing and records nothing.
+    """
+
+    def test_the_stretch_follows_the_excerpt(self) -> None:
+        for case, thread, run, stretch in (
+            ("a bounded thread", _CUT_THREAD, _agent(session_id=_NEW_SESSION, last_message=_reported()), (_CUT_ID, 20)),
+            ("a whole thread", _WHOLE_THREAD, _agent(session_id=_NEW_SESSION, last_message=_reported()), (0, 20)),
+            ("a refused launch", _CUT_THREAD, _agent(invoked=False), (None, None)),
+        ):
+            with self.subTest(case=case):
+                recorded = self._spawned_over(thread, run)
+                self.assertEqual((recorded.get(_DELIVERED_AFTER), recorded.get(_DELIVERED_THROUGH)), stretch)
+
+    def _spawned_over(self, thread: tuple, run) -> dict:
+        """The record a fresh spawn over `thread` leaves, its boundary stood on `_ANCHOR_ID`."""
+        gh = FakeGitHubClient()
+        issue = make_issue(4, label=LABEL_IMPLEMENTING, comments=[
+            FakeComment(id=comment_id, body=body, user=FakeUser("alice")) for comment_id, body in thread
+        ])
+        gh.add_issue(issue)
+        gh.seed_state(4, last_action_comment_id=_ANCHOR_ID)
+        self._run_implementing(
+            gh, issue, run_agent=run, has_new_commits=[False, True], dirty_files=(), push_branch=True,
+        )
+        return gh.pinned_data(4)

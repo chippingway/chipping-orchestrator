@@ -329,6 +329,9 @@ class HandleDocumentingFinalDocsHandoffTest(unittest.TestCase, _FinalDocsFixture
             awaiting_human=True,
             park_reason=PARK_AGENT_QUESTION,
             last_action_comment_id=PARK_COMMENT_ID,
+            # The first spawn quoted the whole thread before the park.
+            delivered_after_comment_id=0,
+            delivered_through_comment_id=PARK_COMMENT_ID,
         )
 
         # Documenting tick: awaiting-human resume consumes id=1100,

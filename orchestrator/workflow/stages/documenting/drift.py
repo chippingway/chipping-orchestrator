@@ -141,10 +141,11 @@ def _waits_on_a_reply(ctx: _models._DocumentingContext) -> bool:
     the reconcile-retry.
 
     The boundary that silence is kept behind is the unwind's OWN rather than
-    the delivery cursor (`parks._asked_since`): this road delivers nobody's
+    the reply boundary (`parks._asked_since`): this road delivers nobody's
     words to anybody, so the comment that moved the requirements reads as
     unanswered for as long as it is unread, and a gate measuring against the
-    cursor would find it every poll and retry the reconcile every poll.
+    reply boundary would find it every poll and retry the reconcile every
+    poll.
     """
     if not ctx.state.get(_state._AWAITING_HUMAN):
         return False
@@ -157,8 +158,8 @@ def _unwinds_the_worktree(ctx: _models._DocumentingContext) -> bool:
     """Put the checkout back on the PR head and relabel, or hold for a human.
 
     Always True: both roads out of here finish the tick. The park a git step
-    that cannot be proved takes holds the delivery cursor back inside its own
-    write (`parks._holds_the_delivery_cursor`), because nothing here delivered
+    that cannot be proved takes holds the reply boundary back inside its own
+    write (`parks._holds_the_reply_boundary`), because nothing here delivered
     anything to anybody.
     """
     wt = _worktree_paths._worktree_path(ctx.spec, ctx.issue.number)

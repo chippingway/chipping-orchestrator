@@ -14,8 +14,7 @@ The first case crosses the stage that writes the field and the two that read
 it, because neither end shows the defect alone -- validating settles a reply it
 delivered, and only the scan a manual relabel hands the issue to decides
 whether the same reply comes back as feedback. The rest pin the surfaces that
-must stay deliverable across the cursor shapes a relabelled or legacy issue
-arrives with.
+must stay deliverable across the PR-side cursor shapes no walk advanced.
 """
 
 from __future__ import annotations
@@ -84,10 +83,14 @@ PENDING_FIX_REVIEW_MAX_ID = "pending_fix_review_max_id"
 PENDING_FIX_REVIEW_SUMMARY_MAX_ID = "pending_fix_review_summary_max_id"
 PR_LAST_COMMENT_ID = "pr_last_comment_id"
 LAST_ACTION_COMMENT_ID = "last_action_comment_id"
+DELIVERED_AFTER = "delivered_after_comment_id"
+DELIVERED_THROUGH = "delivered_through_comment_id"
 CHANGES_REQUESTED = "CHANGES_REQUESTED"
-# The legacy handoff value, and the manual relabel that never wrote one. Both
-# leave the issue thread bounded by the delivery cursor alone.
-LEGACY_WATERMARK_SHAPES = (None, 0)
+# A PR-side cursor no walk advanced: unset, as a manual relabel leaves it, and
+# the 0 a handoff seed or an in_review initialization writes where its walk
+# crossed nothing. Both leave the issue thread bounded by the delivered
+# stretch alone.
+UNWALKED_WATERMARK_SHAPES = (None, 0)
 
 
 def _settled() -> datetime:
@@ -125,7 +128,14 @@ class _ConsumptionFixtureMixin(_PatchedWorkflowMixin):
             dev_session_id=DEV_SESSION,
             review_round=1,
             orchestrator_comment_ids=[PARK_NOTICE_ID],
-            **state_fields,
+            # The developer's first prompt quoted the thread from its
+            # beginning, and every prompt since quoted it through the reply
+            # boundary the fixture leaves: the delivered stretch.
+            **{
+                DELIVERED_AFTER: 0,
+                DELIVERED_THROUGH: state_fields.get(LAST_ACTION_COMMENT_ID),
+                **state_fields,
+            },
         )
         return gh, issue
 
@@ -141,7 +151,7 @@ class _ConsumptionFixtureMixin(_PatchedWorkflowMixin):
         return FakePR(**defaults)
 
     def _seeded_watermark(self, watermark) -> dict:
-        """The PR-side cursor a relabelled or legacy issue arrives carrying."""
+        """The PR-side cursor a manually relabelled issue arrives carrying."""
         return {} if watermark is None else {PR_LAST_COMMENT_ID: watermark}
 
     def _state(self, gh) -> dict:
@@ -264,13 +274,13 @@ class DeliveredIssueReplyTest(unittest.TestCase, _ConsumptionFixtureMixin):
 class AnsweredReplyRoutesNothingTest(unittest.TestCase, _ConsumptionFixtureMixin):
     """A thread whose only content the developer already answered is quiet.
 
-    Both PR-side cursor shapes a relabelled or legacy issue arrives with sit
+    Both PR-side cursor shapes no walk advanced sit
     BELOW the answered reply, so the reply is what the scan would re-read --
     and re-reading it spends a developer run on work already done.
     """
 
     def test_neither_stage_re_delivers(self) -> None:
-        for watermark in LEGACY_WATERMARK_SHAPES:
+        for watermark in UNWALKED_WATERMARK_SHAPES:
             for label in (LABEL_IN_REVIEW, LABEL_FIXING):
                 with self.subTest(pr_last_comment_id=watermark, label=label):
                     self._assert_quiet(label, watermark)
@@ -297,12 +307,12 @@ class UnreadFeedbackStillRoutesTest(unittest.TestCase, _ConsumptionFixtureMixin)
     conversation comment numbered below it, a later issue comment, an inline
     review comment, and a review summary all have to survive the scan that
     drops the reply -- each against the cursor that is actually its own, and
-    each on a first tick whose review-surface cursors the migration has to
-    seed without crossing them.
+    each on a first tick whose review-surface cursors the initialization has
+    to set without crossing them.
     """
 
     def test_lower_id_pr_comment_surfaces(self) -> None:
-        for watermark in LEGACY_WATERMARK_SHAPES:
+        for watermark in UNWALKED_WATERMARK_SHAPES:
             with self.subTest(pr_last_comment_id=watermark):
                 gh = self._route(
                     pr_fields={"issue_comments": [

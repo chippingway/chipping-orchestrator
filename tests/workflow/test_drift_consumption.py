@@ -103,6 +103,8 @@ BEFORE_SHA = DEFAULT_PR_HEAD_SHA
 RESOLVED_SHA = MEASURED_CANDIDATE_SHA
 
 LAST_ACTION_COMMENT_ID = "last_action_comment_id"
+DELIVERED_AFTER = "delivered_after_comment_id"
+DELIVERED_THROUGH = "delivered_through_comment_id"
 PR_LAST_COMMENT_ID = "pr_last_comment_id"
 PR_LAST_REVIEW_COMMENT_ID = "pr_last_review_comment_id"
 PR_LAST_REVIEW_SUMMARY_ID = "pr_last_review_summary_id"
@@ -191,6 +193,10 @@ class _RebasedUnderAnEdit(_PatchedWorkflowMixin):
             user_content_hash=STALE_HASH,
             **{
                 LAST_ACTION_COMMENT_ID: READ_THROUGH,
+                # The prompts quoted the thread from its beginning through
+                # the reply boundary.
+                DELIVERED_AFTER: 0,
+                DELIVERED_THROUGH: READ_THROUGH,
                 PR_LAST_COMMENT_ID: READ_THROUGH,
                 PR_LAST_REVIEW_COMMENT_ID: 0,
                 PR_LAST_REVIEW_SUMMARY_ID: 0,

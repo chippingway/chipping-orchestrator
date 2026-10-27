@@ -6,10 +6,10 @@ The batch that triggered the route is written down as bookmarks -- per surface
 a max id AND the full id list -- because the fixing handler re-reads those same
 comments to build its dev-resume prompt. Advancing the watermarks here instead
 would consume the feedback that caused the route and leave the dev with
-nothing to answer. The id lists exist because the max id alone stops being
-enough once the in_review watermarks do move past the batch: a later rescan
-can no longer reach the batch's lower members, and
-`_reconstruct_pending_fix_batch` prefers the lists for exactly that reason.
+nothing to answer. The id lists are what a replay is rebuilt from once the
+in_review watermarks do move past the batch: a later rescan can no longer
+reach it, and `_reconstruct_pending_fix_batch` rebuilds each surface from its
+list alone, since a max id names none of the batch's lower members.
 
 The relabel is deliberately not debounced. The dev is no longer spawned from
 this stage at all, so the wait belongs to the fixing handler's own spawn, and
@@ -40,13 +40,13 @@ def _record_pending_fix_bookmarks(
     review_summary_new: list,
 ) -> None:
     """Bookmark the fresh-feedback batch for the fixing handler: per surface,
-    the max id (the existing pinned-state contract and the conservative
-    reconstruction bound for issues parked before the id lists existed) plus the
-    full id list, so a later fixing tick reconstructs the EXACT triggering batch
-    even after the in_review watermarks advance past it -- the max id alone
-    loses the batch's lower members once a rescan can no longer reach them.
-    `_reconstruct_pending_fix_batch` prefers the id lists. Each list is already
-    sorted ascending by id (sorted at scan time).
+    the max id (part of the current pinned-state format) plus the full id
+    list, so a later fixing tick reconstructs the EXACT triggering batch even
+    after the in_review watermarks advance past it. The list is the only
+    thing `_reconstruct_pending_fix_batch` rebuilds a surface from -- the max
+    id alone names none of the batch's lower members once a rescan can no
+    longer reach them. Each list is already sorted ascending by id (sorted at
+    scan time), and holds whole comment ids exactly as the scan read them.
 
     These are bookmarks, not watermarks: they are deliberately NOT bumped past
     the batch, because the fixing handler re-reads these same comments to build

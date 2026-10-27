@@ -499,8 +499,8 @@ class ValidatingToInReviewHandoffTest(
         # An earlier in_review tick consumed a human PR comment (id 2000)
         # and bounced back to validating. The dev fixed it; the reviewer
         # approves again. _seed_watermark_past_self stops at the first
-        # post-pickup human comment so its recomputed seed is BELOW the
-        # already-stored watermark. Without max(), pr_last_comment_id
+        # human comment no delivery record covers, so its recomputed seed is
+        # BELOW the already-stored watermark. Without max(), pr_last_comment_id
         # would regress and the next in_review tick would replay the same
         # already-fixed feedback as "new", looping forever.
         gh = FakeGitHubClient()

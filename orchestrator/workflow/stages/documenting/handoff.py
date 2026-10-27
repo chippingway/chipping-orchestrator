@@ -28,21 +28,23 @@ untouched and advances to `in_review`, its final head verified and recorded
 beside the approval rather than in it (`final_completion`): a pushed docs
 commit is content that approval was never of, and nothing says otherwise.
 What every completion carries forward is `pr_last_comment_id`. The
-awaiting-human resume advances `last_action_comment_id` past the human reply it
-fed into the docs prompt, and in_review reads the issue thread against that
-cursor as well, so the reply is answered whatever this handoff writes; what a
-`pr_last_comment_id` validating seeded BEFORE it leaves behind is a watermark
-the next stage re-reads the whole span under on every tick.
+awaiting-human resume moves the reply boundary `last_action_comment_id` past
+the human reply that answered its park, and records as delivered what its
+bounded docs prompt quoted (`engine/thread_delivery`); in_review reads the
+issue thread against that delivered stretch as well, so a reply the prompt
+quoted is answered whatever this handoff writes, and one its excerpt cut is
+not. What a `pr_last_comment_id` validating seeded BEFORE it leaves behind is a
+watermark the next stage re-reads the whole span under on every tick.
 
 The ratchet reuses validating's own seed-walk so a PR-conversation comment
-sitting between the old watermark and the consumed-through threshold is not
-swallowed: the walk stops at the first unread non-orchestrator comment on
-either surface, and the consumed-through bound applies to the issue thread
-only. `max` keeps a higher in_review watermark from regressing, and a PR fetch
-failure is best-effort -- the handoff still advances, and in_review's own
-rescan is debounced and correct on its own. A published pass's completion
-walks behind its notice, and so seeds past it. A pass that changed nothing
-walks ahead of the proof that the evidence still answers for its head instead
+sitting between the old watermark and the delivered stretch is not swallowed:
+the walk stops at the first unread non-orchestrator comment on either surface,
+and the delivered stretch applies to the issue thread only. `max` keeps a
+higher in_review watermark from regressing, and a PR fetch failure is
+best-effort -- the handoff still advances, and in_review's own rescan is
+debounced and correct on its own. A published pass's completion walks behind
+its notice, and so seeds past it. A pass that changed nothing walks ahead of
+the proof that the evidence still answers for its head instead
 (`retention._retains`), since the walk requests the pull
 request and its threads, and a push behind a request that proof came before
 is one it never saw: its watermark stops short of its own notice, which
@@ -186,24 +188,24 @@ def _in_review_watermark(
     comments the docs pass already consumed during the final-docs hop, or
     None where there is nothing to ratchet.
 
-    During documenting's awaiting-human resume the handler advances
-    `last_action_comment_id` past the human reply it fed into the
-    `_build_documentation_prompt` resume. The final-docs handoff then
+    During documenting's awaiting-human resume the handler moves the reply
+    boundary `last_action_comment_id` past the human reply that answered its
+    park, and records as delivered what the bounded
+    `_build_documentation_prompt` resume quoted. The final-docs handoff then
     relabels to `in_review`, which scans `comments_after(issue,
-    pr_last_comment_id)` and drops what that delivery cursor already
-    covers -- so the consumed reply is answered either way, and what
-    this ratchet does is stop a `pr_last_comment_id` validating seeded
-    BEFORE the reply from leaving the next stage re-reading the whole
-    span beneath it on every tick.
+    pr_last_comment_id)` and drops what the delivered stretch
+    (`engine/thread_delivery`) already covers -- so a quoted reply is
+    answered either way, and what this ratchet does is stop a
+    `pr_last_comment_id` validating seeded BEFORE the reply from leaving the
+    next stage re-reading the whole span beneath it on every tick.
 
     Reuse `_latest_pr_comment_ids` (the same seed-walk validating uses
     at its approval handoff) so a PR-conversation comment with id
-    between the prior `pr_last_comment_id` and the consumed-through
-    threshold is NOT swallowed -- the walk stops at the first unread
-    non-orchestrator comment on either surface. `consumed_through` is
-    applied to the issue thread only inside the walk, which is what
-    keeps PR-conversation feedback visible to in_review's
-    fresh-feedback scan. Ratchets via `max` so a previous in_review
+    between the prior `pr_last_comment_id` and the delivered stretch is NOT
+    swallowed -- the walk stops at the first unread non-orchestrator
+    comment on either surface. The stretch is applied to the issue thread
+    only inside the walk, which is what keeps PR-conversation feedback
+    visible to in_review's fresh-feedback scan. Ratchets via `max` so a previous in_review
     tick's higher watermark is never regressed.
 
     A PR fetch failure is treated as best-effort: log and skip, so the

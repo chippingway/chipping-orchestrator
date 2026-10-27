@@ -86,11 +86,16 @@ def _reconstruct_pending_fix_batch(
     de-duplicated against that surface's id-set batch defensively.
 
     Re-apply the author allowlist at reconstruction time, not only at route
-    time: an issue parked before the trust gate shipped can carry untrusted ids
-    in `pending_fix_*_ids`, and `ALLOWED_ISSUE_AUTHORS` may change between the
-    route and the `/orchestrator continue` replay. Existing parked issues that
-    carry only `pending_fix_*_max_id` (no id lists) get the conservative
-    single-item reconstruction from `_pending_fix_id_set`.
+    time: `ALLOWED_ISSUE_AUTHORS` may change between the route and the
+    `/orchestrator continue` replay, and an id recorded under the old list is
+    no licence to quote its author under the new one.
+
+    The recorded `pending_fix_*_ids` lists are the only thing a surface is
+    rebuilt from (`bookmarks._pending_fix_id_set`): a surface whose list is
+    missing or damaged rebuilds nothing, whatever `pending_fix_*_max_id` says
+    beside it, so a park carrying no readable list on any surface -- and no
+    validating anchor -- has no batch to replay and its bare continue is
+    refused rather than resumed on the command text.
 
     `comments` is the caller's own read of the issue thread, which the
     rebuilt thread half is cut from rather than a read taken here. Everything
@@ -165,6 +170,7 @@ def _carried_fresh_feedback(
         pr_conversation=_carrying(feedback.pr_conversation),
         review_comments=_carrying(feedback.review_comments),
         review_summaries=_carrying(feedback.review_summaries),
+        known_through=feedback.known_through,
     )
 
 
@@ -196,6 +202,7 @@ def _commands_only(
         ),
         review_comments=[],
         review_summaries=[],
+        known_through=feedback.known_through,
     )
 
 

@@ -17,15 +17,17 @@ delivery record its prompt was built from -- which both names what the issue
 may mark answered and fingerprints the requirements its report is stamped
 with.
 
-`_AnsweredIssueSpace` is the three answers the watermark walk asks of every
-comment above the mark, bundled because they are one reading of one pinned
-state: which posts this orchestrator can prove are its own, how far the issue
-thread alone has been delivered, and which ids this very tick quoted. Read
-apart, a walk could advance on one and owe on another.
+`_AnsweredIssueSpace` is the answers the watermark walk asks of every comment
+above the mark, bundled because they are one reading of one pinned state and
+one read of the threads: which posts this orchestrator can prove are its own,
+which stretch of the issue thread alone has been delivered, which ids this
+very tick quoted, and how far the two reads behind the walk prove nothing
+unseen sits beneath. Read apart, a walk could advance on one and owe on
+another.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from github.Issue import Issue
@@ -33,7 +35,7 @@ from github.Issue import Issue
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import prompt_delivery as _delivery
+from orchestrator.workflow.engine import prompt_delivery as _delivery, thread_delivery as _thread_delivery
 
 
 @dataclass(frozen=True)
@@ -56,14 +58,32 @@ class _InReviewContext:
 class _AnsweredIssueSpace:
     """What a watermark walk may advance through without owing anybody.
 
-    `ours` is the orchestrator id ledger, `consumed` the issue thread's own
-    delivery cursor (`last_action_comment_id`, which says nothing about the
-    pull request's conversation), and `delivered` the ids this tick quoted
-    into a prompt of its own.
+    `ours` is the orchestrator id ledger, `consumed` the stretch of the issue
+    thread developer prompts have been handed (`thread_delivery`, which says
+    nothing about the pull request's conversation), `delivered` the ids this
+    tick quoted into a prompt of its own, and `known_through` the newest id
+    the walk's two reads prove complete beneath -- None until `read_through`
+    says, which crosses nothing.
     """
     ours: set
-    consumed: int | None
+    consumed: _thread_delivery.DeliveredThread
     delivered: set
+    known_through: int | None = None
+
+    def read_through(self, above: list, floor: int | None) -> _AnsweredIssueSpace:
+        """These answers, bounded by the two reads `above` was taken in.
+
+        `above` is `surfaces._issue_space_above`'s tagged merge, whose issue
+        thread is the read taken first. Every id these answers name was
+        recorded before either read began, as was `floor`, the mark the reads
+        were taken above, so each proves the snapshot complete beneath it as
+        surely as the first read's own newest comment does
+        (`thread_delivery.known_through`).
+        """
+        first_read = [seen for seen, on_the_thread in above if on_the_thread]
+        return replace(self, known_through=_thread_delivery.known_through(
+            first_read, floor, *self.consumed.recorded(), *self.ours, *self.delivered,
+        ))
 
 
 @dataclass(frozen=True)

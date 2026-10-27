@@ -252,8 +252,10 @@ def _resume_awaiting_human(
     `/orchestrator continue` retrying a session failure there is still a
     retry, on the same frozen prompt less the command.
 
-    The resolution road marks the batch read before its run, since it quotes
-    every reply in full. The drift road marks the replies read by what its
+    The resolution road moves the reply boundary over the batch before its
+    run, since it quotes every reply in full, and records them delivered once
+    a launched run is back (`_ParkedReply.delivered_by`). The drift road marks
+    the replies read by what its
     frozen read delivered, once the run is back: that read is bounded, and a
     reply cut from it would otherwise be marked read without ever having been
     handed over. A retry's commands are spent ahead of either, as the
@@ -283,6 +285,7 @@ def _resume_awaiting_human(
         _settles_what_it_delivered(ctx, run)
         _resume_reports._answers_the_reply(ctx, run, before_sha, entered_head or "")
         return
+    reply.delivered_by(run.dev_result, ctx.gh, ctx.issue, ctx.state)
     _outcomes._post_conflict_resolution_result(
         ctx, run, before_sha, conflict_round,
         force_with_lease=entered_head or None,
@@ -352,7 +355,9 @@ def _awaiting_human_followup(
                 retained_ids=ours,
             ),
         )
-    return _models._ParkedReply(_quoted_reply(new_comments), through)
+    return _models._ParkedReply(
+        _quoted_reply(new_comments), through, quoted=frozenset(comment.id for comment in new_comments),
+    )
 
 
 def _quoted_reply(new_comments: list) -> str:

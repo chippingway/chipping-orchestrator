@@ -72,6 +72,7 @@ from orchestrator.workflow.engine import (
     messages as _messages,
     prompt_context as _prompt_context,
     prompt_notes as _prompt_notes,
+    thread_delivery as _thread_delivery,
     usage as _usage,
 )
 from orchestrator.workflow.stages.decomposition import (
@@ -264,6 +265,13 @@ def _read_by(
     its answer, so its guidance is consumed the way every stage consumes a
     timed-out batch; what it was quoted whole stays owed, since a run stopped
     short has acted on none of it for certain.
+
+    What it read is delivered too, and it is the one late road that records
+    so: its prompt quoted every reply of the reading whole, so the delivered
+    stretch moves over them where nothing else unread stands among them
+    (`thread_delivery.DeliveredThread.carry`). Every other late consumption --
+    a control answered, a notice recovered -- carries it over nobody's input
+    alone (`late_park_state._mark_replies_read`).
     """
     said = (agent_result.last_message or "").strip()
     if (
@@ -273,6 +281,10 @@ def _read_by(
     ):
         return False
     _late_park_state._consume_reading(context, signal)
+    _thread_delivery.DeliveredThread.read(context.state).carry(
+        signal.fingerprint.comment_watermark_id, context.gh, context.issue, context.state,
+        frozenset(issue_comment.id for issue_comment in signal.guidance),
+    )
     return not agent_result.timed_out
 
 

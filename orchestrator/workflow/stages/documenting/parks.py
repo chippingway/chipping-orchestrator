@@ -22,14 +22,14 @@ for a launch whose outcome nothing recorded (`failed_pass`): what it left
 waits for the continue that reruns the pass rather than being published by
 the recovered-commit shortcut or rerun unasked.
 
-`_holds_the_delivery_cursor` is the hold, and it sits here rather than beside
+`_holds_the_reply_boundary` is the hold, and it sits here rather than beside
 the road that needs it because it has to ride the park's OWN write. A drift
-unwind runs no agent, so a park it takes may not carry the delivery cursor
+unwind runs no agent, so a park it takes may not carry the reply boundary
 over the comment that moved the requirements -- and a correction applied
 afterwards is a second write, which a crash between the two loses in the
 direction that waits forever. `_asked_since` is the other half of that split:
 where the hold is in force, the boundary a parked road reads its replies from
-is the notice, not the cursor.
+is the notice, not the reply boundary.
 """
 from __future__ import annotations
 
@@ -63,31 +63,33 @@ def _park_documenting(
     awaiting-human resume also reads it to distinguish stale park flags after
     a relabel. Writes pinned state; the caller returns unconditionally.
 
-    A park taken while a drift UNWIND is pending holds the delivery cursor
+    A park taken while a drift UNWIND is pending holds the reply boundary
     back instead of carrying it, because that road runs no agent at all: the
-    comment that moved the requirements is still unread, and a cursor left on
-    this notice would mark it answered by a git failure. The unwind block owns
+    comment that moved the requirements is still unread, and a boundary left
+    on this notice would have a git failure answer it -- no developer resumed
+    past the boundary would ever be handed it. The unwind block owns
     every tick a pending unwind stands on, so no docs-pass park ever reaches
     that branch.
     """
-    delivered_through = ctx.state.get(_state._LAST_ACTION_COMMENT_ID)
+    boundary = ctx.state.get(_state._LAST_ACTION_COMMENT_ID)
     _guards._park_awaiting_human(
         ctx.gh, ctx.issue, ctx.state, message, reason=reason,
     )
     ctx.state.set(_state._PARK_REASON, reason)
     if ctx.state.get(_state._UNWIND_PENDING):
-        _holds_the_delivery_cursor(ctx.state, delivered_through)
+        _holds_the_reply_boundary(ctx.state, boundary)
     ctx.gh.write_pinned_state(ctx.issue, ctx.state)
 
 
 def _asked_since(state: PinnedState) -> int | None:
     """The comment a parked tick reads its replies from.
 
-    Ordinarily the delivery cursor, which a park stamps at the notice it
-    posted, so "what a human has said since we asked" and "what nobody has
-    delivered" are one boundary. A drift unwind is where they part: its road
-    hands nothing to any agent, so it holds the cursor back over the words
-    that moved the requirements and records its own notice beside it. Every
+    Ordinarily the reply boundary, which a park stamps at the notice it
+    posted, so "what a human has said since we asked" and "what a resume
+    hands over next" are one boundary. A drift unwind is where they part: its
+    road hands nothing to any agent, so it holds the reply boundary back under
+    the words that moved the requirements and records its own notice beside
+    it. Every
     road that classifies a parked reply reads THIS, or the instruction the
     unwind never delivered joins the batch -- and a bare `/orchestrator
     continue` beside it reads as a command somebody wrote guidance for, which
@@ -99,31 +101,32 @@ def _asked_since(state: PinnedState) -> int | None:
     return state.get(_state._LAST_ACTION_COMMENT_ID)
 
 
-def _holds_the_delivery_cursor(state: PinnedState, delivered_through) -> None:
-    """Put back the delivery cursor an unwind's park just moved, before the
+def _holds_the_reply_boundary(state: PinnedState, boundary) -> None:
+    """Put back the reply boundary an unwind's park just moved, before the
     write that would make it durable.
 
     The shared park records the thread read as far as the notice it posted,
     which is right for a park decided between two of one tick's own steps: our
     own sentence has to be crossed or the next poll answers itself. Nothing on
     the unwind road delivered anything, so the comment that MOVED the
-    requirements sits below that notice having reached no agent -- and the
-    `workflow:fixing` round the eventual retry hands the issue to would never
-    see it.
+    requirements sits below that notice having reached no agent -- and a
+    developer the eventual retry resumes past the boundary would never be
+    handed it. The delivered stretch is no part of this: the park records
+    no delivery either way.
 
     What the park's mark is still needed for is the silence that road keeps
     while nothing fresh has happened, so it is kept as the unwind's own
-    boundary and the cursor goes back where it was. Both go down in the write
-    the park was going to make anyway: a correction in a SECOND write is one a
-    crash between them loses, and it loses it in the direction that strands
-    the input -- a cursor on our notice, no boundary beside it, and a gate
-    that then falls back to that cursor and waits for a comment nobody has
-    any reason to write.
+    boundary and the reply boundary goes back where it was. Both go down in
+    the write the park was going to make anyway: a correction in a SECOND
+    write is one a crash between them loses, and it loses it in the direction
+    that strands the input -- a boundary on our notice, no unwind boundary
+    beside it, and a gate that then falls back to the reply boundary and
+    waits for a comment nobody has any reason to write.
     """
     asked_at = state.get(_state._LAST_ACTION_COMMENT_ID)
     if isinstance(asked_at, int):
         state.set(_state._UNWIND_ASKED_AT, asked_at)
-    state.set(_state._LAST_ACTION_COMMENT_ID, delivered_through)
+    state.set(_state._LAST_ACTION_COMMENT_ID, boundary)
 
 
 def _park_documenting_without_pr(

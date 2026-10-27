@@ -55,14 +55,18 @@ config = support.config
 make_issue = support.make_issue
 patch = support.patch
 
+# The four surfaces a rebuilt batch holds apart, as `_FixingFeedback` names them.
+_SURFACES = ("issue_thread", "pr_conversation", "review_comments", "review_summaries")
+# The two IssueComment surfaces one recorded list covers.
+_ISSUE_SPACE = _SURFACES[:2]
+
 
 class _PendingFixBatchFixtureMixin:
     """`_reconstruct_pending_fix_batch` rebuilds the exact `in_review` ->
-    `fixing` feedback batch from the persisted `pending_fix_*` metadata,
+    `fixing` feedback batch from the persisted `pending_fix_*_ids` lists,
     working even after the in_review watermarks have advanced past the
     triggering comments (the point of persisting the full id lists rather
-    than only the max ids). A conservative single-item fallback covers
-    issues parked before the id lists were recorded.
+    than only the max ids). Nothing else stands in for a list.
     """
 
     def _pr_with_feedback(self):
@@ -139,6 +143,31 @@ class _PendingFixBatchFixtureMixin:
         gh.add_pr(pr)
         return gh, issue, pr
 
+    def _rebuilt(self, **bookmarks) -> dict:
+        """The batch one record's bookmarks rebuild, by surface, past watermarks advanced beyond all of it."""
+        gh, issue, pr = self._pr_with_feedback()
+        gh.seed_state(
+            ISSUE,
+            pr_last_comment_id=ADVANCED_PR_COMMENT_WATERMARK,
+            pr_last_review_comment_id=ADVANCED_REVIEW_COMMENT_WATERMARK,
+            pr_last_review_summary_id=ADVANCED_REVIEW_SUMMARY_WATERMARK,
+            **bookmarks,
+        )
+        return _surface_ids(
+            _reconstruct_pending_fix_batch(gh, issue, pr, gh.read_pinned_state(issue)),
+        )
+
+
+def _intact_surfaces(*emptied: str) -> dict:
+    """What every surface rebuilds from intact lists over `_pr_with_feedback`, those `emptied` aside."""
+    rebuilt = {
+        "issue_thread": [BATCH_ISSUE_ID],
+        "pr_conversation": [BATCH_PR_CONVERSATION_ID],
+        "review_comments": list(BATCH_INLINE_IDS),
+        "review_summaries": list(BATCH_SUMMARY_IDS),
+    }
+    return {**rebuilt, **{surface: [] for surface in emptied}}
+
 
 def _surface_ids(batch) -> dict:
     """The ids one rebuilt batch carries, held apart by the surface they came
@@ -146,12 +175,7 @@ def _surface_ids(batch) -> dict:
     """
     return {
         surface: [found.id for found in getattr(batch, surface)]
-        for surface in (
-            "issue_thread",
-            "pr_conversation",
-            "review_comments",
-            "review_summaries",
-        )
+        for surface in _SURFACES
     }
 
 
@@ -190,12 +214,7 @@ class ReconstructPendingFixBatchTest(
         # over ONE shared id space: merged, a reconstruction that put each
         # comment on the other's surface reads identically, and the
         # settlement below would then move the wrong reader.
-        self.assertEqual(_surface_ids(self._reconstructed), {
-            "issue_thread": [BATCH_ISSUE_ID],
-            "pr_conversation": [BATCH_PR_CONVERSATION_ID],
-            "review_comments": list(BATCH_INLINE_IDS),
-            "review_summaries": list(BATCH_SUMMARY_IDS),
-        })
+        self.assertEqual(_surface_ids(self._reconstructed), _intact_surfaces())
         # Non-batch noise on every surface is excluded.
         self._batch = self._reconstructed.all_items
         ids = {feedback_item.id for feedback_item in self._batch}
@@ -251,35 +270,26 @@ class ReconstructPendingFixBatchTest(
             PR_LAST_REVIEW_SUMMARY_ID: BATCH_SUMMARY_ID,
         })
 
-    def test_legacy_max_id_reconstructs_single_item(self) -> None:
-        gh, issue, pr = self._pr_with_feedback()
-        # An issue parked before the id lists existed: only the max_id
-        # bookmarks survive. Reconstruction must include ONLY the max-id
-        # item per surface, never guessing at lower members it cannot vouch
-        # for.
-        gh.seed_state(
-            ISSUE,
-            pr_last_comment_id=ADVANCED_PR_COMMENT_WATERMARK,
-            pr_last_review_comment_id=ADVANCED_REVIEW_COMMENT_WATERMARK,
-            pr_last_review_summary_id=ADVANCED_REVIEW_SUMMARY_WATERMARK,
-            pending_fix_issue_max_id=BATCH_PR_CONVERSATION_ID,
-            pending_fix_review_max_id=BATCH_INLINE_SECOND_ID,
-            pending_fix_review_summary_max_id=BATCH_SUMMARY_ID,
-        )
-        state = gh.read_pinned_state(issue)
-
-        batch = _reconstruct_pending_fix_batch(gh, issue, pr, state).all_items
-
-        # Only the single max-id item per surface; a legacy bookmark cannot
-        # prove lower ids were in the batch.
-        self.assertEqual(
-            [feedback_item.id for feedback_item in batch],
-            [
-                BATCH_PR_CONVERSATION_ID,
-                BATCH_INLINE_SECOND_ID,
-                BATCH_SUMMARY_ID,
-            ],
-        )
+    def test_damaged_list_rebuilds_nothing_there(self) -> None:
+        # A list that is not a list of whole comment ids -- strings, a stray
+        # flag that would read as id 1, a lone id -- is no batch, and none of
+        # its members is taken as if the rest were not there. The surfaces
+        # whose lists read are rebuilt exactly as recorded, each apart, so a
+        # damaged surface neither borrows another's ids nor hides them.
+        intact = {
+            "pending_fix_issue_ids": list(BATCH_ISSUE_IDS),
+            "pending_fix_review_ids": list(BATCH_INLINE_IDS),
+            "pending_fix_review_summary_ids": list(BATCH_SUMMARY_IDS),
+        }
+        for damaged, emptied in (
+            ({"pending_fix_issue_ids": [str(found) for found in BATCH_ISSUE_IDS]}, _ISSUE_SPACE),
+            ({"pending_fix_review_ids": [BATCH_INLINE_ID, True]}, ("review_comments",)),
+            ({"pending_fix_review_summary_ids": BATCH_SUMMARY_ID}, ("review_summaries",)),
+        ):
+            with self.subTest(damaged=damaged):
+                self.assertEqual(
+                    self._rebuilt(**{**intact, **damaged}), _intact_surfaces(*emptied),
+                )
 
     def test_no_metadata_reconstructs_empty_batch(self) -> None:
         gh, issue, pr = self._pr_with_feedback()
@@ -294,9 +304,9 @@ class ReconstructPendingFixBatchTest(
         )
 
     def test_drops_untrusted_recorded_ids(self) -> None:
-        # An issue parked before the trust gate shipped can carry an untrusted
-        # author's id in `pending_fix_*_ids`. With `ALLOWED_ISSUE_AUTHORS` set,
-        # reconstruction must re-apply the allowlist so the `/orchestrator
+        # `ALLOWED_ISSUE_AUTHORS` can change between the route and the replay,
+        # so `pending_fix_*_ids` can name an author the current list does not
+        # trust. Reconstruction re-applies the allowlist so the `/orchestrator
         # continue` replay never re-quotes that outsider's feedback.
         malicious_url = "https://example.invalid/malicious-patch.zip"
         gh = FakeGitHubClient()

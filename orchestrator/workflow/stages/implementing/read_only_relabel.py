@@ -20,8 +20,11 @@ the park reason alone: `relabel_hazard` takes those readings against what
 finding costs an operator to clear.
 
 A clean pair means the relabel IS the unblock signal: the flags are dropped and
-`last_action_comment_id` is ratcheted past what that agent posted, or the later
-validating -> in_review seed would replay it as fresh PR feedback. The round
+`last_action_comment_id`, the reply boundary, is ratcheted past the
+conversation, since nothing in it is a reply the developer owes an answer to.
+That hands the developer nothing and records no delivery: only what the
+implementer's bounded first prompt records as quoted of the conversation
+counts as answered feedback (`thread_delivery`). The round
 anchor is retired here rather than discarded -- it becomes
 `read_only_baseline_sha`, the floor the dev run that follows is measured
 against, since the branch it inherits is already ahead of base.

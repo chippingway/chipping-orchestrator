@@ -379,11 +379,14 @@ class GrantedRoundJourneyTest(_docs._ChangedDocsWalk, unittest.TestCase):
         """Park the round on its spent review cap, grant one more round, and approve on it."""
         self.enterContext(patch.object(config, "MAX_REVIEW_ROUNDS", 2))
         state = self.github.read_pinned_state(self.issue)
+        # The cap's park walks the reply boundary over our own posts, and the
+        # delivered stretch, reaching it, moves with it.
         for record, recorded in (
             ("awaiting_human", True),
             ("park_reason", "review_cap"),
             (_docs.REVIEW_ROUND, config.MAX_REVIEW_ROUNDS),
             ("last_action_comment_id", _readiness.high_water(self)),
+            ("delivered_through_comment_id", _readiness.high_water(self)),
         ):
             state.set(record, recorded)
         self.github.write_pinned_state(self.issue, state)

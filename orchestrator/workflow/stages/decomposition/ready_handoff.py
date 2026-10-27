@@ -252,7 +252,10 @@ def _starts(
     Answers the fingerprint the requirements moved to where the issue fetched
     ahead of the relabel reads changed, and None otherwise.
     `last_action_comment_id` moves past every comment on `consumed`, never
-    below where it stands. The relabel goes behind a write `lands` confirmed
+    below where it stands: nothing there is a reply to anything. That hands
+    nobody the thread and records no delivery: only what the implementer's
+    bounded prompt records as quoted (`thread_delivery`) counts as answered
+    feedback. The relabel goes behind a write `lands` confirmed
     by reading the record back: a record a human edited since -- a child's
     baseline taken off it above all -- would otherwise reach the implementer,
     whose own reading takes a missing baseline as the first one, so the issue

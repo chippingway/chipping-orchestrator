@@ -294,6 +294,9 @@ class _ContinueSeed:
     with_batch_ids: bool = True
     pending_fix_at: str | None = PENDING_FIX_AT_TS
     silent_park_count: int = 2
+    # Bookmark fields the parked record carries beside, or in place of, the
+    # intact batch lists `with_batch_ids` writes.
+    bookmarks: tuple = ()
 
 
 class _FixingFixtureMixin(_PatchedWorkflowMixin):
@@ -330,6 +333,11 @@ class _FixingFixtureMixin(_PatchedWorkflowMixin):
             state["pr_number"] = pr.number
         if extra_state:
             state.update(extra_state)
+        # The in_review route records each batch's id list beside its max id,
+        # and the list is all a replay is rebuilt from: a fixture naming only
+        # the max id names a one-comment batch, recorded as the route would.
+        if state.get(PENDING_FIX_ISSUE_MAX_ID) is not None:
+            state.setdefault(PENDING_FIX_ISSUE_IDS, [state[PENDING_FIX_ISSUE_MAX_ID]])
         gh.seed_state(issue_number, **state)
         return gh, issue
 

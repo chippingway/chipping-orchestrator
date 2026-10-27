@@ -123,6 +123,11 @@ class ReviewWorld(_PatchedWorkflowMixin):
             dev_agent=BACKEND_CODEX,
             dev_session_id=DEV_SESSION,
             review_round=0,
+            # The stretch the implementer's first spawn recorded: it quoted
+            # the thread from its beginning, so every reply a resume settles
+            # past it counts as delivered.
+            delivered_after_comment_id=0,
+            delivered_through_comment_id=0,
         )
         self.pull_request = _open_pr_for(self.github, issue_number=ISSUE, pr_number=PR)
         publishes_the_report(self.github, self.issue)

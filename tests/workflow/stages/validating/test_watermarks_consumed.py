@@ -197,6 +197,10 @@ class HandoffSkipsConsumedRepliesTest(unittest.TestCase, _PatchedWorkflowMixin):
             ],
             pickup_comment_id=PICKUP_COMMENT_ID,
             last_action_comment_id=CONSUMED_REPLY_ID,
+            # The first spawn quoted the whole thread before the park, and
+            # the resume delivered the replies through 920.
+            delivered_after_comment_id=0,
+            delivered_through_comment_id=CONSUMED_REPLY_ID,
         )
 
         # Step 1: validating approves. The handoff seed must walk PAST
@@ -382,6 +386,10 @@ class HandoffConsumedThroughIssueThreadOnlyTest(unittest.TestCase, _PatchedWorkf
             ],
             pickup_comment_id=PICKUP_COMMENT_ID,
             last_action_comment_id=CONSUMED_REPLY_ID,
+            # The first spawn quoted the whole thread before the park, and
+            # the resume delivered the replies through 920.
+            delivered_after_comment_id=0,
+            delivered_through_comment_id=CONSUMED_REPLY_ID,
         )
 
         # Step 1: validating approves and seeds in_review watermarks. The

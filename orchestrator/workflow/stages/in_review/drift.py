@@ -267,11 +267,11 @@ def _settles_what_it_delivered(
 ) -> _delivery.PromptDeliverySnapshot | None:
     """Record the frozen prompt as read, and say whether it may be.
 
-    The issue thread's own delivery cursor and the requirements revision are
-    what this road writes; the inline-review and review-summary watermarks are
-    untouched because nothing here read them. What the excerpt bound cut holds
-    the thread's cursor below it, so the scan that owns that surface still
-    delivers it.
+    The issue thread's reply boundary and delivered stretch, and the
+    requirements revision, are what this road writes; the inline-review and
+    review-summary watermarks are untouched because nothing here read them.
+    What the excerpt bound cut holds the delivered stretch below it, so the
+    scan that owns that surface still delivers it.
 
     Only the issue thread's half of the record is written from, because
     `pr_last_comment_id` spans BOTH IssueComment surfaces and this record

@@ -218,6 +218,12 @@ class PickupOwnerPatchTest(unittest.TestCase):
         self.assertEqual(recorder.labels, [(_ISSUE_NUMBER, label)])
         self.assertIn("pickup_comment_id", recorder.state)
         self.assertIn("user_content_hash", recorder.state)
+        # The reply boundary stands on the pickup, since nothing on the thread
+        # is a reply to anything, and no delivery is recorded: nothing on it
+        # is delivered until the stage's first prompt records what it quoted.
+        self.assertEqual(recorder.state.get("last_action_comment_id"), recorder.state["pickup_comment_id"])
+        self.assertNotIn("delivered_after_comment_id", recorder.state)
+        self.assertNotIn("delivered_through_comment_id", recorder.state)
 
 
 if __name__ == "__main__":

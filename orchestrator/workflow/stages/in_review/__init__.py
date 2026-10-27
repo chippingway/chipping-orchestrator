@@ -38,13 +38,13 @@ on the thread by its receipt rather than posted twice.
 numbers the issue thread and the PR conversation in is read as the two
 surfaces it actually is, each against the cursors that have read it.
 `watermarks` is the pair of writers over the same field -- the carry a park
-owes its own notice, and the legacy seed a manually-relabeled issue needs --
-and neither jumps to a tip, because both walk forward from where the mark is
-and stop at the first comment they cannot vouch for. `models` and `state`
-carry the per-tick handles and the wire keys -- the watermark those two
-surfaces are read against, and the marker saying this issue still owes
-`validating` a label move, which `state` stages beside everything else the
-hand-back writes.
+owes its own notice, and the initialization a mark left unset needs, by a
+manual relabel or an approval whose snapshot would not read -- and neither
+jumps to a tip, because both walk forward and stop at the first comment they
+cannot vouch for. `models` and `state` carry the per-tick handles and the wire
+keys -- the watermark those two surfaces are read against, and the marker
+saying this issue still owes `validating` a label move, which `state` stages
+beside everything else the hand-back writes.
 
 Callers import the owner they need, so this initializer binds nothing: the
 dispatcher resolves one handler per issue, and an eager binding here would

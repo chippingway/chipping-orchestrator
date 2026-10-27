@@ -198,7 +198,7 @@ class ValidatingHandoffPreservesHumanFeedbackTest(
 
 
 class _PrePickupHandoffFixtureMixin(_PatchedWorkflowMixin):
-    def _setup(self, *, pr_conversation=()):
+    def _setup(self, *, pr_conversation=(), delivered_after=0):
         gh = FakeGitHubClient()
         long_ago = datetime.now(UTC) - timedelta(hours=1)
         issue = make_issue(
@@ -244,6 +244,12 @@ class _PrePickupHandoffFixtureMixin(_PatchedWorkflowMixin):
             review_round=0,
             orchestrator_comment_ids=[PICKUP_COMMENT_ID, PR_OPEN_COMMENT_ID],
             pickup_comment_id=PICKUP_COMMENT_ID,
+            # The reply boundary the pickup stands on its own comment, and the
+            # stretch the first spawn quoted: from the newest comment its
+            # excerpt left out -- none, by default -- through the pickup.
+            last_action_comment_id=PICKUP_COMMENT_ID,
+            delivered_after_comment_id=delivered_after,
+            delivered_through_comment_id=PICKUP_COMMENT_ID,
         )
         return gh, issue, pr
 
@@ -290,13 +296,14 @@ class PrePickupChatterHandoffTest(
     unittest.TestCase,
     _PrePickupHandoffFixtureMixin,
 ):
-    """Advance the handoff watermark past pre-pickup discussion."""
+    """Advance the handoff watermark past the thread the first prompt quoted."""
 
     def test_pre_pickup_chatter_not_replayed(self) -> None:
         gh, issue, pr = self._setup()
 
-        # Step 1: validating approves. Watermark must include id 850 so the
-        # pre-pickup human comment is treated as consumed.
+        # Step 1: validating approves. The first spawn quoted id 850, so the
+        # delivered stretch covers it and the watermark crosses the
+        # pre-pickup human comment as delivered.
         self._run_validating(
             gh,
             issue,
@@ -311,16 +318,49 @@ class PrePickupChatterHandoffTest(
             f"watermark must advance past pre-pickup chatter and self-run; got {watermark}",
         )
 
-        # Step 2: in_review tick. With the fix, no comment is past the
-        # watermark, so the handler reaches the mergeable / HITL-ping
-        # path. Without the fix, the human comment id=850 surfaces as
-        # "new" and the issue routes to `fixing`.
+        # Step 2: in_review tick. No comment is past the watermark, so the
+        # handler reaches the mergeable / HITL-ping path rather than routing
+        # the delivered comment id=850 to `fixing` as "new".
         mocks = self._run_after_handoff(gh, issue, pr)
 
         # Manual-merge-only: no orchestrator merge, but the HITL ping
-        # fires because the watermark fix kept the pre-pickup chatter
+        # fires because the watermark kept the delivered pre-pickup chatter
         # out of `new_comments`.
         self._assert_ready_path(gh, mocks)
+
+
+class BoundedFirstPromptHandoffTest(
+    unittest.TestCase,
+    _PrePickupHandoffFixtureMixin,
+):
+    """Context the first prompt's excerpt bound cut is not answered by the pickup.
+
+    The pickup stands the reply boundary past the whole thread, since nothing
+    on it is a reply to anything, but the implementer's first prompt is
+    bounded and drops the oldest comments first. Its spawn records the floor
+    at the newest one it left out, so the pre-pickup comment under that cut
+    is outside the delivered stretch: the approval's seed stops below it and
+    the next stage routes it to `fixing` as the unread feedback it is.
+    """
+
+    def test_chatter_a_bound_cut_stays_unread(self) -> None:
+        gh, issue, pr = self._setup(delivered_after=PRE_PICKUP_COMMENT_ID)
+
+        self._run_validating(
+            gh,
+            issue,
+            run_agent=_agent(last_message=approved_on(REVIEWED_SHA)),
+            head_shas=(REVIEWED_SHA,),
+        )
+
+        self.assertLess(gh.pinned_data(PRE_PICKUP_ISSUE).get(PR_LAST_COMMENT_ID), PRE_PICKUP_COMMENT_ID)
+        mocks = self._run_after_handoff(gh, issue, pr)
+
+        mocks[RUN_AGENT].assert_not_called()
+        self.assertIn((PRE_PICKUP_ISSUE, LABEL_FIXING), gh.label_history)
+        self.assertEqual(
+            gh.pinned_data(PRE_PICKUP_ISSUE).get(PENDING_FIX_ISSUE_IDS), [PRE_PICKUP_COMMENT_ID],
+        )
 
 
 class PrePickupPrCommentHandoffTest(
@@ -329,11 +369,11 @@ class PrePickupPrCommentHandoffTest(
 ):
     """Being older than the pickup is no evidence on the pull request.
 
-    The spawn quotes the issue thread, so pre-pickup chatter THERE is chatter
-    the developer read. The pull request may be one a plan handoff reused or a
-    human opened, and a comment on it numbered below the pickup was in no
-    prompt at all -- so the approval handoff's seed has to stop before it
-    rather than walk past it as old.
+    The spawn quotes the issue thread, and the delivered stretch its prompt
+    records says so for pre-pickup chatter THERE. The pull request may be one
+    a plan handoff reused or a human opened, and a comment on it numbered
+    below the pickup was in no prompt at all -- so the approval handoff's seed
+    has to stop before it rather than walk past it as old.
     """
 
     def test_seed_stops_under_a_pre_pickup_pr_comment(self) -> None:
@@ -416,6 +456,9 @@ class RunLimitToInReviewTest(unittest.TestCase, _PatchedWorkflowMixin):
             awaiting_human=True,
             park_reason=None,
             last_action_comment_id=PARK_COMMENT_ID,
+            # The first spawn quoted the thread from its beginning.
+            delivered_after_comment_id=0,
+            delivered_through_comment_id=PARK_COMMENT_ID,
             **{
                 _run_ledger_values.AGENT_RUN_ALLOWANCE: SPENT_RUNS,
                 _run_ledger_values.AGENT_RUNS_USED: SPENT_RUNS,

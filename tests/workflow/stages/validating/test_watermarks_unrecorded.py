@@ -1,5 +1,7 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
+"""Tests for the approval's seed walk over what no record names: a thread no
+delivered stretch covers, and posts of ours the id ledger no longer holds."""
 from __future__ import annotations
 
 import unittest
@@ -25,15 +27,15 @@ from tests.workflow.fixtures import (
 
 WATERMARK_ISSUE = 300
 WATERMARK_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-300"
-LEGACY_ISSUE = 500
-LEGACY_PR = 1000
-LEGACY_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-500"
+UNDELIVERED_ISSUE = 500
+UNDELIVERED_PR = 1000
+UNDELIVERED_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-500"
 MARKER_WALK_PR = 700
 PICKUP_COMMENT_ID = 900
 PR_OPEN_COMMENT_ID = 901
 HUMAN_FEEDBACK_ID = 950
-LEGACY_ORIGINAL_COMMENT_ID = 800
-LEGACY_PR_OPEN_COMMENT_ID = 960
+PRE_PICKUP_COMMENT_ID = 800
+LATER_PR_OPEN_COMMENT_ID = 960
 MARKER_ONLY_COMMENT_ID = 902
 APPROVAL_COMMENT_ID = 903
 REVIEW_DEBOUNCE_SECONDS = 600
@@ -54,39 +56,35 @@ LONG_AGO = datetime.now(UTC) - timedelta(hours=1)
 ORCHESTRATOR_MARKER = _comments._ORCH_COMMENT_MARKER
 
 
-class HandoffWithoutPickupIdLegacyStateTest(unittest.TestCase, _PatchedWorkflowMixin):
-    """For an issue picked up under an older orchestrator version that did
-    not record `pickup_comment_id`, the validating handoff cannot tell
-    pre-pickup chatter (safe to skip) from human feedback posted during
-    implementing/validating (must preserve). The seed-watermark function
-    must refuse to advance past anything in that legacy state, defaulting
-    pr_last_comment_id to 0; the orchestrator_comment_ids id-set filter in
-    `_handle_in_review` then drops the recorded bot comments at scan time
-    while leaving every human comment visible.
+class HandoffWithoutDeliveryRecordTest(unittest.TestCase, _PatchedWorkflowMixin):
+    """A record carrying a pickup anchor and no delivered stretch.
+
+    The delivered stretch is the only record that a developer was handed the
+    issue thread, and a prompt that quoted the thread writes it -- never the
+    pickup, whatever reply boundary it stood; a record missing it says nobody
+    was handed anything. So the approval's seed walk
+    crosses no human comment for being older than the pickup: it stops at
+    the first one, the human comments past it -- the pre-pickup clarification
+    and the "do not merge yet" posted while the developer ran alike -- reach
+    in_review as unread feedback, and the orchestrator's own posts are still
+    dropped there by the marker and the id ledger.
     """
 
-    def test_legacy_human_comment_survives_handoff(self) -> None:
+    def test_no_human_comment_is_crossed_for_its_age(self) -> None:
         gh = FakeGitHubClient()
-        # Comment id ordering models a real legacy lifecycle: pre-pickup
-        # chatter, then a pickup posted by the OLD orchestrator (id 900,
-        # NOT recorded in orchestrator_comment_ids), then a human "do not
-        # merge yet" posted while the dev was implementing, then a
-        # PR-opened comment posted by the NEW orchestrator (id 960,
-        # recorded). The human comment between the two bot posts is the
-        # signal that must NOT be lost.
         issue = make_issue(
-            LEGACY_ISSUE,
+            UNDELIVERED_ISSUE,
             label=LABEL_VALIDATING,
             comments=[
                 FakeComment(
-                    id=LEGACY_ORIGINAL_COMMENT_ID,
+                    id=PRE_PICKUP_COMMENT_ID,
                     body="original issue clarification",
                     user=FakeUser(HUMAN_LOGIN),
                     created_at=LONG_AGO,
                 ),
                 FakeComment(
                     id=PICKUP_COMMENT_ID,
-                    body=PICKUP_MESSAGE,
+                    body=f"{PICKUP_MESSAGE}\n\n{ORCHESTRATOR_MARKER}",
                     user=FakeUser(BOT_LOGIN),
                     created_at=LONG_AGO,
                 ),
@@ -97,7 +95,7 @@ class HandoffWithoutPickupIdLegacyStateTest(unittest.TestCase, _PatchedWorkflowM
                     created_at=LONG_AGO,
                 ),
                 FakeComment(
-                    id=LEGACY_PR_OPEN_COMMENT_ID,
+                    id=LATER_PR_OPEN_COMMENT_ID,
                     body=":sparkles: PR opened: #1000",
                     user=FakeUser(BOT_LOGIN),
                     created_at=LONG_AGO,
@@ -106,48 +104,38 @@ class HandoffWithoutPickupIdLegacyStateTest(unittest.TestCase, _PatchedWorkflowM
         )
         gh.add_issue(issue)
         pr = FakePR(
-            number=LEGACY_PR,
-            head_branch=LEGACY_BRANCH,
+            number=UNDELIVERED_PR,
+            head_branch=UNDELIVERED_BRANCH,
             head=FakePRRef(sha=REVIEWED_SHA),
             mergeable=True,
             check_state=CHECKS_SUCCESS,
         )
         gh.add_pr(pr)
-        # Legacy state: PR-opened (960) is the FIRST recorded bot id;
-        # pickup_comment_id is missing because pickup happened under the
-        # old code. Validating handoff will then see only {960} as
-        # orchestrator content; the seed-watermark function must NOT
-        # falsely treat ids 800/900/950 as pre-pickup chatter.
         gh.seed_state(
-            LEGACY_ISSUE,
-            pr_number=LEGACY_PR,
-            branch=LEGACY_BRANCH,
+            UNDELIVERED_ISSUE,
+            pr_number=UNDELIVERED_PR,
+            branch=UNDELIVERED_BRANCH,
             dev_agent=BACKEND_CLAUDE,
             dev_session_id=DEV_SESSION,
             review_round=0,
-            orchestrator_comment_ids=[LEGACY_PR_OPEN_COMMENT_ID],
+            orchestrator_comment_ids=[LATER_PR_OPEN_COMMENT_ID],
+            pickup_comment_id=PICKUP_COMMENT_ID,
         )
 
-        # Step 1: validating approves. Handoff must NOT advance the
-        # watermark past 950.
+        # Step 1: validating approves. The oldest comment on the thread is a
+        # human's nothing records delivering, so the seed crosses nothing.
         self._run_validating(
             gh,
             issue,
             run_agent=_agent(last_message=approved_on(REVIEWED_SHA)),
             head_shas=(REVIEWED_SHA,),
         )
-        watermark = gh.pinned_data(LEGACY_ISSUE).get(PR_LAST_COMMENT_ID)
-        self.assertIsNotNone(watermark)
-        self.assertLess(
-            watermark,
-            HUMAN_FEEDBACK_ID,
-            f"watermark must not consume legacy human feedback at id 950 (got {watermark})",
-        )
+        self.assertEqual(gh.pinned_data(UNDELIVERED_ISSUE).get(PR_LAST_COMMENT_ID), 0)
 
         # Step 2: in_review tick. Every gate passes -- the only thing
-        # standing between the PR and a ready-ping is the human's "do
-        # not merge yet" comment. The handler must surface it as fresh
-        # feedback and route to `fixing`.
+        # standing between the PR and a ready-ping is the unread human
+        # comments. The handler surfaces both as fresh feedback and routes
+        # to `fixing`, dropping our own posts.
         if not any(label.name == LABEL_IN_REVIEW for label in issue.labels):
             issue.labels = [FakeLabel(LABEL_IN_REVIEW)]
         with patch.object(
@@ -161,21 +149,12 @@ class HandoffWithoutPickupIdLegacyStateTest(unittest.TestCase, _PatchedWorkflowM
                 run_agent=_agent(),
             )
 
-        # The "do not merge yet" comment surfaces as fresh PR feedback
-        # and routes the issue to `fixing` (alongside other legacy
-        # comments the migration cannot reliably classify).
-        self._assert_legacy_route(gh, mocks)
-
-    def _assert_legacy_route(self, github, mocks) -> None:
-        self.assertEqual(github.merge_calls, [])
-        self.assertNotIn((LEGACY_ISSUE, "done"), github.label_history)
+        self.assertEqual(gh.merge_calls, [])
         mocks[RUN_AGENT].assert_not_called()
-        self.assertIn((LEGACY_ISSUE, LABEL_FIXING), github.label_history)
-        self.assertGreaterEqual(
-            github.pinned_data(LEGACY_ISSUE).get(
-                "pending_fix_issue_max_id",
-            ),
-            HUMAN_FEEDBACK_ID,
+        self.assertIn((UNDELIVERED_ISSUE, LABEL_FIXING), gh.label_history)
+        self.assertEqual(
+            gh.pinned_data(UNDELIVERED_ISSUE).get("pending_fix_issue_ids"),
+            [PRE_PICKUP_COMMENT_ID, HUMAN_FEEDBACK_ID],
         )
 
 

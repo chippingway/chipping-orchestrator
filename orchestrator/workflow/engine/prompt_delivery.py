@@ -8,6 +8,17 @@ namespaces and provenance, preserving pinned watermark fields
 (`last_action_comment_id`, `pr_last_comment_id`, `pr_last_review_comment_id`,
 `pr_last_review_summary_id`) and requirements revision (`user_content_hash`).
 
+The issue thread is settled twice over, because two different questions are
+asked of it. `last_action_comment_id` is the reply boundary a park waits
+above, and a park, a pickup, or a grant moves it with nothing delivered.
+`delivered_through_comment_id` is delivery alone: only a settlement moves it,
+from its own value and stopping below the first omission above it, so it is
+what the PR-feedback readers count as handed to a developer
+(`thread_delivery`). It moves only where it already reaches the boundary the
+settled read began at, since nothing below that boundary is in the read. A
+record carrying no such cursor gets none from a settlement, which cannot say
+where its stretch begins.
+
 The two IssueComment surfaces and the two review surfaces are classified by
 different rules, because the orchestrator posts on the first pair and on
 neither of the second. A body carrying our hidden marker that the id ledger
@@ -23,8 +34,12 @@ advancement. The pinned state comment is excluded by its id where a caller
 names it, so a human reply quoting its marker is still a reply. Independent
 watermarks are derived across surfaces without collapsing mixed snapshots.
 Unseen PR comments bound the PR conversation cursor without holding back the
-issue action watermark. Starting watermarks are incorporated so historical
-omitted context does not block forward progress.
+issue action watermark. Starting watermarks are incorporated so context
+omitted below them does not hold a cursor back. A snapshot taken in two reads
+of the shared IssueComment id space can name `known_through`, the newest id
+those reads prove complete beneath, and the PR-side cursor is never settled
+past it: a comment landing on the surface read second, after the first read,
+may sit below an id the record delivered on the other one.
 
 Consumed field pairs are exposed for durable report/checkpoint settlement and
 can be settled directly and idempotently into pinned state.
@@ -82,12 +97,16 @@ PINNED_PR_LAST_COMMENT_ID = "pr_last_comment_id"
 PINNED_PR_LAST_REVIEW_COMMENT_ID = "pr_last_review_comment_id"
 PINNED_PR_LAST_REVIEW_SUMMARY_ID = "pr_last_review_summary_id"
 PINNED_USER_CONTENT_HASH = "user_content_hash"
+# How far the issue thread has been handed to a developer, apart from the reply
+# boundary a park waits above.
+PINNED_DELIVERED_THROUGH = "delivered_through_comment_id"
 
 WATERMARK_FIELDS = (
     PINNED_LAST_ACTION_COMMENT_ID,
     PINNED_PR_LAST_COMMENT_ID,
     PINNED_PR_LAST_REVIEW_COMMENT_ID,
     PINNED_PR_LAST_REVIEW_SUMMARY_ID,
+    PINNED_DELIVERED_THROUGH,
 )
 
 _SURFACE_CURSORS = MappingProxyType({
@@ -194,7 +213,12 @@ class DeliveredInput:
 
 @dataclass(frozen=True)
 class PromptDeliverySnapshot:
-    """Process-local record of exact inputs delivered to a developer prompt."""
+    """Process-local record of exact inputs delivered to a developer prompt.
+
+    `known_through` is the newest IssueComment id the reads it was built from
+    prove complete beneath, for a record taken in two reads of that id space;
+    None bounds nothing.
+    """
 
     entries: tuple[DeliveredInput, ...]
     requirements_revision: str | None = None
@@ -202,6 +226,7 @@ class PromptDeliverySnapshot:
     tracked_repos_text: str = ""
     issue_watermark_field: str | None = None
     initial_cursors: dict[str, int] = field(default_factory=dict)
+    known_through: int | None = None
 
     def surface_provenance(self, surface: str) -> tuple[DeliveredInput, ...]:
         """Return all evaluated inputs that originated on `surface`."""
@@ -390,6 +415,21 @@ class _DeliverySettlement:
             )
             if wm_action is not None:
                 pairs.append((PINNED_LAST_ACTION_COMMENT_ID, wm_action))
+            # Delivery is read from its own cursor, an omission above it
+            # blocking it, and only where that cursor already reaches the
+            # boundary the read began at: beneath the boundary lie comments a
+            # park's stamp or a handoff crossed with nobody handed them, which
+            # this read never saw, and a stretch carried over them would count
+            # them delivered.
+            through = cursors.get(PINNED_DELIVERED_THROUGH)
+            if through is None or through < cursors.get(PINNED_LAST_ACTION_COMMENT_ID, through):
+                return
+            wm_delivered = cls.watermark(
+                thread_entries, thread_entries, through,
+                {**cursors, PINNED_LAST_ACTION_COMMENT_ID: through},
+            )
+            if wm_delivered is not None:
+                pairs.append((PINNED_DELIVERED_THROUGH, wm_delivered))
 
     @classmethod
     def _add_pr_pair(
@@ -401,11 +441,15 @@ class _DeliverySettlement:
         pr_entries = snapshot.surface_provenance(SURFACE_PR_CONVERSATION)
         target = snapshot.issue_watermark_field
         if pr_entries or target == PINNED_PR_LAST_COMMENT_ID:
+            # Nothing past what the reads prove complete: the shared cursor
+            # stepping over an id there would step over whatever landed on
+            # the other surface between the two reads.
             issue_space = tuple(
                 entry for entry in snapshot.entries
                 if entry.surface in (
                     SURFACE_ISSUE_THREAD, SURFACE_PR_CONVERSATION,
                 )
+                and (snapshot.known_through is None or entry.id <= snapshot.known_through)
             )
             wm_pr = cls.watermark(
                 issue_space, issue_space,
@@ -642,6 +686,7 @@ class _SnapshotAssembler:
                 tracked_repos_text=options.get("tracked_repos_text", ""),
                 issue_watermark_field=options.get("issue_watermark_field"),
                 initial_cursors=cursors,
+                known_through=options.get("known_through"),
             )
         batches = cls.normalize_batches(surface_batches, options)
         return cls._assemble_from_batches(batches, options, cursors)
@@ -749,6 +794,7 @@ class _SnapshotAssembler:
             tracked_repos_text=options.get("tracked_repos_text", ""),
             issue_watermark_field=options.get("issue_watermark_field"),
             initial_cursors=cursors,
+            known_through=options.get("known_through"),
         )
 
 

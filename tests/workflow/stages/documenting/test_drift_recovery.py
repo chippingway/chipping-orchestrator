@@ -380,7 +380,7 @@ class _RecordsEveryWrite:
 
 
 class DocumentingUnwindCursorTest(unittest.TestCase, _DocumentingDriftFixture):
-    """The delivery cursor a failed unwind's park may not carry.
+    """The reply boundary a failed unwind's park may not carry.
 
     The edit arrives as a COMMENT, so there is something on the thread for a
     park to cross; a body edit leaves nothing and hides the whole question.

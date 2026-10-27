@@ -24,15 +24,19 @@ from a watermark, the other reconstructs backward from recorded ids, and only
 the reconstruction has to because a replay is DELIVERED: what an accepted
 `/orchestrator continue` settles is the batch it replayed joined with the
 fresh rescan, so the issue-thread half of a preserved batch moves the
-issue-action boundary and its PR-conversation half never does. `feedback` also
+issue-action boundary and the delivered stretch beside it, and its
+PR-conversation half moves neither. `feedback` also
 owns the settlement, because what a consumed batch is allowed to hide is the
 same decision as what an unread scan is allowed to see -- and it is a
 settlement rather than one watermark bump because a fix prompt quotes four
 surfaces and each answers to a different reader. The issue thread answers to
-the issue-action boundary `last_action_comment_id` as well as the PR-side
-cursor, since the implementing and validating resumes deliver from that surface
-too; the pull request's three surfaces answer to the in_review watermarks and
-to nothing else. `parked` is the dispatcher for a tick that arrived
+the stretch of it developer prompts were handed (`delivered_after_comment_id`
+through `delivered_through_comment_id`, `engine/thread_delivery`) as well as
+the PR-side cursor, since the implementing and validating resumes deliver from
+that surface too, and its settlement moves the reply boundary
+`last_action_comment_id` beside that stretch -- the boundary a park waits
+above, which no feedback reader takes as delivery; the pull request's three
+surfaces answer to the in_review watermarks and to nothing else. `parked` is the dispatcher for a tick that arrived
 `awaiting_human`, and `drift` is the exit it takes when the validating-route
 recovery cannot clear a transient park but the worktree has fallen behind base:
 the per-tick base sync stands down on every park, so nobody else will rebase it.
