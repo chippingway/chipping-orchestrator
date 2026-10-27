@@ -818,14 +818,15 @@ The reply ends in exactly one fenced `orchestrator-late-manifest` block — a di
   stands in for it, and the candidate is adjudicated again.
 - `split` — a child manifest that partitions the declared scope completely, held to the shared split rules the initial
   mode also uses: the child cap, each child's shape, and the acyclicity of the graph they declare. A fresh late reply
-  goes through the same fresh-reply entry point an initial reply does, so every child states its `depends_on`
-  list — `[]` for none, naming exactly the prerequisites its body describes, as the prompt asks and its JSON template
-  shows — and one that leaves it missing or `null` is refused by the child's zero-based index and the field
-  (`child 1 missing depends_on`, `child 1 depends_on is null`). That refusal parks the reply `late_manifest_invalid`
-  before a split is recorded or a child created: read as no prerequisites, the child would be released beside the
-  sibling its own body says it waits on. A record is held to the same rule — a `late_result_children` manifest whose
-  slices leave the list missing or `null`, or declare no budget, is no manifest, so nothing is created or released
-  from it ([pinned state](../state-machine/labels-and-state.md#pinned-state)). The prompt requires
+  goes through the same validator an initial reply does (`_split_manifest_error`), so every child states its
+  `depends_on` list — `[]` for none, naming exactly the prerequisites its body describes, as the prompt asks and its
+  JSON template shows — and one that leaves it missing or `null` is refused by the child's zero-based index and
+  the field (`child 1 missing depends_on`, `child 1 depends_on is null`). That refusal parks the reply
+  `late_manifest_invalid` before a split is recorded or a child created: read as no prerequisites, the child would
+  be released beside the sibling its own body says it waits on. A record is held to the same rule — a
+  `late_result_children` manifest whose slices leave the list missing or `null`, or declare no budget, is no
+  manifest, so nothing is created or released from it
+  ([pinned state](../state-machine/labels-and-state.md#pinned-state)). The prompt requires
   dependency-ordered implementation slices to be considered *before* a `single` is answered, because that is the way
   out an agent otherwise talks itself out of: work that will not cut across features almost always cuts along its
   dependencies, and a prerequisite may land dormant — built, tested directly, reached by nothing in production — with
