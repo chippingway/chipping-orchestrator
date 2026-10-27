@@ -2484,7 +2484,12 @@ The park is a *response boundary*, not a one-tick delay. What counts as a reply 
 generation's own comment watermark and the issue-wide `last_action_comment_id`, which every announced park advances past
 the notice it just posted — so an answer written before the human was told anything cannot resolve the park on the next
 poll either. Nothing else advances that watermark without consuming what it advances past, and what a notice advances
-it past is held back rather than lost (below), so the conservative reading costs no real reply.
+it past is held back rather than lost (below), so the conservative reading costs no real reply. Consuming is not
+delivering, though: that watermark is the issue's reply boundary, and the delivered stretch the review stages read
+([pinned state][delivered-stretch]) follows it only over guidance a developer revision quoted whole and over nobody's
+input — our own posts, an outsider's comments, a bare control answered — read off the thread up to the new mark. A
+human reply a recovered notice or a retry-cap grant moved the boundary past therefore stays unread feedback for
+`in_review` and `workflow:fixing`.
 
 What the boundary holds back is not thrown away, though. Trusted guidance past the local watermark and under a notice —
 words a human wrote while the issue was being parked, which no agent has read — is reported as *withheld*. It never
@@ -2632,6 +2637,7 @@ reviewer runs the verification itself (see
 
 [workflow-labels]: ../state-machine/labels-and-state.md#workflow-labels
 [review-subject]: ../state-machine/labels-and-state.md#pinned-state
+[delivered-stretch]: ../state-machine/labels-and-state.md#pinned-state
 [late-run]: ../state-machine/labels-and-state.md#the-late-run
 [late-state]: ../state-machine/labels-and-state.md#late-generation-state
 [retry-budget]: ../state-machine/labels-and-state.md#the-retry-budget

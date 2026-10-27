@@ -743,6 +743,16 @@ which paths reach an issue decides what keeps it away:
   content-drift park that waits for a human. An issue on `workflow:blocked` meets it on its release to
   `workflow:ready`, and `paused` or `backlog` only defers it. Accept that one route per such issue, or leave its
   repository out.
+- **Review feedback delivery.** A build that counts as delivered only the stretch of the issue thread a developer
+  prompt quoted (`delivered_after_comment_id` through `delivered_through_comment_id`) reads an issue an earlier build
+  picked up as having been handed nothing: that build recorded delivery on the reply boundary
+  `last_action_comment_id`, which no feedback reader takes as delivery now, and nothing writes the stretch back. The
+  approval's seed walk, and the initialization of an in_review watermark left unset, therefore stop at the first human
+  comment on the thread, and the issue-thread replies an earlier developer resume already answered reach `in_review`
+  as unread feedback and route it to `workflow:fixing`, where they are delivered and settled once. A fix round an
+  earlier build parked with only its `pending_fix_*_max_id` bookmarks, and no recorded id lists, replays nothing: a
+  bare `/orchestrator continue` on it is refused, so answer it with the feedback written out instead. Accept that
+  extra fix round per such issue, or leave its repository out.
 - **A whole repository.** A repository the selected build is not configured for is never polled, swept, or
   refreshed, and the maintenance pass leaves alone every artifact whose name marks it as that repository's. Flat
   `orchestrator/issue-<n>` branches and `WORKTREES_DIR/issue-<n>` checkouts are no entry's, whichever entries are

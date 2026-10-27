@@ -436,7 +436,8 @@ The **PR-feedback fix round** on `workflow:fixing` records the same thing throug
 (`workflow/engine/prompt_delivery.py`): a pushed fix, an `ACK:`, a timeout, a dirty-tree park, and a question park all
 delivered the prompt, so all of them record what it carried, while a run the circuit never invoked, one a shutdown
 killed, and one an operator paused mid-run record nothing. Each surface of that batch settles the reader that owns it,
-so the issue-thread half moves `last_action_comment_id` and the pull-request halves do not, and an accepted
+so the issue-thread half moves `last_action_comment_id` and the delivered stretch and the pull-request halves do not —
+`pr_last_comment_id` moving no further than the round's thread and pull-request reads prove complete — and an accepted
 `/orchestrator continue` settles the batch it replayed joined with the fresh rescan — including the bare command the
 prompt deliberately never hands the developer, on the surface that command was typed into. That replay is rebuilt per
 surface from the id list the `in_review` route recorded and from nothing else: a surface whose list is missing or
