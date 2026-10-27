@@ -35,7 +35,9 @@ this edit, which is what keeps the next poll from announcing it again.
 """
 from __future__ import annotations
 
-from orchestrator.git.worktrees import paths as _worktree_paths
+from pathlib import Path
+
+from orchestrator.git.worktrees import creation as _worktree_creation
 from orchestrator.github.comments import filter_trusted
 from orchestrator.workflow.engine import (
     comments as _comments,
@@ -112,7 +114,10 @@ def _reconcile_documenting_drift(ctx: _models._DocumentingContext) -> bool:
 
     Returns True when the drift path fully handled this tick (the silent
     fast-path, a reconcile park, or the relabel to `validating`); False
-    when there is no drift and the normal docs flow should continue.
+    when there is no drift and the normal docs flow should continue. A
+    checkout at the issue's path that is not proven its own raises
+    `naming.BranchRefused` before the notice, so a refusal held across
+    ticks never posts it again.
     """
     new_hash = _engine_drift._detect_user_content_change(
         ctx.gh, ctx.issue, ctx.state,
@@ -124,10 +129,11 @@ def _reconcile_documenting_drift(ctx: _models._DocumentingContext) -> bool:
     if not (fresh_drift or pending_unwind):
         return False
 
+    standing = _worktree_creation._retained_checkout(ctx.spec, ctx.issue.number)
     if fresh_drift:
         _announce_documenting_drift(ctx, new_hash)
     _begin_documenting_drift_unwind(ctx)
-    return _unwinds_the_worktree(ctx)
+    return _unwinds_the_worktree(ctx, standing)
 
 
 def _waits_on_a_reply(ctx: _models._DocumentingContext) -> bool:
@@ -154,16 +160,16 @@ def _waits_on_a_reply(ctx: _models._DocumentingContext) -> bool:
     )
 
 
-def _unwinds_the_worktree(ctx: _models._DocumentingContext) -> bool:
-    """Put the checkout back on the PR head and relabel, or hold for a human.
+def _unwinds_the_worktree(ctx: _models._DocumentingContext, wt: Path | None) -> bool:
+    """Put the proven checkout `wt` back on the PR head and relabel, or hold for a human.
 
     Always True: both roads out of here finish the tick. The park a git step
     that cannot be proved takes holds the reply boundary back inside its own
     write (`parks._holds_the_reply_boundary`), because nothing here delivered
-    anything to anybody.
+    anything to anybody. None is a path nothing stands at, which has nothing
+    to reset.
     """
-    wt = _worktree_paths._worktree_path(ctx.spec, ctx.issue.number)
-    if wt.exists() and not _drift_reset._reset_documenting_drift_worktree(ctx, wt):
+    if wt is not None and not _drift_reset._reset_documenting_drift_worktree(ctx, wt):
         return True
     # Reconcile succeeded (or the worktree didn't exist): the drift unwind is
     # complete, clear the sentinel and the boundary its silence was kept

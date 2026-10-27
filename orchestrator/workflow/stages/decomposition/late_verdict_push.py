@@ -30,7 +30,11 @@ from __future__ import annotations
 
 import logging
 
-from orchestrator.git.worktrees import naming as _naming, paths as _worktree_paths
+from orchestrator.git.worktrees import (
+    creation as _worktree_creation,
+    naming as _naming,
+    paths as _worktree_paths,
+)
 from orchestrator.workflow.late_split.models import LateFailure
 from orchestrator.workflow.stages.decomposition import (
     late_outcome as _late_outcome,
@@ -165,7 +169,13 @@ def _proved_before_the_handoff(context: _LateContext, worktree) -> bool:
     Reached with a checkout in hand on both roads: a push is made from one or
     not at all, and a recorded verdict is refused for a missing worktree well
     before it is settled.
+
+    The checkout is proven the issue's own first (`creation._proven_checkout`),
+    since a tree switched onto the flat branch at the accepted commit stands
+    on it cleanly: it raises `naming.BranchRefused` with nothing parked, and
+    the label and the generation left on the adjudication.
     """
+    _worktree_creation._proven_checkout(context.spec, context.issue.number, worktree)
     if _late_accepted._standing_on(
         worktree, context.generation.candidate_sha,
     ):

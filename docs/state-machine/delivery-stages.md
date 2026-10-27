@@ -3233,7 +3233,10 @@ and handed off -- and this is what it guarantees and what stops it.
      reset --hard <remote>/<branch>` + `git clean -fd`) so no docs work authored against the pre-drift requirements
      survives. `docs_drift_unwind_pending` is set while the cleanup is in progress and cleared only on the relabel
      back to `workflow:validating` — with `docs_drift_unwind_asked_at` beside it — so an operator unpark on a parked
-     cleanup re-enters the drift block instead of falling through to a docs spawn.
+     cleanup re-enters the drift block instead of falling through to a docs spawn. That reset discards whatever the
+     tree carries, so the checkout at the issue's path is proven the issue's own (`creation._retained_checkout`)
+     before the notice and again before the reset: one on any other branch, the flat `orchestrator/issue-<n>` among
+     them, refuses (`naming.BranchRefused`) with nothing posted, recorded, reset, or relabelled.
   5. Awaiting-human + no new comment → early return BEFORE the fetch so a transient `fetch_failed` / `diverged_branch`
      doesn't re-post its park every tick.
   6. Ensure the PR worktree (`_ensure_pr_worktree`, restored from `<remote>/<branch>` so the dev's commits are intact)
@@ -3591,7 +3594,9 @@ such pushes and no others:
 
 One more seam pushes without measuring, and it skips the reading for a reason and nothing else beside it.
 `decomposition/late_verdict_push`'s `_publishes_approved` ships a commit a human's adjudication already accepted:
-the checkout is re-proved, the push is named and leased from the record, and the debt is spent exactly as it is here.
+the checkout is re-proved — proven the issue's own last before the push and again before the handoff, since one
+switched onto the flat branch at the accepted commit stands on it cleanly — the push is named and leased from the
+record, and the debt is spent exactly as it is here.
 `git/publication/squash` is not one of them: the squash-on-approval goes through the whole gate, through
 `late_rewrite`. What it publishes is a NEW object — a squash collapses the approved commits into one commit that did
 not exist when any earlier push was measured — so that commit is the candidate, proved, frozen against the base the

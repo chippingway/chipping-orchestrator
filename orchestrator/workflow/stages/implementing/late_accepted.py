@@ -18,6 +18,7 @@ from pathlib import Path
 
 from orchestrator.git.measurement import commits as _measurement_commits
 from orchestrator.git.verification import status as _worktree_status
+from orchestrator.git.worktrees import creation as _worktree_creation
 from orchestrator.workflow.stages.implementing import (
     late_approval_reading as _late_approval_reading,
     late_gate_models as _late_gate_models,
@@ -73,6 +74,14 @@ def _publishes_approved(gate: _late_gate_models._Gate, branch: str) -> bool:
     force-push moves terminal work; a close a poll latched is the same answer
     one field over. Neither is anything a verdict licensed.
 
+    The checkout is proven the issue's own last of all, after those reads, for
+    the same reason (`creation._proven_checkout`): the admission that proved
+    it ran before the reconciliation's pull request reads and the exemption,
+    and a tree switched onto the flat branch at the accepted commit in that
+    window passes both readings above. It raises `naming.BranchRefused` with
+    nothing pushed or parked, and the approval left on the record for a retry
+    over the issue's own checkout.
+
     The lease is required rather than defaulted, for the same reason: nothing
     measures this candidate again, so the head the record names is the whole
     of what stops the push landing on a pull request somebody moved while the
@@ -111,6 +120,7 @@ def _publishes_approved(gate: _late_gate_models._Gate, branch: str) -> bool:
     )
     if _publication_gate._publication_ended(gate):
         return False
+    _worktree_creation._proven_checkout(gate.spec, gate.issue.number, gate.worktree)
     if not _push._pushed(gate, branch, published):
         return False
     # No post-push proof is owed HERE: the settlement takes `_standing_on`

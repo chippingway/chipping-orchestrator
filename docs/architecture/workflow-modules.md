@@ -3314,7 +3314,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             to the head the reading was taken over -- plus the checkout proved on the road out,
                             since every stage the label hands the issue to works from it and one carrying loose
                             edits or an unmeasured descendant would reach a review, a squash, and a merge with
-                            nobody having read it
+                            nobody having read it; that proof first holds the tree to the issue's own branch
+                            (`creation._proven_checkout`), refusing a handoff from any other
       late_replay_debt.py   the report debt that push leaves where the candidate is an auto-rebase replay the
                             generation took over (`workflow/engine/rewrite_takeover.py`): proved by that ownership
                             and the code-publication receipt naming the replay over the frozen head on the frozen
@@ -3707,9 +3708,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the shared HITL helper, which stamps the thread read as far as its own notice, so this
                             owner puts the reply boundary back and keeps that notice as the unwind's own boundary:
                             the silence a pending unwind holds is measured against it rather than against a boundary
-                            that would read the triggering comment as a retry signal every poll
+                            that would read the triggering comment as a retry signal every poll. The checkout at the
+                            issue's path is proven its own (`creation._retained_checkout`) before the notice, the
+                            record, or the reset, so a tree on another branch refuses with nothing announced
       drift_reset.py        the fetch / probe / hard-reset that puts the worktree back on the PR head, and the parks
-                            each failure earns
+                            each failure earns -- the reset made only once the checkout is proven the issue's own
+                            again (`creation._proven_checkout`), since the fetch and probe ran after the unwind's
+                            own proof
       handoff.py            the completion every finished pass ends in (`_completes`): the docs verdict and checked
                             head stamped, the receipt, its lease, the launch record, and a park the pass answered
                             consumed, the PR notice, the `pr_last_comment_id` ratchet that keeps in_review from
@@ -4441,7 +4446,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             directly rather than through the gated call, so it makes that call's own barrier for
                             itself -- and the window is the widest any publication has, since the pull request was
                             last read by the reconciliation and the exemption, the identity, the debt, the park
-                            persist and both checkout probes all run between that reading and the push
+                            persist and both checkout probes all run between that reading and the push -- and the
+                            seam's checkout proof too (`creation._proven_checkout`), last before the push, since a
+                            tree switched onto the flat branch at the accepted commit passes both probes
       late_collapse_state.py
                             immutable pre-squash values and durable head/base/count claims written before reset;
                             failed writes restore in-memory state, and handoff or proved rollback clears the claim

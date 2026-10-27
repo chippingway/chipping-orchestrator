@@ -197,7 +197,8 @@ or lost write interrupted are current state, not historical compatibility.
 [approval bases](../tests/workflow/stages/implementing/test_late_approval_basis.py),
 [rewrite permissions](../tests/git/base_sync/test_transfers.py),
 [branch resolution](../tests/git/worktrees/test_resolution.py),
-[checkout reuse](../tests/git/worktrees/test_creation.py).
+[checkout reuse](../tests/git/worktrees/test_creation.py),
+[refused drift reset](../tests/workflow/stages/documenting/test_drift_checkout.py).
 
 ## C-04: Authentic state and trusted input
 
@@ -325,7 +326,8 @@ Credential filtering does not enforce push authority; see [C-11].
 [refused seam push](../tests/workflow/stages/fixing/test_bounce.py),
 [refused resume](../tests/workflow/stages/implementing/test_resume_checkout.py),
 [refused refresh](../tests/workflow/engine/test_base_refresh_branch_refusal.py),
-[refused adjudication](../tests/workflow/stages/decomposition/test_late_charged_run.py).
+[refused adjudication](../tests/workflow/stages/decomposition/test_late_charged_run.py),
+[refused accepted push](../tests/workflow/stages/decomposition/test_late_accepted_checkout.py).
 
 ## C-08: Agent reply protocols
 

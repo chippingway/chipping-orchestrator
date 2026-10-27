@@ -27,6 +27,7 @@ from contextlib import suppress
 from orchestrator import config
 from orchestrator.git import branch_transport as _branch_transport, commands as _git_commands
 from orchestrator.git.verification import status as _worktree_status
+from orchestrator.git.worktrees import creation as _worktree_creation
 from orchestrator.workflow.stages.documenting import models as _models, parks as _parks
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -120,9 +121,15 @@ def _documenting_drift_hard_reset(ctx: _models._DocumentingContext, wt) -> bool:
     the docs agent created but the reviewer never approved. Returns True on
     success; on a git failure parks with `worktree_reset_failed` and returns
     False.
+
+    The checkout is proven the issue's own again first
+    (`creation._proven_checkout`): the unwind proved it before the fetch and
+    the probe, and a tree switched onto another branch since raises
+    `naming.BranchRefused` with nothing reset or cleaned.
     """
     spec = ctx.spec
     branch = ctx.branch
+    _worktree_creation._proven_checkout(spec, ctx.issue.number, wt)
     reset = _git_commands._git_hardened(
         "reset", "--hard", f"{spec.remote_name}/{branch}", cwd=wt,
     )
