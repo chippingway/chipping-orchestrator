@@ -205,9 +205,15 @@ def _at_layout_path(
     exactly where the layout puts this issue's checkout under `WORKTREES_DIR`,
     which may itself be configured through a symlink. A path that will not
     resolve is unread rather than refuted, since a symlink loop fails
-    differently across Python versions.
+    differently across Python versions; one the layout does not derive under
+    `WORKTREES_DIR` at all is refuted. A path with nothing at it resolves
+    through whatever of it exists, so the same answer says where a checkout
+    created there would land.
     """
-    layout = paths._worktree_path(spec, issue_number).relative_to(config.WORKTREES_DIR)
+    try:
+        layout = paths._worktree_path(spec, issue_number).relative_to(config.WORKTREES_DIR)
+    except ValueError:
+        return ProbeAnswer.REFUTED
     try:
         placed = worktree.resolve() == config.WORKTREES_DIR.resolve() / layout
     except (OSError, RuntimeError):

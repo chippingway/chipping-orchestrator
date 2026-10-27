@@ -1446,8 +1446,9 @@ orchestrator/
                         resumes, publishes from, reuses, or removes it (`_retained_checkout`, `_proven_checkout`)
                         -- a tree on a flat, foreign, or detached HEAD, or reached through a symlink, refuses the
                         road whatever it carries, a detached HEAD passing only where a caller resuming an
-                        interrupted rebase shows the rebase rewriting exactly the issue's branch -- and the
-                        unpushed-commit probe reuse turns on
+                        interrupted rebase shows the rebase rewriting exactly the issue's branch, and a missing
+                        checkout's path has to resolve to its layout location before anything is created
+                        there -- and the unpushed-commit probe reuse turns on
       anchoring.py      the shared restore fetch and the guarded move that re-anchors a reused checkout onto a PR
                         head or its merged base, with the target-root lock held across refresh and movement
       cleanup.py        lock-held worktree removal and local branch deletion, each behind its best-effort boundary,

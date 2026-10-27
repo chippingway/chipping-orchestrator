@@ -543,8 +543,12 @@ own first, reading only (`git/worktrees/creation._retained_checkout`, over
 `git/worktrees/evidence._checkout_identity`): a worktree of the clone on exactly the issue's branch, reached at that
 path through no symlink. The creators ask it before they reuse or remove a tree, the resume roads before any session
 is resumed in one, a resumed question or discussion round before its agent runs, the conflict stage before it works
-in one, a late adjudication at its admission gate, the base refresh before any route, and the publication seam every
-push onto a pull request goes through (`implementing/late_push._publishes`) before it measures or pushes anything.
+in one, an accepted plan handoff before its marker and before the move that resets the tree, an interrupted squash's
+recovery before it resets or recommits anything, a recovered plan publication before it reads or pushes the artifact,
+a late adjudication at its admission gate, the base refresh before any route, and the publication seam every push
+onto a pull request goes through (`implementing/late_push._publishes`) before it measures or pushes anything. Where no
+tree stands, the issue's path itself has to resolve to its layout location before anything is created there, so a
+symlinked per-repository directory cannot send a new checkout into the flat layout.
 Only that checkout's unpushed commits are reused as an interrupted run's work, and only that checkout is force-removed
 when it carries none. A tree on the flat branch, on another repository's, or on a detached HEAD, one reached through a
 symlink, and one whose identity could not be read refuse the road with every commit and file in place, however far

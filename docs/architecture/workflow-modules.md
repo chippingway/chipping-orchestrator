@@ -3541,8 +3541,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             attempt recognizable, the lease the push is held to, the push itself, and the hold that
                             stops where GitHub could not say whether the commit is already on a PR
       artifact.py           one reading of what the branch carries -- the tree, the base-relative diff, the plan in
-                            HEAD, and whether HEAD is the branch -- taken from the checkout the round ran in and
-                            rebuilt only where that directory has gone, plus the fetch that makes a remote tip
+                            HEAD, and whether HEAD is the branch -- taken from the checkout the round ran in, once
+                            it is proven the issue's own, and rebuilt only where that directory has gone, plus the
+                            fetch that makes a remote tip
                             askable there
       settled_prs.py        the pull requests that leave a commit nothing to publish: the merged or closed one found
                             by commit, and the open one whose head the humans moved past it
@@ -4859,9 +4860,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       relabel_refusal.py    the idempotent `<stage>_unsafe_relabel` park a finding earns, and the remediation
                             aimed at the tip worth keeping
       plan_reading.py       what the recorded plan PR carries and where that leaves the branch, read afresh by
-                            both halves rather than remembered
+                            both halves rather than remembered, the checkout proven the issue's own before the move
+                            that resets it
       plan_handoff.py       the reconcile that keeps an accepted plan handoff in step with its PR until a
-                            developer commits, and the marker that makes its own re-anchor recoverable
+                            developer commits, and the marker that makes its own re-anchor recoverable, written
+                            only once the record's branch and the tree at the issue's path are the issue's own
       models.py             the frozen records the owners hand each other, including what a fresh spawn quoted and
                             what a requirements edit leaves the rest of the tick
       state.py              the pinned-state keys and CLI marker tuples they share, the label a report this stage
@@ -5046,7 +5049,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             it, and the disposition holds the verdict to the whole subject standing, the pull request
                             the issue points at included, with the comment read once more behind that resolution
       collapse.py           whether a squash this issue began and did not finish is answered before anything else
-                            runs an agent -- and, where nothing claims one, whether current evidence carried onto a
+                            runs an agent, over a checkout proven the issue's own first -- and, where nothing claims
+                            one, whether current evidence carried onto a
                             head no longer answers for its review or is no longer named by the approval's claim
                             (`squash_evidence.carry_unanswered`), which is invalidated with the approval resting on it
                             in a guarded commit of its own ahead of any round, staged on the comment read afresh, held

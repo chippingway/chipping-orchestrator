@@ -8,8 +8,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from orchestrator import config
 from orchestrator.git import branch_transport, commands
-from orchestrator.git.worktrees import anchoring as _anchoring, cleanup, creation, naming as _naming
+from orchestrator.git.worktrees import anchoring as _anchoring, cleanup, creation, naming as _naming, paths
 from orchestrator.git.worktrees.models import ProbeAnswer
 from tests.git.worktrees import lifecycle_test_support as _support
 from tests.git.worktrees.lifecycle_test_support import _GitRecorder
@@ -19,6 +20,7 @@ from tests.git.worktrees.real_git_test_support import (
     PUBLISHED_PLAN_TEXT,
     _AmendedPlanRepo,
     _MergedPlanRepo,
+    _RealGitWorktreeRepo,
     _run_git,
 )
 
@@ -90,6 +92,25 @@ class EnsureWorktreeTest(unittest.TestCase):
                     self.assertRaises(_naming.BranchRefused, fixture.run, ensure, branch=branch)
                     self.assertEqual(fixture.git.calls, [])
                     self.assertEqual(fixture.fetches.branches, [])
+
+    def test_a_redirected_path_creates_nothing(self) -> None:
+        # The per-repository directory is a symlink back to `WORKTREES_DIR`
+        # itself, so the issue's path resolves to the flat
+        # `WORKTREES_DIR/issue-<n>`. A checkout created there would stand
+        # outside the layout every later road proves, so both creators refuse
+        # with no checkout and no branch made.
+        repo = _RealGitWorktreeRepo()
+        repo.prepare(self)
+        config.WORKTREES_DIR.mkdir(parents=True)
+        paths._repo_worktrees_root(repo.spec).symlink_to(config.WORKTREES_DIR, target_is_directory=True)
+        branch = _naming._branch_name(repo.spec, _support.ISSUE_NUMBER)
+        for ensure in CREATORS:
+            with self.subTest(ensure=ensure.__name__):
+                self.assertRaises(
+                    _naming.BranchRefused, ensure, repo.spec, _support.ISSUE_NUMBER, branch=branch,
+                )
+        self.assertFalse((config.WORKTREES_DIR / f"issue-{_support.ISSUE_NUMBER}").exists())
+        self.assertFalse(cleanup._local_branch_present(repo.spec, branch))
 
     def test_only_the_base_branch_is_fetched(self) -> None:
         with _support._worktree_fixture() as fixture:

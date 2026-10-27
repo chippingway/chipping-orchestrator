@@ -33,6 +33,7 @@ from github.Issue import Issue
 from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import (
     anchoring as _anchoring,
+    creation as _worktree_creation,
     naming as _naming,
 )
 from orchestrator.github.client import GitHubClient
@@ -169,6 +170,10 @@ def _inherited_tip(
     onto = "" if reviewed.merged else reviewed.head
     if onto and onto == str(anchor or ""):
         return _HandoffTip(sha=anchor)
+    # The move hard-resets whatever tree stands at the issue's path, so that
+    # tree is proven the issue's own first; one on any other branch refuses
+    # the handoff with its head, index, and files untouched.
+    _worktree_creation._retained_checkout(spec, issue.number)
     anchored = _anchoring._anchor_pr_worktree(
         spec,
         issue.number,

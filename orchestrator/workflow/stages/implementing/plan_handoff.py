@@ -49,6 +49,7 @@ from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import (
+    creation as _worktree_creation,
     naming as _naming,
     recovery as _worktree_recovery,
 )
@@ -161,6 +162,12 @@ def _readvance_plan_handoff(
     recorded = str(state.get(_PLAN_SHA) or "")
     if reviewed.head == recorded and not reviewed.merged:
         return _spend_handoff_anchor(gh, issue, state)
+    # The move below rewrites the branch and the tree standing at the issue's
+    # path, so both are held to the issue's own before the marker says one is
+    # in flight: a record naming no branch live work may use, or a tree there
+    # on any other branch, refuses the handoff with nothing written or moved.
+    _naming._resolve_branch_name(state, spec, issue.number)
+    _worktree_creation._retained_checkout(spec, issue.number)
     state.set(_state._HANDOFF_ANCHOR_SHA, reviewed.head)
     gh.write_pinned_state(issue, state)
     inherited = _plan_reading._inherited_tip(spec, issue, state, reviewed)

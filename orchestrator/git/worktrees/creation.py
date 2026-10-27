@@ -68,14 +68,26 @@ def _retained_checkout(
 
     Asked by every road that would work in a checkout it finds rather than
     create one -- a resumed session, a conversation round, a conflict
-    resolution, an adjudication -- before anything runs there, and by the
-    creators before they reuse or remove one (`_proven_checkout`). A path
-    with nothing at it is None, for the caller to create on its own terms.
+    resolution, an adjudication, a recovered squash or publication, a plan
+    handoff's move -- before anything runs there, and by the creators before
+    they reuse or remove one (`_proven_checkout`). A path with nothing at it
+    is None, for the caller to create on its own terms, but only where the
+    path itself resolves to the issue's layout location
+    (`evidence._at_layout_path`): one a symlinked per-repository directory or
+    a dangling link would send somewhere else -- the flat layout among them
+    -- refuses before anything is created there.
     """
     worktree = paths._worktree_path(spec, issue_number)
-    if not worktree.exists():
+    if worktree.exists():
+        return _proven_checkout(spec, issue_number, worktree, rebasing=rebasing)
+    placed = evidence._at_layout_path(spec, issue_number, worktree)
+    if placed is ProbeAnswer.CONFIRMED:
         return None
-    return _proven_checkout(spec, issue_number, worktree, rebasing=rebasing)
+    log.warning(
+        "issue=#%d checkout path %s does not resolve to its layout location "
+        "(%s); refusing to create a checkout there", issue_number, worktree, placed,
+    )
+    raise _naming.BranchRefused(f"issue #{issue_number} has a checkout path outside its layout")
 
 
 def _reused_checkout(

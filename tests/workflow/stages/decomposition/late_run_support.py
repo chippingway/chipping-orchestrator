@@ -26,11 +26,11 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from orchestrator.agents import runner as _agent_runner
-from orchestrator.git.worktrees import evidence as _worktree_evidence, models as _worktree_models
 from orchestrator.workflow.stages.decomposition import (
     late_coordinator as _coordinator,
     late_transaction as _late_transaction,
 )
+from tests.support.checkout_identity import stated_ownership
 from tests.workflow.fixtures import _TEST_SPEC, _agent
 
 # The two recorders come back out of this module for the cases that read
@@ -75,11 +75,8 @@ def late_run_context(
         if seed.exists:
             checkout.mkdir()
         hold_late_seams(stack, seed, checkout, measurement, snapshot)
-        # The checkout is a plain directory, so its ownership read is stated.
-        stack.enter_context(patch.object(
-            _worktree_evidence, "_checkout_identity",
-            MagicMock(return_value=_worktree_models.ProbeAnswer.CONFIRMED),
-        ))
+        # The checkout is a plain directory, so its ownership reads are stated.
+        stack.enter_context(stated_ownership())
         if not transact:
             stack.enter_context(patch.object(
                 _late_transaction,

@@ -97,7 +97,6 @@ from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import (
     creation as _worktree_creation,
     naming as _naming,
-    paths as _worktree_paths,
 )
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
@@ -269,12 +268,16 @@ def _checkout_of(
     remote has -- the collapse, which it finishes, or the commits it was made
     from, which it squashes afresh.
 
-    A path that is there and is not a checkout is left to the probes below,
-    which refuse on what they cannot read: this owner does not repair a
+    A tree standing there is taken only once it is proven the issue's own
+    (`creation._retained_checkout`): the recovery resets and recommits what it
+    finds, so a checkout on the flat branch, another repository's, or a
+    detached HEAD refuses it with every commit and staged change in place. The
+    staged collapse itself stands on the issue's branch, which a soft reset
+    leaves HEAD on, so it is recovered as ever. This owner does not repair a
     worktree, and rebuilding one would be the destructive step all over again.
     """
-    standing = _worktree_paths._worktree_path(spec, issue.number)
-    if standing.exists():
+    standing = _worktree_creation._retained_checkout(spec, issue.number)
+    if standing is not None:
         return standing
     return _worktree_creation._ensure_worktree(
         spec, issue.number,

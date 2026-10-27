@@ -33,7 +33,7 @@ from pathlib import Path
 
 from orchestrator.git import branch_transport as _branch_transport
 from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
-from orchestrator.git.worktrees import naming as _naming, paths as _worktree_paths
+from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming
 from orchestrator.workflow.stages.discussion import (
     models as _models,
     run as _run,
@@ -112,14 +112,18 @@ def _plan_worktree(run: _models._DiscussionRun, branch: str) -> Path:
 
     A checkout still on disk is taken exactly as it stands -- it is what the
     round wrote into, and recreating it is how a dirty tree that carries no
-    commits gets destroyed. Only a directory that has gone is rebuilt, which
+    commits gets destroyed -- but only once it is proven the issue's own
+    (`creation._retained_checkout`): a recovered publication pushes from it,
+    and a branch name alone does not say the tree is a worktree of this
+    clone, so anything else refuses before the artifact is read or published.
+    Only a directory that has gone is rebuilt, which
     is the same case a round opening on a pruned branch handles and goes
     through the same restorer: a commit can outlive its worktree on the local
     branch -- and, once it is pushed, both of them on the remote -- so the
     crash that took the directory must not also take the plan.
     """
-    worktree = _worktree_paths._worktree_path(run.spec, run.issue.number)
-    if worktree.exists():
+    worktree = _worktree_creation._retained_checkout(run.spec, run.issue.number)
+    if worktree is not None:
         return worktree
     return _run._ensure_round_worktree(run, branch)
 
