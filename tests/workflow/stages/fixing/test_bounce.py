@@ -198,6 +198,23 @@ class NoFeedbackBounceTest(unittest.TestCase, _StrandedFixingFixtureMixin):
         mocks[PUSH_BRANCH].assert_not_called()
         self._assert_bounced(gh, round_n=SEEDED_ROUND)
 
+    def test_a_branchless_record_bounces_nothing(self) -> None:
+        # A pull request recorded with no branch beside it names nothing live
+        # work may stand on. With the checkout gone there is nothing to
+        # publish, and the bounce still refuses before it clears the round's
+        # bookkeeping or hands the pull request back to review.
+        github, issue = self._seed_stranded_bounce()
+        seeded = github.pinned_data(ISSUE)
+        self.assertIsNotNone(seeded.pop("branch"))
+        github.seed_state(ISSUE, **seeded)
+        recorded = github.pinned_data(ISSUE)
+
+        with self.assertRaises(_naming.BranchRefused):
+            self._run_stranded_bounce(github, issue, ABSENT_WORKTREE, branch_ahead_behind=STRANDED)
+
+        self.assertEqual(github.pinned_data(ISSUE), recorded)
+        self.assertNotIn((ISSUE, VALIDATING), github.label_history)
+
     def test_a_proved_empty_branch_bounces(self) -> None:
         # The checkout and its remote agree exactly, so there is nothing this
         # exit could publish and the reviewer may have the head as it stands.

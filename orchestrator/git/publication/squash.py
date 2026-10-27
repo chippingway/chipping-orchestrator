@@ -51,6 +51,7 @@ from orchestrator import config
 from orchestrator.git.measurement import commits as measurement_commits
 from orchestrator.git.publication import models, planning, resume, rewrite, standing
 from orchestrator.git.verification import status as _worktree_status
+from orchestrator.git.worktrees import creation as _worktree_creation
 
 # The revision a checkout's own head is named by.
 _HEAD = "HEAD"
@@ -379,6 +380,14 @@ def _rewrites_the_branch(
     reset that follows commits the index rather than the plan. A change staged
     in that window is collapsed into the squash and force-pushed as work a
     reviewer approved, with nothing between it and the pull request.
+
+    Last of all it is proven the issue's own (`creation._proven_checkout`):
+    a tree switched onto the flat branch at the planned head, clean, passes
+    both halves of that proof, and the soft reset and the commit behind it
+    would collapse that branch's history. It raises `naming.BranchRefused`
+    with nothing rewritten, and the record standing exactly as a process that
+    died before the reset leaves it, for the recovery that finds the
+    checkout restored.
     """
     from orchestrator.workflow.stages.implementing import late_collapse_state
 
@@ -399,6 +408,7 @@ def _rewrites_the_branch(
     raced = _raced_the_record(gate, plan)
     if raced is not None:
         return raced
+    _worktree_creation._proven_checkout(gate.spec, gate.issue.number, gate.worktree)
     return rewrite._rewrite_squash(gate, branch, plan, entry)
 
 

@@ -58,6 +58,8 @@ beside this owner rather than on the stage's shared `models.py`.
 """
 from __future__ import annotations
 
+from pathlib import Path
+
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
@@ -91,9 +93,8 @@ from orchestrator.workflow.state import WorkflowLabel
 
 
 def _run_validating_drift(
-    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState, worktree: Path,
 ) -> _drift_models._ValidatingDriftRun:
-    worktree = _dev_worktree._ensure_resume_worktree(spec, issue, state)
     before_sha = _verification_probes._head_sha(worktree)
     answered = _drift_delivery._drift_resume_prompt(gh, issue, state)
     worktree, agent_result, paused = _dev_resume._resume_dev_with_text(_dev_resume_request._DevResumeRequest(
@@ -251,11 +252,15 @@ def _resume_dev_on_validating_drift(
             state.set(_state._REVIEWER_OWES_A_ROUND, True)
         return False
 
+    # Prepared ahead of the notice, so a record naming no branch live work may
+    # use, or a checkout that is not the issue's own, is refused before
+    # anything is said -- and a refusal held across ticks says nothing again.
+    worktree = _dev_worktree._ensure_resume_worktree(spec, issue, state)
     _comments._post_issue_comment(
         gh, issue, state,
         ":pencil2: issue body changed; resuming dev session.",
     )
-    run = _run_validating_drift(gh, spec, issue, state)
+    run = _run_validating_drift(gh, spec, issue, state, worktree)
     state.set("last_agent_action_at", _usage._now_iso())
     if _guards._ignore_if_never_invoked(issue, run.agent_result):
         # The run circuit turned the launch away: no process read the prompt,

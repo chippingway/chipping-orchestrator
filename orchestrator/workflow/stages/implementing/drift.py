@@ -45,6 +45,8 @@ spawn actually quoted.
 """
 from __future__ import annotations
 
+from pathlib import Path
+
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
@@ -122,9 +124,12 @@ def _handle_user_content_drift(
 
 
 def _run_implementing_drift_resume(
-    gh: _client.GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: _pinned_state.PinnedState,
+    gh: _client.GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    state: _pinned_state.PinnedState,
+    worktree: Path,
 ) -> _ImplementingDriftRun:
-    worktree = _worktree._ensure_resume_worktree(spec, issue, state)
     before_sha = _verification_probes._head_sha(worktree)
     answered = _drift_delivery._drift_resume_prompt(gh, issue, state)
     resumed = _resume._resume_dev_with_text(_DevResumeRequest(
@@ -203,15 +208,17 @@ def _dispose_implementing_drift(
 def _resume_dev_on_implementing_drift(
     gh: _client.GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: _pinned_state.PinnedState,
 ) -> None:
-    # Resolved ahead of the notice, so a record naming no branch live work may
-    # use is refused before anything is said or run.
+    # Resolved and prepared ahead of the notice, so a record naming no branch
+    # live work may use, or a checkout that is not the issue's own, is refused
+    # before anything is said or run.
     branch = _naming._resolve_branch_name(state, spec, issue.number)
+    worktree = _worktree._ensure_resume_worktree(spec, issue, state)
     _comments._post_issue_comment(
         gh, issue, state,
         ":pencil2: issue body changed; resuming dev session with "
         "the updated requirements.",
     )
-    drift = _run_implementing_drift_resume(gh, spec, issue, state)
+    drift = _run_implementing_drift_resume(gh, spec, issue, state, worktree)
     state.set("last_agent_action_at", _usage._now_iso())
     state.set(_BRANCH, branch)
     _dispose_implementing_drift(gh, spec, issue, state, drift)

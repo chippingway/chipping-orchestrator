@@ -26,6 +26,7 @@ from tests.support.fakes import FakeGitHubClient, FakePR, make_issue
 ISSUE = 7
 PR_NUMBER = 42
 FOREIGN_FILE = "foreign.txt"
+BASE_FILE = "base.txt"
 
 _LABEL = "workflow:validating"
 _BASE = "main"
@@ -69,6 +70,26 @@ def _seeded_clone(target: Path, branch: str) -> str:
     _git(target, "update-ref", _REMOTE_BASE, _HEAD)
     _git(target, "branch", branch, _HEAD)
     return _git(target, "rev-parse", branch)
+
+
+def behind_its_base(world, *, pr_number: int | None = PR_NUMBER) -> str:
+    """Put the issue's own checkout a commit ahead of a base that moved on, with no anchor; its head.
+
+    The record names the issue's branch, and the pull request `pr_number`
+    names where that pull request stands -- or, with None, no pull request
+    at all, the pre-PR refresh's road.
+    """
+    world.on_its_branch()
+    _commits(world.checkout, "work.txt", "Issue work\n")
+    head = world.head()
+    _commits(world.target, BASE_FILE, "Advanced base\n")
+    _git(world.target, "update-ref", _REMOTE_BASE, _HEAD)
+    if pr_number is None:
+        world.gh.seed_state(ISSUE, branch=world.branch)
+    else:
+        world.gh.seed_state(ISSUE, branch=world.branch, pr_number=pr_number)
+        world.gh.get_pr(pr_number).head.sha = head
+    return head
 
 
 class AnchoredCheckout:

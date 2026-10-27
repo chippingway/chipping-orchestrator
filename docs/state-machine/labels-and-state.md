@@ -522,34 +522,36 @@ inside or outside the `orchestrator/` namespace, and a pin that is no string. No
 refusal is said once on the `orchestrator.worktree_lifecycle` channel, naming the pinned branch and pull request beside
 the current name, and nothing is posted or written.
 
-Every road meets the refusal ahead of its first mutating step. A stage handler resolves before it creates, restores,
-or reuses a checkout, charges or launches an agent, posts a resume notice, or pushes, and the dispatcher catches the
+Every road meets the refusal ahead of its first mutating step. A stage handler resolves before it creates, restores, or
+reuses a checkout, charges or launches an agent, posts a resume notice, or pushes, and the dispatcher catches the
 refusal around the handler as it catches `RecordRefused`: the handler is abandoned with nothing past that point done,
 and the next tick refuses again. The resume roads resolve whether or not the checkout is still on disk
 (`implementing/worktree._ensure_resume_worktree`), the read-only relabel guard resolves before it takes or clears a
-park, a recovered reviewer handoff resolves before it posts feedback, records the handoff, or relabels to
-`workflow:fixing`, and a late adjudication resolves once its live-generation gate has passed, before it takes a
-retry-cap park, probes the host, holds the pull request, retires a park, reconciles a reply, settles a recorded answer,
-or charges and spawns an adjudicator. The base refresh asks the same question of the record
-before any route ([Base refresh](#base-refresh)). The roads that end an issue rather than work its branch refuse
-nothing: a terminal or question teardown reads the branch the record names and deletes only the current-layout one, a
-closed discussion with no publication in flight is rejected without resolving, a cancelled late cycle takes no branch
-on as owed, and the dispatcher's restore of a checkout an anchor names restores nothing, each leaving the branches and
-checkout for a human.
+park, the fixing stage's no-feedback bounce resolves before it answers for a checkout that is gone, a recovered reviewer
+handoff resolves before it posts feedback, records the handoff, or relabels to `workflow:fixing`, and a late
+adjudication resolves once its live-generation gate has passed, before it takes a retry-cap park, probes the host, holds
+the pull request, retires a park, reconciles a reply, settles a recorded answer, or charges and spawns an adjudicator.
+The base refresh asks the same question of the record before any route ([Base refresh](#base-refresh)). The roads that
+end an issue rather than work its branch refuse nothing: a terminal or question teardown reads the branch the record
+names and deletes only the current-layout one, a closed discussion with no publication in flight is rejected without
+resolving, a cancelled late cycle takes no branch on as owed, and the dispatcher's restore of a checkout an anchor names
+restores nothing, each leaving the branches and checkout for a human.
 
 The checkout is held to the same name. `_ensure_worktree` and `_ensure_pr_worktree` take the branch the resolver
 answered and refuse any other, and every road that works in a tree already at the issue's path proves it the issue's own
 first, reading only (`git/worktrees/creation._retained_checkout`, over `git/worktrees/evidence._checkout_identity`): a
 worktree of the clone on exactly the issue's branch, reached at that path through no symlink. The creators ask it before
-they reuse or remove a tree, the resume roads before any session is resumed in one, a resumed question or discussion
-round before its agent runs, the conflict stage before it works in one, an accepted plan handoff before its marker and
-again at the reset its move makes behind its fetch (`git/worktrees/anchoring._move_branch_onto`), an interrupted
-squash's recovery before it resets or recommits anything, a plan publication before it reads the artifact and again
-before its push and before the pull request it opens, a documenting drift unwind before its notice and again before the
-reset that discards the tree's work, a late adjudication at its admission gate and an accepted verdict again before its
-push and before its handoff, the base refresh before any route and its reset-and-park tail again before the reset and
-the clean (`git/base_sync/checkout_proof`), the initial publication before its intent and again before its push and
-before the pull request it opens or reuses, and the publication seam every push onto a pull request goes through
+they reuse or remove a tree, the resume roads before any session is resumed in one — a body edit's resume before its
+notice — a resumed question or discussion round before its agent runs, the conflict stage before it works in one and
+again before its rebase, an accepted plan handoff before its marker and again at the reset its move makes behind its
+fetch (`git/worktrees/anchoring._move_branch_onto`), an interrupted squash's recovery before it resets or recommits
+anything, the approval squash again before the soft reset that collapses the branch, a docs commit's subject amendment
+before it moves HEAD, a plan publication before it reads the artifact and again before its push and before the pull
+request it opens, a documenting drift unwind before its notice and again before the reset that discards the tree's work,
+a late adjudication at its admission gate and an accepted verdict again before its push and before its handoff, the base
+refresh before any route and again before each rebase it makes and before its reset-and-park tail's reset and clean
+(`git/base_sync/checkout_proof`), the initial publication before its intent and again before its push and before the
+pull request it opens or reuses, and the publication seam every push onto a pull request goes through
 (`implementing/late_push._publishes`) before it measures anything, again before the push, and again before the handoff,
 where a refused tree holds it with the claim its push owes recorded and nothing parked. Each second proof is there
 because the fetches and reads between the first and the step it guards are a window a tree can be switched in, and one
@@ -619,7 +621,11 @@ checkout as well: a tree at the issue's path that is not proven a worktree of th
 flat branch, another repository's, or a detached HEAD, or one reached through a symlink — is left with every commit it
 holds. A pinned anchor's recovery is asked the same question, since a checkout can be switched between ticks and the
 recovery's reset takes whatever the tree holds; the one tree it adds is the issue's own left detached by an unfinished
-rebase of exactly that branch, which is how an interrupted attempt leaves it.
+rebase of exactly that branch, which is how an interrupted attempt leaves it. Each rebase the refresh makes, and the
+reset-and-park tail's reset and clean, ask it again last (`git/base_sync/checkout_proof`), behind the pull-request
+reads, the anchor's write, and the fetches between the first proof and the rewrite: a tree switched onto the flat
+branch in that window is neither replayed onto the base nor reset, nothing is parked, and an anchor already written
+stands for the recovery that finds the checkout restored.
 
 Two paths depending on whether a PR exists:
 

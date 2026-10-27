@@ -198,7 +198,8 @@ or lost write interrupted are current state, not historical compatibility.
 [rewrite permissions](../tests/git/base_sync/test_transfers.py),
 [branch resolution](../tests/git/worktrees/test_resolution.py),
 [checkout reuse](../tests/git/worktrees/test_creation.py),
-[refused drift reset](../tests/workflow/stages/documenting/test_drift_checkout.py).
+[refused drift reset](../tests/workflow/stages/documenting/test_drift_checkout.py),
+[refused drift resume](../tests/workflow/stages/validating/test_drift_refusal.py).
 
 ## C-04: Authentic state and trusted input
 
@@ -311,9 +312,10 @@ intervening work.
 handle. The publication protocol defines the commit and remote branch head checks and commit-selection fallbacks.
 The orchestrator publishes only to an issue's current-layout branch the live resolver names: a recorded pull request
 whose branch is missing, invalid, flat, another repository's, or otherwise not that name stops before any checkout,
-agent launch, or push, and no newly derived branch is substituted for it. Each push is made only once the checkout it
-is made from is proven the issue's own again, behind the reads and writes on its road, so a tree switched onto the flat
-branch meanwhile publishes nothing. Current unpushed work, a current pull
+agent launch, or push, and no newly derived branch is substituted for it. Each push, and each rebase, reset, squash, or
+subject amendment that rewrites the branch a checkout stands on, is made only once that checkout is proven the issue's
+own again, behind the reads and writes on its road, so a tree switched onto the flat branch meanwhile is neither
+published nor rewritten. Current unpushed work, a current pull
 request's restoration from its remote head, uncertain remote reads, and exact-head pushes keep their protocols.
 Credential filtering does not enforce push authority; see [C-11].
 
@@ -332,7 +334,10 @@ Credential filtering does not enforce push authority; see [C-11].
 [refused accepted push](../tests/workflow/stages/decomposition/test_late_accepted_checkout.py),
 [switched seam push](../tests/workflow/stages/implementing/test_publication_checkout.py),
 [switched plan publication](../tests/workflow/stages/discussion/test_publication_checkout.py),
-[switched plan handoff](../tests/workflow/stages/implementing/test_plan_handoff_checkout.py).
+[switched plan handoff](../tests/workflow/stages/implementing/test_plan_handoff_checkout.py),
+[switched squash](../tests/git/publication/test_squash_record_race.py),
+[switched conflict rebase](../tests/workflow/stages/conflicts/test_rebase_checkout.py),
+[switched docs amendment](../tests/workflow/stages/documenting/test_subject_checkout.py).
 
 ## C-08: Agent reply protocols
 

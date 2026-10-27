@@ -11,7 +11,9 @@ carried over as ever. An interrupted attempt's anchor is held to the same
 question before its recovery resets anything: the issue's own checkout, left
 detached in the middle of rebasing its branch, is still recovered, and a tree
 switched onto the flat branch since -- before the pass, or while its fetch runs
--- keeps its head and every file.
+-- keeps its head and every file. So does one switched while the refresh reads
+the pull request or the tree ahead of an ordinary rebase: the rebase proves it
+again first, and the flat branch is never replayed onto the base.
 """
 from __future__ import annotations
 
@@ -20,6 +22,7 @@ from pathlib import Path
 from unittest.mock import DEFAULT, patch
 
 from orchestrator.config import models as _config_models
+from orchestrator.git.verification import status as _worktree_status
 from orchestrator.git.worktrees import evidence as _evidence
 from orchestrator.git.worktrees.models import ProbeAnswer
 from orchestrator.workflow.engine import base_refresh
@@ -189,6 +192,55 @@ class AnchoredRefreshTest(unittest.TestCase):
             self.world.switched_to_the_flat_branch()
             self.switched_at = self.world.head()
         return DEFAULT
+
+
+
+class RebaseCheckoutTest(unittest.TestCase):
+    """An ordinary rebase of the issue's own checkout onto a base that moved on, over a real clone."""
+
+    def setUp(self) -> None:
+        self.world = _anchored.AnchoredCheckout(self)
+        self.switched_at = None
+        self._through = None
+
+    def test_the_issue_s_own_checkout_is_rebased(self) -> None:
+        _anchored.behind_its_base(self.world, pr_number=None)
+
+        self.world.syncs()
+
+        self.assertTrue((self.world.checkout / _anchored.BASE_FILE).exists())
+
+    def test_a_switch_mid_pr_read_rebases_nothing(self) -> None:
+        _anchored.behind_its_base(self.world)
+        self._through = self.world.gh.get_pr
+
+        with patch.object(self.world.gh, "get_pr", side_effect=self._switched):
+            self.world.syncs()
+
+        self._assert_unreplayed()
+
+    def test_a_pre_pr_switch_rebases_nothing(self) -> None:
+        _anchored.behind_its_base(self.world, pr_number=None)
+        self._through = _worktree_status._worktree_dirty_files
+
+        with patch.object(_worktree_status, "_worktree_dirty_files", side_effect=self._switched):
+            self.world.syncs()
+
+        self._assert_unreplayed()
+
+    def _switched(self, *args):
+        """The read this case stands in for, the checkout switched onto the flat branch the first time."""
+        if self.switched_at is None:
+            self.world.switched_to_the_flat_branch()
+            self.switched_at = self.world.head()
+        return self._through(*args)
+
+    def _assert_unreplayed(self) -> None:
+        """The flat branch where the switch left it, with nothing of the advanced base in its tree."""
+        self.assertIsNotNone(self.switched_at)
+        self.assertEqual(self.world.head(), self.switched_at)
+        self.assertFalse((self.world.checkout / _anchored.BASE_FILE).exists())
+        self.assertIsNone(self.world.gh.pinned_data(_anchored.ISSUE).get("park_reason"))
 
 
 if __name__ == "__main__":

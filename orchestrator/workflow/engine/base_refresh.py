@@ -41,6 +41,7 @@ from github.Issue import Issue
 from orchestrator.config import models as _config_models
 from orchestrator.git import branch_transport as _branch_transport, commands as _commands
 from orchestrator.git.base_sync import (
+    checkout_proof as _checkout_proof,
     models as _base_sync_models,
     pre_pr as _pre_pr,
     refresh_selection as _selection,
@@ -134,7 +135,7 @@ def _sync_worktree_with_base(
         _sync_claimed_worktree(gh, spec, worktree, issue_number)
 
 
-def _admitted_state(gh: _client.GitHubClient, issue: Issue) -> _pinned_state.PinnedState | None:
+def _admitted_state(gh: _client.GitHubClient, issue: Issue | None) -> _pinned_state.PinnedState | None:
     """The pinned comment a route may be chosen on, read under the caller's claim, or None where no route may be.
 
     Nothing is asked of the comment before admission is. A record admission
@@ -151,9 +152,10 @@ def _admitted_state(gh: _client.GitHubClient, issue: Issue) -> _pinned_state.Pin
 
     An operator's hard-skip is asked ahead of the comment, as the dispatcher
     asks it ahead of its own reading: a held issue costs no read and says no
-    refusal, whatever its comment carries.
+    refusal, whatever its comment carries -- and an issue that would not read
+    at all (None) has no comment to admit.
     """
-    if _selection._hard_skipped(issue, issue.number):
+    if issue is None or _selection._hard_skipped(issue, issue.number):
         return None
     state = gh.read_pinned_state(issue)
     if _record_admission.refuses(issue, state, _REFRESH_REFUSED):
@@ -217,11 +219,12 @@ def _sync_claimed_worktree(
     comparison of what it did can be trusted -- and ending the sync would
     leave the anchor for a handler the dispatcher holds back while it stands.
     So it is reset and parked on the coordinator's own gates instead.
+
+    The pre-PR rebase proves the checkout the issue's own again first
+    (`checkout_proof._still_its_checkout`), as every rebase the refresh makes
+    does: the tree and lag readings ran after the proof above.
     """
     issue = _selection._base_sync_issue(gh, issue_number)
-    if issue is None:
-        return
-
     state = _admitted_state(gh, issue)
     if state is None or _selection._issue_skips_base_sync(
         issue, issue_number, state, worktree,
@@ -249,7 +252,7 @@ def _sync_claimed_worktree(
             gh, spec, issue, state, worktree, int(pr_number), behind,
         ))
         return
-    if behind:
+    if behind and _checkout_proof._still_its_checkout(spec, issue_number, worktree, "rebasing the checkout"):
         _pre_pr._sync_pre_pr_worktree(spec, worktree, issue_number, behind)
 
 

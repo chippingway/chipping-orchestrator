@@ -45,6 +45,7 @@ from orchestrator.git.publication import (
     pr_references as _pr_references,
 )
 from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.worktrees import creation as _worktree_creation
 from orchestrator.workflow.stages.documenting import (
     models as _models,
     parks as _parks,
@@ -133,7 +134,14 @@ def _amended_docs_commit(
     it is standing on that id: a checkout something committed on after the
     move is not the replacement, and handing the gate the id HEAD reads instead
     would carry the race the move closed straight to it.
+
+    The checkout is proven the issue's own first (`creation._proven_checkout`):
+    the move rewrites whatever branch HEAD names, the agent's run came between
+    the pass's own proof and here, and a tree switched onto the flat branch at
+    `after_sha` would have that branch's tip replaced. It raises
+    `naming.BranchRefused` with nothing amended or parked.
     """
+    _worktree_creation._proven_checkout(ctx.spec, ctx.issue.number, wt)
     amended = _publication_commits._amend_commit_message(
         wt, after_sha, message,
     )

@@ -943,12 +943,16 @@ orchestrator/
                         before that park keeps the attempt -- and whether a park a stage left
                         still owes a standing anchor its recovery -- which the workflow's recovery coordinator
                         runs; a terminal PR ends an anchored attempt's whole handoff through `terminal_handoff`
-      pre_pr.py         the hardened rebase and rebase-state probes and the aborting pre-PR local rebase
+      pre_pr.py         the hardened rebase and rebase-state probes and the aborting pre-PR local rebase, which
+                        the workflow's refresh enters only once `checkout_proof` proves the checkout the issue's own
+                        again
       startup.py        the pre-rebase HEAD guard, and the anchor, the attempt's terms, and the base tip the rebase
                         will replay onto -- frozen off `<remote>/<base>` and blanked where that ref moved while git
                         ran -- persisted before git runs: the write that spends the reply a park of the refresh's
                         let the rebase start on, and carries the retry the workflow staged read from it
-                        (`workflow/engine/rewrite_replies.py`)
+                        (`workflow/engine/rewrite_replies.py`); the rebase itself is made only once
+                        `checkout_proof` proves the checkout the issue's own again behind that write, with the
+                        anchor left standing and nothing rebased or parked where it refuses
       attempts.py       the replay checkpoint, the announcement mark's presence checks, and the whole-record clear
                         that ends an auto-rebase attempt, the recorded base tip, the record of the `base_rebased`
                         event a finish files (`pending_auto_base_rebase_announced_event`), and a relabel member no
@@ -960,10 +964,11 @@ orchestrator/
                         workflow's handoff of an unpublished replay to a late generation
                         (`workflow/engine/rewrite_takeover.py`) retires the whole record through the same clear,
                         and with it any `auto_base_rebase_*` park the attempt's own road left (`_retires_its_park`)
-      checkout_proof.py the identity the reset-and-park tail asks last before `reset --hard` and the clean behind
-                        it: the checkout proven the issue's own again as a recovery proves it, since the refresh's
-                        proof came before every fetch and read the road made, and a refusal logged with nothing
-                        reset, cleaned, or parked
+      checkout_proof.py the identity every rewrite the refresh makes asks last -- each rebase, and the
+                        reset-and-park tail's `reset --hard` with the clean behind it: the checkout proven the
+                        issue's own again as a recovery proves it, since the refresh's proof came before every
+                        fetch, read, and write the road made, and a refusal logged with nothing rebased, reset,
+                        cleaned, or parked
       checkpoints.py    the checkpoints an attempt's road makes over the reading its tick last confirmed: every
                         auto-rebase park, and a recovery's clear, abandonment of a captured transaction, and record
                         of a gate's hold, landed through the tick-state guarded commit
@@ -1314,7 +1319,10 @@ orchestrator/
                         the record goes down between the entry and
                         the reset, so no write is spent on a publication the entry refuses and none is owed once
                         the evidence is gone -- and a write GitHub refuses stops the squash rather than leaving a
-                        rewrite nothing could account for. Every failure is stamped on the way out with WHERE
+                        rewrite nothing could account for. Past that write the checkout is proven the issue's
+                        own last of all (`creation._proven_checkout`), since a tree switched onto the flat branch
+                        at the planned head passes the tree and head proofs, so the soft reset never collapses
+                        another branch's history. Every failure is stamped on the way out with WHERE
                         it left the branch, which `standing` beside it reads
       standing.py       which of the four places a refused squash left the branch in, read off the pinned
                         record AND the checkout rather than assumed. The terms go down before the reset, so an

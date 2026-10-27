@@ -2179,7 +2179,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             on that branch, a pinned anchor's recovery included, which adds only the issue's own
                             checkout left detached by an unfinished rebase of that branch -- the
                             dirty-tree refusal a pre-PR rebase owes, the base-lag probe, and the route: the git
-                            `pre_pr` rebase for a branch nobody has pushed yet, the base-rewrite coordinator below
+                            `pre_pr` rebase for a branch nobody has pushed yet, entered only once
+                            `checkout_proof` proves the checkout the issue's own again behind those readings, the
+                            base-rewrite coordinator below
                             for one a pull request carries -- reached even with no lag, so a pinned anchor's
                             recovery is never skipped -- and, over a pinned anchor whose lag cannot be counted, that
                             coordinator's reset and park rather than a handler the dispatcher holds back. One
@@ -2615,7 +2617,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             push against -- refused when nothing could read it, since the gate reads no head as a
                             caller that established none and pins the push to whatever the pull request has moved
                             to -- the fork point that head's contribution is read over, taken in the same breath
-                            since the replay destroys it and made DURABLE before the rebase runs, the rebase, its
+                            since the replay destroys it and made DURABLE before the rebase runs, the rebase -- made
+                            only once the checkout is proven the issue's own again behind that write
+                            (`creation._proven_checkout`) -- its
                             `merge_attempt` event, and the three-way disposition -- none of it while a report this
                             issue recorded is still unsettled, since settled after the rebase it would be bound to
                             the head the rebase left. The `MAX_CONFLICT_ROUNDS` cap is asked here, behind that
@@ -3632,7 +3636,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             of the message kept as written; a subject the normalization hands back as written is
                             published as the commit it is, and a message that does not read, a replacement git
                             refuses, a moved checkout, or a HEAD that does not read back as the replacement parks
-                            `subject_amend_failed` rather than publishing it
+                            `subject_amend_failed` rather than publishing it. The amendment is made only once the
+                            checkout is proven the issue's own again (`creation._proven_checkout`), since the move
+                            rewrites whatever branch HEAD names and the agent's run came after the pass's own proof
       publication.py        the size gate a docs commit passes -- the last one before a human is asked to merge,
                             and handed the commit this pass made so a checkout something moved is refused rather than
                             measured in its place -- then the push, and which completion a pass earns -- a published
@@ -3769,7 +3775,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the same size gate the shared dev-fix publication passes, named BOTH ends of the
                             reading that placed it so a checkout something moved refuses instead of having
                             whatever it points at pushed, and a held candidate stops the
-                            bounce rather than being relabelled over -- before it hands the PR back to the reviewer.
+                            bounce rather than being relabelled over -- before it hands the PR back to the reviewer,
+                            with the branch resolved ahead of all of it, an absent checkout included, so a record
+                            naming none live work may use is never handed back.
                             Ahead of the scan, everything this issue's report obligation owes
                             (`report_recovery.py`): a round whose publication SETTLED while nobody was looking is
                             handed back, and a record a crash left unbound is re-proved and bound. That position
@@ -4831,7 +4839,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             shutdown kill, the live pause and the launch the circuit turned away each returning
                             before anything is written. That settlement is also what records the new baseline:
                             nothing here stages it ahead of a run, since a baseline written for a prompt nobody
-                            read marks the edit answered and hands the words under it on as already delivered
+                            read marks the edit answered and hands the words under it on as already delivered. The
+                            resume's checkout is prepared before its notice, so a refused branch or checkout says
+                            nothing on any tick
       drift_models.py       the frozen record that route's resume hands its disposition: the checkout it ran in,
                             the run, the head before it and whether the run moved it, the live-pause decision, and
                             the delivery record of what its prompt quoted -- kept beside the route that alone builds
@@ -5385,7 +5395,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             run is back. The requirements revision its report is stamped with is that prompt's own,
                             not the drift check's a moment earlier: a reply landing between the two is in the prompt
                             and in the settled baseline, and a report stamped behind them is one the reviewer hold
-                            refuses; on a parked tick the edit is measured by what the park had already read
+                            refuses; on a parked tick the edit is measured by what the park had already read. The
+                            resume's checkout is prepared before its notice, so a refused branch or checkout says
+                            nothing on any tick
       drift_models.py       the frozen record that route's resume hands the helper that finishes it, the delivery
                             it was built from -- and the revision that read fingerprints -- included
       drift_outcomes.py     the claim that the edit is still unanswered, written -- for a caller that named what

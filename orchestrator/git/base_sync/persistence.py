@@ -325,7 +325,9 @@ def _resets(
     """
     if not checkpoints._still_owns_the_attempt(context.gh, context.issue, context.state, "resetting the checkout"):
         return None
-    if not checkout_proof._still_its_checkout(context):
+    if not checkout_proof._still_its_checkout(
+        context.spec, context.issue.number, context.worktree, "resetting the checkout",
+    ):
         return None
     reset = commands._git_hardened("reset", "--hard", reset_sha, cwd=context.worktree)
     if reset.returncode:

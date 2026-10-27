@@ -28,7 +28,7 @@ from github.PullRequest import PullRequest
 
 from orchestrator import config
 from orchestrator.git import commands
-from orchestrator.git.base_sync import attempts, conflicts, persistence, pre_pr
+from orchestrator.git.base_sync import attempts, checkout_proof, conflicts, persistence, pre_pr
 from orchestrator.git.base_sync.models import _AutoRebaseContext, _ConflictRouteContext
 from orchestrator.git.base_sync.state import (
     _AWAITING_HUMAN,
@@ -179,12 +179,25 @@ def _start_auto_rebase(
     pr: PullRequest,
     consumed_comment_id: int | None,
 ) -> str | None:
-    """Anchor and execute the rebase, returning the known pre-rebase SHA."""
+    """Anchor and execute the rebase, returning the known pre-rebase SHA.
+
+    The checkout is proven the issue's own again behind the anchor's write
+    and ahead of the rebase (`checkout_proof._still_its_checkout`): the
+    refresh proved it before the pull-request reads and that write, and a
+    tree switched onto the flat branch in that window would have its branch
+    replayed onto the base. Refused, nothing is rebased or parked, and the
+    anchor stands over the head it names for the recovery that finds the
+    checkout restored.
+    """
     before_sha = probes._head_sha(context.worktree) or ""
     if not before_sha:
         _park_unreadable_pre_rebase_head(context)
         return None
     _record_auto_rebase_attempt(context, before_sha, consumed_comment_id)
+    if not checkout_proof._still_its_checkout(
+        context.spec, context.issue.number, context.worktree, "rebasing the checkout",
+    ):
+        return None
     succeeded, conflicted_files = pre_pr._rebase_base_into_worktree(
         context.spec, context.worktree,
     )

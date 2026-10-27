@@ -13,11 +13,16 @@ Left unchecked, a change staged in that window is collapsed into the squash
 and force-pushed onto the pull request as work a reviewer approved. So the
 checkout is proved again once the write comes back, and both halves are
 proved: a tree that is no longer provably clean, and a head something moved.
+A tree switched onto the flat branch at the planned head, clean, passes both,
+so the checkout is proven the issue's own last of all, before the reset.
 """
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
+from orchestrator.git.worktrees import evidence as _evidence, naming
+from orchestrator.git.worktrees.models import ProbeAnswer
 from tests.git.publication import squash_git_support as squash_support
 from tests.git.publication.squash_race_doubles import RACED_FILE, _RacesTheRecord
 from tests.git.publication.squash_recovery_support import (
@@ -27,6 +32,8 @@ from tests.git.publication.squash_recovery_support import (
     KEY_COLLAPSE_HEAD,
     SquashRecoveryMixin,
 )
+
+_FLAT_BRANCH = f"orchestrator/issue-{squash_support.SQUASH_ISSUE_NUMBER}"
 
 
 class RecordRaceRealGitTest(
@@ -83,6 +90,30 @@ class RecordRaceRealGitTest(
         # would find a commit this tick never accounted for, and one sent to
         # the reflog would find no collapse at all.
         self.assertEqual(squash_run.standing, BRANCH_UNKNOWN)
+
+    def test_a_flat_switch_collapses_nothing(self) -> None:
+        # The tree is switched onto the flat branch at the planned head, clean,
+        # so the tree and head proofs both pass -- and the soft reset would
+        # collapse that branch's history. Proven the issue's own last, it is
+        # refused with nothing rewritten, and the record stands exactly as a
+        # process that died before the reset leaves it.
+        gate = self._gate_subject()
+        accepted = self._head_sha()
+        self._writes = gate.gh.write_pinned_state
+
+        with patch.object(gate.gh, "write_pinned_state", side_effect=self._switched_write):
+            self.assertRaises(naming.BranchRefused, self._squashes, gate)
+
+        self.assertEqual(self._head_sha(), accepted)
+        self._assert_branch_carries(APPROVED_COMMITS)
+        self.assertIn(KEY_COLLAPSE_HEAD, self._pinned(gate))
+
+    def _switched_write(self, issue, state):
+        """Land the write, then switch the checkout onto the flat branch at its head."""
+        written = self._writes(issue, state)
+        squash_support.run_git("checkout", "-q", "-B", _FLAT_BRANCH, cwd=self.work)
+        _evidence._checkout_identity.return_value = ProbeAnswer.REFUTED
+        return written
 
 
 if __name__ == "__main__":

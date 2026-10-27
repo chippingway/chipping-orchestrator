@@ -247,7 +247,13 @@ def _publish_stranded_fix(
     and each of those may be a branch carrying the very commit this exit is
     the last tick to publish. Only a branch PROVED to be standing where its
     publication is lets the relabel through.
+
+    The branch is resolved before any of it, the absent checkout's answer
+    included: a record naming no branch live work may use raises
+    `naming.BranchRefused`, so a pull request recorded with no branch beside
+    it is never handed back to review with its round's bookkeeping cleared.
     """
+    branch = _naming._resolve_branch_name(state, spec, issue.number)
     wt = _worktree_paths._worktree_path(spec, issue.number)
     if not wt.exists():
         # Nothing to publish is the ordinary answer, and it is not the whole
@@ -263,7 +269,6 @@ def _publish_stranded_fix(
         return _models._StrandedPublication(
             unproved=not evidence.settled, refusal=evidence.refusal,
         )
-    branch = _naming._resolve_branch_name(state, spec, issue.number)
     published = _late_push._publishes(
         _late_records._gate(gh, spec, issue, state, wt), branch,
         _late_gate_models._Entered(
