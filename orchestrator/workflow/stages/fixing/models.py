@@ -13,8 +13,9 @@ reads `all_items` in one order, while the settlement has to advance each
 reader only to the max id consumed on the surface that reader owns. The issue
 thread is held apart from the PR conversation for the settlement's sake --
 GitHub numbers the two from one IssueComment id space, but only the thread is
-what `last_action_comment_id` records as delivered, so a batch that had merged
-them could not say which half that field may be advanced over.
+what the delivered stretch and the reply boundary `last_action_comment_id`
+answer for, so a batch that had merged them could not say which half those
+fields may be advanced over.
 
 `_ParkedFixingDecision` is how a parked tick answers without the caller having
 to re-derive it: `stop` says the tick is fully handled, and `replay_batch`
@@ -80,6 +81,11 @@ class _FixingFeedback:
     `ALLOWED_ISSUE_AUTHORS` set and the bot's login absent from it -- the shape
     a deployment lands on by writing down only its humans -- a spawn would
     otherwise read the answers without the questions they answer.
+
+    `known_through` is the newest IssueComment id the scan's two reads prove
+    complete beneath (`engine/thread_delivery.known_through`), which the
+    settlement holds the PR-side cursor to; None, a batch no scan produced,
+    bounds nothing.
     """
 
     issue_thread: list
@@ -88,6 +94,7 @@ class _FixingFeedback:
     review_summaries: list
     read: tuple = ()
     retained: frozenset = frozenset()
+    known_through: int | None = None
 
     @property
     def issue_space(self) -> list:
@@ -157,7 +164,12 @@ class _FixingFeedback:
             # and the ids retained for that read belong to it.
             read=other.read or self.read,
             retained=other.retained or self.retained,
+            known_through=self._bound(other),
         )
+
+    def _bound(self, other: _FixingFeedback) -> int | None:
+        """The scan's bound of the two readings: a replay is rebuilt from pinned ids and was read by nothing."""
+        return self.known_through if other.known_through is None else other.known_through
 
     def _joined(self, read: list, also_read: list) -> list:
         """One surface's two readings, each item once and in id order."""

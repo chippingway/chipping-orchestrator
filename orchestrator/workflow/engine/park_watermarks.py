@@ -33,6 +33,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     comments as _comments,
     prompt_delivery as _delivery,
+    thread_delivery as _thread_delivery,
 )
 
 log = logging.getLogger("orchestrator.workflow")
@@ -109,11 +110,13 @@ def _stamp_read_this_far(
 
     The conditional IS the rule: an answer of None is a thread this tick may
     not claim to have read any further than it already had, so the mark is
-    left exactly where it was.
+    left exactly where it was. A walk over posts of ours crosses nothing
+    unread, so the delivered stretch moves with it where it reached the mark
+    (`thread_delivery.reads_through`).
     """
     read_to = _read_this_far(gh, issue, state, said_before)
     if read_to is not None:
-        state.set(_delivery.PINNED_LAST_ACTION_COMMENT_ID, read_to)
+        _thread_delivery.reads_through(state, read_to)
 
 
 def _comment_id(seen) -> int:

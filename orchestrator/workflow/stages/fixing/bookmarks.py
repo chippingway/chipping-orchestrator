@@ -14,6 +14,15 @@ recorded ids. Filtering by id inherently drops the orchestrator's own comments
 (their ids were never in the batch) and survives any watermark advance; an item
 deleted on GitHub since simply falls out.
 
+The recorded id list is the only thing that names a surface's batch, so it is
+read exactly as the route writes it: a list of whole comment ids. One that is
+missing names nothing, and so does one that is damaged -- not a list, or
+carrying anything but whole ids. Nothing stands in for it: the max id the
+route records beside the list says nothing about the batch's lower members,
+and a batch rebuilt from it would hand a fresh developer part of a round as
+the whole of it. A surface that names nothing is not replayed, and a replay
+with nothing on any surface is refused (`continue_command`).
+
 The two IssueComment surfaces share one recorded id set and are rebuilt apart,
 because the replay is DELIVERED and therefore settled: the issue thread
 settles `last_action_comment_id` beside the PR-side cursor and the pull
@@ -37,6 +46,7 @@ silent validating recovery all drop them.
 from __future__ import annotations
 
 from orchestrator.workflow.stages.fixing import state as _state
+from orchestrator.workflow.stages.validating import state as _validating_state
 
 # Every bookmark one fix route leaves, and the value clearing it writes.
 # Spelled as pairs rather than as a sequence of writes, so a caller that has
@@ -68,24 +78,22 @@ def _clear_pending_fix_bookmarks(state) -> None:
         state.set(key, cleared)
 
 
-def _pending_fix_id_set(state, ids_key: str, max_id_key: str) -> set:
-    """Resolve the persisted batch ids for one feedback surface.
+def _pending_fix_id_set(state, ids_key: str) -> set:
+    """The batch ids one surface's recorded `pending_fix_*_ids` list names.
 
-    Prefers the full `pending_fix_*_ids` list the in_review route records.
-    Falls back -- conservatively -- to the single `pending_fix_*_max_id`
-    for issues parked before the id lists existed: the max id is the only
-    member a legacy bookmark can vouch for, so the reconstruction includes
-    just that one item rather than guessing a lower bound the advanced
-    watermark can no longer supply. `bool` is rejected explicitly because
-    it is an `int` subclass and a stray `True` must not read as id 1.
+    Exactly the list the in_review route wrote, or nothing: a list that is
+    missing, or damaged -- not a list, or carrying a member that is not a
+    whole comment id -- names no batch at all. A string or a float is not
+    coerced into an id, and a `bool` is no id either, since it is an `int`
+    subclass and a stray `True` would read as id 1. Taking the members that
+    read would present part of a recorded batch as the whole of it.
     """
-    ids = state.get(ids_key)
-    if isinstance(ids, list) and ids:
-        return {int(comment_id) for comment_id in ids}
-    max_id = state.get(max_id_key)
-    if isinstance(max_id, int) and not isinstance(max_id, bool):
-        return {max_id}
-    return set()
+    recorded = state.get(ids_key)
+    if not isinstance(recorded, list) or not all(
+        _validating_state._is_whole(member) for member in recorded
+    ):
+        return set()
+    return set(recorded)
 
 
 def _reviewer_anchor_comment(gh, pr, state):
@@ -103,14 +111,13 @@ def _reviewer_anchor_comment(gh, pr, state):
     orchestrator-authored -- normally dropped from a rescan by the id-set
     filter and by `filter_trusted` when the PAT login is not allowlisted --
     but it carries the reviewer's own trusted feedback, so the caller adds it
-    OUTSIDE the trust filter. `bool` is rejected explicitly (it is an `int`
-    subclass and a stray `True` must not read as id 1). Returns None when the
-    anchor id is unset / not an int, or the comment can no longer be fetched
-    (deleted, or a PR read that returned without it) -- the empty-batch
-    refusal then holds.
+    OUTSIDE the trust filter. Returns None when the anchor is unset or not a
+    whole comment id (a `bool` is an `int` subclass and a stray `True` must
+    not read as id 1), or the comment can no longer be fetched (deleted, or a
+    PR read that returned without it) -- the empty-batch refusal then holds.
     """
     anchor_id = state.get("pending_fix_reviewer_comment_id")
-    if not isinstance(anchor_id, int) or isinstance(anchor_id, bool):
+    if not _validating_state._is_whole(anchor_id):
         return None
     for pr_comment in gh.pr_conversation_comments_after(pr, None):
         if pr_comment.id == anchor_id:
@@ -144,9 +151,7 @@ def _reconstruct_issue_space(gh, issue, pr, state, comments) -> tuple:
     fingerprint never saw, and a report the settlement then refuses. `None` is
     a caller holding no read at all, which takes one here.
     """
-    recorded = _pending_fix_id_set(
-        state, "pending_fix_issue_ids", "pending_fix_issue_max_id",
-    )
+    recorded = _pending_fix_id_set(state, "pending_fix_issue_ids")
     if not recorded:
         return [], []
     return (
@@ -164,14 +169,8 @@ def _reconstruct_review_surfaces(gh, pr, state) -> tuple:
     its bookmark names something, since the fetch is a request and a round
     that recorded no review feedback has nothing on either to rebuild.
     """
-    inline_ids = _pending_fix_id_set(
-        state, "pending_fix_review_ids", "pending_fix_review_max_id",
-    )
-    summary_ids = _pending_fix_id_set(
-        state,
-        "pending_fix_review_summary_ids",
-        "pending_fix_review_summary_max_id",
-    )
+    inline_ids = _pending_fix_id_set(state, "pending_fix_review_ids")
+    summary_ids = _pending_fix_id_set(state, "pending_fix_review_summary_ids")
     return (
         _matched(gh.pr_inline_comments_after(pr, None), inline_ids)
         if inline_ids else [],

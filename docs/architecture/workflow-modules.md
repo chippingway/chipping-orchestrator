@@ -140,6 +140,19 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the pinned comment, our own posts by recorded id, and a marker the ledger cannot vouch for
                             -- for the roads that decide who OWNS a batch before anything builds a prompt from it, so a
                             command classifier and a delivery record cannot become two readings of one thread
+    thread_delivery.py      the stretch of the issue thread developer prompts were handed, kept apart from the
+                            reply boundary a park waits above: above `delivered_after_comment_id`, through
+                            `delivered_through_comment_id`, and nothing on a record missing either. A prompt quoting
+                            the whole thread records the stretch it quoted, from the newest comment its bounded
+                            excerpt cut, or 0, through the newest it quoted (`records_delivery`); a road moving the
+                            boundary over replies it read carries the upper end only where the thread, read again up
+                            to the new mark, holds nothing above it but replies its prompt quoted whole and nobody's
+                            input (`DeliveredThread.carry`), a bounded park walk only where it already reaches the
+                            boundary (`reads_through`); and no road standing the boundary past a thread, a pickup or
+                            a park's stamp, moves it at all. The PR-feedback readers ask it (`DeliveredThread`);
+                            parks and resumes never do. It also bounds what a snapshot read in two IssueComment reads
+                            proves complete (`known_through`), reading the thread once more where a fix round's
+                            batch holds a comment above it (`known_through_both`)
     community.py            the open pull requests this orchestrator never opened, which is why the tick sweeps
                             them itself: one opened by somebody else carries no pinned state for a handler to
                             consult, so nothing dispatches it. `ALLOWED_ISSUE_AUTHORS` decides there is anything
@@ -629,7 +642,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             thread is read by that record's id), or our own sentence whose recording write was lost.
                             It never reads the tip: no floor to walk from (the pickup anchors one), a post the ledger
                             did not gain, and a thread the re-read fails on all leave the mark where it was, the last
-                            without raising, since the notice is already posted and the park still has to be recorded
+                            without raising, since the notice is already posted and the park still has to be recorded.
+                            The delivered stretch moves with the mark only where it already reaches it
+                            (`thread_delivery.reads_through`): the walk stamps over what it never read, and a reply a
+                            human wrote while the agent was out stays below that stretch, unread
     messages.py             the `ACK:` acknowledgement read out of an agent's last message, the one blockquote
                             form every agent output an issue carries is quoted in, and the two commands a HUMAN writes:
                             `/orchestrator continue` with the refusal a park needing real guidance owes it, and the
@@ -1646,8 +1662,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             evidence step lands that same retirement, through the same owner
     pickup.py               an unlabeled issue's first tick: the author allowlist, the `DECOMPOSE` route, and the
                             greeting / hash / label / state order a start publishes in. The greeting anchors both
-                            `pickup_comment_id` and `last_action_comment_id`, the floor the park ending the first
-                            agent run walks from, since the spawn it opens quotes this thread as it stands
+                            `pickup_comment_id` and `last_action_comment_id`, the reply boundary and the floor the
+                            park ending the first agent run walks from, and records no delivery
+                            (`thread_delivery.py`): nothing on the thread is delivered until the first prompt
+                            records the stretch its bounded excerpt quoted
     prompt_notes.py         shared empty-context placeholders, foreground execution and AGY asynchronous-command
                             instructions, the commit-subject contract every prompt that may author one carries -- mirror
                             the repository's own recent history rather than any enumerated prefix set, and write the
@@ -2627,7 +2645,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             conflict and the reply behind it through the shared conflict disposition, the body edit
                             through `resume_reports` -- and each names the round it would have counted,
                             since a held candidate ends the tick on the adjudication and no later tick of this stage
-                            counts one. A reply over a park that left a report owed, asked before the run, goes
+                            counts one. A reply the resolution road quotes moves the reply boundary before the run and
+                            is recorded delivered only once a launched run is back, where the thread holds nothing else
+                            unread below it (`engine/thread_delivery.py`). A reply over a park that left a report owed,
+                            asked before the run, goes
                             through `resume_reports` too rather than the conflict disposition, resumed on the frozen
                             drift prompt as the edit's own resume is and leased against the head the pull request
                             stood on before the run. This orchestrator's own notices, by the id ledger, are no
@@ -2720,8 +2741,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             budget for exactly one spawn, written down before the spawn it pays for
       handoff.py            the two ways this label hands an issue to implementation -- the kill switch and a
                             candidate the size gate settled, the latter releasing the hold and moving
-                            `pr_number` onto the pull request the measured commit is on first -- and the re-read
-                            the inline handler is given
+                            `pr_number` onto the pull request the measured commit is on first -- the reply
+                            boundary the kill switch stands past the decomposing-era thread, recording no delivery
+                            (`engine/thread_delivery.py`), and the re-read the inline handler is given
       session.py            the locked decomposer session: the spec read, the fresh spawn that pins it -- gated
                             and parked by `engine/retry_budget.py`'s own parking form -- the
                             human-reply resume, and the retirement the drift reset and the continuation both take
@@ -2908,7 +2930,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             that failed again
       ready_handoff.py      the handoff an unchanged `ready` issue takes: the pickup -- found again on the decision's
                             thread reading as this orchestrator's own sentence before another is posted -- the
-                            consumed-comment ratchet off one more reading taken behind it, on which -- with the title
+                            reply-boundary ratchet off one more reading taken behind it, recording no delivery
+                            (`engine/thread_delivery.py`), on which -- with the title
                             and body of the issue fetched behind that -- the requirements are compared again and a
                             change handed back for the reroute, and any staged baseline, landed as one guarded commit
                             prepared before the pickup -- for an issue that pinned nothing, a fresh reading still
@@ -3042,8 +3065,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             after the owner guard. A fresh attempt retires only the reasons it answers, while a
                             human's answer clears its own park and any sentence that park still owes
       late_park_state.py    the park reasons, pinned keys, standing-claim predicates, and shared generation write
-                            every late writer uses. The consumed-comment watermark ratchets here so a spent reply
-                            cannot become fresh feedback in a later stage, and every consumed content reading is
+                            every late writer uses. The reply boundary ratchets here so a spent reply is not read
+                            as a fresh answer again, and the delivered stretch follows it only over nobody's input --
+                            our own posts, an outsider's comments, a bare control answered -- read off the thread, so
+                            a recovered park notice or a grant moves the boundary over a human reply without
+                            recording it delivered (`engine/thread_delivery.py`). Every consumed content reading is
                             recorded here on all three baselines at once -- the late fingerprints, that watermark,
                             and `user_content_hash` from the hash the reading froze -- so the stage the issue
                             reaches next does not read answered guidance as an edit. A reading that still
@@ -3402,7 +3428,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             Antigravity failure record naming it, asked ahead of the timeout so a run that also ran
                             out its clock is still read as stopped; any provider refusal
                             (`agents/provider_failures`' wider verdict, a 401 or 429 included); or a
-                            failed exit with nothing said -- whose park stands over guidance still unread. The two
+                            failed exit with nothing said -- whose park stands over guidance still unread. A run that
+                            read the reading records the guidance it quoted as delivered, where nothing else unread
+                            stands between it and the delivered stretch (`engine/thread_delivery.py`). The two
                             entry points are this owner's own --
                             the guidance that buys a run, and the reply to a revision that stalled -- and each asks
                             the two owners below in turn rather than re-exporting what they hold
@@ -3551,7 +3579,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             as this one begins -- every shape re-anchors the checked head, so a stale verdict beside
                             it would advertise a head no pass has documented as ready to merge -- plus the resume,
                             recovered-commit, and fresh-spawn shapes, behind the park a pass that did not finish
-                            and was never parked earned (`failed_pass`)
+                            and was never parked earned (`failed_pass`). The resume moves the reply boundary over
+                            every reply that answered the park, but records as delivered only what its bounded
+                            prompt quoted, off that prompt's own read (`engine/thread_delivery.py`)
       outcomes.py           the timeout / dirty / failed run / commit / `DOCS: NO_CHANGE` order a finished run is
                             read in, a timeout or a tree not proved clean an account quota's stop left parked as the
                             session limit rather than `agent_timeout` or the tree's park, the edits left in the
@@ -3655,8 +3685,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             is recorded -- the requirements revision alone goes down, and it says only that this
                             stage has already rerouted for the edit. A git step that cannot be proved parks through
                             the shared HITL helper, which stamps the thread read as far as its own notice, so this
-                            owner puts the delivery cursor back and keeps that notice as the unwind's own boundary:
-                            the silence a pending unwind holds is measured against it rather than against a cursor
+                            owner puts the reply boundary back and keeps that notice as the unwind's own boundary:
+                            the silence a pending unwind holds is measured against it rather than against a boundary
                             that would read the triggering comment as a retry signal every poll
       drift_reset.py        the fetch / probe / hard-reset that puts the worktree back on the PR head, and the parks
                             each failure earns
@@ -3694,7 +3724,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       parks.py              the shared awaiting-human park and the missing-PR, dirty-tree, and question parks, the
                             park a launch whose outcome nothing recorded takes on a later tick, plus the hold a park
                             taken during a drift unwind applies inside its OWN write: that road runs no agent, so
-                            the delivery cursor goes back where the tick found it and the notice just posted is kept
+                            the reply boundary goes back where the tick found it and the notice just posted is kept
                             as the unwind's boundary instead -- a correction in a second write is one a crash
                             between them loses, and it loses it in the direction that waits forever.
                             `_asked_since` is the reader half, and it is what every road classifying a parked reply
@@ -3703,7 +3733,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             run three of them branch on -- whether it ended on a report -- taken where the run is
                             built rather than parsed again by each
       state.py              the pinned-state keys they share, the unwind sentinel and the boundary its silence
-                            is kept behind among them -- the second is no delivery cursor, since the road that
+                            is kept behind among them -- the second is no delivery record, since the road that
                             writes it runs no agent at all
     fixing/                 `workflow:fixing`
       handler.py            the order one tick asks its questions in, plus the preflight terminals, the
@@ -3739,7 +3769,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             behind a refusal is owed a PUBLICATION: parked as a report no road can move, the
                             retry never runs and the reading coming back ends nothing
       feedback.py           the rescan past the three in_review watermarks -- read through that stage's own
-                            per-surface owner, so the issue thread answers to the issue-only delivery cursor too and
+                            per-surface owner, so the issue thread answers to its delivered stretch too and
                             the pull request never does (a bare `/orchestrator add-agent-runs` is no
                             feedback there, as in in_review) -- the quiet window a fresh batch settles
                             through before a resume spends the session on a fragment of it, and the settlement a
@@ -3748,10 +3778,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             admits and the settlement refuses reaches a developer and moves no reader, so the next
                             tick hands the identical comment to a second one (the pinned record is dropped by
                             identity for the same reason). The issue thread settles the issue-action boundary
-                            `last_action_comment_id` beside the PR-side cursor -- a reply this round quoted has been
-                            in a developer prompt, and left behind it routes back to a second developer the moment a
-                            human moves the label -- while the pull request's three surfaces settle only the
-                            in_review watermarks that are theirs. The same pairs are offered FROZEN as well as
+                            `last_action_comment_id` and the delivered stretch's upper end beside the PR-side cursor
+                            -- a reply this round quoted has been in a developer prompt, and left behind it routes
+                            back to a second developer the moment a human moves the label -- while the pull
+                            request's three surfaces settle only the in_review watermarks that are theirs. The
+                            shared cursor moves no further than the thread's read, taken first, and the pull
+                            request's prove complete (`engine/thread_delivery.py`), so an issue reply landing between
+                            them waits for the next scan. The same pairs are offered FROZEN as well as
                             written, for the round that has to hand them to the report which answers its feedback.
                             The issue thread is read ONCE and the whole read is kept on the batch, because the
                             round owes that surface two more answers than the cut -- the conversation a retired
@@ -3760,7 +3793,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             While a report is OWED the readers say less than usual, so what says a batch has
                             already been delivered is the RECORD's own frozen pairs rather than any reader
       bookmarks.py          the `pending_fix_*` ids a replay rebuilds the triggering batch from -- each surface
-                            apart, since the replay is delivered and so is settled -- and the clear each round earns.
+                            apart, since the replay is delivered and so is settled, and each from its recorded id list
+                            alone, a list missing or damaged rebuilding nothing -- and the clear each round earns.
                             The issue-thread half is CUT from the caller's own read of that surface rather than one
                             taken here, because a replay is part of the batch: a bookmarked comment edited or
                             deleted between two reads would reach the developer in the prompt while the requirements
@@ -3960,9 +3994,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             tick that spends one is not always the tick -- or even the stage -- that granted it.
                             The spawn routes through `execution.py`'s bounded developer run coordinator to resume
                             premature AGY command exits before disposition. The spawn's prompt and the record of the
-                            thread it quoted come off one read and travel on the prepared run, for the pre-session
-                            edit that is settled by nothing earlier; the prompt quotes the issue's recorded split
-                            rationale beside that thread, off its pinned state
+                            thread it quoted come off one read; an invoked run records the stretch it quoted, above
+                            the newest comment that bounded excerpt cut (`engine/thread_delivery.py`), and the record
+                            travels on the prepared run, for the pre-session edit that is settled by nothing
+                            earlier; the prompt quotes the issue's recorded split rationale beside that thread, off
+                            its pinned state
       session.py            the command pin every developer launch takes -- dropping, the way a retirement does, a
                             conversation pinned under no command, which that launch never resumes
                             (`_pin_dev_command`) -- the four session retirements -- the fourth being the continuation
@@ -4777,8 +4813,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             unread batch, taken with whatever else its comment carries -- that retires the session
                             and renews the budget for exactly one spawn, written down before the spawn it pays for
       read_only_relabel.py  the `question` / `discussion` relabel screen: which park it answers for, and the
-                            acceptance write that retires the conversation's records and hands its round anchor
-                            on as the floor the dev run is measured against
+                            acceptance write that retires the conversation's records, hands its round anchor on as
+                            the floor the dev run is measured against, and stands the reply boundary past the
+                            conversation, recording no delivery (`engine/thread_delivery.py`)
       relabel_hazard.py     what a relabeled issue's branch and checkout are carrying, with every reading that
                             convicts reported together so one refusal names all of it
       relabel_evidence.py   what those readings have grounds to vouch for a tip sitting on -- the tip the round
@@ -4889,16 +4926,20 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the ping with the tick's state withheld, and the receipt -- retired by a fresh approval --
                             is what tells a retry from the ping that approval re-arms on the same head
       surfaces.py           the two reads the shared IssueComment id space is taken as -- the issue thread against
-                            the delivery cursor an issue-only resume settled as well, the PR conversation against
-                            neither -- and the raw merged read tagged by surface that the watermark walks consume.
+                            the stretch of it developer prompts were handed as well (`engine/thread_delivery.py`),
+                            the PR conversation against neither -- and the raw merged read tagged by surface, the
+                            thread read first, that the watermark walks consume.
                             The thread cut takes a caller's OWN read of that surface where one is handed in, since a
                             caller deriving more than the batch from it -- the conversation a fresh spawn quotes,
                             the requirements its report is stamped with -- owes each of those to the same read
-      watermarks.py         how far a park's own notice may carry the issue-side mark, and the legacy seed a
-                            manually-relabeled issue needs -- both walks forward from where the mark is, over what
-                            they can vouch for, and neither reads a tip. The carry is handed the tick's frozen
-                            delivery record rather than the read behind it, since a bounded excerpt delivers less
-                            than it read and the context it cut is what the walk has to stop below
+      watermarks.py         how far a park's own notice may carry the issue-side mark, and the initialization of
+                            every mark found unset -- a manual relabel's, or one an approval whose snapshot would not
+                            read left so -- the issue side by validating's own walk over recorded delivery and the
+                            review surfaces at 0, recorded ahead of the scan, with a thread that will not answer
+                            holding the tick. Both walk forward over what they can vouch for, never above what
+                            their two reads prove complete, and neither reads a tip. The carry is handed the tick's
+                            frozen delivery record rather than the read behind it, since a bounded excerpt delivers
+                            less than it read and the context it cut is what the walk has to stop below
       models.py             the per-tick handles and the drift-resume record, which carries the delivery its prompt
                             was built from -- what the issue may mark answered, and the revision its report is
                             stamped with, off the one read
@@ -5059,7 +5100,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             approval comment whose failure is logged and walked past, the squash notice its count is
                             worded from, and the in_review watermarks in two halves -- the snapshot taken behind the
                             caller's notice so the seed walk steps past the notice's own id, abandoned outright on an
-                            unreadable PR rather than stranding an approved branch on a read, and the ratchets
+                            unreadable PR or thread rather than stranding an approved branch on a read, every mark
+                            left as persisted for in_review to initialize, and the ratchets
                             reached past it, which is what each of the three watermarks becomes against what is
                             already persisted -- and the records every write of the tail is held to behind its
                             requests (`_holds_its_records`): the report, pointer, verdict, and evidence records in
@@ -5133,8 +5175,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             commit's candidate is held to the room the carry's settlement, and the invalidation
                             behind it, need (`SquashEvidence.admits`), a carry without it refused for want of room
                             (`SquashEvidence.without_room`)
-      watermarks.py         the seed walk past leading orchestrator comments and a bare `/orchestrator
-                            add-agent-runs` a grant left unread, and the ratchet that never regresses one
+      watermarks.py         the walk every in_review watermark is seeded, ratcheted, or initialized off -- past
+                            our own comments, the issue-thread comments the delivered stretch covers, and
+                            a bare `/orchestrator add-agent-runs` a grant left unread, never past a comment for its
+                            age nor above what its two reads prove complete (`engine/thread_delivery.py`) -- and the
+                            ratchet that never regresses one
       requested_changes.py  the PR feedback and `workflow:fixing`-labeled dev fix, its report disposed of through
                             `fix_reports.py` and bound behind the round and the relabel -- its record carrying the
                             fixing stage's settled-round mark for a relabel that never lands -- plus the no-VERDICT

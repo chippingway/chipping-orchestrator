@@ -94,17 +94,14 @@ def _route_disabled_to_implementing(
     # real implement prompt.
     state.set(_state._AWAITING_HUMAN, False)
     state.set(_state._PARK_REASON, None)
-    # Mark every comment visible at this transition as
-    # "already consumed", mirroring `_handle_ready`'s ratchet.
-    # `_handle_implementing` will read the full issue thread
-    # via `_recent_comments_text` when it builds the implement
-    # prompt, so the dev sees any decomposing-era human
-    # feedback at spawn. Without this bump, the
-    # validating->in_review watermark seed later sees those
-    # same comments as fresh PR feedback (because they sit
-    # AFTER the now-stale `last_action_comment_id` from the
-    # decomposer-era park) and bounces the dev unnecessarily.
-    # One-way ratchet so we never lower a higher prior value.
+    # Stand the reply boundary past every comment visible at this
+    # transition, mirroring `_handle_ready`'s ratchet: none of them is a reply
+    # the dev owes an answer to, and left above a decomposer-era park's mark
+    # the first park after the spawn would read them as one. Standing it there
+    # records no delivery: only what the implement prompt -- bounded, dropping
+    # the oldest first -- records as quoted of the decomposing-era thread
+    # counts as answered feedback (`thread_delivery`). One-way, so a higher
+    # prior value is never lowered.
     latest = gh.latest_comment_id(issue)
     if isinstance(latest, int):
         prior = state.get(_state._LAST_ACTION_COMMENT_ID)

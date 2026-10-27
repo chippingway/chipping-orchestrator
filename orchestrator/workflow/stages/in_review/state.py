@@ -5,18 +5,19 @@
 `pr_last_comment_id` bounds both IssueComment surfaces -- the issue thread and
 the PR conversation share that id namespace -- but it does not answer for
 either alone. The pull request answers to it and to nothing else, since no
-other cursor has read that surface; the issue thread answers to it AND to
-`last_action_comment_id`, the delivery cursor an implementing or validating
-resume settles for exactly the replies it quoted. `surfaces` is where those
-two questions are asked apart. It is written into the pinned JSON comment live
-issues already carry -- the validating handoff seeds it, the legacy migration
-backfills it, the fixing handler reads it back -- so renaming it is a
-migration of every open PR rather than a refactor.
+other cursor has read that surface; the issue thread answers to it AND to the
+stretch of it developer prompts were handed (`engine/thread_delivery`), above
+the newest comment the first prompt's bound left out and through the newest a
+prompt quoted -- never the reply boundary a park waits above. `surfaces` is
+where those two questions are asked apart. It is written into the pinned JSON
+comment live issues already carry -- the validating handoff seeds it, this
+stage initializes it where nothing did, the fixing handler reads it back --
+so renaming it is a migration of every open PR rather than a refactor.
 
 It sits here rather than on the owner that carries it because the owner that
-writes it is rarely the one that reads it: the handoff and the migration seed,
-`watermarks` carries it over what a tick wrote, `surfaces` reads it, and
-`feedback` scans what those reads answer.
+writes it is rarely the one that reads it: the handoff seeds it and
+`watermarks` initializes it and carries it over what a tick wrote,
+`surfaces` reads it, and `feedback` scans what those reads answer.
 
 `in_review_handoff_pending` is the other, and it answers a different kind of
 question: whether this issue owes `workflow:validating` a label move it has
@@ -24,9 +25,8 @@ not made yet. A requirements edit leaves the approval this label stands on
 stale, so the round is reset and the label moved -- two operations a process
 can die between. The marker goes down with the reset and comes off once the
 label has moved, so a relabel nobody made is found and remade rather than
-leaving an issue here to be pinged as ready on an approval that is over. It
-is additive: an issue without it owes no move, which is every issue that
-predates it.
+leaving an issue here to be pinged as ready on an approval that is over. An
+issue without it owes no move.
 
 `owes_validating_a_move` reads it back beside the other things that say the
 same: a developer report still owed, and an approval recorded against a report

@@ -114,7 +114,19 @@ recording the thread it meets where no reading is recorded, and the observed rea
 missing baseline's place, remain current initialization and recovery. Verification artifacts are read only in the
 compact format, their commands decoded from the hidden payload alone: a comment without it, one an earlier build
 published with its commands in view included, is left untouched and is no artifact for verification, a reviewer's
-reuse, an approval, or a recovered settlement.
+reuse, an approval, or a recovered settlement. No missing field marks human feedback consumed or names a delivered
+batch, and no bounded prompt's omission counts as delivered: the PR-feedback readers count as delivered only the stretch
+of the issue thread a developer prompt was handed, above `delivered_after_comment_id` through
+`delivered_through_comment_id` -- recorded by the first prompt from the newest comment its excerpt cut, moved by a later
+settlement, resume, or park walk only where nothing unread stands between it and what that road read, and never by a
+pickup, a handoff, or a park's stamp -- while parks and resumes wait on the reply boundary `last_action_comment_id`
+alone, which counts nothing as delivered; a record missing either end counts nothing. An in_review watermark a manual
+relabel or an approval that could not read its pull request left unset is initialized from recorded delivery alone --
+the orchestrator's own posts, that delivered stretch, and bare run-grant controls, never a comment's age nor anything
+above what its two thread reads prove complete -- with the review surfaces scanned from 0. A fix round's settlement
+moves `pr_last_comment_id` over nothing above what its thread and pull-request reads prove complete, so an issue reply
+landing between them is left to the next scan, and a `/orchestrator continue` replay is rebuilt only from the id lists
+its route recorded, a list missing or damaged replaying nothing.
 
 Unsupported input cannot serve as fresh work, current evidence, or authorization to publish or delete artifacts. Neither
 a format change nor a refusal grants permission to discard that input or the artifacts it names; the owning
@@ -147,7 +159,9 @@ or lost write interrupted are current state, not historical compatibility.
 [deployment without migration](configuration/operations.md#deploying-without-migration),
 [close recovery](state-machine/delivery-stages.md#closed-owner-cleanup-sweep-no-label-of-its-own),
 [analytics readers](observability/analytics-dashboard.md#read-model-orchestratorobservabilityanalyticsquery),
-[requirements baselines](state-machine/delivery-stages.md#user-content-drift-detection).
+[requirements baselines](state-machine/delivery-stages.md#user-content-drift-detection),
+[watermark initialization](state-machine/delivery-stages.md#_handle_in_review-label-in_review),
+[replay batches](state-machine/labels-and-state.md#pinned-state).
 
 **Checks:** [state](../tests/github/test_pinned_state.py), [events](../tests/github/test_events.py),
 [agent surface](../tests/agents/test_imports.py), [submissions](../tests/scheduler/test_submission.py),
@@ -162,7 +176,12 @@ or lost write interrupted are current state, not historical compatibility.
 [analytics readers](../tests/observability/analytics/query/test_skill_adoption_reads.py),
 [verification artifacts](../tests/github/test_verification_artifacts.py),
 [requirements baselines](../tests/workflow/engine/test_drift.py),
-[late first baselines](../tests/workflow/stages/decomposition/test_late_first_baseline.py).
+[late first baselines](../tests/workflow/stages/decomposition/test_late_first_baseline.py),
+[watermark initialization](../tests/workflow/stages/in_review/test_watermark_initialization.py),
+[delivered thread](../tests/workflow/engine/test_thread_delivery.py),
+[timeout parks](../tests/workflow/stages/documenting/test_timeout_delivery.py),
+[fix settlement](../tests/workflow/stages/fixing/test_cross_read_race.py),
+[replay batches](../tests/workflow/stages/fixing/test_batch.py).
 
 ## C-04: Authentic state and trusted input
 

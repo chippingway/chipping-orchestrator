@@ -37,7 +37,7 @@ from orchestrator.agents.models import AgentResult
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import prompt_delivery as _delivery
+from orchestrator.workflow.engine import prompt_delivery as _delivery, thread_delivery as _thread_delivery
 
 
 @dataclass(frozen=True)
@@ -119,13 +119,27 @@ class _ParkedReply:
     them read once the run is back; that read leaves the retry's commands out
     of what it quotes, records and re-grounds a fresh spawn with, since the
     developer has no context for the command, and the retry prompt leads in
-    its place.
+    its place. `quoted` names the replies `followup` quotes whole, and is
+    empty for a retry, whose prompt quotes none of them.
     """
 
     followup: str
     through: int
     retried: frozenset = frozenset()
     thread_text: str | None = None
+    quoted: frozenset = frozenset()
+
+    def delivered_by(self, run_result: AgentResult, gh: GitHubClient, issue: Issue, state: PinnedState) -> None:
+        """Record the replies the resolution road quoted as delivered, once a process was launched with them.
+
+        The reply boundary goes over the batch before the run; delivery waits
+        for the run, and the delivered stretch moves only where the thread
+        shows nothing between it and `through` but the quoted replies and
+        nobody's input (`thread_delivery.DeliveredThread.carry`).
+        """
+        if run_result.invoked:
+            delivered = _thread_delivery.DeliveredThread.read(state)
+            delivered.carry(self.through, gh, issue, state, self.quoted)
 
 
 @dataclass(frozen=True)

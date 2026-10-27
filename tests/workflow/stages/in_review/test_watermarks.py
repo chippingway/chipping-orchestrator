@@ -37,6 +37,8 @@ INLINE_COMMENT_WATERMARK = 41
 CONCURRENT_PR_COMMENT_ID = 950
 CONCURRENT_ISSUE_COMMENT_ID = 960
 CONCURRENT_BODY = "hold off, the migration needs a rollback path"
+RACED_CONTROL = "/orchestrator add-agent-runs 1"
+PR_LAST_COMMENT_ID = "pr_last_comment_id"
 HUMAN = "alice"
 RUN_AGENT = "run_agent"
 FIXING = "workflow:fixing"
@@ -64,6 +66,43 @@ class _WriteMeanwhile:
         return self.posted(parked_issue, body)
 
 
+class _RaceBetweenTheReads:
+    """A human replying on the thread, then typing a bare control into the
+    pull request, both after a park's notice is posted and between the two
+    reads its carry takes -- the thread first, the pull request second.
+
+    Stands in for the pull request's read and fires on the first read behind
+    the notice, so the scan ahead of the park reads the threads untouched.
+    """
+
+    def __init__(self, github, issue, pr):
+        self.github = github
+        self.issue = issue
+        self.pr = pr
+        self.read = github.pr_conversation_comments_after
+        self.notice_id = None
+        self.reply_id = None
+
+    def __call__(self, current_pr, after_id):
+        if self.github.posted_comments and self.reply_id is None:
+            self.notice_id = self.github.latest_comment_id(self.issue)
+            self.reply_id = self.github.next_reply_id(self.issue)
+            self.issue.comments.append(_human(self.reply_id, CONCURRENT_BODY))
+            self.pr.issue_comments.append(
+                _human(self.github.next_reply_id(self.issue), RACED_CONTROL),
+            )
+        return self.read(current_pr, after_id)
+
+
+def _human(comment_id: int, body: str) -> FakeComment:
+    return FakeComment(
+        id=comment_id,
+        body=body,
+        user=FakeUser(HUMAN),
+        created_at=datetime.now(UTC) - timedelta(hours=1),
+    )
+
+
 class InReviewParkWatermarkTest(unittest.TestCase, _PatchedWorkflowMixin):
     """A park inside `_handle_in_review` posts an issue comment. The watermark
     must be bumped past that comment so the next tick does not see the
@@ -80,7 +119,7 @@ class InReviewParkWatermarkTest(unittest.TestCase, _PatchedWorkflowMixin):
         # Nothing else stood on either surface, so the walk reached the
         # notice the park just posted -- which is also the newest comment.
         self.assertEqual(
-            state.get("pr_last_comment_id"),
+            state.get(PR_LAST_COMMENT_ID),
             github.latest_comment_id(issue),
         )
         return comments_after_park
@@ -120,6 +159,28 @@ class InReviewParkWatermarkTest(unittest.TestCase, _PatchedWorkflowMixin):
             with self.subTest(surface=surface):
                 self._assert_meanwhile_survives(surface, comment_id)
 
+    def test_park_stops_below_a_raced_reply(self) -> None:
+        # The carry reads the thread, then the pull request. A reply landing
+        # on the thread between the two is in neither read, and the bare
+        # control typed into the pull request after it is in the second:
+        # crossed, it would carry the mark over the reply for good. The carry
+        # crosses nothing above what its reads prove complete -- here the
+        # notice it just posted -- so the next tick still routes the reply.
+        gh, issue, pr = self._park_setup()
+        raced = _RaceBetweenTheReads(gh, issue, pr)
+
+        with patch.object(gh, "pr_conversation_comments_after", raced):
+            self._run_in_review(gh, issue, run_agent=_agent())
+
+        parked = gh.pinned_data(PARK_ISSUE)
+        self.assertTrue(parked.get("awaiting_human"))
+        self.assertEqual(parked.get(PR_LAST_COMMENT_ID), raced.notice_id)
+        self._run_in_review(gh, issue, run_agent=_agent())
+        self.assertIn((PARK_ISSUE, FIXING), gh.label_history)
+        self.assertEqual(
+            gh.pinned_data(PARK_ISSUE).get("pending_fix_issue_ids"), [raced.reply_id],
+        )
+
     def _assert_meanwhile_survives(self, surface, comment_id) -> None:
         gh, issue, pr = self._park_setup()
         meanwhile = _WriteMeanwhile(
@@ -140,14 +201,14 @@ class InReviewParkWatermarkTest(unittest.TestCase, _PatchedWorkflowMixin):
         # nobody read.
         self.assertTrue(gh.pinned_data(PARK_ISSUE).get("awaiting_human"))
         self.assertEqual(
-            gh.pinned_data(PARK_ISSUE).get("pr_last_comment_id"),
+            gh.pinned_data(PARK_ISSUE).get(PR_LAST_COMMENT_ID),
             HANDOFF_WATERMARK,
         )
 
         # So the next tick still finds it and routes it to `fixing` -- which
         # on the issue thread also takes the bounded park, since an unbounded
-        # one would have stamped the delivery cursor at the notice above it
-        # and the scan drops everything that cursor covers.
+        # one would have stamped the reply boundary at the notice above it,
+        # where the reply could never answer the park.
         mocks = self._run_in_review(gh, issue, run_agent=_agent())
 
         mocks[RUN_AGENT].assert_not_called()
@@ -227,7 +288,7 @@ class InReviewSplitWatermarkTest(
             ],
             # Inline-review watermark just below the comment id, so the
             # assertion below can tell "the route left it alone" from the 0
-            # the legacy migration seeds an unset surface at.
+            # an unset surface is initialized at.
             state_extra={"pr_last_review_comment_id": INLINE_COMMENT_WATERMARK},
         )[:2]
 

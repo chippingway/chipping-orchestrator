@@ -56,9 +56,9 @@ _PAIR = 2
 def _counted(consumed: object) -> bool:
     """Whether a watermark was recorded as a real comment id, inside its range.
 
-    Zero is a real answer -- it is what an empty surface is seeded with, so
-    that the legacy backfill cannot re-fire -- and a negative is a value
-    nothing wrote.
+    Zero is a real answer -- it is what an empty surface is initialized at,
+    the scan from its beginning that crosses nothing -- and a negative is a
+    value nothing wrote.
 
     The ceiling is the one every recorded identity is held to, and it matters
     more here than anywhere else in this domain: a watermark is APPLIED, and

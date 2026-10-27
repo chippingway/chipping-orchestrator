@@ -209,16 +209,17 @@ class DecompositionDisabledTest(
     def test_off_ratchets_past_stage_comments(
         self,
     ) -> None:
-        # When DECOMPOSE flips off mid-flight, decomposing-era human
-        # comments newer than `last_action_comment_id` must be marked
-        # consumed before falling into `_handle_implementing`. The
-        # implementer reads the full thread via `_recent_comments_text`
-        # at spawn, so the dev sees those comments at implementation
-        # time. Without the ratchet, the validating->in_review
-        # watermark seed later treats those same comments as fresh PR
-        # feedback and bounces the dev unnecessarily -- exactly the
-        # replay `_handle_ready` already prevents on the single-decision
-        # happy path.
+        # When DECOMPOSE flips off mid-flight, the reply boundary must stand
+        # past decomposing-era human comments newer than
+        # `last_action_comment_id` before falling into
+        # `_handle_implementing`, recording no delivery. The implementer
+        # quotes the thread at spawn, so the dev sees those comments at
+        # implementation time, and that spawn records the stretch its prompt
+        # quoted -- the whole (short) thread here. Without that record, the
+        # validating->in_review watermark seed later treats those
+        # same comments as fresh PR feedback and bounces the dev unnecessarily
+        # -- exactly the replay `_handle_ready` already prevents on the
+        # single-decision happy path.
         gh = FakeGitHubClient()
         issue = make_issue(DISABLED_RATCHET_ISSUE_NUMBER, label=_support.LABEL_DECOMPOSING)
         # Decomposer-era HITL comments newer than the parked
@@ -264,6 +265,7 @@ class DecompositionDisabledTest(
         # in_review watermark seed treats them as already-consumed.
         self.assertIsInstance(last_action, int)
         self.assertGreaterEqual(last_action, RATCHET_LATEST_COMMENT_ID)
+        self.assertEqual(state.get("delivered_after_comment_id"), 0)
 
     def test_off_keeps_last_action_monotonic(self) -> None:
         # The ratchet is one-way. If `last_action_comment_id` is

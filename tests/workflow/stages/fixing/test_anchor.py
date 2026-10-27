@@ -159,23 +159,31 @@ class ReviewerAnchorReconstructionTest(
             _reconstruct_pending_fix_batch(gh, issue, pr, state).all_items, [],
         )
 
-    def test_id_set_prefers_list_rejects_bool_max(self) -> None:
+    def test_id_set_reads_the_list_alone(self) -> None:
         from orchestrator.github.pinned_state import PinnedState
 
-        # Full list present -> used verbatim (the max id is ignored).
-        state = PinnedState(data={ID_LIST_KEY: [3, 1, 2], MAX_ID_KEY: 9})
-        self.assertEqual(_pending_fix_id_set(state, ID_LIST_KEY, MAX_ID_KEY), {1, 2, 3})
-        # Only the max id -> conservative single-item set.
-        state = PinnedState(data={MAX_ID_KEY: 9})
-        self.assertEqual(_pending_fix_id_set(state, ID_LIST_KEY, MAX_ID_KEY), {9})
-        # A stray bool must not read as id 1 (bool is an int subclass).
-        state = PinnedState(data={MAX_ID_KEY: True})
-        self.assertEqual(_pending_fix_id_set(state, ID_LIST_KEY, MAX_ID_KEY), set())
-        # Neither present -> empty.
-        self.assertEqual(
-            _pending_fix_id_set(PinnedState(data={}), ID_LIST_KEY, MAX_ID_KEY),
-            set(),
-        )
+        # The recorded list is the batch, read verbatim -- the max id beside it
+        # says nothing about which members it had.
+        listed = PinnedState(state_data={ID_LIST_KEY: [3, 1, 2], MAX_ID_KEY: 9})
+        self.assertEqual(_pending_fix_id_set(listed, ID_LIST_KEY), {1, 2, 3})
+        # Nothing stands in for a list that is missing, empty, or damaged: not
+        # the max id, not a lone id, and not the members of a list that do
+        # read. A string or a float is no id, and neither is a bool, which is
+        # an int subclass a stray `True` would read as id 1.
+        for recorded in (
+            {MAX_ID_KEY: 9},
+            {ID_LIST_KEY: []},
+            {ID_LIST_KEY: None},
+            {ID_LIST_KEY: 9},
+            {ID_LIST_KEY: "9"},
+            {ID_LIST_KEY: ["9"]},
+            {ID_LIST_KEY: [9.0]},
+            {ID_LIST_KEY: [True]},
+            {ID_LIST_KEY: [3, "4"]},
+        ):
+            with self.subTest(recorded=recorded):
+                unread = PinnedState(state_data=recorded)
+                self.assertEqual(_pending_fix_id_set(unread, ID_LIST_KEY), set())
 
     def test_clear_bookmarks_clears_batch_id_lists(self) -> None:
         from orchestrator.github.pinned_state import PinnedState

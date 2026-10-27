@@ -176,6 +176,7 @@ class _ContinueCommandFixtureMixin(_PatchedWorkflowMixin):
                     PENDING_FIX_REVIEW_SUMMARY_MAX_ID: BATCH_SUMMARY_ID,
                 }
             )
+        self._state.update(seed.bookmarks)
         gh.seed_state(ISSUE, **self._state)
         return gh, issue, self._pr
 
@@ -293,30 +294,27 @@ class OrchestratorContinueCommandTest(
                 )
 
     def test_refuses_continue_when_no_preserved_batch(self) -> None:
-        # Eligible reason but nothing on file to replay (bookmarks gone). A
+        # Eligible reason but nothing on file that names the batch: the
+        # bookmarks gone, the max ids alone, or lists too damaged to read. A
         # bare continue would strand the review feedback, so refuse rather
-        # than resume on the command text.
-        gh, issue, _pr = self._seed_parked_with_batch(
-            _ContinueSeed(
-                park_reason=PARK_AGENT_SILENT,
-                with_batch_ids=False,
+        # than resume on the command text: no session is launched, only the
+        # command is recorded as answered, and neither review surface moves
+        # over a batch nobody replayed.
+        for bookmarks in (
+            (),
+            (
+                (PENDING_FIX_ISSUE_MAX_ID, BATCH_PR_CONVERSATION_ID),
+                (PENDING_FIX_REVIEW_MAX_ID, BATCH_INLINE_ID),
+                (PENDING_FIX_REVIEW_SUMMARY_MAX_ID, BATCH_SUMMARY_ID),
             ),
-        )
-
-        mocks = self._run_fixing(
-            gh,
-            issue,
-            run_agent=_agent(),
-        )
-
-        mocks[RUN_AGENT].assert_not_called()
-        self._pinned_data = gh.pinned_data(ISSUE)
-        self.assertTrue(self._pinned_data.get(AWAITING_HUMAN))
-        self.assertEqual(self._pinned_data.get(PARK_REASON), PARK_AGENT_SILENT)
-        self.assertEqual(self._pinned_data.get(PR_LAST_COMMENT_ID), COMMAND_COMMENT_ID)
-        self.assertTrue(
-            posted_comment_contains(gh, NO_PRESERVED_MESSAGE),
-        )
+            (
+                (PENDING_FIX_ISSUE_IDS, [str(BATCH_ISSUE_ID)]),
+                (PENDING_FIX_REVIEW_IDS, [True]),
+                (PENDING_FIX_REVIEW_SUMMARY_IDS, BATCH_SUMMARY_ID),
+            ),
+        ):
+            with self.subTest(bookmarks=bookmarks):
+                self._assert_refused_over(bookmarks)
 
     def test_continue_with_feedback_resumes_normally(self) -> None:
         # A `/orchestrator continue` posted ALONGSIDE genuine guidance on an
@@ -383,3 +381,34 @@ class OrchestratorContinueCommandTest(
                 self.assertTrue(
                     posted_comment_contains(gh, NO_PRESERVED_MESSAGE),
                 )
+
+    def _assert_refused_over(self, bookmarks: tuple) -> None:
+        gh, issue, _pr = self._seed_parked_with_batch(
+            _ContinueSeed(
+                park_reason=PARK_AGENT_SILENT,
+                with_batch_ids=False,
+                bookmarks=bookmarks,
+            ),
+        )
+
+        mocks = self._run_fixing(
+            gh,
+            issue,
+            run_agent=_agent(),
+        )
+
+        mocks[RUN_AGENT].assert_not_called()
+        self._pinned_data = gh.pinned_data(ISSUE)
+        self.assertTrue(self._pinned_data.get(AWAITING_HUMAN))
+        self.assertEqual(self._pinned_data.get(PARK_REASON), PARK_AGENT_SILENT)
+        self.assertEqual(self._pinned_data.get(PR_LAST_COMMENT_ID), COMMAND_COMMENT_ID)
+        self.assertEqual(
+            (
+                self._pinned_data.get(PR_LAST_REVIEW_COMMENT_ID),
+                self._pinned_data.get(PR_LAST_REVIEW_SUMMARY_ID),
+            ),
+            (ADVANCED_REVIEW_COMMENT_WATERMARK, ADVANCED_REVIEW_SUMMARY_WATERMARK),
+        )
+        self.assertTrue(
+            posted_comment_contains(gh, NO_PRESERVED_MESSAGE),
+        )

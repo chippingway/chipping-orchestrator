@@ -12,11 +12,16 @@ off.
 
 Both starts then write the same four things in the same order, because
 everything downstream reads them back. The pickup comment goes first so its id
-can anchor `pickup_comment_id`: the validating handoff seeds its watermark past
-the orchestrator's own comments, and with no anchor the earliest bot id it can
-find is a much later "PR opened" or approval -- which would silently consume
-every human comment in between, including a "do not merge yet" posted while the
-developer ran. The `user_content_hash` baseline is computed after that comment
+can anchor the thread records: `pickup_comment_id`, which says this issue's
+pickup is announced -- a later `ready` handoff reads it rather than greeting
+the issue a second time -- and `last_action_comment_id`, the reply boundary a
+park waits above. Standing the boundary there hands nobody the thread beneath
+it, so it records no delivery: what counts as answered feedback is the
+stretch the first spawn's bounded prompt records as quoted
+(`thread_delivery`), and a comment that prompt left out stays unread. A human
+comment posted after the pickup -- a "do not merge yet" while the developer
+ran -- is above both, and never consumed for being older than some later
+post of ours. The `user_content_hash` baseline is computed after that comment
 exists and with its id filtered out, so the orchestrator's own greeting is not
 the first drift the next tick reports. The workflow label is written before the
 pinned state so a crash between the two leaves an issue the next tick still
@@ -69,13 +74,16 @@ def _pickup_author_allowed(spec: _config_models.RepoSpec, issue: Issue) -> bool:
 
 
 def _record_pickup_comment(state: PinnedState, pickup) -> None:
-    """Anchor both thread cursors on the comment this pickup just posted.
+    """Anchor the thread records on the comment this pickup just posted.
 
-    `pickup_comment_id` is the validating handoff's floor; the shared
-    `last_action_comment_id` is the floor the park ending the first agent run
-    walks from, which may not read the thread's tip. It is true as well as
-    needed: the spawn below quotes this thread as it stands, and the comment
-    we just posted is the last word of that reading.
+    `pickup_comment_id` records the announcement, which the `ready` handoff
+    reads so it posts no second one. The shared `last_action_comment_id` is
+    the reply boundary: nothing already on the thread is a reply to anything,
+    and it is the floor the park ending the first agent run walks from, which
+    may not read the thread's tip. Standing it there delivers nothing, and
+    records nothing as delivered: the spawn below quotes this thread bounded,
+    and only what that prompt records as quoted (`thread_delivery`) may count
+    as answered feedback.
     """
     pickup_id = getattr(pickup, "id", None)
     if pickup_id is not None:
@@ -119,13 +127,6 @@ def _start_implementing(
         ":robot: orchestrator picking this up. Decomposition stage is "
         "disabled; going straight to implementation.",
     )
-    # Anchor the validating-handoff seed-watermark on the exact pickup
-    # comment id. Without this, an issue that started under an older
-    # version of the orchestrator (where bot ids were not tracked) would
-    # have its first recorded bot id be a much later comment (PR-opened or
-    # approval), causing `_seed_watermark_past_self` to silently advance
-    # past every issue/PR comment in between -- including any human
-    # "do not merge yet" posted during implementing.
     _record_pickup_comment(state, pickup)
     state.set(
         "user_content_hash",

@@ -25,9 +25,10 @@ _LAST_ACTION_COMMENT_ID = "last_action_comment_id"
 _UNWIND_PENDING = "docs_drift_unwind_pending"
 
 # The comment that unwind asked its human for, and the boundary its silence is
-# kept behind. It is NOT a delivery cursor: no agent runs on that road, so the
+# kept behind. It is NOT the reply boundary: no agent runs on that road, so the
 # words that moved the requirements are delivered to nobody and
-# `last_action_comment_id` stays where it was. This field is what the retry
+# `last_action_comment_id` stays where it was, below them, for a developer
+# resumed past it to be handed them. This field is what the retry
 # gate reads instead -- only a trusted reply ABOVE the notice is the "try it
 # again" signal -- and it is additive, so an issue parked before it existed
 # falls back to the cursor, which is where that park left its mark.

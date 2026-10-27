@@ -230,6 +230,12 @@ class DiscussionRelabelToImplementingTest(
         pinned_data = gh.pinned_data(issue.number)
         self.assertFalse(pinned_data.get(KEY_AWAITING_HUMAN))
         self.assertIsNone(pinned_data.get(KEY_PARK_REASON))
+        # The relabel stood the reply boundary past the conversation and
+        # recorded no delivery; the fresh spawn's prompt read the thread with
+        # no comment on it to quote, so its stretch is recorded from the
+        # beginning and covers nothing yet.
+        self.assertEqual(pinned_data.get("delivered_after_comment_id"), 0)
+        self.assertEqual(pinned_data.get("delivered_through_comment_id"), 0)
 
     def _assert_relabel_refused(
         self, issue_number: int, tip: str, *, readable: bool = True,

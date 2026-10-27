@@ -47,8 +47,8 @@ def _drop_orchestrator_comments(comments, orchestrator_ids) -> list:
 
     Issue-thread and PR-conversation comments share the IssueComment id
     namespace. Filter orchestrator comments by recorded id AND by the hidden
-    body marker: older state can miss an id, and the bounded id list can
-    eventually evict it, but the marker stays on the GitHub comment. A bare
+    body marker: the bounded id list evicts its oldest entries, but the
+    marker stays on the GitHub comment. A bare
     run-grant command is dropped too, since it is a control rather than
     feedback on any surface.
     """
@@ -151,8 +151,13 @@ def _consume_fresh_feedback(ctx: _models._InReviewContext) -> bool:
     `validating` instead of recording `pending_fix_*` and flipping to `fixing`,
     violating the documented in_review -> fixing contract for issue-thread
     feedback.
+
+    Ahead of the scan, every watermark this issue carries unset is
+    initialized and recorded (`watermarks._initialize_unset_watermarks`): a
+    manual relabel or an approval whose snapshot would not read leaves one
+    unset, and the scan reads each surface past its own mark.
     """
-    _watermarks._seed_legacy_in_review_watermarks(ctx.gh, ctx.issue, ctx.pr, ctx.state)
+    _watermarks._initialize_unset_watermarks(ctx.gh, ctx.issue, ctx.pr, ctx.state)
     issue_space_new, review_space_new, review_summary_new = (
         _scan_fresh_pr_feedback(ctx)
     )

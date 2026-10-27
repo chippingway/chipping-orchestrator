@@ -10,12 +10,13 @@ approval that posted and seeded nothing would hand the next stage the
 orchestrator's own announcements as fresh review and wake the dev on them.
 
 The seed is two owners because it answers two different questions. The
-snapshot half is about a read that can fail: taken behind the notice so the
+snapshot half is about reads that can fail: taken behind the notice so the
 walk steps past the notice's own id, and abandoned outright where the pull
-request will not answer, since in_review still has its legacy watermark to
-fall back on and an approved branch may not be stranded on a read. The ratchet
-half is reached only past that, and answers what each of the three watermarks
-becomes against what is already persisted.
+request or either thread will not answer, since an approved branch may not be
+stranded on a read -- every watermark is left as persisted, and in_review
+initializes one it finds unset from the same walk, holding instead while the
+reads still fail. The ratchet half is reached only past that, and answers what
+each of the three watermarks becomes against what is already persisted.
 
 The approval comment is the one post nothing is owed for. It carries no count,
 nothing later reads it back, and a thread that would not take it is no reason
@@ -535,29 +536,34 @@ def _seed_in_review_handoff_watermarks(
     in_review as fresh human PR feedback, waking the dev on an informational
     orchestrator post.
 
-    A `get_pr` that will not answer is not fatal. in_review falls back to its
-    legacy watermark, so the snapshot is abandoned and nothing is seeded
-    rather than an approved branch being stranded on a read.
+    A pull request or a thread that will not answer is not fatal. The
+    snapshot is abandoned and nothing is seeded rather than an approved
+    branch being stranded on a read: each watermark stays exactly as
+    persisted, an unset one included, and in_review initializes an unset one
+    on its first tick from the same walk (`in_review/watermarks.py`) -- or
+    holds there while the reads still fail. Nothing is written in its place,
+    since a value nobody walked to would claim feedback read that no run
+    received, or hide the unset field the initialization is keyed on.
     """
     if pr_number is None:
         return
     try:
-        pr = gh.get_pr(int(pr_number))
-    except Exception as error:  # noqa: BLE001 - an unreadable PR falls back to the legacy watermark
+        walked = _watermarks._latest_pr_comment_ids(gh, issue, gh.get_pr(int(pr_number)), state)
+    except Exception as error:  # noqa: BLE001 - an unread snapshot leaves the watermarks to in_review's initialization
         # Surface the failure but skip the traceback -- it adds no signal.
         log.warning(
             "issue=#%s could not snapshot PR #%s for in_review "
             "handoff: %s", issue.number, pr_number, error,
         )
         return
-    _seed_in_review_pr_watermarks(gh, issue, state, pr)
+    _seed_in_review_pr_watermarks(state, *walked)
 
 
 def _seed_in_review_pr_watermarks(
-    gh: GitHubClient, issue: Issue, state: PinnedState, pr,
+    state: PinnedState, issue_wm: int | None, review_wm: int | None,
 ) -> None:
-    """Park the three in_review watermarks past this snapshot's leading run of
-    orchestrator-authored comments.
+    """Ratchet the three in_review watermarks to what the snapshot's walk
+    reached past the orchestrator's own comments and recorded delivery.
 
     The seed keeps `_handle_in_review` from replaying the orchestrator's own
     automated comments ("picking this up", "PR opened", the approval just
@@ -568,16 +574,18 @@ def _seed_in_review_pr_watermarks(
     regresses a watermark a prior in_review tick already advanced. Stopping
     that early on an unread PR comment is deliberately allowed to leave the
     value below a reply the dev already answered: in_review reads the issue
-    thread against `last_action_comment_id` too, so the reply stays consumed
-    without this seed having to cross the PR comment to say so.
+    thread against the stretch of it developer prompts were handed too
+    (`engine/thread_delivery`), so the reply stays consumed without this seed
+    having to cross the PR comment to say so. The reply boundary
+    `last_action_comment_id` is no part of that: it says where a park's wait
+    starts, not what anybody was handed.
 
     Inline review comments and review summaries live in namespaces the
     orchestrator never posts on, so the inline surface answers None and there
-    is no seeded summary value; `_ratchet_watermark` defaults each to 0 so the
-    in_review legacy migration treats them as already seeded and does NOT
-    advance past human feedback submitted on those surfaces.
+    is no seeded summary value; `_ratchet_watermark` turns each unset one into
+    0, a scan of that surface from its beginning that crosses no human's
+    review.
     """
-    issue_wm, review_wm = _watermarks._latest_pr_comment_ids(gh, issue, pr, state)
     state.set(
         "pr_last_comment_id",
         _watermarks._ratchet_watermark(state.get("pr_last_comment_id"), issue_wm),

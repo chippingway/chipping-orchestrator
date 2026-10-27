@@ -47,8 +47,8 @@ PR_CONVERSATION = "pr_conversation"
 # still waiting on it, so the only thing keeping it out of a route is what it is.
 GRANTED_AT = datetime.fromtimestamp(0, tz=UTC)
 CONTROL_HEAD_SHA = "c0417201" * 5
-LEGACY_LOOP_ISSUE = 431
-LEGACY_LOOP_PR = 433
+ZERO_MARK_ISSUE = 431
+ZERO_MARK_PR = 433
 INLINE_COLLISION_ISSUE = 160
 INLINE_COLLISION_PR = 400
 SUMMARY_COLLISION_ISSUE = 161
@@ -90,7 +90,7 @@ FEEDBACK_SURFACES = (
 
 # The heads the marker-filter cases stand their pull requests on.
 MARKED_HEAD_SHA = "eadf5a00" * 5
-LEGACY_LOOP_HEAD_SHA = "553237e1" * 5
+ZERO_MARK_HEAD_SHA = "553237e1" * 5
 
 
 class _DebouncedInReviewMixin(_PatchedWorkflowMixin):
@@ -332,15 +332,15 @@ class OrchestratorMarkerFeedbackFilterTest(
         self.assertEqual(gh.pinned_data(MARKER_FILTER_ISSUE).get(READY_PING_SHA), MARKED_HEAD_SHA)
         self._assert_ready_ping(gh)
 
-    def test_legacy_marker_only_loop_is_filtered(self) -> None:
-        # Regression test for #437 / PR #433 loop: an issue that reached
-        # in_review with `pickup_comment_id=None` (a legacy state from an
-        # issue picked up via operator relabel out of `question`) keeps
-        # `pr_last_comment_id=0` across the validating handoff, so every
-        # in_review tick re-scans every visible PR-conversation comment.
-        # A subset of those comments have the orchestrator marker in their
-        # body but their ids were never tracked (state-write race during
-        # an earlier review round): without the marker filter the in_review
+    def test_marker_only_posts_filtered_from_zero(self) -> None:
+        # Regression test for #437 / PR #433 loop: an issue relabeled by hand
+        # out of `question` carries no delivered stretch, so the validating
+        # handoff's walk crosses nothing and seeds `pr_last_comment_id=0`,
+        # and every in_review tick re-scans every visible PR-conversation
+        # comment. A subset of those comments have the orchestrator marker in
+        # their body but their ids are not in the ledger (evicted, or a
+        # state-write race during an earlier review round): without the
+        # marker filter the in_review
         # scan would treat them as fresh PR feedback and route to `fixing`,
         # which then rescans, finds nothing past its own (marker-aware)
         # filter, bounces back to `validating`, and the
@@ -348,7 +348,7 @@ class OrchestratorMarkerFeedbackFilterTest(
         # indefinitely. The handler must drop the marker-bearing bot
         # comments on the id-OR-marker filter and reach the ready-ping
         # branch instead.
-        gh, issue = self._seed_legacy_loop()
+        gh, issue = self._seed_scan_from_zero()
         # Mix of orchestrator-marked PR-conversation comments: most tracked
         # in orchestrator_comment_ids, three deliberately untracked to
         # model the eviction / race case the marker filter must catch. The
@@ -356,15 +356,15 @@ class OrchestratorMarkerFeedbackFilterTest(
         mocks = self._run_debounced(gh, issue)
 
         mocks[RUN_AGENT].assert_not_called()
-        self.assertNotIn((LEGACY_LOOP_ISSUE, LABEL_FIXING), gh.label_history)
+        self.assertNotIn((ZERO_MARK_ISSUE, LABEL_FIXING), gh.label_history)
         self.assertEqual(gh.merge_calls, [])
         self.assertEqual(
-            gh.pinned_data(LEGACY_LOOP_ISSUE).get(READY_PING_SHA),
-            LEGACY_LOOP_HEAD_SHA,
+            gh.pinned_data(ZERO_MARK_ISSUE).get(READY_PING_SHA),
+            ZERO_MARK_HEAD_SHA,
         )
         self._assert_ready_ping(gh)
 
-    def _seed_legacy_loop(self):
+    def _seed_scan_from_zero(self):
         scenario = SimpleNamespace(
             github=FakeGitHubClient(),
             created_at=datetime.now(UTC) - timedelta(hours=1),
@@ -372,12 +372,12 @@ class OrchestratorMarkerFeedbackFilterTest(
             tracked_ids=list(range(TRACKED_ID_START, TRACKED_ID_STOP)),
             untracked_ids=[2001, 2002, 2003],
         )
-        scenario.issue = make_issue(LEGACY_LOOP_ISSUE, label=LABEL_IN_REVIEW)
+        scenario.issue = make_issue(ZERO_MARK_ISSUE, label=LABEL_IN_REVIEW)
         scenario.github.add_issue(scenario.issue)
         scenario.pull_request = FakePR(
-            number=LEGACY_LOOP_PR,
-            head_branch=_issue_branch(LEGACY_LOOP_ISSUE),
-            head=FakePRRef(sha=LEGACY_LOOP_HEAD_SHA),
+            number=ZERO_MARK_PR,
+            head_branch=_issue_branch(ZERO_MARK_ISSUE),
+            head=FakePRRef(sha=ZERO_MARK_HEAD_SHA),
             mergeable=True,
             check_state=CHECKS_SUCCESS,
             issue_comments=[
@@ -404,22 +404,22 @@ class OrchestratorMarkerFeedbackFilterTest(
         )
         scenario.github.add_pr(scenario.pull_request)
         scenario.github.seed_state(
-            LEGACY_LOOP_ISSUE,
-            pr_number=LEGACY_LOOP_PR,
-            branch=_issue_branch(LEGACY_LOOP_ISSUE),
+            ZERO_MARK_ISSUE,
+            pr_number=ZERO_MARK_PR,
+            branch=_issue_branch(ZERO_MARK_ISSUE),
             dev_agent=BACKEND_CLAUDE,
             dev_session_id=DEV_SESSION,
             review_round=1,
-            # Legacy state from the PR #433 incident: watermarks all 0
-            # because the validating handoff's seed-walk returned None
-            # (no pickup_comment_id) and defaulted to 0.
+            # The PR #433 incident's shape: watermarks all 0 because the
+            # validating handoff's seed walk crossed nothing it could vouch
+            # for and answered 0.
             pr_last_comment_id=0,
             pr_last_review_comment_id=0,
             pr_last_review_summary_id=0,
-            # pickup_comment_id deliberately missing -- the issue was
-            # picked up via operator relabel out of `question`.
+            # No pickup anchor and no delivered stretch -- the issue was
+            # relabeled by hand out of `question`.
             orchestrator_comment_ids=scenario.tracked_ids,
-            docs_checked_sha=LEGACY_LOOP_HEAD_SHA,
+            docs_checked_sha=ZERO_MARK_HEAD_SHA,
             docs_verdict="no_change",
         )
         _verified.verifies_the_approval(scenario.github, scenario.issue)

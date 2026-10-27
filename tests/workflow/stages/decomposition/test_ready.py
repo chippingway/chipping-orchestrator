@@ -101,10 +101,12 @@ class HandleReadyTest(unittest.TestCase, _PatchedWorkflowMixin):
         # comment id ABOVE pickup, so the in_review watermark seed
         # would classify it as post-pickup unconsumed PR feedback and
         # bounce the PR back to validating after the implementer has
-        # already incorporated it. _handle_ready must bump
-        # `last_action_comment_id` past the latest visible comment so
-        # `_seed_watermark_past_self`'s `consumed_through` walk treats
-        # those decomposing/blocked-era comments as already-fed-to-the-dev.
+        # already incorporated it. _handle_ready stands the reply boundary,
+        # `last_action_comment_id`, past the latest visible comment, recording
+        # no delivery; the implementer's first prompt then quotes the (short)
+        # thread whole, so its spawn records the stretch from 0, and the seed
+        # walk treats those decomposing/blocked-era comments as
+        # already-fed-to-the-dev because that prompt quoted them.
         gh = FakeGitHubClient()
         issue = make_issue(COMMENT_WATERMARK_ISSUE_NUMBER, label=LABEL_READY)
         # Decomposing-era human comment -- id well above the original
@@ -140,6 +142,7 @@ class HandleReadyTest(unittest.TestCase, _PatchedWorkflowMixin):
             "last_action_comment_id must be set so the in_review handoff treats decomposing-era comments as consumed",
         )
         self.assertGreaterEqual(int(last_action), HUMAN_COMMENT_ID)
+        self.assertEqual(state.get("delivered_after_comment_id"), 0)
 
     def test_keeps_existing_last_action(self) -> None:
         # If a prior decomposing park already advanced

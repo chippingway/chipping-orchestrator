@@ -122,8 +122,9 @@ class ValidatingHandoffSeedsAllWatermarksTest(
         )
 
         # Step 1: validating approves. Handoff must seed
-        # pr_last_review_summary_id so the legacy in_review migration cannot
-        # accidentally advance past the human review.
+        # pr_last_review_summary_id, and below the human review: the
+        # orchestrator never posts there, so no walk can vouch for anything on
+        # that surface.
         self._run_validating(
             gh,
             issue,

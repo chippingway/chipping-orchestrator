@@ -20,7 +20,7 @@ work over it.
 """
 from __future__ import annotations
 
-from orchestrator.workflow.engine import retry_values as _retry_values
+from orchestrator.workflow.engine import retry_values as _retry_values, thread_delivery as _thread_delivery
 from orchestrator.workflow.late_split import formats as _formats, state as _late_state
 from orchestrator.workflow.stages.decomposition import late_content as _late_content, late_notice as _late_notice
 from orchestrator.workflow.stages.decomposition.late_content_models import _LateContentSignal
@@ -258,12 +258,24 @@ def _mark_replies_read(context: _LateContext, through) -> None:
     sitting above it stays unconsumed exactly as it does on every other resume:
     nothing an outsider posts is marked read on their behalf. A one-way ratchet,
     because a park notice or another stage may already have moved it further.
+
+    What moves is the reply boundary. Acted on is not delivered: a recovered
+    notice's id stands above whatever a human wrote before it, and a grant
+    leaves the guidance beside its command owed a whole quote. So the
+    delivered stretch follows only over what nobody is owed -- our own
+    posts, an outsider's comments, the bare controls this mode answered --
+    read off the thread (`thread_delivery.DeliveredThread.carry`); a reply a
+    developer revision quoted whole is recorded by that run
+    (`late_revision._read_by`).
     """
     if not _formats.whole_number(through):
         return
     prior = context.state.get(_LAST_ACTION_COMMENT_ID)
     if not _formats.whole_number(prior) or through > prior:
         context.state.set(_LAST_ACTION_COMMENT_ID, through)
+        _thread_delivery.DeliveredThread.read(context.state).carry(
+            through, context.gh, context.issue, context.state,
+        )
 
 
 def _persist(context: _LateContext) -> None:

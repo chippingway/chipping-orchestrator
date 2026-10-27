@@ -1,37 +1,60 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The walk an approval's in_review watermarks are seeded off.
+"""The walk every in_review watermark is seeded or initialized off.
 
-`handoff` is what writes them; this owner answers the one question that write
-is made from -- how far past the leading run of the orchestrator's own
-comments a watermark may go.
+`handoff` seeds the approval's watermarks with it, documenting's completion
+ratchets through it, and in_review initializes a watermark it finds unset
+with it (`in_review/watermarks.py`); this owner answers the one question all
+three are made from -- how far a watermark may go without crossing feedback
+no run received.
 
 in_review wakes on "PR feedback newer than the watermark" and pings a human
 that the PR is ready for merge. So the value answered here decides two ways
 to be wrong: too low replays the orchestrator's own pickup ping, "PR opened",
-approval, and squash notices as human feedback and resumes the dev on them;
-too high advertises the PR as ready over a human comment nobody read. The
-walk therefore advances only through the leading run of orchestrator-authored
-comments plus the issue-thread ids a dev resume already consumed, and stops at
-the first comment that is neither. A bare `/orchestrator add-agent-runs` is
-walked past as well: it is an operator control, never feedback, and a grant can
-leave it unread above the reply its park interrupted.
+approval, and squash notices as human feedback and routes the issue to
+`fixing` over them; too high advertises the PR as ready over a human comment
+nobody read. The walk therefore advances only through comments a record
+proves nobody is owed, and stops at the first it cannot vouch for: a post
+this orchestrator can prove it wrote, an issue-thread comment inside the
+stretch of the thread developer prompts were handed (`engine/thread_delivery`:
+above the newest comment the first prompt's bounded excerpt left out, through
+the newest a prompt quoted), and a bare `/orchestrator add-agent-runs`, an
+operator control rather than feedback, which a grant can leave unread above
+the reply its park interrupted.
+
+Nothing else is evidence. Age is not: the issue thread is crossed only as far
+as that delivered stretch says, and the pull request not at all -- one a plan
+handoff reused or a human opened carries conversation, numbered below the
+pickup, that no prompt ever quoted. Nor is the reply boundary: a pickup or a
+handoff stands it past the thread without handing it to anybody, a park
+stamps it over what a human wrote while the agent was out, and a bounded
+first prompt drops the oldest comments, which stay unread. A record carrying
+no delivered stretch -- an issue a human labeled straight into a review
+stage -- proves only the orchestrator's own posts and the controls, so the
+walk stops at the first human comment and the scan behind it reads everything
+from there.
+
+The two surfaces cannot be read at one moment, so the snapshot itself is
+bounded. A comment landing on the surface read first, after that read, is in
+neither, while one numbered above it can land on the surface read second and
+be in the snapshot -- a bare control typed into the pull request a moment
+after a human's issue reply, say. A walk crossing that control would carry the
+mark over the reply it never saw. So nothing is crossed above what the
+snapshot proves complete (`thread_delivery.known_through`): the newest comment
+the first read carries, or an id a record named before either read began,
+since every comment numbered at or below one that already existed is in one
+of the two reads.
 
 Self-authorship is decided by recorded id OR by the hidden body marker,
 because either alone is wrong in a way that loses feedback: the id set is
 bounded and evicts, and a login check would drop a human reviewer who shares
-the PAT's account. The pickup comment is the boundary the walk starts from --
-everything older ON THE ISSUE THREAD is chatter the dev agent already saw at
-spawn -- and its absence is answered by refusing to advance at all. The pull
-request is outside that boundary: one a plan handoff reused or a human opened
-carries conversation numbered below the pickup that no spawn ever quoted, so
-being old is no evidence there that anybody read it.
+the PAT's account.
 
 Stopping is allowed to strand the value low, and that is the half this owner
 does not have to solve. The walk stops at the first unseen human comment on
 EITHER surface, so an unread PR-conversation comment numbered below a reply
 the dev already answered holds the seed underneath both -- and in_review then
-reads the issue thread against `last_action_comment_id` as well
+reads the issue thread against its delivered stretch as well
 (`in_review/surfaces.py`), which is what drops the answered reply without a
 watermark having to hide the PR comment to do it.
 
@@ -53,6 +76,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     comments as _comments,
     run_grant_request as _run_grant_request,
+    thread_delivery as _thread_delivery,
 )
 
 
@@ -76,39 +100,26 @@ def _is_orchestrator_comment(comment, orchestrator_ids: set[int]) -> bool:
 @dataclass
 class _WatermarkWalker:
     orchestrator_ids: set[int]
-    pickup_comment_id: int
-    consumed_through: int | None
+    delivered: _thread_delivery.DeliveredThread
+    known_through: int | None
     watermark: int | None = None
-    seen_self: bool = False
 
     def consume(self, comment, is_issue_thread: bool) -> bool:
-        is_self = _is_orchestrator_comment(comment, self.orchestrator_ids)
-        # Both exemptions below are the issue thread's alone. The spawn quotes
-        # that thread, and `_resume_developer_on_human_reply` reads only it, so
-        # a comment on the pull request is vouched for by neither -- the PR may
-        # be one a plan handoff reused or a human opened, carrying conversation
-        # numbered below the pickup that no prompt has ever included.
-        pre_pickup = (
-            is_issue_thread
-            and not self.seen_self
-            and comment.id < self.pickup_comment_id
-        )
-        already_consumed = (
-            is_issue_thread
-            and self.consumed_through is not None
-            and comment.id <= self.consumed_through
-        )
-        if is_self:
-            self.watermark = comment.id
-            self.seen_self = True
-        elif (
-            pre_pickup
-            or already_consumed
+        if self.known_through is None or comment.id > self.known_through:
+            return False
+        # The delivered stretch is the issue thread's alone. Every prompt it
+        # records quotes that thread, so a comment on the pull request is
+        # vouched for by nothing it says -- the PR may be one a plan handoff
+        # reused or a human opened, carrying conversation numbered inside the
+        # stretch that no prompt has ever included.
+        already_delivered = is_issue_thread and self.delivered.covers(comment.id)
+        if not (
+            already_delivered
+            or _is_orchestrator_comment(comment, self.orchestrator_ids)
             or _run_grant_request._is_bare_command(comment)
         ):
-            self.watermark = comment.id
-        else:
             return False
+        self.watermark = comment.id
         return True
 
 
@@ -116,89 +127,64 @@ def _seed_watermark_past_self(
     issue_thread_comments: list,
     pr_conversation_comments: list,
     orchestrator_ids: set[int],
-    pickup_comment_id: int | None,
-    consumed_through: int | None = None,
+    delivered: _thread_delivery.DeliveredThread | None = None,
+    known_through: int | None = None,
 ) -> int | None:
-    """Seed the in_review handoff watermark.
+    """How far an in_review watermark may go over this snapshot, or None.
 
     Walk comments oldest-to-newest across both surfaces (issue thread and
     PR conversation share the IssueComment id space, so a single watermark
-    covers both). The pickup comment is the boundary: everything before
-    `pickup_comment_id` ON THE ISSUE THREAD is pre-pickup chatter the dev
-    agent already saw at spawn, so it can be advanced past -- a
-    PR-CONVERSATION comment that old is not, since the pull request may be one
-    a plan handoff reused or a human opened and no spawn quotes it. From the
-    pickup forward, advance
-    through the contiguous run of orchestrator-authored comments AND
-    through any ISSUE-THREAD comment with id <= `consumed_through` (already
-    fed to the dev agent via a prior `_resume_developer_on_human_reply`
-    call during implementing/validating), stopping at the first
-    not-yet-consumed non-orchestrator comment. This preserves human
-    feedback posted during validating that the dev has not yet seen. The
-    replay of what the dev HAS consumed is answered twice over: here, by
-    walking past it, and again by the in_review and fixing scans, which drop
-    issue-thread comments at or below `last_action_comment_id` whatever this
-    walk settled on -- so a walk stopped low by an unread PR comment costs
-    nothing. A bare
-    `/orchestrator add-agent-runs` is walked past on either surface: it is a
-    control, never feedback, and a grant can leave one unread.
+    covers both), advancing through the orchestrator's own posts, through any
+    ISSUE-THREAD comment `delivered` covers (`thread_delivery.DeliveredThread`:
+    quoted into a developer prompt already), and through a bare
+    `/orchestrator add-agent-runs` on either surface, and stopping at the
+    first comment that is none of them. This preserves human feedback posted
+    during validating that no developer has seen, and context a bounded
+    prompt left out. The replay of what the dev HAS consumed is answered twice
+    over: here, by walking past it, and again by the in_review and fixing
+    scans, which drop the issue-thread comments the stretch covers whatever
+    this walk settled on -- so a walk stopped low by an unread PR comment
+    costs nothing. None covers nothing.
 
-    Neither the pickup boundary nor `consumed_through` is applied to
-    PR-conversation comments, for one reason: nothing that sets either has
-    read that surface. The spawn quotes the issue thread, and
-    `last_action_comment_id` only records issue-thread ids fed via
-    `_resume_developer_on_human_reply` (validating/implementing watch the
-    issue thread only). So a PR-conversation comment numbered below the
-    pickup, or below a later-consumed issue-thread reply, has NOT been seen
-    by the dev and must surface on the next in_review tick. Folding either
-    check across both surfaces would let the in_review HITL ready-ping
-    advertise the PR as ready for human merge over unread PR-conversation
-    feedback.
+    `delivered` is not applied to PR-conversation comments, for one reason:
+    nothing that records it has read that surface. The spawn and the
+    implementing and validating resumes quote the issue thread alone, so a
+    PR-conversation comment numbered below a consumed issue-thread reply has
+    NOT been seen by the dev and must surface on the next in_review tick.
+    Folding the check across both surfaces would let the in_review HITL
+    ready-ping advertise the PR as ready for human merge over unread
+    PR-conversation feedback.
 
     Identification of orchestrator-authored content is by exact comment id
     (recorded when the orchestrator posted the comment) OR by the hidden
     body marker `_ORCH_COMMENT_MARKER` -- mirroring the in_review feedback
     filter. The id-only check would mis-treat a bot comment whose id was
-    evicted from the bounded `orchestrator_comment_ids` cap (or never
-    persisted due to a state-write race) as a human comment, stopping the
-    walker early and stranding the watermark at a low value: the next
-    in_review tick would then re-scan the same orchestrator content on
-    every poll (the in_review filter still drops it via the marker, but
-    the walker should not amplify that cost), and once a real human
-    comment lands ABOVE the orchestrator backlog the seed walker would
-    keep yielding a stale watermark indefinitely. The login-based check
-    would also drop comments authored by a human reviewer who shares the
-    PAT's GitHub account -- a common deployment shape -- causing real
-    review feedback to be silently dropped and the PR to be pinged ready
-    for human merge over it.
+    evicted from the bounded `orchestrator_comment_ids` cap as a human
+    comment, stopping the walker early and stranding the watermark at a low
+    value: the next in_review tick would then re-scan the same orchestrator
+    content on every poll (the in_review filter still drops it via the
+    marker, but the walker should not amplify that cost). The login-based
+    check would also drop comments authored by a human reviewer who shares
+    the PAT's GitHub account -- a common deployment shape -- causing real
+    review feedback to be silently dropped and the PR to be pinged ready for
+    human merge over it.
 
-    Returns None when the pickup id is unknown (legacy state from a deploy
-    that pre-dates pickup-id tracking, or a manually-relabeled issue) or
-    when the surface has no orchestrator-authored content. The caller then
-    defaults the watermark to 0 so the in_review legacy migration cannot
-    advance past historical content; the orchestrator_comment_ids id-set
-    filter in `_handle_in_review` drops recorded bot comments at scan time.
+    `known_through` is how far the two reads together are proved complete
+    (`thread_delivery.known_through`), and nothing above it is crossed
+    whatever it is: a comment there may sit above one the surface read first
+    never carried. None proves nothing complete, and the walk crosses
+    nothing.
+
+    Returns None when the walk crosses nothing -- a snapshot with no comments,
+    or one whose oldest comment nothing vouches for. The caller then answers
+    0 (`_ratchet_watermark`), which scans the surface from its beginning.
     """
-    if pickup_comment_id is None:
-        # Legacy state without a pickup anchor: refuse to advance. We
-        # cannot tell pre-pickup chatter (safe to skip) from human feedback
-        # posted during implementing/validating (must preserve), and
-        # dropping a human comment is the unsafe direction.
-        return None
-    # Tag each comment with its surface so the walk below can apply
-    # `consumed_through` to the issue thread only.
-    comment_pairs = _watermark_comment_pairs(
-        issue_thread_comments, pr_conversation_comments,
-    )
-    if not any(
-        _is_orchestrator_comment(comment, orchestrator_ids)
-        for comment, _ in comment_pairs
-    ):
-        return None
     walker = _WatermarkWalker(
-        orchestrator_ids, pickup_comment_id, consumed_through,
+        orchestrator_ids, delivered or _thread_delivery.DeliveredThread(None, None), known_through,
     )
-    for comment, is_issue_thread in comment_pairs:
+    for comment, is_issue_thread in _watermark_comment_pairs(
+        issue_thread_comments, pr_conversation_comments,
+    ):
         if not walker.consume(comment, is_issue_thread):
             break
     return walker.watermark
@@ -207,8 +193,8 @@ def _seed_watermark_past_self(
 def _latest_pr_comment_ids(
     gh: GitHubClient, issue: Issue, pr, state: PinnedState
 ) -> tuple[int | None, int | None]:
-    """Return (issue-comment watermark, review-comment watermark) seeded only
-    past leading orchestrator-authored comments on the issue thread + PR.
+    """Return (issue-comment watermark, review-comment watermark) walked only
+    past what the issue's records prove nobody is owed.
 
     The second value is always None: the orchestrator never posts inline PR
     review comments, so there is no leading self-run to advance past on
@@ -217,39 +203,34 @@ def _latest_pr_comment_ids(
     against the PullRequestComment namespace would falsely treat a human
     inline comment whose numeric id collides with a recorded bot id as
     self-authored, advancing the watermark past the human's feedback. The
-    `handoff` caller defaults the inline-review watermark to 0 when this
-    returns None so the in_review legacy migration cannot then advance past
-    human inline feedback either.
+    `handoff` caller turns that None into 0, a scan of the inline-review
+    surface from its beginning.
     """
     orchestrator_ids = _comments._orchestrator_ids(state)
-    # `last_action_comment_id` doubles as a "consumed through" marker:
-    # both park comments and post-resume bumps land here, so any issue
-    # comment with id <= this value has either been posted by the
-    # orchestrator (filtered by `orchestrator_comment_ids`) or already
-    # been fed to the dev session (must not replay).
-    # Keep the surfaces separate -- `consumed_through` only applies to the
-    # issue thread (the surface `_resume_developer_on_human_reply` watches
-    # during implementing/validating). Folding both into one list and
-    # applying `c.id <= consumed_through` uniformly would silently advance
-    # the watermark past unread PR-conversation feedback whose id happens
-    # to be lower than a later-consumed issue-thread reply, letting the
-    # in_review HITL ready-ping advertise the PR as ready for human
-    # merge over the human's PR comment.
+    # The delivered stretch is what the issue thread's developer prompts were
+    # handed: a comment inside it has either been posted by the orchestrator
+    # or already been fed to the dev session (must not replay), and one the
+    # first prompt's bound cut stays outside it.
+    # Keep the surfaces separate -- the stretch only applies to the issue
+    # thread (the surface the spawn and the implementing and validating
+    # resumes quote). Folding both into one list and applying it uniformly
+    # would silently advance the watermark past unread PR-conversation
+    # feedback whose id happens to be lower than a later-consumed issue-thread
+    # reply, letting the in_review HITL ready-ping advertise the PR as ready
+    # for human merge over the human's PR comment.
+    delivered = _thread_delivery.DeliveredThread.read(state)
+    # The issue thread is read FIRST, which is what `known_through` bounds the
+    # snapshot by.
     issue_thread = list(gh.comments_after(issue, None))
     pr_conversation = list(gh.pr_conversation_comments_after(pr, None))
     return (
         _seed_watermark_past_self(
-            issue_thread, pr_conversation,
-            orchestrator_ids, _state_int(state, "pickup_comment_id"),
-            consumed_through=_state_int(state, "last_action_comment_id"),
+            issue_thread, pr_conversation, orchestrator_ids,
+            delivered=delivered,
+            known_through=_thread_delivery.known_through(issue_thread, *delivered.recorded(), *orchestrator_ids),
         ),
         None,
     )
-
-
-def _state_int(state: PinnedState, key: str) -> int | None:
-    state_value = state.get(key)
-    return state_value if isinstance(state_value, int) else None
 
 
 def _ratchet_watermark(prev, seeded):
@@ -258,11 +239,12 @@ def _ratchet_watermark(prev, seeded):
 
     A prior in_review tick may have already advanced the persisted watermark
     past PR feedback the dev has since fixed; `_seed_watermark_past_self` stops
-    at the first post-pickup human comment, so without the max() that consumed
-    comment would replay as "new". Returns the max of the two when both are
-    present, the one that exists otherwise, or 0 when neither does -- 0 means
-    "scan all from the beginning" and marks the surface as already seeded so the
-    in_review legacy migration does not advance past historical human feedback.
+    at the first human comment no delivery record covers, so without the max()
+    that consumed comment would replay as "new". Returns the max of the two
+    when both are present, the one that exists otherwise, or 0 when neither
+    does -- 0 scans the surface from its beginning, the lower bound that
+    crosses nothing, and marks it as initialized so no later tick takes it
+    for one that still needs a walk.
     """
     if isinstance(prev, int):
         return prev if seeded is None else max(seeded, prev)

@@ -494,7 +494,7 @@ class InReviewFeedbackRoutingTest(
         )
         # Watermark just below the comment so it surfaces as fresh feedback,
         # and seeded explicitly so this case is about the debounce window
-        # rather than about what the legacy migration would seed instead.
+        # rather than about what initializing an unset mark would write.
         with patch.object(config, DEBOUNCE_SETTING, REVIEW_DEBOUNCE_SECONDS):
             feedback_patches = self._run_in_review(
                 feedback_github,

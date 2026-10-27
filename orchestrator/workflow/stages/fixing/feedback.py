@@ -21,11 +21,12 @@ because that is a deliberate operator signal rather than chatter.
 The settlement is the narrower half of that pair, and it is the same reading
 from the other end: each surface is recorded as consumed for the reader that
 OWNS it, and for no other. The issue thread moves the issue-action boundary
-`last_action_comment_id` beside the PR-side cursor, because a reply this stage
-quoted has been in a developer prompt and the implementing and validating
-resumes decide what to hand a parked session off exactly that field -- left
-behind, a manual relabel out of `fixing` pays a second developer to read the
-comment this one already answered. The PR conversation, the inline review
+`last_action_comment_id` and the delivered stretch beside the PR-side cursor,
+because a reply this stage quoted has been in a developer prompt: the
+implementing and validating resumes decide what to hand a parked session off
+that boundary, and the review stages decide what is still unread off that
+stretch -- left behind, a manual relabel out of `fixing` pays a second
+developer to read the comment this one already answered. The PR conversation, the inline review
 comments and the review summaries move only the in_review watermarks that are
 theirs: nothing that advances the issue-action boundary has read the pull
 request, so writing it over PR feedback would hide input no prompt carried.
@@ -80,6 +81,7 @@ from orchestrator.workflow.engine import (
     report_delivery_state as _delivery_state,
     report_record_state as _record_state,
     run_grant_request as _run_grant_request,
+    thread_delivery as _thread_delivery,
 )
 from orchestrator.workflow.stages.fixing import models as _models
 from orchestrator.workflow.stages.in_review import (
@@ -172,15 +174,28 @@ def _rescan_fixing_feedback(
 
     The two IssueComment surfaces are read through the in_review owner that
     holds their cursors, and the pair of cursors is not the same on both. The
-    thread answers to `pr_last_comment_id` AND to `last_action_comment_id`,
-    because an implementing or validating resume that quoted a reply recorded
-    it on the second field alone -- read past the PR-side cursor only, that
-    answered reply would be re-fed into the `_build_pr_comment_followup`
-    prompt whenever a manual relabel or a handoff walk left the field below
-    it. The PR conversation answers to `pr_last_comment_id` and to nothing
-    else: nothing that advances the issue-action boundary has read the pull
-    request, so applying that boundary here would hide every PR comment
-    numbered below the last issue reply a developer answered.
+    thread answers to `pr_last_comment_id` AND to the stretch of it developer
+    prompts were handed (`engine/thread_delivery`), because an implementing or
+    validating resume that quoted a reply recorded it on that stretch alone --
+    read past the PR-side cursor only, that answered reply would be re-fed
+    into the `_build_pr_comment_followup` prompt whenever a manual relabel or
+    a handoff walk left the field below it. The PR conversation answers to
+    `pr_last_comment_id` and to nothing else: nothing that records the issue
+    thread's delivery has read the pull request, so applying that record here
+    would hide every PR comment numbered below the last issue reply a
+    developer answered.
+
+    The thread is read first and the pull request second, a moment apart, and
+    `pr_last_comment_id` spans both, so the batch carries what the reads prove
+    complete (`known_through`, `thread_delivery.known_through_both`) and the
+    settlement advances that cursor no further. An issue reply landing between
+    the two reads is in neither batch, and a PR comment numbered above it is
+    in this one: the bound stays below that reply, so the next scan delivers
+    it instead of the cursor stepping over it for good. Where the pull request
+    carries a comment above what the thread's read and the records prove, the
+    thread is read once more for that bound alone -- nothing in the batch
+    comes off it -- since holding such a comment below the cap would hand it
+    to a developer again on every round.
 
     The issue thread is read ONCE and the whole read is kept on the batch. The
     round owes that surface two more answers than the cut -- the conversation
@@ -192,6 +207,7 @@ def _rescan_fixing_feedback(
     the next poll.
     """
     thread = list(issue.get_comments())
+    conversation = _in_review_surfaces._unread_pr_conversation(gh, pr, state)
     return _models._FixingFeedback(
         issue_thread=_unclaimed(
             _in_review_surfaces._unread_issue_thread(
@@ -199,9 +215,7 @@ def _rescan_fixing_feedback(
             ),
             state,
         ),
-        pr_conversation=_unclaimed(
-            _in_review_surfaces._unread_pr_conversation(gh, pr, state), state,
-        ),
+        pr_conversation=_unclaimed(conversation, state),
         review_comments=_reviewed(gh.pr_inline_comments_after(
             pr, state.get("pr_last_review_comment_id"),
         )),
@@ -213,6 +227,16 @@ def _rescan_fixing_feedback(
         # whatever the author allowlist says: the ids this orchestrator wrote
         # down as it posted them, which is the only evidence a body is its own.
         retained=frozenset(_comments._orchestrator_ids(state)),
+        known_through=_thread_delivery.known_through_both(
+            gh,
+            issue,
+            thread,
+            conversation,
+            state.get(_delivery.PINNED_PR_LAST_COMMENT_ID),
+            state.get(_delivery.PINNED_LAST_ACTION_COMMENT_ID),
+            *_thread_delivery.DeliveredThread.read(state).recorded(),
+            *_comments._orchestrator_ids(state),
+        ),
     )
 
 
@@ -260,7 +284,10 @@ def _consumed_delivery(
     `issue_watermark_field` is what tells that owner which cursor this stage's
     issue-space reading answers to. Without it a batch carrying issue-thread
     replies and no PR comment would leave `pr_last_comment_id` behind, and the
-    next tick would read those replies back as unread PR feedback.
+    next tick would read those replies back as unread PR feedback. The batch's
+    `known_through` bounds that cursor to what its two reads prove complete,
+    so the direct settlement and the pairs a report freezes alike step over no
+    comment that landed between the reads.
 
     The recorded ids are the IssueComment ledger's, and they reach the two
     review surfaces as the empty set that owner derives for them -- which is
@@ -288,6 +315,7 @@ def _consumed_delivery(
         state=state,
         state_comment_id=state.comment_id,
         issue_watermark_field=_delivery.PINNED_PR_LAST_COMMENT_ID,
+        known_through=feedback.known_through,
     )
 
 
@@ -348,9 +376,11 @@ def _settle_consumed_feedback(
 
     Forward only and idempotently: each field moves to the max id delivered on
     the surface that field answers for, and a field already past that stays
-    where it is. The issue thread settles `last_action_comment_id` as well as
-    the PR-side cursor, so a route change out of `fixing` does not pay a second
-    developer to deliver a reply this stage already quoted; the PR
+    where it is. The issue thread settles `last_action_comment_id` and its own
+    delivered stretch as well as the PR-side cursor, so a route change out of
+    `fixing` does not pay a second developer to deliver a reply this stage
+    already quoted, and the PR-side cursor stops at what the batch's reads
+    prove complete; the PR
     conversation, the inline review comments and the review summaries settle
     their own in_review watermarks and nothing else, so feedback no prompt
     carried is left for the scan that owns it.

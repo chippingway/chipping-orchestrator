@@ -34,8 +34,14 @@ prepared run for the same reason: whatever the next tick resolves has to be the
 branch this one worked on.
 
 A spawn's prompt and the record of what it quoted come off ONE read of the
-thread and travel together on the prepared run, for the road that has an edit
-to settle against them: a requirements edit that fell through to a fresh spawn
+thread. The record is the issue's delivered stretch (`thread_delivery`): from
+the newest comment the bounded excerpt left out through the newest it quoted,
+so context no developer was shown stays unread feedback for the review stages
+-- whatever the reply boundary the road that handed the issue here stood past
+it says -- for a run that was invoked: a launch nothing started was handed
+nothing, and a shutdown kill or a live pause ends the tick with nothing
+written. The record also travels on the prepared run, for the road that has an
+edit to settle against it: a requirements edit that fell through to a fresh spawn
 is answered by this prompt and by nothing earlier, so a watermark taken before
 it -- or re-read after the agent is back -- would mark answered words no
 developer was handed. The rationale a split recorded on the issue is quoted
@@ -67,6 +73,7 @@ from orchestrator.workflow.engine import (
     retry_budget as _retry_budget,
     retry_ledger as _retry_ledger,
     run_charge_state as _run_charge_state,
+    thread_delivery as _thread_delivery,
 )
 from orchestrator.workflow.stages.implementing import (
     candidate_recovery as _candidate_recovery,
@@ -132,6 +139,8 @@ def _spawn_implementer(
     # hands a retired conversation's id back -- the one its own quota stop just
     # retired included -- or none pins nothing and a recovery owed stays owed.
     _session._persist_dev_session_after_run(state, agent_result, fresh_spawn=True)
+    if agent_result.invoked:
+        _thread_delivery.records_delivery(state, delivered)
     return agent_result, paused, delivered
 
 

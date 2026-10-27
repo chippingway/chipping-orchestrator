@@ -1882,8 +1882,10 @@ The keys that matter for the state machine fall into a few groups:
   stopping at the first it does not. A post the ledger never gained, a thread with no watermark under it, and a thread
   the walk cannot re-read all leave the mark where it is, never the tip, and the last never raises, since the notice
   is already posted and the park still has to be recorded. `_handle_pickup` writes the floor the first run walks from:
-  the pickup comment anchors `last_action_comment_id` beside `pickup_comment_id`, because the spawn it opens quotes the
-  thread as it stands. EVERY park the `workflow:implementing` and `workflow:validating` handlers take after a run reads
+  the pickup comment anchors `last_action_comment_id` beside `pickup_comment_id`, because nothing already on the thread
+  is a reply to anything. Standing it there hands nobody that thread and records no delivery (**In-review watermarks**
+  below): a park reads the field as where a reply starts and as nothing else.
+  EVERY park the `workflow:implementing` and `workflow:validating` handlers take after a run reads
   the field that way — the agent question and checkout refusals call the walk directly, as do the returned-verdict parks
   (`stages/validating/review_parks.py`) behind their own notice -- which a live reviewer round's verdict takes through
   the disposition -- and every other one asks `_park_awaiting_human` for it with
@@ -2538,15 +2540,34 @@ The keys that matter for the state machine fall into a few groups:
 
   The shared id space is a numbering, not a shared delivery record, so `in_review` and `fixing` read the two surfaces
   under it separately (`in_review/surfaces.py`: `_unread_issue_thread`, `_unread_pr_conversation`). The issue thread
-  answers to `pr_last_comment_id` AND to `last_action_comment_id`, because the implementing and validating
-  awaiting-human resumes — and the fresh spawn and the `workflow:implementing`, `workflow:validating` and
-  `workflow:resolving_conflict` drift resumes beside them — watch that surface alone
-  and settle the second field for what they quoted; a reply at or
-  below it has been in a developer prompt and may not route the issue back to `workflow:fixing`. The PR conversation
-  answers to `pr_last_comment_id` and to nothing else: nothing that advances the issue-thread cursor has read the pull
-  request, so a PR comment numbered below the last answered reply is unread rather than delivered. Neither field is
-  copied into the other and no maximum is taken across them — that maximum is exactly the value that hides one surface
-  to bound the other.
+  answers to `pr_last_comment_id` AND to the stretch of it developer prompts were handed
+  (`workflow/engine/thread_delivery.py`): the comments numbered above `delivered_after_comment_id`, through
+  `delivered_through_comment_id`. That stretch is kept apart from the reply boundary `last_action_comment_id` a park
+  waits above, and only delivery moves it. The implementer's first spawn, its run invoked, records it: above the newest
+  comment its bounded excerpt cut part-way or whole, or above 0 where it quoted the thread from its beginning, through
+  the newest it read that it quoted or that is nobody's input (the pickup standing above the thread among them), joined
+  to a stretch already recorded where the two meet; the `workflow:documenting` resume, whose full documentation prompt
+  quotes the thread under the same bound, records its stretch the same way, so a reply its excerpt cut stays unread
+  while the boundary it answered moves over it. The implementing and validating awaiting-human resumes, the drift
+  resumes, and a fix round then move the upper end from its own value over what they quoted, stopping below the first
+  comment a bound left out, and only where it already reaches the boundary their read began at — nothing beneath that
+  boundary is in their read. A road that moves the boundary over replies it read carries the upper end only where the
+  thread, read again up to the new mark, holds nothing above the stretch but replies its prompt quoted whole and
+  nobody's input — our own posts, an outsider's comments, a bare `/orchestrator continue`, `add-agent-runs`, or
+  `authorize-oversized` the road answered: a conflict resume once its launched run is back, a late developer revision
+  over the guidance it quoted, and every other late consumption — a control answered, a recovered park notice — over
+  nobody's input alone, so a human reply below a recovered notice keeps the stretch under it. A bounded park walking
+  over posts of ours carries it only where it already reaches the boundary. The roads that stand the boundary past a
+  thread without handing it to a developer — the pickup, the `ready` handoff, a disabled decomposition's handoff, the
+  read-only relabel out of `question` / `discussion`, a park's stamp at its own notice — record nothing. A reply inside
+  the stretch has been in a developer prompt and may not route the issue back to `workflow:fixing`; a comment the first
+  excerpt left out, or one a park's stamp stood over while the agent was out, is outside it and still unread feedback
+  for the review stages to route to `workflow:fixing`; and a record missing either end counts nothing on the thread as
+  delivered: a missing field marks no human feedback consumed. Parks and resumes read only the boundary — the stretch is
+  no reply. The PR conversation answers to `pr_last_comment_id` and to nothing else: nothing that records the issue
+  thread's delivery has read the pull request, so a PR comment numbered below the last answered reply is unread rather
+  than delivered. Neither field is copied into the other and no maximum is taken across them — that maximum is exactly
+  the value that hides one surface to bound the other.
 
   The `in_review` drift resume is the one developer prompt that reads BOTH surfaces, and it is the one whose
   settlement deliberately writes only ONE of the two fields. Its record covers the pull request's conversation and
@@ -2559,33 +2580,42 @@ The keys that matter for the state machine fall into a few groups:
   quotes no inline comment and no review summary; a road that crossed those would hide a reviewer's words from the
   `workflow:fixing` round that delivers them.
 
-  `fixing` also WRITES `last_action_comment_id`, and it writes it for the issue thread alone. A fix round quotes every
-  unread surface into one developer prompt, so the round that consumed an issue-thread reply settles that reply for the
-  reader the reply belongs to as well (`fixing/feedback.py`, `_settle_consumed_feedback`) — left behind, a manual move
-  between `workflow:fixing`, `workflow:validating` and the drift path pays a second developer to deliver the reply the
-  fix round already answered. The PR-conversation, inline-review, and review-summary halves of that same batch move
-  only their own in-review watermarks. Every surface advances to the max id actually quoted on it and no further, the
-  pairs come from `workflow/engine/prompt_delivery.py` (the producer a recovered report transaction's watermarks are
-  also read against, and the owner whose classifier the `fixing` scan asks of the two review surfaces, so no item is
-  prompted that the settlement would then refuse to record), and a run that was never invoked, a shutdown-killed run,
-  and a live-paused run settle nothing at all — delivery is what the field records, and none of those delivered
-  anything. A round that finished on a report outcome settles nothing either: the publication it owes is not this
-  tick's to promise, and feedback recorded as answered for a report no reviewer has is the one reading that fork
-  exists to refuse.
+  `fixing` also WRITES `last_action_comment_id` and the stretch's upper end, for the issue thread alone. A fix round
+  quotes every unread surface into one developer prompt, so the round that consumed an issue-thread reply settles that
+  reply for the reader the reply belongs to as well (`fixing/feedback.py`, `_settle_consumed_feedback`) — left behind, a
+  manual move between `workflow:fixing`, `workflow:validating` and the drift path pays a second developer to deliver the
+  reply the fix round already answered. The PR-conversation, inline-review, and review-summary halves of that same batch
+  move only their own in-review watermarks. Every surface advances to the max id actually quoted on it and no further,
+  and `pr_last_comment_id` no further than the round's two reads prove complete: the thread is read first and the pull
+  request second, so a reply landing on the thread between them is in neither, and the cursor stays below it for the
+  next scan to deliver — the thread is read once more where the pull request carries a comment above what the first read
+  proves, so a delivered PR comment is not held under the cap round after round. The pairs come from
+  `workflow/engine/prompt_delivery.py` (the producer a recovered report transaction's watermarks are also read against,
+  and the owner whose classifier the `fixing` scan asks of the two review surfaces, so no item is prompted that the
+  settlement would then refuse to record), and a run that was never invoked, a shutdown-killed run, and a live-paused
+  run settle nothing at all — delivery is what the field records, and none of those delivered anything. A round that
+  finished on a report outcome settles nothing either: the publication it owes is not this tick's to promise, and
+  feedback recorded as answered for a report no reviewer has is the one reading that fork exists to refuse.
 
   Every writer of these fields stops before unread human input, and none of them reads a tip. The
-  approval handoff's seed walk stops at the first unread non-orchestrator comment on either surface; the legacy
-  migration reuses that same walk and seeds the two review surfaces at 0, since the orchestrator posts on neither and
-  any advance there would cross somebody's review; and the park carry walks forward from the mark already persisted
+  approval handoff's seed walk crosses only our own posts, the issue-thread comments the delivered stretch covers,
+  and bare run-grant controls, and stops at the first other comment on either surface; `in_review`
+  initializes a watermark it finds unset — a manual relabel's, or one an approval whose snapshot would not read left
+  unset — with that same walk, and the two review surfaces at 0, since the orchestrator posts on neither and any
+  advance there would cross somebody's review; and the park carry walks forward from the mark already persisted
   through comments it can vouch for — ours, named by the frozen delivery record this tick's own prompt was built
-  from, or recorded on `last_action_comment_id`
+  from, or inside the delivered stretch
   for the issue thread alone — stopping at the first it cannot. That carry is handed the RECORD rather than the read
   behind it: a bounded excerpt delivers less than it read, and the context it cut is exactly what the walk has to
   stop below. A comment the record names REFUSED — an outsider's, a pasted marker the id ledger cannot vouch for —
   is crossed, since no reader is ever owed it and a walk that stopped there would stop forever. A carry to the
   newest comment would skip a PR comment
   written while the tick was deciding, permanently (see [`delivery-stages.md`](delivery-stages.md),
-  `_handle_in_review`).
+  `_handle_in_review`). Every one of these walks reads the issue thread first and the pull request second, so a
+  thread comment landing between the two reads is in neither while a later one on the pull request is in the
+  second; none crosses a comment numbered above what the reads prove complete — the newest the thread's read
+  carries, or an id a record named before either read (the ledger of our posts, the delivered stretch, the mark the
+  walk starts from, a prompt's frozen record) — whatever that comment is, a bare control included.
 - **The requirements edit nothing has answered.** `requirements_drift_open`, additive and `true` only while a drift
   resume's park stands. A resume the edit earned can end without answering it — a question, a timeout, a tree nobody
   could publish, a push that did not land — and the reply that clears such a park is the rest of that resume rather
@@ -3343,19 +3373,22 @@ The keys that matter for the state machine fall into a few groups:
   approval retires it beside `ready_ping_sha`, so the ping a fresh approval earns on the same head is armed with a
   receipt of its own; a record of any other shape names no ping and the next arming replaces it.
   `docs_drift_unwind_pending` is set while `_handle_documenting`'s drift block is reconciling and cleared only on the
-  relabel back to `workflow:validating`. `docs_drift_unwind_asked_at` rides beside it on the failure road: the id of
-  the notice a git step that could not be proved parked with. It is NOT a delivery cursor — no agent runs on that
-  road, so the comment that moved the requirements is still unread and `last_action_comment_id` is put back where the
-  tick found it — it is the boundary the unwind's silence is kept behind, so only a trusted reply ABOVE that notice
-  retries the reconcile rather than the triggering comment doing so on every poll. Additive: an issue parked before
-  the field existed falls back to `last_action_comment_id`, which is where that park left its mark.
+  relabel back to `workflow:validating`. `docs_drift_unwind_asked_at` rides beside it on the failure road: the id of the
+  notice a git step that could not be proved parked with. It is NOT the reply boundary — no agent runs on that road, so
+  the comment that moved the requirements is still unread and `last_action_comment_id` is put back where the tick found
+  it, where a developer resumed past it is still handed that comment — it is the boundary the unwind's silence is kept
+  behind, so only a trusted reply ABOVE that notice retries the reconcile rather than the triggering comment doing so on
+  every poll. Additive: an issue parked before the field existed falls back to `last_action_comment_id`, which is where
+  that park left its mark.
 - **Fix routing.** `pending_fix_at` + per-namespace `pending_fix_issue_max_id` / `pending_fix_review_max_id` /
   `pending_fix_review_summary_max_id` recorded by the `in_review → fixing` route, plus the full
   `pending_fix_issue_ids` / `pending_fix_review_ids` / `pending_fix_review_summary_ids` batch lists. They are hints, not
   watermarks — the in_review watermarks are deliberately left behind so the `fixing` rescan can re-discover the
   triggering comments, and the id lists let `_reconstruct_pending_fix_batch` rebuild the exact triggering batch after
-  every reader has advanced past it (falling back conservatively to the max ids for issues parked before the lists were
-  recorded). Settling a delivered batch never touches them: an explicit `/orchestrator continue` retry and a genuine
+  every reader has advanced past it. Each surface is rebuilt from its list alone: a list missing or damaged — not a
+  list, or carrying anything but whole comment ids — rebuilds nothing, whatever max id stands beside it, and a park
+  with nothing to rebuild refuses a bare `/orchestrator continue` rather than resume on the command text. Settling a
+  delivered batch never touches them: an explicit `/orchestrator continue` retry and a genuine
   question or disagreement park both depend on the bookmarks outliving the readers the same round moved. The batch an
   accepted retry rebuilds keeps each surface apart, because the replay is delivered and so is settled: its issue-thread
   half advances `last_action_comment_id` beside the PR-side cursor and its PR-conversation half advances that PR-side

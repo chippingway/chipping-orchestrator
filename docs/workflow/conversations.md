@@ -167,9 +167,20 @@ batch a parked resume delivers, the drift resume, and the fresh spawn a pre-sess
 
 - a comment a bounded prompt's excerpt dropped reaches no agent, so nothing records it as read; the issue-thread
   watermark stops below it and the scan that owns that surface still delivers it. The uncapped reply batch drops
-  none, which is why it is uncapped;
+  none, which is why it is uncapped. The implementer's first prompt is the one bounded excerpt that quotes a thread
+  sitting BELOW the reply boundary — the pickup, the `ready` handoff, a disabled decomposition's handoff, and the
+  read-only relabel stand that boundary past the thread they hand on, since none of it is a reply, and record no
+  delivery. Its spawn records the stretch it read, above the newest comment the excerpt cut
+  (`delivered_after_comment_id`) through the newest it quoted or that is nobody's input, such as the pickup
+  (`delivered_through_comment_id`), so what it left out stays outside the stretch the PR-feedback readers count as
+  delivered, and reaches the developer through `workflow:fixing` once the issue is in review
+  (`workflow/engine/thread_delivery.py`);
 - a comment written after the read — during the minutes an agent is out — is quoted to nobody and crossed by nothing,
-  so it is still unread input on the next tick;
+  so it is still unread input on the next tick. A park that ends the run stamps the reply boundary at its own notice,
+  over such a comment, but the boundary records no delivery: the delivered stretch stays below the comment, and
+  neither a resume nor a settlement carries the stretch past the boundary unless nothing between them is anybody's
+  input. The `documenting` resume, which re-quotes the whole thread under the same bound, records what that prompt
+  quoted and nothing its excerpt cut;
 - the record is settled only once the run is back, and only for an outcome that counts the input as delivered: a
   shutdown kill, a live pause, and a launch the run circuit refused leave it entirely unread, while a timeout, an
   empty reply, an `ACK:`, and a question park all consume it. Delivery is not resolution — what an agent was handed
@@ -179,7 +190,7 @@ batch a parked resume delivers, the drift resume, and the fresh spawn a pre-sess
 - a route that invokes NO developer at all — the `documenting` drift unwind, which changes a label and resets a
   worktree — settles no watermark whatever, since a relabel delivers nobody's words to anybody. Where a git step
   there parks, the shared HITL park's own mark is put back and kept as that unwind's retry boundary rather than left
-  standing as a delivery cursor.
+  standing as the reply boundary.
 
 ## The commit-subject contract in commit-producing prompts
 
@@ -427,7 +438,10 @@ delivered the prompt, so all of them record what it carried, while a run the cir
 killed, and one an operator paused mid-run record nothing. Each surface of that batch settles the reader that owns it,
 so the issue-thread half moves `last_action_comment_id` and the pull-request halves do not, and an accepted
 `/orchestrator continue` settles the batch it replayed joined with the fresh rescan — including the bare command the
-prompt deliberately never hands the developer, on the surface that command was typed into.
+prompt deliberately never hands the developer, on the surface that command was typed into. That replay is rebuilt per
+surface from the id list the `in_review` route recorded and from nothing else: a surface whose list is missing or
+damaged replays nothing, since no other field names the batch's members, so a fresh developer is never handed part of
+a round as the whole of it, and a park left with nothing to replay refuses the bare command.
 
 That round can also end on a report outcome, since its prompt teaches the contract like every other developer prompt
 and asks by name for an item wanting report content only to be answered in the report with no commit for it. Such a
