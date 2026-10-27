@@ -47,6 +47,7 @@ from tests.workflow.stages.discussion.discussion_test_support import (
     PARK_DISCUSSION_RESPONSE,
     PUSH_BRANCH,
     RUN_AGENT,
+    _issue_branch,
 )
 
 _MERGED_ISSUE_NUMBER = 960
@@ -177,15 +178,20 @@ _RECEIPT_CASES = (
 
 _PRE_PR_CASES = (
     (_PRE_PR_ISSUE_NUMBER, {"park_reason": PARK_DISCUSSION_RESPONSE}),
-    (_INHERITED_ISSUE_NUMBER, {KEY_PR_NUMBER: _INHERITED_PR_NUMBER}),
+    (
+        _INHERITED_ISSUE_NUMBER,
+        {
+            KEY_PR_NUMBER: _INHERITED_PR_NUMBER,
+            KEY_BRANCH: _issue_branch(_INHERITED_ISSUE_NUMBER),
+        },
+    ),
 )
 
 _TEARDOWN_FAILED = "worktree removal failed"
 
-# The pre-namespace ref the branch resolver infers from a `pr_number` with
-# no `branch` pinned beside it. Spelled out rather than imported, so a
-# recovery that starts answering with it fails here instead of agreeing
-# with itself.
+# The flat pre-namespace ref, which no live work stands on. Spelled out
+# rather than imported, so a recovery that starts answering with it fails
+# here instead of agreeing with itself.
 _LEGACY_BRANCH = "orchestrator/issue-{issue}"
 
 
@@ -414,10 +420,10 @@ class DiscussionCrashWindowTerminalTest(
         self.assert_finalized(run, label=case.label, stamp=case.stamp)
         # Both records are made before the tail reads them: the event names
         # the number, and the teardown resolves its ref from the branch. The
-        # branch is the one the stage really pushed to -- with a recovered
-        # number and no branch beside it, the resolver reads the state as a
-        # legacy in-flight PR and answers `orchestrator/issue-N`, whose reap
-        # would leave the real local and remote branches standing.
+        # branch is the one the stage really pushed to -- a recovered number
+        # with no branch beside it is a record the resolver refuses, and a
+        # flat `orchestrator/issue-N` beside it would reap a ref the stage
+        # never pushed, leaving the real local and remote branches standing.
         self.assertEqual(
             (run.pinned[KEY_PR_NUMBER], run.pinned[KEY_BRANCH]),
             (case.scenario.pr_number, run.branch),

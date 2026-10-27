@@ -22,7 +22,7 @@ from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.git import branch_transport, locks
-from orchestrator.git.worktrees import creation, paths
+from orchestrator.git.worktrees import creation, naming, paths
 from tests.git.concurrency_test_support import _start_and_join
 
 GIT_COMMAND = "git"
@@ -330,7 +330,10 @@ class _EnsureRecorder:
         try:
             outcome = (
                 issue_number,
-                creation._ensure_worktree(self._spec, issue_number),
+                creation._ensure_worktree(
+                    self._spec, issue_number,
+                    branch=naming._branch_name(self._spec, issue_number),
+                ),
                 None,
             )
         except BaseException as error:  # noqa: BLE001 - asserted by the test

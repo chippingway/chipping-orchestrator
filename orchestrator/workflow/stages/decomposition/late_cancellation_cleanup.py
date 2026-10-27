@@ -183,7 +183,15 @@ def _superseded_branch(
             "is", issue.number,
         )
         return generation
-    branch = _naming._resolve_branch_name(state, spec, issue.number)
+    branch = _naming._trusted_branch(state, spec, issue.number)
+    if branch is None:
+        log.warning(
+            "issue=#%d was cancelled between the supersession of its held PR "
+            "and the write that records the branch it superseded, and its "
+            "record names no branch live work may use; taking no branch on "
+            "and leaving every one for manual disposition", issue.number,
+        )
+        return generation
     log.warning(
         "issue=#%d was cancelled between the supersession of its held PR and "
         "the write that records the branch it superseded; taking %r on as "

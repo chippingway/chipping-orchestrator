@@ -128,7 +128,10 @@ class _SquashRepositoryFixtureMixin:
         )
         self._init_remote()
         self._seed_base()
-        self.branch = "orchestrator/chippingway__chipping-orchestrator/issue-9"
+        # The issue's current-layout branch under the `acme/widget` spec every
+        # squash here is gated with (`publication_helpers._spec`): the one
+        # branch a reconciliation may stand on and push to.
+        self.branch = f"orchestrator/acme__widget/issue-{SQUASH_ISSUE_NUMBER}"
         self._seed_topic()
 
     def _init_remote(self) -> None:

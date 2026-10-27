@@ -9,6 +9,7 @@ so no hold or spawn runs over a record or frozen pair this host cannot prove.
 """
 from __future__ import annotations
 
+from orchestrator.git.worktrees import naming as _naming
 from orchestrator.workflow.late_split.models import LateFailure, LateGeneration
 from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.decomposition import (
@@ -58,6 +59,11 @@ def _blocked_before_running(
 
     Everything below the live-generation gate is one short circuit, because
     every one of them parks on its own and every one of them stops the tick.
+    Ahead of all of them, the branch the candidate stands on is resolved:
+    every verdict is settled on it -- an acceptance pushes to it, a split
+    supersedes the pull request on it and reclaims it -- so a record naming no
+    branch live work may use raises `naming.BranchRefused` before a park is
+    taken, the host is probed, or the pull request is held.
     """
     _late_park_delivery._reconcile_notice_delivery(context)
     owed = _late_owner._reconcile_pending_owner_check(context)
@@ -66,6 +72,7 @@ def _blocked_before_running(
     _late_park_delivery._redeliver_park_notice(context)
     if not _is_adjudicable(context.generation):
         return _LateDisposition.NOT_LATE
+    _naming._resolve_branch_name(context.state, context.spec, context.issue.number)
     if _parks_before_running(context):
         return _LateDisposition.PARKED
     return None

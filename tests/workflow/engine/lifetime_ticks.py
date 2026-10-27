@@ -5,7 +5,9 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from typing import Any
+from unittest.mock import MagicMock, patch
 
+from orchestrator.git.worktrees import evidence as _evidence, models as _worktree_models
 from orchestrator.workflow.engine import (
     base_refresh as _base_refresh,
     issue_processing as _issue_processing,
@@ -54,6 +56,16 @@ def refreshed_tick(github: FakeGitHubClient, issue) -> Callable[[], Any]:
     is counted on, and hands the issue back to `validating` -- and none of
     that returns a run.
     """
-    return lambda: _base_refresh._sync_worktree_with_base(
-        github, _TEST_SPEC, _FAKE_WT, issue.number,
-    )
+    return lambda: _refreshes(github, issue)
+
+
+def _refreshes(github: FakeGitHubClient, issue) -> None:
+    """Refresh the issue's checkout onto the base, that checkout stated the issue's own.
+
+    The checkout is no real worktree at a layout path and the git under it is
+    answered by the run's patches, so the ownership read the refresh asks
+    before a rebase is stated rather than read.
+    """
+    own_checkout = MagicMock(return_value=_worktree_models.ProbeAnswer.CONFIRMED)
+    with patch.object(_evidence, "_checkout_identity", own_checkout):
+        _base_refresh._sync_worktree_with_base(github, _TEST_SPEC, _FAKE_WT, issue.number)

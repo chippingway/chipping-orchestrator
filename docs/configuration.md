@@ -376,11 +376,13 @@ Each repo can have its own personal access token at `~/.config/<owner>/<repo>/to
 under the [one shared root](#workspace-and-agent-identity) and PR branches are
 namespaced `orchestrator/<owner>__<name>/issue-N`, so two repos with the same issue number cannot collide on disk or on
 the branch ref — important when several `REPOS` entries share a `target_root` (e.g. one local clone with multiple
-remotes), where git would otherwise refuse to check the same `orchestrator/issue-N` ref out in two worktrees. In-flight
-issues whose pinned `branch` was set before this change keep using the legacy `orchestrator/issue-N` name; fresh issues
-take the namespaced form. Artifact ownership and cleanup recognize the namespaced forms only: a flat
-`orchestrator/issue-N` branch or `WORKTREES_DIR/issue-N` checkout is never attributed to a repository, and no terminal,
-late-split, or scheduled cleanup deletes one ([artifact ownership](security.md#scheduled-artifact-reclamation)).
+remotes), where git would otherwise refuse to check the same `orchestrator/issue-N` ref out in two worktrees. Every
+issue works the namespaced forms only. An issue whose pinned record names a pull request with no branch beside it, or
+pins the flat `orchestrator/issue-N` or any other name, is refused before any checkout, agent launch, or push, with
+nothing derived in its place ([branch refusal](state-machine/labels-and-state.md#branch-refusal)). Artifact ownership
+and cleanup recognize the namespaced forms only too: a flat `orchestrator/issue-N` branch or `WORKTREES_DIR/issue-N`
+checkout is never attributed to a repository, and no terminal, late-split, or scheduled cleanup deletes one
+([artifact ownership](security.md#scheduled-artifact-reclamation)).
 
 Slugs whose repo name contains `.lock`, `..`, or a trailing `.` (all rejected by `git check-ref-format`) get an extra
 `__h<16-hex>` suffix on the branch segment so two distinct slugs that would otherwise collapse to the same form (e.g.

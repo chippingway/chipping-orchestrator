@@ -102,10 +102,14 @@ def _stands_on(ctx: _models._FixingContext, commit: str) -> _Standing:
     One boundary around the whole reading, which is what the split below is
     for: the fetch, every lazy member behind it, and the repository the client
     resolves to answer whose fork a head is in are all requests, and a caller
-    is owed the same answer on any of them failing.
+    is owed the same answer on any of them failing. The branch the head is
+    held to is resolved ahead of that boundary, because a record naming no
+    branch live work may use is no failed read: its `naming.BranchRefused`
+    goes to the dispatcher rather than holding here as an unread request.
     """
+    branch = _naming._resolve_branch_name(ctx.state, ctx.spec, ctx.issue.number)
     try:
-        return _identified(ctx, ctx.gh.get_pr(ctx.pr.number), commit)
+        return _identified(ctx, ctx.gh.get_pr(ctx.pr.number), commit, branch)
     except Exception:
         log.exception(
             "issue=#%d could not read PR #%s to say whether it is the "
@@ -117,7 +121,7 @@ def _stands_on(ctx: _models._FixingContext, commit: str) -> _Standing:
 
 
 def _identified(
-    ctx: _models._FixingContext, published: Any, commit: str,
+    ctx: _models._FixingContext, published: Any, commit: str, branch: str,
 ) -> _Standing:
     """Prove the object that came back is the publication in hand.
 
@@ -138,9 +142,7 @@ def _identified(
     state = _pr_reads.pr_state(published)
     head = getattr(published, "head", None)
     standing = getattr(head, "sha", None)
-    own_branch = getattr(head, "ref", None) == _naming._resolve_branch_name(
-        ctx.state, ctx.spec, ctx.issue.number,
-    )
+    own_branch = getattr(head, "ref", None) == branch
     own_repo = ctx.gh.is_own_repository(
         getattr(getattr(head, "repo", None), "full_name", None),
     )

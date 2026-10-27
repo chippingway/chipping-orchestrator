@@ -2,10 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 """Create issue and PR worktrees while preserving their unpushed commits.
 
-Both creators consult the local contribution before removing any checkout.
-PR restoration requires a fresh remote branch or an established absence, so a
-failed fetch cannot replace a live PR's work with the base. The anchoring owner
-handles branch movement after a caller has separately proved it is safe.
+Both creators work only the issue's current-layout branch and only a checkout
+proven the issue's own: any other branch, and a tree at the issue's path that
+stands on a flat, foreign, or detached HEAD, is refused before anything is
+removed, added, or reused (`naming.BranchRefused`). Over its own checkout a
+creator consults the local contribution before removing it. PR restoration
+requires a fresh remote branch or an established absence, so a failed fetch
+cannot replace a live PR's work with the base. The anchoring owner handles
+branch movement after a caller has separately proved it is safe.
 """
 from __future__ import annotations
 
@@ -14,7 +18,8 @@ from pathlib import Path
 
 from orchestrator.config import models as _config_models
 from orchestrator.git import branch_transport, commands, locks
-from orchestrator.git.worktrees import anchoring as _anchoring, naming as _naming, paths, recovery
+from orchestrator.git.worktrees import anchoring as _anchoring, evidence, naming as _naming, paths, recovery
+from orchestrator.git.worktrees.models import ProbeAnswer
 
 # The channel is named for the worktree-lifecycle domain rather than for
 # this module's path: operators filter the rendered
@@ -27,20 +32,64 @@ _WORKTREE_ADD = ("worktree", "add")
 _WORKTREE_REMOVE_FORCE = ("worktree", "remove", "--force")
 
 
+def _reused_checkout(
+    spec: _config_models.RepoSpec, issue_number: int, branch: str,
+) -> Path | None:
+    """The checkout at this issue's path when a creator keeps it, else None.
+
+    Asked under the target-root lock, before either creator adds anything. The
+    branch has to be the issue's current-layout name, which is what the live
+    resolver answers with; a caller handing anything else is refused here
+    rather than given a checkout on it. A tree already standing at the path is
+    read for its identity first (`evidence._checkout_identity`), because what
+    it carries is only this issue's work when it is a worktree of this clone on
+    exactly that branch: one on the flat `orchestrator/issue-<n>`, on another
+    repository's branch, or on a detached HEAD -- or one reached through a
+    symlink -- keeps every file and refuses the creator, however many commits
+    it holds past base, and so does one whose identity nothing could read.
+
+    Over its own checkout the unpushed work decides. Commits past base are what
+    let the orchestrator survive a crash between an agent committing and the
+    push -- without the reuse, the next tick would wipe the worktree and pay
+    for another run on the same prompt -- and a checkout with none is
+    force-removed so the creator starts from a current base.
+    """
+    current = _naming._branch_name(spec, issue_number)
+    if branch != current:
+        log.warning(
+            "issue=#%d was asked for a checkout on %r, which is not its "
+            "current branch %r; refusing it", issue_number, branch, current,
+        )
+        raise _naming.BranchRefused(f"issue #{issue_number} has no checkout on {branch!r}")
+    wt = paths._worktree_path(spec, issue_number)
+    if not wt.exists():
+        return None
+    identity = evidence._checkout_identity(spec, issue_number, wt)
+    if identity is not ProbeAnswer.CONFIRMED:
+        log.warning(
+            "issue=#%d checkout %s is not proven this issue's own on %r (%s); "
+            "refusing to reuse or remove it and leaving it for manual "
+            "disposition", issue_number, wt, current, identity,
+        )
+        raise _naming.BranchRefused(f"issue #{issue_number} has a checkout that is not its own")
+    if _has_new_commits(spec, wt):
+        log.info(
+            "issue=#%d worktree has unpushed commits; reusing", issue_number,
+        )
+        return wt
+    commands._git(*_WORKTREE_REMOVE_FORCE, str(wt), cwd=spec.target_root)
+    return None
+
+
 def _ensure_worktree(
-    spec: _config_models.RepoSpec, issue_number: int, *, branch: str | None = None,
+    spec: _config_models.RepoSpec, issue_number: int, *, branch: str,
 ) -> Path:
-    """Return a worktree on a per-issue branch, reusing one with unpushed work.
+    """Return a worktree on the issue's branch, reusing its own with unpushed work.
 
-    The reuse is what lets the orchestrator survive a crash between codex
-    committing and the orchestrator pushing -- without it, the next tick would
-    wipe the worktree and we'd burn another codex run on the same prompt.
-
-    `branch` overrides the default `_branch_name(spec, issue_number)`
-    derivation so callers can anchor on an already-pinned branch (e.g.
-    a legacy `orchestrator/issue-<n>` ref kept in pinned state when
-    slug-namespacing landed) instead of forcing the issue onto a new
-    branch and orphaning its existing PR.
+    `branch` is the one the live resolver answered with
+    (`naming._resolve_branch_name`), named by the caller so a record that
+    names no branch live work may use has already refused it there; anything
+    but the current-layout name is refused again here (`_reused_checkout`).
 
     All git operations target `spec.target_root` and therefore mutate the
     parent clone's `.git/config`. The per-target_root lock (see
@@ -50,21 +99,10 @@ def _ensure_worktree(
     """
     with locks._target_root_lock(spec.target_root):
         paths._repo_worktrees_root(spec).mkdir(parents=True, exist_ok=True)
+        reused = _reused_checkout(spec, issue_number, branch)
+        if reused is not None:
+            return reused
         wt = paths._worktree_path(spec, issue_number)
-        if branch is None:
-            branch = _naming._branch_name(spec, issue_number)
-
-        if wt.exists():
-            if _has_new_commits(spec, wt):
-                log.info(
-                    "issue=#%d worktree has unpushed commits; reusing",
-                    issue_number,
-                )
-                return wt
-            commands._git(
-                *_WORKTREE_REMOVE_FORCE, str(wt),
-                cwd=spec.target_root,
-            )
 
         branch_transport._authed_target_fetch(spec, spec.base_branch)
 
@@ -89,7 +127,7 @@ def _ensure_worktree(
 
 
 def _ensure_pr_worktree(
-    spec: _config_models.RepoSpec, issue_number: int, *, branch: str | None = None,
+    spec: _config_models.RepoSpec, issue_number: int, *, branch: str,
 ) -> Path:
     """Like `_ensure_worktree`, but restores the local branch from
     `origin/<branch>` when it is missing instead of branching from
@@ -126,26 +164,19 @@ def _ensure_pr_worktree(
     linked worktree CAN reach in the parent clone is why the anchor below
     hardens the operations that write there.
 
+    The branch and any checkout already at the issue's path are held to the
+    same rule as `_ensure_worktree`'s (`_reused_checkout`), so a restore only
+    ever rebuilds the issue's current-layout branch.
+
     Serialized by the per-target_root lock for the same `.git/config.lock`
     reason described on `_ensure_worktree`.
     """
     with locks._target_root_lock(spec.target_root):
         paths._repo_worktrees_root(spec).mkdir(parents=True, exist_ok=True)
+        reused = _reused_checkout(spec, issue_number, branch)
+        if reused is not None:
+            return reused
         wt = paths._worktree_path(spec, issue_number)
-        if branch is None:
-            branch = _naming._branch_name(spec, issue_number)
-
-        if wt.exists():
-            if _has_new_commits(spec, wt):
-                log.info(
-                    "issue=#%d worktree has unpushed commits; reusing",
-                    issue_number,
-                )
-                return wt
-            commands._git(
-                *_WORKTREE_REMOVE_FORCE, str(wt),
-                cwd=spec.target_root,
-            )
 
         # Fetch both base and the PR's remote branch so either path
         # below has a fresh ref to anchor on. The base fetch decides

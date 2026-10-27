@@ -97,6 +97,7 @@ class AgentLifecycleEventEmissionTest(unittest.TestCase, support._PatchedWorkflo
         gh.seed_state(
             2,
             pr_number=support._REVIEW_PR_NUMBER,
+            branch=pr.head_branch,
             review_round=1,
             retry_count=2,
         )

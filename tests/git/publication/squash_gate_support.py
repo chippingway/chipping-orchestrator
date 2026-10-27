@@ -232,10 +232,9 @@ def _squash_gate(fixture, seed: PublicationSeed):
         issue.number,
         pr_number=seed.pinned_number or SQUASH_PR_NUMBER,
         # Persisted beside the number, as every publication that opens a pull
-        # request persists it: a record naming one without the other is the
-        # legacy shape, where the branch resolver answers with the pre-slug
-        # ref -- and a fixture that seeded that while putting the pull request
-        # on a slug-namespaced branch would be a record no tick can produce.
+        # request persists it: a record naming one without the other names no
+        # branch the resolver lets live work use, so no tick past the gate
+        # could stand on it.
         branch=fixture.branch,
     )
     return _late_records._gate(

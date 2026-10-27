@@ -25,6 +25,7 @@ from orchestrator.git.base_sync.models import _AutoRebaseRequest
 from orchestrator.git.verification import probes as _probes
 from orchestrator.git.worktrees import (
     creation as _worktree_creation,
+    naming as _naming,
     paths as _worktree_paths,
 )
 from orchestrator.workflow.engine import base_refresh as _base_refresh, base_rewrite as _base_rewrite, dispatch_guards
@@ -34,6 +35,10 @@ from tests.workflow.fixtures import _FAKE_WT, _TEST_SPEC
 ISSUE = 7
 
 PR_NUMBER = 42
+
+# The issue's current-layout branch, which the pull request stands on and the
+# pinned record names beside it.
+BRANCH = _naming._branch_name(_TEST_SPEC, ISSUE)
 
 ANCHOR = "be40e5ba" * 5
 
@@ -87,7 +92,7 @@ def _walks(gh: FakeGitHubClient, checkout: Path) -> None:
     """
     gh.add_pr(FakePR(
         number=PR_NUMBER,
-        head_branch="orchestrator/acme__widget/issue-7",
+        head_branch=BRANCH,
         head=FakePRRef(sha=ANCHOR),
     ))
     with patch.object(
@@ -129,7 +134,7 @@ class _InterruptedRebaseCase(unittest.TestCase):
         self.gh.seed_state(
             ISSUE,
             pr_number=PR_NUMBER,
-            branch="orchestrator/acme__widget/issue-7",
+            branch=BRANCH,
             pending_auto_base_rebase_push_sha=ANCHOR,
             pending_auto_base_rebase_rewrite_pr=PR_NUMBER,
             pending_auto_base_rebase_rewrite_stage=str(VALIDATING),
@@ -191,7 +196,7 @@ class DeferredRecoveryTest(_InterruptedRebaseCase):
 
     def test_without_one_the_handler_runs(self) -> None:
         # What says the stop above is the anchor's and nothing else's.
-        self.gh.seed_state(ISSUE, pr_number=PR_NUMBER)
+        self.gh.seed_state(ISSUE, pr_number=PR_NUMBER, branch=BRANCH)
 
         self.assertFalse(self._stops())
 

@@ -150,10 +150,11 @@ _OWNER_ONLY_NAMES = (
 
 # Every name the owners define, paired with the owner that defines it: the slug
 # pattern and the digest math behind it, the two sanitizers, the branch, root,
-# and worktree-path derivations, the pinned / legacy resolver, and the
-# `issue-<n>` read that runs back the other way, the candidate-branch and
-# commit-count reads behind the unpushed-commit probe, the two creators, the
-# new-commit probe, the reported fetch and the start point a restore picks, the
+# and worktree-path derivations, the live resolver with the pinned keys it
+# reads, its non-raising reading, and the refusal it raises, and the
+# `issue-<n>` read that runs back the other way, the commit-count read behind
+# the unpushed-commit probe, the two creators and the ownership gate they
+# share, the new-commit probe, the reported fetch and the start point a restore picks, the
 # handoff anchor with the target choice, the ref move, and the revision read
 # under it, and the `worktree` argv they run, the decomposer's path, creation,
 # and removal, the per-issue removal and local branch deletion with the
@@ -196,6 +197,7 @@ _OWNER_DEFINED = (
     ("ArtifactInventory", _CANDIDATES),
     ("ArtifactVerdict", _MODELS),
     ("AttributedIssues", _ATTRIBUTION),
+    ("BranchRefused", _NAMING),
     ("BranchTip", _MODELS),
     ("CandidateKey", _DISCOVERY),
     ("CandidateLayout", _CANDIDATES),
@@ -232,6 +234,8 @@ _OWNER_DEFINED = (
     ("_ORCHESTRATOR_BRANCH_REFS", _BRANCH_PROBES),
     ("_ORCHESTRATOR_REMOTE_REFS", _REMOTE_INVENTORY),
     ("_OUTCOMES", _MAINTENANCE_RESULTS),
+    ("_PINNED_BRANCH", _NAMING),
+    ("_PINNED_PR", _NAMING),
     ("_QUESTION_PREFIX", _TERMINAL),
     ("_QUIET_PERIOD_SECONDS", _MAINTENANCE_GUARDS),
     ("_REF_DELETE", _RECLAIM),
@@ -266,7 +270,6 @@ _OWNER_DEFINED = (
     ("_branch_reasons", _RETENTION_TIPS),
     ("_branch_retentions", _RETENTION_TIPS),
     ("_branch_tip", _RETENTION_TIPS),
-    ("_candidate_issue_branches", _RECOVERY),
     ("_candidate_keys", _DISCOVERY),
     ("_candidate_layout", _CANDIDATE_LAYOUT),
     ("_candidate_order", _DISCOVERY),
@@ -317,7 +320,6 @@ _OWNER_DEFINED = (
     ("_kept_subject", _MAINTENANCE),
     ("_keyed_candidate", _DISCOVERY),
     ("_last_touched", _ACTIVITY_EVIDENCE),
-    ("_legacy_branch_name", _NAMING),
     ("_local_branch_tip", _TIP_EVIDENCE),
     ("_local_issue_inventory", _INVENTORY),
     ("_local_orchestrator_branches", _BRANCH_PROBES),
@@ -340,6 +342,7 @@ _OWNER_DEFINED = (
     ("_read_orchestrator_refs", _BRANCH_PROBES),
     ("_read_state", _CLAIMS),
     ("_reclaimed", _MAINTENANCE),
+    ("_reused_checkout", _CREATION),
     ("_record_attribution", _ATTRIBUTION),
     ("_recorded_branch", _TERMINAL),
     ("_recorded_pull_request", _CLAIMS),
@@ -376,6 +379,7 @@ _OWNER_DEFINED = (
     ("_take_remote_branch", _BRANCH_REMOVAL),
     ("_terminal_retentions", _CLAIMS),
     ("_tip_retentions", _RETENTION_TIPS),
+    ("_trusted_branch", _NAMING),
     ("_unanchorable_branch_reading", _ANCHORING),
     ("_widened", _DISCOVERY),
     ("_workflow_members", _CLAIMS),
@@ -395,7 +399,7 @@ _REPORTING_OWNERS = (
     _ANCHORING,
     _ATTRIBUTION, _BRANCH_PROBES, _CHECKOUT_ATTRIBUTION, _CLAIMS, _CLEANUP,
     _COMMIT_CLAIMS, _CREATION, _DECOMPOSITION, _EVIDENCE,
-    _MAINTENANCE, _PROBES, _RECLAIM, _TERMINAL,
+    _MAINTENANCE, _NAMING, _PROBES, _RECLAIM, _TERMINAL,
     _INVENTORY_ROOTS, _REMOTE_INVENTORY,
 )
 

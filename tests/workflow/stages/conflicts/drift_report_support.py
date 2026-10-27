@@ -29,6 +29,7 @@ from types import MappingProxyType
 from unittest.mock import MagicMock, patch
 
 from orchestrator.git.measurement.models import FrozenCommit, MeasurementFailure
+from orchestrator.git.worktrees import evidence as _evidence, models as _worktree_models
 from orchestrator.observability.usage.agy_events import ToolLifecycle
 from orchestrator.workflow.engine import (
     base_refresh as _base_refresh,
@@ -223,12 +224,16 @@ class _ConflictDriftReportMixin(_drift_world._DriftReportMixin):
     def refreshes(self) -> MagicMock:
         """The per-tick base refresh over this issue's checkout, the base one commit ahead of it.
 
-        What it hands the rewrite route is answered by the double handed back,
-        so a case reads whether the refresh would have rebased and pushed.
+        The checkout is proven the issue's own, so the refresh's own identity
+        check lets it through to the route. What it hands the rewrite route is
+        answered by the double handed back, so a case reads whether the
+        refresh would have rebased and pushed.
         """
         rewrite = MagicMock()
+        own_checkout = MagicMock(return_value=_worktree_models.ProbeAnswer.CONFIRMED)
         with (
             seam_patch("_git", MagicMock(return_value=_BEHIND_BASE)),
+            patch.object(_evidence, "_checkout_identity", own_checkout),
             patch.object(_base_rewrite, "_sync_pr_worktree_to_base", rewrite),
         ):
             _base_refresh._sync_claimed_worktree(

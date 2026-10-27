@@ -11,6 +11,7 @@ from tests.git.base_sync.sync_test_support import (
     _diverged,
     _git_result,
     _patch_base_sync,
+    _stated_identity,
 )
 from tests.support.fakes import (
     FakeComment,
@@ -201,6 +202,7 @@ class _SyncWorktreeWithBaseFixture:
         self.wt = Path("/tmp/refresh-wt")
         self.gh = FakeGitHubClient()
         self.gh.add_issue(make_issue(ISSUE, label=LABEL_IMPLEMENTING))
+        _stated_identity(self)
         from tests.git.base_sync.gate_reads_support import _gate_reads
 
         _gate_reads(self)

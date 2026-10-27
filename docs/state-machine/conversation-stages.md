@@ -110,10 +110,11 @@ the per-issue checkout only has to survive a tick when an unsafe park keeps it f
   (`find_pr_for_commit`, the same lookup the publication's own recovery uses) and what comes back decides: a MERGED or
   CLOSED one is finalized here exactly as a recorded one is, with `pr_number` and `branch` written first because the
   event names one and the cleanup resolves the branch from the other. That branch is resolved ONCE, before either is
-  set, and the same value serves the lookup and the reap: `_resolve_branch_name` falls back to the pre-namespace
-  `orchestrator/issue-N` whenever it finds a `pr_number` with no `branch` beside it, so a branch worked out after the
-  recovered number was written would name a ref this stage never pushed and leave the real local and remote branches
-  standing. An OPEN one holds the tick exactly as a recorded
+  set, and the same value serves the lookup and the reap: `_resolve_branch_name` refuses a record carrying a
+  `pr_number` with no `branch` beside it ([branch refusal](labels-and-state.md#branch-refusal)), so a branch worked out
+  after the recovered number was written would stop the finalize instead of naming the ref this stage pushed. A record
+  the resolver refuses up front stops here with nothing written; with no marker standing, the close is finalized as the
+  pre-PR ending without resolving the branch at all. An OPEN one holds the tick exactly as a recorded
   open one does, label and checkout intact; and a lookup GitHub declined decides nothing and is asked again next tick.
   Only "no pull request carries that commit" — a push that never landed, or a tick that died before it — reaches the
   pre-PR ending above. Taken for a discussion that never published, an open one would be flipped out of the sweep with
@@ -310,9 +311,10 @@ the per-issue checkout only has to survive a tick when an unsafe park keeps it f
   the implementing handoff has retired the path record, so its merged-PR terminal does not take a plan being agreed to
   for work having landed, and asking GitHub is what makes that answer right even for a tick that pushed onto the same PR
   and died before recording it),
-  `branch` (so a later checkout is restored from the ref the PR is open against rather than
-  the legacy name), and the round anchor moved onto the published tip — the branch's new position is exactly what
-  this stage now vouches for, and an anchor left behind would have the implementing relabel guard convict the branch
+  `branch` (so a later checkout is restored from the ref the PR is open against: a recorded number with no branch
+  beside it is a record the live resolver refuses), and the round anchor moved onto the published tip — the branch's
+  new position is exactly what this stage now vouches for, and an anchor left behind would have the implementing
+  relabel guard convict the branch
   of the commit this stage just published.
 - **Disposition** (in order): a launch that never became a process (`invoked=False` — the agent-run circuit refused
   it) is declined first of all, ahead of the pause and every reading under it: no head, tree, or reply below is

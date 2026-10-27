@@ -203,6 +203,9 @@ def _dispose_implementing_drift(
 def _resume_dev_on_implementing_drift(
     gh: _client.GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: _pinned_state.PinnedState,
 ) -> None:
+    # Resolved ahead of the notice, so a record naming no branch live work may
+    # use is refused before anything is said or run.
+    branch = _naming._resolve_branch_name(state, spec, issue.number)
     _comments._post_issue_comment(
         gh, issue, state,
         ":pencil2: issue body changed; resuming dev session with "
@@ -210,10 +213,7 @@ def _resume_dev_on_implementing_drift(
     )
     drift = _run_implementing_drift_resume(gh, spec, issue, state)
     state.set("last_agent_action_at", _usage._now_iso())
-    state.set(
-        _BRANCH,
-        _naming._resolve_branch_name(state, spec, issue.number),
-    )
+    state.set(_BRANCH, branch)
     _dispose_implementing_drift(gh, spec, issue, state, drift)
 
 

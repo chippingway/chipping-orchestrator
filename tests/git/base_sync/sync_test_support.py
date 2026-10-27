@@ -7,14 +7,14 @@ from __future__ import annotations
 import contextlib
 import subprocess
 from types import MappingProxyType
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from orchestrator.git import branch_transport, commands
 from orchestrator.git.base_sync import pre_pr
 from orchestrator.git.measurement import commits as _measurement_commits
 from orchestrator.git.publication import probes as publication_probes
 from orchestrator.git.verification import probes as verification_probes, status as _worktree_status
-from orchestrator.git.worktrees import paths
+from orchestrator.git.worktrees import evidence, models as _worktree_models, paths
 from orchestrator.workflow.engine import base_refresh
 
 
@@ -50,6 +50,7 @@ _BASE_SYNC_TARGETS = MappingProxyType(
         "target_fetch": (branch_transport, "_authed_target_fetch"),
         "worktrees_root": (paths, "_repo_worktrees_root"),
         "sync": (base_refresh, "_sync_worktree_with_base"),
+        "identity": (evidence, "_checkout_identity"),
     }
 )
 
@@ -59,12 +60,32 @@ def _patch_base_sync(**mocks):
     """Patch the base-sync collaborators named by keyword alias for the
     block. Aliases resolve to the module that reads them via
     `_BASE_SYNC_TARGETS`; each value is the object installed in its place.
-    Only the named collaborators are patched."""
+    Only the named collaborators are patched, save the checkout's ownership
+    read, which answers CONFIRMED unless a case names `identity`: the
+    checkout these cases sync is no real worktree at a layout path and the
+    git under it is faked, so its answer is stated rather than read."""
+    mocks.setdefault("identity", MagicMock(return_value=_worktree_models.ProbeAnswer.CONFIRMED))
     with contextlib.ExitStack() as stack:
         for alias, mock in mocks.items():
             module, attribute = _BASE_SYNC_TARGETS[alias]
             stack.enter_context(patch.object(module, attribute, mock))
         yield
+
+
+def _stated_identity(test_case) -> None:
+    """Answer the checkout's ownership read as the issue's own for the whole case.
+
+    The refresh asks it before a fresh rebase, and a fixture whose checkout is
+    no real worktree at a layout path under `WORKTREES_DIR` -- a fake one, or
+    a directory of the fixture's own the issue's path is resolved to -- has
+    nothing to prove it by, so the answer is stated rather than read.
+    """
+    stated = patch.object(
+        evidence, "_checkout_identity",
+        MagicMock(return_value=_worktree_models.ProbeAnswer.CONFIRMED),
+    )
+    stated.start()
+    test_case.addCleanup(stated.stop)
 
 
 def _diverged(ahead: int, behind: int, *, tip: str = "remote-sha"):

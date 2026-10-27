@@ -229,6 +229,7 @@ class AgentAnalyticsTest(unittest.TestCase, _PatchedWorkflowMixin):
         scenario.github.seed_state(
             _REVIEW_ISSUE_NUMBER,
             pr_number=_REVIEW_PR_NUMBER,
+            branch=pull_request.head_branch,
             review_round=2,
             retry_count=3,
         )

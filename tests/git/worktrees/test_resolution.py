@@ -1,163 +1,102 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Pinned and legacy branch resolution, and the one name an issue owns."""
+"""The live branch resolver: the one name an issue owns, or a refusal."""
 
 from __future__ import annotations
 
 import unittest
 
 from orchestrator.git.worktrees import naming as _naming
+from orchestrator.github import pinned_refusal as _pinned_refusal
 from tests.git.worktrees.path_test_support import (
+    ALICE_REPO_SLUG,
     BRANCH_KEY,
     LEGACY_BRANCH,
     NAMESPACED_BRANCH,
     PR_NUMBER,
+    _branch,
     _migration_spec,
     _state,
 )
 
 PR_NUMBER_KEY = "pr_number"
+ISSUE_NUMBER = 7
+
+# Records that name no branch live work may use, each beside the pull request
+# a refusal has to hold still. The recorded pull request with no branch is the
+# one an earlier resolver read as the flat `orchestrator/issue-<n>`; the rest
+# are pins an `orchestrator/` prefix, a flat name, or a stray value would once
+# have been honored on, or replaced with the derived name.
+_REFUSED_RECORDS = (
+    ("a pull request with no branch beside it", {PR_NUMBER_KEY: PR_NUMBER}),
+    ("the flat branch beside a pull request", {PR_NUMBER_KEY: PR_NUMBER, BRANCH_KEY: LEGACY_BRANCH}),
+    ("the flat branch alone", {BRANCH_KEY: LEGACY_BRANCH}),
+    ("another repository's branch", {BRANCH_KEY: _branch(ALICE_REPO_SLUG, ISSUE_NUMBER)}),
+    ("another issue's branch", {BRANCH_KEY: NAMESPACED_BRANCH.replace("issue-7", "issue-8")}),
+    ("a name extending the current one", {BRANCH_KEY: f"{NAMESPACED_BRANCH}-candidate"}),
+    ("a branch outside the namespace", {BRANCH_KEY: "feature/foreign-branch"}),
+    ("an empty pin", {BRANCH_KEY: ""}),
+    ("a pin that is no string", {BRANCH_KEY: PR_NUMBER}),
+    ("a pin that is a list", {BRANCH_KEY: [NAMESPACED_BRANCH]}),
+)
 
 
-class ResolveBranchNamePinnedTest(unittest.TestCase):
-    """In-flight issues that were already in the orchestrator before
-    branches were slug-namespaced have `state["branch"]` pinned to the
-    legacy `orchestrator/issue-<n>` value and a live PR open against
-    that head. `_resolve_branch_name` honors the pinned value so the
-    orchestrator stays anchored on the existing PR -- otherwise we
-    would (a) fail to find the PR by branch on lookup, (b) push to a
-    brand-new slug-namespaced branch, and (c) orphan the original.
-    Fresh issues with no pinned branch fall back to the new namespaced
-    form so the cross-repo collision the slug-namespacing fixes does
-    not regress for new work.
+class ResolveBranchNameTest(unittest.TestCase):
+    """Fresh work and a pinned current branch get the issue's own name."""
+
+    def test_fresh_work_takes_the_current_layout(self) -> None:
+        # Nothing pinned and no pull request recorded is the one record a name
+        # is derived for, and the name is the one artifact ownership owns, so a
+        # reclamation never refuses what a publication just made.
+        spec = _migration_spec()
+        for fresh in ({}, {BRANCH_KEY: None}):
+            with self.subTest(record=fresh):
+                self.assertEqual(
+                    _naming._resolve_branch_name(_state(fresh), spec, ISSUE_NUMBER),
+                    NAMESPACED_BRANCH,
+                )
+        self.assertEqual(_naming._branch_name(spec, ISSUE_NUMBER), NAMESPACED_BRANCH)
+
+    def test_a_pinned_current_branch_round_trips(self) -> None:
+        spec = _migration_spec()
+        for pinned in (
+            {BRANCH_KEY: NAMESPACED_BRANCH},
+            {BRANCH_KEY: NAMESPACED_BRANCH, PR_NUMBER_KEY: PR_NUMBER},
+        ):
+            with self.subTest(record=pinned):
+                self.assertEqual(
+                    _naming._resolve_branch_name(_state(pinned), spec, ISSUE_NUMBER),
+                    NAMESPACED_BRANCH,
+                )
+                self.assertEqual(
+                    _naming._trusted_branch(_state(pinned), spec, ISSUE_NUMBER),
+                    NAMESPACED_BRANCH,
+                )
+
+
+class BranchRefusalTest(unittest.TestCase):
+    """A record naming no branch live work may use is refused, never replaced.
+
+    No flat name is inferred from a recorded pull request, no `orchestrator/`
+    prefix stands in for the exact name, and no derived name is substituted
+    for a pin: each would point a checkout, a launch, or a push at a branch the
+    record never named. The refusal is the record refusal the dispatcher
+    abandons a handler on, and it is said once on the lifecycle channel.
     """
 
-    def test_pinned_legacy_branch_is_honored(self) -> None:
+    def test_every_untrustworthy_record_is_refused(self) -> None:
+        self.assertTrue(issubclass(_naming.BranchRefused, _pinned_refusal.RecordRefused))
         spec = _migration_spec()
-        state = _state({BRANCH_KEY: LEGACY_BRANCH})
-        self.assertEqual(
-            _naming._resolve_branch_name(state, spec, 7),
-            LEGACY_BRANCH,
-        )
-
-    def test_no_pinned_uses_namespaced_default(self) -> None:
-        spec = _migration_spec()
-        state = _state({})
-        self.assertEqual(
-            _naming._resolve_branch_name(state, spec, 7),
-            NAMESPACED_BRANCH,
-        )
-
-    def test_outside_namespace_pin_is_ignored(
-        self,
-    ) -> None:
-        # A corrupted / foreign pinned `branch` value must not redirect
-        # the resolver at an arbitrary ref outside the namespace this
-        # orchestrator publishes under.
-        spec = _migration_spec()
-        state = _state({BRANCH_KEY: "feature/foreign-branch"})
-        self.assertEqual(
-            _naming._resolve_branch_name(state, spec, 7),
-            NAMESPACED_BRANCH,
-        )
-
-    def test_pinned_namespaced_branch_round_trips(self) -> None:
-        # Once the resolver computed and persisted the new form, a later
-        # tick honors it unchanged.
-        spec = _migration_spec()
-        state = _state(
-            {
-                BRANCH_KEY: "orchestrator/chippingway__chipping-orchestrator/issue-9",
-            }
-        )
-        self.assertEqual(
-            _naming._resolve_branch_name(state, spec, 9),
-            "orchestrator/chippingway__chipping-orchestrator/issue-9",
-        )
-
-    def test_non_string_pinned_branch_falls_back(self) -> None:
-        spec = _migration_spec()
-        for bad in (None, PR_NUMBER, [LEGACY_BRANCH]):
-            state = _state({BRANCH_KEY: bad})
-            self.assertEqual(
-                _naming._resolve_branch_name(state, spec, 7),
-                NAMESPACED_BRANCH,
-                f"bad pinned value {bad!r} did not fall back",
-            )
-
-
-class ResolveBranchNamePrMigrationTest(unittest.TestCase):
-    def test_unpinned_legacy_pr_uses_legacy_ref(self) -> None:
-        # Pre-slug-namespacing in-flight PR: pinned state recorded
-        # `pr_number` but no `branch` (the early implementations did
-        # not always persist `branch`). The live PR head is on the
-        # legacy `orchestrator/issue-N` ref because that is the only
-        # form the orchestrator ever produced before this change. The
-        # resolver MUST infer that ref so the next tick anchors on
-        # the existing PR; without the fallback it would target the
-        # new slug-namespaced branch, push there, open a duplicate
-        # PR, and orphan the original.
-        spec = _migration_spec()
-        state = _state({PR_NUMBER_KEY: PR_NUMBER})
-        self.assertEqual(
-            _naming._resolve_branch_name(state, spec, 7),
-            LEGACY_BRANCH,
-        )
-
-    def test_pinned_legacy_pr_honors_pin(self) -> None:
-        # Belt-and-suspenders: a legacy in-flight PR that DID persist
-        # `branch` (the consistent half of the pre-slug-namespacing
-        # behavior) is still resolved via the pinned value, not via
-        # the pr_number fallback -- the two cases agree on the legacy
-        # form, but the pinned-value path is more specific.
-        spec = _migration_spec()
-        state = _state(
-            {
-                PR_NUMBER_KEY: PR_NUMBER,
-                BRANCH_KEY: LEGACY_BRANCH,
-            }
-        )
-        self.assertEqual(
-            _naming._resolve_branch_name(state, spec, 7),
-            LEGACY_BRANCH,
-        )
-
-    def test_fresh_pr_namespaced_pin_wins(self) -> None:
-        # A PR opened AFTER slug-namespacing landed has both
-        # `pr_number` and the namespaced `branch` set. The
-        # pr_number-fallback must not override the pinned value, or
-        # every new PR would silently route through the legacy ref.
-        spec = _migration_spec()
-        state = _state(
-            {
-                PR_NUMBER_KEY: PR_NUMBER,
-                BRANCH_KEY: NAMESPACED_BRANCH,
-            }
-        )
-        self.assertEqual(
-            _naming._resolve_branch_name(state, spec, 7),
-            NAMESPACED_BRANCH,
-        )
-
-
-class OwnedBranchNameTest(unittest.TestCase):
-    """The one name artifact ownership recognizes is the one fresh work uses.
-
-    Cleanup owners delete a branch only when it is `_branch_name` exactly, so
-    the two are one fact: a fresh issue's branch the resolver would publish on
-    has to be that name, or a reclamation refuses to delete what the
-    publication just made.
-    """
-
-    def test_the_resolver_publishes_the_owned_name(self) -> None:
-        spec = _migration_spec()
-
-        self.assertEqual(
-            _naming._resolve_branch_name(_state(), spec, 7),
-            _naming._branch_name(spec, 7),
-        )
-        self.assertEqual(_naming._branch_name(spec, 7), NAMESPACED_BRANCH)
-
+        for described, record in _REFUSED_RECORDS:
+            state = _state(record)
+            with self.subTest(record=described), self.assertLogs(_naming.log, level="WARNING") as logged:
+                self.assertRaises(
+                    _naming.BranchRefused,
+                    _naming._resolve_branch_name, state, spec, ISSUE_NUMBER,
+                )
+                self.assertIn(repr(record.get(BRANCH_KEY)), logged.output[0])
+            self.assertIsNone(_naming._trusted_branch(state, spec, ISSUE_NUMBER))
+            self.assertEqual(state.data, record, described)
 
 if __name__ == "__main__":
     unittest.main()

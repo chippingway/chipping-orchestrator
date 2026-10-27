@@ -95,7 +95,6 @@ from pathlib import Path
 from orchestrator import config
 from orchestrator.agents.models import AgentResult
 from orchestrator.git.verification import probes as _verification_probes
-from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
 from orchestrator.workflow.engine import (
     comments as _comments,
     messages as _messages,
@@ -105,6 +104,7 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.stages.implementing import (
     resume as _dev_resume,
     resume_request as _dev_resume_request,
+    worktree as _dev_worktree,
 )
 from orchestrator.workflow.stages.validating import models as _models, recovery as _recovery, state as _state
 
@@ -317,15 +317,7 @@ def _resume_awaiting_dev_agent(
 def _run_awaiting_dev(
     context: _models._AwaitingValidation, continue_action: str,
 ) -> _models._AwaitingDevAttempt | None:
-    worktree = _worktree_paths._worktree_path(context.spec, context.issue.number)
-    if not worktree.exists():
-        worktree = _worktree_creation._ensure_worktree(
-            context.spec,
-            context.issue.number,
-            branch=_naming._resolve_branch_name(
-                context.state, context.spec, context.issue.number,
-            ),
-        )
+    worktree = _dev_worktree._ensure_resume_worktree(context.spec, context.issue, context.state)
     before_sha = _verification_probes._head_sha(worktree)
     resumed = _resume_awaiting_dev_agent(context, continue_action)
     if resumed is None:

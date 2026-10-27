@@ -80,6 +80,18 @@ class ExactCommitReconciliationTest(_PrStateCase, unittest.TestCase):
         self.assertEqual(outcome.disposition, _LateDisposition.SETTLED)
         self.assertEqual(self._pinned().get(_support.KEY_PR_NUMBER), _support.CARRYING_PR_NUMBER)
 
+    def test_a_fresh_record_pins_the_carrying_branch(self) -> None:
+        # The same pull request found for a record that pinned no branch yet:
+        # the number goes down with the branch it was looked up on, since a
+        # number alone is a record every later tick's resolver refuses.
+        self.github.seed_state(self.issue.number, **generation_state(late_generation()))
+        self._add_pr(_support.CARRYING_PR_NUMBER, merged=True, carries=CANDIDATE_SHA)
+
+        self.assertEqual(self._settle().disposition, _LateDisposition.SETTLED)
+        pinned = self._pinned()
+        self.assertEqual(pinned.get(_support.KEY_PR_NUMBER), _support.CARRYING_PR_NUMBER)
+        self.assertEqual(pinned.get(_support.KEY_BRANCH), _support.CANDIDATE_BRANCH)
+
     def test_a_settled_recorded_pr_is_dropped(self) -> None:
         # Carried into the implementing stage, a merged pull request that is
         # not the plan ends the issue as done -- on a change the adjudicated

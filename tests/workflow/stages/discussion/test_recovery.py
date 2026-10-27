@@ -75,10 +75,10 @@ class DiscussionMissingWorktreeRecoveryTest(
         self.assertTrue(pinned_data[KEY_AWAITING_HUMAN])
 
     def test_the_recorded_branch_is_the_one_probed(self) -> None:
-        # The round opens on `_resolve_branch_name`, which honours a pinned
-        # legacy ref. Deriving the namespaced name here instead would read a
-        # branch the round never touched -- unchanged, while the commit it
-        # made sits on the branch it did.
+        # The tip is read off the branch the anchor records, which the flat
+        # spelling here tells apart from the derived name. Deriving the
+        # namespaced name instead would read a branch the anchor never named
+        # -- unchanged, while the commit sits on the branch it did name.
         gh, issue = _support._seed_discussion(_LEGACY_ANCHOR_ISSUE_NUMBER)
         anchored_branch = _support._issue_branch(issue.number, legacy=True)
         gh.seed_state(

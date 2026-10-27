@@ -28,6 +28,7 @@ from tests.workflow.fixtures import (
     LABEL_IMPLEMENTING,
     LABEL_QUESTION,
     LABEL_VALIDATING,
+    _issue_branch,
     _open_pr_for,
     publishes_the_report,
 )
@@ -95,7 +96,7 @@ ROADS = (
         run_stage=_validating._handle_validating,
         seed={
             "pr_number": _REVIEW_PR_NUMBER,
-            "branch": f"orchestrator/issue-{_REVIEWER_ISSUE_NUMBER}",
+            "branch": _issue_branch(_REVIEWER_ISSUE_NUMBER),
             "review_round": 0,
         },
         unclean=_LEFTOVER_TREE,

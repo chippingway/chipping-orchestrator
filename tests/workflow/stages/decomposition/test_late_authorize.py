@@ -307,11 +307,15 @@ class PublishedCandidateTest(_authorize_case._AuthorizeCase):
     The road where the settlement itself pushes: this tick is the last one
     holding the head the reading was frozen at, so the branch is put where the
     verdict said it may go and the issue goes back to the stage the gate took
-    it out of rather than to `implementing`.
+    it out of rather than to `implementing`. The branch that pull request is
+    open on is pinned, as the handoff which opened it wrote it.
     """
 
     def setUp(self) -> None:
-        self._park(generation=published_generation())
+        self._park(
+            generation=published_generation(),
+            branch=_stage_support.PUBLISHED_BRANCH,
+        )
         seed_published_pr(self.github)
         self._command()
 

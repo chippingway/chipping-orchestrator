@@ -21,6 +21,7 @@ from orchestrator.workflow.stages.validating import (
 )
 from tests.workflow.stages.fixing import (
     fixing_routing_test_support as routing_support,
+    fixing_test_support as _fixing_support,
 )
 
 BACKEND_CLAUDE = routing_support.BACKEND_CLAUDE
@@ -83,14 +84,14 @@ class _FixingWorktreeDriftFixtureMixin:
         gh.add_issue(issue)
         pr = FakePR(
             number=DRIFT_PR_NUMBER_OFFSET + number,
-            head_branch=f"orchestrator/issue-{number}",
+            head_branch=_fixing_support._branch(number),
             head=FakePRRef(sha=DRIFT_PR_HEAD),
             state=STATE_OPEN,
         )
         gh.add_pr(pr)
         state = {
             "pr_number": pr.number,
-            "branch": f"orchestrator/issue-{number}",
+            "branch": pr.head_branch,
             "dev_agent": BACKEND_CLAUDE,
             "dev_session_id": DEV_SESSION,
             "awaiting_human": True,

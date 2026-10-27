@@ -294,10 +294,11 @@ def _open_pull_request_retentions(
     miss. The reported ones are what this host actually holds. The issue's
     current-layout name is added whether or not the host still has it: a
     candidate found by its checkout alone still has a branch a pull request
-    can stand on. And the branch the pinned state resolves to is added on top,
-    since a record can name a branch that derivation does not produce. That
-    name owns nothing here -- the teardown spends only the current one -- and
-    asking about it can only keep a candidate, never clear one.
+    can stand on. And the branch the pinned state names is added on top, as
+    the record spells it, since a record can name a branch that derivation
+    does not produce and the live resolver refuses. That name owns nothing
+    here -- the teardown spends only the current one -- and asking about it
+    can only keep a candidate, never clear one.
 
     No base is named, so what comes back is a pull request open from this
     branch to ANY base. The question is whether anybody is still standing on
@@ -310,10 +311,10 @@ def _open_pull_request_retentions(
     unanswered question about one branch says nothing about the others, and
     the operator has to be told which branch nobody could answer for.
     """
-    asked = set(branches) | {
-        _naming._branch_name(spec, issue_number),
-        _naming._resolve_branch_name(state, spec, issue_number),
-    }
+    asked = set(branches) | {_naming._branch_name(spec, issue_number)}
+    pinned = state.get(_naming._PINNED_BRANCH)
+    if isinstance(pinned, str) and pinned:
+        asked.add(pinned)
     retentions = _recorded_pull_request(gh, state)
     for branch in sorted(asked):
         try:

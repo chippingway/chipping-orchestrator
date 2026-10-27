@@ -29,16 +29,14 @@ def _ensure_conflict_worktree(ctx: _models._ConflictContext) -> Path:
 
     The PR-aware `_ensure_pr_worktree` (not `_ensure_worktree`) rebuilds from
     the PR branch so the PR's commits survive; `_ensure_worktree` would
-    silently rebuild from `origin/<base>` and discard them.
+    silently rebuild from `origin/<base>` and discard them. The branch is
+    resolved first, so a record naming no branch live work may use is refused
+    whether or not the checkout is still on disk.
     """
+    branch = _naming._resolve_branch_name(ctx.state, ctx.spec, ctx.issue.number)
     wt = _worktree_paths._worktree_path(ctx.spec, ctx.issue.number)
     if not wt.exists():
-        wt = _worktree_creation._ensure_pr_worktree(
-            ctx.spec, ctx.issue.number,
-            branch=_naming._resolve_branch_name(
-                ctx.state, ctx.spec, ctx.issue.number,
-            ),
-        )
+        wt = _worktree_creation._ensure_pr_worktree(ctx.spec, ctx.issue.number, branch=branch)
     return wt
 
 

@@ -15,6 +15,7 @@ from tests.git.worktrees.recovery_test_support import (
     GIT_UPDATE_REF,
     REAL_GIT_SLUG,
     GitBranchFixture,
+    _flat_branch,
     _seed_branch_fixture,
     _temp_root,
 )
@@ -23,14 +24,11 @@ from tests.support.git import (
     _seed_target_root,
     _spec_for,
 )
-from tests.workflow.stages.question.question_test_support import (
-    _issue_branch,
-    _legacy_branch,
-)
+from tests.workflow.stages.question.question_test_support import _issue_branch
 
 MISSING_BRANCH_ISSUE_NUMBER = 700
 AHEAD_BRANCH_ISSUE_NUMBER = 702
-LEGACY_BRANCH_ISSUE_NUMBER = 704
+FLAT_BRANCH_ISSUE_NUMBER = 704
 DUAL_BRANCH_ISSUE_NUMBER = 705
 
 
@@ -120,71 +118,38 @@ class BranchHasUnpushedCommitsRealGitTest(unittest.TestCase):
                 recovery._branch_has_unpushed_commits(spec, issue_number),
             )
 
-    def test_detects_legacy_issue_branch_commits(
-        self,
-    ) -> None:
-        # Regression: a pre-slug-namespacing `question_commits` park
-        # holds the question agent's commits on the legacy
-        # `orchestrator/issue-N` ref. The pinned state never recorded
-        # `branch` (question stage is read-only and never pushed), so
-        # the resolver falls back to the slug-namespaced form -- but
-        # that branch does not exist locally. Probing ONLY the
-        # namespaced form would return None, the `_handle_implementing`
-        # relabel guard would clear the park, `_ensure_worktree` would
-        # reuse the on-disk worktree (still checked out on the legacy
-        # branch), and the recovered-worktree shortcut would push the
-        # question-agent commits as a fresh dev PR. The helper must
-        # also probe the legacy ref and name it in the return value
-        # so the operator hint targets the right branch.
-        with tempfile.TemporaryDirectory(prefix="bhpc-legacy-") as td:
-            fixture = _seed_branch_fixture(
-                Path(td),
-                LEGACY_BRANCH_ISSUE_NUMBER,
-                _legacy_branch(LEGACY_BRANCH_ISSUE_NUMBER),
+    def test_a_flat_branch_is_no_candidate(self) -> None:
+        # The flat `orchestrator/issue-N` ref carries commits and the issue's
+        # own branch does not, which is what an earlier layout's question or
+        # dev run leaves behind. That ref is no artifact of this issue: nothing
+        # here names it as work to recover or publish, and the creators refuse
+        # a checkout standing on it, so its commits stay where they are for an
+        # operator. With the current branch carrying commits beside it, the
+        # current branch is the one answered for.
+        with _temp_root("bhpc-flat-") as temp_root:
+            flat = _seed_branch_fixture(
+                temp_root,
+                FLAT_BRANCH_ISSUE_NUMBER,
+                _flat_branch(FLAT_BRANCH_ISSUE_NUMBER),
             )
-            fixture.commit("stale question commit")
-            # Slug-namespaced form does NOT exist; only the legacy
-            # form does. Helper must still return the offending
-            # branch name (the legacy ref) so the relabel guard fires.
+            flat.commit("stale question commit")
+            self.assertIsNone(
+                recovery._branch_has_unpushed_commits(
+                    flat.spec, flat.issue_number,
+                ),
+            )
+            current = GitBranchFixture(
+                target=flat.target,
+                base_sha=flat.base_sha,
+                issue_number=flat.issue_number,
+                branch=_issue_branch(flat.issue_number, slug=REAL_GIT_SLUG),
+            )
+            current.commit(f"c on {current.branch}")
             self.assertEqual(
                 recovery._branch_has_unpushed_commits(
-                    fixture.spec,
-                    fixture.issue_number,
+                    current.spec, current.issue_number,
                 ),
-                fixture.branch,
-            )
-
-    def test_namespaced_branch_wins(self) -> None:
-        # Both refs carry commits (a host-restart edge case where the
-        # operator force-recreated the namespaced branch without
-        # reaping the legacy one). The helper must report the
-        # namespaced form first -- that is the branch the rest of the
-        # tick will operate on, so it is the one the operator should
-        # reset.
-        with tempfile.TemporaryDirectory(prefix="bhpc-both-") as td:
-            namespaced = _issue_branch(
-                DUAL_BRANCH_ISSUE_NUMBER,
-                slug=REAL_GIT_SLUG,
-            )
-            primary = _seed_branch_fixture(
-                Path(td),
-                DUAL_BRANCH_ISSUE_NUMBER,
-                namespaced,
-            )
-            legacy = GitBranchFixture(
-                target=primary.target,
-                base_sha=primary.base_sha,
-                issue_number=primary.issue_number,
-                branch=_legacy_branch(primary.issue_number),
-            )
-            primary.commit(f"c on {primary.branch}")
-            legacy.commit(f"c on {legacy.branch}")
-            self.assertEqual(
-                recovery._branch_has_unpushed_commits(
-                    primary.spec,
-                    primary.issue_number,
-                ),
-                namespaced,
+                current.branch,
             )
 
 
@@ -223,22 +188,19 @@ class BranchTipShaRealGitTest(unittest.TestCase):
             )
             self.assertNotEqual(tip, fixture.base_sha)
 
-    def test_a_legacy_branch_answers_for_itself(self) -> None:
-        # Regression: an issue pinned to the legacy `orchestrator/issue-N`
-        # ref opens its discussion round there while the slug-namespaced ref
-        # exists beside it at base. A probe that walked candidates would
-        # answer with the namespaced tip -- unchanged since the round opened
-        # -- and the commit sitting on the legacy branch would go unreported,
-        # to be adopted by the next round as its own baseline. The tip
-        # answered for is the branch the caller names.
-        with _temp_root("tip-legacy-") as temp_root:
+    def test_the_named_branch_answers_for_itself(self) -> None:
+        # The issue's branch sits at base while another ref beside it carries
+        # a commit. A probe that walked candidates would answer with whichever
+        # it found first; the tip answered for is the branch the caller names,
+        # which is the one its recorded anchor belongs to.
+        with _temp_root("tip-named-pair-") as temp_root:
             namespaced = _issue_branch(
                 DUAL_BRANCH_ISSUE_NUMBER, slug=REAL_GIT_SLUG,
             )
             anchored = _seed_branch_fixture(
                 temp_root,
                 DUAL_BRANCH_ISSUE_NUMBER,
-                _legacy_branch(DUAL_BRANCH_ISSUE_NUMBER),
+                _flat_branch(DUAL_BRANCH_ISSUE_NUMBER),
             )
             _run_git(GIT_BRANCH, namespaced, anchored.base_sha, cwd=anchored.target)
             anchored.commit("discussion agent commit")

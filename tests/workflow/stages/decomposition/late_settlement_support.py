@@ -242,8 +242,9 @@ _OWED_READ_PARK = MappingProxyType({
 
 
 # The branch a candidate publishes on, pinned so the exact-commit lookup is
-# asked about a branch the fake's pull requests can actually be on.
-CANDIDATE_BRANCH = "orchestrator/issue-41-candidate"
+# asked about a branch the fake's pull requests can actually be on. It is the
+# issue's current-layout branch, the only name a record may pin for live work.
+CANDIDATE_BRANCH = _support.PUBLISHED_BRANCH
 
 KEY_BRANCH = "branch"
 

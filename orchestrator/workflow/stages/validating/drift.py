@@ -62,7 +62,6 @@ from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
 from orchestrator.git.verification import probes as _verification_probes
-from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
@@ -78,6 +77,7 @@ from orchestrator.workflow.stages.implementing import (
     resume as _dev_resume,
     resume_batch as _resume_batch,
     resume_request as _dev_resume_request,
+    worktree as _dev_worktree,
 )
 from orchestrator.workflow.stages.validating import (
     drift_models as _drift_models,
@@ -93,13 +93,7 @@ from orchestrator.workflow.state import WorkflowLabel
 def _run_validating_drift(
     gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
 ) -> _drift_models._ValidatingDriftRun:
-    worktree = _worktree_paths._worktree_path(spec, issue.number)
-    if not worktree.exists():
-        worktree = _worktree_creation._ensure_worktree(
-            spec,
-            issue.number,
-            branch=_naming._resolve_branch_name(state, spec, issue.number),
-        )
+    worktree = _dev_worktree._ensure_resume_worktree(spec, issue, state)
     before_sha = _verification_probes._head_sha(worktree)
     answered = _drift_delivery._drift_resume_prompt(gh, issue, state)
     worktree, agent_result, paused = _dev_resume._resume_dev_with_text(_dev_resume_request._DevResumeRequest(

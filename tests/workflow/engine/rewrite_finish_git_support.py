@@ -4,11 +4,13 @@
 
 The base-sync real-git fixture (`tests/git/base_sync/real_git_test_support.py`)
 -- a bare remote, a clone, and the issue's worktree one feature commit past the
-base -- with the branch named as the evidence fixtures bind it, pushed, and
-the pull request standing on it. A developer report about that head is settled
-and reviewed, and evidence of the configured command's run on it is recorded
-and settled through the dispatcher's own reconciliation, so every reading the
-proof takes -- the fetch, the divergence, the trees -- is git's own.
+base, at its layout path and on its current-layout branch -- with that branch
+pushed and the pull request standing on it, so the refresh proves the checkout
+the issue's own by reading git rather than being told. A developer report
+about that head is settled and reviewed, and evidence of the configured
+command's run on it is recorded and settled through the dispatcher's own
+reconciliation, so every reading the proof takes -- the fetch, the divergence,
+the trees -- is git's own.
 
 The configured command is a real one, and every run of it appends a line to a
 file outside the checkout (`RealGitFinishCase.runs`). A rewrite either goes through the whole
@@ -35,20 +37,19 @@ from orchestrator.workflow.engine import (
     verification_transaction as _transaction,
 )
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, FinishRoad, LandedFinish
-from tests.git.base_sync.real_git_test_support import _RefreshBaseRealGitFixture
+from tests.git.base_sync.real_git_test_support import PR_BRANCH, _RefreshBaseRealGitFixture
 from tests.support.fakes import FakeGitHubClient, FakePR, FakePRRef, make_issue
 from tests.workflow.engine import (
     rewrite_finish_evidence_test_support as finish_support,
     rewrite_finish_readings as _readings,
     verification_report_fixture as _report,
-    verification_world_fixture as _world,
 )
 
 ISSUE = 7
 
 PR_NUMBER = 42
 
-BRANCH = _world.BRANCH
+BRANCH = PR_BRANCH
 
 REVIEWING = finish_support.REVIEWING
 
@@ -115,7 +116,6 @@ class RealGitFinishCase(_RefreshBaseRealGitFixture):
         worktrees = self._tmpdir / "worktrees"
         self.enterContext(patch.object(config, "WORKTREES_DIR", worktrees))
         self.configures(f"test -f feature.py && echo '{CHECKED}'")
-        self._git("branch", "-m", BRANCH, cwd=self._wt)
         self._git("push", _QUIET, _ORIGIN, BRANCH, cwd=self._wt)
         self.anchor = self._wt_head()
         self.issue = make_issue(ISSUE, label=REVIEWING)

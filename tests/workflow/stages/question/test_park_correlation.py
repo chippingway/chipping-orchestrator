@@ -37,6 +37,7 @@ from tests.workflow.stages.question.question_conversation_test_support import (
 from tests.workflow.stages.question.question_test_support import (
     PARK_QUESTION_ANSWER,
     QUESTION_SESSION,
+    _issue_branch,
     _seed_question,
 )
 
@@ -173,9 +174,14 @@ class QuestionParkOptionalContextTest(_QuestionParkRecordCase):
 
     def test_a_recorded_pull_request_rides_along(self) -> None:
         # An issue relabeled to `question` from a PR stage arrives carrying
-        # one, and that number is what joins the park to the work it is about.
+        # one, pinned beside the branch it was published from, and that
+        # number is what joins the park to the work it is about.
         gh, issue = _seed_question(_PR_BACKED_ISSUE_NUMBER)
-        gh.seed_state(issue.number, pr_number=_RECORDED_PR_NUMBER)
+        gh.seed_state(
+            issue.number,
+            pr_number=_RECORDED_PR_NUMBER,
+            branch=_issue_branch(issue.number),
+        )
 
         record = self._only_park(
             gh,

@@ -2772,8 +2772,12 @@ and handed off -- and this is what it guarantees and what stops it.
      the real one. Past all three the tick finishes what the crashed one started, over that exact pair.
   2. Otherwise ensure a per-issue worktree at `<WORKTREES_DIR>/<owner>__<name>/issue-<n>` on branch
      `orchestrator/<owner>__<name>/issue-<n>` (the slug-namespaced branch keeps two RepoSpecs sharing a `target_root`
-     from colliding on the same `orchestrator/issue-<n>` ref). Worktrees with unpushed commits are reused (crash
-     recovery); otherwise force-removed and recreated from `<spec.remote_name>/<spec.base_branch>`.
+     from colliding on the same `orchestrator/issue-<n>` ref). The branch is the one the live resolver answers, and a
+     record naming no branch it may use stops the tick here with nothing created, charged, or run
+     ([branch refusal](labels-and-state.md#branch-refusal)). A worktree already at the path is first proven the issue's
+     own -- a worktree of the clone on that exact branch -- and refused whole otherwise, whatever it carries. The
+     issue's own worktree with unpushed commits is reused (crash recovery); otherwise it is force-removed and
+     recreated from `<spec.remote_name>/<spec.base_branch>`.
   3. If the worktree already has commits (recovered), skip the agent and dispose them as a finished run would be —
      through the committed-work seam, so the size gate measures them before anything is pushed — unless those commits
      are the ones a read-only relabel just certified (`read_only_baseline_sha` still equal to HEAD), which is a branch

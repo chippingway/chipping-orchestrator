@@ -17,6 +17,11 @@ from tests.support.git import (
 )
 
 REAL_GIT_SLUG = "orch__realgit"
+
+
+def _flat_branch(issue_number: int) -> str:
+    """The flat pre-namespacing name, which is no issue's branch here."""
+    return f"orchestrator/issue-{issue_number}"
 GIT_BRANCH = "branch"
 GIT_COMMIT_MESSAGE_FLAG = "-m"
 GIT_REV_PARSE = "rev-parse"

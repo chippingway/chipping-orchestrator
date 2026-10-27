@@ -245,8 +245,12 @@ class LateContentCase(unittest.TestCase):
         self.issue = issue
 
     def _seed_with_plan_pr(self, **state) -> None:
+        """Seed the issue on its plan PR, with the branch the discussion pinned."""
         self._seed(
-            pr_number=_support.PLAN_PR_NUMBER, **{_support.KEY_PLAN_PATH: _support.PLAN_PATH}, **state,
+            pr_number=_support.PLAN_PR_NUMBER,
+            branch=_support.PUBLISHED_BRANCH,
+            **{_support.KEY_PLAN_PATH: _support.PLAN_PATH},
+            **state,
         )
         self.plan_pr = _support.seed_plan_pr(self.github)
 

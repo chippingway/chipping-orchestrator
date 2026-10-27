@@ -51,11 +51,7 @@ from github.Issue import Issue
 from orchestrator.config import models as _config_models
 from orchestrator.git.base_sync import state as _base_sync_state
 from orchestrator.git.verification import probes as _verification_probes
-from orchestrator.git.worktrees import (
-    creation as _worktree_creation,
-    naming as _naming,
-    paths as _worktree_paths,
-)
+from orchestrator.git.worktrees import naming as _naming
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
@@ -72,6 +68,7 @@ from orchestrator.workflow.stages.implementing import (
     resume_request as _resume_request,
     retry_cap as _retry_cap,
     state as _state,
+    worktree as _worktree,
 )
 
 
@@ -101,16 +98,11 @@ def _retry_parked_dev_session(
     shifts it, and masking it here would swallow a real body edit that landed
     in the same window before the dev could see it.
     """
+    wt = _worktree._ensure_resume_worktree(spec, issue, state)
     state.set(
         _state._LAST_ACTION_COMMENT_ID,
         max(comment.id for comment in batch.comments),
     )
-    wt = _worktree_paths._worktree_path(spec, issue.number)
-    if not wt.exists():
-        wt = _worktree_creation._ensure_worktree(
-            spec, issue.number,
-            branch=_naming._resolve_branch_name(state, spec, issue.number),
-        )
     before_sha = _verification_probes._head_sha(wt)
     wt, agent_result, paused = _resume._resume_dev_with_text(_resume_request._DevResumeRequest(
         gh, spec, issue, state, _prompt_notes._DEVELOPER_CONTINUE_RETRY_PROMPT,

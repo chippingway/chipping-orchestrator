@@ -46,18 +46,18 @@ def _recorded_branch(
     """The branch a teardown of this issue is pointed at, as the record names it.
 
     The pinned value itself whenever the record carries one, rather than what
-    the live resolver makes of it: the resolver answers a pin outside the
-    `orchestrator/` namespace with the derived name, and a teardown handed
-    that answer would delete the derived branch in place of the one the
-    record named. A pin that is no string is spelled out so it is refused
-    rather than read as nothing pinned. With nothing pinned, the resolver's
-    own answer stands -- the derived name for an issue that recorded no pull
-    request, or the flat name it infers beside one, which `_owned_branch`
-    refuses.
+    the live resolver makes of it: the resolver refuses every pin but the
+    current-layout name, and a teardown has to say which branch it is leaving
+    for a human. A pin that is no string is spelled out so it is refused
+    rather than read as nothing pinned. With nothing pinned, a record that
+    names no pull request is fresh work, and its branch is the current-layout
+    derivation; one that records a pull request names no branch at all, which
+    is spelled as the empty name so `_owned_branch` refuses it and no derived
+    name is deleted in its place.
     """
-    pinned = state.get("branch")
+    pinned = state.get(_naming._PINNED_BRANCH)
     if pinned is None:
-        return _naming._resolve_branch_name(state, spec, issue_number)
+        return _naming._trusted_branch(state, spec, issue_number) or ""
     return pinned if isinstance(pinned, str) else repr(pinned)
 
 

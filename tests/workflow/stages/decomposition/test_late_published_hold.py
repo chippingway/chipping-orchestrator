@@ -35,8 +35,10 @@ from tests.workflow.stages.decomposition.late_run_support import (
 )
 
 # Whichever pull request the issue records, which a publication has already
-# moved onto the implementation one by the time a crossed hold is reached.
+# moved onto the implementation one by the time a crossed hold is reached, and
+# the branch that publication pinned beside it.
 KEY_PR_NUMBER = "pr_number"
+KEY_BRANCH = "branch"
 
 CLOSED = "closed"
 
@@ -322,6 +324,7 @@ class PublishedHoldBeforeSpawnTest(_PublishedHoldCase):
             **{
                 **_support.generation_state(held),
                 KEY_PR_NUMBER: _support.PUBLISHED_PR_NUMBER,
+                KEY_BRANCH: _support.PUBLISHED_BRANCH,
             },
         )
 

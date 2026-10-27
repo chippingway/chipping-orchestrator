@@ -33,11 +33,16 @@ from orchestrator.github.pinned_state import PinnedState
 def _ensure_resume_worktree(
     spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
 ) -> Path:
+    """The checkout a resumed session runs in, once the record names its branch.
+
+    The branch is resolved whether or not the checkout is still on disk, and
+    ahead of either answer: every dev resume builds its run through here
+    before it launches, so a record naming no branch live work may use
+    raises `naming.BranchRefused` before any agent runs over the checkout it
+    finds. A checkout that is gone is recreated on that branch.
+    """
+    branch = _naming._resolve_branch_name(state, spec, issue.number)
     worktree = _worktree_paths._worktree_path(spec, issue.number)
     if worktree.exists():
         return worktree
-    return _worktree_creation._ensure_worktree(
-        spec,
-        issue.number,
-        branch=_naming._resolve_branch_name(state, spec, issue.number),
-    )
+    return _worktree_creation._ensure_worktree(spec, issue.number, branch=branch)

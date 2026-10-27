@@ -66,6 +66,14 @@ through a symlink, and a tree standing on a branch about to go each keep what th
 every terminal, question, and late-split teardown alike
 ([scheduled artifact reclamation](security.md#scheduled-artifact-reclamation)).
 
+Live work stands on that same name and on nothing else. The branch resolver answers an issue's current-layout name for
+fresh work, which pins no branch and records no pull request, and for a record pinning exactly that name, and it
+refuses every other record before any checkout, agent launch, or push: a recorded pull request with no branch beside
+it, a flat or foreign pin, and any other name are each held for a human, with no flat name inferred, no prefix taken
+as proof, and no derived name substituted. A creator reuses or removes a checkout at the issue's path only once it is
+proven the issue's own, so unpushed commits on a foreign or earlier layout's tree buy it nothing
+([branch refusal](state-machine/labels-and-state.md#branch-refusal)).
+
 The orchestrator is not fully autonomous. When a stage hits uncertainty, an unsafe repository state, a malformed agent
 response, or an exhausted retry cap, it parks with `awaiting_human` and mentions `HITL_HANDLE`; a later human issue
 comment is the resume signal for the parked agent session. The exhausted retry cap is the one park an ordinary
@@ -1303,7 +1311,8 @@ cost-precedence rules in [`observability/usage.md`](observability/usage.md).
    │    target_root from colliding on the same `orchestrator/issue-<n>`  │
    │  ─ created from <spec.remote_name>/<spec.base_branch>               │
    │    in spec.target_root                                              │
-   │    (or reused if has unpushed commits)                              │
+   │    (or reused when proven the issue's own -- a worktree of the      │
+   │     clone on this branch -- and carrying unpushed commits)          │
    └─────────────────────────────────────────────────────────────────────┘
 ```
 

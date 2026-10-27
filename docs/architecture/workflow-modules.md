@@ -2173,7 +2173,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             admission of the pinned comment read under that claim, behind only an operator's
                             hard-skip and ahead of every question asked of the record, so one admission refuses gets
                             no route at all and its checkout, branches, pull request, labels, and comment stay as
-                            they stand, said only in `record_admission.py`'s local line -- the
+                            they stand, said only in `record_admission.py`'s local line -- the branch question
+                            asked of an admitted record (`_stands_on_its_branch`): a record naming no branch live
+                            work may use gets no route either, and nor, short of a pinned anchor's recovery, does
+                            a checkout not proven the issue's own on that branch -- the
                             dirty-tree refusal a pre-PR rebase owes, the base-lag probe, and the route: the git
                             `pre_pr` rebase for a branch nobody has pushed yet, the base-rewrite coordinator below
                             for one a pull request carries -- reached even with no lag, so a pinned anchor's
@@ -2310,7 +2313,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             transaction proved again before every recovery park that keeps the attempt, which the
                             git owner asks for (`abandons_unproved`, behind `git/base_sync/persistence.py`), and
                             abandoned where its proof or the last word reads movement, a checkout gone from disk
-                            abandoning it in the park's own write -- and the answer a
+                            abandoning it in the park's own write, and held with nothing parked where the comment
+                            names no branch live work may use -- and the answer a
                             landed reset is owed (`abandons_over_the_reset`), staged on the
                             state the git owner's park writes (`git/base_sync/persistence.py`) so it lands with the
                             attempt's release or not at all, dropped with the recorded base tip blanked where
@@ -2590,8 +2594,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reconciliation above it is work already done that only this stage can still finish. A
                             park left by a reading rather than a question is retried rather than waited on, and
                             announced once per reason
-      guards.py             the worktree restore and the two probes that prove a stale PR head is safe to
-                            force-publish over
+      guards.py             the worktree restore, behind the branch resolved whether or not the checkout is on
+                            disk, and the two probes that prove a stale PR head is safe to force-publish over
       divergence.py         admission over a stale orchestrator-produced head, a recorded replay, or the publication a
                             body edit's resume recorded with the report it still owes, and recovered
                             publication through the size gate under the original lease; the behind-base count decides
@@ -2987,8 +2991,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       late_coordinator.py   the late mode's order: admission, park retirement, content settlement, then reuse
                             a recorded answer -- never while a reply is still owed a whole quote -- or buy one fresh
                             adjudication; only the completion guard can hand a cleared split to the transaction
-      late_admission.py     recover owed owner reads and park notices before the live-generation gate;
-                            hold a spent-budget park ahead of the frozen-evidence proof and pull-request hold;
+      late_admission.py     recover owed owner reads and park notices before the live-generation gate; behind it,
+                            refuse a record naming no branch live work may use (`naming.BranchRefused`) ahead of
+                            every park, probe, and hold, then hold a spent-budget park ahead of the frozen-evidence
+                            proof and pull-request hold;
                             the explicit live-generation predicate leaves initial decomposition to its own gate
       late_evidence.py      prove the record belongs to this issue and carries every frozen field its readers need,
                             then prove both commits on this host before a pull-request hold or agent spawn; a
@@ -3245,8 +3251,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             release and close the held pull request with a cycle receipt, persist changed obligations,
                             report their outcome, and verify the publication again after cleanup
       late_cancellation_cleanup.py
-                            reconcile the held publication, adopt an unrecorded superseded branch, scan consumers,
-                            settle cleanup, and discharge child receipts before the final publication proof
+                            reconcile the held publication, adopt an unrecorded superseded branch -- none where the
+                            record names no branch live work may use -- scan consumers, settle cleanup, and
+                            discharge child receipts before the final publication proof
       late_cancellation_terminal.py
                             record the owed rejected terminal, apply its label, and confirm it; recover confirmation
                             from the orchestrator's own label history so restart requires a terminal that really landed
@@ -3505,7 +3512,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             unrecorded -- whose branch is resolved once, ahead of the number it records, so the ref a
                             reap names is the one this stage pushed, and which holds here on a recovered PR still open
                             and on a lookup GitHub declined, handing on only a decided one -- and the pre-PR close,
-                            which reaps nothing
+                            which reaps nothing and resolves no branch, so a close with no marker standing ends
+                            whatever the record pins
       plan_terminal.py      what the humans did with the plan PR: the fetch by recorded number, held where GitHub
                             would not serve it, and the verdict both callers finalize through -- merged to `done`,
                             closed unmerged to `rejected`, an open one writing and reaping nothing
@@ -3883,7 +3891,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the publication, as `engine/report_publication_evidence.py` does for a transaction the
                             reconciliation is finishing -- still OPEN, since a thread somebody merged or closed
                             mid-run keeps the head it had and every other comparison passes on a publication that
-                            is over; on this issue's own branch in THIS repository, since a number is all that
+                            is over; on this issue's own branch in THIS repository -- the branch resolved ahead of
+                            the reading's boundary, so a record naming none is a refusal rather than a failed read
+                            -- since a number is all that
                             brought the object back and a second thread on another branch or a fork's carries this
                             repository's ref names over somebody else's commits while standing on the very commit
                             a caller proved; and STANDING on that commit rather than merely carrying it, since a
@@ -4107,7 +4117,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`_launch_identity`), so the fingerprint a resume's first attempt would be charged under is
                             read without resuming (`_first_launch_fingerprint`) -- how a handed change request's
                             recovery tells that developer's charge from another road's
-      worktree.py           the checkout a resume runs in, restored when reaped
+      worktree.py           the checkout a resume runs in, its branch resolved first so a record naming none live
+                            work may use is refused before any agent runs, and restored when reaped
       disposition.py        run-output attribution, inherited floors, timeout parks and their recovery, and agent-result
                             settlement; both heads must be readable and the run must leave commits above its floor --
                             with two exceptions: an issue still owing a report it could not deliver, where a run that
@@ -4832,7 +4843,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the floor the dev run is measured against, and stands the reply boundary past the
                             conversation, recording no delivery (`engine/thread_delivery.py`)
       relabel_hazard.py     what a relabeled issue's branch and checkout are carrying, with every reading that
-                            convicts reported together so one refusal names all of it
+                            convicts reported together so one refusal names all of it, behind the branch resolved
+                            first so a record naming none live work may use is refused before a park moves
       relabel_evidence.py   what those readings have grounds to vouch for a tip sitting on -- the tip the round
                             opened on, the head the plan PR is on, and the ahead-of-base question a merged plan
                             takes back

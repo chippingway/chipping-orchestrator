@@ -190,12 +190,17 @@ class _DiscussionParkRecordCase(unittest.TestCase, _DiscussionWorkflowMixin):
         """The record an opening round on a fresh issue leaves behind.
 
         `pr_number` seeds the pull request an issue relabeled here from a PR
-        stage arrives carrying, which is the one artifact-shaped thing an
-        opening round can find pinned without this stage having recorded it.
+        stage arrives carrying, pinned beside the branch it was published
+        from, which is the one artifact-shaped thing an opening round can find
+        pinned without this stage having recorded it.
         """
         gh, issue = _support._seed_discussion(issue_number)
         if pr_number is not None:
-            gh.seed_state(issue.number, pr_number=pr_number)
+            gh.seed_state(
+                issue.number,
+                pr_number=pr_number,
+                branch=_support._issue_branch(issue.number),
+            )
         return self._analysis_park(gh, issue, **agent_fields)
 
 
