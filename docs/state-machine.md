@@ -805,9 +805,11 @@ still owing a developer report one of its fix rounds recorded, carrying the mark
 land leaves, or approved against requirements other than the drift baseline holds — and one whose developer report
 changed on the same head, since the docs verdict and the ready ping are keyed on the head alone: a later revision
 recorded as current, the approved one edited or removed at its location, or a current report its settlement handoff
-no longer describes. The handler scans four feedback surfaces over three id namespaces — the issue thread and the PR
-conversation share one, so each is read against its own cursors before the two merge, and a cursor a manual relabel
-or an approval that could not read its pull request left unset is initialized first, from recorded delivery alone,
+no longer describes — and one with no `review_approved_subject` or `review_approved_evidence` claim read whole,
+which names nothing it was of and rests on no evidence. The handler scans four feedback surfaces over three id
+namespaces — the issue thread and the PR conversation share one, so each is read against its own cursors before the
+two merge, and a cursor a manual relabel or an approval that could not read its pull request left unset is
+initialized first, from recorded delivery alone,
 with a thread that will not answer holding the tick — and routes to `workflow:fixing` without advancing the
 watermarks, falls back to the drift check, and otherwise posts the one-shot
 `:bell:` HITL ping when the head is mergeable, docs-complete or GitHub-approved, and carries no standing human
