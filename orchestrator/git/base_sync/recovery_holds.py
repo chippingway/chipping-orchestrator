@@ -256,10 +256,36 @@ def _answers_a_held_anchor(
         if not context.worktree.is_dir():
             _restores_the_checkout(context.spec, context.issue.number, context.state)
         return
+    if not _stands_on_its_branch(context):
+        return
     if context.worktree.is_dir():
         _replay_cleanup._answers_an_ineligible_label(context)
     else:
         _replay_publication_parks._park_stranded_recovery(context)
+
+
+def _stands_on_its_branch(context: _AutoRebaseRecoveryContext) -> bool:
+    """Whether the record and the checkout let the ineligible road answer a held anchor.
+
+    That road reads the checkout's head as the attempt's and clears the
+    attempt or parks it, so it is taken only over a record naming the
+    issue's current branch and a tree at its path proven the issue's own --
+    detached by an unfinished rebase of exactly that branch included, which
+    is how an interrupted attempt leaves it (`creation._retained_checkout`).
+    A refusal has been said where it was met, and the hold stands with every
+    record kept and nothing posted.
+    """
+    if _worktree_naming._admitted_branch(context.state, context.spec, context.issue.number) is None:
+        log.warning(
+            "issue=#%d records no branch live work may use; holding its auto-rebase "
+            "anchor with nothing answered", context.issue.number,
+        )
+        return False
+    try:
+        _worktree_creation._retained_checkout(context.spec, context.issue.number, rebasing=True)
+    except _worktree_naming.BranchRefused:
+        return False
+    return True
 
 
 def _restores_the_checkout(spec, issue_number: int, state) -> None:
@@ -275,7 +301,10 @@ def _restores_the_checkout(spec, issue_number: int, state) -> None:
     onto a publication is, so a local ref that survived the checkout is what
     comes back and a missing one is rebuilt from the remote. A restore that
     fails is logged rather than raised: the dispatcher still holds the tick,
-    and the next one tries again.
+    and the next one tries again. A record naming no branch live work may use
+    restores nothing, and neither does a branch or checkout the creator
+    refuses: the refusal has been said where it was met, and the hold stands
+    with nothing restored for a human to reconcile.
     """
     try:
         _worktree_creation._ensure_pr_worktree(
@@ -284,6 +313,8 @@ def _restores_the_checkout(spec, issue_number: int, state) -> None:
                 state, spec, issue_number,
             ),
         )
+    except _worktree_naming.BranchRefused:
+        return
     except Exception:  # noqa: BLE001 - a checkout that will not restore stays held and is retried next tick
         log.exception(
             "issue=#%d could not restore the checkout its auto-rebase anchor "

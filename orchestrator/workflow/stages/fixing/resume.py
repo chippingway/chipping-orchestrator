@@ -62,7 +62,6 @@ final-docs handoff after reviewer approval.
 from __future__ import annotations
 
 from orchestrator.git.verification import probes as _verification_probes
-from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
 from orchestrator.workflow.engine import (
     comments as _comments,
     content_hash as _content_hash,
@@ -85,6 +84,7 @@ from orchestrator.workflow.stages.implementing import (
     late_gate_models as _late_gate_models,
     resume as _dev_resume,
     resume_request as _dev_resume_request,
+    worktree as _dev_worktree,
 )
 from orchestrator.workflow.stages.validating import (
     dev_fix as _dev_fix,
@@ -187,14 +187,7 @@ def _run_fixing_resume(
     PUSHES what such a run left. Read as "committed nothing", the work goes out
     under a report written before it existed.
     """
-    wt = _worktree_paths._worktree_path(ctx.spec, ctx.issue.number)
-    if not wt.exists():
-        wt = _worktree_creation._ensure_worktree(
-            ctx.spec, ctx.issue.number,
-            branch=_naming._resolve_branch_name(
-                ctx.state, ctx.spec, ctx.issue.number,
-            ),
-        )
+    wt = _dev_worktree._ensure_resume_worktree(ctx.spec, ctx.issue, ctx.state)
     before_sha = _verification_probes._head_sha(wt)
     requirements = _content_hash._compute_user_content_hash(
         ctx.issue, _comments._orchestrator_ids(ctx.state),

@@ -51,6 +51,7 @@ from orchestrator.config import models as _config_models
 from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.git.worktrees import (
     creation as _worktree_creation,
+    naming as _naming,
     paths as _worktree_paths,
 )
 from orchestrator.github.client import GitHubClient
@@ -72,6 +73,10 @@ from orchestrator.workflow.stages.implementing import (
 def _handle_pre_session_drift(
     gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
 ) -> str:
+    # Admitted as the spawn behind this would admit them, before the checkout
+    # is read or the park is cleared and announced: a refusal posts nothing.
+    _naming._resolve_branch_name(state, spec, issue.number)
+    _worktree_creation._retained_checkout(spec, issue.number)
     worktree = _worktree_paths._worktree_path(spec, issue.number)
     if _worktree_creation._has_new_commits(spec, worktree):
         if state.get(_state._PARK_REASON) == _state._STALE_RECOVERED_WORK:

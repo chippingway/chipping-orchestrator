@@ -5,17 +5,28 @@
 Lossy branch rewrites include a digest so distinct slugs keep distinct refs.
 Only the repository-scoped `_branch_name` derivation is an owned artifact
 name: a flat `orchestrator/issue-<n>`, an `orchestrator/` prefix, or a pinned
-value alone attributes nothing to an issue and licenses no cleanup. The pinned
-resolver below still answers live callers; local checkout placement uses the
-shared slug encoding through the paths owner.
+value alone attributes nothing to an issue and licenses no cleanup. The live
+resolver answers with that same name or refuses (`BranchRefused`): a pinned
+branch that is anything else, and a recorded pull request with no branch
+pinned beside it, name no branch live work may stand on, and nothing is
+derived in their place. Local checkout placement uses the shared slug encoding
+through the paths owner.
 """
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 
 from orchestrator.config import models as _config_models
+from orchestrator.github import pinned_refusal as _pinned_refusal
 from orchestrator.github.pinned_state import PinnedState
+
+# The channel is named for the worktree-lifecycle domain rather than for this
+# module's path: operators filter the rendered `orchestrator.worktree_lifecycle`
+# prefix and attach handlers to it, so a refused branch reports where their
+# filters already point.
+log = logging.getLogger("orchestrator.worktree_lifecycle")
 
 _SLUG_SAFE_RE = re.compile(r"[^A-Za-z0-9_.-]")
 
@@ -23,10 +34,16 @@ _SAFE_CHAR = "_"
 
 _SLUG_DIGEST_LEN = 16
 
-# The namespace every issue branch this orchestrator publishes lives under, and
-# the only one a pinned branch is honored in: a name outside it is no issue's
-# branch here, whatever a record says.
+# The namespace every issue branch this orchestrator publishes lives under. It
+# is no ownership evidence: the community sweep spares a pull request standing
+# in it from a ping, and the live resolver below honors only the exact
+# current-layout name inside it.
 _OWNED_NAMESPACE = "orchestrator/"
+
+# The pinned keys the live resolver reads: the branch an issue's work stands
+# on, and the pull request that says the work has been published.
+_PINNED_BRANCH = "branch"
+_PINNED_PR = "pr_number"
 
 
 def _sanitize_slug(slug: str) -> str:
@@ -155,57 +172,66 @@ def _branch_name(spec: _config_models.RepoSpec, issue_number: int) -> str:
     )
 
 
-def _legacy_branch_name(issue_number: int) -> str:
-    """The pre-slug-namespacing branch name for an issue.
+class BranchRefused(_pinned_refusal.RecordRefused):
+    """Live work met a branch this issue cannot be trusted to stand on.
 
-    Only the live resolver below reads it. It is no ownership evidence: no
-    configured repository derives it, so artifact attribution, reclamation,
-    and terminal cleanup all leave a branch of this name where it is.
+    Raised by the resolver over a record naming no branch live work may use,
+    and by the creators over a branch that is not the issue's current-layout
+    name or a checkout at the issue's path that is not proven the issue's own.
+    Every caller asks one of them before its first checkout, launch, or push.
+    A `RecordRefused` because the answer is the same: the dispatcher abandons
+    the handler with nothing past that point done, every boundary that lets a
+    refused record through lets this through too, and the branches, checkout,
+    and pull request stay for a human. The refusal has been said in a local
+    line by the time it is raised.
     """
-    return f"orchestrator/issue-{issue_number}"
+
+
+def _admitted_branch(
+    state: PinnedState, spec: _config_models.RepoSpec, issue_number: int,
+) -> str | None:
+    """The branch this record lets live work use, or None where it names none.
+
+    Two records answer, and both with the current-layout derivation: one that
+    pins exactly that name, and one that pins nothing and records no pull
+    request, which is fresh work. A pin naming anything else -- the flat
+    `orchestrator/issue-<n>`, another repository's branch, any other name in
+    the `orchestrator/` namespace, a value that is no string -- is refused,
+    and so is a recorded pull request with no branch pinned beside it: every
+    current publication pins the branch it pushed with the number, so a
+    record holding one without the other says nothing about where the pull
+    request's commits are, and the derived name in its place would publish
+    onto a branch that pull request was never open on.
+    """
+    current = _branch_name(spec, issue_number)
+    pinned = state.get(_PINNED_BRANCH)
+    if pinned is None:
+        return current if state.get(_PINNED_PR) is None else None
+    return current if pinned == current else None
 
 
 def _resolve_branch_name(
     state: PinnedState, spec: _config_models.RepoSpec, issue_number: int,
 ) -> str:
-    """Branch to use for this issue, preferring an already-pinned value.
+    """The branch this issue's live work stands on, or `BranchRefused`.
 
-    Issues that were already in flight when slug-namespacing landed
-    have a live PR open against the legacy `orchestrator/issue-<n>`
-    ref. If we recomputed via `_branch_name(spec, n)` we would (a)
-    fail to find the existing PR on lookup, (b) push to a brand-new
-    slug-namespaced branch, and (c) leave the legacy branch + PR
-    orphaned. The resolver therefore prefers, in order:
-
-    1. `state["branch"]` when it names a value in the orchestrator-
-       owned `orchestrator/...` namespace (the post-slug-namespacing
-       persistence path; also covers in-flight PRs that recorded the
-       legacy form before this code shipped).
-    2. The legacy `orchestrator/issue-<n>` ref when `state["pr_number"]`
-       is set but `state["branch"]` is not. Pre-slug-namespacing
-       handlers were inconsistent about persisting `branch`, so a
-       legacy in-flight PR can carry `pr_number` without `branch`.
-       The PR's head is the legacy ref by construction (the only
-       form produced by deployments without slug namespacing), so
-       inferring `orchestrator/issue-<n>` keeps us anchored on the
-       existing PR instead of opening a duplicate on the namespaced
-       branch.
-    3. The slug-namespaced `_branch_name(spec, n)` form for fresh
-       issues with no PR yet.
-
-    The pinned value is only honored when it is in the orchestrator-
-    owned `orchestrator/...` namespace so a corrupted / foreign pinned
-    state cannot redirect us at an arbitrary branch.
+    The current-layout `_branch_name(spec, issue_number)` wherever the record
+    lets live work use it (`_admitted_branch`), so fresh work and every pinned
+    current branch get the same name the artifact owners recognize. Anything
+    else raises, said once on the lifecycle channel with what the record
+    holds: no flat name is inferred from a recorded pull request, no prefix
+    stands in for the exact name, and no derived name replaces a pin, since
+    each would move publication onto a branch the record never named.
     """
-    pinned = state.get("branch")
-    if isinstance(pinned, str) and pinned.startswith(_OWNED_NAMESPACE):
-        return pinned
-    if state.get("pr_number") is not None:
-        # Legacy in-flight PR: branch was not persisted, but a PR
-        # was opened. The pre-slug-namespacing branch name was always
-        # `orchestrator/issue-<n>`, so the live PR head is on that
-        # ref. Targeting it keeps the orchestrator anchored on the
-        # existing PR rather than orphaning it on the new namespaced
-        # branch.
-        return _legacy_branch_name(issue_number)
-    return _branch_name(spec, issue_number)
+    branch = _admitted_branch(state, spec, issue_number)
+    if branch is not None:
+        return branch
+    log.warning(
+        "issue=#%d records branch %r and pull request %r, naming no branch "
+        "live work may use (its current branch is %r); refusing every "
+        "checkout, launch, and push and leaving its branches, checkout, and "
+        "pull request for a human",
+        issue_number, state.get(_PINNED_BRANCH), state.get(_PINNED_PR),
+        _branch_name(spec, issue_number),
+    )
+    raise BranchRefused(f"issue #{issue_number} records no branch live work may use")

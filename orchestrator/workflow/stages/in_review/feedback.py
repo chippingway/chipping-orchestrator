@@ -33,6 +33,7 @@ from orchestrator.workflow.engine import (
     comments as _comments,
     run_grant_request as _run_grant_request,
 )
+from orchestrator.workflow.stages.implementing import worktree as _dev_worktree
 from orchestrator.workflow.stages.in_review import (
     fixing_route as _fixing_route,
     models as _models,
@@ -155,8 +156,11 @@ def _consume_fresh_feedback(ctx: _models._InReviewContext) -> bool:
     Ahead of the scan, every watermark this issue carries unset is
     initialized and recorded (`watermarks._initialize_unset_watermarks`): a
     manual relabel or an approval whose snapshot would not read leaves one
-    unset, and the scan reads each surface past its own mark.
+    unset, and the scan reads each surface past its own mark. Feedback found
+    is handed to a stage that resumes a developer on the branch, so the branch
+    and a standing checkout are admitted before anything is recorded here.
     """
+    _dev_worktree._admitted_resume(ctx.spec, ctx.issue, ctx.state)
     _watermarks._initialize_unset_watermarks(ctx.gh, ctx.issue, ctx.pr, ctx.state)
     issue_space_new, review_space_new, review_summary_new = (
         _scan_fresh_pr_feedback(ctx)

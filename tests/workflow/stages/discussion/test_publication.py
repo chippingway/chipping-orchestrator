@@ -438,10 +438,17 @@ class DiscussionPublishedPlanHoldTest(
 
     def test_an_inherited_pr_number_opens_a_round(self) -> None:
         # An issue relabeled here from a PR stage arrives carrying its dev's
-        # `pr_number`. Reading that alone as a published plan would freeze a
-        # discussion that has not had a single round yet.
+        # `pr_number` and the branch it was published from. Reading that alone
+        # as a published plan would freeze a discussion that has not had a
+        # single round yet.
         gh, issue = _support._seed_discussion(_INHERITED_PR_ISSUE_NUMBER)
-        gh.seed_state(issue.number, **{_support.KEY_PR_NUMBER: _INHERITED_PR_NUMBER})
+        gh.seed_state(
+            issue.number,
+            **{
+                _support.KEY_PR_NUMBER: _INHERITED_PR_NUMBER,
+                _support.KEY_BRANCH: _support._issue_branch(issue.number),
+            },
+        )
 
         mocks = self._run_discussion(
             gh, issue, run_agent=_agent(last_message="an opening analysis"),

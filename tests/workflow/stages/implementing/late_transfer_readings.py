@@ -12,6 +12,7 @@ from orchestrator.git.measurement.models import (
     _BaseObject,
 )
 from orchestrator.git.verification.status import _WorktreeStatus
+from tests.support.checkout_identity import stated_identity
 from tests.workflow.git_owners import seam_patch
 from tests.workflow.stages.implementing import late_transfer_payloads as _transfer_payloads
 
@@ -132,8 +133,10 @@ def readings(fixture) -> Readings:
     the base branch the remote names carries the merge base the rewrite sits
     over, and both contributions fingerprint to the digest the adjudication
     recorded -- so a case that touches nothing is a permit and a case about a
-    refusal moves exactly one answer.
+    refusal moves exactly one answer. The checkout is no real worktree, so the
+    ownership read the publication asks first is stated as the issue's own.
     """
+    stated_identity(fixture)
     answers = Readings()
     fixture.enterContext(seam_patch(_transfer_payloads.PROVE_CANDIDATE, answers.proved))
     fixture.enterContext(seam_patch(_transfer_payloads.WORKTREE_STATUS, answers.status))

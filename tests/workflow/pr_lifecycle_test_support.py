@@ -37,6 +37,7 @@ VERDICT_UNKNOWN = _helpers.VERDICT_UNKNOWN
 _PatchedWorkflowMixin = _helpers._PatchedWorkflowMixin
 _TEST_SPEC = _helpers._TEST_SPEC
 _agent = _helpers._agent
+_issue_branch = _helpers._issue_branch
 _reported = _helpers._reported
 
 FakeGitHubClient = _fakes.FakeGitHubClient
@@ -81,13 +82,18 @@ def _seeded_verdict(last_message: str):
     github.add_issue(issue)
     pull_request = FakePR(
         number=_VERDICT_PR_NUMBER,
-        head_branch="orchestrator/chippingway__chipping-orchestrator/issue-5",
+        head_branch=_issue_branch(issue.number),
         base_branch=TEST_BASE_BRANCH,
         mergeable=True,
         check_state=CHECK_SUCCESS,
     )
     github.add_pr(pull_request)
-    github.seed_state(5, pr_number=_VERDICT_PR_NUMBER, review_round=0)
+    github.seed_state(
+        issue.number,
+        pr_number=_VERDICT_PR_NUMBER,
+        branch=pull_request.head_branch,
+        review_round=0,
+    )
     publishes_the_report(github, issue)
     return github, issue, pull_request, last_message
 

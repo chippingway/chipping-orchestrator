@@ -10,8 +10,8 @@ and a claim to give up, in that order.
 The record names `pr_number` AND `branch` together, because a state that
 arrived without a branch (an awaiting-human resume that opened the pull request
 without passing the fresh-spawn persist site) would leave the next tick's
-branch resolution falling back to the legacy name while the live pull request
-sits on the slug-namespaced one.
+branch resolution refusing a record that names a pull request and no branch,
+while the live pull request sits on the branch this push just published.
 
 Resetting the counters belongs to that same write rather than sitting beside
 it: the issue moved forward, so the review round, the retry budget, the
@@ -95,13 +95,12 @@ def _advance_to_validating(
     state.set(_DISCUSSION_PLAN_SHA, None)
     _spend_records_the_label_ends(state)
     # Persist the pushed branch alongside `pr_number` so the next tick's
-    # `_resolve_branch_name` can recover it directly. Without this, a state
-    # that lacked `branch` going in (e.g. an awaiting-human resume that opened
-    # the PR here without first passing through the fresh-spawn branch-persist
-    # site) would leave `pr_number` set with `branch` unset; the legacy-PR
-    # fallback in `_resolve_branch_name` would then misroute every downstream
-    # tick to `orchestrator/issue-<n>` while the live PR is on the
-    # slug-namespaced branch this push just published.
+    # `_resolve_branch_name` reads it directly. Without this, a state that
+    # lacked `branch` going in (e.g. an awaiting-human resume that opened the
+    # PR here without first passing through the fresh-spawn branch-persist
+    # site) would leave `pr_number` set with `branch` unset, a record the
+    # resolver refuses -- holding every downstream tick while the live PR is
+    # on the branch this push just published.
     state.set(_state._BRANCH, branch)
     _reset_implementing_counters(state)
     gh.write_pinned_state(issue, state)

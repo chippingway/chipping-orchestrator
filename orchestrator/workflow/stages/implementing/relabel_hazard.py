@@ -33,6 +33,7 @@ from github.Issue import Issue
 from orchestrator.config import models as _config_models
 from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import (
+    creation as _worktree_creation,
     naming as _naming,
     paths as _worktree_paths,
     recovery as _worktree_recovery,
@@ -78,9 +79,10 @@ def _uncertified_commits(
     A recorded ref that no longer exists is not a mismatch: there is nothing
     local left to attribute, and a PR-backed checkout is rebuilt from the PR
     head, which never carried this stage's work. That is the same reading
-    `_branch_tip_sha` gives its other caller. Commits on any OTHER candidate
-    branch still convict, so a round that committed on the sibling ref of a
-    legacy-pinned branch is not let through by its anchor.
+    `_branch_tip_sha` gives its other caller. Commits on the issue's own
+    current-layout branch still convict where the anchor names some other
+    ref, so an anchor recorded for a branch this issue does not work on lets
+    nothing through.
     """
     unpushed = _worktree_recovery._branch_has_unpushed_commits(spec, issue.number)
     round_branch = state.get(_ROUND_BRANCH)
@@ -104,6 +106,19 @@ def _read_only_relabel_hazard(
     state: PinnedState,
     reviewed: _ReviewedPlan,
 ) -> _ReadOnlyRelabelHazard | None:
+    """What the relabel is carrying, or None; `BranchRefused` ahead of either.
+
+    The branch is resolved first because the relabel hands the issue to live
+    work: a record naming no branch that work may use is refused before a
+    park is taken or cleared over it, rather than having its park dropped
+    here and the refusal met only at the spawn behind it. The tree standing
+    at the issue's path is held to the same branch next, reading only
+    (`creation._retained_checkout`): the readings below compare tips, and a
+    tree switched onto the flat branch at the very commit the round vouched
+    for passes every one of them.
+    """
+    branch = _naming._resolve_branch_name(state, spec, issue.number)
+    _worktree_creation._retained_checkout(spec, issue.number)
     unpushed = _uncertified_commits(spec, issue, state, reviewed)
     triggers = _unfinished_publication_triggers(state) + _checkout_triggers(
         spec, issue.number, state, reviewed,
@@ -114,11 +129,8 @@ def _read_only_relabel_hazard(
         )
     if not triggers:
         return None
-    branch = unpushed or _naming._resolve_branch_name(
-        state, spec, issue.number,
-    )
     return _ReadOnlyRelabelHazard(
-        branch=branch, trigger=" AND ".join(triggers),
+        branch=unpushed or branch, trigger=" AND ".join(triggers),
     )
 
 

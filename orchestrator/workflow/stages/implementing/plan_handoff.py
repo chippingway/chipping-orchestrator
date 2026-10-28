@@ -49,6 +49,7 @@ from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import (
+    creation as _worktree_creation,
     naming as _naming,
     recovery as _worktree_recovery,
 )
@@ -158,6 +159,13 @@ def _readvance_plan_handoff(
     reviewed = _plan_reading._read_plan_pr(gh, issue, state.get(_PR_NUMBER))
     if reviewed is None:
         return True
+    # Every road past here hands the branch and the tree standing at the
+    # issue's path to a developer -- the move below rewrites both, and the
+    # shortcut spends a marker over them -- so both are held to the issue's
+    # own first: a record naming no branch live work may use, or a tree there
+    # on any other branch, refuses the handoff with nothing written or moved.
+    _naming._resolve_branch_name(state, spec, issue.number)
+    _worktree_creation._retained_checkout(spec, issue.number)
     recorded = str(state.get(_PLAN_SHA) or "")
     if reviewed.head == recorded and not reviewed.merged:
         return _spend_handoff_anchor(gh, issue, state)

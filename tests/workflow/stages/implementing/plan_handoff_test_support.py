@@ -80,7 +80,7 @@ def _seed_published_plan(issue_number: int, *, head_sha: str, merged: bool = Tru
             _support.KEY_PLAN_SHA: PLAN_COMMIT,
             _support.KEY_ROUND_SHA: PLAN_COMMIT,
             # Recorded beside `pr_number` by the publication that opened the
-            # PR, and what keeps the branch resolution off the legacy name.
+            # PR; the branch resolution refuses a pull request without it.
             KEY_BRANCH: _issue_branch(issue_number),
         },
     )
@@ -118,6 +118,8 @@ def _seed_accepted_handoff(
         None,
         **{
             _support.KEY_PR_NUMBER: HANDOFF_PR_NUMBER,
+            # The publication's branch record, which the handoff leaves standing.
+            KEY_BRANCH: _issue_branch(issue_number),
             _support.KEY_PLAN_SHA: PLAN_COMMIT,
             _support.KEY_ROUND_BRANCH: None,
             _support.KEY_ROUND_SHA: None,

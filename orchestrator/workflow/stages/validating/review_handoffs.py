@@ -311,6 +311,7 @@ def hands_the_request_over(
     ours = owned is not None and owned.said() == returned
     on_its_own = (decision.verdict, run.pr_number) == (_verdicts.CHANGES_REQUESTED, run.subject.pr_number)
     if ours and on_its_own:
+        _dev_worktree._admitted_resume(spec, issue, state)
         _hands_it_off(_models._RequestedChanges(
             gh, spec, issue, state, run.wt, run.round_n, run.pr_number, decision.feedback,
         ), owned)
@@ -389,6 +390,11 @@ def _hands_it_off(
     ready carried onto it: a human answers that park, and feedback posted
     under it, or a developer launched, would answer nobody's ask. The request
     waits as it is for the reply that clears it.
+
+    Both callers have admitted the branch and checkout the developer would be
+    handed (`implementing/worktree._admitted_resume`) before this runs, so a
+    record or a tree no live work may use has refused before any feedback is
+    posted, any handoff recorded, or the issue relabelled to `workflow:fixing`.
     """
     gh, issue = context.gh, context.issue
     if context.state.get(_review_writes._AWAITING_HUMAN):
@@ -567,7 +573,15 @@ class HandedLaunch:
         comment, and the claim, its receipt, and the anchor stay the ones that
         record was persisted and handed with, never read again off the
         formatted words.
+
+        Every road that builds one goes on to post, record, relabel, drop,
+        park, or launch over it, so the branch and the checkout it hands on
+        are admitted first, reading only (`implementing/worktree.
+        _admitted_resume`): a record naming no branch live work may use, or a
+        tree at the issue's path that is not proven the issue's own, raises
+        `naming.BranchRefused` with the comment exactly as it reads.
         """
+        _dev_worktree._admitted_resume(spec, issue, state)
         return cls(_models._RequestedChanges(
             gh, spec, issue, state,
             wt=_worktree_paths._worktree_path(spec, issue.number),

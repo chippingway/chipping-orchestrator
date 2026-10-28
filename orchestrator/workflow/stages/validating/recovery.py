@@ -74,13 +74,14 @@ one here.
 """
 from __future__ import annotations
 
+from pathlib import Path
 from types import MappingProxyType
 
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
 from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
-from orchestrator.git.worktrees import naming as _naming, paths as _worktree_paths
+from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.stages.implementing import (
@@ -135,6 +136,7 @@ def _recover_failed_push(
     spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
+    worktree: Path,
 ) -> str:
     """Retry a push the previous tick could not land, through the gate.
 
@@ -150,9 +152,6 @@ def _recover_failed_push(
     of the pre-tick base refresh for the rest of the issue's life, with the
     recovery that would have dropped it already finished.
     """
-    worktree = _worktree_paths._worktree_path(spec, issue.number)
-    if not worktree.exists():
-        return _state._OUTCOME_STUCK
     # No commit is named, because this recovery read none: the park says a
     # push failed, and which commit it was for lives on the approval the gate
     # recognizes for itself.
@@ -166,6 +165,7 @@ def _recover_timed_out_fix(
     spec: _config_models.RepoSpec,
     issue: Issue,
     state: PinnedState,
+    worktree: Path,
 ) -> str:
     """Publish a commit the timeout killed the disposition before it saw.
 
@@ -182,11 +182,7 @@ def _recover_timed_out_fix(
     earlier interrupted resume can have left a commit under it -- so it says
     nothing about the publication, and the branch is what says that.
     """
-    worktree = _worktree_paths._worktree_path(spec, issue.number)
-    if (
-        not worktree.exists()
-        or _worktree_status._worktree_dirty_files(worktree)
-    ):
+    if _worktree_status._worktree_dirty_files(worktree):
         return _state._OUTCOME_STUCK
     before_sha = state.get(_state._PRE_DEV_FIX_SHA)
     if not isinstance(before_sha, str):
@@ -405,15 +401,28 @@ def _try_recover_validating_transient_park(
     actually committed before timing out, and we finish the push here).
     Callers should not mutate the round themselves; this is the only
     write path while the park flags are still set.
+
+    The two parks that touch git read the tree, fetch through it, and can
+    clear over what it says -- a timed-out fix the pull request already
+    carries clears without reaching the push seam's own proof -- so the
+    record's branch and the tree at the issue's path are admitted before
+    either, as that seam would prove them (`creation._retained_checkout`,
+    detached in the middle of rebasing exactly that branch included). A
+    refusal (`naming.BranchRefused`) leaves the park, the record, and the
+    thread as they stand; a checkout that is gone is stuck.
     """
     park_reason = state.get(_state._PARK_REASON)
-    if park_reason == _state._REASON_PUSH_FAILED:
-        return _recover_failed_push(gh, spec, issue, state)
     if park_reason in (_state._REASON_REVIEWER_TIMEOUT, _state._REASON_REVIEWER_FAILED):
         return _state._OUTCOME_CLEARED
-    if park_reason == _state._REASON_AGENT_TIMEOUT:
-        return _recover_timed_out_fix(gh, spec, issue, state)
-    return _state._OUTCOME_STUCK
+    if park_reason not in (_state._REASON_PUSH_FAILED, _state._REASON_AGENT_TIMEOUT):
+        return _state._OUTCOME_STUCK
+    _naming._resolve_branch_name(state, spec, issue.number)
+    worktree = _worktree_creation._retained_checkout(spec, issue.number, rebasing=True)
+    if worktree is None:
+        return _state._OUTCOME_STUCK
+    if park_reason == _state._REASON_PUSH_FAILED:
+        return _recover_failed_push(gh, spec, issue, state, worktree)
+    return _recover_timed_out_fix(gh, spec, issue, state, worktree)
 
 
 def _episode_already_announced(

@@ -30,6 +30,7 @@ from pathlib import Path
 from types import MappingProxyType
 
 from orchestrator.config import models as _config_models
+from tests.support.checkout_identity import stated_identity
 
 BASE_BRANCH = "main"
 REMOTE_NAME = "origin"
@@ -130,6 +131,9 @@ class ReplayRepositoryMixin:
         replay would produce over these two bases rather than a stand-in for
         one.
         """
+        # The replay runs in the clone itself rather than in a worktree at a
+        # layout path, so the publication's ownership read is stated.
+        stated_identity(self)
         worktree = self._seed_repository()
         accepted = _named(worktree)
         accepted_base = self._fork_point(worktree)

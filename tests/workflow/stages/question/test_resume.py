@@ -2,11 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
+import tempfile
 import unittest
 from pathlib import Path
 
+from orchestrator.git.worktrees import naming as _naming
+from orchestrator.git.worktrees.models import ProbeAnswer
+from orchestrator.workflow.stages.question import handler as _question
 from tests.support.fakes import FakeComment, FakeGitHubClient, make_issue
 from tests.workflow.fixtures import (
+    _TEST_SPEC,
     BACKEND_CLAUDE,
     KEY_AWAITING_HUMAN,
     KEY_LAST_ACTION_COMMENT_ID,
@@ -201,6 +206,37 @@ class HandleQuestionAwaitingHumanResumeTest(
         self.assertTrue(pinned_data[KEY_AWAITING_HUMAN])
         self.assertEqual(pinned_data[KEY_PARK_REASON], PARK_QUESTION_ANSWER)
         self.assertIn("Y is defined in y.py.", gh.posted_comments[-1][1])
+
+    def test_a_reply_over_a_foreign_tree_runs_nothing(self) -> None:
+        # The resume works in the tree the parked round left, once it is
+        # proven the issue's own. A tree at the issue's path on another branch
+        # refuses the resume before the reply is consumed or the agent runs,
+        # and the refusal keeps the tree for whoever has to look at it.
+        gh = FakeGitHubClient()
+        issue = make_issue(4, label=LABEL_QUESTION)
+        issue.comments.append(FakeComment(id=QUESTION_REPLY_ID, body="please clarify Y"))
+        gh.add_issue(issue)
+        gh.seed_state(
+            issue.number, awaiting_human=True, last_action_comment_id=QUESTION_REPLY_WATERMARK,
+            question_agent=BACKEND_CLAUDE, question_session_id=QUESTION_SESSION,
+            park_reason=PARK_QUESTION_ANSWER,
+        )
+        recorded = gh.pinned_data(issue.number)
+
+        with tempfile.TemporaryDirectory() as tree:
+            mocks = self._run(
+                lambda: self.assertRaises(
+                    _naming.BranchRefused, _question._handle_question, gh, _TEST_SPEC, issue,
+                ),
+                run_agent=_agent(last_message=UNEXPECTED_AGENT_MESSAGE),
+                issue_checkout=Path(tree),
+                checkout_identity=ProbeAnswer.REFUTED,
+            )
+
+        mocks[RUN_AGENT].assert_not_called()
+        mocks[CLEANUP_QUESTION_WORKTREE].assert_not_called()
+        self.assertEqual((gh.posted_comments, gh.label_history), ([], []))
+        self.assertEqual(gh.pinned_data(issue.number), recorded)
 
     def test_multi_round_qa_advances_each_tick(self) -> None:
         # Three-round conversation: fresh spawn answers Q1, human asks

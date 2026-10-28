@@ -55,7 +55,7 @@ def settles_report(
             case.gh, case.pull_request, case.state, report,
         ).landed_id,
     )
-    _settles(case.state, case.gh.repo_slug, report, location)
+    _settles(case, report, location)
     subject = _review_subjects.ReviewSubject(
         pr_number=report.pr_number,
         commit=report.source_sha,
@@ -88,17 +88,21 @@ def _published(case, revision: int, text: str, head: str) -> _reports.DeveloperR
 
 
 def _settles(
-    state,
-    repo_slug: str,
+    case,
     report: _reports.DeveloperReport,
     location: _pr_reports.ReportLocation,
 ) -> None:
-    """Record the current report and its handoff, as a settlement writes them."""
+    """Record the current report and its handoff onto `case`'s comment, as a settlement writes them.
+
+    The report is recorded on the branch `case`'s pull request stands on,
+    which is the branch its publication went out on.
+    """
+    state = case.state
     _report_settlement.record_current_report(state, _report_records.CurrentReport(
         subject=_report_records.ReportSubject(
-            repo_slug=repo_slug,
+            repo_slug=case.gh.repo_slug,
             pr_number=report.pr_number,
-            branch=_world.BRANCH,
+            branch=case.pull_request.head_branch,
             source_sha=report.source_sha,
             requirements_revision=report.requirements_revision,
         ),

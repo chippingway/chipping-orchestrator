@@ -509,6 +509,82 @@ pull-request lookup filters on — fetches `GET /repos/{slug}` once, and a handl
 Issue, pull-request, label, and commit operations address the repository by URL and still ask GitHub at the call, as
 they do on the eagerly built parent client that enumerates the tick.
 
+### Branch refusal
+
+Every road that works an issue's branch — a checkout created, restored, reused, or moved, an agent launched in it, a
+push, a pull request opened, superseded, or reclaimed over it — takes the branch from the live resolver
+(`git/worktrees/naming._resolve_branch_name`), and the resolver answers with one name only: the issue's current-layout
+`orchestrator/<slug>/issue-<n>`. It answers for two records: fresh work, which pins no `branch` and records no
+`pr_number`, and a record whose pinned `branch` is exactly that name. Every other record is refused with
+`naming.BranchRefused`, a `RecordRefused`: a recorded `pr_number` with no `branch` beside it, from which no flat
+`orchestrator/issue-<n>` is inferred, a pinned flat name, another repository's branch, another issue's, any other name
+inside or outside the `orchestrator/` namespace, and a pin that is no string. Nothing is derived in place of a pin. The
+refusal is said once on the `orchestrator.worktree_lifecycle` channel, naming the pinned branch and pull request beside
+the current name, and nothing is posted or written.
+
+Every road meets the refusal ahead of its first mutating step. A stage handler resolves before it creates, restores,
+or reuses a checkout, charges or launches an agent, posts a resume notice, or pushes, and the dispatcher catches the
+refusal around the handler as it catches `RecordRefused`: the handler is abandoned with nothing past that point done,
+and the next tick refuses again. The resume roads resolve whether or not the checkout is still on disk
+(`implementing/worktree._ensure_resume_worktree`), the read-only relabel guard resolves before it takes or clears a
+park, the fixing stage's no-feedback bounce resolves before it answers for a checkout that is gone, a reviewer's
+change-request handoff — in the tick its reviewer returned or recovered by a later validating or fixing tick —
+resolves before it posts feedback, writes a cleared feedback anchor back, records or drops the handoff, parks its
+launch, or relabels to `workflow:fixing`, and a late
+adjudication resolves once its live-generation gate has passed, before it takes a retry-cap park, probes the host,
+holds the pull request, retires a park, reconciles a reply, settles a recorded answer, or charges and spawns an
+adjudicator. The base refresh asks the same question of the record before any route ([Base refresh](#base-refresh)).
+The dispatcher's guards hold the tick rather than raise: its answer to an auto-rebase anchor held on a label the
+refresh does not drive, its guard over a claimed squash, and its reconciliation of a damaged late record, an owed push,
+or a frozen pair each act only over the issue's current branch and a checkout proven its own, and otherwise leave
+every record standing with nothing posted — save, for the squash guard and the reconciliation, an issue or pull request
+already ended, which goes on to its stage terminal. The roads that end an issue rather than
+work its branch refuse
+nothing: a terminal or question teardown reads the branch the record names and deletes only the current-layout one, a
+closed discussion with no publication in flight is rejected without resolving, a cancelled late cycle takes no branch
+on as owed, and the dispatcher's restore of a checkout an anchor names restores nothing, each leaving the branches and
+checkout for a human.
+
+The checkout is held to the same name. `_ensure_worktree` and `_ensure_pr_worktree` take the branch the resolver
+answered and refuse any other, and every road that works in a tree already at the issue's path proves it the issue's
+own first, reading only (`git/worktrees/creation._retained_checkout`, over
+`git/worktrees/evidence._checkout_identity`): a worktree of the clone rooted at that path, on exactly the issue's
+branch, reached through no symlink, so a plain directory git finds the clone from is no checkout. The creators ask it
+before they reuse or remove a tree, the read-only relabel guard before it takes or clears a park, the fixing stage's
+no-feedback bounce before it reads where the branch stands, its report recovery before it binds or hands back, and its
+drift reroute before it reads the tree, an implementer or fix timeout's quiet recovery, a deferred push's retry, a
+frozen candidate's reconciliation, a measurement park's retry, a moved candidate's republication, and an authorization
+park's publication before any of them reads the tree or clears a park, a pre-session body edit before it reads recovered
+work or announces anything, the discussion stage's checkout reading before it parks or publishes, `in_review`'s
+feedback scan before it records anything, a report refresh before its receipt refusals, the resume roads before any
+session is resumed in one — a body edit's resume before its notice, and a change-request handoff and its recovery before
+everything that branch question guards (`implementing/worktree._admitted_resume`) — a resumed question or discussion
+round before its agent runs, the conflict stage before it works in one, an accepted plan handoff before it writes or
+spends its marker and before the move that resets the tree, an interrupted squash's recovery before it parks, resets,
+or recommits anything, a settled squash handoff before it settles, drops, or spends its record on the move to
+`workflow:documenting`, a recovered plan publication before it reads or pushes the artifact, a documenting drift
+unwind before its notice, a late adjudication at its admission gate, the base refresh before any route, the initial
+publication before its intent, and the publication
+seam every push onto a pull request goes through (`implementing/late_push._publishes`) before it measures anything.
+Where no tree stands, the issue's path itself has to resolve to its layout location before anything is created there,
+so a symlinked per-repository directory cannot send a new checkout into the flat layout.
+Only that checkout's unpushed commits are reused as an interrupted run's work, and only that checkout is force-removed
+when it carries none. A tree on the flat branch, on another repository's, or on a detached HEAD, one reached through a
+symlink, and one whose identity could not be read refuse the road with every commit and file in place, however far
+ahead of base they are. The one detached HEAD a road may resume in is an interrupted rebase's: the resume roads, the
+conflict stage, the initial publication, the publication seam, and a pinned anchor's recovery accept a tree whose
+unfinished rebase is rewriting exactly the issue's branch (`git/worktrees/evidence_reads._rebased_branch`), which is
+how a conflict
+resolution parked mid-rebase or a refresh killed mid-replay leaves the issue's own checkout. The unpushed-commit probe
+the read-only relabel guard convicts on asks about the current-layout branch alone, so no flat branch is offered as
+work to recover.
+
+A refusal changes nothing for current work: unpushed commits on the issue's own checkout are reused, a current pull
+request's checkout is restored from its remote head, a remote read nobody could answer still refuses that restore, and
+every publication stays leased to the exact head it read. Nothing resumes a refused issue on its own; an operator
+finishes it under a build that still reads it, closes it, or disposes of its artifacts by hand
+([unsupported work](../configuration/operations.md#exclude-or-retire-unsupported-work)).
+
 ### Base refresh
 
 Before any issue is dispatched the tick runs `_refresh_base_and_worktrees(gh, spec)` on the workflow's refresh owner
@@ -547,6 +623,16 @@ guarded commit by refusing, each with nothing written, so nothing behind that wr
 that reads the comment again to prove its evidence holds over such a reading as over one nobody could take. An issue
 with no authenticated pinned comment is no record and is routed as ever, and a current record's routes, an interrupted
 attempt's recovery among them, are unchanged.
+
+An admitted record is then asked the live resolver's question (`naming._admitted_branch`,
+[Branch refusal](#branch-refusal)) before any route: a recorded `pr_number` with no `branch` beside it, or a pinned
+branch that is not the issue's current-layout name, names no branch a rebase, a push, or a recovery may stand on, and
+the issue is left exactly as a refused record is, with a local warning on the refresh's channel. Every route asks the
+checkout as well: a tree at the issue's path that is not proven a worktree of the clone on that branch — one on the
+flat branch, another repository's, or a detached HEAD, or one reached through a symlink — is left with every commit it
+holds. A pinned anchor's recovery is asked the same question, since a checkout can be switched between ticks and the
+recovery's reset takes whatever the tree holds; the one tree it adds is the issue's own left detached by an unfinished
+rebase of exactly that branch, which is how an interrupted attempt leaves it.
 
 Two paths depending on whether a PR exists:
 
@@ -3465,9 +3551,8 @@ The keys that matter for the state machine fall into a few groups:
   inherited PR branch relabel to implementing. A park that *did* find a commit keeps the pair for that second reading:
   it is the tip the park tells the operator to reset back to, and the one the guard then certifies, so dropping it
   would strand a PR-backed issue whose only other remedies (reset to base, delete the branch) destroy the PR. The
-  branch is recorded beside the SHA because an issue pinned to a legacy `orchestrator/issue-N` ref opens its round
-  there, and answering for the slug-namespaced ref instead would report an unchanged tip while the commit sat
-  elsewhere.
+  branch is recorded beside the SHA because a SHA alone does not say which ref it belongs to, and answering for any
+  ref but the one the round opened on would report an unchanged tip while the commit sat elsewhere.
   `read_only_baseline_sha` — what that anchor becomes when the relabel clears. `_clear_stale_read_only_park` hands the
   certified tip to the implementing stage rather than dropping it, because the fresh-spawn path reads any branch ahead
   of base as a previous dev run whose publication was interrupted (`_has_new_commits`) — and the branch a discussion

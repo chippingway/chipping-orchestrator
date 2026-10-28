@@ -60,7 +60,6 @@ from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.git.worktrees import (
     creation as _worktree_creation,
     naming as _naming,
-    paths as _worktree_paths,
 )
 from orchestrator.workflow.engine import (
     run_charge_state as _run_charge_state,
@@ -135,7 +134,9 @@ def _open_round_checkout(
     """Prepare the checkout the round reads, and record what it opened on.
 
     A resumed round takes the tree its predecessor read whenever it is still
-    on disk. That is the tree the operator has been looking at while they
+    on disk and proven the issue's own (`creation._retained_checkout`); one on
+    any other branch refuses the round with every file in place. That is the
+    tree the operator has been looking at while they
     composed the reply, and the handler's hold already established it is clean
     and still on the anchor -- which is exactly the tree `_ensure_worktree`
     force-removes and rebuilds, for no gain. Only a directory that has gone --
@@ -173,12 +174,11 @@ def _open_round_checkout(
     branch = _naming._resolve_branch_name(
         run.state, run.spec, run.issue.number,
     )
-    retained = _worktree_paths._worktree_path(run.spec, run.issue.number)
-    worktree = (
-        retained
-        if resumed and retained.exists()
-        else _ensure_round_worktree(run, branch)
+    retained = (
+        _worktree_creation._retained_checkout(run.spec, run.issue.number)
+        if resumed else None
     )
+    worktree = retained or _ensure_round_worktree(run, branch)
     head_before = _verification_probes._head_sha(worktree)
     run.state.set(_state._ROUND_BRANCH, branch)
     run.state.set(_state._ROUND_SHA, head_before)

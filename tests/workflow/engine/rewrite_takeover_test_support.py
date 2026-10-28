@@ -2,19 +2,21 @@
 # SPDX-License-Identifier: Apache-2.0
 """One auto-rebase replay the size gate handed to an adjudication, over the in-memory client.
 
-Issue #7 is on `workflow:decomposing` with PR #42 over its branch. Its pinned
-comment carries the attempt the auto rebase pinned -- the anchor PR #42
-stood on, the terms it was made under, and the replay it recorded -- beside
-the live late generation the size gate froze over that replay: the replay as
-its candidate, the base it was measured over, a count past the ceiling, and
-the publication it was entered on. Every key is spelled literally, since live
-issues already carry them.
+Issue #7 is on `workflow:decomposing` with PR #42 over its current-layout
+branch, which the record pins beside the number. Its pinned comment carries
+the attempt the auto rebase pinned -- the anchor PR #42 stood on, the terms it
+was made under, and the replay it recorded -- beside the live late generation
+the size gate froze over that replay: the replay as its candidate, the base it
+was measured over, a count past the ceiling, and the publication it was
+entered on. Every key is spelled literally, since live issues already carry
+them.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 from types import MappingProxyType
 
+from orchestrator.git.worktrees import naming as _naming
 from orchestrator.workflow.engine import (
     comments as _comments,
     content_hash as _content_hash,
@@ -22,9 +24,13 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.engine.rewrite_takeover import TakeoverOutcome
 from tests.support.fakes import FakeComment, FakeGitHubClient, FakeIssue, make_issue
+from tests.workflow.repo_values import _TEST_SPEC
 
+# The repository the issue is configured under, and the branch it derives.
+SPEC = _TEST_SPEC
 ISSUE = 7
 PR_NUMBER = 42
+BRANCH = _naming._branch_name(SPEC, ISSUE)
 
 _SHA_PAIRS = 20
 
@@ -120,7 +126,8 @@ class TakeoverWorld:
         """Issue #7 pinning the attempt and the generation with `pinned` over them -- a field given None dropped."""
         issue = make_issue(ISSUE, label=LABEL_DECOMPOSING)
         github = FakeGitHubClient([issue])
-        github.seed_state(issue, **_present({"pr_number": PR_NUMBER, **_ATTEMPT, **GENERATION, **pinned}))
+        record = {"pr_number": PR_NUMBER, "branch": BRANCH, **_ATTEMPT, **GENERATION, **pinned}
+        github.seed_state(issue, **_present(record))
         return cls(github, issue)
 
     def takes_over(self) -> TakeoverOutcome:

@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import Any
 
 from orchestrator.agents.models import AgentResult
-from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
+from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming
 from orchestrator.workflow.engine import (
     guards as _guards,
     run_charge_state as _run_charge_state,
@@ -69,30 +69,28 @@ def _resume_question_on_human_reply(
     """Resume the question session with new issue-thread comments.
 
     Returns the AgentResult, or None if no new comments arrived since
-    the last park (caller should return without writing state).
+    the last park (caller should return without writing state). The branch
+    is resolved before the replies are consumed, so a record naming no
+    branch live work may use is refused whether or not the checkout is still
+    on disk, and a checkout still standing is resumed in only once it is
+    proven the issue's own (`creation._retained_checkout`).
     """
+    branch = _naming._resolve_branch_name(run.state, run.spec, run.issue.number)
     new_comments = _session._consume_new_human_replies(
         run.gh, run.issue, run.state,
     )
     if new_comments is None:
         return None
-    worktree = _worktree_paths._worktree_path(run.spec, run.issue.number)
-    if not worktree.exists():
-        worktree = _worktree_creation._ensure_worktree(
-            run.spec,
-            run.issue.number,
-            branch=_naming._resolve_branch_name(
-                run.state, run.spec, run.issue.number,
-            ),
-        )
+    worktree = _worktree_creation._retained_checkout(
+        run.spec, run.issue.number,
+    ) or _worktree_creation._ensure_worktree(run.spec, run.issue.number, branch=branch)
     session = _session._read_question_session(run.state)
-    prompt = _session._build_question_resume_prompt(
-        run.spec, run.issue, new_comments, session.session_id,
-    )
     question_result = _execute_question_prompt(
         run,
         session,
-        prompt,
+        _session._build_question_resume_prompt(
+            run.spec, run.issue, new_comments, session.session_id,
+        ),
         worktree,
         session.session_id,
     )

@@ -123,10 +123,6 @@ def _issue_branch(
     return f"orchestrator/{slug}/issue-{issue_number}"
 
 
-def _legacy_branch(issue_number: int) -> str:
-    return f"orchestrator/issue-{issue_number}"
-
-
 def _dirty_files(count: int = DIRTY_FILE_COUNT) -> list[str]:
     return [f"file_{file_index}.py" for file_index in range(count)]
 

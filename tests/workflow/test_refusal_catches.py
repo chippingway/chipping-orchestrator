@@ -7,7 +7,11 @@ refuses, with nothing written, and the dispatcher abandons the handler on it
 before any exit road the handler has -- a scratch checkout's teardown among
 them. A broad `except Exception` around such a write would take that refusal
 for an ordinary failure to retry on a later tick and carry on to those roads,
-so every one in the workflow package lets the refusal through first.
+so every one in the workflow package lets the refusal through first. The
+branch resolver and the checkout creators raise its `BranchRefused` over a
+record or a checkout live work may not stand on, and a catch around one of
+them is held to the same rule: read as a failed request, the refusal would
+park, retry, or hold an issue as unreadable rather than end the handler.
 """
 from __future__ import annotations
 
@@ -20,13 +24,18 @@ from orchestrator import workflow as _workflow
 
 # The calls whose try blocks are held to it: the whole-state write itself, the
 # drift check that writes its baseline (and the validating report refresh's
-# reading of it), and the split's first release walk, behind which the
-# parent's record is written.
+# reading of it), the split's first release walk, behind which the parent's
+# record is written, and the live branch resolver with the creators and the
+# resume checkout that resolve through it.
 _WRITES_THE_RECORD = frozenset((
     "write_pinned_state",
     "_detect_user_content_change",
     "requirements_moved",
     "_activate_created_children",
+    "_resolve_branch_name",
+    "_ensure_worktree",
+    "_ensure_pr_worktree",
+    "_ensure_resume_worktree",
 ))
 
 _BROAD = frozenset(("Exception", "BaseException"))

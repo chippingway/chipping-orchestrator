@@ -71,7 +71,7 @@ import logging
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow import transitions as _transitions
@@ -121,10 +121,16 @@ def holds_the_dispatch(
     answers it (`allowance`), measured from the comment as the dispatcher read
     it. A landing the receipt proves lets the tick on: it owes the
     reconciliation nothing, and the recovery behind it proves it again and is
-    bound to what it proves then.
+    bound to what it proves then. A claimed squash over a record or a checkout
+    no live work may use holds the tick with nothing parked (`_admitted`) --
+    save over work that has ended, which goes on to the stage terminal as it
+    does from `allowance`, and whose teardown keeps whatever the record pins
+    that is not the issue's current branch.
     """
     if not _transitions.publishes_onto_a_pull_request(label):
         return False
+    if _collapses.carries_pending_collapse(state) and not _admitted(spec, issue, state):
+        return not _late_terminal._work_has_ended(gh, issue, state)
     held = _handoff._Held(None, comment=dict(state.data))
     return allowance(gh, spec, issue, state, held) is None
 
@@ -164,6 +170,28 @@ def allowance(
         )
         _review_parks.parks_the_failed_squash(gh, issue, state, _UNAPPROVED_RESUMPTION, held)
     return None
+
+
+def _admitted(spec: _config_models.RepoSpec, issue: Issue, state: PinnedState) -> bool:
+    """Whether a claimed squash may be answered at all: its record's branch and the tree at its path the issue's own.
+
+    The squash is published on that branch from that tree, and the park the
+    answer can take speaks for both, so a record naming no branch live work
+    may use, or a tree there on any other branch, is answered by nothing:
+    the refusal has been said where it was met (`naming.BranchRefused`), and
+    the dispatcher holds the tick with nothing posted or parked.
+    """
+    if _naming._admitted_branch(state, spec, issue.number) is None:
+        log.warning(
+            "issue=#%d records no branch live work may use; parking and publishing "
+            "nothing for the squash it records", issue.number,
+        )
+        return False
+    try:
+        _worktree_creation._retained_checkout(spec, issue.number)
+    except _naming.BranchRefused:
+        return False
+    return True
 
 
 def _receipted_landing(

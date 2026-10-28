@@ -225,7 +225,10 @@ class HeldPlanPrSplitCase(LateSplitCase):
             plan_pr_body=_support.PLAN_PR_BODY,
         )
         self.github.seed_state(
-            self.issue.number, **self._pinned(), pr_number=_support.PLAN_PR_NUMBER,
+            self.issue.number,
+            **self._pinned(),
+            pr_number=_support.PLAN_PR_NUMBER,
+            branch=_support.PUBLISHED_BRANCH,
         )
         self.plan_pr = _support.seed_plan_pr(
             self.github, body=_late_hold_text._hold_body(self.generation),

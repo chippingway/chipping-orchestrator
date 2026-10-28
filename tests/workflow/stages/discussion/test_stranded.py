@@ -22,6 +22,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 from orchestrator import config
+from orchestrator.git.worktrees import models as _worktree_models, naming as _naming
 from tests.workflow.fixtures import (
     BASE_TIP_SHA,
     KEY_AWAITING_HUMAN,
@@ -36,6 +37,7 @@ _STRANDED_ISSUE_NUMBER = 970
 _MISSING_TREE_ISSUE_NUMBER = 971
 _UNREADABLE_TREE_ISSUE_NUMBER = 972
 _UNREADABLE_HEAD_ISSUE_NUMBER = 973
+_UNPROVEN_ISSUE_NUMBER = 974
 _ABSENT_TREE = Path(tempfile.gettempdir()) / "orchestrator-test-absent-tree"
 _UNREADABLE_CHECKOUT = "could not be read (`git status` or `HEAD` failed)"
 
@@ -159,6 +161,27 @@ class DiscussionStrandedWorktreeTest(unittest.TestCase, _DiscussionWorkflowMixin
         _, body = gh.posted_comments[0]
         self.assertIn(config.HITL_MENTIONS, body)
         return body
+
+
+class UnprovenCheckoutTest(unittest.TestCase, _DiscussionWorkflowMixin):
+    """The same stranded tree, at the issue's path but not proven the issue's own."""
+
+    def test_it_is_neither_read_nor_parked(self) -> None:
+        # The reading is admitted before it is taken, so a tree on another
+        # branch refuses the tick with nothing parked, posted, or run.
+        gh, issue = _support._seed_discussion(_UNPROVEN_ISSUE_NUMBER)
+        recorded = gh.pinned_data(issue.number)
+
+        with tempfile.TemporaryDirectory() as existing_tree:
+            standing = MagicMock(return_value=Path(existing_tree))
+            with seam_patch(_support.WORKTREE_PATH, standing), self.assertRaises(_naming.BranchRefused):
+                self._run_discussion(
+                    gh, issue, run_agent=_agent(), dirty_files=_support._dirty_files(),
+                    checkout_identity=_worktree_models.ProbeAnswer.REFUTED,
+                )
+
+        self.assertEqual(gh.pinned_data(issue.number), recorded)
+        self.assertEqual(gh.posted_comments, [])
 
 
 if __name__ == "__main__":

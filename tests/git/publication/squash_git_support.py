@@ -27,7 +27,7 @@ from tests.git.publication.squash_gate_support import (
     _InterruptsTheRewrite,
     _squash_gate,
 )
-from tests.support.fakes import make_issue
+from tests.support import checkout_identity as _checkout_identity, fakes as _fakes
 
 BASE_BRANCH_NAME = "main"
 GIT_AUTHOR_NAME = "GIT_AUTHOR_NAME"
@@ -126,9 +126,15 @@ class _SquashRepositoryFixtureMixin:
                 ),
             ),
         )
+        # The squash runs in the clone itself rather than in a worktree at a
+        # layout path, so the publication's ownership read is stated.
+        _checkout_identity.stated_identity(self)
         self._init_remote()
         self._seed_base()
-        self.branch = "orchestrator/chippingway__chipping-orchestrator/issue-9"
+        # The issue's current-layout branch under the `acme/widget` spec every
+        # squash here is gated with (`publication_helpers._spec`): the one
+        # branch a reconciliation may stand on and push to.
+        self.branch = f"orchestrator/acme__widget/issue-{SQUASH_ISSUE_NUMBER}"
         self._seed_topic()
 
     def _init_remote(self) -> None:
@@ -213,7 +219,7 @@ class _SquashScenarioMixin:
     def _make_issue(
         self, title: str = "test issue", number: int = SQUASH_ISSUE_NUMBER,
     ):
-        return make_issue(number, title=title)
+        return _fakes.make_issue(number, title=title)
 
     def _rebuild_topic(
         self,

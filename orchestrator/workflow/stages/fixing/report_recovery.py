@@ -91,7 +91,7 @@ from orchestrator.git.verification import (
     probes as _verification_probes,
     status as _worktree_status,
 )
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
 from orchestrator.workflow.engine import (
     report_commits as _commits,
     report_delivery as _report_delivery,
@@ -167,9 +167,17 @@ def _answers_a_report_first(ctx: _models._FixingContext) -> bool:
     longer exists. A report still owed and never BOUND is answered last, off
     the record the dead tick left.
 
-    True is a tick this call ended.
+    True is a tick this call ended. Each of the three hands the round back
+    or binds a report over the issue's branch and the checkout at its path, so
+    where one is owed both are admitted first, reading only: a record naming
+    no branch live work may use, or a tree there not proven the issue's own,
+    raises `naming.BranchRefused` with nothing bound, posted, or relabelled.
     """
-    if _round_marks._hand_back_left_unlanded(ctx.state):
+    hand_back = _round_marks._hand_back_left_unlanded(ctx.state)
+    if hand_back or ctx.state.get(_state._SETTLED_ROUND) or _delivery_state.carries_delivered_report(ctx.state):
+        _naming._resolve_branch_name(ctx.state, ctx.spec, ctx.issue.number)
+        _worktree_creation._retained_checkout(ctx.spec, ctx.issue.number, rebasing=True)
+    if hand_back:
         ctx.gh.set_workflow_label(ctx.issue, WorkflowLabel.VALIDATING)
         return True
     return (

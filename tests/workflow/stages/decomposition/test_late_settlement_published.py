@@ -72,7 +72,7 @@ class _PublishedVerdictMixin:
         """The pinned comment a crash left, with the verdict already read."""
         if published:
             seed_published_pr(self.github)
-        self.github.seed_state(self.issue.number, **{
+        self.github.seed_state(self.issue.number, branch=_late_support.PUBLISHED_BRANCH, **{
             **_late_support.generation_state(published_generation()),
             _late_support.KEYS.verdict: "single",
             _late_support.KEYS.run_cycle_id: published_generation().cycle_id,
@@ -109,11 +109,10 @@ class _PublishedVerdictMixin:
         """Re-seed this issue as one whose verdict was taken past publication.
 
         The branch is pinned beside the generation because that is what the
-        handoff which opened this pull request wrote: a record carrying a
-        number and no branch is the legacy shape, where the resolver answers
-        with a pre-slug ref -- so a fixture seeding one while putting the pull
-        request on a namespaced branch would be a record no tick produces, and
-        every reader asked to reconcile the two would be right to refuse.
+        handoff which opened this pull request wrote: the settlement records
+        the pull request's number on the way to its push, and a record
+        carrying a number with no branch beside it names no branch live work
+        may use, so the resolver refuses it rather than pushing anywhere.
         """
         seed_published_pr(self.github, **pr_fields)
         entered = (

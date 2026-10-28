@@ -22,9 +22,12 @@ placed.
 from __future__ import annotations
 
 import unittest
+from itertools import product
 from types import MappingProxyType
 
 from orchestrator.git.verification.status import _WorktreeStatus
+from orchestrator.git.worktrees import naming as _naming
+from orchestrator.git.worktrees.models import ProbeAnswer
 from tests.workflow.stages.fixing import fixing_test_support as support
 
 AHEAD_BEHIND = "branch_ahead_behind"
@@ -146,6 +149,30 @@ UNPROVED_SHAPES = (
 )
 
 
+# Where the branch of a checkout that is not the issue's own reads as
+# standing -- a commit the pull request has not got, or level with it -- under
+# both answers short of proof the ownership read can give.
+_FOREIGN_BOUNCES = tuple(product(
+    (MappingProxyType({AHEAD_BEHIND: STRANDED}), LEVEL),
+    (ProbeAnswer.REFUTED, ProbeAnswer.UNREADABLE),
+))
+
+
+def _refuses_the_bounce(case, reading, identity: ProbeAnswer) -> None:
+    """One bounce over a checkout `identity` says is not the issue's own, its branch read as `reading`; refused."""
+    gh, issue = case._seed_stranded_bounce()
+    recorded = gh.pinned_data(ISSUE)
+    pushes = MagicMock(return_value=True)
+
+    with case.assertRaises(_naming.BranchRefused):
+        case._run_stranded_bounce(
+            gh, issue, TEMP_ROOT, push_branch=pushes, checkout_identity=identity, **reading,
+        )
+
+    pushes.assert_not_called()
+    case.assertEqual((gh.pinned_data(ISSUE), gh.label_history), (recorded, []))
+
+
 class NoFeedbackBounceTest(unittest.TestCase, _StrandedFixingFixtureMixin):
 
     def test_bounce_publishes_the_stranded_commit(self) -> None:
@@ -164,6 +191,16 @@ class NoFeedbackBounceTest(unittest.TestCase, _StrandedFixingFixtureMixin):
         mocks[PUSH_BRANCH].assert_called_once()
         self._assert_bounced(gh, round_n=SPENT_ROUND)
 
+    def test_a_foreign_checkout_publishes_nothing(self) -> None:
+        # The stranded commit, or a head level with the pull request, in a
+        # tree at the issue's path that is not proven the issue's own --
+        # refuted or unreadable. The bounce proves the checkout before it
+        # reads where the branch stands, so it is refused with nothing
+        # pushed, no round counted, no bookmark cleared, and no relabel.
+        for reading, identity in _FOREIGN_BOUNCES:
+            with self.subTest(reading=dict(reading), identity=identity):
+                _refuses_the_bounce(self, reading, identity)
+
     def test_missing_worktree_bounces_unprobed(self) -> None:
         # Nothing on disk to publish from. The probe is left armed to prove
         # the handler gates on the checkout's existence before spending a
@@ -177,6 +214,23 @@ class NoFeedbackBounceTest(unittest.TestCase, _StrandedFixingFixtureMixin):
         mocks[AUTHED_FETCH].assert_not_called()
         mocks[PUSH_BRANCH].assert_not_called()
         self._assert_bounced(gh, round_n=SEEDED_ROUND)
+
+    def test_a_branchless_record_bounces_nothing(self) -> None:
+        # A pull request recorded with no branch beside it names nothing live
+        # work may stand on. With the checkout gone there is nothing to
+        # publish, and the bounce still refuses before it clears the round's
+        # bookkeeping or hands the pull request back to review.
+        github, issue = self._seed_stranded_bounce()
+        seeded = github.pinned_data(ISSUE)
+        self.assertIsNotNone(seeded.pop("branch"))
+        github.seed_state(ISSUE, **seeded)
+        recorded = github.pinned_data(ISSUE)
+
+        with self.assertRaises(_naming.BranchRefused):
+            self._run_stranded_bounce(github, issue, ABSENT_WORKTREE, branch_ahead_behind=STRANDED)
+
+        self.assertEqual(github.pinned_data(ISSUE), recorded)
+        self.assertNotIn((ISSUE, VALIDATING), github.label_history)
 
     def test_a_proved_empty_branch_bounces(self) -> None:
         # The checkout and its remote agree exactly, so there is nothing this

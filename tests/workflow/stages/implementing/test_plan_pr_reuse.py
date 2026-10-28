@@ -135,7 +135,7 @@ class PlanPrReuseTest(
                 # name the same tip until a human moves one of them.
                 _support.KEY_ROUND_SHA: _PLAN_COMMIT,
                 # Written beside `pr_number` by the publication that opened
-                # it, and what keeps the branch resolution off the legacy name.
+                # it; the branch resolution refuses a pull request without it.
                 KEY_BRANCH: _issue_branch(issue_number),
             },
         )

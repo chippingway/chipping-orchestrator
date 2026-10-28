@@ -35,7 +35,7 @@ from pathlib import Path
 
 from orchestrator.git import commands as _git_commands
 from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming
 from orchestrator.workflow.engine import comments as _comments
 from orchestrator.workflow.stages.fixing import models as _models, state as _state
 from orchestrator.workflow.state import WorkflowLabel
@@ -182,10 +182,17 @@ def _reconcile_parked_fixing(ctx: _models._FixingContext) -> bool:
     operator may be inspecting a dirty-tree park), or the worktree is already
     in sync with the PR head (the transient condition is the real blocker, not
     drift). Returns True after routing the drift to `resolving_conflict`.
+
+    The branch is resolved first: the reroute hands the issue to a stage that
+    rebases and publishes it, so a record naming no branch live work may use
+    is refused (`naming.BranchRefused`) before it is relabelled there -- and
+    so is a checkout standing at the issue's path that is not proven its own
+    (`creation._retained_checkout`), whose drift would otherwise be read.
     """
+    _naming._resolve_branch_name(ctx.state, ctx.spec, ctx.issue.number)
     spec = ctx.spec
-    wt = _worktree_paths._worktree_path(spec, ctx.issue.number)
-    if not wt.exists():
+    wt = _worktree_creation._retained_checkout(spec, ctx.issue.number, rebasing=True)
+    if wt is None:
         return False
     if _worktree_status._worktree_dirty_files(wt):
         return False

@@ -328,8 +328,10 @@ def _frozen_refusal(refresh: _models._ReportRefresh) -> str | None:
     The receipt first, whole and then by the commit it names, since it costs
     no request. Then the checkout the resume will run in, reused where it
     stands -- a clean tree is proved there, not assumed of a directory put back
-    in its place.
+    in its place. The branch and a checkout standing there are admitted
+    before any of it, since every refusal here parks over that checkout.
     """
+    _resume_worktree._admitted_resume(refresh.spec, refresh.issue, refresh.state)
     damaged = _receipt_damage._damaged_receipt(refresh.state)
     if damaged:
         return _DAMAGED_RECEIPT.format(member=damaged, head=refresh.head)

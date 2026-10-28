@@ -125,15 +125,24 @@ def _finalize_closed_discussion(run: _models._DiscussionRun) -> bool:
     A lookup GitHub declined decides nothing and is asked again next tick --
     the issue is already closed, so holding costs a poll and risks nothing.
 
-    The branch is resolved ONCE, here, before anything writes: the lookup that
-    finds the pull request and the record that decides which ref gets reaped
-    have to name the same one, and the resolver's own answer moves under a
-    write. It reads `pr_number` in the absence of a pinned `branch` and infers
-    the pre-namespace `orchestrator/issue-N` from it, which is right for a
-    legacy in-flight PR and wrong for everything else -- so a branch resolved
-    AFTER the recovered number was set would reap a ref this stage never
-    pushed, leaving the real local and remote branches behind.
+    With no publication marker standing there is nothing to look up, and the
+    close is finalized as the pre-PR ending without the branch being resolved
+    at all: the teardown behind it reads the branch the record names and keeps
+    any that is not the issue's current one, so a close is ended whatever the
+    record pins.
+
+    Otherwise the branch is resolved ONCE, here, before anything writes: the
+    lookup that finds the pull request and the record that decides which ref
+    gets reaped have to name the same one, and the resolver's own answer moves
+    under a write. A record carrying a recovered `pr_number` with no pinned
+    `branch` names no branch at all and is refused (`naming.BranchRefused`),
+    so a branch resolved AFTER the recovered number was set would stop the
+    finalize rather than name the ref this stage pushed. A record the resolver
+    refuses up front is refused here, before the lookup, with nothing written.
     """
+    if not run.state.get(_state._PUBLISHING_SHA):
+        _reject_closed_discussion(run)
+        return True
     branch = _plan_branch(run)
     plan_pr = _interrupted_plan_pr(run, branch)
     if plan_pr is _pr_reads.PR_LOOKUP_UNREADABLE:
@@ -199,10 +208,9 @@ def _record_recovered_pr(
 
     The branch is pinned beside the number, and it is the one the CALLER
     resolved before either was set. Left to the resolver to work out
-    afterwards, a state carrying a recovered number and no pinned branch reads
-    as a legacy in-flight pull request and answers `orchestrator/issue-N` --
-    a ref this stage never pushed, whose reap would leave the real local and
-    remote branches standing.
+    afterwards, a state carrying a recovered number and no pinned branch names
+    no branch at all, and the resolver refuses it rather than derive one -- so
+    the finalize that reaps the branch would stop on its own record.
 
     The plan path is deliberately NOT written beside them. That record is the
     publication's claim to have validated an artifact, and nothing here

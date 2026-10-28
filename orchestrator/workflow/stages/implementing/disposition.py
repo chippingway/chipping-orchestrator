@@ -16,7 +16,7 @@ from orchestrator.config import models as _config_models
 from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import (
     creation as _worktree_creation,
-    paths as _worktree_paths,
+    naming as _naming,
 )
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
@@ -104,9 +104,17 @@ def _try_recover_implementing_timeout_park(
     Unlike validating's silent reviewer-rerun recovery this DOES post the
     normal ":sparkles: PR opened" comment via `_on_commits` -- publishing the
     branch is the entire point of the recovery. It must not spawn the agent.
+
+    The branch and the checkout are admitted before anything is read off the
+    tree, as the publication behind it would prove them, because the size
+    gate ahead of that publication can record the commit as this issue's
+    candidate and hand it to an adjudication: a record naming no branch live
+    work may use, or a tree at the issue's path that is not proven the
+    issue's own, raises `naming.BranchRefused` with the park standing.
     """
-    wt = _worktree_paths._worktree_path(spec, issue.number)
-    if not _candidate_recovery._carries_a_late_commit(spec, state, wt):
+    _naming._resolve_branch_name(state, spec, issue.number)
+    wt = _worktree_creation._retained_checkout(spec, issue.number, rebasing=True)
+    if wt is None or not _candidate_recovery._carries_a_late_commit(spec, state, wt):
         return _state._REASON_STUCK
     # A clean commit this branch owns advanced past the pre-timeout SHA. Clear
     # the park flags and publish it through the normal commit path.

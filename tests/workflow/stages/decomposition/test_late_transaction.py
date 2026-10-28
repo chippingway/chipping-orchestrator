@@ -193,7 +193,9 @@ class RetirementTest(LateSplitCase, unittest.TestCase):
     def test_the_superseded_pull_request_is_dropped(self) -> None:
         # Left in place it would point the merged-PR terminal at a change the
         # umbrella's children are replacing.
-        self._transact(pr_number=_support.PLAN_PR_NUMBER)
+        self._transact(
+            pr_number=_support.PLAN_PR_NUMBER, branch=_support.PUBLISHED_BRANCH,
+        )
 
         self.assertIsNone(self._pinned().get(_stage_support.KEY_PR_NUMBER))
 

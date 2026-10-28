@@ -25,9 +25,10 @@ recorded by role with the prompt it was handed (`spawned`).
 from __future__ import annotations
 
 import contextlib
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from orchestrator.git.measurement.models import FrozenCommit
+from orchestrator.git.worktrees import evidence as _evidence, models as _worktree_models
 from orchestrator.workflow.engine import base_refresh as _base_refresh, issue_processing as _issue_processing
 from tests.workflow import drift_reports as _drift_world, fix_reports as _fix_world
 from tests.workflow.fixtures import MEASURED_CANDIDATE_SHA, _agent
@@ -201,10 +202,15 @@ class _SquashRebaseJourney(_readiness.ReadinessReadings, _squash.SquashedRoundWo
         """
         head = self.pull_request.head.sha
         git = _BaseGit(self.pull_request, LAG if onto else 0)
+        # The checkout is no real worktree at a layout path and the git under
+        # it is answered here, so whether it is the issue's own is stated
+        # rather than read.
+        own_checkout = MagicMock(return_value=_worktree_models.ProbeAnswer.CONFIRMED)
         with (
             seam_patch("_rebase_base_into_worktree", MagicMock(return_value=(True, []))),
             seam_patch("_git", git),
             seam_patch("_git_hardened", git),
+            patch.object(_evidence, "_checkout_identity", own_checkout),
         ):
             self._run(
                 lambda: _base_refresh._sync_discovered_worktree(

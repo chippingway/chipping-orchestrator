@@ -15,7 +15,7 @@ from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
 from orchestrator.git.verification import status as _worktree_status
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.stages.implementing import (
@@ -92,6 +92,11 @@ def _try_recover_unauthorized_exemption_park(
     """
     if not _stands_on_the_park(state):
         return False
+    # Admitted before the command is read: the publication it licenses
+    # measures, records, and pushes the commit in the checkout, so a record or
+    # a tree no live work may use refuses with the park and command standing.
+    _naming._resolve_branch_name(state, spec, issue.number)
+    _worktree_creation._retained_checkout(spec, issue.number, rebasing=True)
     read = _late_command._reads_the_thread(gh, issue, state)
     if _nothing_to_answer(read, state):
         # Guidance is handed back and silence is held, and the difference is

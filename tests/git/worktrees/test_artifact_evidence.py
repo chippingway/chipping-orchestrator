@@ -106,6 +106,30 @@ class CheckoutIdentityTest(_evidence_support._HostTestCase):
                     ProbeAnswer.REFUTED,
                 )
 
+    def test_a_rebase_answers_only_where_resumed(self) -> None:
+        # A rebase leaves HEAD detached until it finishes. Asked plainly that
+        # is a detachment like any other; asked by a road resuming an
+        # interrupted rebase, the tree is the issue's own where the rebase is
+        # rewriting exactly the issue's branch, and still nobody's where it is
+        # rewriting another.
+        for issue_number, branch, resumed in (
+            (ISSUE_NUMBER, self.branch, ProbeAnswer.CONFIRMED),
+            (ISSUE_NUMBER + 1, ANOTHER_BRANCH, ProbeAnswer.REFUTED),
+        ):
+            self.world.commit_on(self.clone, branch)
+            worktree = self.world.attached_checkout(self.spec, issue_number, branch)
+            stopped = _candidate_refs._interrupted_rebase(worktree, _artifact_git.BASE_BRANCH)
+            with self.subTest(branch=branch):
+                self.assertNotEqual(stopped, 0)
+                self.assertIs(
+                    evidence._checkout_identity(self.spec, issue_number, worktree),
+                    ProbeAnswer.REFUTED,
+                )
+                self.assertIs(
+                    evidence._checkout_identity(self.spec, issue_number, worktree, rebasing=True),
+                    resumed,
+                )
+
     def test_a_path_through_a_symlink_refutes(self) -> None:
         # A flat checkout of this clone on this issue's own branch, which every
         # reading of the tree itself would confirm, reached from the issue's

@@ -170,7 +170,11 @@ def _reconciles_published_work(
     question and the failure direction each is read in; what is HERE is only
     where it is asked, which is behind the three record questions: its
     pull-request half is a request, and the only ticks its answer can change
-    are the ones that have something left to reconcile.
+    are the ones that have something left to reconcile. Behind it, a record
+    naming no branch live work may use, or a checkout at the issue's path not
+    proven the issue's own, holds the tick with nothing parked, posted,
+    measured, or pushed (`late_terminal._answered_ahead`): every road below
+    acts on that branch and that checkout.
 
     The record a settled TRANSFER never got to report is made here too, ahead
     of every answer above -- a different debt with a different owner, supplied
@@ -205,8 +209,9 @@ def _reconciles_published_work(
             )
             gh.write_pinned_state(issue, state)
         return False
-    if _terminal._work_has_ended(gh, issue, state):
-        return False
+    answered = _terminal._answered_ahead(gh, spec, issue, state)
+    if answered is not None:
+        return answered
     if damage:
         return _claims._parks_the_damage(gate, damage)
     if owed:

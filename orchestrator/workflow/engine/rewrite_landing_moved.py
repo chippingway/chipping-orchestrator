@@ -228,14 +228,23 @@ def abandons_unproved(context: _AutoRebaseRecoveryContext) -> bool:
     it was captured on being gone, so the abandonment is staged on the state
     the park's record then lands (`abandons_over_the_reset`). False only where
     movement was read and the transaction still stands once the abandonment
-    was asked, for the git owner to hold the tick with nothing parked.
+    was asked, for the git owner to hold the tick with nothing parked -- and
+    where the comment names no branch live work may use
+    (`naming._admitted_branch`), since no landing can be proved over a branch
+    nothing may be pushed to, and nothing derived stands in for it.
     """
     if _landing_records.captured(context.state) is None:
         return True
     if not context.worktree.is_dir():
         abandons_over_the_reset(context, _CHECKOUT_GONE)
         return True
-    branch = _naming._resolve_branch_name(context.state, context.spec, context.issue.number)
+    branch = _naming._admitted_branch(context.state, context.spec, context.issue.number)
+    if branch is None:
+        log.warning(
+            "issue=#%d records no branch live work may use; holding its "
+            "captured landing unproved with nothing parked", context.issue.number,
+        )
+        return False
     return proves_captured(context, _AutoRebaseRecoverySnapshot(branch=branch, local_head=""))
 
 

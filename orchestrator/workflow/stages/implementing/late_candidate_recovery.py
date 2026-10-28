@@ -8,11 +8,13 @@ the proved commit into the ordinary publication seam and persist its answer.
 """
 from __future__ import annotations
 
+from pathlib import Path
+
 from github.Issue import Issue
 
 from orchestrator.agents.models import AgentResult
 from orchestrator.config import models as _config_models
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.stages.implementing import (
@@ -56,7 +58,9 @@ def _try_recover_late_measurement_park(
     own: there is no commit to read there, the recorded SHA is evidence no
     fresh checkout may stand in for, and re-running the developer would answer
     with different work -- so it parks saying exactly that, and the next
-    continue retries it once the worktree is back.
+    continue retries it once the worktree is back. The branch and a checkout
+    standing there are admitted before any of it (`_admitted_checkout`): a
+    refusal consumes no reply and measures nothing.
 
     The park flags are cleared ahead of the publish, because clearing them is
     what the answer means -- and the retry re-takes the park itself if the
@@ -67,12 +71,13 @@ def _try_recover_late_measurement_park(
     replies = _late_measurement_reply._answers_the_measurement_park(gh, issue, state)
     if not replies:
         return False
+    wt = _admitted_checkout(spec, issue, state)
     state.set(
         _state._LAST_ACTION_COMMENT_ID,
         max(reply.id for reply in replies),
     )
-    wt = _worktree_paths._worktree_path(spec, issue.number)
-    if not wt.exists():
+    if wt is None:
+        wt = _worktree_paths._worktree_path(spec, issue.number)
         _late_evidence._holds_missing_candidate(gh, spec, issue, state, wt)
         gh.write_pinned_state(issue, state)
         return True
@@ -127,11 +132,15 @@ def _try_recover_moved_candidate_park(
     reconciliation asking the size question about a settled commit, against a
     base that has moved since, and a park in the window between the two with
     nothing on the issue naming what it is waiting for.
+
+    The checkout put back has to be the issue's own, admitted with the branch
+    before it is read (`_admitted_checkout`): a tree on the flat branch at the
+    approved commit is no restoration.
     """
     if state.get(_state._PARK_REASON) != _state._CANDIDATE_MOVED:
         return False
-    wt = _worktree_paths._worktree_path(spec, issue.number)
-    if not wt.exists():
+    wt = _admitted_checkout(spec, issue, state)
+    if wt is None:
         return False
     restored = _checkout_recovery._restored_checkout(issue, state, wt)
     if not restored:
@@ -156,3 +165,17 @@ def _try_recover_moved_candidate_park(
     )
     gh.write_pinned_state(issue, state)
     return True
+
+
+def _admitted_checkout(spec: _config_models.RepoSpec, issue: Issue, state: PinnedState) -> Path | None:
+    """The checkout standing at the issue's path once its branch and it are the issue's own; None where none stands.
+
+    Both recoveries carry the commit in that checkout into the publication
+    seam, whose size gate records what it measures as this issue's candidate
+    and can hand it to an adjudication, so the record's branch and the tree
+    are admitted before it is read, as the seam would prove them
+    (`creation._retained_checkout`, detached in the middle of rebasing
+    exactly that branch included). A refusal raises `naming.BranchRefused`.
+    """
+    _naming._resolve_branch_name(state, spec, issue.number)
+    return _worktree_creation._retained_checkout(spec, issue.number, rebasing=True)

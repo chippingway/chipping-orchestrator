@@ -5,11 +5,14 @@
 from __future__ import annotations
 
 import unittest
+from functools import partial
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from orchestrator import config
 from orchestrator.git import branch_transport, commands
-from orchestrator.git.worktrees import anchoring as _anchoring, creation
+from orchestrator.git.worktrees import anchoring as _anchoring, cleanup, creation, naming as _naming, paths
+from orchestrator.git.worktrees.models import ProbeAnswer
 from tests.git.worktrees import lifecycle_test_support as _support
 from tests.git.worktrees.lifecycle_test_support import _GitRecorder
 from tests.git.worktrees.real_git_test_support import (
@@ -18,6 +21,7 @@ from tests.git.worktrees.real_git_test_support import (
     PUBLISHED_PLAN_TEXT,
     _AmendedPlanRepo,
     _MergedPlanRepo,
+    _RealGitWorktreeRepo,
     _run_git,
 )
 
@@ -38,6 +42,14 @@ WORKTREE_SCOPE = "--worktree"
 WORKTREE_CONFIG_EXTENSION = "extensions.worktreeConfig"
 CORE_WORKTREE = "core.worktree"
 SHADOW_DIR = "shadow"
+KEPT_NOTES = "notes.txt"
+# Names no checkout of the support's issue may stand on: the flat layout,
+# another repository's branch for the same issue, and another issue's.
+_FOREIGN_BRANCHES = (
+    _support.LEGACY_BRANCH,
+    "orchestrator/acme__gadget/issue-300",
+    "orchestrator/acme__widget/issue-301",
+)
 
 
 class EnsureWorktreeTest(unittest.TestCase):
@@ -49,7 +61,7 @@ class EnsureWorktreeTest(unittest.TestCase):
 
     def test_existing_local_branch_is_checked_out(self) -> None:
         with _support._worktree_fixture() as fixture:
-            worktree = fixture.run(creation._ensure_worktree)
+            worktree = fixture.run(creation._ensure_worktree, branch=_support.ISSUE_BRANCH)
             self.assertEqual(
                 fixture.git.worktree_adds[0][2:],
                 (str(worktree), _support.ISSUE_BRANCH),
@@ -57,7 +69,7 @@ class EnsureWorktreeTest(unittest.TestCase):
 
     def test_missing_local_branch_starts_at_base(self) -> None:
         with _support._worktree_fixture(local_branch_present=False) as fixture:
-            worktree = fixture.run(creation._ensure_worktree)
+            worktree = fixture.run(creation._ensure_worktree, branch=_support.ISSUE_BRANCH)
             self.assertEqual(
                 fixture.git.worktree_adds[0][2:],
                 (
@@ -68,19 +80,43 @@ class EnsureWorktreeTest(unittest.TestCase):
                 ),
             )
 
-    def test_pinned_branch_overrides_derivation(self) -> None:
-        # An issue whose PR was opened before slug-namespacing keeps its
-        # legacy ref in pinned state; forcing the derived name would orphan
-        # that PR on a branch nothing pushes to.
-        with _support._worktree_fixture(local_branch_present=False) as fixture:
-            fixture.run(creation._ensure_worktree, branch=_support.LEGACY_BRANCH)
-            add_args = fixture.git.worktree_adds[0]
-            self.assertIn(_support.LEGACY_BRANCH, add_args)
-            self.assertNotIn(_support.ISSUE_BRANCH, add_args)
+    def test_only_the_current_branch_is_worked(self) -> None:
+        # A flat `orchestrator/issue-<n>`, another repository's branch, or any
+        # other name in the namespace is no branch of this issue's, whoever
+        # hands it over: both creators refuse it before anything is fetched,
+        # removed, or added, and no derived name is checked out in its place.
+        for branch in _FOREIGN_BRANCHES:
+            for ensure in CREATORS:
+                with (
+                    self.subTest(branch=branch, ensure=ensure.__name__),
+                    _support._worktree_fixture(local_branch_present=False) as fixture,
+                ):
+                    self.assertRaises(_naming.BranchRefused, fixture.run, ensure, branch=branch)
+                    self.assertEqual(fixture.git.calls, [])
+                    self.assertEqual(fixture.fetches.branches, [])
+
+    def test_a_redirected_path_creates_nothing(self) -> None:
+        # The per-repository directory is a symlink back to `WORKTREES_DIR`
+        # itself, so the issue's path resolves to the flat
+        # `WORKTREES_DIR/issue-<n>`. A checkout created there would stand
+        # outside the layout every later road proves, so both creators refuse
+        # with no checkout and no branch made.
+        repo = _RealGitWorktreeRepo()
+        repo.prepare(self)
+        config.WORKTREES_DIR.mkdir(parents=True)
+        paths._repo_worktrees_root(repo.spec).symlink_to(config.WORKTREES_DIR, target_is_directory=True)
+        branch = _naming._branch_name(repo.spec, _support.ISSUE_NUMBER)
+        for ensure in CREATORS:
+            with self.subTest(ensure=ensure.__name__):
+                self.assertRaises(
+                    _naming.BranchRefused, ensure, repo.spec, _support.ISSUE_NUMBER, branch=branch,
+                )
+        self.assertFalse((config.WORKTREES_DIR / f"issue-{_support.ISSUE_NUMBER}").exists())
+        self.assertFalse(cleanup._local_branch_present(repo.spec, branch))
 
     def test_only_the_base_branch_is_fetched(self) -> None:
         with _support._worktree_fixture() as fixture:
-            fixture.run(creation._ensure_worktree)
+            fixture.run(creation._ensure_worktree, branch=_support.ISSUE_BRANCH)
             self.assertEqual(fixture.fetches.branches, [_support.BASE_BRANCH])
             self.assertEqual(fixture.git.plain_fetches, [])
 
@@ -95,7 +131,7 @@ class EnsurePrWorktreeTest(unittest.TestCase):
 
     def test_missing_branch_restores_from_remote(self) -> None:
         with _support._worktree_fixture(local_branch_present=False) as fixture:
-            worktree = fixture.run(creation._ensure_pr_worktree)
+            worktree = fixture.run(creation._ensure_pr_worktree, branch=_support.ISSUE_BRANCH)
             self.assertEqual(
                 fixture.git.worktree_adds[0][2:],
                 (
@@ -108,7 +144,7 @@ class EnsurePrWorktreeTest(unittest.TestCase):
 
     def test_existing_local_branch_is_checked_out(self) -> None:
         with _support._worktree_fixture() as fixture:
-            worktree = fixture.run(creation._ensure_pr_worktree)
+            worktree = fixture.run(creation._ensure_pr_worktree, branch=_support.ISSUE_BRANCH)
             add_args = fixture.git.worktree_adds[0]
             self.assertNotIn(NEW_BRANCH_FLAG, add_args)
             self.assertEqual(add_args[2:], (str(worktree), _support.ISSUE_BRANCH))
@@ -121,7 +157,7 @@ class EnsurePrWorktreeTest(unittest.TestCase):
         with _support._worktree_fixture(
             local_branch_present=False, remote_branch_present=False,
         ) as fixture:
-            worktree = fixture.run(creation._ensure_pr_worktree)
+            worktree = fixture.run(creation._ensure_pr_worktree, branch=_support.ISSUE_BRANCH)
             self.assertEqual(
                 fixture.git.worktree_adds[0][2:],
                 (
@@ -149,11 +185,11 @@ class EnsurePrWorktreeTest(unittest.TestCase):
                 ) as fixture,
                 self.assertRaises(RuntimeError),
             ):
-                fixture.run(creation._ensure_pr_worktree)
+                fixture.run(creation._ensure_pr_worktree, branch=_support.ISSUE_BRANCH)
 
     def test_base_and_branch_fetches_are_authed(self) -> None:
         with _support._worktree_fixture() as fixture:
-            fixture.run(creation._ensure_pr_worktree)
+            fixture.run(creation._ensure_pr_worktree, branch=_support.ISSUE_BRANCH)
             self.assertEqual(
                 fixture.fetches.branches, [_support.BASE_BRANCH, _support.ISSUE_BRANCH],
             )
@@ -163,7 +199,7 @@ class EnsurePrWorktreeTest(unittest.TestCase):
         # The parent clone is operator-owned; running any of these in the
         # agent-writable worktree would resolve its `.git/config` instead.
         with _support._worktree_fixture() as fixture:
-            fixture.run(creation._ensure_pr_worktree)
+            fixture.run(creation._ensure_pr_worktree, branch=_support.ISSUE_BRANCH)
             for args, cwd in fixture.git.calls:
                 self.assertEqual(cwd, fixture.spec.target_root, args)
 
@@ -173,9 +209,11 @@ class StaleWorktreeTest(unittest.TestCase):
 
     Reuse is what lets the orchestrator survive a crash between the agent
     committing and the push -- without it the next tick would wipe the work
-    and burn another agent run on the same prompt. A worktree with nothing
-    unpushed carries no such value and is force-removed so creation can
-    start from a current base.
+    and burn another agent run on the same prompt. It is spent only on the
+    issue's own checkout: a tree at the issue's path that is not proven a
+    worktree of the clone on the issue's current branch is refused whatever
+    it carries. An own worktree with nothing unpushed carries no such value
+    and is force-removed so creation can start from a current base.
     """
 
     def test_unpushed_commits_are_reused_and_logged(self) -> None:
@@ -188,11 +226,87 @@ class StaleWorktreeTest(unittest.TestCase):
             ):
                 planted = fixture.plant_issue_worktree()
                 with self.assertLogs(creation.log, level="INFO") as logs:
-                    worktree = fixture.run(ensure)
+                    worktree = fixture.run(ensure, branch=_support.ISSUE_BRANCH)
                     self.assertIn("reusing", "\n".join(logs.output))
                 self.assertEqual(worktree, planted)
                 self.assertEqual(fixture.git.worktree_adds, [])
                 self.assertEqual(fixture.git.worktree_removes, [])
+
+    def test_an_unproven_checkout_is_left_whole(self) -> None:
+        # Unpushed commits alone authorize nothing: a tree at the issue's path
+        # on the flat branch, on another repository's, on a detached HEAD, or
+        # reached through a symlink is foreign however far it is ahead of
+        # base, and one whose identity could not be read is not proven. Either
+        # way the creator refuses it before asking what it carries -- nothing
+        # reused, removed, fetched, or added -- and it stays for an operator.
+        for identity in (ProbeAnswer.REFUTED, ProbeAnswer.UNREADABLE):
+            for ensure in CREATORS:
+                with (
+                    self.subTest(identity=identity, ensure=ensure.__name__),
+                    _support._worktree_fixture(
+                        checkout_identity=identity,
+                        commit_probe=_support._git_result(stdout="2\n"),
+                    ) as fixture,
+                ):
+                    fixture.plant_issue_worktree()
+                    self.assertRaises(
+                        _naming.BranchRefused,
+                        fixture.run, ensure, branch=_support.ISSUE_BRANCH,
+                    )
+                    self.assertEqual(fixture.git.calls, [])
+                    self.assertEqual(fixture.fetches.branches, [])
+
+    def test_current_unpushed_work_is_reused(self) -> None:
+        # The crash between an agent committing and the push, over a real
+        # repository, since which branch the tree stands on is git's to say:
+        # the issue's own checkout, on its own branch, carrying a commit the
+        # base does not. Both creators hand it back as it stands.
+        repo = _AmendedPlanRepo()
+        repo.plant(self, _support.ISSUE_NUMBER, _support.ISSUE_BRANCH)
+        for ensure in CREATORS:
+            with self.subTest(ensure=ensure.__name__):
+                worktree = ensure(repo.spec, _support.ISSUE_NUMBER, branch=_support.ISSUE_BRANCH)
+                self.assertEqual(worktree, repo.worktree)
+                self.assertEqual(repo.head_of(worktree), repo.published)
+
+    def test_a_flat_checkout_with_commits_is_refused(self) -> None:
+        # An earlier layout's checkout at the issue's own path, standing on
+        # the flat branch with a commit the base does not carry. The commit is
+        # no evidence the tree is this issue's: both creators refuse it, the
+        # tree, its branch, and its commit stay exactly as they were, and no
+        # current branch is made beside them.
+        repo = _AmendedPlanRepo()
+        repo.plant(self, _support.ISSUE_NUMBER, _support.LEGACY_BRANCH)
+        for ensure in CREATORS:
+            with self.subTest(ensure=ensure.__name__):
+                self.assertRaises(
+                    _naming.BranchRefused,
+                    ensure, repo.spec, _support.ISSUE_NUMBER, branch=_support.ISSUE_BRANCH,
+                )
+        self.assertEqual(repo.head_of(repo.worktree), repo.published)
+        self.assertEqual(repo.branch_tip(_support.LEGACY_BRANCH), repo.published)
+        self.assertEqual((repo.worktree / PLAN_PATH).read_text(), PUBLISHED_PLAN_TEXT)
+        self.assertFalse(cleanup._local_branch_present(repo.spec, _support.ISSUE_BRANCH))
+
+    def test_a_directory_inside_the_clone_is_refused(self) -> None:
+        # `WORKTREES_DIR` sits inside the clone, which stands on the issue's
+        # branch, and a plain directory is at the issue's path. Git finds the
+        # clone's store from it, on that branch, but the directory is no work
+        # tree's root, so every road refuses it with its files in place.
+        repo = _RealGitWorktreeRepo()
+        repo.prepare(self)
+        _run_git("checkout", "-q", "-b", _support.ISSUE_BRANCH, cwd=repo.spec.target_root)
+        self.enterContext(patch.object(config, "WORKTREES_DIR", repo.spec.target_root / SHADOW_DIR))
+        directory = paths._worktree_path(repo.spec, _support.ISSUE_NUMBER)
+        directory.mkdir(parents=True)
+        (directory / KEPT_NOTES).write_text(PUBLISHED_PLAN_TEXT)
+        roads = (partial(creation._retained_checkout, repo.spec, _support.ISSUE_NUMBER), *(
+            partial(ensure, repo.spec, _support.ISSUE_NUMBER, branch=_support.ISSUE_BRANCH) for ensure in CREATORS
+        ))
+        for road in roads:
+            with self.subTest(road=road.func.__name__):
+                self.assertRaises(_naming.BranchRefused, road)
+                self.assertEqual((directory / KEPT_NOTES).read_text(), PUBLISHED_PLAN_TEXT)
 
     def test_clean_worktree_is_force_removed(self) -> None:
         for ensure in CREATORS:
@@ -201,7 +315,7 @@ class StaleWorktreeTest(unittest.TestCase):
                 _support._worktree_fixture() as fixture,
             ):
                 planted = fixture.plant_issue_worktree()
-                fixture.run(ensure)
+                fixture.run(ensure, branch=_support.ISSUE_BRANCH)
                 self.assertEqual(
                     fixture.git.worktree_removes[0][3:], (str(planted),),
                 )
@@ -220,7 +334,7 @@ class StaleWorktreeTest(unittest.TestCase):
                 ) as fixture,
                 self.assertRaisesRegex(RuntimeError, ADD_FAILURE_STDERR),
             ):
-                fixture.run(ensure)
+                fixture.run(ensure, branch=_support.ISSUE_BRANCH)
 
 
 class HasNewCommitsTest(unittest.TestCase):
