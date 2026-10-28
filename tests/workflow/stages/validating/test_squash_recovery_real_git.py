@@ -21,13 +21,14 @@ from __future__ import annotations
 
 import unittest
 
+from orchestrator.git.worktrees import naming as _naming
 from orchestrator.workflow.late_split import collapses as _collapses
 from tests.workflow.stages.validating import (
     approval_commit_test_support as _one,
     review_write_test_support as _roads,
 )
 from tests.workflow.stages.validating.squash_recovery_git_support import HalfMadeCollapseWorld
-from tests.workflow.stages.validating.squash_tick_git_support import APPROVED_COMMITS, ISSUE_NUMBER
+from tests.workflow.stages.validating.squash_tick_git_support import APPROVED_COMMITS, ISSUE_NUMBER, run_git
 
 LABEL_DOCUMENTING = "workflow:documenting"
 
@@ -128,6 +129,28 @@ class ParkCommitRealGitTest(HalfMadeCollapseWorld, unittest.TestCase):
             ),
         )
 
+
+def _standing(repo) -> tuple:
+    """The checkout's head and staged paths, and the tip of the issue's own branch."""
+    tip = run_git("rev-parse", repo.branch, cwd=repo.path)
+    return repo.head(), repo.staged(), tip.strip()
+
+
+class ForeignCheckoutCollapseTest(HalfMadeCollapseWorld, unittest.TestCase):
+    """The same interrupted collapse, with the tree at the issue's path switched onto the flat branch since."""
+
+    def test_a_flat_checkout_is_not_rewritten(self) -> None:
+        # The recovery resets and recommits what it finds, so the tree is held
+        # to the issue's own branch first: one on the flat branch refuses the
+        # tick with its head, its staged changes, and the issue's branch as
+        # they were, and nothing launched or pushed.
+        run_git("checkout", "-q", "-b", f"orchestrator/issue-{ISSUE_NUMBER}", cwd=self.repo.path)
+        before = _standing(self.repo)
+
+        with self.assertRaises(_naming.BranchRefused):
+            self._runs_the_tick()
+
+        self.assertEqual(_standing(self.repo), before)
 
 
 if __name__ == "__main__":

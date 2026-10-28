@@ -129,9 +129,9 @@ def _retired_split(
     if stopped is not None:
         return stopped
     # Resolved ahead of the barrier, and ahead of the write that clears
-    # `pr_number`: the resolver falls back to the legacy ref while a pull
-    # request is recorded, so a second reading after that write could name a
-    # different branch from the one this transaction just recorded as owed.
+    # `pr_number`: the branch recorded as owed has to be the one the record
+    # names while that pull request still stands beside it, not one read off a
+    # record the retirement has already rewritten.
     branch = _naming._resolve_branch_name(
         context.state, context.spec, context.issue.number,
     )

@@ -103,10 +103,12 @@ class ParkAwaitingHumanEventEmissionTest(unittest.TestCase, support._PatchedWork
         gh = support.FakeGitHubClient()
         issue = support.make_issue(8, label=support.LABEL_VALIDATING)
         gh.add_issue(issue)
-        gh.seed_state(8, pr_number=support._TIMEOUT_PR_NUMBER, review_round=1)
+        gh.seed_state(
+            8, pr_number=support._TIMEOUT_PR_NUMBER, branch=support._issue_branch(8), review_round=1,
+        )
         pr = support.FakePR(
             number=support._TIMEOUT_PR_NUMBER,
-            head_branch="orchestrator/chippingway__chipping-orchestrator/issue-8",
+            head_branch=support._issue_branch(8),
             base_branch=support.TEST_BASE_BRANCH, mergeable=True, check_state=support.CHECK_SUCCESS,
         )
         gh.add_pr(pr)
@@ -138,11 +140,12 @@ class ParkAwaitingHumanEventEmissionTest(unittest.TestCase, support._PatchedWork
         gh.seed_state(
             10,
             pr_number=support._REVIEW_CAP_PR_NUMBER,
+            branch=support._issue_branch(10),
             review_round=config.MAX_REVIEW_ROUNDS,
         )
         pr = support.FakePR(
             number=support._REVIEW_CAP_PR_NUMBER,
-            head_branch="orchestrator/chippingway__chipping-orchestrator/issue-10",
+            head_branch=support._issue_branch(10),
             base_branch=support.TEST_BASE_BRANCH, mergeable=True, check_state=support.CHECK_SUCCESS,
         )
         gh.add_pr(pr)
@@ -182,11 +185,13 @@ class ParkAwaitingHumanEventEmissionTest(unittest.TestCase, support._PatchedWork
         gh.add_issue(issue)
         pr = support.FakePR(
             number=support._APPROVAL_PR_NUMBER,
-            head_branch="orchestrator/chippingway__chipping-orchestrator/issue-9",
+            head_branch=support._issue_branch(9),
             base_branch=support.TEST_BASE_BRANCH, mergeable=True, check_state=support.CHECK_SUCCESS,
         )
         gh.add_pr(pr)
-        gh.seed_state(9, pr_number=support._APPROVAL_PR_NUMBER, review_round=0)
+        gh.seed_state(
+            9, pr_number=support._APPROVAL_PR_NUMBER, branch=pr.head_branch, review_round=0,
+        )
         support.publishes_the_report(gh, issue)
         with patch.object(
             support.validating_watermarks,

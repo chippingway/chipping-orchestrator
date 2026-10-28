@@ -19,8 +19,10 @@ from orchestrator.workflow.engine import comments as _comments
 from orchestrator.workflow.stages.validating import (
     recovery as _validating_recovery,
 )
+from tests.support.checkout_identity import stated_identity
 from tests.workflow.stages.fixing import (
     fixing_routing_test_support as routing_support,
+    fixing_test_support as _fixing_support,
 )
 
 BACKEND_CLAUDE = routing_support.BACKEND_CLAUDE
@@ -60,6 +62,9 @@ class _FixingWorktreeDriftFixtureMixin:
         # must point at a directory that is really on disk.
         self._wt_dir = tempfile.mkdtemp(prefix="fixing-drift-wt-")
         self.addCleanup(shutil.rmtree, self._wt_dir, ignore_errors=True)
+        # A plain directory rather than a worktree at a layout path, so its
+        # ownership reads are stated.
+        stated_identity(self)
 
     def _git_behind(self, behind: int) -> MagicMock:
         return MagicMock(
@@ -83,14 +88,14 @@ class _FixingWorktreeDriftFixtureMixin:
         gh.add_issue(issue)
         pr = FakePR(
             number=DRIFT_PR_NUMBER_OFFSET + number,
-            head_branch=f"orchestrator/issue-{number}",
+            head_branch=_fixing_support._branch(number),
             head=FakePRRef(sha=DRIFT_PR_HEAD),
             state=STATE_OPEN,
         )
         gh.add_pr(pr)
         state = {
             "pr_number": pr.number,
-            "branch": f"orchestrator/issue-{number}",
+            "branch": pr.head_branch,
             "dev_agent": BACKEND_CLAUDE,
             "dev_session_id": DEV_SESSION,
             "awaiting_human": True,

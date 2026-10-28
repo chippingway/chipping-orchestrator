@@ -197,11 +197,12 @@ class PlanHandoffTest(unittest.TestCase, _HandoffTickMixin):
         # The other way a merge reaches an issue this stage may not finalize:
         # the conversation crashed mid-round, so no plan record was ever
         # written, and the `pr_number` the terminal reads is whatever the issue
-        # arrived carrying -- a previous cycle's implementation, or an earlier
-        # discussion's plan PR. Merged, and read before the crash records are,
-        # it closes the issue as `done` and cleans up the branch the plan is
-        # sitting on: the artifact goes, its own pull request is orphaned, and
-        # the marker is left standing on an issue nothing comes back for.
+        # arrived carrying, its branch pinned beside it -- a previous cycle's
+        # implementation, or an earlier discussion's plan PR. Merged, and read
+        # before the crash records are, it closes the issue as `done` and
+        # cleans up the branch the plan is sitting on: the artifact goes, its
+        # own pull request is orphaned, and the marker is left standing on an
+        # issue nothing comes back for.
         for issue_number, marker, recorded in _UNREPORTED_ROUNDS:
             with self.subTest(marker=marker):
                 self._assert_refused_over_the_merge(
@@ -247,7 +248,11 @@ class PlanHandoffTest(unittest.TestCase, _HandoffTickMixin):
         gh, issue = _stage_support._seed_relabeled_discussion(
             issue_number,
             None,
-            **{marker: recorded, _stage_support.KEY_PR_NUMBER: _support.HANDOFF_PR_NUMBER},
+            **{
+                marker: recorded,
+                _stage_support.KEY_PR_NUMBER: _support.HANDOFF_PR_NUMBER,
+                _support.KEY_BRANCH: _issue_branch(issue_number),
+            },
         )
         _support._add_plan_pr(gh, issue, head_sha=_support.PLAN_COMMIT, merged=True)
 

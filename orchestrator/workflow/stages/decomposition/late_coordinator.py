@@ -144,6 +144,11 @@ def _adjudicate_late_generation(
     what it decided. Nothing is
     published here and no label is written -- the caller owns what a verdict
     earns.
+
+    The admission gate is where a record naming no branch live work may use is
+    refused (`late_admission._blocked_before_running`), so nothing below it --
+    a park retired, a reply reconciled, a recorded answer settled, an
+    adjudicator charged and spawned -- runs over one.
     """
     context = _LateContext(
         gh=gh,

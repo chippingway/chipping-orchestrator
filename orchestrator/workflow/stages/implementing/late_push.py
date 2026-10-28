@@ -45,6 +45,7 @@ import logging
 from dataclasses import dataclass, replace as _replace
 
 from orchestrator.git import branch_transport as _branch_transport
+from orchestrator.git.worktrees import creation as _worktree_creation
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.stages.implementing import (
     checkout_guards as _checkout,
@@ -150,7 +151,15 @@ def _publishes(
     nothing announced -- and the record is left exactly as it stands for the
     cleanup it is owed. `late_publication` beside this owns the question,
     since a publication that has ended is the far end of the one it froze.
+
+    The checkout is proven the issue's own before anything else is asked of
+    it (`creation._proven_checkout`): a tree at the issue's path on any branch
+    but the issue's current one -- the flat layout's, another repository's, a
+    detached HEAD no unfinished rebase of that branch accounts for -- raises
+    `naming.BranchRefused` with nothing measured, held, pushed, or written,
+    however its commits compare with the remote.
     """
+    _worktree_creation._proven_checkout(gate.spec, gate.issue.number, gate.worktree, rebasing=True)
     gate = _replace(
         gate,
         candidate=entered.candidate,

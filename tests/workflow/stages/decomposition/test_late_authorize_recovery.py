@@ -350,11 +350,19 @@ class RecoveredRationaleTest(_authorize_case._AuthorizeCase):
                 self.assertEqual(shown_rationale(said), kept)
 
     def _seed_on(self, published: bool, **state) -> None:
-        """Seed this issue on either publication a settled `single` makes."""
+        """Seed this issue on either publication a settled `single` makes.
+
+        The existing pull request is pinned with the branch it is open on, as
+        the handoff which opened it wrote the two.
+        """
         if not published:
             self._seed(**state)
             return
-        self._seed(generation=published_generation(), **state)
+        self._seed(
+            generation=published_generation(),
+            branch=_stage_support.PUBLISHED_BRANCH,
+            **state,
+        )
         seed_published_pr(self.github)
 
     def _settled_notice(self) -> str:

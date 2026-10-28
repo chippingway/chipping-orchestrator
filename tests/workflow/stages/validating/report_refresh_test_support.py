@@ -24,6 +24,7 @@ from dataclasses import replace
 from unittest.mock import MagicMock
 
 from orchestrator import config
+from orchestrator.git.worktrees import models as _worktree_models, naming as _naming
 from orchestrator.github.developer_reports import developer_report_from_comment
 from orchestrator.workflow.engine import (
     report_rewrite_debt as _rewrite_debt,
@@ -90,6 +91,10 @@ LEGACY = object()
 
 # What a case that names no other claim is seeded with: the rebase's own debt.
 _OWN = object()
+
+
+# What the ownership read answers for a checkout at the issue's path that is not the issue's own.
+UNPROVEN = _worktree_models.ProbeAnswer.REFUTED
 
 
 def fresh(text: str = FRESH_REPORT) -> str:
@@ -281,3 +286,30 @@ class _SquashedReports(_RefreshedReports):
             landed.body = landed.body.replace(_published_reports.DELIVERED_REPORT, text)
         if login:
             landed.user = FakeUser(login)
+
+    def assert_branch_refused(self, **run_options) -> None:
+        """A validating tick refuses the branch the issue pins, with nothing past the refusal done.
+
+        The handler raises `BranchRefused`, which the dispatcher suppresses
+        around every stage handler. Nobody is run or charged, nothing is
+        pushed, posted, parked, written, or relabeled, and the pinned
+        comment, its claim included, and the pull request are left as they
+        stood for a human.
+        """
+        run_agent, push = MagicMock(), MagicMock()
+        standing = self._standing()
+        with self.assertRaises(_naming.BranchRefused):
+            self._ticked(self._run_validating, run_agent, committed=False, push_branch=push, **run_options)
+        run_agent.assert_not_called()
+        push.assert_not_called()
+        self.assertEqual(self._standing(), standing)
+
+    def _standing(self) -> tuple:
+        """What a refused tick leaves alone: the pinned comment, its writes, the thread, the labels, the head."""
+        return (
+            self.pinned(),
+            self.github.write_state_calls,
+            list(self.github.posted_comments),
+            list(self.github.label_history),
+            self.pull_request.head.sha,
+        )

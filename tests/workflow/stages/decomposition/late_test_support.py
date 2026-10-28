@@ -69,6 +69,11 @@ PUBLISHED_SOURCE_STAGE = "workflow:fixing"
 # open anywhere else is one its push would never touch.
 PUBLISHED_BRANCH = _value_helpers._issue_branch(LATE_ISSUE_NUMBER)
 
+# The pinned keys naming the pull request a record says this issue published
+# and the branch it pushed, which a publication always writes together.
+_PINNED_PR = "pr_number"
+_PINNED_BRANCH = "branch"
+
 # A branch this issue never publishes to, for the case where the pinned
 # comment's own number and branch disagree.
 FOREIGN_BRANCH = f"{PUBLISHED_BRANCH}-elsewhere"
@@ -283,11 +288,15 @@ def seed_late_issue(
     """Add the late issue to a fake client with its generation recorded.
 
     An absent `generation` seeds an issue that never entered the gate, since
-    a record with no cycle identity writes no late fields at all.
+    a record with no cycle identity writes no late fields at all. A record
+    naming a pull request names the branch beside it, as every publication
+    writes the two together, unless a case seeds the branch itself.
     """
     issue = make_issue(LATE_ISSUE_NUMBER, label=LABEL_DECOMPOSING)
     github.add_issue(issue)
     recorded = PinnedState(data=dict(extra_state))
+    if _PINNED_PR in extra_state:
+        recorded.data.setdefault(_PINNED_BRANCH, PUBLISHED_BRANCH)
     _late_state.write_late_generation(recorded, generation)
     github.seed_state(LATE_ISSUE_NUMBER, **recorded.data)
     return issue

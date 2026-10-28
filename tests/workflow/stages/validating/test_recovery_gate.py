@@ -14,13 +14,16 @@ can push onto, one somebody moved under the park, and a checkout that moved
 between the recovery's own read and the gate's proof each leave the park where
 it stands -- and a candidate the reading finds too big is handed to the
 adjudication rather than pushed, with the round it spent counted inside the
-gate's own write.
+gate's own write. So does a checkout at the issue's path that is not proven
+the issue's own: both recoveries admit it before they read or fetch anything.
 """
 from __future__ import annotations
 
 import unittest
+from itertools import product
 from types import MappingProxyType
 
+from orchestrator.git.worktrees import models as _worktree_models, naming as _naming
 from tests.workflow.stages.validating import recovered_gate_support as support
 
 AWAITING_HUMAN = support.AWAITING_HUMAN
@@ -289,6 +292,19 @@ class CrashedPublicationRecoveryTest(
         return scenario
 
 
+# Each recovery that reads the checkout, as the park it answers and the reading
+# its branch would give -- a timed-out round level with its publication, which
+# clears without reaching the push seam, and a deferred push -- under both
+# answers short of proof the ownership read can give.
+_UNPROVEN_RECOVERIES = tuple(product(
+    (
+        (PARK_AGENT_TIMEOUT, LEVEL_WITH_THE_PUBLICATION),
+        (PARK_PUSH_FAILED, MappingProxyType({})),
+    ),
+    (_worktree_models.ProbeAnswer.REFUTED, _worktree_models.ProbeAnswer.UNREADABLE),
+))
+
+
 class TimedOutFixRecoveryTest(
     unittest.TestCase, support._RecoveredPublicationMixin,
 ):
@@ -340,6 +356,19 @@ class TimedOutFixRecoveryTest(
         self.assertEqual(pinned[KEY_RECEIPT_SHA], STRANDED_CANDIDATE)
         self.assertEqual(pinned[KEY_RECEIPT_LEASE], PUBLICATION_HEAD)
         self._assert_park_cleared(scenario)
+
+    def test_an_unproven_checkout_heals_nothing(self) -> None:
+        # The checkout at the issue's path is not proven the issue's own. The
+        # recovery admits it before it reads the tree or fetches through it,
+        # so the park stands as the tick found it and nothing is announced.
+        for (reason, reading), identity in _UNPROVEN_RECOVERIES:
+            with self.subTest(reason=reason, identity=identity):
+                scenario = self._seed_park(reason=reason)
+
+                with self.assertRaises(_naming.BranchRefused):
+                    self._recover(scenario, checkout_identity=identity, **reading)
+
+                self._assert_park_stands(scenario, reason)
 
     def test_a_published_recovery_closes_the_park(self) -> None:
         # The anchor the park stamped has been answered, so leaving it would

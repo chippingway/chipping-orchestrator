@@ -38,6 +38,11 @@ What a caller does with True is hand the tick back, which costs nothing: the
 stage's own terminal is the next thing that runs, and it marks the issue `done`
 or `rejected` with the record, the branch and the debt left exactly as they
 stand for it to drain.
+
+The reconciliation asks one more thing at the same point
+(`_answered_ahead`): every road it takes acts on the issue's branch and the
+checkout at its path, so work that has not ended over a record or a checkout
+no live work may use holds the tick with nothing parked or pushed.
 """
 from __future__ import annotations
 
@@ -45,6 +50,7 @@ import logging
 
 from github.Issue import Issue
 
+from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.issues import issue_is_closed
 from orchestrator.github.pinned_state import PinnedState
@@ -52,6 +58,7 @@ from orchestrator.workflow.late_split import payloads as _payloads
 from orchestrator.workflow.stages.implementing import (
     late_overflow as _overflow,
     state as _state,
+    worktree as _dev_worktree,
 )
 
 log = logging.getLogger("orchestrator.workflow")
@@ -85,3 +92,23 @@ def _work_has_ended(
         issue.number,
     )
     return True
+
+
+def _answered_ahead(
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
+) -> bool | None:
+    """What the reconciliation answers before taking any road: False, True, or None where a road is taken.
+
+    False over work that has ended (`_work_has_ended`), for the stage terminal
+    to drain whatever the record pins -- its teardown keeps a branch that is
+    not the issue's current one. True over a record naming no branch live work
+    may use, or a tree at the issue's path not proven the issue's own
+    (`worktree._refuses_live_work`), which holds the tick with nothing parked,
+    posted, measured, or pushed, since every road behind this acts on that
+    branch and that checkout.
+    """
+    if _work_has_ended(gh, issue, state):
+        return False
+    if _dev_worktree._refuses_live_work(spec, issue, state):
+        return True
+    return None

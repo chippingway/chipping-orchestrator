@@ -95,9 +95,9 @@ class PublishedSplitCase(LateSplitCase):
     The branch is on the pinned comment because a published issue's is: the
     push that opened that pull request recorded it, and it is what the
     reclamation behind the supersession resolves and takes down. Left off, the
-    resolver would answer with the legacy ref while `pr_number` stands and
-    with the namespaced one once the retirement clears it, so a case about the
-    branch obligation would be reading two names for one branch.
+    record would carry `pr_number` with no branch beside it, which names no
+    branch live work may use: the resolver refuses it, and the transaction
+    would stop short of the branch obligation these cases are about.
     """
 
     def setUp(self) -> None:

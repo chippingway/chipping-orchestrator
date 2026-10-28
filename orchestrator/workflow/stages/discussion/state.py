@@ -49,10 +49,9 @@ reset to base, delete the branch -- destroying the PR. The relabel that
 succeeds is what finally clears the pair, in `_clear_stale_read_only_park`.
 
 The branch is recorded beside the SHA because a SHA alone does not say which
-ref it belongs to: an issue whose pinned `branch` is the legacy
-`orchestrator/issue-N` form has its round open there, and a probe that answered
-for the slug-namespaced ref instead would report an unchanged tip while the
-commit sat on the branch the round actually used.
+ref it belongs to: the tip a later tick measures has to be the one the round
+opened on, and a probe that answered for any other ref would report an
+unchanged tip while the commit sat on the branch the round actually used.
 
 `_PLAN_PATH` is the publication's own record, and it is what the next tick
 reads to know the conversation has produced its artifact. It is written with
@@ -171,8 +170,9 @@ _PARK_REASON = "park_reason"
 # PR: `pr_number` is also read before one is written -- to tell an issue whose
 # branch has a remote PR head to restore from, from one whose branch exists
 # nowhere but locally (see `run._ensure_round_worktree`) -- and `branch` is
-# recorded beside it so a later tick resolves the ref the PR is open against
-# rather than falling back to the legacy name.
+# recorded beside it so a later tick resolves the ref the PR is open against:
+# a recorded number with no branch beside it is a record the live resolver
+# refuses.
 _PR_NUMBER = "pr_number"
 
 _BRANCH = "branch"

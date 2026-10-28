@@ -85,7 +85,6 @@ import logging
 from dataclasses import replace
 
 from orchestrator.git.verification import probes as _verification_probes
-from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
 from orchestrator.workflow.engine import (
     comments as _comments,
     drift as _engine_drift,
@@ -100,6 +99,7 @@ from orchestrator.workflow.stages.implementing import (
     resume as _dev_resume,
     resume_batch as _resume_batch,
     resume_request as _dev_resume_request,
+    worktree as _dev_worktree,
 )
 from orchestrator.workflow.stages.in_review import (
     feedback as _feedback,
@@ -170,20 +170,15 @@ def _resume_dev_for_drift(
     them and the record names them refused, which is how the carry behind it
     still crosses an outsider comment nobody is owed.
     """
+    # The checkout this resume runs in, recreated on the resolved branch
+    # where the path is gone -- and taken ahead of the notice, so a record
+    # naming no branch live work may use is refused before anything is said
+    # or run.
+    wt = _dev_worktree._ensure_resume_worktree(ctx.spec, ctx.issue, ctx.state)
     _comments._post_pr_comment(
         ctx.gh, int(ctx.pr_number), ctx.state,
         ":pencil2: issue body changed; resuming dev session.",
     )
-    # The checkout this resume runs in, recreated on the resolved branch
-    # where the path is gone.
-    wt = _worktree_paths._worktree_path(ctx.spec, ctx.issue.number)
-    if not wt.exists():
-        wt = _worktree_creation._ensure_worktree(
-            ctx.spec, ctx.issue.number,
-            branch=_naming._resolve_branch_name(
-                ctx.state, ctx.spec, ctx.issue.number,
-            ),
-        )
     before_sha = _verification_probes._head_sha(wt)
     answered = _drift_delivery._pr_drift_resume_prompt(
         ctx.gh, ctx.issue, ctx.state, unread_pr_conv,

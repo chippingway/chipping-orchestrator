@@ -208,8 +208,8 @@ def _seed_interrupted_publication(
     tip it is about to push and nothing else; `branch`, `pr_number`, and the
     plan path all land together in the write the crash skipped. Seeding
     `branch` here would hand the tick the very answer it has to work out for
-    itself -- and would hide the resolver reading a recovered `pr_number` with
-    no branch beside it as a legacy in-flight PR on `orchestrator/issue-N`.
+    itself -- and would hide a recovery that pins the number without the
+    branch beside it, a record the resolver refuses on every later tick.
 
     `with_pr=False` is the same window with nothing out there to find -- a
     push that never landed, or a tick that died before it -- which is what

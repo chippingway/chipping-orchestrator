@@ -123,6 +123,10 @@ def _shared_repository(spec: _config_models.RepoSpec, worktree: Path) -> ProbeAn
     the store the two share -- a linked worktree keeps its own git directory
     and registers it under the parent's, so the common directory is the one
     spelling that comes back equal for a checkout and the clone that made it.
+    That store is only half of it, since git finds it from any directory
+    inside the clone as well, so the path has to be the root of its own work
+    tree too (`evidence_reads._rooted_here`): a plain directory a
+    `WORKTREES_DIR` inside the clone leaves at the path is not a checkout.
     """
     checkout_dir = probes._checkout_clone(worktree)
     clone_dir = probes._checkout_clone(spec.target_root)
@@ -130,7 +134,7 @@ def _shared_repository(spec: _config_models.RepoSpec, worktree: Path) -> ProbeAn
         return ProbeAnswer.UNREADABLE
     if checkout_dir != clone_dir:
         return ProbeAnswer.REFUTED
-    return ProbeAnswer.CONFIRMED
+    return _evidence_reads._rooted_here(worktree)
 
 
 def _head_ref(worktree: Path) -> tuple[ProbeAnswer, str]:
@@ -168,7 +172,7 @@ def _head_ref(worktree: Path) -> tuple[ProbeAnswer, str]:
 
 
 def _head_is_own_branch(
-    spec: _config_models.RepoSpec, issue_number: int, worktree: Path,
+    spec: _config_models.RepoSpec, issue_number: int, worktree: Path, rebasing: bool,
 ) -> ProbeAnswer:
     """Whether this checkout's HEAD is on the branch this issue publishes under.
 
@@ -177,8 +181,15 @@ def _head_is_own_branch(
     layout's exact name is accepted: a tree on the flat
     `orchestrator/issue-<n>`, on another repository's branch, or on any other
     name in the namespace is foreign, and its candidate is kept.
+
+    `rebasing` lets a detached HEAD answer for the branch an unfinished rebase
+    in the tree is rewriting (`evidence_reads._rebased_branch`), held to the
+    same exact name: the evidence a caller resuming an interrupted rebase of
+    the issue's own branch has, and nothing else a detached tree can offer.
     """
     answer, branch = _head_ref(worktree)
+    if answer is ProbeAnswer.REFUTED and rebasing:
+        answer, branch = _evidence_reads._rebased_branch(worktree)
     if answer is not ProbeAnswer.CONFIRMED:
         return answer
     if branch != _naming._branch_name(spec, issue_number):
@@ -198,9 +209,15 @@ def _at_layout_path(
     exactly where the layout puts this issue's checkout under `WORKTREES_DIR`,
     which may itself be configured through a symlink. A path that will not
     resolve is unread rather than refuted, since a symlink loop fails
-    differently across Python versions.
+    differently across Python versions; one the layout does not derive under
+    `WORKTREES_DIR` at all is refuted. A path with nothing at it resolves
+    through whatever of it exists, so the same answer says where a checkout
+    created there would land.
     """
-    layout = paths._worktree_path(spec, issue_number).relative_to(config.WORKTREES_DIR)
+    try:
+        layout = paths._worktree_path(spec, issue_number).relative_to(config.WORKTREES_DIR)
+    except ValueError:
+        return ProbeAnswer.REFUTED
     try:
         placed = worktree.resolve() == config.WORKTREES_DIR.resolve() / layout
     except (OSError, RuntimeError):
@@ -209,7 +226,7 @@ def _at_layout_path(
 
 
 def _checkout_identity(
-    spec: _config_models.RepoSpec, issue_number: int, worktree: Path,
+    spec: _config_models.RepoSpec, issue_number: int, worktree: Path, *, rebasing: bool = False,
 ) -> ProbeAnswer:
     """Whether this checkout is the one this issue's own creator made.
 
@@ -219,7 +236,10 @@ def _checkout_identity(
     this issue's branch can belong to a repository somebody else made. The
     placement is asked first and the repository next, because a HEAD read
     against a tree that is not ours answers about a ref store this
-    classification is not entitled to reason about.
+    classification is not entitled to reason about. `rebasing` is for a
+    caller that resumes an interrupted rebase of the issue's own branch: a
+    detached HEAD passes there only where the rebase in the tree is
+    rewriting exactly that branch.
     """
     placed = _at_layout_path(spec, issue_number, worktree)
     if placed is not ProbeAnswer.CONFIRMED:
@@ -227,4 +247,4 @@ def _checkout_identity(
     shared = _shared_repository(spec, worktree)
     if shared is not ProbeAnswer.CONFIRMED:
         return shared
-    return _head_is_own_branch(spec, issue_number, worktree)
+    return _head_is_own_branch(spec, issue_number, worktree, rebasing)

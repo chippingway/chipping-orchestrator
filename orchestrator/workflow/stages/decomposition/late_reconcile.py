@@ -56,6 +56,10 @@ log = logging.getLogger("orchestrator.workflow")
 # is why what it names has to be true by the time this hands the issue on.
 _PR_NUMBER = "pr_number"
 
+# The branch a recorded pull request is open on, pinned beside the number
+# because the live resolver refuses a record naming one without the other.
+_BRANCH = "branch"
+
 _OPEN_PR_STATE = "open"
 
 _RELEASE_FAILED_PARK = (
@@ -183,17 +187,20 @@ def _reconciled_pr(context: _LateContext) -> bool:
 
     So the commit is what the pull request is found by, in any state. One that
     carries it is recorded, whatever state it is in, because that is the pull
-    request this candidate landed on. Nothing carrying it leaves the recorded
-    number alone -- the commit is simply not published yet, and an open plan
-    PR is exactly what the ordinary publication reuses -- unless the recorded
-    one is settled, which is the pointer that would end the issue.
+    request this candidate landed on, and the branch it was looked up on is
+    pinned beside it, since a recorded number with no branch is a record the
+    live resolver refuses on every later tick. Nothing carrying it leaves the
+    recorded number alone -- the commit is simply not published yet, and an
+    open plan PR is exactly what the ordinary publication reuses -- unless the
+    recorded one is settled, which is the pointer that would end the issue.
     """
     if context.generation.publication.is_complete:
         return _reconciled_publication(context)
+    branch = _naming._resolve_branch_name(
+        context.state, context.spec, context.issue.number,
+    )
     carrying = context.gh.find_pr_for_commit(
-        branch=_naming._resolve_branch_name(
-            context.state, context.spec, context.issue.number,
-        ),
+        branch=branch,
         base=context.spec.base_branch,
         head_sha=context.generation.candidate_sha,
     )
@@ -208,6 +215,7 @@ def _reconciled_pr(context: _LateContext) -> bool:
         carrying.number,
     )
     context.state.set(_PR_NUMBER, carrying.number)
+    context.state.set(_BRANCH, branch)
     return True
 
 
@@ -246,7 +254,7 @@ def _reconciled_publication(context: _LateContext) -> bool:
     The number is recorded on the way out for the reason the road above
     records one: the publication asks its recorded pull request first, and the
     one this issue entered the gate with may not be the one it was measured
-    against.
+    against. The branch the ref was proved on is pinned beside it, as there.
     """
     if not _reconciled_receipt(context):
         return False
@@ -276,6 +284,11 @@ def _reconciled_publication(context: _LateContext) -> bool:
     )
     if not standing:
         return False
+    # Resolved before the number is recorded, while the record still reads
+    # as the one the ref was proved against.
+    context.state.set(_BRANCH, _naming._resolve_branch_name(
+        context.state, context.spec, context.issue.number,
+    ))
     context.state.set(_PR_NUMBER, number)
     return True
 

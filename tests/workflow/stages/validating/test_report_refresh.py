@@ -24,14 +24,18 @@ A claim nobody can read, or one saying nothing about the head standing, earns
 no refresh: the reviewer road parks for the stale report as it always did, and
 the report the reply brings pays the debt all the same.
 
+A pinned branch that is not the issue's current-layout one is refused outright,
+in either world: nobody runs, and nothing is recorded, charged, parked, or
+written.
+
 A settled report of the approved commit an approval squash collapsed, which the
 rebase of that squash left behind, is refreshed the same way once the squash's
 carry proves the lineage and the report re-reads intact -- and is left as it
 was written. A report moved out of reach, requirements past it, a repointed
-pull request or branch, a debt on another branch, a carry onto another head or
-none at all, and a head somebody pushed are refused exactly as before, with
-nobody run, recorded, or charged, and a tree or location nobody could read
-holds with nobody run. Walked whole -- the approval, its squash, the docs pass,
+pull request, a debt on another branch, a carry onto another head or none at
+all, and a head somebody pushed are refused exactly as before, with nobody run,
+recorded, or charged, and a tree or location nobody could read holds with
+nobody run. Walked whole -- the approval, its squash, the docs pass,
 `in_review`, and a later automatic base rebase -- the rebased head is reported
 once before any reviewer sees it, through a push whose answer was lost, an
 interrupted publication, and a second base advance alike; one that comes while
@@ -219,9 +223,17 @@ _MOVED_COMMIT = _review_report._MOVED_COMMIT.format(
     reported=_drift_world.PUBLISHED_HEAD, head=REWRITTEN_HEAD,
 )
 
-# A hand edit pinning another branch of this orchestrator's than the one the
-# rebase rewrote, which the resume would check out and bind a report to.
+# A hand edit pinning another branch in this orchestrator's namespace than the
+# one the rebase rewrote: not the issue's current-layout branch, so a record no
+# tick may check out, run, or bind a report on.
 REPOINTED_BRANCH = MappingProxyType({"branch": "orchestrator/elsewhere"})
+
+# Both worlds a repointed branch is refused in: the rebase alone, and the
+# rebase of an approval's squash, each with the claim it leaves standing.
+REPOINTED_WORLDS = (
+    ("a rebase", _support._RefreshedReports.rebased, REWRITE),
+    ("a squash's rebase", _support._SquashedReports.squashed_then_rebased, _support.SQUASHED_REWRITE),
+)
 
 # What `unrecorded` reads where the reviewer road parked and no refresh ran:
 # no delivery, no transaction, and no comment, beside the park.
@@ -266,7 +278,6 @@ SQUASH_REFUSALS = (
         ).number),
         _review_report._MOVED.format(settled=_support.PR),
     ),
-    ("a repointed branch", {}, lambda case: _reviewed.restate(case, **REPOINTED_BRANCH), _MOVED_COMMIT),
     (
         "a debt on another branch",
         {"claim": replace(_support.SQUASHED_REWRITE, branch="elsewhere").recorded()},
@@ -686,21 +697,6 @@ class RewriteDebtHoldTest(unittest.TestCase, _support._RefreshedReports):
                 self.assert_refused(self.reviewed(), refusal)
                 self.assertEqual(self.claim(), claim)
 
-    def test_a_repointed_branch_earns_no_refresh(self) -> None:
-        # The issue pins another branch than the one the rebase rewrote. No
-        # developer is resumed in that branch's checkout, so nothing is
-        # recorded or charged, and the reviewer road parks for the stale
-        # report as it would with no claim, the claim left as it stood.
-        self.rebased()
-        _reviewed.restate(self, **REPOINTED_BRANCH)
-        spent = _read.spent(self)
-
-        self.assert_refused(self.reviewed(), _MOVED_COMMIT)
-        self.assertEqual(
-            (self.claim(), _read.spent(self), self.unrecorded()),
-            (REWRITE.recorded(), spent, PARKED_UNRECORDED),
-        )
-
     def test_a_reply_pays_a_debt_it_did_not_explain(self) -> None:
         # The park's reply resumes the developer, whose report of the head the
         # pull request stands on pays the debt whatever the claim named -- or
@@ -719,7 +715,10 @@ class RewriteDebtHoldTest(unittest.TestCase, _support._RefreshedReports):
 
 
 class SquashedRefreshHoldTest(unittest.TestCase, _support._SquashedReports):
-    """A squashed report the proof does not reach is refused as before, and one nobody could read runs nobody."""
+    """A squashed report the proof does not reach is refused as before, and one nobody could read runs nobody.
+
+    A repointed branch is refused outright, the squash behind the rebase or not.
+    """
 
     def test_an_unproved_squash_is_refused(self) -> None:
         # No developer is asked for a report, so nothing is recorded or
@@ -737,6 +736,30 @@ class SquashedRefreshHoldTest(unittest.TestCase, _support._SquashedReports):
                     (self.claim(), _read.spent(self), self.unrecorded()),
                     (*standing, PARKED_UNRECORDED),
                 )
+
+    def test_a_foreign_checkout_parks_nothing(self) -> None:
+        # The receipt is damaged, which parks a refresh over the issue's own
+        # checkout; the tree here is not proven the issue's own, so the tick
+        # refuses before the receipt is read.
+        self.rebased()
+        _reviewed.restate(self, implementing_published_lease="not-a-commit")
+
+        self.assert_branch_refused(checkout_identity=_support.UNPROVEN)
+
+    def test_a_repointed_branch_is_refused(self) -> None:
+        # The issue pins another branch than the one the rebase rewrote,
+        # which is not its current-layout branch and so names no branch live
+        # work may stand on. In either world the tick refuses before any
+        # developer or reviewer runs and before the squash's proof is asked
+        # anything: nothing is recorded, charged, or parked, and the claim is
+        # left as it stood.
+        for name, seeded, claim in REPOINTED_WORLDS:
+            with self.subTest(name):
+                seeded(self)
+                _reviewed.restate(self, **REPOINTED_BRANCH)
+
+                self.assert_branch_refused()
+                self.assertEqual(self.claim(), claim.recorded())
 
     def test_an_unreadable_prerequisite_runs_nobody(self) -> None:
         # The tick holds with nothing run, parked, or posted, and the claim

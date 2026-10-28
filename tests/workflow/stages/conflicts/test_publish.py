@@ -20,11 +20,12 @@ from tests.workflow.fixtures import (
     LABEL_DECOMPOSING,
     MEASURED_CANDIDATE_SHA,
     _agent,
+    _issue_branch,
     _PatchedWorkflowMixin,
 )
 
 PUBLISH_ISSUE = 310
-PUBLISH_BRANCH = "orchestrator/issue-310"
+PUBLISH_BRANCH = _issue_branch(PUBLISH_ISSUE)
 PUBLISH_PR = 910
 # A whole git object id, because the size gate freezes the head its pull
 # request stands on before it measures and reads a commit field at its exact

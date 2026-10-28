@@ -2,15 +2,18 @@
 # SPDX-License-Identifier: Apache-2.0
 """Worktree naming, creation, recovery, cleanup, inventory, and terminal owners.
 
-Slug sanitization, the current-layout branch derivation, and the pinned branch
-resolver live in ``naming``; checkout path derivation and the `issue-<n>` read
-that runs back the other way live in ``paths``. Only the current layout's
-exact names are any issue's artifacts here: a flat `orchestrator/issue-<n>`
-branch or `WORKTREES_DIR/issue-<n>` checkout is attributed to nobody and left
-for manual disposition. Candidate-branch discovery and the unpushed-commit
-probes live in ``recovery``; the issue / PR worktree creators and the
-new-commit probe they gate on live in ``creation``; the decomposer's scratch
-checkout lifecycle lives in ``decomposition``; per-issue worktree removal and
+Slug sanitization, the current-layout branch derivation, and the live branch
+resolver with the refusal it raises live in ``naming``; checkout path
+derivation and the `issue-<n>` read that runs back the other way live in
+``paths``. Only the current layout's exact names are any issue's artifacts
+here: a flat `orchestrator/issue-<n>` branch or `WORKTREES_DIR/issue-<n>`
+checkout is attributed to nobody, adopted by no live work, and left for manual
+disposition. The unpushed-commit probes over an issue's current-layout branch
+live in ``recovery``; the issue / PR worktree creators, the ownership gate a
+checkout already at the issue's path passes before either reuses or removes
+it, and the new-commit probe they gate on live in ``creation``; the
+decomposer's scratch checkout lifecycle lives in ``decomposition``; per-issue
+worktree removal and
 local branch deletion live in ``cleanup``, and the question / PR-terminal
 teardowns that compose them live in ``terminal``. The read-only scan that
 derives issue candidates from the artifacts a host already holds lives in
@@ -36,8 +39,8 @@ and a test intercepting one targets that owner: the stage handlers name it
 just as the ``git/base_sync/`` and ``workflow/engine/`` callers do.
 ``attribution``, ``branch_probes``, ``checkout_attribution``, ``claims``,
 ``cleanup``, ``commit_claims``, ``creation``, ``decomposition``,
-``discovery``, ``evidence``, ``inventory``, ``maintenance``, ``probes``,
-``reclaim``, and ``terminal`` name their logger
+``discovery``, ``evidence``, ``inventory``, ``maintenance``, ``naming``,
+``probes``, ``reclaim``, and ``terminal`` name their logger
 ``orchestrator.worktree_lifecycle`` rather than after this package, because
 that is the name operator log filters select on.
 """

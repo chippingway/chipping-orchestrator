@@ -11,6 +11,7 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 from orchestrator import config
+from orchestrator.git.worktrees import naming as _naming
 from orchestrator.workflow.engine import comments as _comments, review_subjects as _review_subjects
 from orchestrator.workflow.state import WorkflowLabel
 from tests.support.fakes import (
@@ -495,6 +496,24 @@ class InReviewFeedbackRoutingTest(
         self.assertEqual(feedback_github.label_history, [])
         self.assertEqual(feedback_github.posted_comments, [])
         self.assertFalse(feedback_github.pinned_data(ROUTING_ISSUE).get(AWAITING_HUMAN))
+
+    def test_flat_pinned_feedback_stays_in_review(self) -> None:
+        # Fresh feedback over a record pinning the flat branch is never handed
+        # to `fixing`: no watermark or pending fix is recorded, and the label
+        # stays.
+        feedback = FakeComment(
+            id=FEEDBACK_COMMENT_ID, body="please tighten the docstring",
+            user=FakeUser(HUMAN_LOGIN), created_at=datetime.now(UTC),
+        )
+        pull = self._open_pr(approved=True, mergeable=True, check_state=CHECKS_SUCCESS, issue_comments=[feedback])
+        github, issue = self._seed(pr=pull, extra_state={"branch": "orchestrator/issue-30"})
+        before = github.pinned_data(issue.number)
+
+        with self.assertRaises(_naming.BranchRefused):
+            self._run_in_review(github, issue, run_agent=_agent())
+
+        self.assertEqual(github.pinned_data(issue.number), before)
+        self.assertEqual(github.label_history, [])
 
     def test_inside_debounce_comment_enters_fixing(self) -> None:
         # Fresh PR feedback inside the debounce window must NOT silently

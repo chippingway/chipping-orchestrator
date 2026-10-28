@@ -105,8 +105,8 @@ def _round_anchor_moved(run: _models._DiscussionRun) -> bool | None:
     own baseline. It is the tip of the branch the round RECORDED that is read,
     and it is compared rather than measured against base -- an issue relabeled
     here from a PR stage has a branch ahead of base whatever this stage did, and
-    an issue pinned to a legacy branch has a slug-namespaced ref beside it whose
-    unchanged tip says nothing about where the round actually ran.
+    a ref beside the recorded one says nothing about where the round actually
+    ran.
 
     A `HEAD` that could not be read is neither, which is why the answer has a
     third value. It comes back empty, and empty compares unequal to every

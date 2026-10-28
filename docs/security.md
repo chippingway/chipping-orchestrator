@@ -827,8 +827,10 @@ deletes the snapshot it was cut from
   that repository and issue. The name tested is the one the record pins, not the live resolver's reading of it, so a
   record naming the flat `orchestrator/issue-<n>`, another repository's branch, or any other name inside the
   `orchestrator/` namespace or outside it deletes nothing on either host, and no derived name is deleted in its place:
-  the branch the record named stays for an operator. With nothing pinned, the resolver's own answer is tested: the
-  derived name, or the flat name it infers beside a recorded pull request, which is refused. The checkout at the issue's
+  the branch the record named stays for an operator. With nothing pinned, a record naming no pull request is fresh work
+  and the derived name is tested; one naming a pull request names no branch at all, so nothing is deleted. The live
+  resolver refuses all of these the same way before any checkout, launch, or push
+  ([branch refusal](state-machine/labels-and-state.md#branch-refusal)). The checkout at the issue's
   own path comes down only where it is proven a worktree of the clone standing on the issue's exact branch, at that path
   rather than through a symlink below `WORKTREES_DIR`, so a tree on the flat or a foreign branch, and a flat checkout a
   symlink reaches, keep every file in them, and neither the tree nor the branch is touched where another configured

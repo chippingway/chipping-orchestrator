@@ -726,6 +726,16 @@ which paths reach an issue decides what keeps it away:
   that branch at its own path (never through a symlink), and touch neither where another configured repository
   derives the same names. Closing an issue retires it into these paths, not out of them: retire that way only work
   whose records the selected build reads, and keep the rest out with its repository.
+- **Work on an earlier branch layout.** The selected build works an issue's branch only where its pinned record names
+  the repository's current-layout `orchestrator/<owner>__<name>/issue-<n>`, or names neither a branch nor a pull
+  request. A record naming a pull request with no `branch` beside it, which an earlier build read as the flat
+  `orchestrator/issue-<n>`, and a record pinning a flat or any other name are refused at every road that would create,
+  reuse, or restore a checkout, launch an agent, or push, with a local warning each tick and nothing written, and the
+  base refresh routes nothing over them. A checkout at an issue's current path standing on the flat branch, another
+  repository's, or a detached HEAD no unfinished rebase of the issue's branch accounts for is refused by every road
+  that would resume, reuse, rebase, recover, or publish from it, whatever commits it carries
+  ([branch refusal](../state-machine/labels-and-state.md#branch-refusal)). No later tick resumes such an issue: finish
+  it under a build that still reads it, or close it, whose teardown deletes only the current-layout branch.
 - **Community pull requests.** The per-tick community sweep writes to open pull requests from authors outside
   `ALLOWED_ISSUE_AUTHORS` — save, to a build that skips an issue's own, those the token's own account opened and
   any standing on a branch of the repository under `orchestrator/` — and no control label holds it. To a build whose

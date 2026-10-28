@@ -27,6 +27,7 @@ from tests.support.fakes import (
     FakeUser,
 )
 from tests.workflow.fixtures import _iso_hours_ago
+from tests.workflow.stages.decomposition import late_test_support as _late_support
 from tests.workflow.stages.decomposition.late_content_replies import HUMAN, PARK_NOTICE_ID
 from tests.workflow.stages.decomposition.late_content_support import OUTSIDER, LateContentCase, RefusedComment
 from tests.workflow.stages.decomposition.late_run_support import agent_reply
@@ -129,10 +130,12 @@ UNUSABLE_REPLY = "I read the diff and it seems fine to me."
 PARK_UNPARSED = "late_manifest_invalid"
 
 # What says this issue's candidate stands under a plan pull request the hold
-# is allowed to mark: the recorded number, and the plan path that proves that
-# pull request is a design rather than an implementation.
+# is allowed to mark: the recorded number with the branch the discussion
+# pinned beside it, and the plan path that proves that pull request is a
+# design rather than an implementation.
 HELD_PLAN_PR = MappingProxyType({
     "pr_number": PLAN_PR_NUMBER,
+    "branch": _late_support.PUBLISHED_BRANCH,
     KEY_PLAN_PATH: PLAN_PATH,
 })
 

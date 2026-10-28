@@ -32,6 +32,7 @@ from tests.git.base_sync.refresh_test_support import (
     GATE_CANDIDATE_SHA,
     _patched,
 )
+from tests.support.checkout_identity import stated_identity
 
 # What the switch, the ceiling, and the count are named as here.
 _DECOMPOSE = "DECOMPOSE"
@@ -82,8 +83,11 @@ def _gate_reads(test_case) -> None:
     premise is that `gh.get_pr` fails can still say so.
 
     The rebase is handed to the gate as the candidate the git owner read, so
-    the readings that candidate is prepared on get their ordinary answers too.
+    the readings that candidate is prepared on get their ordinary answers too,
+    and so does the checkout's ownership read the publication asks ahead of
+    the gate: the checkout here is no real worktree at a layout path.
     """
+    stated_identity(test_case)
     _patched(test_case, _worktree_status, "_worktree_status", MagicMock(
         return_value=_worktree_status._WorktreeStatus(readable=True),
     ))

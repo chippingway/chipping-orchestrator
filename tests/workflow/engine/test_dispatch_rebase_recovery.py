@@ -25,15 +25,20 @@ from orchestrator.git.base_sync.models import _AutoRebaseRequest
 from orchestrator.git.verification import probes as _probes
 from orchestrator.git.worktrees import (
     creation as _worktree_creation,
+    naming as _naming,
     paths as _worktree_paths,
 )
 from orchestrator.workflow.engine import base_refresh as _base_refresh, base_rewrite as _base_rewrite, dispatch_guards
-from tests.support.fakes import FakeGitHubClient, FakePR, FakePRRef, make_issue
+from tests.support import checkout_identity as _checkout_identity, fakes as _fakes
 from tests.workflow.fixtures import _FAKE_WT, _TEST_SPEC
 
 ISSUE = 7
 
 PR_NUMBER = 42
+
+# The issue's current-layout branch, which the pull request stands on and the
+# pinned record names beside it.
+BRANCH = _naming._branch_name(_TEST_SPEC, ISSUE)
 
 ANCHOR = "be40e5ba" * 5
 
@@ -79,16 +84,16 @@ STAGE_PARK = "review_cap"
 _STAGE_PARKS = (STAGE_PARK, "agent_timeout", "late_measurement_failed")
 
 
-def _walks(gh: FakeGitHubClient, checkout: Path) -> None:
+def _walks(gh: _fakes.FakeGitHubClient, checkout: Path) -> None:
     """One refresh pass over this checkout, its pull request open and current.
 
     Through the walk's own selection rather than the PR sync behind it, since
     whether a park freezes the walk out is part of what is being asked.
     """
-    gh.add_pr(FakePR(
+    gh.add_pr(_fakes.FakePR(
         number=PR_NUMBER,
-        head_branch="orchestrator/acme__widget/issue-7",
-        head=FakePRRef(sha=ANCHOR),
+        head_branch=BRANCH,
+        head=_fakes.FakePRRef(sha=ANCHOR),
     ))
     with patch.object(
         branch_transport, "_authed_fetch", return_value=_FETCHED_BRANCH,
@@ -110,6 +115,9 @@ class _InterruptedRebaseCase(unittest.TestCase):
         self.checkout = Path(self.enterContext(
             tempfile.TemporaryDirectory(prefix="orch-dispatch-recovery-"),
         ))
+        # A plain directory rather than a worktree at a layout path, so the
+        # ownership read the refresh asks before routing is stated.
+        _checkout_identity.stated_identity(self)
         self.head = MagicMock(return_value=ANCHOR)
         for name, probe in (
             ("_head_sha", self.head),
@@ -121,15 +129,15 @@ class _InterruptedRebaseCase(unittest.TestCase):
 
     def _opens(self, label) -> None:
         """Start over on an issue under `label`, with nothing pinned yet."""
-        self.gh = FakeGitHubClient()
-        self.issue = make_issue(ISSUE, label=str(label))
+        self.gh = _fakes.FakeGitHubClient()
+        self.issue = _fakes.make_issue(ISSUE, label=str(label))
         self.gh.add_issue(self.issue)
 
     def _seed(self, **pinned) -> None:
         self.gh.seed_state(
             ISSUE,
             pr_number=PR_NUMBER,
-            branch="orchestrator/acme__widget/issue-7",
+            branch=BRANCH,
             pending_auto_base_rebase_push_sha=ANCHOR,
             pending_auto_base_rebase_rewrite_pr=PR_NUMBER,
             pending_auto_base_rebase_rewrite_stage=str(VALIDATING),
@@ -191,7 +199,7 @@ class DeferredRecoveryTest(_InterruptedRebaseCase):
 
     def test_without_one_the_handler_runs(self) -> None:
         # What says the stop above is the anchor's and nothing else's.
-        self.gh.seed_state(ISSUE, pr_number=PR_NUMBER)
+        self.gh.seed_state(ISSUE, pr_number=PR_NUMBER, branch=BRANCH)
 
         self.assertFalse(self._stops())
 

@@ -48,7 +48,7 @@ from orchestrator import config
 from orchestrator.config import models as _config_models
 from orchestrator.git import branch_transport as _branch_transport
 from orchestrator.git.measurement import commits as _measurement_commits
-from orchestrator.git.worktrees import naming as _naming, paths as _worktree_paths
+from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
 from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
     guards as _guards,
@@ -267,8 +267,16 @@ def _on_commits(
     debt left exactly as they stand for the cleanup or the retry they are
     owed. `push_barrier` owns both readings and the one ending that is not an
     ending for this push.
+
+    The checkout is proven the issue's own before any of it, as at the seam
+    every push onto an existing pull request goes through
+    (`creation._proven_checkout`): a tree at the issue's path on any other
+    branch raises `naming.BranchRefused` with no intent recorded and nothing
+    pushed, whatever its commits are.
     """
-    wt = _worktree_paths._worktree_path(spec, issue.number)
+    wt = _worktree_creation._proven_checkout(
+        spec, issue.number, _worktree_paths._worktree_path(spec, issue.number), rebasing=True,
+    )
     published = _publication_intent(gh, issue, state, approved, wt)
     if published is None:
         return

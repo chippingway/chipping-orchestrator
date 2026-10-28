@@ -120,6 +120,7 @@ class FirstTimeHashSeedingIsDurableTest(
         gh.seed_state(
             100,
             pr_number=pr.number,
+            branch=pr.head_branch,
             awaiting_human=True,
             last_action_comment_id=support._INITIAL_LAST_ACTION_COMMENT_ID,
             review_round=1,

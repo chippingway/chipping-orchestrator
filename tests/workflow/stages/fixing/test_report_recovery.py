@@ -26,6 +26,7 @@ import unittest
 from functools import partial
 from unittest.mock import patch
 
+from orchestrator.git.worktrees import evidence as _evidence, models as _worktree_models, naming as _naming
 from orchestrator.workflow.engine import (
     report_binding as _report_binding,
     report_delivery as _report_delivery,
@@ -428,6 +429,26 @@ class ReportObligationTest(unittest.TestCase, support.FixingReportCase):
                     self.assertEqual(
                         _recovery._answers_a_report_first(self.ctx()), ended,
                     )
+
+    def test_an_unproven_checkout_answers_neither(self) -> None:
+        # The checkout at the issue's path is not proven the issue's own, so
+        # neither obligation is answered over it: nothing bound, posted, or
+        # handed back.
+        refuted = _worktree_models.ProbeAnswer.REFUTED
+        for case, records in (("a round settled elsewhere", True), ("a record nothing bound", False)):
+            with self.subTest(case=case):
+                self.setUp()
+                if records:
+                    self.records_a_settlement(under=WorkflowLabel.FIXING)
+                else:
+                    self.records_the_report()
+                before = self.pinned()
+
+                with _PROVED(), patch.object(_evidence, "_checkout_identity", return_value=refuted):
+                    self.assertRaises(_naming.BranchRefused, _recovery._answers_a_report_first, self.ctx())
+
+                self.assertEqual(self.pinned(), before)
+                self.assertEqual((self.gh.label_history, self.gh.posted_pr_comments), ([], []))
 
 
 class TerminalParkTest(unittest.TestCase, support.FixingReportCase):

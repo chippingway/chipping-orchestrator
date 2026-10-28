@@ -40,6 +40,7 @@ from orchestrator.workflow.stages.discussion import (
     models as _models,
     recovery as _recovery,
 )
+from tests.support.checkout_identity import stated_identity
 from tests.support.fakes import FakePR, FakePRRef
 from tests.workflow.fixtures import KEY_PARK_REASON
 from tests.workflow.git_owners import seam_patch
@@ -72,6 +73,9 @@ class DiscussionAmendedPlanHeadTest(unittest.TestCase):
         self._worktree = root / f"issue-{_ISSUE_NUMBER}"
         self._branch = _support._issue_branch(_ISSUE_NUMBER)
         self._build_world()
+        # The worktree sits beside the clone rather than at a layout path, so
+        # its ownership reads are stated.
+        stated_identity(self)
 
     def test_an_amended_head_is_fetched_then_adopted(self) -> None:
         # The trap the fetch closes: the human's commit is on the remote and

@@ -8,6 +8,7 @@ from types import MappingProxyType
 from unittest.mock import patch
 
 from orchestrator.agents import runner as _agent_runner
+from orchestrator.git.worktrees import evidence as _worktree_evidence
 from orchestrator.observability.analytics import settings as analytics_settings
 from tests.workflow.git_owners import GIT_SEAM_OWNERS
 from tests.workflow.patch_builders import _build_workflow_mocks
@@ -15,13 +16,23 @@ from tests.workflow.patch_models import _WorkflowRunContext
 
 _RUN_AGENT = "run_agent"
 
+_CHECKOUT_IDENTITY = "_checkout_identity"
+
+_CHECKOUT_PLACEMENT = "_at_layout_path"
+
 # The module every mocked name is defined on: the git seams, plus the spawn,
-# whose owner is the one non-git module in the set. A stage imports the owner it
-# borrows from, so a mock anywhere else would let the real command run -- which
-# is why a name missing here raises rather than falling back to a second module.
+# whose owner is the one non-git module in the set, and the checkout's
+# ownership and placement reads, which every road that works in a checkout
+# already standing at the issue's path -- or creates one where none stands --
+# asks first and which no case here can answer from a real worktree. A stage
+# imports the owner it borrows from, so a mock anywhere else would let the
+# real command run -- which is why a name missing here raises rather than
+# falling back to a second module.
 _SEAM_OWNERS = MappingProxyType({
     **GIT_SEAM_OWNERS,
     _RUN_AGENT: _agent_runner,
+    _CHECKOUT_IDENTITY: _worktree_evidence,
+    _CHECKOUT_PLACEMENT: _worktree_evidence,
 })
 
 

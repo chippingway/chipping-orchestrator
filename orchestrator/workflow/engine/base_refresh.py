@@ -47,7 +47,12 @@ from orchestrator.git.base_sync import (
     state as _base_sync_state,
 )
 from orchestrator.git.verification import status as _worktree_status
-from orchestrator.git.worktrees import paths as _paths
+from orchestrator.git.worktrees import (
+    evidence as _evidence,
+    models as _worktree_models,
+    naming as _naming,
+    paths as _paths,
+)
 from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.scheduler import service as _scheduler_service, writer_claims as _writer_claims
 from orchestrator.workflow.engine import base_rewrite as _base_rewrite, record_admission as _record_admission
@@ -156,13 +161,52 @@ def _admitted_state(gh: _client.GitHubClient, issue: Issue) -> _pinned_state.Pin
     return state
 
 
+def _stands_on_its_branch(
+    spec: _config_models.RepoSpec, worktree: Path, issue_number: int, state: _pinned_state.PinnedState,
+) -> bool:
+    """Whether the record and the checkout both put this route on the issue's current branch.
+
+    The record is asked the live resolver's question (`naming._admitted_branch`)
+    before any route: a pinned branch that is not the current-layout name, or a
+    recorded pull request with no branch pinned beside it, names no branch a
+    rebase, a push, or a recovery may stand on, and nothing is derived in its
+    place. The checkout is asked whether it is the issue's own -- a worktree
+    of this clone on exactly that branch, reached at its own path -- before
+    any route rewrites or resets it, so a tree on a flat, foreign, or detached
+    HEAD is left with every commit it holds. A pinned anchor's recovery is
+    asked the same question, since a checkout can be switched between ticks
+    and the recovery's reset takes whatever the tree holds; the one thing it
+    adds is a detached HEAD whose unfinished rebase is rewriting exactly the
+    issue's branch, which is how an interrupted attempt leaves its own
+    checkout. Either refusal is said once and leaves everything as it stands.
+    """
+    if _naming._admitted_branch(state, spec, issue_number) is None:
+        log.warning(
+            "issue=#%d records no branch live work may use (branch %r, pull request %r); %s",
+            issue_number, state.get(_naming._PINNED_BRANCH), state.get(_naming._PINNED_PR), _REFRESH_REFUSED,
+        )
+        return False
+    identity = _evidence._checkout_identity(
+        spec, issue_number, worktree, rebasing=bool(state.get(_base_sync_state._PENDING_PUSH_SHA)),
+    )
+    if identity is _worktree_models.ProbeAnswer.CONFIRMED:
+        return True
+    log.warning(
+        "issue=#%d checkout %s is not proven this issue's own (%s); %s",
+        issue_number, worktree, identity, _REFRESH_REFUSED,
+    )
+    return False
+
+
 def _sync_claimed_worktree(
     gh: _client.GitHubClient, spec: _config_models.RepoSpec, worktree: Path, issue_number: int,
 ) -> None:
     """Route one worktree whose issue's writer claim this refresh holds.
 
     The issue is read here, under that claim, and only a pinned comment
-    admission takes is routed on (`_admitted_state`). Pre-PR worktrees are
+    admission takes is routed on (`_admitted_state`), and only where that
+    record and the checkout stand on the issue's current-layout branch
+    (`_stands_on_its_branch`). Pre-PR worktrees are
     rebased locally when clean. PR worktrees always reach the base-rewrite
     coordinator so a pinned crash-recovery anchor is honored even when local
     HEAD already contains the latest base.
@@ -181,7 +225,7 @@ def _sync_claimed_worktree(
     state = _admitted_state(gh, issue)
     if state is None or _selection._issue_skips_base_sync(
         issue, issue_number, state, worktree,
-    ):
+    ) or not _stands_on_its_branch(spec, worktree, issue_number, state):
         return
 
     pr_number = state.get("pr_number")

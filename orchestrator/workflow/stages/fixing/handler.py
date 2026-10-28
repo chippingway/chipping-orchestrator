@@ -69,7 +69,7 @@ from github.Issue import Issue
 
 from orchestrator import config
 from orchestrator.config import models as _config_models
-from orchestrator.git.worktrees import naming as _naming, paths as _worktree_paths
+from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming
 from orchestrator.github.client import GitHubClient
 from orchestrator.workflow.engine import (
     guards as _guards,
@@ -247,9 +247,19 @@ def _publish_stranded_fix(
     and each of those may be a branch carrying the very commit this exit is
     the last tick to publish. Only a branch PROVED to be standing where its
     publication is lets the relabel through.
+
+    The branch is resolved before any of it, the absent checkout's answer
+    included: a record naming no branch live work may use raises
+    `naming.BranchRefused`, so a pull request recorded with no branch beside
+    it is never handed back to review with its round's bookkeeping cleared.
+    A checkout standing at the issue's path is held to that branch next,
+    reading only (`creation._retained_checkout`, as the seam behind this
+    proves it): a tree on any other branch refuses before it is fetched for,
+    and before an in-sync reading of it could hand the pull request back.
     """
-    wt = _worktree_paths._worktree_path(spec, issue.number)
-    if not wt.exists():
+    branch = _naming._resolve_branch_name(state, spec, issue.number)
+    wt = _worktree_creation._retained_checkout(spec, issue.number, rebasing=True)
+    if wt is None:
         # Nothing to publish is the ordinary answer, and it is not the whole
         # one: a pair this issue froze and never counted has no checkout to
         # be measured in either, and bouncing on it would hand the reviewer a
@@ -263,7 +273,6 @@ def _publish_stranded_fix(
         return _models._StrandedPublication(
             unproved=not evidence.settled, refusal=evidence.refusal,
         )
-    branch = _naming._resolve_branch_name(state, spec, issue.number)
     published = _late_push._publishes(
         _late_records._gate(gh, spec, issue, state, wt), branch,
         _late_gate_models._Entered(

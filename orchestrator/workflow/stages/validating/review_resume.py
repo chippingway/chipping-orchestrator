@@ -106,6 +106,12 @@ comment as it stands, and so do records, or an anchor, another road moves
 between that reading and the commit. An anchor another road pointed elsewhere
 is left for the handoff, or the park, to hold.
 
+Both hooks build the launch they finish through `review_handoffs.HandedLaunch.
+of`, which admits the branch and the checkout its developer would be handed
+before anything else (`implementing/worktree._admitted_resume`), so a record
+or a tree no live work may use raises `naming.BranchRefused` ahead of every
+drop, anchor write-back, park, relabel, and launch here.
+
 Every write here lands through that guarded commit under the tick-state guard
 the validating reviewer writes share (`review_writes.lands`), so a refusal
 writes nothing and withholds the tick's state from every whole-state write

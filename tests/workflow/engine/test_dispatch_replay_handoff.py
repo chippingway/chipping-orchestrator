@@ -23,9 +23,9 @@ from unittest.mock import MagicMock, patch
 from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.workflow.engine import issue_processing as _issue_processing, stage_targets as _stage_targets
 from orchestrator.workflow.state import WorkflowLabel
+from tests.support.checkout_identity import stated_identity
 from tests.support.fakes import FakeLabel
 from tests.workflow.engine import rewrite_takeover_test_support as support
-from tests.workflow.fixtures import _TEST_SPEC
 
 # The attempt as a handoff leaves it: every member blanked rather than removed.
 _RETIRED = dict.fromkeys(support.ATTEMPT_KEYS)
@@ -45,6 +45,9 @@ class _HandoffDispatchCase(unittest.TestCase):
 
     def setUp(self) -> None:
         self.checkout = Path(self.enterContext(tempfile.TemporaryDirectory(prefix="orch-replay-handoff-")))
+        # The checkout is a plain directory rather than a worktree at a layout
+        # path, so its ownership reads are stated.
+        stated_identity(self)
 
     def _dispatches(self, world: support.TakeoverWorld) -> MagicMock:
         """Route issue #7 the way a tick does; the handler it reached, as a mock."""
@@ -54,7 +57,7 @@ class _HandoffDispatchCase(unittest.TestCase):
             _worktree_paths, "_worktree_path", MagicMock(return_value=self.checkout),
         ):
             _issue_processing._route_issue_to_handler(
-                world.github, _TEST_SPEC, world.issue, world.github.workflow_label(world.issue),
+                world.github, support.SPEC, world.issue, world.github.workflow_label(world.issue),
             )
         return dispatched
 

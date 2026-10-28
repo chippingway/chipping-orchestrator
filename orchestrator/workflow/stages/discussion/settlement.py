@@ -29,6 +29,7 @@ wrong before the reply arrived is not described to the humans a second time.
 """
 from __future__ import annotations
 
+from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming
 from orchestrator.workflow.stages.discussion import (
     checkout_parks as _checkout_parks,
     models as _models,
@@ -53,7 +54,11 @@ def _checkout_reading(run: _models._DiscussionRun) -> _models._CheckoutReading:
 
     So the anchor is only asked of a readable tree, an unanswerable reading is
     reported as an unreadable checkout, and `moved` is never true on either.
+    Both roads behind it publish or park over what it finds, so the branch and
+    a tree at the issue's path are admitted first (`naming.BranchRefused`).
     """
+    _naming._resolve_branch_name(run.state, run.spec, run.issue.number)
+    _worktree_creation._retained_checkout(run.spec, run.issue.number)
     state = _round_evidence._stranded_worktree_state(run)
     moved = (
         _round_evidence._round_anchor_moved(run) if state.readable else None

@@ -16,6 +16,7 @@ from orchestrator.config import models as _config_models
 from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import (
     creation as _worktree_creation,
+    naming as _naming,
     paths as _worktree_paths,
 )
 from orchestrator.github.client import GitHubClient
@@ -305,13 +306,22 @@ def _holds_unreconciled_candidate(
     which is all of them outside that window, and for one already parked --
     there the park owns the tick and the reply to it decides what happens
     next.
+
+    The branch and the checkout are admitted before the pair is read, as the
+    publication behind it would prove them: the size gate ahead of that
+    publication records what it measures as this issue's candidate and can
+    hand it to an adjudication, so a record naming no branch live work may
+    use, or a tree at the issue's path that is not proven the issue's own,
+    raises `naming.BranchRefused` with nothing measured or written.
     """
     if state.get(_state._AWAITING_HUMAN):
         return False
     if not _late_park_state._recorded_candidate(state):
         return False
-    wt = _worktree_paths._worktree_path(spec, issue.number)
-    if not wt.exists():
+    _naming._resolve_branch_name(state, spec, issue.number)
+    wt = _worktree_creation._retained_checkout(spec, issue.number, rebasing=True)
+    if wt is None:
+        wt = _worktree_paths._worktree_path(spec, issue.number)
         _late_evidence._holds_missing_candidate(gh, spec, issue, state, wt)
     elif not _reconcilable(gh, spec, issue, state, wt):
         _dispose_recorded_candidate(gh, spec, issue, state, wt)

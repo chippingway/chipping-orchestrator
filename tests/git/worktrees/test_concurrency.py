@@ -21,7 +21,7 @@ from unittest.mock import patch
 
 from orchestrator.config import models as _config_models
 from orchestrator.git import branch_transport, commands, locks
-from orchestrator.git.worktrees import creation
+from orchestrator.git.worktrees import creation, naming
 from tests.git.concurrency_test_support import (
     BARRIER_TIMEOUT_SECONDS,
     PROBE_DELAY_SECONDS,
@@ -53,6 +53,7 @@ def _ensure_threads(specs) -> list[threading.Thread]:
         threading.Thread(
             target=creation._ensure_worktree,
             args=(spec, issue_number),
+            kwargs={"branch": naming._branch_name(spec, issue_number)},
         )
         for spec, issue_number in specs
     ]

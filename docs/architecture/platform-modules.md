@@ -1101,7 +1101,10 @@ orchestrator/
                         claim the reconciliation answers freezes the refresh out -- with a missing checkout
                         restored where the refresh drives the label and the ineligible answer taken where it does
                         not, over a context built apart (`_held_anchor_context`) so the dispatcher can hand it the
-                        workflow's answer before a park keeps the attempt. An anchor beside a live adjudication
+                        workflow's answer before a park keeps the attempt; a restore whose record names no branch
+                        live work may use, or whose checkout the creator refuses, restores nothing and leaves the
+                        hold standing, and the ineligible answer is taken only over the issue's current branch and a
+                        checkout proven its own (`_stands_on_its_branch`). An anchor beside a live adjudication
                         reaches it only once the dispatcher's handoff
                         (`workflow/engine/rewrite_takeover.py`) has refused the pair
       persistence.py    the parks and the reset-and-park tail -- which drops the whole attempt and the debt it
@@ -1429,15 +1432,24 @@ orchestrator/
     worktrees/          the per-issue checkouts an agent runs in, the read-only inventory of which issues they
                         and the branches beside them name, the classification of which of those may be
                         reclaimed, and the bounded pass that spends one of those classifications
-      naming.py         slug sanitization, git-ref-safe branch segments, and pinned or legacy branch resolution:
-                        the one current-layout branch name an issue owns -- the only name ownership and cleanup
-                        recognize -- and the `orchestrator/` namespace it lives in, the only one a pinned branch is
-                        honored in and the one the community sweep tells an issue's own pull request by; neither
-                        that prefix nor the flat name the resolver can still answer is ownership evidence
+      naming.py         slug sanitization, git-ref-safe branch segments, and the live branch resolver: the one
+                        current-layout branch name an issue owns -- the only name ownership, cleanup, and live work
+                        recognize -- which the resolver answers for fresh work and for a record pinning exactly
+                        it, raising `BranchRefused` (a `RecordRefused`) over every other record: a recorded pull
+                        request with no branch, a flat, foreign, or any other pin. The `orchestrator/` namespace
+                        the name lives in is the one the community sweep tells an issue's own pull request by,
+                        and is no ownership evidence
       paths.py          the one per-repository path an issue is checked out at, and the `issue-<n>` read that runs
                         back the other way -- canonical spellings only, so a padded or signed number is no issue
                         at all; a flat `WORKTREES_DIR/issue-<n>` is no repository's derivation
-      creation.py       issue and PR worktree creation, stale-worktree reuse and the unpushed-commit probe it turns on
+      creation.py       issue and PR worktree creation on the issue's current-layout branch alone, the read-only
+                        ownership proof a checkout already at the issue's path passes before any road works in,
+                        resumes, publishes from, reuses, or removes it (`_retained_checkout`, `_proven_checkout`)
+                        -- a tree on a flat, foreign, or detached HEAD, or reached through a symlink, refuses the
+                        road whatever it carries, a detached HEAD passing only where a caller resuming an
+                        interrupted rebase shows the rebase rewriting exactly the issue's branch, and a missing
+                        checkout's path has to resolve to its layout location before anything is created
+                        there -- and the unpushed-commit probe reuse turns on
       anchoring.py      the shared restore fetch and the guarded move that re-anchors a reused checkout onto a PR
                         head or its merged base, with the target-root lock held across refresh and movement
       cleanup.py        lock-held worktree removal and local branch deletion, each behind its best-effort boundary,
@@ -1445,15 +1457,16 @@ orchestrator/
                         forced removal is spent only on a checkout `evidence` proves a worktree of the clone on the
                         issue's exact branch, at a path that resolves to its layout location rather than through a
                         symlink; a foreign, symlink-reached, or unreadable tree is left with every file in it
-      recovery.py       candidate-branch discovery, the unpushed-commit probe, and the tip read a recorded SHA is
-                        compared against
+      recovery.py       the unpushed-commit probe over the issue's current-layout branch alone, so no flat branch
+                        is offered as work to recover, and the tip read a recorded SHA is compared against
       decomposition.py  the decomposer scratch path, its detached creation, and its best-effort removal
       terminal.py       question-stage teardown and terminal local and remote branch cleanup; a branch is
                         deleted only where it is the issue's exact current-layout name, tested against the
                         record's raw pin (`_recorded_branch`) rather than the live resolver's reading, so a
-                        pinned flat, foreign, or any other branch is kept on both hosts and no derived name is
-                        reaped in its place, and nothing is touched where another configured repository derives
-                        the same branch name or checkout directory
+                        pinned flat, foreign, or any other branch -- and a recorded pull request with no branch
+                        beside it -- is kept on both hosts and no derived name is reaped in its place, and
+                        nothing is touched where another configured repository derives the same branch name or
+                        checkout directory
       candidates.py     local issue artifacts, the inventory's refused repositories, where a candidate was found,
                         and the combined maintenance scan. These records describe what discovery established
       models.py         the three answers a fail-closed probe can give, branch and proven commit identities,
@@ -1496,15 +1509,22 @@ orchestrator/
                         report an empty inventory
       evidence_reads.py
                         hardened local reads, with clone reads serialized under the target-root lock so they
-                        cannot land between a worktree mutation and the ref it creates; spawn failures stay unread
+                        cannot land between a worktree mutation and the ref it creates; spawn failures stay unread.
+                        Also whether git reads a directory as its own work tree's root, and the branch an unfinished
+                        rebase in a checkout is rewriting, read off the state git keeps for it, since a rebase leaves
+                        HEAD detached until it finishes
       tip_evidence.py   local branch tips, checkout HEAD commits, authenticated remote tips, and containment in
                         the base the remote names. Every read distinguishes absence from an unreadable answer.
                         Tracking refs cannot prove publication because a per-issue checkout can rewrite them;
                         the remote answer therefore comes over authenticated transport without fetching
       evidence.py       checkout ownership, symbolic HEAD identity, status, and ignored-file evidence. Identity
                         requires the path to resolve to its layout location under `WORKTREES_DIR`, then compares the
-                        clone and the issue's exact current-layout branch before content can justify removing it,
-                        so a checkout on a flat or foreign branch, or one a symlink reaches, is kept.
+                        clone, asks that the path be the root of its own work tree, and compares the issue's exact
+                        current-layout branch before content can justify removing it, so a checkout on a flat or
+                        foreign branch, one a symlink reaches, and a plain directory git finds the clone from are
+                        kept. A caller
+                        resuming an interrupted rebase may let a detached HEAD answer for the branch that rebase
+                        is rewriting, held to the same exact name.
                         Loose and ignored files are separate reads because git refuses removal for only the first;
                         either kind keeps the tree, as does a status or identity read that could not be taken
       activity_evidence.py
@@ -1525,7 +1545,7 @@ orchestrator/
                         an obsolete bare name neither ends an issue nor makes it ambiguous, and the open pull
                         requests still standing on a branch or on the recorded number. The branch claims are
                         asked of the issue's current-layout name whether or not the host still holds it and of
-                        the branch its record resolves to, which can only keep a candidate, and they name no
+                        the branch its record pins, as spelled, which can only keep a candidate, and they name no
                         base, since a thread retargeted onto another base
                         stands on the branch just as squarely. Every read is behind its own boundary, the lazy
                         fields included, and every boundary answers with a retention rather than a default

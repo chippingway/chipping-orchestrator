@@ -97,7 +97,6 @@ from orchestrator.config import models as _config_models
 from orchestrator.git.worktrees import (
     creation as _worktree_creation,
     naming as _naming,
-    paths as _worktree_paths,
 )
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
@@ -227,7 +226,15 @@ def _finished_collapse(
     parked ahead of the push rather than resumed
     (`squash_approval.allowance`), save a landing this issue's own receipt
     proves, which the recovery is bound to finish as the no-op it is.
+
+    The branch the squash publishes, and the tree standing at the issue's
+    path, are held to the issue's own before any of it, reading only: a
+    record naming no branch live work may use, or a tree there on any other
+    branch, refuses (`naming.BranchRefused`) before a park is taken or the
+    collapse is touched.
     """
+    _naming._resolve_branch_name(state, spec, issue.number)
+    _worktree_creation._retained_checkout(spec, issue.number)
     if _held_by_another_park(gh, spec, issue, state):
         return True
     no_op_of = _squash_approval.allowance(gh, spec, issue, state, held)
@@ -269,12 +276,16 @@ def _checkout_of(
     remote has -- the collapse, which it finishes, or the commits it was made
     from, which it squashes afresh.
 
-    A path that is there and is not a checkout is left to the probes below,
-    which refuse on what they cannot read: this owner does not repair a
+    A tree standing there is taken only once it is proven the issue's own
+    (`creation._retained_checkout`): the recovery resets and recommits what it
+    finds, so a checkout on the flat branch, another repository's, or a
+    detached HEAD refuses it with every commit and staged change in place. The
+    staged collapse itself stands on the issue's branch, which a soft reset
+    leaves HEAD on, so it is recovered as ever. This owner does not repair a
     worktree, and rebuilding one would be the destructive step all over again.
     """
-    standing = _worktree_paths._worktree_path(spec, issue.number)
-    if standing.exists():
+    standing = _worktree_creation._retained_checkout(spec, issue.number)
+    if standing is not None:
         return standing
     return _worktree_creation._ensure_worktree(
         spec, issue.number,
@@ -408,6 +419,11 @@ def _finished_handoff(
         # have caught. It goes, and the round below runs.
         _late_handoffs.clear_settled_handoff(state)
         return False
+    # The move hands the branch and the tree at the issue's path to the docs
+    # pass, so both are held to the issue's own before the record is read
+    # against anything, settled, dropped, or spent on the relabel.
+    _naming._resolve_branch_name(state, spec, issue.number)
+    _worktree_creation._retained_checkout(spec, issue.number)
     carried = _squash_evidence.carried_onto(_proof.ProofReading(gh, spec, issue, state), settled)
     if not carried.answers:
         if not carried.holds and _handoff._holds_its_records(

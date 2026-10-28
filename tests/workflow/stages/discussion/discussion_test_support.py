@@ -137,12 +137,12 @@ def _issue_worktree(issue_number: int):
 
 
 def _issue_branch(issue_number: int, *, legacy: bool = False) -> str:
-    """The per-issue ref, in either spelling the resolver can hand back.
+    """The per-issue ref: the current-layout name, or the flat spelling.
 
-    `legacy=True` is the pre-namespacing form a long-lived issue can still be
-    pinned to, and it is a distinct ref rather than an alias: both can exist in
-    the same clone at different tips, which is the whole reason the round
-    records which one it opened on.
+    Only the current-layout name is one the resolver hands back. `legacy=True`
+    is the flat pre-namespacing `orchestrator/issue-<n>`, a distinct ref
+    rather than an alias: both can exist in the same clone at different tips,
+    so a record naming the flat one names a branch no live work stands on.
     """
     if legacy:
         return f"orchestrator/issue-{issue_number}"

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import unittest
 
+from orchestrator.git.worktrees import evidence as _evidence, models as _worktree_models, naming as _naming
 from orchestrator.workflow.stages.fixing import handler as _fixing
 from tests.workflow.stages.fixing import (
     fixing_drift_test_support as drift_support,
@@ -174,6 +175,21 @@ class UnplacedBranchDriftRefusalTest(
     -- so the recovery answers the two in different words and only the first
     reaches this road.
     """
+
+    def test_an_unproven_checkout_is_not_rerouted(self) -> None:
+        # The worktree fell behind base, which reroutes a stuck park, but the
+        # tree at the issue's path is not proven the issue's own: its drift is
+        # never read, and nothing is relabelled.
+        gh = FakeGitHubClient()
+        self._seed_parked_fixing(gh, BEHIND_BASE_ISSUE)
+        refuted = _worktree_models.ProbeAnswer.REFUTED
+
+        with self._drift_patches(2), patch.object(_evidence, "_checkout_identity", return_value=refuted):
+            self.assertRaises(
+                _naming.BranchRefused, _fixing._handle_fixing, gh, _TEST_SPEC, gh.get_issue(BEHIND_BASE_ISSUE),
+            )
+
+        self.assertEqual(gh.label_history, [])
 
     def test_an_unplaced_timeout_park_is_not_rerouted(self) -> None:
         # The timeout left the head where it found it, and the head it found is

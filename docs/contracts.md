@@ -153,7 +153,13 @@ maintenance reads an unsupported record as no record at all to classify on, neve
 every checkout and branch of its issue stays, however the issue ended, and nothing is deleted or written for it. The
 flat pre-namespacing layout is unsupported input too: an `orchestrator/issue-<n>` branch or `WORKTREES_DIR/issue-<n>`
 checkout is no repository's artifact, and no ownership, terminal, late-split, or scheduled cleanup path adopts or
-deletes one, whether the clone holds it or only the remote does.
+deletes one, whether the clone holds it or only the remote does. No live work adopts one either: the branch resolver
+answers only an issue's current-layout name, for fresh work and for a record pinning exactly that name, and refuses
+any other record before a checkout, launch, or push, inferring no flat name from a recorded pull request, taking no
+`orchestrator/` prefix as proof, and deriving no replacement for a pin; no road works in, resumes, reuses, rebases,
+recovers, publishes from, or removes a checkout at the issue's path until it is proven a worktree of the clone on that
+branch, whatever commits the tree carries, a detached HEAD passing only where an unfinished rebase of exactly that
+branch accounts for it.
 Current-format authentication [C-04], writer claims and artifact ownership [C-05], guarded and uncertain-write recovery
 [C-06], approval evidence [C-09], pinned session commands [C-14], lifetime run accounting [C-15], and the audit-log
 recovery exception [C-12] remain required. Optional fields the current format defines and current transactions a crash
@@ -172,6 +178,7 @@ or lost write interrupted are current state, not historical compatibility.
 [artifact admission](configuration/operations.md#what-clears-a-candidate-and-what-keeps-it),
 [deployment without migration](configuration/operations.md#deploying-without-migration),
 [close recovery](state-machine/delivery-stages.md#closed-owner-cleanup-sweep-no-label-of-its-own),
+[branch refusal](state-machine/labels-and-state.md#branch-refusal),
 [analytics readers](observability/analytics-dashboard.md#read-model-orchestratorobservabilityanalyticsquery),
 [requirements baselines](state-machine/delivery-stages.md#user-content-drift-detection),
 [watermark initialization](state-machine/delivery-stages.md#_handle_in_review-label-in_review),
@@ -203,7 +210,12 @@ or lost write interrupted are current state, not historical compatibility.
 [split manifests](../tests/workflow/stages/decomposition/test_manifest.py),
 [late records](../tests/workflow/stages/decomposition/test_late_session.py),
 [unexplained singles](../tests/workflow/stages/decomposition/test_late_unsplit_park.py),
-[hold spellings](../tests/workflow/stages/decomposition/test_late_hold.py).
+[hold spellings](../tests/workflow/stages/decomposition/test_late_hold.py),
+[branch resolution](../tests/git/worktrees/test_resolution.py),
+[checkout reuse](../tests/git/worktrees/test_creation.py),
+[refused drift unwind](../tests/workflow/stages/documenting/test_drift_checkout.py),
+[refused drift resume](../tests/workflow/stages/validating/test_drift_refusal.py),
+[refused handoff recovery](../tests/workflow/stages/validating/test_review_resume_refusal.py).
 
 ## C-04: Authentic state and trusted input
 
@@ -318,14 +330,24 @@ intervening work.
 
 **Limits:** Human maintainers may push; their changes to the remote branch are external changes the orchestrator must
 handle. The publication protocol defines the commit and remote branch head checks and commit-selection fallbacks.
+The orchestrator publishes only to an issue's current-layout branch the live resolver names: a recorded pull request
+whose branch is missing, invalid, flat, another repository's, or otherwise not that name stops before any checkout,
+agent launch, or push, and no newly derived branch is substituted for it. Current unpushed work, a current pull
+request's restoration from its remote head, uncertain remote reads, and exact-head pushes keep their protocols.
 Credential filtering does not enforce push authority; see [C-11].
 
 **Specs:** [pushes](architecture.md#push-path-gitbranch_transport_push_branch),
-[human merges](state-machine.md#_handle_in_review-label-in_review).
+[human merges](state-machine.md#_handle_in_review-label-in_review),
+[branch refusal](state-machine/labels-and-state.md#branch-refusal).
 
 **Checks:** [transport](../tests/git/test_push.py),
 [rewrite publication](../tests/workflow/engine/test_rewrite_publication.py),
-[human merge handoff](../tests/workflow/stages/in_review/test_routing.py).
+[human merge handoff](../tests/workflow/stages/in_review/test_routing.py),
+[refused publication](../tests/workflow/stages/implementing/test_pr_reuse.py),
+[refused seam push](../tests/workflow/stages/fixing/test_bounce.py),
+[refused resume](../tests/workflow/stages/implementing/test_resume_checkout.py),
+[refused refresh](../tests/workflow/engine/test_base_refresh_branch_refusal.py),
+[refused adjudication](../tests/workflow/stages/decomposition/test_late_charged_run.py).
 
 ## C-08: Agent reply protocols
 

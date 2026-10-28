@@ -41,7 +41,7 @@ from orchestrator.workflow.engine import (
     report_delivery as _report_delivery,
     report_delivery_state as _delivery_state,
 )
-from tests.support import fakes
+from tests.support import checkout_identity, fakes
 from tests.workflow.git_owners import seam_patch
 from tests.workflow.stages.fixing import report_settlement_support as _support
 
@@ -158,9 +158,11 @@ def a_checkout(*, present: bool = True, tree: _WorktreeStatus | None = None, hea
     A real directory where the case says the checkout is there, because the
     owner asks the path itself rather than a probe -- so a fixture naming one
     no host holds would answer the missing-checkout refusal whatever else it
-    meant to be about.
+    meant to be about. It is no worktree at a layout path, so its ownership
+    reads are stated.
     """
     with tempfile.TemporaryDirectory() as checkout, contextlib.ExitStack() as seams:
+        seams.enter_context(checkout_identity.stated_ownership())
         standing = Path(checkout) if present else _GONE
         seams.enter_context(seam_patch("_worktree_path", lambda *_args: standing))
         seams.enter_context(
