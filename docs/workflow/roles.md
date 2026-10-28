@@ -188,14 +188,17 @@ per-stage behavior is in
   already drops `late_session_id` for every run that is not continuing a question a human has answered, so what the
   command pays for is a fresh conversation before the agent starts rather than a retirement taken beside the grant.
   The run happens in the issue's OWN worktree rather than a scratch checkout of the base branch, because the diff
-  it is asked about is between two commits nothing has pushed. What reaches the coordinator is the first thing a
-  `decomposing` tick asks (`_late_adjudication_owns_the_tick` on `stages/decomposition/run.py`): an issue whose record
-  carries a live generation belongs to it entire, and no step of the initial decomposition runs for it. It is asked on
-  every tick of that label rather than only the ones that look late, because the reconciliations it opens with are
-  owed by exactly the records the gates below it route past. What PUTS an issue there is the size gate below, and the
-  two refusals beside it keep anything else from deciding a live generation: one stops `DECOMPOSE=off` from routing an
-  unadjudicated candidate to implementation, and one stops the dispatcher handing a hand-relabelled issue to whichever
-  stage the new label named.
+  it is asked about is between two commits nothing has pushed — and so only once the record names the issue's
+  current-layout branch and a tree at its path is proven the issue's own, both asked at the admission gate ahead of
+  its retry-cap park, host probe, pull-request hold, and spawn
+  ([branch refusal](../state-machine/labels-and-state.md#branch-refusal)). What reaches the coordinator is the first
+  thing a `decomposing` tick asks (`_late_adjudication_owns_the_tick` on `stages/decomposition/run.py`): an issue
+  whose record carries a live generation belongs to it entire, and no step of the initial decomposition runs for it.
+  It is asked on every tick of that label rather than only the ones that look late, because the reconciliations it
+  opens with are owed by exactly the records the gates below it route past. What PUTS an issue there is the size gate
+  below, and the two refusals beside it keep anything else from deciding a live generation: one stops
+  `DECOMPOSE=off` from routing an unadjudicated candidate to implementation, and one stops the dispatcher handing a
+  hand-relabelled issue to whichever stage the new label named.
 - **Late developer revision.** Guidance a human writes about an oversized candidate is not a decomposition question,
   so it does not go to the late adjudicator: the work itself has to change, and the session that wrote it is resumed
   against the guidance in the worktree the candidate already lives in

@@ -23,10 +23,14 @@ What each prompt grants and forbids, and how a session is continued across round
      the teardown, is refused or cannot be read; the checkout comes down only where it is proven the issue's own, and
      the branch is deleted only where the one the record pins, read raw rather than through the resolver, is the
      issue's current-layout name). Do NOT spawn the agent.
-  2. **Awaiting-human resume.** If `awaiting_human`, scan for new comments past `last_action_comment_id`. No new
-     comments → return (the `_question_run_cleanup` context manager still tears down any worktree from a prior safe
-     tick). New comments → advance the watermark BEFORE spawning, then resume the locked session via
-     `_build_question_followup_prompt`.
+  2. **Awaiting-human resume.** If `awaiting_human`, resolve the issue's branch first, whether or not the checkout is
+     still on disk, so a record naming no branch live work may use is refused before any reply is consumed
+     ([branch refusal](labels-and-state.md#branch-refusal)); then scan for new comments past
+     `last_action_comment_id`. No new comments → return (the `_question_run_cleanup` context manager still tears down
+     any worktree from a prior safe tick). New comments → advance the watermark BEFORE spawning, then resume the
+     locked session via `_build_question_followup_prompt` in the checkout still at the issue's path once it is proven
+     the issue's own (`creation._retained_checkout`), or in one recreated on that branch where it has gone. A tree
+     that is not the issue's own refuses the resume with nothing written and every file in place.
   3. **Fresh spawn.** Ensure the per-issue worktree, resolve the question spec via `_read_question_session` (falls back
      to the decomposer's spec on the first-ever spawn), persist `question_agent` BEFORE invoking `run_agent`, build the
      read-only `_build_question_prompt`, spawn, and persist `question_session_id`. A mid-run `paused` / `backlog`
@@ -46,8 +50,9 @@ What each prompt grants and forbids, and how a session is continued across round
 
   The `_question_run_cleanup` context manager runs `_cleanup_question_worktree` unless one of the three unsafe-park
   branches set `keep_worktree=True`, or the run met a pinned record admission refuses — a human's edit since the
-  dispatch read it, met at the handler's own reading, a write, or the agent-run charge, which raise `RecordRefused`:
-  that issue's worktree and branch are kept for whoever disposes of the record. Both teardowns, this one and the
+  dispatch read it, met at the handler's own reading, a write, or the agent-run charge, which raise `RecordRefused`,
+  as a branch refusal does (`naming.BranchRefused`): that issue's worktree and branch are kept for whoever disposes
+  of the record. Both teardowns, this one and the
   terminal close's, also read the record themselves before they run (`record_admission.teardown_admitted`), so a
   refusal a guarded commit answered rather than raised, or a human's edit landing behind the close's write, keeps them
   too, and so does a reading that fails, which cannot prove the record admitted.
@@ -233,7 +238,10 @@ the per-issue checkout only has to survive a tick when an unsafe park keeps it f
   then, resuming `discussion_session_id` when there is one — in the
   per-issue `issue-N` worktree on the issue's own branch. A resumed round reuses that checkout as it stands — the tree
   the operator was reading while they composed the reply, already established clean and on the anchor by the hold
-  above — and only a directory that has gone is restored at all. Restoring it (for an opening round, or a resumed one
+  above — once it is proven the issue's own (`creation._retained_checkout`): a tree on any other branch, one a
+  symlink reaches, and one whose identity will not read refuse the round with every file in place
+  ([branch refusal](labels-and-state.md#branch-refusal)). Only a directory that has gone is restored at all, on the
+  branch the live resolver answers. Restoring it (for an opening round, or a resumed one
   whose directory vanished) goes through `_ensure_pr_worktree` from the PR head if the issue carries a `pr_number` and
   `_ensure_worktree` from the base branch if it does not, since an issue relabeled here from a PR stage is discussed
   on the branch its PR is open against and a base-branch rebuild would hide the PR's commits from the round and from

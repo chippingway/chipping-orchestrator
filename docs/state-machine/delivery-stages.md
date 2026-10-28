@@ -6261,7 +6261,12 @@ of those recoverable without telling a human twice
      saved report, or answers a person. Once step 8 is through and `conflict_round >= MAX_CONFLICT_ROUNDS`, park.
      Escape: (a) operator relabels off `workflow:resolving_conflict`, or (b) a new issue comment unparks via the
      resume branch, which step 8 reaches before the cap.
-  6. Ensure the PR worktree via `_ensure_pr_worktree` (restores from `<remote>/<branch>` when THIS tick's fetch of it
+  6. Resolve the issue's branch, whether or not the checkout is still on disk, and work in a checkout still at the
+     issue's path only once it is proven the issue's own (`creation._retained_checkout`) — detached mid-rebase of
+     exactly that branch included, which is what a `rebase_in_progress` park leaves. A record naming no branch live
+     work may use, and any other tree, refuse the tick with every file in place
+     ([branch refusal](labels-and-state.md#branch-refusal)). Where the directory has gone,
+     ensure the PR worktree via `_ensure_pr_worktree` (restores from `<remote>/<branch>` when THIS tick's fetch of it
      landed, NOT base — `_ensure_worktree` would discard the PR's commits — and never from a remote-tracking ref a
      failed fetch left behind, which resolves perfectly well while naming whatever was last seen; and from
      `<remote>/<base>` only when the remote itself says the branch is gone, which is a merged PR whose branch GitHub
