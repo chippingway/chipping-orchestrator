@@ -7,7 +7,7 @@ from types import MappingProxyType
 CLAUDE = "claude"
 CODEX = "codex"
 SONNET = "claude-sonnet-4-6"
-HAIKU = "claude-haiku-3-5"
+HAIKU = "claude-3-5-haiku-20241022"
 OPUS_FOUR_SEVEN = "claude-opus-4-7"
 OPUS_FOUR_EIGHT = "claude-opus-4-8"
 GPT_FIVE_CODEX = "gpt-5-codex"

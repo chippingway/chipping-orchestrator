@@ -20,8 +20,9 @@ Where the parser sits in the package tree, and what it is responsible for beside
 Each dispatches across Codex, Claude, and Antigravity. The six result types come from their defining modules:
 `UsageMetrics` and `SkillTriggers` from the first two, and `AgentTrajectory` / `TrajectoryStep` /
 `SourceItem` / `TurnUsage` from `trajectory_models.py`. Provider payload handling is split behind them: `protocol.py`
-holds the JSONL vocabulary and `event_stream.py` the resilient line decoder, `prices.py` the first-party price tables
-and `model_names.py` the nested model-name lookup, `claude_rows.py` / `claude_summary.py` and `codex_rows.py` /
+holds the JSONL vocabulary and `event_stream.py` the resilient line decoder, `prices.py` the first-party API price
+catalogue over the dated rows and bounded lookup on `price_catalogue.py`, and `model_names.py` the nested model-name
+lookup, `claude_rows.py` / `claude_summary.py` and `codex_rows.py` /
 `codex_summary.py` the per-provider frame decoding and run summary, with `claude_settlement.py` settling each Claude
 message's final output count between the two, `shell_segments.py` / `skill_commands.py` /
 `skills_claude.py` / `skills_codex.py` the skill-evidence classification, and `trajectory_claude_blocks.py` /
@@ -91,10 +92,50 @@ state is not `DONE`, ensuring earlier background commands remain authoritative e
 and emit terminal output.
 
 **Cost precedence.** A `total_cost_usd` reported by the CLI itself always wins (`cost_source="reported"`); otherwise the
-parser walks first-party Anthropic / OpenAI price tables baked into the module and produces an estimate (`"estimated"`).
-When usage is present but the model SKU does not match any priced family, the parser returns
-`cost_source="unknown-price"` and `cost_usd=None` rather than guess at zero or bill cached tokens at the input rate. An
-empty stream — or one with no usage frames at all — yields `"no-usage"`.
+parser prices the usage from an active row of the price catalogue below and produces an estimate (`"estimated"`).
+When usage is present but its model resolves to no active row, the parser returns `cost_source="unknown-price"` and
+`cost_usd=None` rather than guess at zero or bill cached tokens at the input rate. An empty stream — or one with no
+usage frames at all — yields `"no-usage"`.
+
+**Price catalogue.** `prices.py` holds one table of rows per provider — Anthropic, OpenAI, and Gemini — at Standard
+first-party API list rates in USD per million tokens, each row recording the date it was last checked against its
+provider's page (`verified_on`, 2026-10-29 for every row):
+[Claude pricing](https://platform.claude.com/docs/en/about-claude/pricing),
+[OpenAI pricing](https://developers.openai.com/api/docs/pricing) with each model's page for its aliases and snapshots,
+and [Gemini pricing](https://ai.google.dev/gemini-api/docs/pricing). A row answers to its canonical model ID, the
+documented aliases, and the published snapshot IDs listed on it, each compared whole and case-sensitively. No prefix,
+substring, or suffix resolves: an unknown version, an unpublished snapshot, a partner-platform ID such as Bedrock's
+`anthropic.` form or a Google Cloud `@` snapshot, and an arbitrary suffix such as `[1m]` stay `unknown-price` rather
+than inheriting a neighbour's rates. The retired Claude Opus 4 and 4.1, Sonnet 4, and 3.5 Haiku keep their rows and
+their documented aliases (`claude-opus-4-0`, `claude-opus-4-1`, `claude-sonnet-4-0`, `claude-3-5-haiku-latest`), and the
+shut-down `gpt-5-chat-latest` through `gpt-5.3-chat-latest` IDs keep the rates their model pages publish: a shut-down
+model's `-latest` ID names that one model. Models the pages do not price (Claude 3 Opus and Haiku, the Claude 3.5 and
+3.7 Sonnets, and a bare `gpt-5.3`) carry no row, nor does the bare `chat-latest`, which moves with OpenAI's current chat
+model.
+
+A row publishes each token class its page prices: Claude's five-minute and one-hour cache writes beside input, cache
+reads, and output; OpenAI's input, cached input, and output, with 30-minute and 12-hour cache writes where the page
+lists them; Gemini's input, cached input, and output including thinking tokens. A class the page leaves blank, such as
+the pro models' cached input, has no rate, so tokens of that class leave the estimate unknown. A model-specific
+request tier carries the whole set of rates a request pays once its prompt exceeds the threshold: Claude Haiku 5.5
+above 100,000 prompt tokens, the GPT-5.4, GPT-5.5, GPT-5.6, and GPT-6 families above 272,000 input tokens, and Gemini
+3.1 Pro Preview above 200,000. The Codex estimate applies that tier to the run's cumulative input count.
+
+A provider-scheduled change is two rows over consecutive inclusive dates, and a dated row resolves only for a usage
+date inside its interval: Gemini 4 Argon is $2 / $0.10 / $10 for input, cached input, and output through 2026-11-30
+and $4 / $0.20 / $20 from 2026-12-01; Gemini 3.8 Flash and 3.6 Flash are $0.75 / $0.075 / $3.75 through 2026-12-31
+and $1.50 / $0.15 / $7.50 from 2027-01-01. GPT-5.6 Sol's promotional rates are guaranteed at least through
+2026-11-21; the row records that date as a review trigger (`review_after`), which changes no rate by itself.
+
+Only active rows price a run: Claude Opus 4 through 4.7, Sonnet 4 through 4.6, and Haiku 3.5 and 4.5, and OpenAI's GPT-5
+through GPT-5.5 rows with their Codex and chat models. Every other row is dormant — resolvable for its identity and
+rates, but priced by nothing until its provider's accounting activates it — so a run on one records `unknown-price`. The
+dormant rows are Claude Opus 4.8, 5, and 5.5, Sonnet 5 and 5.5, Fable 5 and 5.1, and Haiku 5.5; GPT-5.6 Sol (also
+`gpt-5.6`), Terra, and Luna, GPT-6 Astra, Sol, and Luna, and GPT-6.1 Sol and Terra; and every Gemini row (Gemini 4
+Argon, 3.8 Flash, 3.6 Flash, and 3.1 Pro Preview). No Gemini 3.7 row exists: the Developer API routes that deprecated ID
+to 3.8. The restricted Claude Mythos and OpenAI Daybreak (cyber) models carry no row, since no captured stream shows a
+harness emitting their IDs and `gpt-5.6-cyber` names whichever cyber model is current; nor does any `gpt-5.6-pro`, which
+OpenAI does not publish.
 
 **Resilience.** Malformed JSON lines (banner text, truncated frames, partial flushes) are silently skipped so a single
 bad line never invalidates the rest of the stream. `_run_agent_tracked` (in `workflow/engine/usage.py`) calls

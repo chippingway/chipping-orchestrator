@@ -518,8 +518,8 @@ every tracked agent run, distinct from (and in addition to) the audit `agent_spa
 The configured model is pulled out of the role's `extra_args` (via `_configured_model`; recognises `-m <model>` /
 `-m=<model>` for codex and `--model <model>` / `--model=<model>` for claude) and forwarded as the parser's
 `fallback_model` so a codex run whose stdout includes usage frames but omits the model still records the configured
-model and — when it matches a priced family — an estimated `cost_usd`. A stream-reported model always wins over the
-fallback.
+model and — when it resolves to an active row of the price catalogue — an estimated `cost_usd`. A stream-reported
+model always wins over the fallback.
 
 Prompts, raw stdout / stderr, secrets, and worktree contents are deliberately NOT stored — the sink is a usage / cost
 surface, not a debugging mirror. A parser exception or sink IO failure is swallowed so an analytics misconfiguration

@@ -47,28 +47,33 @@ class CodexModelPricingTest(unittest.TestCase):
         assert metrics.cost_usd is not None
         self.assertAlmostEqual(metrics.cost_usd, expected, places=9)
 
-    def test_gpt_five_four_pro_uses_tiers(self) -> None:
-        # gpt-5.4-pro mirrors gpt-5.5-pro: same threshold + multipliers.
-        stdout = _jsonl.jsonl(
-            _codex.turn_complete(
-                model="gpt-5.4-pro",
-                input=_usage_cases.LONG_CONTEXT_INPUT_TOKENS,
-                cached=0,
-                output=_usage_cases.CODEX_PRICING_OUTPUT_TOKENS,
-            ),
-        )
-        metrics = _metrics.parse_codex_usage(stdout)
-        self.assertEqual(metrics.cost_source, _usage_cases.ESTIMATED_COST_SOURCE)
-        expected = (
-            _usage_cases.LONG_CONTEXT_INPUT_TOKENS
-            * _usage_cases.PRICE_RATE_THIRTY
-            * _usage_cases.LONG_CONTEXT_INPUT_MULTIPLIER
-            + _usage_cases.CODEX_PRICING_OUTPUT_TOKENS
-            * _usage_cases.PRICE_RATE_ONE_EIGHTY
-            * _usage_cases.LONG_CONTEXT_OUTPUT_MULTIPLIER
-        ) / _usage_cases.TOKENS_PER_MILLION
-        assert metrics.cost_usd is not None
-        self.assertAlmostEqual(metrics.cost_usd, expected, places=9)
+    def test_pro_models_use_tiers(self) -> None:
+        # The pricing page lists both pro models at $30 / $180 and, past 272K
+        # input, $60 / $270: the same 2x / 1.5x tier the standard rows carry.
+        # Cached tokens stay at 0 so the estimate runs at all, since neither
+        # publishes a cached-input rate.
+        for model in ("gpt-5.4-pro", "gpt-5.5-pro"):
+            with self.subTest(model=model):
+                stdout = _jsonl.jsonl(
+                    _codex.turn_complete(
+                        model=model,
+                        input=_usage_cases.LONG_CONTEXT_INPUT_TOKENS,
+                        cached=0,
+                        output=_usage_cases.CODEX_PRICING_OUTPUT_TOKENS,
+                    ),
+                )
+                metrics = _metrics.parse_codex_usage(stdout)
+                self.assertEqual(metrics.cost_source, _usage_cases.ESTIMATED_COST_SOURCE)
+                expected = (
+                    _usage_cases.LONG_CONTEXT_INPUT_TOKENS
+                    * _usage_cases.PRICE_RATE_THIRTY
+                    * _usage_cases.LONG_CONTEXT_INPUT_MULTIPLIER
+                    + _usage_cases.CODEX_PRICING_OUTPUT_TOKENS
+                    * _usage_cases.PRICE_RATE_ONE_EIGHTY
+                    * _usage_cases.LONG_CONTEXT_OUTPUT_MULTIPLIER
+                ) / _usage_cases.TOKENS_PER_MILLION
+                assert metrics.cost_usd is not None
+                self.assertAlmostEqual(metrics.cost_usd, expected, places=9)
 
     def test_gpt_five_four_small_models_stay_flat(self) -> None:
         # The long-context tier is documented only for the standard
@@ -98,11 +103,9 @@ class CodexModelPricingTest(unittest.TestCase):
                 self.assertAlmostEqual(metrics.cost_usd, expected, places=9)
 
     def test_gpt_five_two_pro_uses_own_rate(self) -> None:
-        # `_codex_rates` is prefix-matched on insertion order, so a
-        # missing explicit `gpt-5.2-pro` entry would silently fall
-        # through to `gpt-5.2`'s $1.75 / $14 rates and undercount
-        # by an order of magnitude. Pin the pro rate so an accidental
-        # entry removal or reorder fails loudly here.
+        # The pro row carries its own rates, an order of magnitude above
+        # `gpt-5.2`'s $1.75 / $14; pin them so a dropped or mistyped row
+        # fails loudly here.
         stdout = _jsonl.jsonl(
             _codex.turn_complete(
                 model="gpt-5.2-pro",
@@ -139,9 +142,8 @@ class CodexModelPricingTest(unittest.TestCase):
         self.assertIsNone(metrics.cost_usd)
 
     def test_gpt_five_pro_uses_own_rate(self) -> None:
-        # Same prefix-fallthrough guard as gpt-5.2-pro: `gpt-5-pro`
-        # would otherwise hit the `gpt-5` entry ($1.25 / $10) and
-        # undercount by an order of magnitude.
+        # Same guard as gpt-5.2-pro: `gpt-5-pro` is priced well above
+        # `gpt-5`'s $1.25 / $10.
         stdout = _jsonl.jsonl(
             _codex.turn_complete(
                 model="gpt-5-pro",

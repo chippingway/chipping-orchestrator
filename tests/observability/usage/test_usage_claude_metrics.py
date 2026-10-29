@@ -153,7 +153,7 @@ class ClaudeUsageAggregationTest(unittest.TestCase):
         self.assertEqual(metrics.input_tokens, _usage_cases.TOKEN_COUNT_THREE_HUNDRED)
         self.assertEqual(metrics.output_tokens, _usage_cases.COMBINED_OUTPUT_TOKENS)
         self.assertEqual(metrics.cost_source, _usage_cases.ESTIMATED_COST_SOURCE)
-        # sonnet: input=3, output=15; haiku-3-5: input=0.80, output=4
+        # sonnet: input=3, output=15; haiku 3.5: input=0.80, output=4
         sonnet_cost = 100 * 3 + _usage_cases.TOKEN_COUNT_FIFTY * _usage_cases.PRICE_RATE_FIFTEEN
         haiku_cost = _usage_cases.TOKEN_COUNT_TWO_HUNDRED * _usage_cases.PRICE_RATE_FOUR_FIFTHS + 100 * 4
         expected = (sonnet_cost + haiku_cost) / _usage_cases.TOKENS_PER_MILLION

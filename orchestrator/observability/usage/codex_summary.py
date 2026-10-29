@@ -24,45 +24,34 @@ TURN_COMPLETE_RE = re.compile(r"turn[_ -]?complete|turncomplete", re.IGNORECASE)
 
 @dataclass(frozen=True)
 class CodexPrice:
-    rates: protocol.CodexRateMap
+    rates: protocol.RateMap
     usage: protocol.TokenBucket
 
     def estimate(self) -> float | None:
-        input_multiplier, output_multiplier = self._multipliers()
-        input_cost = self._input_cost(input_multiplier)
+        input_cost = self._input_cost()
         if input_cost is None:
             return None
         output_cost = self.usage[protocol.OUTPUT] * self.rates[protocol.OUTPUT]
-        return (input_cost + output_cost * output_multiplier) / protocol.TOKENS_PER_MILLION
+        return (input_cost + output_cost) / protocol.TOKENS_PER_MILLION
 
-    def _multipliers(self) -> tuple[float, float]:
-        threshold = self.rates.get(protocol.LONG_CONTEXT_THRESHOLD)
-        if threshold is None or self.usage[protocol.INPUT] <= threshold:
-            return 1.0, 1.0
-        return (
-            self.rates.get(protocol.LONG_CONTEXT_INPUT_MULT) or 1.0,
-            self.rates.get(protocol.LONG_CONTEXT_OUTPUT_MULT) or 1.0,
-        )
-
-    def _input_cost(self, multiplier: float) -> float | None:
+    def _input_cost(self) -> float | None:
         cached_tokens = self.usage[protocol.CACHED]
-        cached_rate = self.rates[protocol.CACHED]
+        cached_rate = self.rates.get(protocol.CACHED)
         if cached_tokens > 0 and cached_rate is None:
             return None
         uncached_tokens = max(self.usage[protocol.INPUT] - cached_tokens, 0)
-        effective_cached_rate = self.rates[protocol.INPUT] if cached_rate is None else cached_rate
-        return (uncached_tokens * self.rates[protocol.INPUT] + cached_tokens * effective_cached_rate) * multiplier
+        return uncached_tokens * self.rates[protocol.INPUT] + cached_tokens * (cached_rate or 0)
 
 
 def estimate_cost(
     model: str,
     usage: protocol.TokenBucket,
 ) -> float | None:
-    rates = prices.codex_rates(model)
+    row = prices.codex_row(model)
     billable_tokens = usage[protocol.INPUT] + usage[protocol.OUTPUT]
-    if rates is None or billable_tokens <= 0:
+    if row is None or billable_tokens <= 0:
         return None
-    return CodexPrice(rates, usage).estimate()
+    return CodexPrice(row.rates_for_prompt(usage[protocol.INPUT]), usage).estimate()
 
 
 def reported_turn_count(events: list[dict[str, Any]]) -> int | None:
