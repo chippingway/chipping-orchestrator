@@ -599,7 +599,9 @@ orchestrator/
                         a guarded commit lands through rewrites the named comment in place only while the walk that
                         finds it still reads it, parsed, as the payload the rewrite was derived over, compared as the
                         comment's JSON spells both (`PinnedState.reads_as`); it never recreates a comment that is
-                        gone or no longer the authenticated state-only one, answers UNSUPPORTED where the record every
+                        gone or no longer the authenticated state-only one, answers MISSING where a supported record
+                        ahead of the named comment has displaced it as the one every reader takes, answers
+                        UNSUPPORTED where the record every
                         reader takes -- the named comment, or a refused one ahead of it a stale id would reach past --
                         parses and is refused admission (MOVED where it will not parse), and EDITED only where GitHub's
                         response carries the body sent -- a lost response, a refused request, and an answer carrying
@@ -750,8 +752,9 @@ orchestrator/
                         comment around it and where it sits in a body are the compact format's
                         (`verification_compact_artifacts.py`)
   agents/               publishes the run/result models, runner entry point, and process shutdown hook
-    models.py           the agent result with its unfinished-step and terminal-failure diagnostics, and the
-                        run-option and subprocess-result models
+    models.py           the agent result with its unfinished-step and terminal-failure diagnostics and the
+                        identity of the process invocation it came from, and the run-option and subprocess-result
+                        models
     environment.py      credential and virtualenv filtering and the injected git identity
     session_ids.py      the backend-agnostic session-id walk: a UUID-shaped value at a known key, anywhere in
                         any CLI's event tree, so a resume is issued against what the run actually reported

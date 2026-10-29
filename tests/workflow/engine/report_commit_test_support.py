@@ -82,10 +82,10 @@ class _UnderTheEdit:
         self._fields = fields
         self._walks = github._pinned_comment
 
-    def __call__(self, issue, comment_id):
-        """Write the other road's fields, then walk to the comment."""
+    def __call__(self, issue, comment_id, **asked):
+        """Write the other road's fields, then walk to the comment as the edit asked."""
         another_road(self._github, self._issue, **self._fields)
-        return self._walks(issue, comment_id)
+        return self._walks(issue, comment_id, **asked)
 
 
 def behind(github, issue, request: str, **fields):

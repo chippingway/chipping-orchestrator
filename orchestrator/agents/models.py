@@ -1,6 +1,7 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Agent run options, result models, and unfinished-step and terminal-failure diagnostics."""
+"""Agent run options, result models, the identity of the process a result came from, and unfinished-step and
+terminal-failure diagnostics."""
 from __future__ import annotations
 
 import signal
@@ -43,6 +44,36 @@ class TerminalFailure:
     quota_reset: str | None = None
 
 
+@dataclass(frozen=True)
+class AgentInvocation:
+    """Which actual process invocation one result came from, as its usage is accounted by.
+
+    Minted once per process the tracked spawn starts
+    (`workflow/engine/invocations.py`), and never per logical request: a
+    request's fingerprint is deliberately the same across every attempt at one
+    round, and a CLI session id is optional and shared by every resume of a
+    conversation, so neither tells two runs of an identical request apart.
+
+    `repo`, `issue`, `comment`, and `cycle` name the record the invocation
+    belongs to -- the repository and issue whose pinned comment charged it,
+    that comment's id, and the workflow cycle it was on: 0 where it named
+    none, and None where the identity it carried was unreadable, which no
+    record's cycle ever matches. `ordinal` is the lifetime charge the process
+    was started under, which goes up by one per charge and is never refunded
+    or reused, so it orders this issue's invocations and is what a retired
+    accounting receipt is still refused by. `nonce` is random, so two
+    invocations stay distinct even where a damaged count hands them one
+    ordinal.
+    """
+
+    repo: str
+    issue: int
+    comment: int | None
+    cycle: int | None
+    ordinal: int
+    nonce: str
+
+
 @dataclass
 class AgentResult:
     """Normalized outcome returned by any supported agent backend."""
@@ -74,7 +105,11 @@ class AgentResult:
     # failure. None for successful runs and for backends that keep no such
     # record.
     terminal_failure: TerminalFailure | None = None
-
+    # The process invocation this result came from, stamped by the tracked
+    # spawn once a charged process returns. None for every result no process
+    # produced, and for one a backend returned outside that spawn: neither has
+    # a run whose usage could be accounted once.
+    invocation: AgentInvocation | None = None
 
 
 @dataclass(frozen=True)

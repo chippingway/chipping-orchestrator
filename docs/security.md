@@ -728,8 +728,9 @@ worker-thread clients), **and** its entire body is the state marker — exactly 
 - **The strict edit authenticates its target again.** The in-place edit a guarded commit lands through
   (`edit_pinned_state`) rewrites the comment it names only while that comment still passes both checks above, is
   admitted as supported, and still reads as the record the write was derived over. An authenticated comment refused
-  admission ahead of it stops the edit, so a stale id never reaches past it to a later comment; an outsider's comment
-  ahead is no record and blocks nothing. Neither writer sends a state the next reading would refuse. It never posts:
+  admission ahead of it stops the edit, so a stale id never reaches past it to a later comment, and so does a supported
+  record ahead of it, which every reader now takes instead, so nothing is laid on either; an outsider's comment ahead
+  is no record and blocks nothing. Neither writer sends a state the next reading would refuse. It never posts:
   a pinned comment
   that was deleted, or edited into
   anything that is no longer state, is refused rather than recreated beside whatever replaced it. The legacy write keeps

@@ -4,7 +4,11 @@
 
 Unknown and estimated costs remain distinguishable. Updating these cumulative
 usage counters decides nothing about the separate lifetime launch allowance,
-whose ledger reads the run count only as a floor under its own charges."""
+whose ledger reads the run count only as a floor under its own charges.
+
+The counter names and one run's token total are shared with the accounting
+checkpoint, whose own arithmetic over a fresh reading -- the same increment
+this fold makes -- and spelling rules live on `usage_counters`."""
 from __future__ import annotations
 
 from github.Issue import Issue
@@ -15,6 +19,13 @@ from orchestrator.observability.usage.metrics import UsageMetrics
 from orchestrator.workflow.engine import (
     comments as _comments,
 )
+
+# The cumulative counters, as the pinned comment spells them.
+AGENT_RUNS = "issue_agent_runs"
+TOTAL_TOKENS = "issue_total_tokens"
+TOTAL_COST = "issue_total_cost_usd"
+COST_SOURCES = "issue_cost_sources"
+USAGE_COUNTERS = (AGENT_RUNS, TOTAL_TOKENS, TOTAL_COST, COST_SOURCES)
 
 
 def _accumulate_issue_usage(
@@ -51,30 +62,24 @@ def _accumulate_issue_usage(
     if usage is None:
         return
 
-    agent_runs = int(state.get("issue_agent_runs") or 0)
-    state.set("issue_agent_runs", agent_runs + 1)
+    agent_runs = int(state.get(AGENT_RUNS) or 0)
+    state.set(AGENT_RUNS, agent_runs + 1)
 
-    tokens = sum((
-        usage.input_tokens,
-        usage.output_tokens,
-        usage.cache_read_tokens,
-        usage.cache_write_tokens,
-    ))
     state.set(
-        "issue_total_tokens",
-        int(state.get("issue_total_tokens") or 0) + tokens,
+        TOTAL_TOKENS,
+        int(state.get(TOTAL_TOKENS) or 0) + _run_tokens(usage),
     )
 
     if usage.cost_usd is not None:
         state.set(
-            "issue_total_cost_usd",
-            float(state.get("issue_total_cost_usd") or 0) + usage.cost_usd,
+            TOTAL_COST,
+            float(state.get(TOTAL_COST) or 0) + usage.cost_usd,
         )
 
-    prior_sources = state.get("issue_cost_sources")
+    prior_sources = state.get(COST_SOURCES)
     seen = set(prior_sources) if isinstance(prior_sources, list) else set()
     seen.add(usage.cost_source)
-    state.set("issue_cost_sources", sorted(seen))
+    state.set(COST_SOURCES, sorted(seen))
 
 
 def _format_issue_usage_verdict(state: PinnedState) -> str | None:
@@ -95,16 +100,16 @@ def _format_issue_usage_verdict(state: PinnedState) -> str | None:
     0 / absent) so a terminal with nothing to report skips the line instead
     of posting a zero receipt.
     """
-    runs = int(state.get("issue_agent_runs") or 0)
+    runs = int(state.get(AGENT_RUNS) or 0)
     if runs <= 0:
         return None
-    tokens = int(state.get("issue_total_tokens") or 0)
-    prior_sources = state.get("issue_cost_sources")
+    tokens = int(state.get(TOTAL_TOKENS) or 0)
+    prior_sources = state.get(COST_SOURCES)
     sources = set(prior_sources) if isinstance(prior_sources, list) else set()
     if "unknown-price" in sources:
         cost = "unknown"
     else:
-        cost = f"${float(state.get('issue_total_cost_usd') or 0):.2f}"
+        cost = f"${float(state.get(TOTAL_COST) or 0):.2f}"
         if "estimated" in sources:
             cost = f"{cost} (est.)"
     return (
@@ -128,3 +133,18 @@ def _post_issue_usage_verdict(
     verdict = _format_issue_usage_verdict(state)
     if verdict:
         _comments._post_issue_comment(gh, issue, state, verdict)
+
+
+def _run_tokens(usage: UsageMetrics) -> int:
+    """One run's tokens: input, output, cache-read, and cache-write.
+
+    codex's `cached_tokens` is left out: it is the portion of `input_tokens`
+    already served from cache, so summing it would count part of the input
+    twice.
+    """
+    return sum((
+        usage.input_tokens,
+        usage.output_tokens,
+        usage.cache_read_tokens,
+        usage.cache_write_tokens,
+    ))

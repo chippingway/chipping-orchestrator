@@ -235,8 +235,10 @@ class RefusedLaunchTest(unittest.TestCase):
         # Interrupted, so every spawning handler returns without writing
         # durable state for it -- and never invoked, which is what the roads
         # that read the worktree ahead of that guard have to be able to tell:
-        # a killed run may have written, and this one cannot have.
+        # a killed run may have written, and this one cannot have. Nor does it
+        # carry an invocation identity: there is no process to account.
         self.assertFalse(launch.answer.invoked)
+        self.assertIsNone(launch.answer.invocation)
         self.assertTrue(launch.answer.interrupted)
         self.assertIsNone(launch.answer.session_id)
         self.assertEqual(

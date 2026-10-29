@@ -2098,7 +2098,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             road made it or that fails the caller's hold, and is started over the comment read again
                             behind its charge and the requests its hold resolves, only while its own reservation still
                             stands unstarted there; each durable step emits its budget event, and exhaustion parks on
-                            the same reading
+                            the same reading. The reading a start landed on is handed back to identify the process
     run_grant.py            the one command that answers the spent-ledger park below: a trusted `/orchestrator
                             add-agent-runs N`, read only while that park stands and only as the request the parser
                             beside it hands over. It persists an allowance of exactly `used + N` -- absolute rather
@@ -2389,14 +2389,39 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             defines it
     run_requests.py         agent invocation requests, stable logical-round fingerprints, launch identities, and
                             optional runner arguments; prompt text is excluded so rebuilding a prompt cannot buy a
-                            second charge
+                            second charge, and the fingerprint, shared by every attempt at a round, is no accounting key
     run_reporting.py        agent-exit audit and analytics records, configured-model fallback, and triggered-skill
                             emissions; a failure to emit those skill records cannot discard a completed agent result
     issue_usage.py          cumulative per-issue usage counters and their terminal receipt; unknown and estimated costs
                             remain distinct from known prices and from the separate launch allowance, whose ledger
-                            reads the run count only as a floor under its own charges
+                            reads the run count only as a floor under its own charges; the counter names and one run's
+                            token total are shared with the accounting checkpoint's own rules below
+    usage_counters.py       the usage counters as the accounting checkpoint holds them: each a non-negative total --
+                            counts whole numbers of any size, never converted, and the cost one a float holds -- and the
+                            tags a list of words, a run's parsed usage countable only where
+                            what it adds is spelled alike, and the per-counter transformations over a fresh reading --
+                            the stage fold's arithmetic -- answering CONFLICT where the value laid over, the increment,
+                            or the total made is spelled as nothing its writers write
+    invocations.py          the identity of each actual agent process (`agents.models.AgentInvocation`), minted over
+                            the durable reading its charge was started on: repository, issue, the pinned comment that
+                            start was written on, workflow cycle (the record's `late_cycle_id`, 0 only where the field
+                            is absent and None where it is damaged), the lifetime count the charge stands at, and a
+                            random nonce, so two runs of one request are never one
+    usage_receipts.py       the bounded `issue_usage_receipts` ledger of invocations the usage counters cover: recent
+                            ordinal and nonce pairs above a floor, the lowest retired under it past sixteen, so a
+                            retired receipt's replay is still covered; read strictly, a damaged ledger answering None
+    usage_checkpoint.py     account one invoked run's usage once: its increment and receipt in one guarded commit
+                            owning only the four counters and the ledger, bound to the invocation's repository, issue,
+                            the comment its charge was written on -- which the caller must hold, never a replacement --
+                            and cycle, refusing a damaged ledger, cycle identity, or counter -- the cost total included
+                            where the run adds no cost, and on the read-back as in the commit -- and a parsed usage no
+                            counter can take, and read back before anything is sent, so an
+                            unconfirmed edit, a lost response, a restart, or a later settlement adds nothing. Only a
+                            settled answer licenses dependent work. Dormant: no road calls it yet, so the stage folds
+                            still persist usage
     usage.py                the tracked agent invocation: charge the required issue budget, emit spawn, call the runner,
-                            record its exit and skills, and return the result for the stage to settle
+                            record its exit and skills, and return the result for the stage to settle, stamped with
+                            the identity minted over the reading the charge was started on
   late_split/               the late size gate's own domain: what one generation IS, apart from anything that drives
                             one
     formats.py              what any late value has to look like -- a real integer, a git object id, a bounded
@@ -3501,7 +3526,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             deduplicate and adopt restart notices by cycle receipt, then establish the chosen label;
                             reapply a foreign label so the fresh cycle has the restart's own history boundary
       late_restart_state.py repair restart identity, persist its marker, and project the fresh cycle while retaining
-                            thread attribution, cumulative usage, and the developer conversations retired as failed
+                            thread attribution, cumulative usage with the receipts saying which invocations it covers,
+                            and the developer conversations retired as failed
                             -- and a split child's receipted seed, through `split_seeds.py`; retirement drops the
                             predecessor's work and sessions
       late_restart.py       admit and resume an authorized restart only after cancellation and every obligation settle;

@@ -35,13 +35,15 @@ class _PinnedEditService:
         return self._pinned_failures
 
     def _pinned_comment(
-        self, issue: FakeIssue, comment_id: int | None,
+        self, issue: FakeIssue, comment_id: int | None, *, authoritative: bool = False,
     ) -> tuple[FakeIssue, PinnedState] | None:
         if issue.number in self.pinned_failures.unreadable:
             raise RuntimeError(_READ_REFUSED)
         pinned = self._pinned.get(issue.number)
         # The one record stands for the whole thread, so a refused one answers
-        # whatever id is named, as the real walk answers one ahead of it.
+        # whatever id is named, as the real walk answers one ahead of it, and a
+        # supported one under another id is the record that displaced the
+        # named comment, answered as none however the walk is asked.
         if pinned is None or (pinned.comment_id != comment_id and pinned.supported):
             return None
         return issue, PinnedState(

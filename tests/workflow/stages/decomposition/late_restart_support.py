@@ -170,6 +170,7 @@ KEPT = MappingProxyType({
     "issue_total_tokens": 45200,
     "issue_total_cost_usd": 0.87,
     "issue_cost_sources": ["reported"],
+    "issue_usage_receipts": {"floor": 2, "recent": [[3, "0000000000000003"], [4, "0000000000000004"]]},
     "agent_run_allowance": 60,
     "agent_runs_used": 5,
     KEY_DEV_RETIREMENT: {**OWED_RETIREMENT, KEY_RECOVERY_PENDING: False},

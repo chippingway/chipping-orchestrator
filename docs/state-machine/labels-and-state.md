@@ -1172,9 +1172,10 @@ longer than `MAX_PINNED_BODY` or than the caller's own domain check admits — a
 very candidate. That measurement can be taken alone (`prepare`) ahead of an external effect that depends on the record.
 The commit takes every check again over a reading taken behind whatever requests came between, sends nothing for a
 candidate the comment already reads as, and otherwise lands in place through the strict edit
-(`GitHubStateMixin.edit_pinned_state`), which walks to the comment once more and rewrites it only while it still reads
-as that fresh reading did — a comment that moved in between is refused as moved, or, under a guard that reads a move,
-as the prerequisites the comment that walk read spells otherwise. An edit that went out and was never
+(`GitHubStateMixin.edit_pinned_state`), which walks to the comment once more and rewrites it only while it is still
+the record every reader takes and still reads as that fresh reading did — a comment that moved in between is refused
+as moved, or, under a guard that reads a move, as the prerequisites the comment that walk read spells otherwise, and one
+a supported record ahead of it displaced in between as replaced. An edit that went out and was never
 confirmed — a lost response, a refused request, or an answer carrying another body — is reported as unconfirmed, neither
 committed nor refused: whatever receipt the caller's domain keeps remains what settles it on a later reading. None of
 this serializes two pollers writing one issue. GitHub's comment edit takes no condition, so the guard narrows the window
@@ -3902,6 +3903,30 @@ The keys that matter for the state machine fall into a few groups:
   commit -- is added to the reviewer's own fold, and the tags join, rather than either road's fold being written away.
   The decomposer / question / discussion stages additionally skip the fold for `interrupted` runs, so even
   their dirty/commits inspection park (which does write pinned state) records no counter.
+  `issue_usage_receipts` is the bounded ledger of which agent invocations those counters cover, spelled
+  `{"floor": <count>, "recent": [[<ordinal>, "<nonce>"], ...]}`. A pair names one process by the identity
+  `_run_agent_tracked` stamped on its result (`AgentResult.invocation`, minted by `engine/invocations.py`): the
+  lifetime count its charge was started at, which no other charge takes, and a random sixteen-hex-digit nonce that
+  keeps two runs apart even where a hand-edited count hands them one ordinal. Every
+  ordinal at or below `floor` is covered as well, and past sixteen pairs, taking another retires the lowest ordinals
+  under it, so a retired receipt's replay still adds nothing; what retirement costs is that a run never accounted
+  while the floor passed it is not counted later, an undercount and never a second count. A ledger in any other
+  shape is damaged, never read as empty or written over. Its one writer is `engine/usage_checkpoint.py`, which lands
+  one invoked run's increment and receipt in one guarded commit owning the four counters and the ledger and nothing
+  else. It is bound to the repository and issue the invocation names, to the pinned comment its charge was written
+  on, which the caller has to hold and which is read afresh and admitted -- a comment replacing it is refused, even
+  one copying its record and receipts -- and to the workflow cycle it ran in: `late_cycle_id`, 0 only where the field
+  is absent, since the late writer leaves an unset identity out, so a present one that is no positive whole number is
+  damage that refuses accounting rather than the absent cycle. Every counter is held to its spelling on the read-back
+  and in the commit alike, the cost total too where the run adds no cost to it, so a receipt read back beside a damaged
+  counter settles nothing and lays nothing onto the caller; a run whose parsed usage adds what no total is spelled as
+  -- a negative count, or a negative cost or one no float holds, a negative reported cost included -- is refused before
+  anything is read, and no transformation lands a total past that spelling (`engine/usage_counters.py`): a count is a
+  whole number of any size, never converted, and a cost total one a float holds. It reads the receipt back before
+  anything it sends, so a retry after an unconfirmed edit, a lost response, a restart, or a later settlement adds
+  nothing, and it owes nothing for an unparsed usage or a result no process produced. That checkpoint is dormant: no
+  road calls it yet, so the stage folds above are what persist usage and no issue carries the ledger until a later
+  change settles the tracked boundary through it.
 - **Agent-run ledger.** `agent_run_allowance` + `agent_runs_used` + `agent_run_reservation` are read by
   [`run_ledger_values.py`](../../orchestrator/workflow/engine/run_ledger_values.py) and mutated by
   [`run_ledger.py`](../../orchestrator/workflow/engine/run_ledger.py). The
@@ -4236,6 +4261,12 @@ drives the real handlers against a spent ledger so an unwired road is caught as 
   [`configuration.md`](../configuration.md#github-rate-limits).
 - **The launch is matched, not just the phase.** A standing `reserved` is reused only when `agent_run_fingerprint`
   names this same request; a charge some other road recorded is one this launch never paid for.
+- **The process is identified by its charge, not by its request.** The reading the start lands on is handed back to
+  `_run_agent_tracked`, which mints the process's `AgentInvocation` over it (`engine/invocations.py`) — repository,
+  issue, the pinned comment the start was written on, workflow cycle, the count the charge stands at, and a random
+  nonce — and stamps it on the result.
+  Only a `reserved` charge is ever started, so no two processes share one, while `agent_run_fingerprint` is shared by
+  every attempt at one round: it stays the logical launch's identity and is never an accounting key.
 - **Durable state is re-read, and only the circuit's own fields come back.** The charge is written onto a fresh
   `read_pinned_state`, and exactly the keys that write changed are merged into the caller's object. Everything else
   the caller is holding is mid-tick — a reviewer spec staged ahead of the spawn, a moved reply watermark, a charged
@@ -5717,7 +5748,8 @@ rather than preserving.
   The retirement's own write is the **projection**, and it is a whitelist rather than a list of deletions: every
   stage shares this comment and each adds keys of its own, so naming what to drop would carry whatever the naming
   was not written for. What survives is the pinned comment's own identity (the payload is rewritten in place rather
-  than a second comment minted), `orchestrator_comment_ids`, the four cumulative `issue_*` usage counters, the two
+  than a second comment minted), `orchestrator_comment_ids`, the four cumulative `issue_*` usage counters with the
+  `issue_usage_receipts` ledger saying which invocations they cover, the two
   agent-run ledger fields the `run_ledger.py` owner names as its projected group (`agent_run_allowance` and
   `agent_runs_used` — a lifetime ceiling a restart handed back would be no lifetime ceiling at all, and the allowance
   travels beside the count so a fresh cycle is not parked on its first run by a ceiling the projection dropped),

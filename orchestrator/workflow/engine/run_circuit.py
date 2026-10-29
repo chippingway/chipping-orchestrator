@@ -7,7 +7,8 @@ owed once is refused on any reading that shows another road already made it
 or that it no longer stands, its start written over a reading taken behind
 its charge. The state owner reads and persists each step before its budget
 event is emitted; exhaustion parks the issue on that same durable reading and
-always refuses invocation."""
+always refuses invocation. The reading a start landed on is handed back, so the
+process it pays for is identified by that charge."""
 from __future__ import annotations
 
 import logging
@@ -67,8 +68,12 @@ def _refused_run() -> AgentResult:
 
 def _charge_launch(
     gh: GitHubClient, budget: _run_charge_state.AgentRunBudget, launch: AgentRunLaunch,
-) -> bool:
-    """Whether this launch has paid for the process it is about to invoke.
+) -> PinnedState | None:
+    """The durable reading this launch's charge was started over, or None where it has not paid.
+
+    That reading is what the process about to be invoked is identified by
+    (`invocations.minted`): the charge it carries started this one process and
+    no other, since only a charge still `reserved` is ever started.
 
     The whole circuit, in the order its answers have to be taken. The ledger
     is read off durable state rather than off the caller's, because the
@@ -92,17 +97,19 @@ def _charge_launch(
     """
     durable = _run_charge_state._durable_state(gh, budget.issue)
     if durable is None or not _owed_stands(budget, durable):
-        return False
+        return None
     ledger = _run_ledger._read_ledger(durable)
     if not ledger.pending_for(launch.fingerprint):
         if ledger.spent:
             _park_spent(gh, budget, durable, ledger, launch)
-            return False
+            return None
         if not _reserve(gh, budget, durable, launch):
-            return False
+            return None
     if budget.owed is not None:
         durable = _read_behind_the_charge(gh, budget, launch)
-    return durable is not None and _start(gh, budget, durable, launch)
+    if durable is None or not _start(gh, budget, durable, launch):
+        return None
+    return durable
 
 
 def _owed_stands(budget: _run_charge_state.AgentRunBudget, reading: PinnedState) -> bool:

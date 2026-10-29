@@ -85,11 +85,14 @@ _UNSUPPORTED = MappingProxyType({
 
 # A comment ahead of the record a stale id names, by its author and body, and
 # what the edit answers and leaves the thread carrying: an authenticated one
-# refused admission is the record every reader takes, while an outsider's is no
-# record at all, nor is an ordinary comment of the bot's whose prose opens on
-# the state marker, while the bot's array quoting the ordinary comment marker
-# inside a string, or its record cut open in the middle of an escape, is a
-# corrupted record like any other.
+# refused admission is the record every reader takes, and so is a supported one
+# -- a copy of the record included -- which leaves the named comment no record
+# any reader takes, so nothing is edited anywhere; an outsider's is no record at
+# all, nor is an ordinary comment of the bot's whose prose opens on the state
+# marker, while the bot's array quoting the ordinary comment marker inside a
+# string, or its record cut open in the middle of an escape, is a corrupted
+# record like any other.
+_SUPPORTED_AHEAD_BODY = marker({_SCHEMA: 1, "pr_number": 5})
 _ORDINARY_PROSE_BODY = PINNED_STATE_TEMPLATE.format(payload=ORDINARY_PROSE)
 _QUOTING_ARRAY_BODY = PINNED_STATE_TEMPLATE.format(payload=json.dumps([ORCHESTRATOR_COMMENT_MARKER]))
 _DANGLING_ESCAPE_BODY = PINNED_STATE_TEMPLATE.format(payload='{"review_round": "unfinished\\')
@@ -99,6 +102,12 @@ _AHEAD = MappingProxyType({
     )),
     "malformed": (BOT, _CORRUPTED_BODY, (
         PinnedEdit.MOVED, [(_AHEAD_ID, _CORRUPTED_BODY), (_RECORDED_ID, _READ_BODY)],
+    )),
+    "supported": (BOT, _SUPPORTED_AHEAD_BODY, (
+        PinnedEdit.MISSING, [(_AHEAD_ID, _SUPPORTED_AHEAD_BODY), (_RECORDED_ID, _READ_BODY)],
+    )),
+    "a supported copy of the record": (BOT, _READ_BODY, (
+        PinnedEdit.MISSING, [(_AHEAD_ID, _READ_BODY), (_RECORDED_ID, _READ_BODY)],
     )),
     "an outsider's unsupported": ("mallory", _UNSUPPORTED_BODY, (
         PinnedEdit.EDITED, [(_AHEAD_ID, _UNSUPPORTED_BODY), (_RECORDED_ID, _WRITTEN_BODY)],
@@ -272,9 +281,11 @@ class EditPinnedStateAdmissionTest(_EditCase):
 
                 self.assertEqual(edited, (PinnedEdit.UNSUPPORTED, [(_RECORDED_ID, carried)]))
 
-    def test_a_stale_id_stops_at_a_refused_record(self) -> None:
+    def test_a_stale_id_stops_at_the_record_ahead(self) -> None:
         # The id names a later comment that still reads as derived; the record
-        # every reader takes is the one ahead of it, so that one decides.
+        # every reader takes is the one ahead of it, so that one decides: a
+        # refused one stands, and a supported one leaves the named comment
+        # displaced, so nothing is laid on either.
         for case, (author, body, expected) in _AHEAD.items():
             with self.subTest(case=case):
                 self.assertEqual(self.edit(_behind(author, body)), expected)
