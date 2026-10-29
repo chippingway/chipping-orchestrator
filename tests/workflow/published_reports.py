@@ -94,7 +94,7 @@ def _publishes(github, issue, state, published: tuple[int, str]) -> None:
         # that records one.
         if state.get(_USER_CONTENT_HASH) is None:
             settled[_USER_CONTENT_HASH] = report.requirements_revision
-        github._pinned[issue.number].data.update(settled)
+        github._pinned[issue.number].state_data.update(settled)
 
 
 def reviews_the_report(github, issue, *, approved: bool = False) -> None:
@@ -125,7 +125,7 @@ def reviews_the_report(github, issue, *, approved: bool = False) -> None:
     state.set(_review_subjects.RETURNED_SUBJECT, subject.recorded())
     if approved:
         _review_subjects.record_approved(state, subject)
-    github._pinned[issue.number].data.update(state.data)
+    github._pinned[issue.number].state_data.update(state.state_data)
 
 
 # The approval a case is set after, which is a review whose verdict was taken.
@@ -181,4 +181,4 @@ def _settled(
         and _settlement.record_handoff(written, handoff)
     ):
         return None
-    return written.data
+    return written.state_data

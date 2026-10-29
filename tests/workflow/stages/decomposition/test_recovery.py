@@ -45,6 +45,7 @@ from tests.workflow.stages.decomposition.decomposition_test_support import _seed
 KEY_DECOMPOSER_AGENT = "decomposer_agent"
 KEY_DECOMPOSER_SESSION_ID = "decomposer_session_id"
 KEY_CHILDREN = "children"
+KEY_EXPECTED_CHILDREN = "expected_children_count"
 KEY_UMBRELLA = "umbrella"
 CLEANUP_DECOMPOSE_WORKTREE = "_cleanup_decompose_worktree"
 RUN_AGENT = "run_agent"
@@ -83,8 +84,6 @@ HALF_COMPLETE_DISABLED_PARENT_NUMBER = 50
 RECOVERY_CHILD_NUMBERS = (101, 102)
 PERSISTENCE_ISSUE_NUMBER = 80
 COMPLETE_RECOVERY_PARENT_NUMBER = 50
-AWAITING_RECOVERY_PARENT_NUMBER = 51
-AWAITING_RECOVERY_CHILD_NUMBER = 201
 PARTIAL_RECOVERY_PARENT_NUMBER = 52
 ORPHAN_RECOVERY_PARENT_NUMBER = 53
 ORPHAN_REPAIR_PARENT_NUMBER = 60
@@ -111,6 +110,7 @@ SPLIT_MANIFEST = _manifest(
 READ_ONLY_FRAGMENT = "read-only"
 IMPLEMENTED_MESSAGE = "implemented"
 PARK_LINEAGE_UNPROVED = _replacement_lineage.PARK_LINEAGE_UNPROVED
+PARK_DECOMPOSITION_CRASH = "decomposition_crash"
 # A ref no split of this lineage's parent preserved, which an edited body can
 # still name.
 _FOREIGN_REF = "refs/orchestrator/late-split/issue-4/cycle-2/gen-1"
@@ -164,7 +164,19 @@ _DEPENDENT_SPLIT = _manifest(
 )
 
 
-def _orphan_recovery_fixture():
+# The count the orphan-repair parent's split wrote before its first create.
+_WHOLE_COUNT = MappingProxyType({KEY_EXPECTED_CHILDREN: 2})
+# Its register beside no whole count: none written, and counts an integer
+# coercion would read as complete although none is an integer.
+_NO_WHOLE_COUNT = MappingProxyType({
+    "no count": MappingProxyType({}),
+    "a string count": MappingProxyType({KEY_EXPECTED_CHILDREN: "2"}),
+    "a float count": MappingProxyType({KEY_EXPECTED_CHILDREN: 2.0}),
+    "a boolean count": MappingProxyType({KEY_EXPECTED_CHILDREN: True}),
+})
+
+
+def _orphan_recovery_fixture(count=_WHOLE_COUNT):
     github = FakeGitHubClient()
     parent = make_issue(
         ORPHAN_REPAIR_PARENT_NUMBER,
@@ -187,7 +199,7 @@ def _orphan_recovery_fixture():
     github.seed_state(
         ORPHAN_REPAIR_PARENT_NUMBER,
         children=[HEALTHY_CHILD_NUMBER, ORPHAN_CHILD_NUMBER],
-        expected_children_count=2,
+        **count,
         decomposed_at=CREATED_AT,
         decomposer_agent=BACKEND_CLAUDE,
         decomposer_session_id=DECOMPOSER_SESSION,
@@ -211,7 +223,8 @@ class DecompositionRecoveryTest(
         gh.add_issue(issue)
         # Children already exist on GitHub with `parent_number` seeded --
         # the crash happened AFTER both child seeds, between the parent's
-        # last incremental write and the parent label flip.
+        # last incremental write and the parent label flip, so the register
+        # has reached the count the split wrote before its first create.
         _seed_blocked_children(
             gh,
             COMPLETE_RECOVERY_PARENT_NUMBER,
@@ -220,6 +233,7 @@ class DecompositionRecoveryTest(
         gh.seed_state(
             COMPLETE_RECOVERY_PARENT_NUMBER,
             children=list(RECOVERY_CHILD_NUMBERS),
+            expected_children_count=len(RECOVERY_CHILD_NUMBERS),
             decomposed_at=CREATED_AT,
             decomposer_agent=BACKEND_CLAUDE,
             decomposer_session_id=DECOMPOSER_SESSION,
@@ -265,35 +279,37 @@ class DecompositionRecoveryTest(
         self.assertEqual(parent_state.get(KEY_CHILDREN), created)
         self.assertEqual(parent_state.get("dep_graph"), {"1": [0]})
 
-    def test_half_complete_awaiting_human_holds(self) -> None:
-        # If the prior tick parked awaiting_human after partial child
-        # creation, the recovery must NOT silently flip the parent to
-        # `blocked`; the human's intervention is still required.
-        gh = FakeGitHubClient()
-        issue = make_issue(AWAITING_RECOVERY_PARENT_NUMBER, label=LABEL_DECOMPOSING)
-        gh.add_issue(issue)
-        gh.seed_state(
-            AWAITING_RECOVERY_PARENT_NUMBER,
-            children=[AWAITING_RECOVERY_CHILD_NUMBER],
-            awaiting_human=True,
-            decomposer_agent=BACKEND_CLAUDE,
-            decomposer_session_id=DECOMPOSER_SESSION,
-        )
+    def test_an_uncounted_register_parks_and_holds(self) -> None:
+        # Every split writes its count before its first create, so a register
+        # beside none -- or beside one that is no integer -- cannot say
+        # whether the loop finished. The parent parks once with both children
+        # recorded and the unseeded one left unwritten, rather than seeding it
+        # and finalizing over a register that may be short, and the tick after
+        # it holds on that park as on any other until a human answers it.
+        for shape, count in _NO_WHOLE_COUNT.items():
+            with self.subTest(shape=shape):
+                gh, parent = _orphan_recovery_fixture(count)
 
-        mocks = self._run_decomposing(
-            gh,
-            issue,
-            run_agent=_agent(),
-        )
+                self._run_decomposing(gh, parent, run_agent=_agent())[RUN_AGENT].assert_not_called()
+                self._run_decomposing(gh, parent, run_agent=_agent())[RUN_AGENT].assert_not_called()
 
-        mocks[RUN_AGENT].assert_not_called()
-        self.assertEqual(gh.created_child_issues, [])
-        # Label NOT flipped; human still owns it.
-        self.assertNotIn(
-            (AWAITING_RECOVERY_PARENT_NUMBER, LABEL_BLOCKED),
-            gh.label_history,
-        )
-        self.assertTrue(gh.pinned_data(AWAITING_RECOVERY_PARENT_NUMBER).get(KEY_AWAITING_HUMAN))
+                recorded = gh.pinned_data(ORPHAN_REPAIR_PARENT_NUMBER)
+                self.assertEqual(
+                    (recorded.get(KEY_CHILDREN), recorded.get(KEY_AWAITING_HUMAN)),
+                    ([HEALTHY_CHILD_NUMBER, ORPHAN_CHILD_NUMBER], True),
+                )
+                self.assertIsNone(gh.pinned_data(ORPHAN_CHILD_NUMBER).get(KEY_PARENT_NUMBER))
+                self.assertEqual((gh.label_history, gh.created_child_issues), ([], []))
+                self.assertEqual(
+                    [
+                        event.get("reason")
+                        for event in gh.recorded_events
+                        if event.get("event") == _split.PARK_EVENT
+                    ],
+                    [PARK_DECOMPOSITION_CRASH],
+                )
+                self.assertEqual(len(gh.posted_comments), 1)
+                self.assertIn(f"#{ORPHAN_CHILD_NUMBER}", gh.posted_comments[0][1])
 
     def test_partial_children_recovery_parks(self) -> None:
         # SIGKILL between iterations leaves a partial `children` list
@@ -435,9 +451,9 @@ class DecompositionRecoveryTest(
 
 def _written(ancestry, **edits) -> dict:
     """The pinned fields one ancestry is written as, `edits` landing over them."""
-    recorded = PinnedState(data={SCHEMA_VERSION_KEY: SUPPORTED_SCHEMA_VERSION})
+    recorded = PinnedState(state_data={SCHEMA_VERSION_KEY: SUPPORTED_SCHEMA_VERSION})
     _lineage.write_late_ancestry(recorded, ancestry)
-    return {**recorded.data, **edits}
+    return {**recorded.state_data, **edits}
 
 
 # What a recorded child may carry that the crashed split did not seed: part of

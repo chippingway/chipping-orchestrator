@@ -103,12 +103,12 @@ def _replaces_the_request(case, members: dict | None, *, pinned: dict | None = N
     member given as `...` taken off.
     """
     state = case.github.read_pinned_state(case.issue)
-    waiting = state.data.pop(_world.RETURNED_VERDICT)
+    waiting = state.state_data.pop(_world.RETURNED_VERDICT)
     if members is not None:
         waiting.update(members)
         kept = {key: member for key, member in waiting.items() if member is not ...}
         state.set(_world.RETURNED_VERDICT, kept)
-    state.data.update(pinned or {})
+    state.state_data.update(pinned or {})
     case.github.write_pinned_state(case.issue, state)
 
 

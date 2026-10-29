@@ -203,11 +203,11 @@ def measured_pair(**overrides) -> dict:
     number is what the gate acts on instead of taking the reading again. What
     the announce-once guard compares is the COMMIT.
     """
-    recorded = PinnedState(data={})
+    recorded = PinnedState(state_data={})
     _late_state.write_late_generation(
         recorded, replace(measured(), additions=None, **overrides),
     )
-    return recorded.data
+    return recorded.state_data
 
 
 @dataclass(frozen=True)

@@ -46,4 +46,4 @@ def _migration_spec() -> _config_models.RepoSpec:
 
 
 def _state(state_data=None) -> PinnedState:
-    return PinnedState(comment_id=None, data=dict(state_data or {}))
+    return PinnedState(comment_id=None, state_data=dict(state_data or {}))

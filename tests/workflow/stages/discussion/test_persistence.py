@@ -57,7 +57,7 @@ class _WriteRecorder:
 
     def __call__(self, issue, state):
         posted_so_far = len(self._gh.posted_comments)
-        self.writes.append((dict(state.data), posted_so_far))
+        self.writes.append((dict(state.state_data), posted_so_far))
         return self._write(issue, state)
 
 
@@ -80,7 +80,7 @@ class _SpawnObserver:
         return self._live_state
 
     def run_agent(self, *spawn_args, **spawn_kwargs):
-        self.staged_at_spawn = dict(self._live_state.data)
+        self.staged_at_spawn = dict(self._live_state.state_data)
         return self._agent_result
 
 

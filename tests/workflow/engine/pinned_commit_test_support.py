@@ -120,14 +120,14 @@ class CommitWorld:
 
     def commit(self, derived: Mapping[str, _models.Transform] = _NO_TRANSFORMS) -> _models.CommitOutcome:
         """Commit the caller's staged state under its guard."""
-        return _commit.commit(self.github, self.issue, self.guard, self.state.data, derived)
+        return _commit.commit(self.github, self.issue, self.guard, self.state.state_data, derived)
 
     def another_road(self, **fields: Any) -> None:
         """Another road's whole-record write over the record as it stands, a field given ABSENT dropped."""
         landed = self.github.read_pinned_state(self.issue)
-        landed.data.update(fields)
-        landed.data = {
-            name: kept for name, kept in landed.data.items()
+        landed.state_data.update(fields)
+        landed.state_data = {
+            name: kept for name, kept in landed.state_data.items()
             if kept is not _models.ABSENT
         }
         self.github.write_pinned_state(self.issue, landed)
@@ -141,7 +141,7 @@ class CommitWorld:
         return (
             json.dumps(self.record(), sort_keys=True),
             self.github.write_state_calls,
-            json.dumps(self.state.data, sort_keys=True),
+            json.dumps(self.state.state_data, sort_keys=True),
         )
 
     def interfering(self, move: Callable[[CommitWorld], None]) -> AbstractContextManager:

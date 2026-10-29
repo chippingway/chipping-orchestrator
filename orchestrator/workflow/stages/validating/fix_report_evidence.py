@@ -126,7 +126,7 @@ def _parks_the_unproved_head(
     park or not at all.
     """
     state.set(_report_delivery.OWED_REPORT, True)
-    state.data.update(run.handed.retires)
+    state.state_data.update(run.handed.retires)
     _report_delivery.parks_the_debt(
         _commits.ReportCommit(gh, issue, state), state,
         _UNPROVED_HEAD_PARK.format(mentions=config.HITL_MENTIONS),

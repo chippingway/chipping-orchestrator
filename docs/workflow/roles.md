@@ -2167,7 +2167,9 @@ A child created and never recorded — the crash between the create and the pare
 by what the split put in it. Every child's body carries a hidden receipt naming the parent, a `split_attempt` minted for
 that split alone, its slice, and the late lineage the split seeds it with — root, depth, cycle, and generation, or
 none — and the attempt goes onto the parent in the same write as the expected count and the
-whole dependency graph, before the first child exists. A recovery whose register is short looks for the next slice's
+whole dependency graph, before the first child exists, so a register standing beside no integer count is one no
+split left: the recovery parks it `decomposition_crash` with every recorded child kept, adopting, seeding, and
+finalizing nothing. A recovery whose register is short looks for the next slice's
 receipt among the issues this orchestrator opened, walking every one of them, and records the one it finds — the only
 issue carrying that receipt, not already in the register, open, still `workflow:blocked`, and ending on that receipt
 whole — in a parent write of its own. Only a whole receipt counts, and the last one in a

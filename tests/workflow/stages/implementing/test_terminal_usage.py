@@ -92,7 +92,7 @@ class FinalizeIfIssueClosedUsageVerdictTest(unittest.TestCase, _PatchedWorkflowM
                     gh,
                     _TEST_SPEC,
                     issue,
-                    PinnedState(comment_id=None, data={}),
+                    PinnedState(comment_id=None, state_data={}),
                 )
             ),
             run_agent=_agent(),

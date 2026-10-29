@@ -145,7 +145,7 @@ class _ReceiptCase(ObservedCloseCase):
         _late_state.write_late_generation(state, replace(
             _late_state.read_late_generation(state), cycle_id=cycle_id,
         ))
-        self.github.seed_state(LATE_ISSUE_NUMBER, **state.data)
+        self.github.seed_state(LATE_ISSUE_NUMBER, **state.state_data)
         self._latch_close(_TEST_SLUG, LATE_ISSUE_NUMBER)
 
 

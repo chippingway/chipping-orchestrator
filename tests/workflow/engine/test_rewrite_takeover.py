@@ -70,7 +70,7 @@ _INCOMPLETE = (
 
 def _owns(record: dict) -> bool:
     """Whether the generation `record` carries owns its candidate as a taken-over replay."""
-    generation = _late_state.read_late_generation(PinnedState(data=record))
+    generation = _late_state.read_late_generation(PinnedState(state_data=record))
     return generation.publication.replayed_as(generation.candidate_sha)
 
 
@@ -97,7 +97,7 @@ class HandoffTest(unittest.TestCase):
         self.assertEqual(support.late_group(durable), dict(support.GENERATION))
         self.assertEqual(world.standing(support.STANDING), dict(support.STANDING))
         label = world.github.workflow_label(world.issue)
-        self.assertEqual((label, state.data), (support.LABEL_DECOMPOSING, durable))
+        self.assertEqual((label, state.state_data), (support.LABEL_DECOMPOSING, durable))
 
     def test_a_repeated_handoff_writes_nothing(self) -> None:
         world = support.TakeoverWorld.seeded()

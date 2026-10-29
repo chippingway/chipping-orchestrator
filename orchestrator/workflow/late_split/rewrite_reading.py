@@ -35,7 +35,7 @@ def carries_rewrite_authorization(state: PinnedState) -> bool:
     for a value instead, it would answer "no group at all" and let the write
     past.
     """
-    return any(key in state.data for key in _rewrite_fields._AUTHORIZATION_KEYS)
+    return any(key in state.state_data for key in _rewrite_fields._AUTHORIZATION_KEYS)
 
 
 def claims_the_exemption(state: PinnedState) -> bool:
@@ -194,6 +194,6 @@ def stranded_transfer_proof(state: PinnedState) -> bool:
     dropped by the report, by a rollback, and by the grant that replaces the
     transfer it belonged to.
     """
-    if _rewrite_fields.LATE_REWRITE_PROOF not in state.data:
+    if _rewrite_fields.LATE_REWRITE_PROOF not in state.state_data:
         return False
     return unreported_transfer(state) is None

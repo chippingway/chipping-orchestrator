@@ -175,9 +175,9 @@ class _TransferCase(ObservedCloseCase):
         )
         for key, written in damage.items():
             if written is None:
-                self.state.data.pop(key, None)
+                self.state.state_data.pop(key, None)
             else:
-                self.state.data[key] = written
+                self.state.state_data[key] = written
         self.github.write_pinned_state(self.issue, self.state)
 
     def _assert_untouched(self) -> None:
@@ -210,7 +210,7 @@ class _RecoveryCase(_TransferCase):
         """That comment, with one field of the permission moved or gone."""
         for key, written in damage.items():
             if written is None:
-                self.state.data.pop(key, None)
+                self.state.state_data.pop(key, None)
             else:
-                self.state.data[key] = written
+                self.state.state_data[key] = written
         self.github.write_pinned_state(self.issue, self.state)

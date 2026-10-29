@@ -166,7 +166,7 @@ class SequentialTickRefetchTest(unittest.TestCase):
                 resource_state=_obligations.LateResourceState.RETAINED,
             )),
         ))
-        github.seed_state(_OWNER_NUMBER, **state.data)
+        github.seed_state(_OWNER_NUMBER, **state.state_data)
         return github
 
     def _sequential_tick(

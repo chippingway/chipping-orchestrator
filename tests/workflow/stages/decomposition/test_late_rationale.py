@@ -229,11 +229,11 @@ class RecordedRationaleTest(unittest.TestCase):
             question=_support.QUESTION_ASKED,
             rationale=_support.SPLIT_RATIONALE,
         ))
-        edited = _late_run_reading._read_late_run(PinnedState(data=_answered_state(
-            **state.data, **{_support.KEYS.rationale: _support.SPLIT_RATIONALE},
+        edited = _late_run_reading._read_late_run(PinnedState(state_data=_answered_state(
+            **state.state_data, **{_support.KEYS.rationale: _support.SPLIT_RATIONALE},
         )))
 
-        self.assertNotIn(_support.KEYS.rationale, state.data)
+        self.assertNotIn(_support.KEYS.rationale, state.state_data)
         self.assertTrue(edited.answers(_support.late_generation()))
         self.assertEqual(edited.rationale, "")
 
@@ -244,7 +244,7 @@ class RecordedRationaleTest(unittest.TestCase):
         # one holding a value nobody can show stay two different records.
         for named, held in _UNUSABLE_RECORDS:
             with self.subTest(case=named):
-                state = PinnedState(data=dict(held))
+                state = PinnedState(state_data=dict(held))
 
                 run = _late_run_reading._read_late_run(state)
 
@@ -253,7 +253,7 @@ class RecordedRationaleTest(unittest.TestCase):
                 self.assertEqual(
                     _late_run_reading._recovered_adjudication(run).rationale, "",
                 )
-                self.assertEqual(state.data, held)
+                self.assertEqual(state.state_data, held)
 
 
 class RationaleBoundTest(unittest.TestCase):
@@ -312,13 +312,13 @@ class RationaleBoundTest(unittest.TestCase):
         ):
             with self.subTest(case=named):
                 crowded = {_support.KEYS.plan_pr_body: "p" * padding}
-                state = PinnedState(data=dict(crowded))
+                state = PinnedState(state_data=dict(crowded))
 
                 self.assertEqual(
                     _session._record_late_result(state, _ADVERSARIAL_SINGLE), fits,
                 )
                 self.assertEqual(
-                    state.data,
+                    state.state_data,
                     {**crowded, **_ADVERSARIAL_RECORD} if fits else crowded,
                 )
 
@@ -328,7 +328,7 @@ class RationaleBoundTest(unittest.TestCase):
         # value a reader rebuilds is the bounded one the record kept.
         state = PinnedState(state_data=dict(_SCHEMA_RECORD))
         _session._record_late_result(state, _ADVERSARIAL_SINGLE)
-        body = pinned_state_body(state.data)
+        body = pinned_state_body(state.state_data)
 
         parsed = pinned_state_from_comment(
             FakeComment(id=_STATE_COMMENT_ID, body=body, user=FakeUser(DEFAULT_BOT_LOGIN)),

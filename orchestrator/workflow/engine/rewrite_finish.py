@@ -298,8 +298,8 @@ def _checkpoints(finish: LandedFinish, *, announced: bool) -> FinishOutcome | No
     if not _debt.stages(finish, staged, measured):
         return _writes.parks(finish)
     if announced:
-        carried = _commit_models.spelled(finish.state.data, _rewrite_debt.REWRITE_DEBT)
-        if _commit_models.spelled(staged.data, _rewrite_debt.REWRITE_DEBT) == carried:
+        carried = _commit_models.spelled(finish.state.state_data, _rewrite_debt.REWRITE_DEBT)
+        if _commit_models.spelled(staged.state_data, _rewrite_debt.REWRITE_DEBT) == carried:
             return None
         return _writes.lands(finish, staged, _writes.CHECKPOINT)
     staged.set(_base_sync_state._PENDING_ANNOUNCED_EVENT, finish.head)

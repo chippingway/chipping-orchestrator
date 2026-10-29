@@ -191,7 +191,7 @@ class ReportCommit:
         """A copy of the tick's state for one write to be staged on, the tick's own left as it is."""
         return PinnedState(
             comment_id=self.state.comment_id,
-            state_data=copy.deepcopy(self.state.data),
+            state_data=copy.deepcopy(self.state.state_data),
             parsed=self.state.parsed,
             supported=self.state.supported,
         )
@@ -224,14 +224,14 @@ class ReportCommit:
         """
         reserved = PinnedState(
             comment_id=staged.comment_id,
-            state_data=copy.deepcopy(staged.data),
+            state_data=copy.deepcopy(staged.state_data),
             parsed=staged.parsed,
             supported=staged.supported,
         )
         if notice:
             reserved.set(_prompt_delivery.PINNED_LAST_ACTION_COMMENT_ID, _record_values.MAX_RECORDED_NUMBER)
         guard, kept = self._guarded(reserved, write, notice=notice or ledger_entry)
-        prepared = _commit.prepare(self.gh, self.issue, guard, reserved.data, kept)
+        prepared = _commit.prepare(self.gh, self.issue, guard, reserved.state_data, kept)
         self.withholds(prepared)
         return prepared
 
@@ -243,10 +243,10 @@ class ReportCommit:
         is laid over the tick's state; anything else withholds it.
         """
         guard, kept = self._guarded(staged, write)
-        landed = _commit.commit(self.gh, self.issue, guard, staged.data, kept)
+        landed = _commit.commit(self.gh, self.issue, guard, staged.state_data, kept)
         if landed.status is _models.CommitStatus.COMMITTED:
-            self.state.data = copy.deepcopy(landed.reading.data)
-            _commit.takes_in(self.state, landed.reading.data)
+            self.state.state_data = copy.deepcopy(landed.reading.state_data)
+            _commit.takes_in(self.state, landed.reading.state_data)
             self.state.withheld = False
         self.withholds(landed)
         if landed.refusal is _models.CommitRefusal.INADMISSIBLE:
@@ -287,7 +287,7 @@ class ReportCommit:
             return self.state.withheld
         if not self.state.withheld and (outcome is None or outcome.refusal in _ROOM):
             synced = (
-                self.state.data if self.state.synced is None
+                self.state.state_data if self.state.synced is None
                 else json.loads(self.state.synced)
             )
             reading = PinnedState(
@@ -312,11 +312,11 @@ class ReportCommit:
         a write behind a notice, which reserves the ledger entry posting it adds.
         """
         synced = (
-            self.state.data if self.state.synced is None
+            self.state.state_data if self.state.synced is None
             else json.loads(self.state.synced)
         )
-        kept = self._kept(self._moved(synced, staged.data), notice=notice)
-        ticked = self._moved(synced, self.state.data)
+        kept = self._kept(self._moved(synced, staged.state_data), notice=notice)
+        ticked = self._moved(synced, self.state.state_data)
         guard = _models.PinnedCommit.capture(
             PinnedState(
                 comment_id=self.state.comment_id,
@@ -368,7 +368,7 @@ def _both_moves(field: str, fresh: Any, read: Any, staged: Any) -> Any:
     )
     if not joined:
         return _unkept(fresh, read, staged)
-    return kept.data.get(field, _models.ABSENT)
+    return kept.state_data.get(field, _models.ABSENT)
 
 
 def _unkept(fresh: Any, read: Any, staged: Any) -> Any:

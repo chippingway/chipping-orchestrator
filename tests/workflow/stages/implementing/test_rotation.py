@@ -476,10 +476,10 @@ class RetiredConversationTest(unittest.TestCase, _RetiredRecoveryMixin):
                 })
 
                 _session_retirement._retire_dev_session(state, RETIRED_SESSION, QUOTA_REASON)
-                once = copy.deepcopy(state.data)
+                once = copy.deepcopy(state.state_data)
                 _session_retirement._retire_dev_session(state, RETIRED_SESSION, QUOTA_REASON)
 
-                self.assertEqual(state.data, once, "retiring the same conversation twice is retiring it once")
+                self.assertEqual(state.state_data, once, "retiring the same conversation twice is retiring it once")
                 self.assertEqual(
                     once,
                     {

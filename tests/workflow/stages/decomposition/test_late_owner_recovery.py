@@ -83,7 +83,7 @@ class _LostNoticeWrite:
     def __call__(self, issue, state):
         settled = (
             state.get(KEYS.park_reason) == _support.PARK_OWNER_UNREADABLE
-            and KEYS.park_notice not in state.data
+            and KEYS.park_notice not in state.state_data
         )
         if self._lost or not settled:
             return self._write(issue, state)

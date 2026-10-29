@@ -147,11 +147,11 @@ def _read_state(
         )
         refused = RetentionReason.STATE_UNSUPPORTED if state.parsed else RetentionReason.STATE_MALFORMED
         return Retention(refused, subject)
-    if not isinstance(state.data, dict):
+    if not isinstance(state.state_data, dict):
         log.warning(
             "issue=#%d pinned state is a %s rather than an object; refusing "
             "to classify its artifacts against it",
-            issue_number, type(state.data).__name__,
+            issue_number, type(state.state_data).__name__,
         )
         return Retention(RetentionReason.STATE_MALFORMED, subject)
     return state

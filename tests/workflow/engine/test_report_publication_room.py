@@ -110,7 +110,7 @@ class GrowthBeforePublicationTest(unittest.TestCase, support.ReportTransactionCa
         low, high = 0, MAX_PINNED_BODY
         while low < high:
             tried = (low + high + 1) // 2
-            crowded = {**self.state.data, _FILLER: _CROWDING * tried}
+            crowded = {**self.state.state_data, _FILLER: _CROWDING * tried}
             if len(pinned_state_body(crowded)) <= MAX_PINNED_BODY:
                 low = tried
             else:
@@ -120,7 +120,7 @@ class GrowthBeforePublicationTest(unittest.TestCase, support.ReportTransactionCa
     def _assert_within_the_comment(self) -> None:
         """The pinned state is one GitHub would still accept as a comment."""
         self.assertLessEqual(
-            len(pinned_state_body(self.state.data)), MAX_PINNED_BODY,
+            len(pinned_state_body(self.state.state_data)), MAX_PINNED_BODY,
         )
 
 

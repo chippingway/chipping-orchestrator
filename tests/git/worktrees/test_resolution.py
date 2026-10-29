@@ -96,7 +96,7 @@ class BranchRefusalTest(unittest.TestCase):
                 )
                 self.assertIn(repr(record.get(BRANCH_KEY)), logged.output[0])
             self.assertIsNone(_naming._admitted_branch(state, spec, ISSUE_NUMBER))
-            self.assertEqual(state.data, record, described)
+            self.assertEqual(state.state_data, record, described)
 
 if __name__ == "__main__":
     unittest.main()

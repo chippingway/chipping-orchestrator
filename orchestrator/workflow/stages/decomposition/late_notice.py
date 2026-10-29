@@ -304,7 +304,7 @@ def _owe_notice(context: _LateContext, staged: _StagedPark) -> None:
     """
     record = {
         key: held
-        for key, held in context.state.data.items()
+        for key, held in context.state.state_data.items()
         if key != PARK_NOTICE
     }
     owed = {_REASON: staged.reason, _MESSAGE: staged.message}
@@ -333,7 +333,7 @@ def _notice_settled(context: _LateContext) -> None:
     than an event: a sentence posted to the thread and a park retired or
     answered before anybody had to read it leave exactly nothing owed.
     """
-    context.state.data.pop(PARK_NOTICE, None)
+    context.state.state_data.pop(PARK_NOTICE, None)
 
 
 def _delivered_id(context: _LateContext, owed: _StagedPark) -> int | None:

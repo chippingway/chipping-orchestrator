@@ -162,5 +162,5 @@ class TakeoverWorld:
     def another_road(self, **fields: object) -> None:
         """Another road's whole-record write over the comment as it stands."""
         written = self.github.read_pinned_state(self.issue)
-        written.data.update(fields)
+        written.state_data.update(fields)
         self.github.write_pinned_state(self.issue, written)

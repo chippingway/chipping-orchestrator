@@ -2883,7 +2883,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             where it no longer proves one or a child is not one the split can recognize as its own --
                             any child whose text names a snapshot the split cannot keep, or whose receipt is not the one
                             stamped for its slot, included -- the summary `split_summary.py` still owes ahead of the
-                            finalize, the incomplete park, and the two owners that hold those markers instead -- a human
+                            finalize, the incomplete park and the one a register with no whole count beside it takes
+                            ahead of any adoption, repair, or finalize, and the two owners that hold those markers
+                            instead -- a human
                             the issue is parked awaiting, and the late transaction while its generation is live; each
                             child is repaired under its own writer claim, and one another poller holds -- or one whose
                             record, read under that claim, admission refuses, an adopted one included -- stops the

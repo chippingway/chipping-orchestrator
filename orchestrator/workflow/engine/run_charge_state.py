@@ -208,15 +208,15 @@ def _merge_circuit_fields(
     otherwise pin a second comment for.
     """
     laid = [
-        key for key in set(recorded) | set(durable.data)
-        if durable.data.get(key, _UNSET) != recorded.get(key, _UNSET)
+        key for key in set(recorded) | set(durable.state_data)
+        if durable.state_data.get(key, _UNSET) != recorded.get(key, _UNSET)
     ]
     for key in laid:
-        written = durable.data.get(key, _UNSET)
+        written = durable.state_data.get(key, _UNSET)
         if written is _UNSET:
-            state.data.pop(key, None)
+            state.state_data.pop(key, None)
         else:
             state.set(key, written)
-    _pinned_commit.takes_in(state, durable.data, laid)
+    _pinned_commit.takes_in(state, durable.state_data, laid)
     if state.comment_id is None:
         state.comment_id = durable.comment_id

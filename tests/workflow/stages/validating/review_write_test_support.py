@@ -41,9 +41,9 @@ class Writes:
 
     def __call__(self, case) -> None:
         elsewhere = case.github.read_pinned_state(case.issue)
-        merged = {**elsewhere.data, **copy.deepcopy(dict(self.fields))}
+        merged = {**elsewhere.state_data, **copy.deepcopy(dict(self.fields))}
         taken_off = {field for field, spelled in merged.items() if spelled is ...}
-        elsewhere.data = {field: merged[field] for field in merged.keys() - taken_off}
+        elsewhere.state_data = {field: merged[field] for field in merged.keys() - taken_off}
         case.github.write_pinned_state(case.issue, elsewhere)
 
 

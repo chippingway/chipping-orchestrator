@@ -237,6 +237,6 @@ def _lands(
 
     `observed` collects the movement a refusal read (`rewrite_finish_writes.lands`).
     """
-    if staged.data == finish.state.data:
+    if staged.state_data == finish.state.state_data:
         return None
     return _writes.lands(finish, staged, _writes.EVIDENCE, observed)

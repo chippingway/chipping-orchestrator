@@ -392,7 +392,7 @@ def _writes_the_anchor_back(launch: _handoffs.HandedLaunch) -> bool:
     """
     context = launch.context
     reread = _review_comment._records_stand(
-        context.gh, context.issue, context.state, dict(context.state.data), persisted=True,
+        context.gh, context.issue, context.state, dict(context.state.state_data), persisted=True,
     )
     if reread is None or not reread.stood:
         return False

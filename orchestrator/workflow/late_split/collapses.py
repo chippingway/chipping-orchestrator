@@ -145,7 +145,7 @@ def carries_pending_collapse(state: PinnedState) -> bool:
     `null`, and a group carrying one member spelled that way is exactly the
     minimal damaged claim this exists to catch.
     """
-    return any(key in state.data for key in _COLLAPSE_KEYS)
+    return any(key in state.state_data for key in _COLLAPSE_KEYS)
 
 
 def read_pending_collapse(state: PinnedState) -> LateCollapse | None:
@@ -211,7 +211,7 @@ def record_pending_collapse(
 def clear_pending_collapse(state: PinnedState) -> None:
     """Drop the whole record, leaving every other field alone."""
     for key in _COLLAPSE_KEYS:
-        state.data.pop(key, None)
+        state.state_data.pop(key, None)
 
 
 def settle_pending_collapse(state: PinnedState, published: str) -> None:

@@ -56,7 +56,7 @@ class RecordedCollapseRealGitTest(
         squash_run = self._squashes(gate, push_result=self._publishes(gate))
 
         self.assertTrue(squash_run.success)
-        self.assertIn(_support.KEY_COLLAPSE_HEAD, gate.state.data)
+        self.assertIn(_support.KEY_COLLAPSE_HEAD, gate.state.state_data)
 
     def test_a_refused_push_takes_the_claim_back(self) -> None:
         # The reset puts the branch back on the commits the record says were
@@ -308,7 +308,7 @@ class SwitchedOffCollapseRealGitTest(
         self.assertEqual(squash_run.count, 0)
         squash_run.push_mock.assert_not_called()
         self._assert_branch_carries(_support.APPROVED_COMMITS)
-        self.assertNotIn(_support.KEY_COLLAPSE_HEAD, gate.state.data)
+        self.assertNotIn(_support.KEY_COLLAPSE_HEAD, gate.state.state_data)
 
     def test_a_moved_remote_still_refuses(self) -> None:
         # The record engaged the recovery, which found the reset never ran and

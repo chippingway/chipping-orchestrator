@@ -24,12 +24,12 @@ def pinned(seeded: tuple, state: PinnedState) -> tuple:
     Whatever the case stages on `state` after this is the tick's own.
     """
     github, issue = seeded
-    github.seed_state(issue, **copy.deepcopy(state.data))
+    github.seed_state(issue, **copy.deepcopy(state.state_data))
     reading = github.read_pinned_state(issue)
     state.comment_id = reading.comment_id
     state.synced = reading.synced
-    if SCHEMA_VERSION_KEY not in state.data and SCHEMA_VERSION_KEY in reading.data:
-        state.data[SCHEMA_VERSION_KEY] = reading.data[SCHEMA_VERSION_KEY]
+    if SCHEMA_VERSION_KEY not in state.state_data and SCHEMA_VERSION_KEY in reading.state_data:
+        state.state_data[SCHEMA_VERSION_KEY] = reading.state_data[SCHEMA_VERSION_KEY]
     return seeded
 
 
@@ -54,7 +54,7 @@ def another_road(github, issue, **fields) -> dict:
     written as `null`. Answers what the comment carries afterwards.
     """
     reading = github.read_pinned_state(issue)
-    reading.data.update(copy.deepcopy(fields))
+    reading.state_data.update(copy.deepcopy(fields))
     github.write_pinned_state(issue, reading)
     return github.pinned_data(issue.number)
 

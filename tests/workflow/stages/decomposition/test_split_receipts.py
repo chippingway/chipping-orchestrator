@@ -153,7 +153,7 @@ class AdoptionTest(unittest.TestCase):
         self.recorded = list(recorded)
         self.github = FakeGitHubClient([make_issue(_support.PARENT, body=_support.EDITED_BODY)])
         parent_state = _support.record(generation, **{KEY_SPLIT_ATTEMPT: ATTEMPT})
-        self.github.seed_state(_support.PARENT, **parent_state.data)
+        self.github.seed_state(_support.PARENT, **parent_state.state_data)
         stamp = _split_receipts.receipt(_support.PARENT, ATTEMPT, len(recorded), None)
         self.orphan = self.github.create_child_issue(
             title="t",

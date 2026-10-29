@@ -125,9 +125,9 @@ def _filled_to(
     staged = PinnedState(comment_id=1, state_data={FILLER: ""})
     if pending is not None:
         _record_state.record_pending_evidence(staged, pending)
-    kept = dict(staged.data) if recorded else {}
+    kept = dict(staged.state_data) if recorded else {}
     staged.set(_verdicts.RETURNED_VERDICT, returned.recorded())
-    filled = "x" * (MAX_PINNED_BODY - len(pinned_state_body(staged.data)) - short)
+    filled = "x" * (MAX_PINNED_BODY - len(pinned_state_body(staged.state_data)) - short)
     return PinnedState(comment_id=1, state_data={**kept, FILLER: filled})
 
 
@@ -149,9 +149,9 @@ def _handed_and_charged(
     _comments._track_orchestrator_comment(state, posted)
     state.set("agent_runs_used", runs_used)
     _run_ledger._reserve_run(state, LAUNCH)
-    charged = _report_record_state.fits_the_comment(state.data)
+    charged = _report_record_state.fits_the_comment(state.state_data)
     _run_ledger._start_reserved_run(state, runs_used)
-    if not (charged and _report_record_state.fits_the_comment(state.data)):
+    if not (charged and _report_record_state.fits_the_comment(state.state_data)):
         return False
     if pending is None:
         return True
@@ -265,7 +265,7 @@ class ReturnedVerdictRecordTest(unittest.TestCase):
                 sorted(carried.get(_verdicts.RETURNED_VERDICT)),
                 _verdicts.read_returned_verdict(carried),
                 carried.get("pending_fix_reviewer_comment_id"),
-                untouched.data,
+                untouched.state_data,
             ),
             (
                 ["evidence", "feedback", "handed", "round", "subject", "verdict"],
@@ -286,8 +286,8 @@ class ReturnedVerdictRecordTest(unittest.TestCase):
             (_verdicts.drops_the_verdict(carried), _verdicts.drops_the_verdict(untouched)),
             (True, False),
         )
-        self.assertEqual(carried.data, {_verdicts.RETURNED_VERDICT: None})
-        self.assertEqual(untouched.data, {})
+        self.assertEqual(carried.state_data, {_verdicts.RETURNED_VERDICT: None})
+        self.assertEqual(untouched.state_data, {})
 
     def test_a_named_drop_touches_only_the_one_held(self) -> None:
         # One another road put in its place, or already cleared, stays exactly
@@ -303,7 +303,7 @@ class ReturnedVerdictRecordTest(unittest.TestCase):
                 state = PinnedState(comment_id=1, state_data={_verdicts.RETURNED_VERDICT: carried})
 
                 self.assertEqual(
-                    (_verdicts.drops_the_verdict(state, only=held), state.data),
+                    (_verdicts.drops_the_verdict(state, only=held), state.state_data),
                     (dropped, {_verdicts.RETURNED_VERDICT: None if dropped else carried}),
                 )
 
@@ -378,7 +378,7 @@ class ReturnedVerdictRoomTest(unittest.TestCase):
                 state = PinnedState(comment_id=1, state_data={})
 
                 self.assertFalse(_verdicts.records_the_verdict(state, returned, pending))
-                self.assertEqual(state.data, {})
+                self.assertEqual(state.state_data, {})
 
     def test_its_transaction_goes_with_it_or_neither(self) -> None:
         roomy = PinnedState(comment_id=1, state_data={})
@@ -398,19 +398,19 @@ class ReturnedVerdictRoomTest(unittest.TestCase):
             )),
         ):
             with self.subTest(name):
-                before = dict(state.data)
+                before = dict(state.state_data)
 
                 self.assertTrue(_verdicts.records_the_verdict(PinnedState(state_data=dict(before)), RETURNED))
                 self.assertFalse(_verdicts.records_the_verdict(state, CLAIMING, PENDING))
-                self.assertEqual(state.data, before)
+                self.assertEqual(state.state_data, before)
 
         # An identical retry of the transaction the comment already carries is
         # measured beside the verdict all the same.
         retried = _filled_to(CLAIMING, PENDING, recorded=True)
-        before = dict(retried.data)
+        before = dict(retried.state_data)
 
         self.assertFalse(_verdicts.records_the_verdict(retried, CLAIMING, PENDING))
-        self.assertEqual(retried.data, before)
+        self.assertEqual(retried.state_data, before)
 
 
 if __name__ == "__main__":

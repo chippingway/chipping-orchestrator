@@ -136,7 +136,7 @@ class _ReadyPingFixture(_PatchedWorkflowMixin):
 
     def fills(self, *, filled: bool = True) -> None:
         """Fill the pinned comment up to exactly its limit, as a human's notes on it might; or take them off."""
-        pinned = self.github._pinned[ISSUE].data
+        pinned = self.github._pinned[ISSUE].state_data
         pinned.pop(_FILLER, None)
         if filled:
             pinned[_FILLER] = ""
@@ -176,7 +176,7 @@ class _EditedWhileMerging:
         self._fields = fields
 
     def __call__(self, *called, **options) -> bool:
-        self._pinned.data.update(self._fields)
+        self._pinned.state_data.update(self._fields)
         return self._mergeable
 
 

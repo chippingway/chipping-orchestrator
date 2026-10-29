@@ -411,7 +411,7 @@ def _records_the_carry(state: PinnedState, issue_number: int, carry: _carry_forw
     pending = _record_state.mint_pending_evidence(
         state, issue_number, carry.binding, carry.commands, carry.copied_from,
     )
-    composed = PinnedState(state_data=dict(state.data))
+    composed = PinnedState(state_data=dict(state.state_data))
     recorded = claim is not None and pending is not None
     if recorded:
         _approved_evidence.records(composed, replace(
@@ -430,7 +430,7 @@ def _records_the_carry(state: PinnedState, issue_number: int, carry: _carry_forw
             "carries onto %s; invalidating it instead", issue_number, carry.target_head,
         )
         return False
-    state.data = composed.data
+    state.state_data = composed.state_data
     return True
 
 

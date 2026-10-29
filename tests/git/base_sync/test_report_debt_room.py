@@ -117,7 +117,7 @@ class _Writes:
 
     def __call__(self, issue, state):
         """Measure the comment this write renders, then write it."""
-        self.widest = max(self.widest, len(pinned_state_body(state.data)))
+        self.widest = max(self.widest, len(pinned_state_body(state.state_data)))
         return self._write(issue, state)
 
     def edits(self, issue, body: str):
@@ -151,7 +151,7 @@ class _RoomFixture(_SyncWorktreeWithBaseFixture):
 
     def _pinned(self) -> dict:
         """The pinned comment's payload as the client holds it, for a case to edit in place."""
-        return self.gh._pinned[ISSUE].data
+        return self.gh._pinned[ISSUE].state_data
 
     def _ticks(self, scenario) -> tuple[int, list]:
         """Run `scenario`; the widest write it made, and what was durable at each relabel."""

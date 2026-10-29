@@ -282,7 +282,7 @@ _CONTINUED = replace(support.FOUND, behind=1)
 
 def _fills_short_of_more(world: support.FinishWorld, finish) -> None:
     """Fill the comment `finish` read until it has room for the announcement and its debt, and one character more."""
-    announced = {**_debt.announcement(finish.state, support.LANDED).data}
+    announced = {**_debt.announcement(finish.state, support.LANDED).state_data}
     announced[support.KEY_REWRITE_DEBT] = support.owed()
     effects.leaves(world, effects.room_for(world, **announced) + 1)
 

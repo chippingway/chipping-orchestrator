@@ -287,7 +287,7 @@ class _EditedUnderReview(_PatchedWorkflowMixin):
         hands any later `in_review` tick back for a review; the case is about
         the tick after that review approved the edited requirements.
         """
-        pinned = self.github._pinned[SETTLEMENT_ISSUE].data
+        pinned = self.github._pinned[SETTLEMENT_ISSUE].state_data
         pinned.update(_approval_records.approved(
             SETTLEMENT_PR, head=self.pull_request.head.sha, requirements=pinned[USER_CONTENT_HASH],
         ))

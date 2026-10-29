@@ -86,7 +86,7 @@ def write_late_ancestry(state: PinnedState, ancestry: _ancestry.LateAncestry) ->
 def clear_late_ancestry(state: PinnedState) -> None:
     """Drop every ancestry field, leaving the rest of the state alone."""
     for key in LATE_ANCESTRY_KEYS:
-        state.data.pop(key, None)
+        state.state_data.pop(key, None)
 
 
 def contradicted_lineage(

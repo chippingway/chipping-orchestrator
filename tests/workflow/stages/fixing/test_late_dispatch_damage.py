@@ -398,7 +398,7 @@ class DamagedTransferNoteDispatchTest(unittest.TestCase, _FrozenPairMixin):
 
     def test_the_adjudication_is_asked_it_too(self) -> None:
         # A note the adjudication did not write is one it cannot repair.
-        noted = PinnedState(data={KEY_REWRITE_PROOF: NOT_A_PHASE})
+        noted = PinnedState(state_data={KEY_REWRITE_PROOF: NOT_A_PHASE})
 
         self.assertEqual(
             _claims._unreadable_record(_workflow_state.WorkflowLabel.DECOMPOSING, noted),

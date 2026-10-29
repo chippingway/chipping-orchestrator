@@ -230,8 +230,8 @@ class _ResolvedSubject:
         of its own, so the totals `state` holds are the ones the tick read or
         wrote.
         """
-        fields = {*read, *self.resolved_over, *state.data}
-        agreed = fields.difference(_moved(self.resolved_over, state.data, fields))
+        fields = {*read, *self.resolved_over, *state.state_data}
+        agreed = fields.difference(_moved(self.resolved_over, state.state_data, fields))
         since = {field: spelled for field, spelled in read.items() if field not in agreed}
         since.update(
             (field, self.resolved_over[field]) for field in agreed if field in self.resolved_over
@@ -250,8 +250,8 @@ class _ResolvedSubject:
         them (`_moved`).
         """
         comment = dict(self.resolved_over)
-        for field in _moved(state.data, before, {*before, *state.data}):
-            written = state.data.get(field, _ABSENT)
+        for field in _moved(state.state_data, before, {*before, *state.state_data}):
+            written = state.state_data.get(field, _ABSENT)
             if written is _ABSENT:
                 comment.pop(field, None)
             else:
@@ -294,13 +294,13 @@ class _Reread:
             state, self.read, {*fields, _comments._ORCH_COMMENT_IDS},
         )
         # ...save one this tick changed too.
-        for field in _moved(state.data, since, fields):
+        for field in _moved(state.state_data, since, fields):
             if _state._keeps_both_moves(state, field, self.read, since) or self.stood:
                 fields.remove(field)
         for field in fields:
             written = self.read.get(field, _ABSENT)
             if written is _ABSENT:
-                state.data.pop(field, None)
+                state.state_data.pop(field, None)
             else:
                 state.set(field, written)
         # The ledger is a set every road adds to, so it is merged rather than
@@ -316,7 +316,7 @@ class _Reread:
         if isinstance(own, list):
             state.set(_comments._ORCH_COMMENT_IDS, [entry for entry in own if _state._is_whole(entry)])
         elif own is not None:
-            state.data.pop(_comments._ORCH_COMMENT_IDS)
+            state.state_data.pop(_comments._ORCH_COMMENT_IDS)
         ledger = self.read.get(_comments._ORCH_COMMENT_IDS)
         if not isinstance(ledger, list):
             ledger = []
@@ -367,7 +367,7 @@ class _Reread:
         """Put the park on `state` as this reading spells it, a flag it does not carry dropped."""
         _pinned_commit.takes_in(state, self.read, _PARK)
         for field in _PARK:
-            state.data.pop(field, None)
+            state.state_data.pop(field, None)
             spelled = self.read.get(field, _ABSENT)
             if spelled is not _ABSENT:
                 state.set(field, spelled)
@@ -393,8 +393,8 @@ def _resolved_over(
     durable = _read(gh, issue, state, purpose)
     if durable is None:
         return None
-    if not _moved(durable.data, state.data, _VERDICT_RECORDS):
-        return dict(durable.data)
+    if not _moved(durable.state_data, state.state_data, _VERDICT_RECORDS):
+        return dict(durable.state_data)
     log.warning(
         "issue=#%d its pinned comment does not carry the records this tick "
         "holds -- the developer report's, the pull request it points at, or "
@@ -430,7 +430,7 @@ def _records_in_hand(
     durable = _read(gh, issue, state, purpose)
     if durable is None:
         return False
-    if not _moved(durable.data, state.data, (*_IN_HAND_RECORDS, *beside)):
+    if not _moved(durable.state_data, state.state_data, (*_IN_HAND_RECORDS, *beside)):
         return True
     log.warning(
         "issue=#%d its pinned comment does not carry the developer report, "
@@ -475,8 +475,8 @@ def _records_stand(
     if durable is None:
         return None
     reread = _Reread(
-        stood=not _moved(durable.data, resolved_over, _WATCHED[persisted]),
-        read=dict(durable.data),
+        stood=not _moved(durable.state_data, resolved_over, _WATCHED[persisted]),
+        read=dict(durable.state_data),
     )
     reread.lays_over(state, resolved_over)
     if not reread.stood:

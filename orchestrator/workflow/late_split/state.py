@@ -198,7 +198,7 @@ def record_replay_takeover(state: PinnedState, replay_sha: str) -> None:
 def clear_late_generation(state: PinnedState) -> None:
     """Drop every late field, leaving the rest of the pinned state alone."""
     for key in _keys.LATE_STATE_KEYS:
-        state.data.pop(key, None)
+        state.state_data.pop(key, None)
 
 
 def read_late_spends(state: PinnedState) -> tuple:
@@ -239,6 +239,6 @@ def write_late_spends(state: PinnedState, fields: tuple) -> None:
     earlier one was owed.
     """
     if not fields:
-        state.data.pop(_keys.SPENDS, None)
+        state.state_data.pop(_keys.SPENDS, None)
         return
     state.set(_keys.SPENDS, [[key, spent] for key, spent in fields])

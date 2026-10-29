@@ -119,12 +119,12 @@ def _records_the_rewrite(ctx: _models._ConflictContext, sha: str) -> bool:
     this push is the one the pull request carries now, and any head that field
     names is either this one or one the pull request never received.
     """
-    before = dict(ctx.state.data)
+    before = dict(ctx.state.state_data)
     if not _stages_the_rewrite(ctx, sha):
         return False
     if ctx.state.get(_state._PREAMBLE_SHA) is not None:
         ctx.state.set(_state._PREAMBLE_SHA, None)
-    if ctx.state.data != before:
+    if ctx.state.state_data != before:
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
     return True
 

@@ -117,10 +117,6 @@ the order they happened, read outside the cached wrappers because it is scoped
 by an issue on top of the window those keys carry, together with the columns
 one event is traced in, the notice a number typed before a repository is
 answered with, and the two an empty window and a failed read leave instead.
-``drilldown_request`` is the call shape that section is still reachable under:
-the seven keyword arguments a caller outside the render pipeline names, the
-declared signature they are bound through, and the typed request they are read
-back as before the page state is rebuilt from it.
 ``page_states`` is what is drawn where none of those panels can be: the startup
 state a database nobody has ingested into is answered with, which zeroes the
 banner's counts and stops the script where it stands; the notice a filtered

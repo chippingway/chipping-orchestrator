@@ -216,8 +216,8 @@ def stage_pending_report(
         if settled is None:
             return _INVALID
         carried.set(_records.PENDING_REPORT, recorded)
-        if not fits_the_comment(carried.data):
-            return _room.CommentOverflow.of(carried.data, _room.MeasuredWrite.RECORD, later)
+        if not fits_the_comment(carried.state_data):
+            return _room.CommentOverflow.of(carried.state_data, _room.MeasuredWrite.RECORD, later)
         if not fits_the_comment(settled):
             return _room.CommentOverflow.of(settled, _room.MeasuredWrite.SETTLEMENT, later)
     state.set(_records.PENDING_REPORT, recorded)
@@ -343,7 +343,7 @@ def settled_payload(
     was measured on that road, so the acceptance above refuses it as an
     invalid record rather than as a settlement too large to fit.
     """
-    settled = _pinned_state.PinnedState(state_data=dict(state.data))
+    settled = _pinned_state.PinnedState(state_data=dict(state.state_data))
     if current is None and pending.mode is _records.ReportMode.PUBLISH:
         _comments._reserve_comment_slot(settled, _WIDEST_IDENTITY)
     importlib.import_module(
@@ -374,7 +374,7 @@ def settled_payload(
             _stage_targets._FIXING_ROUND_MARKS_OWNER,
         )._stamps_the_round_handed_back(settled)
     clear_pending_report(settled)
-    return settled.data
+    return settled.state_data
 
 
 def clear_pending_report(state: _pinned_state.PinnedState) -> None:

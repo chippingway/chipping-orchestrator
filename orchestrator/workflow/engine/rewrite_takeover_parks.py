@@ -131,7 +131,7 @@ def _spends_a_late_retry(gh: GitHubClient, issue: Issue, state: PinnedState, gen
     commit = _commits.ReportCommit(gh, issue, state)
     staged = commit.staging()
     _rewrite_replies.records_the_retry(gh, issue, staged, _rewrite_replies.AttemptReplies.past(staged))
-    if staged.data == state.data:
+    if staged.state_data == state.state_data:
         return False
     status = commit.lands(staged, _SPENT_RETRY).status
     log.info(

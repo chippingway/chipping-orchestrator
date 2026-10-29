@@ -214,7 +214,7 @@ class FinalizeMergedPrTest(unittest.TestCase, _PatchedWorkflowMixin):
             run_agent=_agent(),
         )
         self.assertIn((_OPEN_ISSUE_MERGED_NUMBER, "done"), gh.label_history)
-        self.assertIn("merged_at", state.data)
+        self.assertIn("merged_at", state.state_data)
         self.assertTrue(issue.closed)
         mocks[_CLEANUP_MOCK_KEY].assert_called_once_with(
             gh,

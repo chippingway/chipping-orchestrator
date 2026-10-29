@@ -331,7 +331,7 @@ def _approval_still_stands(gh: GitHubClient, issue: Issue, state: PinnedState) -
     standing = _review_coverage._approval_stands(gh, state) and _approved_evidence.stands(gh, state)
     if not standing:
         return standing
-    read = dict(state.data)
+    read = dict(state.state_data)
     reread = _review_comment._records_stand(gh, issue, state, read, persisted=True)
     if reread is None:
         return None

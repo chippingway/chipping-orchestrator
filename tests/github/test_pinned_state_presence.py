@@ -29,12 +29,12 @@ class PinnedStateFieldPresenceTest(unittest.TestCase):
     """
 
     def test_a_field_that_was_written_is_carried(self) -> None:
-        self.assertTrue(PinnedState(data={_FIELD: _WRITTEN}).carries(
+        self.assertTrue(PinnedState(state_data={_FIELD: _WRITTEN}).carries(
             _FIELD,
         ))
 
     def test_a_field_nothing_wrote_is_not(self) -> None:
-        self.assertFalse(PinnedState(data={}).carries(_FIELD))
+        self.assertFalse(PinnedState(state_data={}).carries(_FIELD))
 
     def test_a_value_that_reads_as_nothing_counts(self) -> None:
         # The payload is JSON, so a field can be present and `null` -- an
@@ -45,7 +45,7 @@ class PinnedStateFieldPresenceTest(unittest.TestCase):
             ("null", None), ("empty", ""), ("truncated", _WRITTEN[:3]),
         ):
             with self.subTest(value=described):
-                state = PinnedState(data={_FIELD: written})
+                state = PinnedState(state_data={_FIELD: written})
 
                 self.assertTrue(state.carries(_FIELD))
 

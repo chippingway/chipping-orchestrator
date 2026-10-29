@@ -286,7 +286,7 @@ _SUBJECT = _review_subjects.ReviewSubject(
 
 def _moves(state: PinnedState, fields: MappingProxyType, posted: int | None) -> None:
     """One road's moves on `state`: `fields` written, and any comment `posted` recorded as the orchestrator's."""
-    state.data.update(fields)
+    state.state_data.update(fields)
     if posted is not None:
         _comments._track_orchestrator_comment(state, posted)
 
@@ -401,13 +401,13 @@ class ConcurrentWritesTest(unittest.TestCase):
         """The reread's answer (`review_comment._Reread`, or None), and the state it leaves, once both moved."""
         self.github.seed_state(self.issue, **resolved)
         state = self.github.read_pinned_state(self.issue)
-        resolved_over = dict(state.data)
+        resolved_over = dict(state.state_data)
         _moves(state, *ours)
         other = self.github.read_pinned_state(self.issue)
         _moves(other, *theirs)
         self.github.write_pinned_state(self.issue, other)
         reread = _review_comment._records_stand(self.github, self.issue, state, resolved_over, persisted=persisted)
-        return reread, state.data
+        return reread, state.state_data
 
 
 class BindingTest(unittest.TestCase):
@@ -441,7 +441,7 @@ class BindingTest(unittest.TestCase):
         """The state this tick holds once it wrote `_WRITTEN_EARLIER` and staged `_STAGED`; and the comment it read."""
         self.github.seed_state(self.issue, **_RESOLVED)
         state = self.github.read_pinned_state(self.issue)
-        read = dict(state.data)
+        read = dict(state.state_data)
         _moves(state, _WRITTEN_EARLIER, None)
         self.github.write_pinned_state(self.issue, state)
         _moves(state, _STAGED, None)
@@ -528,7 +528,7 @@ class ReturnCommitTest(unittest.TestCase):
         self.assertEqual(
             {field: pinned.get(field) for field in _COMMITTED}, dict(_COMMITTED),
         )
-        self.assertEqual((state.data, state.withheld), (pinned, False))
+        self.assertEqual((state.state_data, state.withheld), (pinned, False))
 
     def test_a_move_it_decided_on_refuses_it(self) -> None:
         # Nothing is written over what the other road left, and the state is
@@ -587,7 +587,7 @@ class ReturnCommitTest(unittest.TestCase):
         """The state this tick holds once it staged the return's moves and read the comment again behind them."""
         self.github.seed_state(self.issue, **_RETURNED_OVER)
         state = self.github.read_pinned_state(issue=self.issue)
-        resolved_over = dict(state.data)
+        resolved_over = dict(state.state_data)
         _moves(state, *_RETURN_MOVES)
         _review_comment._records_stand(self.github, self.issue, state, resolved_over, persisted=True)
         return state
@@ -629,7 +629,7 @@ class UnreadReplyTest(unittest.TestCase):
             **_RESOLVED, ISSUE_THREAD_MARK: self._replied("A question this issue already answered."), LEDGER: [],
         })
         state = self.github.read_pinned_state(self.issue)
-        resolved_over = dict(state.data)
+        resolved_over = dict(state.state_data)
         read_through = self.github.comment(self.issue, "Another road's notice, read through.").id
         state.set(ISSUE_THREAD_MARK, self._replied("A reply this tick delivered."))
         other = self.github.read_pinned_state(self.issue)

@@ -118,7 +118,7 @@ class StandingParkTest(unittest.TestCase):
 
         self.assertTrue(state.get(_limit_seeds.AWAITING_HUMAN))
         self.assertEqual(state.get(_limit_seeds.PARK_REASON), _DISPLACED_REASON)
-        self.assertNotIn(_DISPLACED, state.data)
+        self.assertNotIn(_DISPLACED, state.state_data)
 
     def test_a_leftover_run_limit_reason_is_no_park(self) -> None:
         # A flag some road took down with the run-limit reason left behind is
@@ -144,13 +144,13 @@ class StandingParkTest(unittest.TestCase):
             with self.subTest(recorded=recorded):
                 state = _limit_seeds.parked_state(**{_DISPLACED: recorded})
                 if recorded is None:
-                    state.data.pop(_DISPLACED)
+                    state.state_data.pop(_DISPLACED)
 
                 _run_limit_state._restore_displaced(state)
 
                 self.assertIs(state.get(_limit_seeds.AWAITING_HUMAN), awaiting)
                 self.assertEqual(state.get(_limit_seeds.PARK_REASON), reason)
-                self.assertNotIn(_DISPLACED, state.data)
+                self.assertNotIn(_DISPLACED, state.state_data)
 
 
 class ParkStagingTest(unittest.TestCase):
@@ -177,7 +177,7 @@ class ParkStagingTest(unittest.TestCase):
 
         self.assertFalse(_run_limit_state._stage_park(state, _limit_seeds.ledger()))
 
-        self.assertNotIn(support.NOTICE, state.data)
+        self.assertNotIn(support.NOTICE, state.state_data)
 
     def test_an_unsaid_sentence_is_kept_verbatim(self) -> None:
         # The thread is searched for exactly the text the park recorded, so a
@@ -248,7 +248,7 @@ class ParkExhaustedTest(_limit_case._ParkCase):
         posted = self.gh.posted_comments[-1][1]
         self.assertIn(config.HITL_MENTIONS, posted)
         self.assertIn(support.notice_text(), posted)
-        self.assertNotIn(support.NOTICE, state.data)
+        self.assertNotIn(support.NOTICE, state.state_data)
         self.assertEqual(support.phases(self.gh), [support.DELIVERED])
 
     def test_a_later_tick_says_and_writes_nothing(self) -> None:
@@ -274,7 +274,7 @@ class ParkExhaustedTest(_limit_case._ParkCase):
         self._park(state)
 
         self.assertEqual(self.gh.posted_comments, [])
-        self.assertNotIn(support.NOTICE, state.data)
+        self.assertNotIn(support.NOTICE, state.state_data)
         self.assertEqual(support.phases(self.gh), [support.RECONCILED])
 
     def test_an_unreadable_thread_is_said_nothing(self) -> None:
@@ -288,7 +288,7 @@ class ParkExhaustedTest(_limit_case._ParkCase):
             self._park(state)
 
         self.assertEqual(self.gh.posted_comments, [])
-        self.assertIn(support.NOTICE, state.data)
+        self.assertIn(support.NOTICE, state.state_data)
         self.assertEqual(support.phases(self.gh), [])
 
 
@@ -340,7 +340,7 @@ class NoticeDeliveryTest(unittest.TestCase):
         said = _run_limit._deliver_notice(self.gh, self.issue, self.state)
 
         self.assertTrue(said)
-        self.assertNotIn(support.NOTICE, self.state.data)
+        self.assertNotIn(support.NOTICE, self.state.state_data)
         # The shared park clears the reason by contract, and the response
         # boundary a reply is measured against moves past the mention.
         self.assertEqual(
@@ -368,7 +368,7 @@ class NoticeDeliveryTest(unittest.TestCase):
         self.assertEqual(
             self.state.get(support.LAST_ACTION_COMMENT_ID), support.WATERMARK,
         )
-        self.assertNotIn(support.NOTICE, self.state.data)
+        self.assertNotIn(support.NOTICE, self.state.state_data)
 
     def test_a_settled_obligation_says_nothing(self) -> None:
         _run_limit._deliver_notice(self.gh, self.issue, self.state)
@@ -387,7 +387,7 @@ class NoticeDeliveryTest(unittest.TestCase):
         ):
             _run_limit._deliver_notice(self.gh, self.issue, self.state)
 
-        self.assertIn(support.NOTICE, self.state.data)
+        self.assertIn(support.NOTICE, self.state.state_data)
         self.assertEqual(support.phases(self.gh), [])
 
 
@@ -405,7 +405,7 @@ class NoticeReconciliationTest(unittest.TestCase):
 
         self.assertIs(reading, _run_limit_values.NoticeReading.SAID)
         self.assertEqual(gh.posted_comments, [])
-        self.assertNotIn(support.NOTICE, state.data)
+        self.assertNotIn(support.NOTICE, state.state_data)
         # Repaired to the comment that carried it -- the id the write that
         # failed was going to move the watermark to.
         self.assertEqual(
@@ -431,7 +431,7 @@ class NoticeReconciliationTest(unittest.TestCase):
         )
 
         self.assertIs(reading, _run_limit_values.NoticeReading.SAID)
-        self.assertNotIn(support.NOTICE, state.data)
+        self.assertNotIn(support.NOTICE, state.state_data)
         self.assertEqual(
             state.get(support.LAST_ACTION_COMMENT_ID), support.WATERMARK,
         )
@@ -451,7 +451,7 @@ class NoticeReconciliationTest(unittest.TestCase):
         )
 
         self.assertIs(reading, _run_limit_values.NoticeReading.UNSAID)
-        self.assertIn(support.NOTICE, state.data)
+        self.assertIn(support.NOTICE, state.state_data)
         self.assertEqual(support.phases(gh), [])
 
     def test_an_outsiders_copy_is_no_receipt(self) -> None:
@@ -467,7 +467,7 @@ class NoticeReconciliationTest(unittest.TestCase):
         )
 
         self.assertIs(reading, _run_limit_values.NoticeReading.UNSAID)
-        self.assertIn(support.NOTICE, state.data)
+        self.assertIn(support.NOTICE, state.state_data)
         self.assertEqual(
             state.get(support.LAST_ACTION_COMMENT_ID), support.WATERMARK,
         )
@@ -484,7 +484,7 @@ class NoticeReconciliationTest(unittest.TestCase):
             reading = _run_limit._reconcile_notice(gh, issue, state)
 
         self.assertIs(reading, _run_limit_values.NoticeReading.UNREADABLE)
-        self.assertIn(support.NOTICE, state.data)
+        self.assertIn(support.NOTICE, state.state_data)
 
     def test_an_obligation_nobody_holds_is_said(self) -> None:
         gh, issue = support.issue_and_client()
@@ -535,7 +535,7 @@ class NoticeReplayTest(unittest.TestCase):
 
     def test_nothing_owed_and_no_park_replay_nothing(self) -> None:
         for state in (_limit_seeds.parked_state(), _limit_seeds.state_with()):
-            with self.subTest(state=state.data):
+            with self.subTest(state=state.state_data):
                 self.assertFalse(
                     _run_limit._replay_owed_notice(self.gh, self.issue, state),
                 )
@@ -556,7 +556,7 @@ class NoticeReplayTest(unittest.TestCase):
         self.assertFalse(replayed)
         self.assertEqual(self.gh.posted_comments, [])
         self.assertEqual(self.gh.write_state_calls, 0)
-        self.assertIn(support.NOTICE, state.data)
+        self.assertIn(support.NOTICE, state.state_data)
 
 
 if __name__ == "__main__":

@@ -73,7 +73,7 @@ def announcement(state: PinnedState, head: str, *, announced: bool = False) -> P
     the mark is `announced` already. The retirement past them only clears, so
     none of them carries more.
     """
-    written = PinnedState(state_data=copy.deepcopy(state.data))
+    written = PinnedState(state_data=copy.deepcopy(state.state_data))
     if not announced:
         _comments._reserve_comment_slot(written, _record_values.MAX_RECORDED_NUMBER)
         written.set(_base_sync_state._PENDING_ANNOUNCED_EVENT, head)
@@ -90,7 +90,7 @@ def fits(finish: LandedFinish, *, announced: bool) -> bool:
     recorded for the head; the checkpoint measures it again on the comment as
     that leaves it.
     """
-    staged = PinnedState(state_data=copy.deepcopy(finish.state.data))
+    staged = PinnedState(state_data=copy.deepcopy(finish.state.state_data))
     measured = announcement(staged, finish.head, announced=announced)
     return stages(finish, staged, measured)
 

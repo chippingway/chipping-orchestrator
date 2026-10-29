@@ -92,7 +92,7 @@ class StoredRecordTest(unittest.TestCase):
         for stale in (unrecorded, None):
             with self.subTest(named=stale is not None):
                 self.assertFalse(_settlement.retire_pending_evidence(state, stale))
-        self.assertEqual(state.data, _issue().data)
+        self.assertEqual(state.state_data, _issue().state_data)
         self.assertEqual(support.minted(state).revision, unrecorded.revision)
 
     def test_a_replaced_transaction_is_not_abandoned(self) -> None:
@@ -101,12 +101,12 @@ class StoredRecordTest(unittest.TestCase):
         state = _issue()
         replaced = support.recorded(state)
         standing = support.recorded(state)
-        before = copy.deepcopy(state.data)
+        before = copy.deepcopy(state.state_data)
 
         for stale in (replaced, None):
             with self.subTest(named=stale is not None):
                 self.assertFalse(_settlement.retire_pending_evidence(state, stale))
-        self.assertEqual(state.data, before)
+        self.assertEqual(state.state_data, before)
 
         self.assertTrue(_settlement.retire_pending_evidence(state, standing))
         self.assertIsNone(_record_state.read_pending_evidence(state))
@@ -155,17 +155,17 @@ class CommentLimitTest(unittest.TestCase):
 
     def _stops_at_the_comment(self, base: PinnedState, retire) -> None:
         """`retire` over `base` crowded to fill the comment exactly, then one character past it."""
-        probe = PinnedState(state_data=base.data | {_FILLER: ""})
+        probe = PinnedState(state_data=base.state_data | {_FILLER: ""})
         self.assertTrue(retire(probe))
-        filling = "y" * (MAX_PINNED_BODY - len(pinned_state_body(probe.data)))
-        fitting = PinnedState(state_data=base.data | {_FILLER: filling})
-        past = PinnedState(state_data=base.data | {_FILLER: f"{filling}y"})
-        before = copy.deepcopy(past.data)
+        filling = "y" * (MAX_PINNED_BODY - len(pinned_state_body(probe.state_data)))
+        fitting = PinnedState(state_data=base.state_data | {_FILLER: filling})
+        past = PinnedState(state_data=base.state_data | {_FILLER: f"{filling}y"})
+        before = copy.deepcopy(past.state_data)
 
         self.assertTrue(retire(fitting))
-        self.assertEqual(len(pinned_state_body(fitting.data)), MAX_PINNED_BODY)
+        self.assertEqual(len(pinned_state_body(fitting.state_data)), MAX_PINNED_BODY)
         self.assertFalse(retire(past))
-        self.assertEqual(past.data, before)
+        self.assertEqual(past.state_data, before)
 
 
 def _history(state: PinnedState) -> list[tuple]:
@@ -245,10 +245,10 @@ class GuardedRetirementTest(unittest.TestCase, _OwedRetirement):
                     (_record_state.carries_pending_evidence(persisted), _history(persisted), self.artifacts()),
                     (False, history, posted),
                 )
-                self.assertEqual({**persisted.data, **road.INDEPENDENT}, persisted.data)
+                self.assertEqual({**persisted.state_data, **road.INDEPENDENT}, persisted.state_data)
                 self.assertIn(road.ANOTHER_ROADS_COMMENT, persisted.get(evidence.LEDGER))
-                self.assertEqual(self.state.data, persisted.data)
-                self.assertEqual(json.loads(self.state.synced), persisted.data)
+                self.assertEqual(self.state.state_data, persisted.state_data)
+                self.assertEqual(json.loads(self.state.synced), persisted.state_data)
 
     def test_a_moved_record_refuses_it(self) -> None:
         # Behind the reading the retirement is staged on, another road moves
@@ -356,10 +356,10 @@ class RefusedRetirementTest(unittest.TestCase, _OwedRetirement):
 
         filled = self.persisted()
         self.assertEqual(
-            (len(pinned_state_body(filled.data)), _record_state.read_pending_evidence(filled)),
+            (len(pinned_state_body(filled.state_data)), _record_state.read_pending_evidence(filled)),
             (MAX_PINNED_BODY, pending),
         )
-        filled.data.pop(road.FILLER)
+        filled.state_data.pop(road.FILLER)
         self.gh.write_pinned_state(self.issue, filled)
 
         self.assertFalse(self.reconcile())

@@ -253,8 +253,8 @@ class SpawnPersistenceTest(LateCase, unittest.TestCase):
         for grant in ({}, {_support.KEYS.retry_grant: GRANTED}):
             with self.subTest(grant=grant):
                 state = self.github.read_pinned_state(self.issue)
-                state.data.update(grant)
-                before = dict(state.data)
+                state.state_data.update(grant)
+                before = dict(state.state_data)
 
                 with patch.object(
                     config, "MAX_RETRIES_PER_DAY", BOUNDED_CAP,
@@ -265,7 +265,7 @@ class SpawnPersistenceTest(LateCase, unittest.TestCase):
 
                 self.assertLessEqual(
                     {
-                        name for name, charge in state.data.items()
+                        name for name, charge in state.state_data.items()
                         if before.get(name) != charge
                     },
                     set(_late_attempt._ACCOUNTING_FIELDS),

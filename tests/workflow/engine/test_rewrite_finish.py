@@ -292,7 +292,7 @@ class AnnouncedFinishTest(unittest.TestCase):
             **_USAGE_READ,
         })
         finish = world.finish(support.FOUND)
-        finish.state.data.update(_USAGE_STAGED)
+        finish.state.state_data.update(_USAGE_STAGED)
 
         self.assertEqual(world.finalizes(finish=finish), FinishOutcome.ROUTED)
 

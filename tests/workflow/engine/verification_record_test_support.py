@@ -142,7 +142,7 @@ def settles(
     transaction settled.
     """
     settling = pending or recorded(state)
-    state.data = _settlement.settled_state(state, settling, comment_id, SETTLED_UNDER).data
+    state.state_data = _settlement.settled_state(state, settling, comment_id, SETTLED_UNDER).state_data
     return settling
 
 
@@ -162,7 +162,7 @@ def current(
 
 def reread(state: _pinned_state.PinnedState) -> _pinned_state.PinnedState:
     """`state` as the next tick reads it: rendered into the pinned comment and parsed back."""
-    state_payload = dict(state.data)
+    state_payload = dict(state.state_data)
     if _pinned_state.SCHEMA_VERSION_KEY not in state_payload:
         state_payload[_pinned_state.SCHEMA_VERSION_KEY] = _pinned_state.SUPPORTED_SCHEMA_VERSION
     comment = FakeComment(

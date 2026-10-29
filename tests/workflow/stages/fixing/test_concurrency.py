@@ -372,7 +372,7 @@ class FixingContentHashAndConcurrencyTest(
         expected = _compute_user_content_hash(
             scenario.issue,
             _orchestrator_ids(
-                PinnedState(data=dict(self._pinned_data)),
+                PinnedState(state_data=dict(self._pinned_data)),
             ),
         )
         self.assertEqual(self._pinned_data.get(USER_CONTENT_HASH), expected)

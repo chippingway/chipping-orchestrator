@@ -159,7 +159,7 @@ class _HoldCase:
             )
 
     def _seed(self, state) -> None:
-        self.gh.seed_state(support.ISSUE_NUMBER, **state.data)
+        self.gh.seed_state(support.ISSUE_NUMBER, **state.state_data)
 
     def _assert_dispatched(self, issue) -> None:
         """The hold stepped aside, and the stage its label names was reached."""
@@ -531,7 +531,7 @@ class HoldPlacementTest(unittest.TestCase):
         gh = FakeGitHubClient()
         issue = make_issue(support.ISSUE_NUMBER, label=LABEL_IMPLEMENTING)
         gh.add_issue(issue)
-        gh.seed_state(support.ISSUE_NUMBER, **_limit_seeds.parked_state().data)
+        gh.seed_state(support.ISSUE_NUMBER, **_limit_seeds.parked_state().state_data)
         restart = Mock(return_value=True)
 
         with patch.object(

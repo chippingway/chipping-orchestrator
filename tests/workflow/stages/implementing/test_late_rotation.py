@@ -220,7 +220,7 @@ class LandedTransferTest(_SettlementCase):
         an approval still standing would license a second push of a commit
         this one already published.
         """
-        pinned = self._durable().data
+        pinned = self._durable().state_data
 
         self.assertEqual(pinned[KEY_RECEIPT_SHA], REWRITTEN_SHA)
         self.assertEqual(pinned[KEY_RECEIPT_LEASE], LEASED_SHA)
@@ -282,7 +282,7 @@ class AlreadyLandedTransferTest(_SettlementCase):
     def test_the_lost_receipt_settles_the_transfer(self) -> None:
         self.assertTrue(self.published.landed)
         self._assert_carried()
-        self.assertEqual(self._durable().data[KEY_RECEIPT_SHA], REWRITTEN_SHA)
+        self.assertEqual(self._durable().state_data[KEY_RECEIPT_SHA], REWRITTEN_SHA)
         # The no-op is never unleased, and never skipped: what the request
         # buys is proof taken at the remote that the publication is still the
         # one the record is about, which no local note could supply.
@@ -325,7 +325,7 @@ class ReceiptAndRecordTest(_SettlementCase):
 
         reporting.assert_called_once()
         self.assertTrue(_exemption_reading.is_exempt(durable[0], REWRITTEN_SHA))
-        self.assertEqual(durable[0].data[KEY_RECEIPT_SHA], REWRITTEN_SHA)
+        self.assertEqual(durable[0].state_data[KEY_RECEIPT_SHA], REWRITTEN_SHA)
         self.assertEqual(
             self._records_of(EVENT_TRANSFER), [],
             "the push tail names the telemetry owner and nothing else",
@@ -344,7 +344,7 @@ class ReceiptAndRecordTest(_SettlementCase):
             _rewrite_reading.read_rewrite_authorization(self._durable()).phase,
             _rewrite_values.LateRewritePhase.AUTHORIZED,
         )
-        self.assertNotIn(KEY_RECEIPT_SHA, self._durable().data)
+        self.assertNotIn(KEY_RECEIPT_SHA, self._durable().state_data)
         self.assertEqual(self._records_of(EVENT_TRANSFER), [])
 
     def test_a_reported_transfer_owes_nothing_after(self) -> None:
@@ -352,7 +352,7 @@ class ReceiptAndRecordTest(_SettlementCase):
 
         durable = self._durable()
         self._reported()
-        self.assertNotIn(_rewrite_fields.LATE_REWRITE_PROOF, durable.data)
+        self.assertNotIn(_rewrite_fields.LATE_REWRITE_PROOF, durable.state_data)
         self.assertIsNone(_rewrite_reading.unreported_transfer(durable))
         self.assertFalse(_rewrite_reading.stranded_transfer_proof(durable))
 
@@ -548,7 +548,7 @@ class RefusedPermitTest(unittest.TestCase):
             self.pushed.call_args.kwargs[REVISION], REWRITTEN_SHA,
         )
         self.assertEqual(
-            self._durable().data[KEY_RECEIPT_SHA], REWRITTEN_SHA,
+            self._durable().state_data[KEY_RECEIPT_SHA], REWRITTEN_SHA,
         )
 
     def _durable(self):

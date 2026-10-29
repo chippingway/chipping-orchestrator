@@ -105,7 +105,7 @@ class EventStreamRecoveryTest(support.CapturedRunCase, unittest.TestCase):
         # behind it, leaving no record of it on the attempt.
         head = self._dies_behind_the_event()
         legacy = self.gh.read_pinned_state(self.issue)
-        legacy.data.pop(readings.KEY_ANNOUNCED_EVENT)
+        legacy.state_data.pop(readings.KEY_ANNOUNCED_EVENT)
         self.gh.write_pinned_state(self.issue, legacy)
 
         self.recovers()

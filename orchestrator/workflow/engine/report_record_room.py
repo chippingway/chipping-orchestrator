@@ -184,7 +184,7 @@ def with_later_writes(
     world without it is measured too: a comment can already carry one written
     wider than any spelling this build produces.
     """
-    reserved = _pinned_state.PinnedState(state_data=dict(state.data))
+    reserved = _pinned_state.PinnedState(state_data=dict(state.state_data))
     if receipt:
         importlib.import_module(
             _stage_targets._LATE_PUBLICATION_STATE_OWNER,

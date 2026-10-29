@@ -330,6 +330,7 @@ class DecompositionDisabledTest(
         gh.seed_state(
             HALF_COMPLETE_DISABLED_PARENT_NUMBER,
             children=list(RECOVERY_CHILD_NUMBERS),
+            expected_children_count=len(RECOVERY_CHILD_NUMBERS),
             decomposer_agent=_support.BACKEND_CLAUDE,
             decomposer_session_id=DECOMPOSER_SESSION,
         )

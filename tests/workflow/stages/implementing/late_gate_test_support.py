@@ -157,7 +157,7 @@ def recorded_generation(*, dropping: str = "", **overrides) -> dict:
     no cycle writes nothing at all, so the record goes down whole and is then
     damaged the way a real one gets damaged.
     """
-    recorded = PinnedState(data={})
+    recorded = PinnedState(state_data={})
     _late_state.write_late_generation(
         recorded,
         LateGeneration(**{
@@ -174,13 +174,13 @@ def recorded_generation(*, dropping: str = "", **overrides) -> dict:
         }),
     )
     if dropping:
-        recorded.data.pop(dropping, None)
-    return recorded.data
+        recorded.state_data.pop(dropping, None)
+    return recorded.state_data
 
 
 def recorded_ancestry() -> dict:
     """The pinned fields a child born of a late split carries."""
-    recorded = PinnedState(data={})
+    recorded = PinnedState(state_data={})
     _lineage.write_late_ancestry(
         recorded,
         _ancestry.LateAncestry(
@@ -193,7 +193,7 @@ def recorded_ancestry() -> dict:
             scope=CHILD_SCOPE,
         ),
     )
-    return recorded.data
+    return recorded.state_data
 
 
 class _RecordAtHandoff:

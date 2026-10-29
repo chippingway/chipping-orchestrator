@@ -116,8 +116,6 @@ _ESCAPED_COMMENT_CLOSE = r"--\u003e"
 # from a failed request after the work it was recording has been paid for.
 MAX_PINNED_BODY = 65536
 
-_MISSING_STATE = object()
-
 
 class AdmissionStatus(enum.Enum):
     """The outcome of admitting an issue comment candidate as pinned state.
@@ -370,13 +368,12 @@ class PinnedEdit(enum.Enum):
     UNCONFIRMED = "unconfirmed"
 
 
-@dataclass(init=False)
+@dataclass(kw_only=True)
 class PinnedState:
     """Pinned comment identity and mutable workflow state payload.
 
-    ``state_data`` is the descriptive constructor keyword. The custom adapter
-    retains the historical ``data=`` keyword and the ``.data`` instance
-    attribute used throughout the workflow.
+    ``state_data`` is the payload: the one constructor keyword it is passed as
+    and the one attribute every reader and writer reaches it through.
 
     ``parsed`` is whether the payload this carries came out of the comment or
     stood in for one that would not parse, and ``supported`` whether the
@@ -423,56 +420,20 @@ class PinnedState:
     state_data: dict = field(default_factory=dict)
     parsed: bool = True
     supported: bool = True
-    admission_status: AdmissionStatus = AdmissionStatus.SUPPORTED
+    # Left unset, the status the two flags above admit the reading as.
+    admission_status: AdmissionStatus | None = None
     found_version: Any = None
     supported_version: int = SUPPORTED_SCHEMA_VERSION
     refusal_reason: str | None = None
     issue_number: int | None = None
     repo_slug: str | None = None
 
-    def __init__(
-        self,
-        comment_id: int | None = None,
-        state_data: Any = _MISSING_STATE,
-        *,
-        parsed: bool = True,
-        **extra_fields: Any,
-    ) -> None:
-        legacy_state = extra_fields.pop("data", _MISSING_STATE)
-        if state_data is not _MISSING_STATE and legacy_state is not _MISSING_STATE:
-            raise TypeError("PinnedState() got multiple values for state data")
-        selected_state = legacy_state if state_data is _MISSING_STATE else state_data
-        if selected_state is _MISSING_STATE:
-            selected_state = {}
-        self.comment_id = comment_id
-        self.state_data = selected_state
-        told_supported = extra_fields.pop("supported", True)
-        self.parsed = parsed
-        self.supported = parsed and told_supported
-        self.admission_status = extra_fields.pop(
-            "admission_status", AdmissionStatus.of(parsed=parsed, supported=self.supported),
-        )
-        self.found_version = extra_fields.pop("found_version", None)
-        self.supported_version = extra_fields.pop("supported_version", SUPPORTED_SCHEMA_VERSION)
-        self.refusal_reason = extra_fields.pop("refusal_reason", None)
-        self.issue_number = extra_fields.pop("issue_number", None)
-        self.repo_slug = extra_fields.pop("repo_slug", None)
-        if extra_fields:
-            unexpected_name = next(iter(extra_fields))
-            raise TypeError(
-                f"PinnedState() got an unexpected keyword argument {unexpected_name!r}",
-            )
-        self.synced = None
+    def __post_init__(self) -> None:
+        self.supported = self.parsed and self.supported
+        if self.admission_status is None:
+            self.admission_status = AdmissionStatus.of(parsed=self.parsed, supported=self.supported)
+        self.synced: str | None = None
         self.withheld = False
-
-    def __getattr__(self, attribute_name: str) -> Any:
-        if attribute_name == "data":
-            return self.state_data
-        raise AttributeError(attribute_name)
-
-    def __setattr__(self, attribute_name: str, attribute_value: Any) -> None:
-        target_name = "state_data" if attribute_name == "data" else attribute_name
-        object.__setattr__(self, target_name, attribute_value)
 
     def carries(self, key: str) -> bool:
         """Whether this comment has the field at all, whatever it holds.
@@ -660,17 +621,17 @@ class GitHubStateMixin(GitHubIssuePollingMixin):
                 refused.comment_id, refused.refusal_reason,
             )
             raise _pinned_refusal.RecordRefused(f"issue #{issue.number} holds a pinned comment admission refuses")
-        state.data.setdefault(SCHEMA_VERSION_KEY, SUPPORTED_SCHEMA_VERSION)
-        refusal = PinnedAdmission.payload_refusal(state.data)
+        state.state_data.setdefault(SCHEMA_VERSION_KEY, SUPPORTED_SCHEMA_VERSION)
+        refusal = PinnedAdmission.payload_refusal(state.state_data)
         if refusal is not None:
             log.warning("issue=#%s state to pin is refused (%s); writing nothing", issue.number, refusal)
             return state
-        body = pinned_state_body(state.data)
+        body = pinned_state_body(state.state_data)
         if located is None:
             state.comment_id = issue.create_comment(body).id
         else:
             located[0].edit(body)
-        state.synced = json.dumps(state.data, sort_keys=True)
+        state.synced = json.dumps(state.state_data, sort_keys=True)
         return state
 
     def edit_pinned_state(
@@ -703,11 +664,11 @@ class GitHubStateMixin(GitHubIssuePollingMixin):
         The two requests are the primitives below, so the in-memory double
         answers through this same policy over its own records.
         """
-        state.data.setdefault(SCHEMA_VERSION_KEY, SUPPORTED_SCHEMA_VERSION)
-        if PinnedAdmission.payload_refusal(state.data) is not None:
+        state.state_data.setdefault(SCHEMA_VERSION_KEY, SUPPORTED_SCHEMA_VERSION)
+        if PinnedAdmission.payload_refusal(state.state_data) is not None:
             log.warning(
                 "issue=#%s rewrite is refused (%s); sending nothing",
-                issue.number, PinnedAdmission.payload_refusal(state.data),
+                issue.number, PinnedAdmission.payload_refusal(state.state_data),
             )
             return PinnedEdit.UNSUPPORTED
         try:
@@ -723,7 +684,7 @@ class GitHubStateMixin(GitHubIssuePollingMixin):
         target, reading = located
         if not reading.reads_as(over):
             return PinnedEdit.UNSUPPORTED if reading.parsed and not reading.supported else PinnedEdit.MOVED
-        body = pinned_state_body(state.data)
+        body = pinned_state_body(state.state_data)
         try:
             answered = self._send_pinned_edit(target, body)
         except Exception:

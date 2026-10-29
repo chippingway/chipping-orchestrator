@@ -37,7 +37,7 @@ _UNUSABLE = (
 
 def _settled() -> PinnedState:
     """A pinned comment carrying the handoff one finished squash left."""
-    state = PinnedState(data={})
+    state = PinnedState(state_data={})
     _late_handoffs.record_settled_handoff(state, CANDIDATE_SHA)
     return state
 
@@ -58,7 +58,7 @@ class SettledHandoffTest(unittest.TestCase):
 
     def test_a_comment_owing_no_move_reads_empty(self) -> None:
         self.assertEqual(
-            _late_handoffs.read_settled_handoff(PinnedState(data={})), "",
+            _late_handoffs.read_settled_handoff(PinnedState(state_data={})), "",
         )
 
     def test_the_move_that_landed_ends_it(self) -> None:
@@ -67,13 +67,13 @@ class SettledHandoffTest(unittest.TestCase):
 
         _late_handoffs.clear_settled_handoff(state)
 
-        self.assertNotIn(_HANDOFF, state.data)
+        self.assertNotIn(_HANDOFF, state.state_data)
         self.assertEqual(state.get("branch"), "topic")
 
     def test_a_longer_object_id_is_still_a_commit(self) -> None:
         # git writes SHA-1 and SHA-256 object ids, and this domain records
         # whichever the repository uses.
-        state = PinnedState(data={})
+        state = PinnedState(state_data={})
         wide = "f" * (SHA_LENGTH + 24)
 
         _late_handoffs.record_settled_handoff(state, wide)
@@ -92,7 +92,7 @@ class UnusableHandoffTest(unittest.TestCase):
     def test_a_value_that_is_not_a_commit_reads_empty(self) -> None:
         for unusable in _UNUSABLE:
             with self.subTest(unusable=unusable):
-                state = PinnedState(data={_HANDOFF: unusable})
+                state = PinnedState(state_data={_HANDOFF: unusable})
 
                 self.assertEqual(
                     _late_handoffs.read_settled_handoff(state), "",
@@ -104,11 +104,11 @@ class UnusableHandoffTest(unittest.TestCase):
         # it may cost is the reviewer round the record would have saved.
         for unusable in _UNUSABLE:
             with self.subTest(unusable=unusable):
-                state = PinnedState(data={})
+                state = PinnedState(state_data={})
 
                 _late_handoffs.record_settled_handoff(state, unusable)
 
-                self.assertNotIn(_HANDOFF, state.data)
+                self.assertNotIn(_HANDOFF, state.state_data)
 
 
 class HandoffOutlivesTheGenerationTest(unittest.TestCase):

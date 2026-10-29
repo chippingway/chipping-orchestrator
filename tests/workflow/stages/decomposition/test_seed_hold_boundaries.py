@@ -144,10 +144,10 @@ class OwnAdjudicationTest(_BoundaryCase):
         stripped, added = lapse
         pinned = self.github.read_pinned_state(self.child)
         for key in stripped:
-            pinned.data.pop(key, None)
-        pinned.data.update(added)
+            pinned.state_data.pop(key, None)
+        pinned.state_data.update(added)
         _late_state.write_late_generation(pinned, _late.late_generation(current_issue=self.child.number))
-        self.github.seed_state(self.child.number, **pinned.data)
+        self.github.seed_state(self.child.number, **pinned.state_data)
         self.github.set_workflow_label(self.child, WorkflowLabel.DECOMPOSING, guarded=False)
         self.assertTrue(_late_relabel._adjudicating(self.github.read_pinned_state(self.child)))
 
@@ -241,7 +241,7 @@ class RestartedChildTest(_BoundaryCase):
         cancelled = replace(_restart.CANCELLED, current_issue=self.child.number)
         _late_state.write_late_generation(pinned, cancelled)
         _endings.record_terminal(pinned, cancelled.cycle_id, confirmed=True)
-        self.github.seed_state(self.child.number, **pinned.data)
+        self.github.seed_state(self.child.number, **pinned.state_data)
         self.child.labels = []
         self.assertIsNone(self.github.workflow_label(self.child))
 

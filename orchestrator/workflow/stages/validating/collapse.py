@@ -154,7 +154,7 @@ def _recovers_a_recorded_collapse(
     (`approval._hands_to_documenting`). Each is measured from the comment as
     this tick read it (`handoff._Held`).
     """
-    held = _handoff._Held(None, comment=dict(state.data))
+    held = _handoff._Held(None, comment=dict(state.state_data))
     if _collapses.carries_pending_collapse(state):
         return _finished_collapse(gh, spec, issue, state, held)
     return _finished_handoff(gh, spec, issue, state, held) or _retires_an_unanswered_carry(gh, issue, state)

@@ -120,7 +120,7 @@ class RecordEdits:
     def restates(self, **fields) -> None:
         """Rewrite each record `fields` names to the value beside it, as a hand edit of the comment would."""
         pinned = self.github._pinned[_ping.ISSUE]
-        pinned.data.update(fields)
+        pinned.state_data.update(fields)
 
     def rewrites_the_evidence(self, commands: tuple) -> None:
         """Leave the current evidence carrying `commands`, its artifact and record each describing the other.
@@ -163,7 +163,7 @@ class RecordEdits:
         )
         if not _record_state.record_pending_evidence(state, pending):
             raise AssertionError("the pinned comment would not record the later run")
-        self.restates(**state.data)
+        self.restates(**state.state_data)
 
 
 class _ReadinessFixture(EvidenceMoves, RecordEdits, _ping._ReadyPingFixture):

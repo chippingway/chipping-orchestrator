@@ -178,7 +178,7 @@ class CancellationMarkTest(ClosedOwnerCase, unittest.TestCase):
             _late_state.read_late_generation(state).cancel(_GUARD_STAMP),
             phase=LatePhase.CANCELLING,
         ))
-        seeded.github.seed_state(_support.PARENT_NUMBER, **state.data)
+        seeded.github.seed_state(_support.PARENT_NUMBER, **state.state_data)
 
         taken = self._swept(seeded)
 

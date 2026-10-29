@@ -190,7 +190,7 @@ def _owner_with_a_live_cycle() -> FakeGitHubClient:
         candidate_sha=_CANDIDATE_SHA,
         phase=LatePhase.CLEANING_UP,
     ))
-    github.seed_state(_OWNER_NUMBER, **state.data)
+    github.seed_state(_OWNER_NUMBER, **state.state_data)
     return github
 
 

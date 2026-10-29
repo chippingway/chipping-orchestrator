@@ -93,7 +93,7 @@ def _seed_nested_generation(seeded) -> None:
             resource_state=LateResourceState.RETAINED,
         )),
     ))
-    seeded.github.seed_state(_support.CHILD_NUMBER, **child_state.data)
+    seeded.github.seed_state(_support.CHILD_NUMBER, **child_state.state_data)
 
 
 class ClosedOwnerSweepTest(_PatchedWorkflowMixin, unittest.TestCase):

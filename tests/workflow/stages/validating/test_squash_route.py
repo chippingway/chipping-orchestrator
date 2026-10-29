@@ -232,7 +232,7 @@ class UnapprovedCollapseRouteTest(
         state = github.read_pinned_state(issue)
         edited = edit(state.get(key))
         if edited is _REMOVED:
-            state.data.pop(key)
+            state.state_data.pop(key)
         else:
             state.set(key, edited)
         github.write_pinned_state(issue, state)

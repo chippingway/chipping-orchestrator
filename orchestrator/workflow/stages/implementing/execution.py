@@ -431,6 +431,3 @@ def _coordinate_developer_run(
     where no quota stopped it.
     """
     return _DevRunCoordinator(gh, budget, kwargs).coordinate()
-
-
-_coordinate_agy_recovery = _coordinate_developer_run

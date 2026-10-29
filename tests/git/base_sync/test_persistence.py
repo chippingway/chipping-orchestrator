@@ -256,7 +256,7 @@ class ParkAutoRebaseFailureTest(unittest.TestCase):
         # withheld from every whole-state write behind it all the same.
         context = fixtures._recovery_context(**{fixtures.KEY_PENDING_PUSH_SHA: fixtures.PRE_REBASE_SHA})
         context.state.set(KEY_PADDING, "")
-        room = MAX_PINNED_BODY - len(pinned_state_body(context.state.data)) - _SHORT_OF_THE_PARK
+        room = MAX_PINNED_BODY - len(pinned_state_body(context.state.state_data)) - _SHORT_OF_THE_PARK
         context.state.set(KEY_PADDING, "x" * room)
         context.gh.write_pinned_state(context.issue, context.state)
 

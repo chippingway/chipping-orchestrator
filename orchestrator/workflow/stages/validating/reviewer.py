@@ -252,7 +252,7 @@ def _launches(
     charge's count over a newer one another road's charge wrote meanwhile, and
     write it back.
     """
-    before = dict(state.data)
+    before = dict(state.state_data)
     ran = _usage._run_agent_tracked(
         gh, _run_charge_state.AgentRunBudget(issue=issue, state=state), **request,
     )

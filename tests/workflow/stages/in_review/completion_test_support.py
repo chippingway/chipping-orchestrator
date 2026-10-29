@@ -201,7 +201,7 @@ class _CompletionFixture(CompletionEdits, WorldMoves, _readiness._ReadinessFixtu
             state = self._executes(state, final, run or _verified.passing_run(), settled=settled)
         elif not _final_docs.record_final_docs(state, final):
             raise AssertionError("the pinned comment would not record the completion")
-        self.restates(**state.data)
+        self.restates(**state.state_data)
 
     def withheld_after(self, kind: _final_docs.FinalVerification, moves: tuple, **options) -> None:
         """Complete `kind` as `options` say, make each of `moves`, and tick: the ping is withheld.

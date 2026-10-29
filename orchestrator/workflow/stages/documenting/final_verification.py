@@ -199,11 +199,11 @@ def _stages(
     which measures its settlement and invalidation too; a completion with no
     transaction is measured as it stands.
     """
-    composed = PinnedState(state_data=dict(state.data))
+    composed = PinnedState(state_data=dict(state.state_data))
     if not _final_docs.record_final_docs(composed, final):
         return FinalOutcome(FinalRoute.UNBOUND)
     recorded = pending is None or _record_state.record_pending_evidence(composed, pending)
-    if not (recorded and _report_record_state.fits_the_comment(composed.data)):
+    if not (recorded and _report_record_state.fits_the_comment(composed.state_data)):
         return FinalOutcome(FinalRoute.UNRECORDED)
-    state.data = composed.data
+    state.state_data = composed.state_data
     return FinalOutcome(FinalRoute.RECORDED, final=final)

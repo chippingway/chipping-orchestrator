@@ -150,7 +150,7 @@ def _clears(context: _AutoRebaseRecoveryContext) -> bool:
     """
     staged = PinnedState(
         comment_id=context.state.comment_id,
-        state_data=copy.deepcopy(context.state.data),
+        state_data=copy.deepcopy(context.state.state_data),
         parsed=context.state.parsed,
         supported=context.state.supported,
     )

@@ -57,7 +57,7 @@ _UNUSABLE_COUNTS = (None, 0, -2, True, 2.0, "2")
 
 def _recorded(count: int = COLLAPSED_COMMITS) -> PinnedState:
     """A pinned comment carrying one whole pending collapse."""
-    state = PinnedState(data={})
+    state = PinnedState(state_data={})
     _collapses.record_pending_collapse(
         state,
         head=CANDIDATE_SHA,
@@ -84,7 +84,7 @@ class RecordedCollapseTest(unittest.TestCase):
                 self.assertEqual(collapse.count, count)
 
     def test_a_comment_with_no_claim_reads_absent(self) -> None:
-        state = PinnedState(data={})
+        state = PinnedState(state_data={})
 
         self.assertFalse(_collapses.carries_pending_collapse(state))
         self.assertIsNone(_collapses.read_pending_collapse(state))
@@ -131,7 +131,7 @@ class UnusableCollapseTest(unittest.TestCase):
     def test_a_partial_group_is_still_a_claim(self) -> None:
         for present in _COLLAPSE_KEYS:
             with self.subTest(key=present):
-                state = PinnedState(data={present: None})
+                state = PinnedState(state_data={present: None})
                 self.assertTrue(
                     _collapses.carries_pending_collapse(state),
                 )
@@ -144,7 +144,7 @@ class RefusedCollapseWriteTest(unittest.TestCase):
     def test_an_end_that_is_no_commit_refuses(self) -> None:
         for unusable in _UNUSABLE_ENDS:
             with self.subTest(value=unusable):
-                state = PinnedState(data={})
+                state = PinnedState(state_data={})
                 with self.assertRaises(InvalidLateValue):
                     _collapses.record_pending_collapse(
                         state,
@@ -159,7 +159,7 @@ class RefusedCollapseWriteTest(unittest.TestCase):
     def test_a_count_no_squash_replaces_refuses(self) -> None:
         for unusable in _UNUSABLE_COUNTS:
             with self.subTest(value=unusable):
-                state = PinnedState(data={})
+                state = PinnedState(state_data={})
                 with self.assertRaises(InvalidLateValue):
                     _collapses.record_pending_collapse(
                         state,
@@ -210,7 +210,7 @@ class SettledCollapseTest(unittest.TestCase):
 
         _collapses.settle_pending_collapse(state, CANDIDATE_SHA)
 
-        self.assertNotIn(_HEAD, state.data)
+        self.assertNotIn(_HEAD, state.state_data)
         self.assertEqual(
             _late_handoffs.read_settled_handoff(state), CANDIDATE_SHA,
         )
@@ -218,11 +218,11 @@ class SettledCollapseTest(unittest.TestCase):
     def test_an_approval_collapsing_nothing(self) -> None:
         # There was no claim to end, and the label is the whole of what such
         # an approval ever owed.
-        state = PinnedState(data={})
+        state = PinnedState(state_data={})
 
         _collapses.settle_pending_collapse(state, CANDIDATE_SHA)
 
-        self.assertNotIn(_HANDOFF, state.data)
+        self.assertNotIn(_HANDOFF, state.state_data)
 
     def test_a_publication_naming_no_commit(self) -> None:
         # The claim ends whatever the publication is worth, since what ended
@@ -233,8 +233,8 @@ class SettledCollapseTest(unittest.TestCase):
 
                 _collapses.settle_pending_collapse(state, unusable)
 
-                self.assertNotIn(_HEAD, state.data)
-                self.assertNotIn(_HANDOFF, state.data)
+                self.assertNotIn(_HEAD, state.state_data)
+                self.assertNotIn(_HANDOFF, state.state_data)
 
     def test_it_claims_no_outstanding_rewrite(self) -> None:
         # Nothing about the rewrite is outstanding by then, so nothing may
@@ -258,7 +258,7 @@ class CollapseFieldSpellingTest(unittest.TestCase):
     def test_a_longer_object_id_is_still_a_commit(self) -> None:
         # git writes SHA-1 and SHA-256 object ids, and this domain records
         # whichever the repository uses.
-        state = PinnedState(data={})
+        state = PinnedState(state_data={})
         wide = "f" * (SHA_LENGTH + 24)
 
         _collapses.record_pending_collapse(

@@ -120,7 +120,7 @@ def hold_plan_pr(github, owner, *, preserved: bool = True, **pr_fields) -> None:
         plan_pr_body=PLAN_PR_BODY if preserved else None,
     )
     _late_state.write_late_generation(state, holding)
-    github.seed_state(owner.number, **state.data)
+    github.seed_state(owner.number, **state.state_data)
     pr_fields.setdefault("body", _late_hold_text._hold_body(holding))
     seed_plan_pr(github, **pr_fields)
 

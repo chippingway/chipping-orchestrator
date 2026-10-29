@@ -191,7 +191,7 @@ def _settled_on_the_description() -> dict:
         report_revision=1,
         source_sha=EARLIER_SHA,
     ))
-    return dict(settled.data)
+    return dict(settled.state_data)
 
 
 SETTLED = MappingProxyType(_settled_on_the_description())

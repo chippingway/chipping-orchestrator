@@ -326,9 +326,9 @@ def _pinned_as(
     except Exception:
         log.exception("issue=#%d could not read its pinned comment ahead of a ready effect", issue.number)
         fresh = None
-    held = commit.state.data
+    held = commit.state.state_data
     if fresh is not None and fresh.supported and fresh.comment_id == expected and all(
-        _commit_models.spelled(fresh.data, field) == _commit_models.spelled(held, field) for field in fields
+        _commit_models.spelled(fresh.state_data, field) == _commit_models.spelled(held, field) for field in fields
     ):
         return True
     commit.state.withheld = True

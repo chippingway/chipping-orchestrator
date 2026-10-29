@@ -184,7 +184,7 @@ class _EditCase(unittest.TestCase):
         """
         derived = dict(_READ) if over is None else over
         answer = self.client.edit_pinned_state(
-            issue, PinnedState(comment_id=_RECORDED_ID, data=dict(_WRITTEN)), over=derived,
+            issue, PinnedState(comment_id=_RECORDED_ID, state_data=dict(_WRITTEN)), over=derived,
         )
         reply, *behind = issue.comments
         self.assertEqual((reply.id, reply.body), (_REPLY_ID, _REPLY))
@@ -206,7 +206,7 @@ class EditPinnedStateTest(_EditCase):
 
         self.assertIs(answer, PinnedEdit.EDITED)
         self.assertEqual(thread, [(_RECORDED_ID, _WRITTEN_BODY)])
-        self.assertEqual(self.client.read_pinned_state(issue).data, _WRITTEN)
+        self.assertEqual(self.client.read_pinned_state(issue).state_data, _WRITTEN)
 
     def test_a_record_gone_is_never_recreated(self) -> None:
         # Not the record any more, and the legacy writer's repost would pin a
@@ -223,7 +223,7 @@ class EditPinnedStateTest(_EditCase):
         # An unattached state (comment_id None) is answered MISSING without creating.
         issue = _thread(bot_comment(_RECORDED_ID, _READ_BODY))
         answer = self.client.edit_pinned_state(
-            issue, PinnedState(comment_id=None, data=dict(_WRITTEN)), over=dict(_READ),
+            issue, PinnedState(comment_id=None, state_data=dict(_WRITTEN)), over=dict(_READ),
         )
         self.assertIs(answer, PinnedEdit.MISSING)
         self.assertEqual(len(issue.comments), 2)
@@ -283,7 +283,7 @@ class EditPinnedStateAdmissionTest(_EditCase):
         # A client that does not know whose token it holds authenticates no
         # comment, so the record it names is no record it can find.
         issue = _thread(bot_comment(_RECORDED_ID, _READ_BODY))
-        staged = PinnedState(comment_id=_RECORDED_ID, data=dict(_WRITTEN))
+        staged = PinnedState(comment_id=_RECORDED_ID, state_data=dict(_WRITTEN))
 
         answer = GitHubClient.__new__(GitHubClient).edit_pinned_state(issue, staged, over=dict(_READ))
 
@@ -296,7 +296,7 @@ class EditPinnedStateAdmissionTest(_EditCase):
         for refused in REFUSED_PAYLOADS:
             with self.subTest(refused=refused):
                 issue = _thread(bot_comment(_RECORDED_ID, _READ_BODY))
-                staged = PinnedState(comment_id=_RECORDED_ID, data={**_WRITTEN, **refused})
+                staged = PinnedState(comment_id=_RECORDED_ID, state_data={**_WRITTEN, **refused})
 
                 answer = self.client.edit_pinned_state(issue, staged, over=dict(_READ))
 

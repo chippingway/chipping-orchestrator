@@ -162,11 +162,11 @@ def unreadable_exemption(state: PinnedState) -> bool:
     tick is the transfer, which `read_semantic_identity` refuses it, rather
     than the verdict.
     """
-    if not any(key in state.data for key in _EXEMPTION_KEYS):
+    if not any(key in state.state_data for key in _EXEMPTION_KEYS):
         return False
     if read_exemption(state) is None:
         return True
-    if not any(key in state.data for key in _IDENTITY_KEYS):
+    if not any(key in state.state_data for key in _IDENTITY_KEYS):
         return False
     return read_semantic_identity(state) is None
 

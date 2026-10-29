@@ -306,7 +306,7 @@ class UncarriedEvidenceTest(unittest.TestCase, _CarryingCase):
         self.moves_the_head(support.SQUASHED_SHA)
         carried = self.carries(self.source.binding.retargeted(support.SQUASHED_SHA))
         landed = self.gh.publish_verification_artifact(self.pull_request, carried.artifact).landed_id
-        self.state.data = _settlement.settled_state(self.state, carried, landed, None).data
+        self.state.state_data = _settlement.settled_state(self.state, carried, landed, None).state_data
 
         refused = support.current_verdict(self)
 

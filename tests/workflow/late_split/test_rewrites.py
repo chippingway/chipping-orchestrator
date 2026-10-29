@@ -170,7 +170,7 @@ def authorized_state(*, operator: bool = False) -> PinnedState:
     with the answer it was given for -- is a shape a settled transfer has to
     leave alone.
     """
-    state = PinnedState(data={})
+    state = PinnedState(state_data={})
     _exemption.record_exemption(state, CANDIDATE_SHA)
     if operator:
         _overrides.record_publication_override(
@@ -195,9 +195,9 @@ def damaged_state(damage: dict) -> PinnedState:
     state = authorized_state()
     for key, written in damage.items():
         if written is None:
-            state.data.pop(key, None)
+            state.state_data.pop(key, None)
         else:
-            state.data[key] = written
+            state.state_data[key] = written
     return state
 
 
@@ -217,7 +217,7 @@ class RecordedAuthorizationTest(unittest.TestCase):
         )
 
     def test_no_group_authorizes_nothing(self) -> None:
-        state = PinnedState(data={})
+        state = PinnedState(state_data={})
 
         self.assertFalse(_rewrite_reading.carries_rewrite_authorization(state))
         self.assertIsNone(_rewrite_reading.read_rewrite_authorization(state))
@@ -227,7 +227,7 @@ class RecordedAuthorizationTest(unittest.TestCase):
         # the whole of what the record licenses is moving that one verdict.
         # Written beside some other commit it would license a move this issue
         # never earned.
-        state = PinnedState(data={})
+        state = PinnedState(state_data={})
         _exemption.record_exemption(state, BASE_SHA)
 
         with self.assertRaises(InvalidLateValue):
@@ -240,7 +240,7 @@ class RecordedAuthorizationTest(unittest.TestCase):
     def test_unrecordable_terms_are_refused(self) -> None:
         for described, overrides in _REFUSED_WRITES.items():
             with self.subTest(written=described):
-                state = PinnedState(data={})
+                state = PinnedState(state_data={})
                 _exemption.record_exemption(state, CANDIDATE_SHA)
 
                 with self.assertRaises(InvalidLateValue):
@@ -254,7 +254,7 @@ class RecordedAuthorizationTest(unittest.TestCase):
                 )
 
     def test_a_truncated_digest_is_refused(self) -> None:
-        state = PinnedState(data={})
+        state = PinnedState(state_data={})
         _exemption.record_exemption(state, CANDIDATE_SHA)
 
         with self.assertRaises(InvalidLateValue):
@@ -349,18 +349,18 @@ class SpentAuthorizationTest(unittest.TestCase):
         spent = authorized_state()
         _rewrites.record_rewrite_publication(spent, _SETTLING_PROOF)
         refused = {
-            "no permission at all": PinnedState(data={}),
+            "no permission at all": PinnedState(state_data={}),
             "a damaged permission": damaged_state({_LEASE: None}),
             "a permission already spent": spent,
         }
         for described, state in refused.items():
             with self.subTest(standing=described):
-                before = dict(state.data)
+                before = dict(state.state_data)
 
                 with self.assertRaises(InvalidLateValue):
                     _rewrites.record_rewrite_publication(state, _SETTLING_PROOF)
 
-                self.assertEqual(state.data, before)
+                self.assertEqual(state.state_data, before)
 
 class SettlementProofTest(unittest.TestCase):
     """The note a settled transfer keeps until its record has been made.
@@ -435,7 +435,7 @@ class SettlementProofTest(unittest.TestCase):
 
         _rewrites.clear_rewrite_authorization(state)
 
-        self.assertNotIn(_PROOF, state.data)
+        self.assertNotIn(_PROOF, state.state_data)
         self.assertFalse(_rewrite_reading.stranded_transfer_proof(state))
 
     def _settled(self) -> PinnedState:
@@ -449,9 +449,9 @@ class SettlementProofTest(unittest.TestCase):
         state = self._settled()
         for key, written in damage.items():
             if written is None:
-                state.data.pop(key, None)
+                state.state_data.pop(key, None)
             else:
-                state.data[key] = written
+                state.state_data[key] = written
         return state
 
 
@@ -478,7 +478,7 @@ class DamagedAuthorizationTest(unittest.TestCase):
         # hand edit's, say. Asked for a value rather than for the key, the
         # minimal damaged group would answer "no group at all" and be
         # overwritten.
-        state = PinnedState(data={_TO: None})
+        state = PinnedState(state_data={_TO: None})
 
         self.assertTrue(_rewrite_reading.carries_rewrite_authorization(state))
         self.assertTrue(_rewrite_reading.claims_the_exemption(state))

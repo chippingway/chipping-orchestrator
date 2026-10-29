@@ -62,8 +62,8 @@ def _consume_retry_slot(state: PinnedState, *, stage: str) -> _retry_values.Retr
         return _spend_granted_attempt(state, stage, granted)
     bound = config.MAX_RETRIES_PER_DAY
     if bound <= 0:
-        state.data.pop(_retry_values._RETRY_WINDOW_START, None)
-        state.data.pop(_retry_values._RETRY_COUNT, None)
+        state.state_data.pop(_retry_values._RETRY_WINDOW_START, None)
+        state.state_data.pop(_retry_values._RETRY_COUNT, None)
         return _retry_values.RetryDecision(True, stage, bound, 0, None)
     if _window_is_over(state):
         state.set(_retry_values._RETRY_WINDOW_START, _usage._now_iso())

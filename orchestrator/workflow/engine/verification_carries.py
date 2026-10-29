@@ -157,7 +157,7 @@ def _is_its_approval(state: PinnedState, binding: _records.EvidenceBinding) -> b
     otherwise is that road's, and no reader takes a respelled one for this
     approval either.
     """
-    recorded = _commit_models.spelled(state.data, _review_subjects.APPROVED_SUBJECT)
+    recorded = _commit_models.spelled(state.state_data, _review_subjects.APPROVED_SUBJECT)
     return recorded == _commit_models.spelling(binding.target.subject)
 
 

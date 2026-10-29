@@ -72,7 +72,7 @@ def record_rewrite_authorization(
 
 def forget_transfer_proof(state: PinnedState) -> None:
     """Drop the proof a report has just been made from."""
-    state.data.pop(_rewrite_fields.LATE_REWRITE_PROOF, None)
+    state.state_data.pop(_rewrite_fields.LATE_REWRITE_PROOF, None)
 
 
 def record_rewrite_publication(
@@ -161,5 +161,5 @@ def clear_rewrite_authorization(state: PinnedState) -> None:
     which every reader here refuses as damage.
     """
     for key in _rewrite_fields._AUTHORIZATION_KEYS:
-        state.data.pop(key, None)
+        state.state_data.pop(key, None)
     forget_transfer_proof(state)

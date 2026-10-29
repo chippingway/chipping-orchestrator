@@ -107,7 +107,7 @@ class LateRunRecordTest(unittest.TestCase):
     def test_a_fresh_spawn_drops_the_previous_answer(self) -> None:
         # A tick that crashes mid-run must not read the last generation's
         # verdict back as this one's.
-        state = PinnedState(data={
+        state = PinnedState(state_data={
             _support.KEYS.session_id: "older-sess",
             _support.KEYS.verdict: str(LateVerdict.SINGLE),
             _support.KEYS.category: str(LateVerdictCategory.UNSAFE_SPLIT),
@@ -125,7 +125,7 @@ class LateRunRecordTest(unittest.TestCase):
             _support.KEYS.rationale,
         ):
             with self.subTest(key=dropped):
-                self.assertNotIn(dropped, state.data)
+                self.assertNotIn(dropped, state.state_data)
 
     def test_a_dropped_answer_takes_its_rationale(self) -> None:
         # A rationale argued for ONE answer, so an answer a human's reply or a
@@ -142,7 +142,7 @@ class LateRunRecordTest(unittest.TestCase):
 
         _session._drop_late_result(state)
 
-        self.assertNotIn(_support.KEYS.rationale, state.data)
+        self.assertNotIn(_support.KEYS.rationale, state.state_data)
         self.assertEqual(state.get(_support.KEYS.source_sha), _support.CANDIDATE_SHA)
         self.assertEqual(state.get(_support.KEYS.run_generation), _support.GENERATION_NUMBER)
 
@@ -156,7 +156,7 @@ class LateRunRecordTest(unittest.TestCase):
         ))
 
         self.assertEqual(
-            state.data,
+            state.state_data,
             {
                 _support.KEYS.verdict: str(LateVerdict.QUESTION),
                 _support.KEYS.category: str(LateVerdictCategory.SCOPE_AMBIGUOUS),
@@ -286,7 +286,7 @@ class LateResultRecordTest(unittest.TestCase):
         ))
 
         self.assertEqual(
-            state.data,
+            state.state_data,
             {
                 _support.KEYS.verdict: str(LateVerdict.SINGLE),
                 _support.KEYS.split_blocker: _support.SPLIT_BLOCKER,
@@ -332,7 +332,7 @@ class LateResultRecordTest(unittest.TestCase):
         )
         for name, recorded, answered in cases:
             with self.subTest(case=name):
-                run = _late_run_reading._read_late_run(PinnedState(data={
+                run = _late_run_reading._read_late_run(PinnedState(state_data={
                     _support.KEYS.run_cycle_id: _support.CYCLE_ID,
                     _support.KEYS.source_sha: _support.CANDIDATE_SHA,
                     _support.KEYS.run_generation: _support.GENERATION_NUMBER,
@@ -378,13 +378,13 @@ class LateResultBudgetTest(unittest.TestCase):
                 kept = _session._record_late_result(state, adjudication)
 
                 self.assertFalse(kept)
-                self.assertEqual(state.data, {})
+                self.assertEqual(state.state_data, {})
 
     def test_what_the_comment_already_holds_counts(self) -> None:
         # A result small on its own can still be the one that pushes the
         # comment past what GitHub accepts, and finding that out from the
         # failed write means the agent has already been paid for.
-        held = PinnedState(data={
+        held = PinnedState(state_data={
             _support.KEYS.plan_pr_body: "p" * (_session.MAX_RECORDED_BODY - 100),
         })
         modest = _late_result_models._LateAdjudication(
@@ -395,7 +395,7 @@ class LateResultBudgetTest(unittest.TestCase):
             _session._record_late_result(PinnedState(), modest),
         )
         self.assertFalse(_session._record_late_result(held, modest))
-        self.assertNotIn(_support.KEYS.verdict, held.data)
+        self.assertNotIn(_support.KEYS.verdict, held.state_data)
 
     def test_no_verdict_pays_for_the_sentence_it_owes(self) -> None:
         # One budget, and every verdict is held to it. The park a `single`
@@ -417,7 +417,7 @@ class LateResultBudgetTest(unittest.TestCase):
         for named, adjudication in verdicts:
             with self.subTest(verdict=named):
                 self.assertTrue(_session._record_late_result(
-                    PinnedState(data=dict(crowded)), adjudication,
+                    PinnedState(state_data=dict(crowded)), adjudication,
                 ))
 
     def test_a_park_sentence_has_room_left_over(self) -> None:
@@ -442,7 +442,7 @@ class LateSessionLockTest(unittest.TestCase):
         self.assertEqual(run.role, _support.ROLE_DECOMPOSER)
 
     def test_a_locked_spec_outranks_the_config(self) -> None:
-        state = PinnedState(data={_support.KEYS.agent: _support.LATE_SPEC})
+        state = PinnedState(state_data={_support.KEYS.agent: _support.LATE_SPEC})
 
         with patch.object(config, "DECOMPOSE_AGENT_SPEC", BACKEND_CODEX):
             run = _late_run_reading._read_late_run(state)
@@ -453,7 +453,7 @@ class LateSessionLockTest(unittest.TestCase):
 
     def test_a_legacy_bare_backend_round_trips(self) -> None:
         run = _late_run_reading._read_late_run(
-            PinnedState(data={_support.KEYS.agent: BACKEND_CODEX}),
+            PinnedState(state_data={_support.KEYS.agent: BACKEND_CODEX}),
         )
 
         self.assertEqual(run.backend, BACKEND_CODEX)
@@ -507,7 +507,7 @@ class LateRunAnswersTest(unittest.TestCase):
         )
         for name, recorded in cases:
             with self.subTest(case=name):
-                run = _late_run_reading._read_late_run(PinnedState(data={
+                run = _late_run_reading._read_late_run(PinnedState(state_data={
                     _support.KEYS.run_cycle_id: _support.CYCLE_ID,
                     _support.KEYS.source_sha: _support.CANDIDATE_SHA,
                     _support.KEYS.run_generation: _support.GENERATION_NUMBER,
@@ -530,7 +530,7 @@ class LateRunAnswersTest(unittest.TestCase):
         )
         for name, child in cases:
             with self.subTest(case=name):
-                run = _late_run_reading._read_late_run(PinnedState(data={
+                run = _late_run_reading._read_late_run(PinnedState(state_data={
                     _support.KEYS.run_cycle_id: _support.CYCLE_ID,
                     _support.KEYS.source_sha: _support.CANDIDATE_SHA,
                     _support.KEYS.run_generation: _support.GENERATION_NUMBER,
@@ -544,7 +544,7 @@ class LateRunAnswersTest(unittest.TestCase):
     def test_a_budgeted_split_reads_back_whole(self) -> None:
         # The manifest the transaction creates children from, so the budget
         # each child issue states has to survive the record it is read out of.
-        run = _late_run_reading._read_late_run(PinnedState(data={
+        run = _late_run_reading._read_late_run(PinnedState(state_data={
             _support.KEYS.run_cycle_id: _support.CYCLE_ID,
             _support.KEYS.source_sha: _support.CANDIDATE_SHA,
             _support.KEYS.run_generation: _support.GENERATION_NUMBER,

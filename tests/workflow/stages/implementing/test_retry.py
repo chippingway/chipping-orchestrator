@@ -108,7 +108,7 @@ class HandleImplementingRetryCapTest(
                 # but the agent still failed to commit). We do NOT update
                 # last_action_comment_id, but we also drop awaiting_human so the
                 # else branch runs.
-                pinned_data = scenario.github._pinned[8].data
+                pinned_data = scenario.github._pinned[8].state_data
                 pinned_data["awaiting_human"] = False
 
             self.assertEqual(scenario.github.pinned_data(8).get(KEY_RETRY_COUNT), 3)

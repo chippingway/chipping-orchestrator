@@ -81,5 +81,5 @@ def _settle_run(state: PinnedState) -> None:
     The launch it named goes with it. A fingerprint left behind names a claim
     nothing stands behind, and the pair is only ever read together.
     """
-    state.data.pop(_run_ledger_values.AGENT_RUN_RESERVATION, None)
-    state.data.pop(_run_ledger_values.AGENT_RUN_FINGERPRINT, None)
+    state.state_data.pop(_run_ledger_values.AGENT_RUN_RESERVATION, None)
+    state.state_data.pop(_run_ledger_values.AGENT_RUN_FINGERPRINT, None)

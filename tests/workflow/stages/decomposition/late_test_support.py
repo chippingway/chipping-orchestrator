@@ -294,19 +294,19 @@ def seed_late_issue(
     """
     issue = make_issue(LATE_ISSUE_NUMBER, label=LABEL_DECOMPOSING)
     github.add_issue(issue)
-    recorded = PinnedState(data=dict(extra_state))
+    recorded = PinnedState(state_data=dict(extra_state))
     if _PINNED_PR in extra_state:
-        recorded.data.setdefault(_PINNED_BRANCH, PUBLISHED_BRANCH)
+        recorded.state_data.setdefault(_PINNED_BRANCH, PUBLISHED_BRANCH)
     _late_state.write_late_generation(recorded, generation)
-    github.seed_state(LATE_ISSUE_NUMBER, **recorded.data)
+    github.seed_state(LATE_ISSUE_NUMBER, **recorded.state_data)
     return issue
 
 
 def generation_state(generation: LateGeneration) -> dict:
     """The pinned fields one generation round-trips through."""
-    written = PinnedState(data={})
+    written = PinnedState(state_data={})
     _late_state.write_late_generation(written, generation)
-    return written.data
+    return written.state_data
 
 
 def seeded_late_issue(**extra_state) -> tuple[FakeGitHubClient, FakeIssue]:

@@ -38,8 +38,6 @@ _DISPATCH_OWNER = "dispatch"
 
 _DRILLDOWN_OWNER = "drilldown"
 
-_DRILLDOWN_REQUEST_OWNER = "drilldown_request"
-
 _FANOUT_OWNER = "fanout"
 
 _FILTER_BINDING_OWNER = "filter_binding"
@@ -151,7 +149,6 @@ _OWNERS = (
     _DATE_FILTER_OWNER,
     _DISPATCH_OWNER,
     _DRILLDOWN_OWNER,
-    _DRILLDOWN_REQUEST_OWNER,
     _FANOUT_OWNER,
     _FILTER_BINDING_OWNER,
     _FILTERS_OWNER,
@@ -355,7 +352,6 @@ _SURFACES = MappingProxyType({
         "read_issue_trace",
         "render_drilldown_view",
     ),
-    _DRILLDOWN_REQUEST_OWNER: ("DrilldownRequest", "render_drilldown"),
     _FANOUT_OWNER: ("fan_out_reads",),
     _FILTER_BINDING_OWNER: (
         "filter_list",

@@ -92,7 +92,7 @@ class _LaunchHold:
         self._context = context
         self._handed = handed
         self._rules_out_a_start = rules_out_a_start
-        self._measured = dict(context.state.data)
+        self._measured = dict(context.state.state_data)
 
     def resolves(self) -> bool:
         """Whether the whole subject the request was reviewed on resolves as it was recorded, right behind the charge.
@@ -147,8 +147,8 @@ class _LaunchHold:
         stands = stands and _verdicts.read_returned_verdict(reading) == handed
         if stands and handed.evidence is not None:
             stands = _claims.claim_standing(reading, handed.evidence) is _claims.ClaimStanding.SETTLED
-        if stands and not _review_comment._moved(reading.data, self._measured, _HELD_RECORDS):
-            accepted = _review_comment._Reread(stood=True, read=dict(reading.data))
+        if stands and not _review_comment._moved(reading.state_data, self._measured, _HELD_RECORDS):
+            accepted = _review_comment._Reread(stood=True, read=dict(reading.state_data))
             accepted.lays_over(self._context.state, self._measured)
             self._measured = accepted.read
             return True

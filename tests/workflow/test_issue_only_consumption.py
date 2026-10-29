@@ -254,7 +254,7 @@ class DeliveredIssueReplyTest(unittest.TestCase, _ConsumptionFixtureMixin):
 
     def _approved_meanwhile(self, gh) -> None:
         """Record the approval of the requirements the baseline now holds, as a reviewer's leaves it."""
-        pinned = gh._pinned[ISSUE].data
+        pinned = gh._pinned[ISSUE].state_data
         pinned.update(_approval_records.approved(PR_NUMBER, requirements=pinned["user_content_hash"]))
 
     def _deliver_through_validating(self, *, unread_pr_comment: bool = True):

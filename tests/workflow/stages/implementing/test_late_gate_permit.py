@@ -47,7 +47,7 @@ class PermitOnlyGateTest(unittest.TestCase):
             gh=FakeGitHubClient(),
             spec=_TEST_SPEC,
             issue=make_issue(GATE_ISSUE_NUMBER),
-            state=PinnedState(data={}),
+            state=PinnedState(state_data={}),
             worktree=_FAKE_WT,
             permit_only=True,
             candidate=MEASURED_CANDIDATE_SHA,

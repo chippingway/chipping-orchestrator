@@ -114,7 +114,7 @@ def late_parent(
     github.add_issue(issue)
     recorded = _lineage_support.record(generation, ancestry)
     recorded.set("user_content_hash", _content_hash._compute_user_content_hash(issue, set()))
-    github.seed_state(_lineage_support.PARENT, **{**recorded.data, **extra_state})
+    github.seed_state(_lineage_support.PARENT, **{**recorded.state_data, **extra_state})
     return github, issue
 
 

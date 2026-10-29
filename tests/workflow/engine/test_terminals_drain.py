@@ -144,7 +144,7 @@ class DrainReviewPrTerminalTest(unittest.TestCase, support._DrainTestMixin):
             (support._MANUALLY_CLOSED_ISSUE_NUMBER, support.LABEL_REJECTED),
             gh.label_history,
         )
-        self.assertIn("closed_without_merge_at", state.data)
+        self.assertIn("closed_without_merge_at", state.state_data)
         # The PR is still open and may be reopened / salvaged, so the
         # branch must survive this exit.
         mocks[support._CLEANUP_MOCK_KEY].assert_not_called()

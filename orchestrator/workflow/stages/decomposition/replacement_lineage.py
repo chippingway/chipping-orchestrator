@@ -450,7 +450,7 @@ def _unrecognized(
         if child_state.carries(key)
     }
     owned = recorded.is_present and _unpointed(recorded) == _unpointed(owed)
-    return None if owned and carried == rewritten.data else _FOREIGN_SEED.format(child=child_number)
+    return None if owned and carried == rewritten.state_data else _FOREIGN_SEED.format(child=child_number)
 
 
 def _unpointed(ancestry: LateAncestry) -> LateAncestry:

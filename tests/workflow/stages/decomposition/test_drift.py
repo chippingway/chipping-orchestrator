@@ -307,7 +307,7 @@ class HandleReadyRoutesBackOnHashChangeTest(
             expected_children_count=len(replacements),
             user_content_hash=STALE_USER_CONTENT_HASH,
         )
-        gh.seed_state(_lineage_support.PARENT, **parent.data)
+        gh.seed_state(_lineage_support.PARENT, **parent.state_data)
         return gh, replacements
 
     def _late_fields(self, gh: FakeGitHubClient) -> dict:
@@ -341,7 +341,7 @@ class DecomposingHashChangeResetsSessionTest(
                     self.assertIn(f"#{child_number}", notice)
 
     def test_manifest_wipe_keeps_the_locked_spec(self) -> None:
-        state = PinnedState(data={
+        state = PinnedState(state_data={
             "decomposer_agent": LOCKED_BACKEND,
             KEY_DECOMPOSER_SESSION_ID: RETIRED_SESSION_ID,
             KEY_CHILDREN: list(ORPHANED_CHILD_NUMBERS),

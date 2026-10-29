@@ -161,7 +161,7 @@ def _unanswered_in_flight(context: _LateContext) -> bool:
     """
     if context.generation.phase not in IN_FLIGHT_PHASES:
         return False
-    if not any(key in context.state.data for key in _late_session._RESULT_KEYS):
+    if not any(key in context.state.state_data for key in _late_session._RESULT_KEYS):
         return False
     return not _late_run_reading._read_late_run(context.state).answers(context.generation)
 

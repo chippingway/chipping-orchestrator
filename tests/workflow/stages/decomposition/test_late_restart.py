@@ -498,7 +498,7 @@ class RepeatCycleTest(_fix.RestartCase, unittest.TestCase):
         _late_state.write_late_generation(recorded, replace(
             _fix.CANCELLED, cycle_id=cycle_id, restart_predecessor=CYCLE_ID,
         ))
-        self.github.seed_state(LATE_ISSUE_NUMBER, **recorded.data)
+        self.github.seed_state(LATE_ISSUE_NUMBER, **recorded.state_data)
 
 
 class RestartTransactionTest(_fix.RestartCase, unittest.TestCase):

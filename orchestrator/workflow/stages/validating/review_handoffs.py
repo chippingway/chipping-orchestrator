@@ -487,7 +487,7 @@ def _hands_off(
             context.issue.number, context.pr_number,
         )
         return None
-    if not _still_stands(context, owned, posted_over.data, None):
+    if not _still_stands(context, owned, posted_over.state_data, None):
         return None
     _verdicts.hands_off(context.state, _run_ledger_values._runs_used(context.state), posted)
     handed = _verdicts.read_returned_verdict(context.state)
@@ -641,7 +641,7 @@ class HandedLaunch:
         context, handed = self.context, self.handed
         state = context.state
         stood = _run_ledger_values._owed_started(state) != handed.handed and _still_stands(
-            context, handed, dict(state.data), handed.anchor,
+            context, handed, dict(state.state_data), handed.anchor,
         )
         if _run_ledger_values._owed_started(state) == handed.handed:
             log.info(

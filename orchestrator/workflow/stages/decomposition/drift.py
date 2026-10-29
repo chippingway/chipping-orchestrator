@@ -147,7 +147,7 @@ def _retires_ready_reroute(gh: GitHubClient, issue: Issue, state: PinnedState) -
         return False
     commit = _commits.ReportCommit(gh, issue, state)
     staged = commit.staging()
-    staged.data.pop(_state._READY_REROUTE)
+    staged.state_data.pop(_state._READY_REROUTE)
     landed = commit.lands(staged, _RETIRING)
     if landed.status is _commit_models.CommitStatus.COMMITTED:
         return not _ready_readings.held(gh, issue)

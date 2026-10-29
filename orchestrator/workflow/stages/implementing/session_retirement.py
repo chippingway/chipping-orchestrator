@@ -283,7 +283,7 @@ def _commit_dev_session_retirement(
     fresh = _pinned_commit.reread(gh, issue, _commit_models.PinnedCommit.capture(state))
     if isinstance(fresh, _commit_models.CommitOutcome):
         return fresh
-    staged = PinnedState(comment_id=fresh.comment_id, state_data=copy.deepcopy(fresh.data))
+    staged = PinnedState(comment_id=fresh.comment_id, state_data=copy.deepcopy(fresh.state_data))
     if not staged.get(_state._DEV_AGENT) and state.get(_state._DEV_AGENT):
         staged.set(_state._DEV_AGENT, state.get(_state._DEV_AGENT))
     if not session_id:
@@ -292,12 +292,12 @@ def _commit_dev_session_retirement(
         _retire_dev_session(staged, retired_id, reason)
     _retire_dev_session(staged, session_id, reason)
     outcome = _pinned_commit.commit(
-        gh, issue, _commit_models.PinnedCommit.capture(fresh, owned=_RETIREMENT_FIELDS), staged.data,
+        gh, issue, _commit_models.PinnedCommit.capture(fresh, owned=_RETIREMENT_FIELDS), staged.state_data,
     )
     if outcome.status is _commit_models.CommitStatus.COMMITTED:
         for field in _RETIREMENT_FIELDS:
-            state.data.pop(field, None)
+            state.state_data.pop(field, None)
             if outcome.reading.carries(field):
                 state.set(field, copy.deepcopy(outcome.reading.get(field)))
-        _pinned_commit.takes_in(state, outcome.reading.data, _RETIREMENT_FIELDS)
+        _pinned_commit.takes_in(state, outcome.reading.state_data, _RETIREMENT_FIELDS)
     return outcome

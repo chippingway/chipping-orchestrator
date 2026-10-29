@@ -43,7 +43,7 @@ FILLER = "filler"
 def writes_bookkeeping(case) -> None:
     """Another road's write of fields no evidence write owns, and of a comment of its own onto the ledger."""
     elsewhere = case.gh.read_pinned_state(case.issue)
-    elsewhere.data.update(INDEPENDENT)
+    elsewhere.state_data.update(INDEPENDENT)
     _comments._track_orchestrator_comment(elsewhere, ANOTHER_ROADS_COMMENT)
     case.gh.write_pinned_state(case.issue, elsewhere)
 
@@ -65,7 +65,7 @@ def fills(case) -> None:
     """The pinned comment filled to its limit with a field of another road's."""
     filling = case.gh.read_pinned_state(case.issue)
     filling.set(FILLER, "")
-    room = MAX_PINNED_BODY - len(pinned_state_body(filling.data))
+    room = MAX_PINNED_BODY - len(pinned_state_body(filling.state_data))
     filling.set(FILLER, "y" * room)
     case.gh.write_pinned_state(case.issue, filling)
 
@@ -83,7 +83,7 @@ class Move:
         elsewhere = case.gh.read_pinned_state(case.issue)
         moved_to = self.to(case)
         if moved_to is GONE:
-            elsewhere.data.pop(self.record)
+            elsewhere.state_data.pop(self.record)
         else:
             elsewhere.set(self.record, moved_to)
         case.gh.write_pinned_state(case.issue, elsewhere)

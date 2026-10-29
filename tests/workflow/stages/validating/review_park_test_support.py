@@ -83,7 +83,7 @@ def fills_to(case, spare: int, *, handing: bool = False) -> None:
     measured = state
     if handing:
         measured = _verdicts.read_returned_verdict(state).at_its_handoff(state)
-    notes = MAX_PINNED_BODY - len(pinned_state_body(measured.data)) - spare
+    notes = MAX_PINNED_BODY - len(pinned_state_body(measured.state_data)) - spare
     state.set("operator_notes", "x" * notes)
     case.github.write_pinned_state(case.issue, state)
 

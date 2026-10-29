@@ -60,7 +60,7 @@ def _refuses_the_record(github, issue, unreadable: bool) -> AbstractContextManag
     """Leave the note `refusing_the_record` describes; the context the record is written in."""
     noted = github.read_pinned_state(issue)
     noted.set(NOTE, "")
-    room = MAX_PINNED_BODY - len(pinned_state_body(noted.data)) - 1
+    room = MAX_PINNED_BODY - len(pinned_state_body(noted.state_data)) - 1
     noted.set(NOTE, "kept" if unreadable else "x" * room)
     github.write_pinned_state(issue, noted)
     if unreadable:
@@ -131,8 +131,8 @@ class FillsAhead:
     def _fills(self, staged: Mapping) -> None:
         state = self._case.github.read_pinned_state(self._case.issue)
         widened = len(pinned_state_body(dict(staged)))
-        growth = widened - len(pinned_state_body(state.data))
+        growth = widened - len(pinned_state_body(state.state_data))
         state.set(NOTE, "")
-        room = MAX_PINNED_BODY - len(pinned_state_body(state.data))
+        room = MAX_PINNED_BODY - len(pinned_state_body(state.state_data))
         state.set(NOTE, "x" * (room - growth - self._spare))
         self._case.github.write_pinned_state(self._case.issue, state)

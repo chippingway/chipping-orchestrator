@@ -78,7 +78,7 @@ CONTRADICTING_RECORDS = MappingProxyType({
 def _damage(state, damage: dict) -> None:
     """Take one member out of a group, or leave one nobody here wrote."""
     for key, written in damage.items():
-        state.data.pop(key, None)
+        state.state_data.pop(key, None)
         if written is not None:
             state.set(key, written)
 

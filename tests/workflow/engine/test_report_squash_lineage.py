@@ -100,9 +100,9 @@ _HOLD = ReportEvidenceVerdict.HOLD
 
 def _settles(state: PinnedState, pending: _evidence_records.PendingEvidence) -> None:
     """Settle `pending` on `state`, as the reconciliation does once its artifact is posted."""
-    state.data = _evidence_settlement.settled_state(
+    state.state_data = _evidence_settlement.settled_state(
         state, pending, _record_support.ARTIFACT_COMMENT, _record_support.SETTLED_UNDER,
-    ).data
+    ).state_data
 
 
 def _invalidates(state: PinnedState, pending: _evidence_records.PendingEvidence) -> None:
@@ -175,11 +175,11 @@ class LineageProvedTest(_LineageCase, unittest.TestCase):
         for kept, keeps in _KEPT:
             with self.subTest(kept=kept):
                 state = _journey(keeps)
-                before = copy.deepcopy(state.data)
+                before = copy.deepcopy(state.state_data)
 
                 self.assertEqual(self.verdict(state), _PROVED)
 
-                self.assertEqual(state.data, before, "reading the proof wrote nothing")
+                self.assertEqual(state.state_data, before, "reading the proof wrote nothing")
                 self.assertEqual(_settlement.read_current_report(state).subject.source_sha, APPROVED)
 
     def test_a_squash_proves_for_the_review_it_names(self) -> None:
@@ -235,7 +235,7 @@ _DISAGREEING_RECORDS = (
     ("a report on another branch", lambda state: _settlement.record_current_report(state, replace(
         SETTLED, subject=replace(SETTLED.subject, branch=f"{BRANCH}-2"),
     ))),
-    ("no settled report", lambda state: state.data.pop(_report_records.CURRENT_REPORT)),
+    ("no settled report", lambda state: state.state_data.pop(_report_records.CURRENT_REPORT)),
     ("a damaged settled report", lambda state: state.set(_report_records.CURRENT_REPORT, {"pr": PR})),
     ("a repointed pull request", lambda state: state.set("pr_number", PR + 1)),
     ("a debt on another pull request", lambda state: state.set(
@@ -249,7 +249,7 @@ _DISAGREEING_RECORDS = (
     )),
     ("a paid debt", lambda state: state.set(_rewrite_debt.REWRITE_DEBT, None)),
     ("a damaged debt", lambda state: state.set(_rewrite_debt.REWRITE_DEBT, {"pr": PR})),
-    ("equal trees and the squash's recovery fields alone", lambda state: state.data.update({
+    ("equal trees and the squash's recovery fields alone", lambda state: state.state_data.update({
         _evidence_records.CURRENT_EVIDENCE: None, "late_collapse_handoff_sha": SQUASHED,
     })),
     ("a damaged carry", lambda state: state.set(_evidence_records.CURRENT_EVIDENCE, {

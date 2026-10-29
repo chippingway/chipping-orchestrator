@@ -172,7 +172,7 @@ def _authorized(
     Answers whether that write landed. A comment GitHub refused records no
     permission, so the caller may not report one either.
     """
-    before = dict(gate.state.data)
+    before = dict(gate.state.state_data)
     log.info(
         "issue=#%d carries the exemption for %s onto %s: the %s rewrite left "
         "the contribution the adjudication accepted (%s) unchanged",
@@ -211,7 +211,7 @@ def _persisted(gate: _late_gate_models._Gate, before: dict) -> bool:
     grant left arrives at, and a write there would cost a request to say what
     the comment already says.
     """
-    if gate.state.data == before:
+    if gate.state.state_data == before:
         return True
     try:
         gate.gh.write_pinned_state(gate.issue, gate.state)
@@ -226,8 +226,8 @@ def _persisted(gate: _late_gate_models._Gate, before: dict) -> bool:
             gate.issue.number, gate.state.get(_exemption_reading.LATE_EXEMPT_SHA),
             exc_info=True,
         )
-        gate.state.data.clear()
-        gate.state.data.update(before)
+        gate.state.state_data.clear()
+        gate.state.state_data.update(before)
         return False
     return True
 

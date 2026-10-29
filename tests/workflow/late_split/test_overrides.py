@@ -137,7 +137,7 @@ def authorized_publication(**replaced) -> _overrides.LateOversizedPublication:
 
 def authorized_state() -> PinnedState:
     """A pinned comment carrying one whole authorization and nothing else."""
-    state = PinnedState(data={})
+    state = PinnedState(state_data={})
     _overrides.record_publication_override(state, authorized_publication())
     return state
 
@@ -147,9 +147,9 @@ def damaged_state(damage: dict) -> PinnedState:
     state = authorized_state()
     for key, written in damage.items():
         if written is None:
-            state.data.pop(key, None)
+            state.state_data.pop(key, None)
         else:
-            state.data[key] = written
+            state.state_data[key] = written
     return state
 
 
@@ -170,7 +170,7 @@ class AuthorizedPublicationTest(unittest.TestCase):
     def test_no_record_authorizes_nothing(self) -> None:
         # Also the whole of what an older binary left behind: an issue whose
         # pinned comment predates this group carries none of its keys.
-        state = PinnedState(data={})
+        state = PinnedState(state_data={})
 
         self.assertIsNone(_overrides.read_publication_override(state))
         self.assertFalse(_overrides.is_authorized(state, CANDIDATE_SHA))
@@ -219,14 +219,14 @@ class RefusedAuthorizationTest(unittest.TestCase):
         # candidate in hand and no sound grounds to let it publish.
         for described, replaced in _REFUSED_TERMS.items():
             with self.subTest(term=described):
-                state = PinnedState(data={})
+                state = PinnedState(state_data={})
 
                 with self.assertRaises(InvalidLateValue):
                     _overrides.record_publication_override(
                         state, authorized_publication(**replaced),
                     )
 
-                self.assertEqual(state.data, {})
+                self.assertEqual(state.state_data, {})
 
     def test_the_terms_answer_for_themselves(self) -> None:
         # Asked of the group rather than beside the writer, so a caller that
@@ -249,14 +249,14 @@ class RefusedAuthorizationTest(unittest.TestCase):
     def test_omitted_terms_are_refused(self) -> None:
         # Every field defaults to a value this domain refuses, so a caller
         # that named none of them is told it has no authorization to record.
-        state = PinnedState(data={})
+        state = PinnedState(state_data={})
 
         with self.assertRaises(InvalidLateValue):
             _overrides.record_publication_override(
                 state, _overrides.LateOversizedPublication(),
             )
 
-        self.assertEqual(state.data, {})
+        self.assertEqual(state.state_data, {})
 
 
 class DamagedAuthorizationTest(unittest.TestCase):
@@ -295,11 +295,11 @@ class AuthorizationLifetimeTest(unittest.TestCase):
 
     def test_clearing_takes_the_whole_group(self) -> None:
         state = authorized_state()
-        state.data["pr_number"] = 12
+        state.state_data["pr_number"] = 12
 
         _overrides.clear_publication_override(state)
 
-        self.assertEqual(state.data, {"pr_number": 12})
+        self.assertEqual(state.state_data, {"pr_number": 12})
         self.assertIsNone(_overrides.read_publication_override(state))
 
     def test_a_rewrite_carries_it_onto_the_new_pair(self) -> None:
@@ -336,19 +336,19 @@ class AuthorizationLifetimeTest(unittest.TestCase):
             ("another candidate", authorized_state()),
         ):
             with self.subTest(shape=shape):
-                before = dict(state.data)
+                before = dict(state.state_data)
 
                 _overrides.carry_publication_override(
                     state, DESCENDANT_SHA, CANDIDATE_SHA, REWRITTEN_BASE_SHA,
                 )
 
-                self.assertEqual(state.data, before)
+                self.assertEqual(state.state_data, before)
 
     def test_every_other_field_is_left_verbatim(self) -> None:
         # The pinned comment is shared, and an authorization is only ever
         # about its own fields: an exemption group and a field this build has
         # never heard of are both left exactly as they were found.
-        state = PinnedState(data={})
+        state = PinnedState(state_data={})
         _exemption.record_exemption(state, DESCENDANT_SHA)
         _exemption.record_semantic_identity(
             state,
@@ -356,14 +356,14 @@ class AuthorizationLifetimeTest(unittest.TestCase):
             candidate_sha=DESCENDANT_SHA,
             fingerprint=CONTRIBUTION_DIGEST,
         )
-        state.data["late_something_older"] = {"kept": [1, 2]}
-        untouched = dict(state.data)
+        state.state_data["late_something_older"] = {"kept": [1, 2]}
+        untouched = dict(state.state_data)
 
         _overrides.record_publication_override(state, authorized_publication())
 
         self.assertEqual(_exemption_reading.read_exemption(state), DESCENDANT_SHA)
         _overrides.clear_publication_override(state)
-        self.assertEqual(state.data, untouched)
+        self.assertEqual(state.state_data, untouched)
 
 
 if __name__ == "__main__":

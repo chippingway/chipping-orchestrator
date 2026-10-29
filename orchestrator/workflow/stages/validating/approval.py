@@ -611,9 +611,9 @@ def _hands_to_documenting(
     durable = _review_comment._read(gh, issue, state, "end the handoff behind the label it moved")
     if durable is None:
         return
-    moved = _review_comment._moved(durable.data, state.data, _handoff._HELD_RECORDS)
+    moved = _review_comment._moved(durable.state_data, state.state_data, _handoff._HELD_RECORDS)
     moved += _review_comment._moved(
-        durable.data, held.comment, (*_handoff._APPROVED_OVER, *_handoff._HELD_APART),
+        durable.state_data, held.comment, (*_handoff._APPROVED_OVER, *_handoff._HELD_APART),
     )
     if moved or _late_handoffs.read_settled_handoff(durable) != finished:
         log.info(

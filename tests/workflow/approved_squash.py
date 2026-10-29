@@ -130,7 +130,7 @@ class SquashedApproval:
         state = self.github.read_pinned_state(self.issue)
         state.set(record, None)
         if popped:
-            state.data.pop(record)
+            state.state_data.pop(record)
         self.github.write_pinned_state(self.issue, state)
 
     def standing(self) -> tuple:

@@ -96,7 +96,7 @@ class CarryRoomTest(unittest.TestCase):
                 state = _carried_beside(padding)
 
                 self.assertEqual(_record_state.read_pending_evidence(state) is not None, recorded)
-                self.assertTrue(_report_record_state.fits_the_comment(state.data))
+                self.assertTrue(_report_record_state.fits_the_comment(state.state_data))
         alone = _comment(last + 1)
         self.assertTrue(_record_state.record_pending_evidence(
             alone, _record_state.mint_pending_evidence(

@@ -512,12 +512,6 @@ class AGYRecoveryGuardsAndCircuitTest(_AGYRecoveryBase):
             self.assertTrue(paused)
             self.assertEqual(tracked_mock.call_count, _EXPECTED_RUNS)
 
-    def test_coordinate_agy_recovery_alias(self) -> None:
-        self.assertIs(
-            _execution._coordinate_agy_recovery,
-            _execution._coordinate_developer_run,
-        )
-
     def test_recovery_visible_to_circuit_and_events(self) -> None:
         incomplete = AgentResult(
             session_id=_SESSION_ID,
@@ -622,7 +616,7 @@ class AGYQuotaRetirementTest(_AGYRecoveryBase):
                 with mock.patch(_RUNNER_RUN_AGENT, return_value=stopped) as run_agent:
                     self._coordinate()
                     run_agent.assert_called_once()
-                for pinned in (self.state.data, self.gh.pinned_data(_ISSUE_NUMBER)):
+                for pinned in (self.state.state_data, self.gh.pinned_data(_ISSUE_NUMBER)):
                     self.assertEqual(
                         (pinned.get(_PIN_KEY), pinned.get(_RETIREMENT_KEY)), (_LAUNCHED_SESSION, None),
                     )
@@ -688,7 +682,7 @@ class AGYQuotaRetirementTest(_AGYRecoveryBase):
     def _assert_retired(self, session_id: str) -> None:
         """The tick's state and the comment both retire `session_id`, the AGY command kept."""
         retired = {"session_ids": [session_id], "reason": "agent_session_limit", "recovery_pending": True}
-        for pinned in (self.state.data, self.gh.pinned_data(_ISSUE_NUMBER)):
+        for pinned in (self.state.state_data, self.gh.pinned_data(_ISSUE_NUMBER)):
             self.assertEqual(
                 (pinned.get(_PIN_KEY), pinned.get(_RETIREMENT_KEY), pinned.get("dev_agent")),
                 (None, retired, _AGENT_SPEC),

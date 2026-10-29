@@ -186,11 +186,11 @@ def _the_park_fits(context: _LateContext) -> bool:
     notice owner keeps that obligation only where it fits beside the flags
     (`late_notice._owe_notice`) and drops it once the sentence is posted.
     """
-    measured = PinnedState(state_data=copy.deepcopy(context.state.data))
+    measured = PinnedState(state_data=copy.deepcopy(context.state.state_data))
     _late_state.write_late_generation(measured, context.generation)
-    measured.data.pop(_late_notice.PARK_NOTICE, None)
+    measured.state_data.pop(_late_notice.PARK_NOTICE, None)
     measured.set(_late_park_state._AWAITING_HUMAN, True)
     measured.set(_late_park_state._PARK_REASON, _late_park_state.PARK_PR_UNRECONCILED)
     _comments._reserve_comment_slot(measured, _record_values.MAX_RECORDED_NUMBER)
     measured.set(_late_park_state._LAST_ACTION_COMMENT_ID, _record_values.MAX_RECORDED_NUMBER)
-    return _report_record_state.fits_the_comment(measured.data)
+    return _report_record_state.fits_the_comment(measured.state_data)

@@ -161,7 +161,7 @@ class LatchedCloseStopsTheWalkTest(
             self.github,
             _TEST_SPEC,
             self.owner,
-            PinnedState(data={"children": list(_SIBLINGS)}),
+            PinnedState(state_data={"children": list(_SIBLINGS)}),
             _ChildScan(
                 list(_SIBLINGS),
                 {

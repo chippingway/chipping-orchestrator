@@ -290,7 +290,7 @@ class SecondCycleAfterASealedOneTest(_SweptOwnerCase, unittest.TestCase):
             )),
             split_children=(),
         ).with_split_children((consumer,)))
-        self.github.seed_state(self.issue.number, **state.data)
+        self.github.seed_state(self.issue.number, **state.state_data)
 
 
 if __name__ == "__main__":

@@ -143,9 +143,9 @@ class ReplayedTransactionTest(unittest.TestCase, support.ReportTransactionCase):
         # written, so the record still says the report is owed. The retry is
         # scoped by the receipt and finds its own comment.
         self.record(spends=((support.REVIEW_ROUND, _SPENT_ROUND),))
-        interrupted = self.state.data.copy()
+        interrupted = self.state.state_data.copy()
         self.reconcile()
-        self.state.data = interrupted
+        self.state.state_data = interrupted
 
         self.assertFalse(self.reconcile())
 
@@ -272,9 +272,9 @@ class PublishedReadingTest(unittest.TestCase, support.ReportTransactionCase):
         # either -- a second comment under one receipt would leave two claims
         # to one transaction.
         self.record()
-        interrupted = self.state.data.copy()
+        interrupted = self.state.state_data.copy()
         self.reconcile()
-        self.state.data = interrupted
+        self.state.state_data = interrupted
         posted = support.reports_posted(self)
         landed = self.pull_request.issue_comments[-1]
         landed.body = f"{landed.body}\n\nedited by a human"

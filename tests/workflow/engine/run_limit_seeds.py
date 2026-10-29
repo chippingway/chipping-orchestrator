@@ -28,7 +28,7 @@ def ledger(*, allowance: int = ALLOWANCE, used: int | None = None):
 
 
 def state_with(**fields) -> PinnedState:
-    return PinnedState(comment_id=1, data=dict(fields))
+    return PinnedState(comment_id=1, state_data=dict(fields))
 
 
 def parked_state(*, owing: bool = False, **fields) -> PinnedState:

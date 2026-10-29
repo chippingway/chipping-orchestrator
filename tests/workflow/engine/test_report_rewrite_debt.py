@@ -185,7 +185,7 @@ class RewriteDebtReadingTest(unittest.TestCase):
         )
 
         self.assertEqual(dropped, (True, False, False))
-        self.assertEqual((paid.data, legacy.data), ({KEY: None}, {}))
+        self.assertEqual((paid.state_data, legacy.state_data), ({KEY: None}, {}))
 
 
 class RewriteDebtRecordingTest(unittest.TestCase):

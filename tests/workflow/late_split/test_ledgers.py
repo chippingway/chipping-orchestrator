@@ -68,7 +68,7 @@ class UnrecognizedEntryTest(unittest.TestCase):
                 })
                 self.assertTrue(_support.read_state(state).obligations.is_opaque)
                 self.assertEqual(
-                    _support.rewritten_state(state).data[_RESOURCES_KEY],
+                    _support.rewritten_state(state).state_data[_RESOURCES_KEY],
                     [entry],
                 )
 
@@ -83,7 +83,7 @@ class UnrecognizedEntryTest(unittest.TestCase):
                 })
                 self.assertTrue(_support.read_state(state).obligations.is_opaque)
                 self.assertEqual(
-                    _support.rewritten_state(state).data[_CONSUMERS_KEY],
+                    _support.rewritten_state(state).state_data[_CONSUMERS_KEY],
                     [21, damaged],
                 )
 
@@ -97,7 +97,7 @@ class UnrecognizedEntryTest(unittest.TestCase):
             _CONSUMERS_KEY: [21],
         })
         self.assertFalse(_support.read_state(state).is_present)
-        rewritten = _support.rewritten_state(state).data
+        rewritten = _support.rewritten_state(state).state_data
         self.assertEqual(rewritten[_RESOURCES_KEY], [_UNRECOGNIZED_ENTRIES[0]])
         self.assertEqual(rewritten[_CONSUMERS_KEY], [21])
         self.assertNotIn(_CYCLE_KEY, rewritten)
@@ -147,7 +147,7 @@ class OpaqueLedgerRoundTripTest(unittest.TestCase):
         # The failure this prevents: a cleanup that looks complete because the
         # binary that rewrote the ledger only understood part of it.
         rewritten = _support.rewritten_state(_untyped_ledger())
-        self.assertEqual(rewritten.data[_RESOURCES_KEY], _untyped_entries())
+        self.assertEqual(rewritten.state_data[_RESOURCES_KEY], _untyped_entries())
 
     def test_an_unreadable_consumer_ledger_is_kept(self) -> None:
         # Reading it empty would let a snapshot be reclaimed as though nobody
@@ -159,7 +159,7 @@ class OpaqueLedgerRoundTripTest(unittest.TestCase):
                 })
                 self.assertTrue(_support.read_state(state).obligations.is_opaque)
                 self.assertEqual(
-                    _support.rewritten_state(state).data[_CONSUMERS_KEY], damaged,
+                    _support.rewritten_state(state).state_data[_CONSUMERS_KEY], damaged,
                 )
 
 

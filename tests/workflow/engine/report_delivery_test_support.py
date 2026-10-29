@@ -202,7 +202,7 @@ def outstanding_comment() -> dict:
     """The comment one issue with a transaction still outstanding carries."""
     state = PinnedState()
     _record_state.record_pending_report(state, OUTSTANDING)
-    return dict(state.data)
+    return dict(state.state_data)
 
 
 def crowded_comment(
@@ -227,14 +227,14 @@ def crowded_comment(
         state_data={SCHEMA_VERSION_KEY: SUPPORTED_SCHEMA_VERSION, **(carried or {}), CROWDING: ""},
     )
     if baselined:
-        slack -= len(pinned_state_body(crowded.data))
+        slack -= len(pinned_state_body(crowded.state_data))
         crowded.set(BASELINE, support.REQUIREMENTS)
-        slack += len(pinned_state_body(crowded.data))
+        slack += len(pinned_state_body(crowded.state_data))
     if reviewed:
-        reserved = PinnedState(state_data=dict(crowded.data))
+        reserved = PinnedState(state_data=dict(crowded.state_data))
         _review_records.reserves_the_round(reserved)
-        taken = pinned_state_body(reserved.data)
-        slack += len(taken) - len(pinned_state_body(crowded.data))
+        taken = pinned_state_body(reserved.state_data)
+        slack += len(taken) - len(pinned_state_body(crowded.state_data))
     room = MAX_PINNED_BODY - len(DELIVERED.report) - slack - _SCHEMA_VERSION_OVERHEAD
     crowded.set(CROWDING, FILLER * room)
     return crowded

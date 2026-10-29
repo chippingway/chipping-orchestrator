@@ -151,7 +151,7 @@ def _filling_the_record() -> str:
     _record_state.record_pending_evidence(
         state, support.minted(state, commands=(support.ran(""),)),
     )
-    return "x" * (MAX_PINNED_BODY - len(pinned_state_body(state.data)))
+    return "x" * (MAX_PINNED_BODY - len(pinned_state_body(state.state_data)))
 
 
 class AbsentRecordsTest(unittest.TestCase):
@@ -159,7 +159,7 @@ class AbsentRecordsTest(unittest.TestCase):
 
     def test_an_issue_without_the_keys_owes_nothing(self) -> None:
         state = _issue()
-        before = dict(state.data)
+        before = dict(state.state_data)
 
         self.assertFalse(_record_state.carries_pending_evidence(state))
         self.assertEqual(
@@ -173,7 +173,7 @@ class AbsentRecordsTest(unittest.TestCase):
         )
         self.assertEqual(support.minted(state).revision, 1)
         self.assertFalse(_settlement.retire_current_evidence(state))
-        self.assertEqual(state.data, before)
+        self.assertEqual(state.state_data, before)
 
     def test_damage_reads_as_nothing_to_rely_on(self) -> None:
         damaged = {_RECEIPT: "issue-7-verification-1"}
@@ -215,11 +215,11 @@ class AbsentRecordsTest(unittest.TestCase):
         # artifact on the pull request already carries.
         for case, (state, later) in self._unprovable().items():
             with self.subTest(case=case):
-                before = copy.deepcopy(state.data)
+                before = copy.deepcopy(state.state_data)
 
                 self.assertIsNone(support.minted(state))
                 self.assertFalse(_record_state.record_pending_evidence(state, later))
-                self.assertEqual(state.data, before)
+                self.assertEqual(state.state_data, before)
 
     def test_an_unwritten_history_is_damage(self) -> None:
         # Only what its writer leaves reads: never a `null`, at most the
@@ -250,11 +250,11 @@ class AbsentRecordsTest(unittest.TestCase):
         settled = _issue()
         support.settles(settled)
         later = support.minted(settled)
-        floorless = dict(settled.data)
+        floorless = dict(settled.state_data)
         floorless.pop(_records.REVISION_FLOOR)
         first = support.minted(PinnedState())
         return {
-            "unreadable floor": (PinnedState(state_data=settled.data | {_records.REVISION_FLOOR: "1"}), later),
+            "unreadable floor": (PinnedState(state_data=settled.state_data | {_records.REVISION_FLOOR: "1"}), later),
             "floor missing beside a record": (PinnedState(state_data=floorless), later),
             "floor missing beside a null record": (
                 PinnedState(state_data={_records.PENDING_EVIDENCE: None}), first,
@@ -314,7 +314,7 @@ class RoundTripTest(unittest.TestCase):
         # Optional, but never unreadable: a label nobody names is damage.
         state = _issue()
         pending = support.recorded(state)
-        state.data = _settlement.settled_state(state, pending, support.ARTIFACT_COMMENT, None).data
+        state.state_data = _settlement.settled_state(state, pending, support.ARTIFACT_COMMENT, None).state_data
         recorded = state.get(_records.EVIDENCE_HANDOFF)
 
         self.assertNotIn(_UNDER, recorded)
@@ -386,10 +386,10 @@ class RecordingTest(unittest.TestCase):
         for case, pending in self._refused().items():
             with self.subTest(case=case):
                 state = _issue()
-                before = dict(state.data)
+                before = dict(state.state_data)
 
                 self.assertFalse(_record_state.record_pending_evidence(state, pending))
-                self.assertEqual(state.data, before)
+                self.assertEqual(state.state_data, before)
 
     def test_no_room_to_settle_refuses_the_record(self) -> None:
         # The settling write lands after the artifact is posted, and the
@@ -420,7 +420,7 @@ class RecordingTest(unittest.TestCase):
         state = _issue()
         stale = support.minted(state)
         settled = support.settles(state)
-        before = copy.deepcopy(state.data)
+        before = copy.deepcopy(state.state_data)
 
         self.assertEqual(stale.revision, settled.revision)
         self.assertFalse(_record_state.record_pending_evidence(state, stale))
@@ -428,7 +428,7 @@ class RecordingTest(unittest.TestCase):
         self.assertFalse(_record_state.record_pending_evidence(
             state, replace(settled, revision=settled.revision + 1),
         ))
-        self.assertEqual(state.data, before)
+        self.assertEqual(state.state_data, before)
 
     def test_a_retry_must_be_identical(self) -> None:
         # Its artifact may already be on the thread under that receipt, and a
@@ -493,14 +493,14 @@ class RecordingTest(unittest.TestCase):
         The artifact's comment enters the ledger as the publication records
         it, and the settlement lands under the longest label there is.
         """
-        landed = PinnedState(state_data=dict(state.data))
+        landed = PinnedState(state_data=dict(state.state_data))
         _comments._track_orchestrator_comment(landed, _WIDEST_COMMENT)
-        landed.data = _settlement.settled_state(
+        landed.state_data = _settlement.settled_state(
             landed, pending, _WIDEST_COMMENT, _WIDEST_LABEL,
-        ).data
-        self.assertLessEqual(len(pinned_state_body(landed.data)), MAX_PINNED_BODY)
+        ).state_data
+        self.assertLessEqual(len(pinned_state_body(landed.state_data)), MAX_PINNED_BODY)
         self.assertTrue(_settlement.retire_current_evidence(landed))
-        return len(pinned_state_body(landed.data))
+        return len(pinned_state_body(landed.state_data))
 
     def _measured(self, pending: _records.PendingEvidence) -> tuple[int, int]:
         """The room a bare filler leaves `pending`'s record, and the most what follows adds.
@@ -511,11 +511,11 @@ class RecordingTest(unittest.TestCase):
         """
         probe = PinnedState(state_data={_FILLER: ""})
         self.assertTrue(_record_state.record_pending_evidence(probe, pending))
-        written = len(pinned_state_body(probe.data))
+        written = len(pinned_state_body(probe.state_data))
         lasting = PinnedState(state_data=_record_state.settled_payload(probe, pending))
-        settling = len(pinned_state_body(lasting.data))
+        settling = len(pinned_state_body(lasting.state_data))
         self.assertTrue(_settlement.retire_current_evidence(lasting))
-        invalidating = len(pinned_state_body(lasting.data))
+        invalidating = len(pinned_state_body(lasting.state_data))
         return MAX_PINNED_BODY - written, max(settling, invalidating) - written
 
 
@@ -526,13 +526,13 @@ class SettlementTest(unittest.TestCase):
         state = _issue()
         first = support.settles(state)
         second = support.recorded(state)
-        before = copy.deepcopy(state.data)
+        before = copy.deepcopy(state.state_data)
 
         settled = support.reread(_settlement.settled_state(
             state, second, support.ARTIFACT_COMMENT + 1, support.SETTLED_UNDER,
         ))
 
-        self.assertEqual(state.data, before)
+        self.assertEqual(state.state_data, before)
         self.assertEqual(
             (
                 _record_state.read_pending_evidence(settled),

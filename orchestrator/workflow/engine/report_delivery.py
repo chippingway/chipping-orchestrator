@@ -360,7 +360,7 @@ def recording_stops_the_tick(
     if isinstance(refusal, RecordingRefusal):
         staged = commit.staging()
         staged.set(UNREPORTED_WORK, True)
-        staged.data.update(handed.retires)
+        staged.state_data.update(handed.retires)
         parks_the_debt(commit, staged, _explains_the_refusal(
             issue.number, delivered, refusal,
             _NOTHING_ADDED if handed.route in _UNDER_REVIEW else _NOTHING_OPENED,
@@ -402,7 +402,7 @@ def _records_the_report(
         return refusal
     staged = commit.staging()
     staged.set(_records.DELIVERED_REPORT, alone.get(_records.DELIVERED_REPORT))
-    staged.data.update(handed.retires)
+    staged.state_data.update(handed.retires)
     if staged.get(_PARK_REASON) == UNDELIVERABLE_REPORT:
         staged.set(_PARK_REASON, None)
     for owing in (OWED_REPORT, UNREPORTED_WORK):
@@ -482,7 +482,7 @@ def _unreported_run_holds(
     )
     staged = commit.staging()
     staged.set(UNREPORTED_WORK, True)
-    staged.data.update(handed.retires)
+    staged.state_data.update(handed.retires)
     parks_the_debt(commit, staged, _UNREPORTED_PARK.format(
         mentions=config.HITL_MENTIONS,
         withheld=(

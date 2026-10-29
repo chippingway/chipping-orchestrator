@@ -22,7 +22,7 @@ class _WritesDuringTheTick:
         self._wrapped = github.write_pinned_state
 
     def __call__(self, issue, state):
-        self.writes.append(dict(state.data))
+        self.writes.append(dict(state.state_data))
         return self._wrapped(issue, state)
 
     def held(self):

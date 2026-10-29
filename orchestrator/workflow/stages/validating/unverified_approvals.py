@@ -102,7 +102,7 @@ def approves(gate, run: _models._ReviewerRun) -> str | None:
     refusal = approval_refusal(gate.gh, gate.spec, gate.issue, gate.state, run)
     if refusal == "":
         branch = _naming._resolve_branch_name(gate.state, gate.spec, gate.issue.number)
-        _approval._finalize_validating_approval(gate, run.measured_over(gate.state.data), branch)
+        _approval._finalize_validating_approval(gate, run.measured_over(gate.state.state_data), branch)
     return refusal
 
 
@@ -142,7 +142,7 @@ def _held_to_the_comment(gh: GitHubClient, issue: Issue, state: PinnedState) -> 
     carried onto the state in hand (`review_comment._records_stand`); report,
     pull-request, verdict, or evidence records among it refuse the approval.
     """
-    read = dict(state.data)
+    read = dict(state.state_data)
     reread = _review_comment._records_stand(gh, issue, state, read, persisted=True)
     if reread is None:
         return None

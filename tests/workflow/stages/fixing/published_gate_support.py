@@ -183,7 +183,7 @@ def recorded_generation(*, stage: str = support.FIXING, **overrides) -> dict:
     carries can be left holding a pair, and the reading is re-entered only on
     the one the issue is still wearing.
     """
-    recorded = PinnedState(data={})
+    recorded = PinnedState(state_data={})
     _late_state.write_late_generation(
         recorded,
         LateGeneration(**{
@@ -204,7 +204,7 @@ def recorded_generation(*, stage: str = support.FIXING, **overrides) -> dict:
             ),
         }),
     )
-    return recorded.data
+    return recorded.state_data
 
 
 class _RecordAtNotice:

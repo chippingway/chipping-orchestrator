@@ -178,7 +178,7 @@ def _asked_while_waiting(recorded_as: str | None, *, held: bool) -> tuple:
     return (
         changed,
         fingerprint.call_count,
-        state.data == context.github.pinned_data(1),
+        state.state_data == context.github.pinned_data(1),
         context.github.write_state_calls,
     )
 
@@ -345,7 +345,7 @@ def _asked_over_an_earlier_spelling(recorded_as: str, *, parked: bool) -> tuple:
         context.github, context.issue, state,
         answered=list(context.issue.comments) if parked else None,
     )
-    kept = (state.data == seeded, context.github.pinned_data(1) == seeded)
+    kept = (state.state_data == seeded, context.github.pinned_data(1) == seeded)
     return (changed, context.current_hash, *kept)
 
 

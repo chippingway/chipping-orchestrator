@@ -91,8 +91,8 @@ def verifies_the_approval(github, issue, commands: tuple[VerifiedCommand, ...] |
         raise AssertionError("the pinned comment would not record the approval's evidence")
     settled = settles(github, state, pending, WorkflowLabel.VALIDATING)
     _approved_evidence.records(settled, claim_on(pending))
-    settled.data.update(documented)
-    github._pinned[issue.number].data.update(settled.data)
+    settled.state_data.update(documented)
+    github._pinned[issue.number].state_data.update(settled.state_data)
 
 
 def _documented(github, issue) -> dict:

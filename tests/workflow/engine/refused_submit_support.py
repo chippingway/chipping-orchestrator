@@ -128,5 +128,5 @@ def closed_owner(*, live: bool) -> FakeGitHubClient:
         candidate_sha=CANDIDATE_SHA,
         phase=LatePhase.ADJUDICATING,
     ))
-    github.seed_state(OWNER_NUMBER, **state.data)
+    github.seed_state(OWNER_NUMBER, **state.state_data)
     return github

@@ -372,7 +372,7 @@ def _held_records(state: _pinned_state.PinnedState) -> tuple[str, ...]:
     )
     held += _docs_verification_owed(state)
     return held + tuple(
-        key for key in _LATE_COLLAPSE_KEYS if key in state.data
+        key for key in _LATE_COLLAPSE_KEYS if key in state.state_data
     )
 
 

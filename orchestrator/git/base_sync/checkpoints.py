@@ -91,7 +91,7 @@ def _still_owns_the_attempt(gh: GitHubClient, issue: Issue, state: PinnedState, 
     guard = _confirmed(state)
     fresh = _commit.reread(gh, issue, guard)
     if isinstance(fresh, PinnedState):
-        moved = ", ".join(guard.moved(fresh.data))
+        moved = ", ".join(guard.moved(fresh.state_data))
     else:
         moved = fresh.refusal.value
     if not moved:
@@ -108,7 +108,7 @@ def _still_owns_the_attempt(gh: GitHubClient, issue: Issue, state: PinnedState, 
 def _confirmed(state: PinnedState):
     """The guard over the reading `state` last confirmed, decided on the attempt and its evidence."""
     from orchestrator.workflow.engine import pinned_commit_models as _commit_models
-    synced = state.data if state.synced is None else json.loads(state.synced)
+    synced = state.state_data if state.synced is None else json.loads(state.synced)
     reading = PinnedState(
         comment_id=state.comment_id, state_data=synced, parsed=state.parsed, supported=state.supported,
     )
@@ -132,6 +132,6 @@ def _stepped_fields(state: PinnedState, stepped: PinnedState) -> frozenset[str]:
     """Every field `stepped` spells otherwise than `state`, one that either lacks included."""
     from orchestrator.workflow.engine import pinned_commit_models as _commit_models
     return frozenset(
-        field for field in state.data.keys() | stepped.data.keys()
-        if _commit_models.spelled(state.data, field) != _commit_models.spelled(stepped.data, field)
+        field for field in state.state_data.keys() | stepped.state_data.keys()
+        if _commit_models.spelled(state.state_data, field) != _commit_models.spelled(stepped.state_data, field)
     )

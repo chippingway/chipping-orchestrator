@@ -57,7 +57,7 @@ _SPOILING_WINDOWS = ((_COMPOSED_OVER, False), (_COMMITTED_OVER, False), (_COMPOS
 def _unsupports(case) -> None:
     """The pinned comment edited in place into its record under a version this build refuses."""
     reading = case.gh.read_pinned_state(case.issue)
-    refused = {**reading.data, SCHEMA_VERSION_KEY: 2}
+    refused = {**reading.state_data, SCHEMA_VERSION_KEY: 2}
     case.gh.seed_state(case.issue, raw=True, **refused)
     case.gh._pinned[case.issue.number].comment_id = reading.comment_id
 
@@ -110,7 +110,7 @@ class IndependentUpdatesTest(unittest.TestCase, support.VerificationEvidenceCase
                 pending = self.record()
 
                 self.assertFalse(road.Behind(self, number, road.writes_bookkeeping).reconciles())
-                self.assertEqual(self.state.data, self.gh.pinned_data(support.ISSUE_NUMBER))
+                self.assertEqual(self.state.state_data, self.gh.pinned_data(support.ISSUE_NUMBER))
                 self.assertEqual(_record_state.carries_pending_evidence(self.state), not settled)
                 if not settled:
                     self.assertFalse(self.reconcile())
@@ -133,11 +133,11 @@ class IndependentUpdatesTest(unittest.TestCase, support.VerificationEvidenceCase
         # ledger as it stands, the artifact's entry still takes a slot of its
         # own, so nothing is posted or written and the transaction stays owed.
         pending = self.record()
-        filled = PinnedState(comment_id=self.state.comment_id, state_data=dict(self.state.data))
+        filled = PinnedState(comment_id=self.state.comment_id, state_data=dict(self.state.state_data))
         filled.set(road.FILLER, "")
         invalidated = PinnedState(state_data=dict(_record_state.settled_payload(filled, pending)))
         self.assertTrue(_settlement.retire_current_evidence(invalidated))
-        room = MAX_PINNED_BODY - len(pinned_state_body(invalidated.data))
+        room = MAX_PINNED_BODY - len(pinned_state_body(invalidated.state_data))
         filled.set(road.FILLER, "y" * room)
         filled.set(support.LEDGER, invalidated.get(support.LEDGER))
         self.gh.write_pinned_state(self.issue, filled)

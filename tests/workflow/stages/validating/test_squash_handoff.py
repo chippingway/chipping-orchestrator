@@ -123,7 +123,7 @@ class _RecordsTheLabelAtEachWrite:
 
     def _records(self, state) -> None:
         moved = len(self._github.label_history)
-        self.writes.append((moved, dict(state.data)))
+        self.writes.append((moved, dict(state.state_data)))
 
 
 class SquashHandoffTest(
@@ -193,8 +193,8 @@ class SquashHandoffTest(
             (
                 _verdicts.read_returned_verdict(written),
                 written.get(REVIEW_ROUND),
-                _support.COLLAPSE_KEY in written.data,
-                _support.HANDOFF_KEY in written.data,
+                _support.COLLAPSE_KEY in written.state_data,
+                _support.HANDOFF_KEY in written.state_data,
                 HANDED_ON in github.label_history,
             ),
             (later, 1, False, False, False),
@@ -249,7 +249,7 @@ class SquashHandoffTest(
             (mocks[_support.RUN_AGENT].call_count, mocks[_support.SQUASH_SEAM].call_count),
             sum(SQUASH_NOTICE in body for _, body in github.posted_pr_comments),
             github.label_history,
-            _support.HANDOFF_KEY in github.read_pinned_state(issue).data,
+            _support.HANDOFF_KEY in github.read_pinned_state(issue).state_data,
         )
 
 

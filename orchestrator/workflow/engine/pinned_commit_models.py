@@ -153,7 +153,7 @@ class PinnedCommit:
             comment_id=state.comment_id,
             parsed=state.parsed,
             supported=state.supported,
-            read=MappingProxyType({field: spelled(state.data, field) for field in state.data}),
+            read=MappingProxyType({field: spelled(state.state_data, field) for field in state.state_data}),
             prerequisites=frozenset(prerequisites),
             owned=frozenset(owned),
             admits=admits,

@@ -94,7 +94,7 @@ class _UnpushedSquashWorld(HalfMadeCollapseWorld):
         state = self.github.read_pinned_state(self.issue)
         edited = edit(state.get(key))
         if edited is None:
-            state.data.pop(key)
+            state.state_data.pop(key)
         else:
             state.set(key, edited)
         self.github.write_pinned_state(self.issue, state)

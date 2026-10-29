@@ -188,7 +188,7 @@ class ReadyBaselineDecisionTest(unittest.TestCase):
                     "body", "body",
                     comments=(support.FakeComment(id=1, body=support.CONTINUE_COMMAND),),
                 )
-                prior = case.state.data.pop(support.KEY_USER_CONTENT_HASH)
+                prior = case.state.state_data.pop(support.KEY_USER_CONTENT_HASH)
                 if recorded_as is not None:
                     case.state.set(recorded_as, prior)
 
@@ -210,7 +210,7 @@ class ReadyBaselineDecisionTest(unittest.TestCase):
             ({"observed_user_content_hash": "a reading"}, False),
         ):
             with self.subTest(record=record):
-                state = support.PinnedState(data=dict(record))
+                state = support.PinnedState(state_data=dict(record))
                 self.assertEqual(drift._unbaselined(state), unbaselined)
 
 

@@ -294,13 +294,13 @@ def _commits(
         return True
     _comments._track_orchestrator_comment(composed, comment_id)
     outcome = _commit.commit(
-        reading.gh, reading.issue, _durable.guarded(latest, SETTLES, reading.rests_on), composed.data,
+        reading.gh, reading.issue, _durable.guarded(latest, SETTLES, reading.rests_on), composed.state_data,
         _verification_comments.MERGED_LEDGER,
     )
     refused = _durable.refusal_of(outcome)
     if refused is None:
-        reading.state.data = outcome.reading.data
-        _commit.takes_in(reading.state, outcome.reading.data)
+        reading.state.state_data = outcome.reading.state_data
+        _commit.takes_in(reading.state, outcome.reading.state_data)
         log.info(
             "issue=#%d settled verification evidence revision %d on PR #%d",
             reading.issue.number, pending.revision,
@@ -350,7 +350,7 @@ def _leaves_it_owed(
     reads. Where it lands, the reading it landed as becomes the state in
     hand, and the reading that state is synced with (`pinned_commit.takes_in`).
     """
-    moved = _durable.guarded(reading.state, (), reading.rests_on).moved(latest.data)
+    moved = _durable.guarded(reading.state, (), reading.rests_on).moved(latest.state_data)
     if refused.holds or moved or not abandons_on_refusal(pending, anchored=reading.anchored is not None):
         held = _verification_comments.records_the_artifact(reading.gh, reading.issue, reading.state, comment_id)
         return held or refused.holds
@@ -358,12 +358,12 @@ def _leaves_it_owed(
     _comments._track_orchestrator_comment(latest, comment_id)
     abandons(latest, pending)
     outcome = _commit.commit(
-        reading.gh, reading.issue, guard, latest.data, _verification_comments.MERGED_LEDGER,
+        reading.gh, reading.issue, guard, latest.state_data, _verification_comments.MERGED_LEDGER,
     )
     abandoned = _durable.refusal_of(outcome)
     if abandoned is None:
-        reading.state.data = outcome.reading.data
-        _commit.takes_in(reading.state, outcome.reading.data)
+        reading.state.state_data = outcome.reading.state_data
+        _commit.takes_in(reading.state, outcome.reading.state_data)
         return False
     log.info(
         "issue=#%d is not abandoning the refused carry of verification evidence "

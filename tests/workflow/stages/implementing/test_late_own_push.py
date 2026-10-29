@@ -80,7 +80,7 @@ class OwnPushCarveOutTest(unittest.TestCase):
     def _vouched(self, recorded, *, pull_request: int) -> str:
         """What the reader makes of a receipt group naming `recorded`."""
         return _late_publication_state._publication_from(
-            PinnedState(data={
+            PinnedState(state_data={
                 _KEY_PUBLISHED_SHA: MEASURED_CANDIDATE_SHA,
                 _KEY_PUBLISHED_LEASE: _MOVED_HEAD,
                 _KEY_PUBLISHED_PR: recorded,

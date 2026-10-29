@@ -256,7 +256,7 @@ def lands_the_launch(
     _review_records._records_the_launch(staged, handover.subject)
     landed = commit.lands(staged, _LAUNCH)
     if landed.status is _commit_models.CommitStatus.COMMITTED:
-        return bound.data
+        return bound.state_data
     log.warning(
         "issue=#%d could not record its reviewer's launch (%s); launching no "
         "reviewer this tick", issue.number, (landed.refusal or landed.status).value,
@@ -360,7 +360,7 @@ def parks_over(
     fresh = _review_comment._read(gh, issue, state, "park a verdict with no room for what its run staged")
     if fresh is None:
         return None
-    if _review_comment._moved(fresh.data, run.resolved_over, VERDICT_STANDS_ON):
+    if _review_comment._moved(fresh.state_data, run.resolved_over, VERDICT_STANDS_ON):
         log.warning(
             "issue=#%d its pinned comment moved what its reviewer's verdict stands "
             "on before the %s park was posted; posting and writing nothing", issue.number, reason,

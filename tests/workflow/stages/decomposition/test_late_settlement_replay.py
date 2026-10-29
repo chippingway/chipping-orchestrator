@@ -105,7 +105,7 @@ class _RefusesOversizedEdits:
         self._wrapped = wrapped
 
     def __call__(self, issue, state):
-        length = len(pinned_state_body(state.data))
+        length = len(pinned_state_body(state.state_data))
         if length > MAX_PINNED_BODY and not state.withheld:
             raise ValueError(f"a pinned comment of {length} characters is past what GitHub holds")
         return self._wrapped(issue, state)
@@ -135,7 +135,7 @@ class _ReplayCase(GuardedLateCase):
 
     def _pinned_comment(self) -> dict:
         """The record issue #41's pinned comment holds, to be edited where it stands."""
-        return self.github._pinned[_late_support.LATE_ISSUE_NUMBER].data
+        return self.github._pinned[_late_support.LATE_ISSUE_NUMBER].state_data
 
 
 class ReplayPublicationTest(_ReplayCase, unittest.TestCase):

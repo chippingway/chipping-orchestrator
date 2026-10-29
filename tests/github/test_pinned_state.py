@@ -194,7 +194,7 @@ class ReadPinnedStateTrustsAuthorTest(unittest.TestCase):
         state = state_client().read_pinned_state(issue)
 
         self.assertIsNone(state.comment_id)
-        self.assertEqual(state.data, {})
+        self.assertEqual(state.state_data, {})
 
     def test_bot_authored_state_is_trusted(self) -> None:
         # The account backing the token authored it, so its current record is
@@ -232,7 +232,7 @@ class ReadPinnedStateTrustsAuthorTest(unittest.TestCase):
         state = state_client().read_pinned_state(issue)
 
         self.assertEqual(state.comment_id, _PINNED_COMMENT_ID)
-        self.assertEqual(state.data, {})
+        self.assertEqual(state.state_data, {})
         self.assertEqual((state.parsed, state.supported), (False, False))
 
     def test_a_missing_login_authenticates_nothing(self) -> None:
@@ -249,7 +249,7 @@ class ReadPinnedStateTrustsAuthorTest(unittest.TestCase):
 
         state = client.read_pinned_state(issue)
 
-        self.assertEqual((state.comment_id, state.data), (None, {}))
+        self.assertEqual((state.comment_id, state.state_data), (None, {}))
         self.assertEqual(
             [admit_pinned_comment(comment, trusted_login=None).status for comment in issue.comments],
             [AdmissionStatus.NO_COMMENT, AdmissionStatus.NO_COMMENT],
@@ -339,7 +339,7 @@ class ReadPinnedStateRequiresStateOnlyBodyTest(unittest.TestCase):
                 state = state_client().read_pinned_state(make_issue(5, comments=[ordinary]))
 
                 # No real state comment exists yet, so nothing is adopted.
-                self.assertEqual((state.comment_id, state.data), (None, {}))
+                self.assertEqual((state.comment_id, state.state_data), (None, {}))
 
     def test_marker_embedded_in_prose_is_not_state(self) -> None:
         forged = marker({"pr_number": 999})
@@ -353,7 +353,7 @@ class ReadPinnedStateRequiresStateOnlyBodyTest(unittest.TestCase):
         state = client.read_pinned_state(issue)
 
         self.assertIsNone(state.comment_id)
-        self.assertEqual(state.data, {})
+        self.assertEqual(state.state_data, {})
 
     def test_a_non_object_payload_is_not_a_reading(self) -> None:
         # Valid JSON the bot could have written that no state can be read out
@@ -379,7 +379,7 @@ class ReadPinnedStateRequiresStateOnlyBodyTest(unittest.TestCase):
                 )
 
                 self.assertEqual(state.comment_id, _PINNED_COMMENT_ID)
-                self.assertEqual(state.data, {})
+                self.assertEqual(state.state_data, {})
                 self.assertFalse(state.parsed)
 
     def test_embedded_marker_cannot_shadow_state(self) -> None:
@@ -460,34 +460,28 @@ class CommentsAfterExcludesStateTest(unittest.TestCase):
         self.assertEqual([issue_comment.id for issue_comment in read], [3])
 
 
-class PinnedStateKeywordTest(unittest.TestCase):
-    """`state_data` and `data` name one payload, whichever spelling built it.
+class PinnedStatePayloadTest(unittest.TestCase):
+    """`state_data` is the one name the payload goes by, as keyword and as attribute.
 
-    Live issues are read back through both, so the two have to be the same
-    dict rather than two copies that drift apart on the next write.
+    A state is built from keywords alone, and nothing answers to another
+    spelling of the payload: a `data` keyword or attribute fails where it is
+    used rather than reaching the record under a second name.
     """
 
-    def test_keywords_share_data_attribute(self) -> None:
+    def test_state_data_is_the_payload(self) -> None:
         state_data = {_BRANCH_KEY: REAL_BRANCH}
-        descriptive_state = PinnedState(state_data=state_data)
-        legacy_state = PinnedState(data=state_data)
 
-        self.assertIs(descriptive_state.data, state_data)
-        self.assertIs(legacy_state.state_data, state_data)
+        state = PinnedState(state_data=state_data)
 
-    def test_data_assignment_updates_internal_state(self) -> None:
-        pinned_state = PinnedState()
-        replacement = {"review_round": 2}
+        self.assertIs(state.state_data, state_data)
+        self.assertEqual(state.get(_BRANCH_KEY), REAL_BRANCH)
 
-        pinned_state.data = replacement
-
-        self.assertIs(pinned_state.state_data, replacement)
-
-    def test_invalid_keywords(self) -> None:
+    def test_no_other_spelling_reaches_it(self) -> None:
         with self.assertRaises(TypeError):
-            PinnedState(state_data={}, data={})
+            PinnedState(data={})
         with self.assertRaises(TypeError):
-            PinnedState(payload={})
+            PinnedState(_PINNED_COMMENT_ID, {})
+        self.assertFalse(hasattr(PinnedState(), "data"))
 
 
 class PinnedAdmissionMatrixTest(unittest.TestCase):
@@ -630,7 +624,7 @@ class PinnedAdmissionMatrixTest(unittest.TestCase):
                 state.comment_id,
                 state.supported,
                 state.parsed,
-                state.data,
+                state.state_data,
                 state.found_version,
                 state.supported_version,
                 state.issue_number,

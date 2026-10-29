@@ -161,7 +161,7 @@ def _returned(
     reread = _review_comment._records_stand(
         _reading(durable), MagicMock(number=1), state, _current(HANDED), persisted=persisted,
     )
-    return None if reread is None else reread.stood, state.data, state.comment_id
+    return None if reread is None else reread.stood, state.state_data, state.comment_id
 
 
 class RecordsStandTest(unittest.TestCase):
@@ -268,7 +268,7 @@ class ResolvedOverTest(unittest.TestCase):
                     _reading(_pinned(durable)), MagicMock(number=1), state, "ping",
                 )
 
-                self.assertEqual((held, state.data), (in_hand, dict(_APPROVED_RECORDS)))
+                self.assertEqual((held, state.state_data), (in_hand, dict(_APPROVED_RECORDS)))
 
     def assert_binds(self, durable: PinnedState | Exception, bound: dict | None) -> None:
         """Both bindings over `durable` answer `bound`, and leave the state alone.
@@ -288,7 +288,7 @@ class ResolvedOverTest(unittest.TestCase):
             ),
             bound is not None,
         )
-        self.assertEqual((state.data, state.comment_id), (_in_hand(), PINNED_ID))
+        self.assertEqual((state.state_data, state.comment_id), (_in_hand(), PINNED_ID))
 
 
 if __name__ == "__main__":
