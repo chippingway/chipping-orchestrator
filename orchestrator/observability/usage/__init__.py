@@ -5,6 +5,9 @@
 Home of the provider payloads a run is metered from. The owners divide by what
 a payload has to be turned into: the JSONL vocabulary and the resilient line
 decoder every provider reads through (``protocol``, ``event_stream``); the
+cost basis, completeness, and reduction, and the token-counter semantics,
+every cost surface records and reads back alike (``cost_evidence``,
+``token_evidence``); the
 price catalogue, its dated rows and bounded model lookup, and the nested
 model-name lookup an estimate needs (``prices``, ``price_catalogue``,
 ``model_names``); the per-provider frame decoding, settlement, and run summary
@@ -27,9 +30,9 @@ and ``SkillTriggers`` beside the parsers that fill them, and the
 quartet on ``trajectory_models``. Each is bound here once, at import, to the
 owner's own object rather than a wrapper around it; that binding does not
 follow a later patch, so a test intercepting a parser targets the module its
-caller imported. Everything else -- the price catalogue, the protocol keys, the
-per-provider decoders -- is reached on its owner, so nothing private is
-published here.
+caller imported. Everything else -- the cost and token evidence, the price
+catalogue, the protocol keys, the per-provider decoders -- is reached on its
+owner, so nothing private is published here.
 
 The parser is what a tracked run folds its per-issue counters from, so no owner
 here may reach the workflow that calls it: the dependency runs the other way,

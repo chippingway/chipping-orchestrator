@@ -10,6 +10,7 @@ from orchestrator.observability.usage import (
     event_stream,
     model_names,
     protocol,
+    token_evidence,
 )
 
 CODEX_USAGE_PATHS: tuple[tuple[str, ...], ...] = (
@@ -49,37 +50,35 @@ def nested_usage_field(
 
 
 def codex_usage_record(usage: dict[str, Any]) -> protocol.TokenBucket:
-    input_tokens = event_stream.token_count(
-        usage.get(protocol.INPUT_TOKENS) or usage.get("prompt_tokens") or usage.get("total_input_tokens"),
+    """The counts one usage block reports, by token class; a class it reports no count for has no key."""
+    input_tokens = token_evidence.first_count(
+        usage.get(protocol.INPUT_TOKENS), usage.get("prompt_tokens"), usage.get("total_input_tokens"),
     )
-    cached_tokens = event_stream.token_count(
-        usage.get("cached_input_tokens")
-        or usage.get(protocol.CACHED_TOKENS)
-        or nested_usage_field(usage, "input_tokens_details", protocol.CACHED_TOKENS)
-        or nested_usage_field(usage, "prompt_tokens_details", protocol.CACHED_TOKENS),
+    cached_tokens = token_evidence.first_count(
+        usage.get("cached_input_tokens"),
+        usage.get(protocol.CACHED_TOKENS),
+        nested_usage_field(usage, "input_tokens_details", protocol.CACHED_TOKENS),
+        nested_usage_field(usage, "prompt_tokens_details", protocol.CACHED_TOKENS),
     )
-    output_tokens = event_stream.token_count(
-        usage.get(protocol.OUTPUT_TOKENS) or usage.get("completion_tokens") or usage.get("total_output_tokens"),
+    output_tokens = token_evidence.first_count(
+        usage.get(protocol.OUTPUT_TOKENS), usage.get("completion_tokens"), usage.get("total_output_tokens"),
     )
-    return {
+    return token_evidence.reported_counts({
         protocol.INPUT: input_tokens,
         protocol.CACHED: cached_tokens,
         protocol.OUTPUT: output_tokens,
-    }
+    })
 
 
 def codex_usage_events(
     events: list[dict[str, Any]],
 ) -> list[protocol.CodexUsageEvent]:
+    """Every usage block the stream printed, with the model it names: one reporting only zeros included."""
     usage_events: list[protocol.CodexUsageEvent] = []
     for event in events:
         usage = codex_usage_block(event)
-        if usage is None:
-            continue
-        record = codex_usage_record(usage)
-        if sum(record.values()) == 0:
-            continue
-        usage_events.append((model_names.codex_model_name(event, usage), record))
+        if usage is not None:
+            usage_events.append((model_names.codex_model_name(event, usage), codex_usage_record(usage)))
     return usage_events
 
 
@@ -110,10 +109,9 @@ def last_stream_model(events: list[dict[str, Any]]) -> str | None:
 def last_codex_usage(
     usage_events: list[protocol.CodexUsageEvent],
 ) -> protocol.CodexUsageEvent:
-    if usage_events:
-        return usage_events[-1]
-    return protocol.UNKNOWN, {
-        protocol.INPUT: 0,
-        protocol.CACHED: 0,
-        protocol.OUTPUT: 0,
-    }
+    """The last of `usage_events`, a token class it reports no count for read as zero."""
+    nothing_counted = {protocol.INPUT: 0, protocol.CACHED: 0, protocol.OUTPUT: 0}
+    if not usage_events:
+        return protocol.UNKNOWN, nothing_counted
+    model, record = usage_events[-1]
+    return model, {**nothing_counted, **record}

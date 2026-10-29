@@ -112,6 +112,10 @@ matching `ANALYTICS_LOG_PATH`.
   promoted, while its `reason`, `route`, pull request, commit, and the rest of its correlation ride in `extras`, and
   `get_issue_events` reads both back
   ([`event-streams.md`](event-streams.md#analytics-sink-analytics_log_path)).
+  The `agent_exit` usage evidence is a sixth: `cost_evidence` and `token_evidence` ride in `extras` as the objects
+  the sink wrote ([`usage.md`](usage.md#usage-parser)), beside the promoted `cost_usd`, `cost_source`, and token
+  columns they qualify. No view, rollup, or read-model query reads them yet, so every figure the database derives is
+  still built from those promoted columns alone, and a row synced from an earlier build carries neither key.
   `source_path` / `source_line` are
   forensic context; the authoritative dedup key is `content_hash` — SHA-256 over the canonical (`sort_keys=True`)
   JSON form of the record.

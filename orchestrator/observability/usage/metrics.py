@@ -12,14 +12,21 @@ from orchestrator.observability.usage import (
     claude_settlement,
     claude_summary,
     codex_summary,
+    cost_evidence as usage_cost,
     event_stream,
     protocol,
+    token_evidence as usage_tokens,
 )
 
 
 @dataclass
 class UsageMetrics:
-    """Structured usage extracted from one agent run's JSONL stdout."""
+    """Structured usage extracted from one agent run's JSONL stdout.
+
+    The raw counters and the `cost_usd` / `cost_source` pair keep their meaning; `cost_evidence` and
+    `token_evidence` state what they mean together. A parser always fills both, so a metrics object holding neither
+    was built with no evidence and reads back as unknown rather than as any provider's semantics.
+    """
 
     backend: str
     models: tuple[str, ...] = ()
@@ -30,7 +37,15 @@ class UsageMetrics:
     cache_read_tokens: int = 0
     cache_write_tokens: int = 0
     cost_usd: float | None = None
-    cost_source: str = "no-usage"
+    cost_source: str = usage_cost.NO_USAGE_SOURCE
+    cost_evidence: usage_cost.CostEvidence | None = None
+    token_evidence: usage_tokens.TokenEvidence | None = None
+
+    def apply_cost(self, cost: usage_cost.CostEvidence) -> None:
+        """Record one run's selected cost, its `cost_usd` and `cost_source` read off the same evidence."""
+        self.cost_evidence = cost
+        self.cost_usd = cost.complete_usd
+        self.cost_source = cost.cost_source
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -40,10 +55,12 @@ class UsageMetrics:
             protocol.INPUT_TOKENS: self.input_tokens,
             protocol.OUTPUT_TOKENS: self.output_tokens,
             protocol.CACHED_TOKENS: self.cached_tokens,
-            "cache_read_tokens": self.cache_read_tokens,
-            "cache_write_tokens": self.cache_write_tokens,
-            "cost_usd": self.cost_usd,
+            protocol.CACHE_READ_TOKENS: self.cache_read_tokens,
+            protocol.CACHE_WRITE_TOKENS: self.cache_write_tokens,
+            usage_cost.COST_USD: self.cost_usd,
             "cost_source": self.cost_source,
+            usage_cost.COST_EVIDENCE: None if self.cost_evidence is None else self.cost_evidence.to_dict(),
+            usage_tokens.TOKEN_EVIDENCE: None if self.token_evidence is None else self.token_evidence.to_dict(),
         }
 
 
@@ -54,13 +71,13 @@ def parse_claude_usage(stdout: str) -> UsageMetrics:
     records = claude_settlement.claude_usage_records(events)
     aggregate = claude_summary.aggregate_by_model(records)
     aggregate.apply_tokens(metrics)
-    selected_cost = event_stream.select_cost(
-        event_stream.find_last_reported_cost(events),
-        claude_summary.estimate_total(aggregate.per_model),
-        bool(records),
+    metrics.apply_cost(
+        event_stream.select_cost(
+            event_stream.find_last_reported_cost(events),
+            claude_summary.estimate_total(aggregate.per_model),
+            bool(records),
+        ),
     )
-    metrics.cost_usd = selected_cost[0]
-    metrics.cost_source = selected_cost[1]
     metrics.turns = claude_summary.turn_count(events, records)
     return metrics
 

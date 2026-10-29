@@ -1,9 +1,9 @@
 # Usage parser
 
 Pure-Python helpers that decode the JSONL stdout `agents.models.AgentResult` carries into a `UsageMetrics` dataclass —
-backend, distinct model(s), turn count, input / output / cached / cache-read / cache-write token totals, `cost_usd`, and
-a `cost_source` tag of `reported` / `estimated` / `unknown-price` / `no-usage`. No external dependency: the parser is
-jq-free.
+backend, distinct model(s), turn count, input / output / cached / cache-read / cache-write token totals, `cost_usd`, a
+`cost_source` tag of `reported` / `estimated` / `unknown-price` / `no-usage`, and the cost and token evidence that say
+what those amounts and counters mean (below). No external dependency: the parser is jq-free.
 
 The pass runs once the audit `agent_exit` event has already fired, and `record_agent_exit` writes what it returns as
 the token / cost detail on the analytics [`agent_exit` record](event-streams.md#agent_exit-records) and the
@@ -20,7 +20,9 @@ Where the parser sits in the package tree, and what it is responsible for beside
 Each dispatches across Codex, Claude, and Antigravity. The six result types come from their defining modules:
 `UsageMetrics` and `SkillTriggers` from the first two, and `AgentTrajectory` / `TrajectoryStep` /
 `SourceItem` / `TurnUsage` from `trajectory_models.py`. Provider payload handling is split behind them: `protocol.py`
-holds the JSONL vocabulary and `event_stream.py` the resilient line decoder, `prices.py` the first-party API price
+holds the JSONL vocabulary and `event_stream.py` the resilient line decoder and the cost-precedence selection,
+`cost_evidence.py` the cost basis, completeness, and reduction and `token_evidence.py` the token-counter semantics every
+surface shares, `prices.py` the first-party API price
 catalogue over the dated rows and bounded lookup on `price_catalogue.py`, and `model_names.py` the nested model-name
 lookup, `claude_rows.py` / `claude_summary.py` and `codex_rows.py` /
 `codex_summary.py` the per-provider frame decoding and run summary, with `claude_settlement.py` settling each Claude
@@ -46,10 +48,13 @@ adds a row carrying the message's output count alone, since the run's input and 
 hand-back counts once per call it answers — the `tool_use_id` of its `tool_result` — since a resumed subagent returns
 under the agent id it had before. The final count of any earlier subagent message is printed nowhere: the `result`
 frame's `modelUsage` reports only the model's total, and what it holds beyond every output count the stream printed
-settles that message only when it is the model's sole message no `message_delta` closed, and only when the model's
-`modelUsage` input and cache counts equal the ones the stream printed, hand-backs included. Two or more such messages
-share a total no frame divides, so each keeps its start count, as a subagent's message does whenever `modelUsage`
-also covers usage no frame of the stream printed. A stream with no `message_delta` at all — printed without
+settles that message only when it is the model's sole message no `message_delta` closed, only when `modelUsage`
+reports the model's input, cache-read, cache-creation, and output totals — an absent one establishes nothing, never a
+zero — and only when those input and cache totals equal the counts the stream printed, hand-backs included. Two or
+more such messages share a total no frame divides, so each keeps its start count, as a
+subagent's message does whenever `modelUsage` also covers usage no frame of the stream printed; a message whose frames
+reported no output count and that nothing settles keeps no output count at all. A `message_delta` whose output is no
+count closes nothing. A stream with no `message_delta` at all — printed without
 `--include-partial-messages`, which the Claude backend always passes — settles nothing: every message keeps the count
 its last frame carries, and neither hand-backs nor `modelUsage` are read. On the captures the run's output equals the
 CLI's `modelUsage` total: 358 on the main run, and 450 on the subagent run, whose lead thread alone reports 314. A
@@ -79,7 +84,7 @@ For `agy`, token totals come from the completed `step_update` events in this inv
 The terminal result's usage and turn counts include earlier conversation turns on a resume, so they are not added
 to the per-run counters. `user_input` steps count this invocation's turns; `init.model` supplies the model, falling
 back to the configured `--model`. Output tokens already include thinking tokens. The CLI supplies no USD cost;
-usage has `unknown-price`, with no estimated amount. No completed usage frames means `no-usage`.
+usage has `unknown-price`, an `incomplete` cost with no amount. No completed usage frames means `no-usage`.
 
 Antigravity trajectories join each response step's text deltas, retain tool parameters and outcomes, read offered
 tools from `init`, and take the final answer only from a successful terminal result. Interrupted response text is
@@ -91,11 +96,97 @@ updates and recording each step's latest state. The lifecycle reducer reports ev
 state is not `DONE`, ensuring earlier background commands remain authoritative even when later status checks finish
 and emit terminal output.
 
-**Cost precedence.** A `total_cost_usd` reported by the CLI itself always wins (`cost_source="reported"`); otherwise the
-parser prices the usage from an active row of the price catalogue below and produces an estimate (`"estimated"`).
-When usage is present but its model resolves to no active row, the parser returns `cost_source="unknown-price"` and
-`cost_usd=None` rather than guess at zero or bill cached tokens at the input rate. An empty stream — or one with no
-usage frames at all — yields `"no-usage"`.
+**Cost precedence.** A `total_cost_usd` reported by the CLI itself always wins, an explicit `0` included
+(`cost_source="reported"`, on the `cli-reported` basis); otherwise the parser prices the usage from an active row of the
+price catalogue below and produces an estimate (`"estimated"`, on that provider's API basis). When usage is present but
+its model resolves to no active row, the parser returns `cost_source="unknown-price"` and `cost_usd=None` — an
+`incomplete` cost — rather than guess at zero or bill cached tokens at the input rate. An empty stream — or one with
+no usage frames at all — yields `"no-usage"`. One selection, `event_stream.select_cost`, builds the run's cost
+evidence, and `UsageMetrics.apply_cost` reads `cost_usd` and `cost_source` off it, so the three never disagree.
+
+**Cost basis and completeness.** `cost_evidence.py` defines the cost every surface records and folds. A
+`CostEvidence` holds monetary contributions, at most one per basis and in basis order, beside a completeness, and
+serializes as `cost_evidence` on `UsageMetrics.to_dict()` and on each Claude `TurnUsage`:
+
+```json
+{
+  "completeness": "complete",
+  "contributions": [
+    {"basis": "anthropic-api-estimate", "amount_usd": 0.42, "rates_verified_on": ["2026-10-29"]}
+  ]
+}
+```
+
+A basis says what an amount is:
+
+- `cli-reported` — the USD figure the agent CLI printed for the run (Claude's `total_cost_usd`). Its origin is the CLI;
+  nothing here verifies it against an invoice, a subscription, or a credit balance, so it is never presented as a bill.
+- `anthropic-api-estimate`, `openai-api-estimate`, `gemini-api-estimate` — a token-only list-price equivalent: the
+  run's observable usage priced at that provider's Standard first-party API rates from active catalogue rows, with
+  `rates_verified_on` naming each row's verification date. Claude estimates are on the Anthropic basis and Codex
+  estimates on the OpenAI one; no parser writes the Gemini basis yet, since Antigravity usage is still unpriced.
+- `unknown` — an amount recorded with no basis. No parser writes it; a reader files under it the `cost_usd` of a record
+  that carries no `cost_evidence`.
+
+Completeness is `complete` (the contributions cover all the observable usage), `incomplete` (some usage carries no
+amount, so the contributions are at most a subtotal — today an unpriced run states none), `no-usage` (the stream
+showed nothing to price), or `unknown` (nothing states it). `complete_usd` is the total only when it is complete, which
+is what `cost_usd` records, so an `unknown-price` cost never exposes a complete amount; `basis` is the sole
+contribution's basis, `blended` across several. A complete zero keeps its contribution: spend of zero, not an absence.
+
+An estimate excludes everything its token rates do not price: subscriptions, included quotas, credits, negotiated or
+discounted prices, service-tier and regional adjustments outside the declared Standard basis (Batch, Flex, Priority,
+data residency), cache storage, grounding and search, and every other non-token charge. That matters most for Codex,
+which can run on a ChatGPT plan's subscription or credits as well as on an API key:
+[Codex pricing](https://developers.openai.com/codex/pricing) states that Codex credit billing has no separate
+cache-write charge and that GPT-6.1 Sol usage drawn from a subscription has no long-context surcharge, while API-key
+usage follows API pricing. An `openai-api-estimate` can therefore price cache writes or a long-context tier the
+account's Codex billing never charges; it is an API comparison basis, never the subscription or credit charge. The
+Gemini basis is the same kind of comparison: once it prices Antigravity usage, it establishes no Antigravity charge.
+
+`recorded_cost(record)` reads the cost any serialized usage record states — an `agent_exit` line, a trajectory's
+`run_usage`, or one of its `turns`. An amount is read only as a non-negative finite number a float holds, zero included,
+so a negative amount or one too large for a float is no amount at all. A record without `cost_evidence`, or with
+evidence this format does not serialize — an invalid amount in it included — is read as `unknown` completeness holding
+its `cost_usd`, when that is a valid amount, under the `unknown` basis: nothing is inferred from its `cost_source`, its
+backend, or its models, and nothing backfills a provider breakdown for records written before the field existed. The
+parsers record a CLI-reported figure as the CLI printed it, so a run whose CLI printed a negative cost carries evidence
+this reader refuses and reads back as `unknown` with no amount. `reduce_costs` folds many costs into one: each basis's
+amounts are summed on their own, verification dates are unioned, and the result keeps the weakest completeness any input
+states — `incomplete` over `unknown` over `complete` over `no-usage` — so a total holding unpriced usage or an amount
+with no basis never reads as complete spend. An empty fold is `no-usage`; the reduced evidence serializes and reads back
+in the same shape.
+
+**Token-count semantics.** The raw counters keep each provider's own meaning, and `token_evidence.py` states it beside
+them as `token_evidence` on `UsageMetrics.to_dict()` and each `TurnUsage`: `observed`, the counters the stream's usage
+payloads reported a count for, and `cache_overlap`, how the cache counters relate to the input counter. A reported
+zero is observed; a counter `observed` does not name is missing evidence rather than a zero, even though its raw field
+reads `0`. The decoders keep the two apart by reading every field through `token_evidence.reported_count` /
+`first_count`, which answer `None` for a field no spelling of it reported, and keeping only the token classes a payload
+reported a count for. A missing class still sums and prices as zero, so no counter or estimate changes with it.
+
+| Backend | Counters a usage payload can report | `cache_overlap` |
+| --- | --- | --- |
+| `claude` | `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens` | `disjoint` |
+| `codex` | `input_tokens`, `output_tokens`, `cached_tokens` | `within-input` |
+| `agy` | `input_tokens`, `output_tokens`, `cache_read_tokens` | `unknown` |
+
+A Claude run observes a counter once any usage row it sums reported one, and a turn what its own row reported. Claude's
+usage blocks count ordinary input apart from cache reads and writes, and a block omitting a cache field observes none of
+it. A subagent hand-back turn observes `output_tokens` alone, since the stream prints only that count for the closing
+message, and its estimate prices that count alone; a run's own input and cache counters still leave that message out,
+as the provider parsing above describes. A Codex run observes what its authoritative record reported: the last one
+reporting any tokens, or, when every one reports only zeros, the last record reporting a count at all — those zeros
+were measured, so they are observed, while such a stream still has `no-usage` cost. Codex's `cached_tokens` is the
+part of its input served from
+cache, and it reports no cache-read or cache-write counter. An Antigravity run observes a counter once any completed
+step reported one; nothing established yet says whether its cache reads are part of its input.
+
+`non_overlapping_total(record)` is the shared way to add the counters up: every observed counter once, a cache counter
+left out only where it sits `within-input` of an input count that was itself observed — a cache count with no
+observed input to hold it is counted on its own. Beside an observed input, a nonzero cache counter of `unknown` overlap
+leaves the total `None`, never guessed either way. A record without `token_evidence` is read with the counters it holds
+and an unknown overlap, so it totals only when none of its cache counters is nonzero.
 
 **Price catalogue.** `prices.py` holds one table of rows per provider — Anthropic, OpenAI, and Gemini — at Standard
 first-party API list rates in USD per million tokens, each row recording the date it was last checked against its
@@ -249,8 +340,9 @@ count where the stream shows one, the start count its frames carry where it does
 counts are the frames'. Where hand-backs are read, a subagent's closing message, which printed no frame and so stamped
 no step, becomes a turn of its own numbered after every turn the steps carry, holding the hand-back's output count
 alone; the turns the frames gave keep their indices. Both builders settle their rows through
-`claude_settlement.ClaudeSettlement`, and the per-turn estimate reuses the same `claude_estimate_cost` price path on
-`observability/usage/prices.py` as the run aggregate. Unless the run totals fall back to the `result` frame, the
+`claude_settlement.ClaudeSettlement`, and the per-turn estimate reuses the same `claude_estimate` price path on
+`observability/usage/prices.py` as the run aggregate, each turn carrying its own Anthropic-basis cost evidence and the
+token evidence above. Unless the run totals fall back to the `result` frame, the
 per-turn token counts therefore sum to `parse_claude_usage`'s run totals and the per-turn estimates to its estimated
 cost. `parse_codex_trajectory(stdout)` normalizes each
 operational item codex reports into one `tool_call` and, when the stream actually carried an outcome, one

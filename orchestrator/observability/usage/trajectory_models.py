@@ -15,6 +15,7 @@ import inspect
 from dataclasses import dataclass, field
 from typing import Any
 
+from orchestrator.observability.usage import cost_evidence as usage_cost, protocol, token_evidence as usage_tokens
 from orchestrator.observability.usage.skills import SkillTriggers
 
 KIND_FIELD = "kind"
@@ -111,7 +112,10 @@ class SourceItem:
 
 @dataclass(frozen=True)
 class TurnUsage:
-    """Per-turn token usage for one Claude assistant turn."""
+    """Per-turn token usage for one Claude assistant turn.
+
+    The evidence pair means what it does on `UsageMetrics`: a turn built with neither reads back as unknown.
+    """
 
     turn: int
     model: str
@@ -120,18 +124,22 @@ class TurnUsage:
     cache_read_tokens: int = 0
     cache_write_tokens: int = 0
     cost_usd: float | None = None
-    cost_source: str = "estimated"
+    cost_source: str = usage_cost.ESTIMATED_SOURCE
+    cost_evidence: usage_cost.CostEvidence | None = None
+    token_evidence: usage_tokens.TokenEvidence | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
             TURN_FIELD: self.turn,
             "model": self.model,
-            "input_tokens": self.input_tokens,
-            "output_tokens": self.output_tokens,
-            "cache_read_tokens": self.cache_read_tokens,
-            "cache_write_tokens": self.cache_write_tokens,
-            "cost_usd": self.cost_usd,
+            protocol.INPUT_TOKENS: self.input_tokens,
+            protocol.OUTPUT_TOKENS: self.output_tokens,
+            protocol.CACHE_READ_TOKENS: self.cache_read_tokens,
+            protocol.CACHE_WRITE_TOKENS: self.cache_write_tokens,
+            usage_cost.COST_USD: self.cost_usd,
             "cost_source": self.cost_source,
+            usage_cost.COST_EVIDENCE: None if self.cost_evidence is None else self.cost_evidence.to_dict(),
+            usage_tokens.TOKEN_EVIDENCE: None if self.token_evidence is None else self.token_evidence.to_dict(),
         }
 
 

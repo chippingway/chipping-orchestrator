@@ -101,10 +101,11 @@ def claude_trajectory_stdout(**overrides) -> str:
     return ClaudeTrajectoryCase(**overrides).render()
 
 
-def claude_multistep_stdout(*, n_steps: int, result_text: str) -> str:
+def claude_multistep_stdout(*, n_steps: int, result_text: str, total_cost_usd: float | None = None) -> str:
     """A claude stream with `n_steps` tool_use / tool_result pairs (so
-    `2 * n_steps` trajectory steps), each result carrying `result_text`. Used
-    to drive the total-record-budget truncation."""
+    `2 * n_steps` trajectory steps), each result carrying `result_text`, and
+    the run's `total_cost_usd` when the CLI reports one. Used to drive the
+    total-record-budget truncation and the per-turn usage evidence."""
     frames: list[dict] = [
         {_TYPE_KEY: "system", "subtype": "init", "tools": [_BASH_TOOL_NAME]},
     ]
@@ -141,7 +142,10 @@ def claude_multistep_stdout(*, n_steps: int, result_text: str) -> str:
                 },
             }
         )
-    frames.append({_TYPE_KEY: _RESULT_KEY, "num_turns": n_steps})
+    result_frame: dict = {_TYPE_KEY: _RESULT_KEY, "num_turns": n_steps}
+    if total_cost_usd is not None:
+        result_frame["total_cost_usd"] = total_cost_usd
+    frames.append(result_frame)
     return "\n".join(json.dumps(frame) for frame in frames)
 
 

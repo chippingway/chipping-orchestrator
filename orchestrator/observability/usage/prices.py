@@ -14,6 +14,10 @@ can price it: Claude Opus 4.8, 5, and 5.5, Sonnet 5 and 5.5, Fable 5 and 5.1, an
 families; and every Gemini row. The restricted Mythos and Daybreak (cyber) models carry no row: no captured stream
 shows a harness emitting their IDs, and `gpt-5.6-cyber` is a moving alias for whichever cyber model is current, as is
 the bare `chat-latest`.
+
+An estimate priced from a table is a token-only list-price equivalent on that provider's API basis, carrying the
+`verified_on` date of every row it was priced at, as `cost_evidence` defines it -- never a subscription or credit
+charge.
 """
 
 from __future__ import annotations
@@ -21,7 +25,7 @@ from __future__ import annotations
 from datetime import date
 from functools import partial
 
-from orchestrator.observability.usage import price_catalogue, protocol
+from orchestrator.observability.usage import cost_evidence, price_catalogue, protocol
 
 _VERIFIED_ON = date.fromisoformat("2026-10-29")
 # The page guarantees GPT-5.6 Sol's promotional rates at least through this
@@ -338,25 +342,31 @@ GEMINI_PRICES: tuple[price_catalogue.PriceRow, ...] = (
 )
 
 
+def claude_row(model: str) -> price_catalogue.PriceRow | None:
+    return price_catalogue.active_row(CLAUDE_PRICES, model)
+
+
 def claude_rates(model: str) -> protocol.RateMap | None:
-    row = price_catalogue.active_row(CLAUDE_PRICES, model)
+    row = claude_row(model)
     return None if row is None else row.rates
 
 
-def claude_estimate_cost(
+def claude_estimate(
     model: str,
     bucket: protocol.TokenBucket,
-) -> float | None:
-    rates = claude_rates(model)
-    if rates is None:
+) -> cost_evidence.CostContribution | None:
+    """The bucket priced at the model's Anthropic API list rates, or None when no active row prices the model.
+
+    Only the token classes the bucket reports a count for are priced, so a class it does not report costs nothing.
+    """
+    row = claude_row(model)
+    if row is None:
         return None
-    return (
-        bucket[protocol.INPUT] * rates[protocol.INPUT]
-        + bucket[protocol.CACHE_WRITE_FIVE_MIN] * rates[protocol.CACHE_WRITE_FIVE_MIN]
-        + bucket[protocol.CACHE_WRITE_ONE_HOUR] * rates[protocol.CACHE_WRITE_ONE_HOUR]
-        + bucket[protocol.CACHE_READ] * rates[protocol.CACHE_READ]
-        + bucket[protocol.OUTPUT] * rates[protocol.OUTPUT]
+    amount = sum(
+        count * row.rates[token_class]
+        for token_class, count in bucket.items()
     ) / protocol.TOKENS_PER_MILLION
+    return cost_evidence.CostContribution(cost_evidence.ANTHROPIC_API_ESTIMATE, amount, (row.verified_on,))
 
 
 def codex_row(model: str) -> price_catalogue.PriceRow | None:

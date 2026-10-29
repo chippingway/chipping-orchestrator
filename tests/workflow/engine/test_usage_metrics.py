@@ -9,7 +9,11 @@ from unittest.mock import patch
 
 from orchestrator.agents.models import AgentResult
 from orchestrator.observability.analytics import settings as analytics_settings, sink as analytics_sink
-from orchestrator.observability.usage import metrics as _usage_metrics
+from orchestrator.observability.usage import (
+    cost_evidence as _cost,
+    metrics as _usage_metrics,
+    token_evidence as _tokens,
+)
 from orchestrator.workflow.engine import usage as engine_usage
 from tests.support.fakes import FakeGitHubClient
 from tests.workflow.engine import usage_frames as _usage_frames, usage_test_support as support
@@ -49,6 +53,8 @@ _analytics_records = support._analytics_records
 _claude_stdout = _usage_frames._claude_stdout
 _claude_stdout_with_skills = _usage_frames._claude_stdout_with_skills
 _codex_stdout_no_model = _usage_frames._codex_stdout_no_model
+_CLAUDE_CACHE_READ_TOKENS = 100
+_RECORDED_USAGE_FIELDS = (_cost.COST_USD, "cost_source", _cost.COST_EVIDENCE, _tokens.TOKEN_EVIDENCE)
 
 
 def _run_usage(
@@ -94,7 +100,7 @@ def _assert_usage_metrics(
     case.assertEqual(metrics.backend, BACKEND_CLAUDE)
     case.assertEqual(metrics.input_tokens, _CLAUDE_INPUT_TOKENS)
     case.assertEqual(metrics.output_tokens, _CLAUDE_OUTPUT_TOKENS)
-    case.assertEqual(metrics.cache_read_tokens, 100)
+    case.assertEqual(metrics.cache_read_tokens, _CLAUDE_CACHE_READ_TOKENS)
     case.assertEqual(
         metrics.cache_write_tokens,
         _CLAUDE_CACHE_WRITE_TOKENS,
@@ -203,3 +209,46 @@ class RunUsageSurfacedTest(unittest.TestCase):
             [event[_SKILL_KEY] for event in skill_events],
             [_DEVELOP_SKILL, _REVIEW_SKILL],
         )
+
+
+class AgentExitUsageEvidenceTest(unittest.TestCase):
+    """The `agent_exit` record states what the run's cost and counters mean, read back through the shared owners."""
+
+    def test_record_carries_the_run_evidence(self) -> None:
+        # A reported zero is spend of zero on the CLI's own basis, and the
+        # cache counters a Claude run reports sit beside its input.
+        path = _analytics_path(self, "usage-evidence-")
+        _, agent_result = _run_usage(stdout=_claude_stdout(total_cost_usd=0), analytics_path=path)
+        record = _analytics_records(path, event=EVENT_AGENT_EXIT)[0]
+        usage_fields = agent_result.usage.to_dict()
+        self.assertEqual(
+            {key: record[key] for key in _RECORDED_USAGE_FIELDS},
+            {key: usage_fields[key] for key in _RECORDED_USAGE_FIELDS},
+        )
+        self.assertEqual(
+            _cost.recorded_cost(record),
+            _cost.CostEvidence(_cost.COMPLETE, (_cost.CostContribution(_cost.CLI_REPORTED, 0),)),
+        )
+        self.assertEqual(
+            _tokens.non_overlapping_total(record),
+            _CLAUDE_INPUT_TOKENS + _CLAUDE_OUTPUT_TOKENS + _CLAUDE_CACHE_READ_TOKENS + _CLAUDE_CACHE_WRITE_TOKENS,
+        )
+
+    def test_unstated_metrics_record_unknown_basis(self) -> None:
+        path = _analytics_path(self, "usage-no-evidence-")
+        unstated = _usage_metrics.UsageMetrics(
+            backend=BACKEND_CLAUDE,
+            cache_read_tokens=_CLAUDE_CACHE_READ_TOKENS,
+            cost_usd=_REPORTED_COST_USD,
+            cost_source=_cost.REPORTED_SOURCE,
+        )
+        with patch.object(_usage_metrics, "parse_agent_usage", return_value=unstated):
+            _run_usage(stdout="", analytics_path=path)
+        record = _analytics_records(path, event=EVENT_AGENT_EXIT)[0]
+        self.assertNotIn(_cost.COST_EVIDENCE, record)
+        self.assertNotIn(_tokens.TOKEN_EVIDENCE, record)
+        self.assertEqual(
+            _cost.recorded_cost(record),
+            _cost.CostEvidence(_cost.UNKNOWN, (_cost.CostContribution(_cost.UNKNOWN_BASIS, _REPORTED_COST_USD),)),
+        )
+        self.assertIsNone(_tokens.non_overlapping_total(record))

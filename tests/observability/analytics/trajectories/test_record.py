@@ -10,6 +10,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from orchestrator.observability.analytics.trajectories import models as trajectory_models
+from orchestrator.observability.usage import cost_evidence as _cost, token_evidence as _tokens
 from tests.observability.analytics.analytics_jsonl_helpers import (
     read_records as _read_records,
 )
@@ -18,6 +19,7 @@ from tests.observability.analytics.analytics_trajectory_cases import (
     CLAUDE_TRAJECTORY_OUTPUT_TOKENS,
     CODEX_TRAJECTORY_INPUT_TOKENS,
     CODEX_TRAJECTORY_OUTPUT_TOKENS,
+    claude_multistep_stdout as _claude_multistep_stdout,
     claude_trajectory_stdout as _claude_trajectory_stdout,
     codex_trajectory_stdout as _codex_trajectory_stdout,
 )
@@ -134,6 +136,12 @@ _TRUNCATION_EDGE_CHARS = 5
 
 
 _LONG_TEXT_CHARS = 100
+
+
+_EVIDENCE_TURN_COUNT = 3
+
+
+_COST_PLACES = 12
 
 
 def _discover_codex_tools() -> list[str]:
@@ -439,3 +447,52 @@ class RecordAgentExitTrajectoryTimelineTest(_support.RecordAgentExitTrajectorySu
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RecordAgentExitUsageEvidenceTest(_support.RecordAgentExitTrajectorySupport):
+    """The trajectory's `run_usage` states the run's evidence as the `agent_exit` record does, and each turn its own."""
+
+    def test_run_and_turn_evidence_on_both_records(self) -> None:
+        # The CLI-reported zero is the run's cost on both records, while each
+        # turn keeps its own API estimate: a run-level figure reaches no turn.
+        exit_record, trajectory = self._emit_both(total_cost_usd=0)
+        run_usage = trajectory[_RUN_USAGE_KEY]
+        for evidence_key in (_cost.COST_EVIDENCE, _tokens.TOKEN_EVIDENCE):
+            self.assertEqual(run_usage[evidence_key], exit_record[evidence_key])
+        self.assertEqual(
+            _cost.recorded_cost(run_usage),
+            _cost.CostEvidence(_cost.COMPLETE, (_cost.CostContribution(_cost.CLI_REPORTED, 0),)),
+        )
+        turn_costs = [_cost.recorded_cost(turn) for turn in trajectory[_TURNS_KEY]]
+        self.assertEqual({(cost.completeness, cost.basis) for cost in turn_costs}, {
+            (_cost.COMPLETE, _cost.ANTHROPIC_API_ESTIMATE),
+        })
+        self.assertEqual(
+            _tokens.non_overlapping_total(run_usage),
+            sum(_tokens.non_overlapping_total(turn) for turn in trajectory[_TURNS_KEY]),
+        )
+
+    def test_turn_estimates_fold_to_the_run_estimate(self) -> None:
+        trajectory = self._emit_both()[1]
+        run_cost = _cost.recorded_cost(trajectory[_RUN_USAGE_KEY])
+        folded = _cost.reduce_costs(_cost.recorded_cost(turn) for turn in trajectory[_TURNS_KEY])
+        self.assertEqual(
+            (folded.completeness, folded.basis, folded.contributions[0].rates_verified_on),
+            (run_cost.completeness, run_cost.basis, run_cost.contributions[0].rates_verified_on),
+        )
+        self.assertAlmostEqual(folded.complete_usd, run_cost.complete_usd, places=_COST_PLACES)
+
+    def _emit_both(self, total_cost_usd: float | None = None) -> tuple[dict, dict]:
+        with tempfile.TemporaryDirectory() as sink_dir:
+            analytics_path = Path(sink_dir) / _ANALYTICS_FILENAME
+            trajectory_path = Path(sink_dir) / _TRAJECTORY_FILENAME
+            self._emit(
+                stdout=_claude_multistep_stdout(
+                    n_steps=_EVIDENCE_TURN_COUNT,
+                    result_text="ok",
+                    total_cost_usd=total_cost_usd,
+                ),
+                traj_path=trajectory_path,
+                analytics_path=analytics_path,
+            )
+            return _read_records(analytics_path)[0], _read_records(trajectory_path)[0]
