@@ -21,8 +21,8 @@ from tests.support.fakes import (
 from tests.workflow.drift_reports import reported
 from tests.workflow.fixtures import (
     AGENT_RUN_CHARGE_KEYS,
-    AGENT_RUN_CHARGE_WRITES,
     MEASURED_CANDIDATE_SHA,
+    Launched,
     _agent,
     _issue_branch,
     _PatchedWorkflowMixin,
@@ -195,7 +195,7 @@ class HandleResolvingConflictHashDriftTest(
         # shutdown-sweep-killed run cannot ACK / park off partial output and
         # then persist the consumed-comment / refreshed-hash changes.
         gh, issue = _seed_drift_case(INTERRUPTED_ISSUE, INTERRUPTED_PR)
-        before_writes = gh.write_state_calls
+        launched = Launched.over(gh, INTERRUPTED_ISSUE)
 
         mocks = self._run_resolving_conflict(
             gh,
@@ -215,9 +215,7 @@ class HandleResolvingConflictHashDriftTest(
         mocks["_push_branch"].assert_not_called()
         # No durable state churn: the refreshed `user_content_hash`,
         # consumed-comment, and session mutations are all discarded.
-        self.assertEqual(
-            gh.write_state_calls, before_writes + AGENT_RUN_CHARGE_WRITES,
-        )
+        launched.held(self, gh, INTERRUPTED_ISSUE)
         _assert_interrupted_drift_state(self, gh)
 
 

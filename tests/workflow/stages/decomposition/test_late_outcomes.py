@@ -9,6 +9,7 @@ from orchestrator.workflow.late_split.events import LateVerdictCategory
 from orchestrator.workflow.late_split.models import LateVerdict
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.support.fakes import FakeLabel
+from tests.workflow.fixtures import accounted
 from tests.workflow.stages.decomposition import late_reply_support as _reply_support, late_test_support as _support
 from tests.workflow.stages.decomposition.late_run_support import (
     LateCase,
@@ -64,12 +65,15 @@ class DeclinedRunTest(LateCase, unittest.TestCase):
     def test_a_mid_run_pause_writes_no_result(self) -> None:
         # A declined run costs the issue's daily budget nothing, exactly as a
         # declined run in every other stage does: the pre-spawn write carries
-        # the late identity and leaves the counters as it found them.
+        # the late identity and leaves the counters as it found them. Its
+        # usage is accounted once all the same, as it returned, and buys its
+        # verdict no replay.
         paused = _PausedDuringRun(self.issue, agent_reply(_support.SINGLE_REPLY))
 
         outcome, _ = self._adjudicate(paused)
 
         self.assertEqual(outcome.disposition, _LateDisposition.DEFERRED)
+        self.assertEqual(accounted(self._pinned()), (1, 1))
         self.assertNotIn(_support.KEYS.verdict, self._pinned())
         self.assertNotIn(_support.KEYS.session_id, self._pinned())
         self.assertNotIn(_support.KEYS.retry_count, self._pinned())
@@ -96,6 +100,7 @@ class DeclinedRunTest(LateCase, unittest.TestCase):
 
         self.assertEqual(outcome.disposition, _LateDisposition.DEFERRED)
         self.assertNotIn(_support.KEYS.verdict, self._pinned())
+        self.assertEqual(accounted(self._pinned()), (1, 1))
         # A shutdown sweep landing here over and over must not exhaust the
         # cap without ever producing an answer.
         self.assertNotIn(_support.KEYS.retry_count, self._pinned())
@@ -157,8 +162,11 @@ class DecidedOutcomeTest(LateCase, unittest.TestCase):
         )
 
         spawn.assert_called_once()
-        self.assertEqual(outcome.disposition, _LateDisposition.PARKED)
         self.assertEqual(outcome.adjudication.verdict, LateVerdict.SINGLE)
+        # Counted once as it returned; the settlement's write behind that
+        # neither adds the run again nor puts the count back.
+        parked = (outcome.disposition, accounted(self._pinned()))
+        self.assertEqual(parked, (_LateDisposition.PARKED, (1, 1)))
         self.assertEqual(self._pinned().get(_support.KEYS.session_id), _support.LATE_SESSION_ID)
         self.assertEqual(self._pinned().get(_support.KEYS.verdict), LateVerdict.SINGLE)
         self.assertEqual(

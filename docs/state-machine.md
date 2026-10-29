@@ -291,7 +291,8 @@ base refresh runs no route over that issue's worktree, and the terminal-artifact
 and branch of that issue, however it ended. Its
 keys group into agent identity, decomposition, PR / branch, the drift baseline, the HITL park, the in-review
 watermarks, the final-docs handoff, fix routing, the crash-recovery anchors, counters and timestamps, the per-issue
-usage meter, the
+usage meter -- every invoked exit counted once, with a bounded receipt, by the accounting checkpoint at that same
+boundary, a held or killed run's included, and a stage's own write owning none of it -- the
 lifetime agent-run ledger beside it — what the issue is allowed, what it has spent, and the launch holding a charge,
 charged at the one boundary every agent process is invoked from —
 the `agent_run_limit` park a spent one leaves and the sentence that park owes the thread,
@@ -577,9 +578,10 @@ trusted whole-comment `/orchestrator authorize-oversized <commit>`. A
 `timed_out` run disposes on whether the run left a commit — HEAD moved past `pre_implement_sha` AND the branch is
 ahead of `<remote>/<base>`, since a head that moved onto the base was written by nobody. The park it leaves freezes
 the branch out of the pre-tick base refresh, and the next tick's silent recovery asks that same pair, so a base a
-rebase fast-forwarded the checkout to is never published as a late-landing commit. `interrupted` or a mid-run
-`paused` returns without writing pinned state. The external-merge short-circuit, the `/orchestrator continue` retry,
-and the plan-PR question the merge terminal is reached past are in
+rebase fast-forwarded the checkout to is never published as a late-landing commit. `interrupted`, a mid-run
+`paused`, or an accounting left unresolved returns without writing pinned state of its own; the run's accounting,
+landed as it returned, is the one write beside a quota retirement it owes. The external-merge short-circuit, the
+`/orchestrator continue` retry, and the plan-PR question the merge terminal is reached past are in
 [`state-machine/delivery-stages.md`][implementing].
 
 A no-commit run an account quota stopped is a session limit rather than a question, on whichever channel the stop
@@ -671,8 +673,9 @@ fresh conversation where the quota retired the old one, under the pinned `dev_ag
 lifetime run ledger, and only a pass that succeeds publishes the commit and advances. An Antigravity `CANCELED` or
 `INTERRUPTED` terminal is such a failure here unless an OS signal killed the process. Every Antigravity docs launch
 first lands `docs_launched_sha`, alone, and is not made without it; it stands until the outcome is recorded or proved
-not to need it, so a pass that fell short under a live pause, a tick a refused quota retirement withheld, or a poller
-that died mid-run leaves it, and the next tick takes that park rather than publish or rerun anything unasked — the
+not to need it, so a pass a live pause or the shutdown sweep stopped, whatever it did, a tick a refused quota
+retirement or an unresolved accounting withheld, or a poller that died mid-run leaves it — a held return writes its
+accounting and nothing else — and the next tick takes that park rather than publish or rerun anything unasked — the
 pre-tick base refresh holding the branch still while it stands, so nothing is rebased or pushed ahead of it. Under
 `PR_REF_IN_SUBJECT` that docs commit goes out with its subject ending in exactly one ` (#N)`, naming the pull request:
 before the size gate it is replaced by a commit bound to the one the pass made — same author, tree, and body — so the

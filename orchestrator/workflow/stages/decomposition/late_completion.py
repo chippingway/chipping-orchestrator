@@ -2,8 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """Interpret and guard a completed late run before settling or publishing its verdict.
 
-Usage is folded before the completed run is checked for interruption and
-candidate mutation, then its session and answer are recorded.
+Usage is not settled here: every exit, a held, timed-out, or interrupted one
+included, was accounted as it returned, at the tracked boundary
+(`usage._run_agent_tracked`), and a verdict held here buys no replay by it. A
+run whose accounting stayed unresolved is deferred beside a live pause. The
+completed run is checked for interruption and candidate mutation, then its
+session and answer are recorded.
 Every completion, including a reused answer or a park, re-reads the issue
 owner. Only the settlement that clears this guard may hand a split to the
 transaction; deferred runs leave durable state as they found it.
@@ -15,7 +19,7 @@ from pathlib import Path
 
 from orchestrator import config
 from orchestrator.agents.models import AgentResult
-from orchestrator.workflow.engine import guards as _guards, issue_usage as _issue_usage, usage as _usage
+from orchestrator.workflow.engine import guards as _guards, usage as _usage
 from orchestrator.workflow.stages.decomposition import (
     late_outcome as _late_outcome,
     late_owner as _late_owner,
@@ -44,9 +48,10 @@ def _guarded(
     during any of them strands the same generation and the same hold.
 
     A run the tick DECLINED is the one exception, and it is not a completion:
-    an operator's `paused` label and a shutdown sweep both mean this tick did
-    not happen, and durable state has to be left exactly as the prior tick
-    left it -- which a write here would break.
+    an operator's `paused` label, a shutdown sweep, and an unresolved
+    accounting checkpoint all mean this tick did not happen, and durable state
+    has to be left as the prior tick left it, save the accounting the tracked
+    boundary landed -- which a write here would break.
 
     A split is the one verdict the settlement does not finish. It hands back
     an outcome carrying the guarantee the transaction cannot check for itself
@@ -76,7 +81,7 @@ _TIMEOUT_PARK = "late decomposer timed out after {seconds}s"
 def _settle(
     context: _LateContext, agent_result: AgentResult, worktree: Path,
 ) -> _LateAdjudicationRun:
-    """Fold this run's usage and decline the outcomes that are not answers.
+    """Decline the outcomes that are not answers, and settle the rest.
 
     What the run quoted whole is NOT repaid here. Only a verdict recorded
     over those replies has answered them (`late_verdict`), and every refusal
@@ -85,11 +90,9 @@ def _settle(
     owed to the retry its park earns rather than recorded as read by a run
     that acted on none of them.
     """
-    if _guards._paused_during_agent_run(context.gh, context.issue):
+    if agent_result.unaccounted or _guards._paused_during_agent_run(context.gh, context.issue):
         return _late_outcome._finished(context, _LateDisposition.DEFERRED)
     context.state.set(_LAST_AGENT_ACTION_AT, _usage._now_iso())
-    if not agent_result.interrupted:
-        _issue_usage._accumulate_issue_usage(context.state, agent_result.usage)
     declined = _declined_run(context, agent_result, worktree)
     if declined is not None:
         return _guarded(context, declined)

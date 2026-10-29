@@ -11,7 +11,7 @@ which still earns exactly what it would unformatted, every command, status,
 and output kept in the transaction.
 Evidence still owed, or settled by a commit nobody confirmed, holds the
 verdict while its subject stands, for a later tick to finish with no second
-reviewer, no second fold of its usage, and no round spent; a subject that
+reviewer, no second count of its usage, and no round spent; a subject that
 moved, or evidence that can never be relied on, drops it -- over the comment
 as it stands, and never in place of a verdict another road put there.
 
@@ -35,6 +35,7 @@ from orchestrator.workflow.stages.validating import (
     review_parks as _parks,
     review_verdicts as _verdicts,
 )
+from tests.workflow.fixtures import assert_only_accounted
 from tests.workflow.reviewed_reports import restate
 from tests.workflow.stages.validating import (
     disposed_verdict_test_support as _disposed,
@@ -65,7 +66,7 @@ LAST_ACTION = "last_action_comment_id"
 ANSWERED_THROUGH = 1_999_001
 
 # The issue's usage totals, and the tokens the developer run answering that
-# reply folds into them.
+# reply adds to them.
 AGENT_RUNS = "issue_agent_runs"
 
 TOKENS = "issue_total_tokens"
@@ -107,7 +108,7 @@ NOTHING = _disposition.Prepared()
 def _answers_a_reply(case, moves=()) -> None:
     """Another road's write answering a reply -- the round it buys, the thread read through -- then `moves`.
 
-    The answer is a developer's run, whose usage is folded into the issue's
+    The answer is a developer's run, whose usage is counted on the issue's
     totals in the same write. None of those fields is a record a verdict
     stands on, so only a write composed over the comment as it stands keeps
     them. Each of `moves` is more of another road's work, done behind that
@@ -456,7 +457,8 @@ class PersistedVerdictTest(_world.ReviewVerdictWorld, unittest.TestCase):
 
     def test_an_unrecorded_verdict_publishes_nothing(self) -> None:
         # The park that answers it is the caller's; the preparation says why
-        # and leaves the comment exactly as it found it.
+        # and leaves the comment as it found it, save the run's accounting,
+        # which landed as the reviewer returned.
         for name, message, filled, why in _disposed.UNRECORDED:
             with self.subTest(name):
                 self.setUp()
@@ -466,9 +468,10 @@ class PersistedVerdictTest(_world.ReviewVerdictWorld, unittest.TestCase):
                 self.returns(message)
 
                 self.assertEqual(
-                    (self.prepared, self.pinned(), _read.artifacts(self)),
-                    (_disposition.Prepared(unrecorded=why), before, []),
+                    (self.prepared, _read.artifacts(self)),
+                    (_disposition.Prepared(unrecorded=why), []),
                 )
+                assert_only_accounted(self, before, self.pinned())
 
     def test_a_refused_write_publishes_nothing(self) -> None:
         # GitHub refuses the commit persisting the verdict: nothing is
@@ -563,7 +566,7 @@ class EvidenceStandingTest(_world.ReviewVerdictWorld, unittest.TestCase):
         # nobody told. The next tick's reconciliation posts the artifact, finds
         # it by its receipt and settles it, or finds nothing owed, and the
         # verdict is ready from the record the first tick wrote, read off the
-        # comment alone -- with no second reviewer, charge, fold, round,
+        # comment alone -- with no second reviewer, charge, count, round,
         # artifact, or settlement.
         for lost in _LOST:
             with self.subTest(lost[0]):
@@ -718,8 +721,9 @@ class RecordRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
     """A verdict is persisted and kept only over the subject and records it was proved over."""
 
     def test_a_move_before_the_write_persists_nothing(self) -> None:
-        # The run is recorded over what moved -- its usage folded once -- and
-        # neither the verdict nor its transaction is persisted or published.
+        # The run is recorded over what moved -- its usage counted once, as it
+        # returned -- and neither the verdict nor its transaction is persisted
+        # or published.
         for name, behind, recorded in _BEFORE_THE_WRITE:
             with self.subTest(name):
                 self.setUp()
@@ -753,8 +757,9 @@ class RecordRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
         # run's own where a push beside it moved the subject, is composed over
         # the comment as it stands and keeps the round and the thread's mark
         # -- and so does the run's own where a later report beside it moved
-        # the records. Either way the reviewer's usage is folded over the
-        # answer's, never in place of it.
+        # the records. Either way the reviewer's usage, counted as it
+        # returned, stands beside the answer's, never in place of it, and is
+        # not counted again.
         for name, moves, expected in (
             ("alone", (), (APPROVED, 1)),
             ("beside a push", (_world.pushes,), (None, 1)),
@@ -779,16 +784,15 @@ class RecordRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
 
     def test_an_unread_subject_writes_nothing(self) -> None:
         # The thread stops answering once the round has resolved its subject:
-        # no verdict is persisted over a reading nobody took.
+        # no verdict is persisted over a reading nobody took -- only the run's
+        # accounting, which landed as the reviewer returned.
         before = self.pinned()
 
         unread = _world.AnotherRoadBehind(self, REREAD, bool, _world.stops_answering)
         unread.returning(_world.declared_run())
 
-        self.assertEqual(
-            (self.prepared, self.pinned(), _read.artifacts(self)),
-            (NOTHING, before, []),
-        )
+        self.assertEqual((self.prepared, _read.artifacts(self)), (NOTHING, []))
+        assert_only_accounted(self, before, self.pinned())
 
     def test_a_move_once_the_verdict_is_written(self) -> None:
         for name, reply, behind, expected in _ONCE_WRITTEN:
@@ -857,8 +861,8 @@ class CommitRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
     def test_a_move_ahead_of_the_commit_writes_none(self) -> None:
         # Another road writes right ahead of the commit persisting the
         # verdict, behind the last reading it was decided on: nothing is
-        # persisted, published, or folded, and the comment stays exactly as
-        # that road left it.
+        # persisted, published, or counted again, and the comment stays
+        # exactly as that road left it.
         for name, road, prepared in _AHEAD_OF_THE_COMMIT:
             with self.subTest(name):
                 self.setUp()
@@ -872,8 +876,9 @@ class CommitRaceTest(_world.ReviewVerdictWorld, unittest.TestCase):
     def test_a_reply_ahead_of_the_commit_is_kept(self) -> None:
         # Another road answers a reply, and records a notice it posted as the
         # orchestrator's, right ahead of the commit persisting the verdict:
-        # the commit lands over it -- the reviewer's usage folded beside the
-        # answer's, the thread read as far as that road read it, its round and
+        # the commit lands over it -- the reviewer's usage, counted as it
+        # returned, kept beside the answer's, the thread read as far as that
+        # road read it, its round and
         # notice kept -- and the verdict's evidence is published and settled
         # behind it, its artifact recorded beside that notice.
         ledger = [*self.pinned().get(LEDGER, []), ANOTHER_NOTICE]

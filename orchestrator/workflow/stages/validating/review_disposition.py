@@ -33,10 +33,13 @@ the pinned comment read again once the subject has been resolved, since that
 resolution is requests of its own -- and the next tick's reviewer is handed
 the subject as it stands, or refused.
 
-The run's own records -- its usage, session, and returned subject -- are
-staged here, over that last reading, rather than by the caller: a usage total
-another road folded meanwhile is added to, not written back over, however the
-records it was read against stand. A verdict of the subject that stands is
+The run's own records -- its session and returned subject -- are staged
+here, over that last reading, rather than by the caller. Its usage is none of
+them: the tracked spawn accounted it as the reviewer returned, landed on the
+comment and laid onto the state as the comment's, so no write here owns a
+usage total, and every write keeps the totals as the comment carries them --
+the run counted once, whatever a hand edit did beside it -- however the
+records the run was read against stand. A verdict of the subject that stands is
 persisted before anything is published (`review_verdicts`): the round,
 verdict, subject, the feedback a change request hands on, and the evidence the
 verdict relies on go down in ONE guarded commit beside those records and the
@@ -46,7 +49,7 @@ were minted as (`review_claims`) recorded in that same commit
 again. The transaction is published through the dispatcher's own
 reconciliation (`verification_transaction`), which retries a post GitHub
 refuses or never confirms on every later tick, so a retry reruns no reviewer,
-folds no usage twice, and spends no round. A commit refused -- a record the
+counts no usage twice, and spends no round. A commit refused -- a record the
 verdict stands on moved after the last reading, a comment that will not read
 or was replaced -- writes, publishes, and acts on nothing, and so does one
 GitHub took and never confirmed: what it may have left, the verdict and its

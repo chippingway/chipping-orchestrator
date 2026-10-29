@@ -76,11 +76,11 @@ class _LaunchHold:
     its report, its park, the hand-back, each retiring the request -- keep
     whatever another road wrote that the tick did not stage, but the size
     gate's own writes around a push still write that state whole, so anything
-    else another road wrote there -- a run allowance granted, a usage total
-    folded -- would be put back by them to the comment the handoff read. Every
-    reading is measured against the last one this hold took in, since a move
-    carried once and measured again from the older comment would be kept twice
-    where it adds up.
+    else another road wrote there -- a run allowance granted, a usage total a
+    hand edit corrected -- would be put back by them to the comment the
+    handoff read. Every reading is measured against the last one this hold
+    took in, since a move carried once and measured again from the older
+    comment would be read as both roads' move.
     """
 
     def __init__(

@@ -238,10 +238,9 @@ bad line never invalidates the rest of the stream. `_run_agent_tracked` (in `wor
 [analytics sink](event-streams.md#analytics-sink-analytics_log_path) under `event="agent_exit"`; a
 parser exception is caught and downgraded to a `log.exception`.
 
-**Terminal verdict surface.** Beyond the analytics sink, `_accumulate_issue_usage` (in `workflow/engine/issue_usage.py`,
-a sibling of `_run_agent_tracked`'s owner) folds each run's
-`UsageMetrics` into per-issue counters on the pinned state (`issue_agent_runs` / `issue_total_tokens` /
-`issue_total_cost_usd` / `issue_cost_sources`; see [state-machine/labels-and-state.md][pinned-state]). When an
+**Terminal verdict surface.** Beyond the analytics sink, every invoked run's parsed `UsageMetrics` is counted on
+per-issue counters on the pinned state (`issue_agent_runs` / `issue_total_tokens` / `issue_total_cost_usd` /
+`issue_cost_sources`; see [state-machine/labels-and-state.md][pinned-state]). When an
 issue reaches a terminal, `_format_issue_usage_verdict` renders those counters into one visible receipt line
 posted on the issue thread — `:receipt: this issue: N agent runs · T tokens · $X.XX`, with `(est.)` appended when any
 run's cost was `estimated` and the figure collapsed to `unknown` when an `unknown-price` run leaves the total
@@ -249,13 +248,30 @@ incomplete. The PR merged / rejected finalizers and the closed-`question` termin
 comment; the `umbrella` close comment appends it. It is a read-only summary — nothing gates on the figure — and it is
 skipped when no run was ever counted.
 
-Those stage folds are the counters' only production writer for now. Beside them sits a dormant accounting checkpoint
-(`workflow/engine/usage_checkpoint.py`) that no road calls yet: it lands one invoked run's increment on the same four
-counters exactly once, keyed by the identity `_run_agent_tracked` stamps on each process's result
-(`AgentResult.invocation`) rather than by a request fingerprint or a CLI session id, together with a bounded
-`issue_usage_receipts` ledger in one guarded commit, and refuses parsed usage no counter can take — a negative count,
-or a negative cost or one no float holds. The parser's meanings are unchanged by it: a `None` usage adds nothing, a
-`no-usage` run counts one exit with no cost, and an unpriced run leaves the cost total as it stands. See
+**Accounting checkpoint.** The counters have one writer: the accounting checkpoint
+(`workflow/engine/usage_checkpoint.py`), which `_run_agent_tracked` asks of every result a process returns, right
+after the usage is parsed and before any pause, interruption, timeout, wrapper, or stage disposition can discard the
+result. It lands one invoked run's increment on the four counters exactly once, keyed by the identity
+`_run_agent_tracked` stamps on each process's result (`AgentResult.invocation`) rather than by a request fingerprint
+or a CLI session id, together with a bounded `issue_usage_receipts` ledger in one guarded commit, and refuses parsed
+usage no counter can take — a negative count, or a negative cost or one no float holds. Every role is counted there —
+developer, reviewer, the initial and late decomposer, question, discussion, documentation, and conflict runs — and so
+is each attempt of a wrapper that hands its caller only the last: a poisoned session's fresh retry and an Antigravity
+command-recovery continuation are two exits, each counted. An exit whose decision is withheld is counted all the same:
+a live pause, a shutdown kill, a timeout, a failure, an incomplete run, a reviewer subject that moved, a refused
+report, or a verdict with no room. The count buys none of those decisions a replay. The parser's meanings are
+unchanged by it: a `None` usage adds nothing, a `no-usage` run counts one exit with no cost, and an unpriced run
+leaves the cost total as it stands.
+
+What the checkpoint landed is laid back onto the caller's state as the comment's, so the stage's own write behind it
+neither counts the run again nor puts the totals back as the handler read them, and no other field the handler staged
+is persisted by it. A held return writes that accounting and nothing else of the run. A checkpoint that neither landed
+nor read back covered — refused, or sent and never confirmed — leaves the result `unaccounted` and the caller's state
+withheld from every whole-state write, and holds the run's disposition and any further invocation its wrapper would
+make, as a live pause does; the next tick reads the comment afresh, and a lost response is settled there by its
+receipt rather than counted twice. So an observed exit is retained only where a usable checkpoint lands: a process
+lost before its checkpoint, or one whose checkpoint is refused, is an exit this meter never counts, and nothing
+reconstructs it from the analytics or audit sinks, which stay observational. See
 [state-machine/labels-and-state.md][pinned-state] for its fields and refusals.
 
 `issue_agent_runs` has one reader outside that receipt: the lifetime agent-run ledger on

@@ -71,12 +71,14 @@ human can say the quota has reset.
 `_BOTH_MOVES` is the fourth. A write laid over the pinned comment as it stands
 keeps what another road wrote there and what this tick staged, and where both
 moved one field it is membership here that decides whether both moves are
-kept -- a usage total adding up the runs each folded in, the cost tags beside
-it joining, a comment-id watermark keeping whichever reading went further --
-or the field is one road's to say, as every other field both moved is. Both
-are kept only over values spelled as the field's writers spell them: a flag
-where a count belongs, or a word where a list of them does, is a hand edit
-nobody can add to, and that move is one road's to say too.
+kept -- a comment-id watermark keeping whichever reading went further -- or
+the field is one road's to say, as every other field both moved is. Both are
+kept only over values spelled as the field's writers spell them: a flag where
+a comment id belongs is a hand edit nobody can compare, and that move is one
+road's to say too. The usage totals are no member: no stage adds to them, the
+accounting checkpoint alone does, and lays what it landed onto the tick's
+state as the comment's (`usage_checkpoint`), so a total both a reading and
+the tick's state moved is one run counted once, never two to add up.
 """
 from __future__ import annotations
 
@@ -247,26 +249,9 @@ _VERIFY_STATUS_TO_REASON = MappingProxyType({
 })
 
 
-def _is_amount(written: Any) -> bool:
-    """Whether `written` is a cost total as its writer spells it: a number, and no flag."""
-    return not isinstance(written, bool) and isinstance(written, (int, float))
-
-
 def _is_whole(written: Any) -> bool:
     """Whether `written` is a count or a comment id as its writers spell it: a whole number, and no flag."""
     return not isinstance(written, bool) and isinstance(written, int)
-
-
-def _adds_up(ours: Any, theirs: Any, since: Any) -> Any:
-    """A total both roads folded runs into: the other road's, with this tick's own fold added."""
-    return theirs + ours - (since or 0)
-
-
-def _is_tag_list(written: Any) -> bool:
-    """Whether `written` is the cost tags as their writer spells them: a list of words."""
-    if not isinstance(written, list):
-        return False
-    return all(isinstance(tag, str) for tag in written)
 
 
 class _BothMoves(NamedTuple):
@@ -285,23 +270,14 @@ class _BothMoves(NamedTuple):
         return self.shaped(ours) and self.shaped(theirs)
 
 
-# Each pinned field a write keeps both moves of. A usage total adds up the runs
-# each road folded in -- the run and token counts as whole numbers, the cost as
-# any number -- and the cost tags beside those totals join. A comment-id
-# watermark keeps whichever reading went further: moved back past what the
-# other road read, it would hand a comment already answered to the next reader
-# as new, and neither reading went past a comment it had not read.
-_BOTH_MOVES = MappingProxyType({
-    **dict.fromkeys(("issue_agent_runs", "issue_total_tokens"), _BothMoves(_is_whole, _adds_up)),
-    "issue_total_cost_usd": _BothMoves(_is_amount, _adds_up),
-    "issue_cost_sources": _BothMoves(
-        _is_tag_list, lambda ours, theirs, _since: sorted({*ours, *theirs}),
-    ),
-    **dict.fromkeys(
-        ("last_action_comment_id", "pr_last_comment_id", "pr_last_review_comment_id", "pr_last_review_summary_id"),
-        _BothMoves(_is_whole, lambda ours, theirs, _since: max(ours, theirs)),
-    ),
-})
+# Each pinned field a write keeps both moves of. A comment-id watermark keeps
+# whichever reading went further: moved back past what the other road read, it
+# would hand a comment already answered to the next reader as new, and neither
+# reading went past a comment it had not read.
+_BOTH_MOVES = MappingProxyType(dict.fromkeys(
+    ("last_action_comment_id", "pr_last_comment_id", "pr_last_review_comment_id", "pr_last_review_summary_id"),
+    _BothMoves(_is_whole, lambda ours, theirs, _since: max(ours, theirs)),
+))
 
 
 def _discharges_the_owed_round(state: PinnedState) -> None:
@@ -324,8 +300,8 @@ def _keeps_both_moves(state: PinnedState, field: str, read: dict, since: dict) -
     the field is one of `_BOTH_MOVES` and every value is spelled as its writers
     spell it (`_BothMoves.spelled`); False, `state` left as it is, for any
     other field, and for a value the field never records -- a hand edit, a
-    flag where a count belongs, a word where a list of them does -- whose move
-    is one road's to say like any other field's.
+    flag or a word where a comment id belongs -- whose move is one road's to
+    say like any other field's.
     """
     both = _BOTH_MOVES.get(field)
     moves = (

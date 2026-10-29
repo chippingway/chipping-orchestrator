@@ -26,6 +26,7 @@ from tests.workflow import (
 from tests.workflow.fixtures import (
     _FAKE_WT,
     MEASURED_CANDIDATE_SHA,
+    RecordsTheLaunch,
     _open_pr_for,
 )
 from tests.workflow.stages.documenting import (
@@ -253,7 +254,8 @@ class _AgyContinueDocumentingFixture(_DocumentingWorkflowMixin):
         `stop` is what that pass returned, a quota stop unless named, and
         `held`, handed the client, the hold its tick runs under; without one
         GitHub takes every edit and the disposition reads the pass. The pass
-        commits unless `head_shas` reads otherwise.
+        commits unless `head_shas` reads otherwise. The launch mock's side
+        effect records the pinned comment as each launch was invoked over it.
         """
         gh = FakeGitHubClient()
         issue = make_issue(QUOTA_ISSUE_NUMBER, label=DOCUMENTING, body=QUOTA_ISSUE_BODY)
@@ -272,7 +274,9 @@ class _AgyContinueDocumentingFixture(_DocumentingWorkflowMixin):
         )
         _open_pr_for(gh, issue_number=QUOTA_ISSUE_NUMBER, pr_number=CONTINUE_PR_NUMBER)
         _verified.verifies_the_approval(gh, issue)
-        run_agent = MagicMock(side_effect=[stop or _failures.agy_quota_stop(), _CONFIRMED])
+        run_agent = MagicMock(side_effect=RecordsTheLaunch(
+            gh, QUOTA_ISSUE_NUMBER, (stop or _failures.agy_quota_stop(), _CONFIRMED),
+        ))
         with (held or self._edits_taken)(gh):
             self._run_documenting(
                 gh,

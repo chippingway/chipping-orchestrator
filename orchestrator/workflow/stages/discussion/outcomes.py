@@ -3,9 +3,13 @@
 """What a finished discussion round left behind, in the order that matters.
 
 The live pause comes first and suppresses every disposition below it, because
-that is the whole promise a hard control label makes: the timestamp, the usage
-fold, the session id the run already retained, and every park here have to wait
-for the operator. What keeps that safe for a run that COMMITTED -- the one
+that is the whole promise a hard control label makes: the timestamp, the
+session id the run already retained, and every park here have to wait for the
+operator. The run's usage does not wait: it was accounted as the run returned,
+at the tracked boundary (`usage._run_agent_tracked`), and an analysis held here
+buys no replay by it. A run whose accounting stayed unresolved is declined
+beside the pause, since every disposition writes the state that accounting is
+laid on. What keeps that safe for a run that COMMITTED -- the one
 outcome the next tick could otherwise mistake for work the branch arrived with
 -- is the anchor `run` wrote before the spawn: it outlives the withheld round,
 so the next active tick classifies the commit instead of adopting it.
@@ -53,7 +57,7 @@ from __future__ import annotations
 
 from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
 from orchestrator.git.worktrees import paths as _worktree_paths
-from orchestrator.workflow.engine import guards as _guards, issue_usage as _issue_usage, usage as _usage
+from orchestrator.workflow.engine import guards as _guards, usage as _usage
 from orchestrator.workflow.stages.discussion import (
     checkout_parks as _checkout_parks,
     models as _models,
@@ -102,13 +106,14 @@ def _declined_round(
 
     A live pause suppresses every disposition below, leaving each in-memory
     mutation unpersisted so the next active tick replays the same durable
-    state. A commit made by the withheld round is not lost with it: the anchor
+    state, and a round whose accounting is unresolved is declined the same
+    way. A commit made by the withheld round is not lost with it: the anchor
     written before the spawn outlives this return, and the next tick reads it
     back rather than adopting the commit as its own baseline.
     """
     if _guards._ignore_if_never_invoked(run.issue, discussion_result):
         return True
-    return _guards._paused_during_agent_run(run.gh, run.issue)
+    return discussion_result.unaccounted or _guards._paused_during_agent_run(run.gh, run.issue)
 
 
 def _assess_discussion_outcome(
@@ -120,8 +125,6 @@ def _assess_discussion_outcome(
         return _models._DiscussionOutcome(None)
 
     run.state.set(_state._LAST_DISCUSSION_AT, _usage._now_iso())
-    if not discussion_result.interrupted:
-        _issue_usage._accumulate_issue_usage(run.state, discussion_result.usage)
 
     committed = _round_committed(run, round_result)
     if committed is None:

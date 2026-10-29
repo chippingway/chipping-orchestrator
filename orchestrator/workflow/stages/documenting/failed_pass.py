@@ -10,10 +10,12 @@ of what such a run left is a finished pass: not its commit, not the tool calls
 it completed, not a `DOCS: NO_CHANGE` it wrote. The disposition parks it.
 
 Several ticks end before any disposition and write nothing of it: a live pause,
-and a quota retirement the comment would not take, which withholds the tick's
-state. Whatever the pass left would then be read by the next tick as a branch
-nothing failed on -- its commit published by the recovered-commit shortcut, or
-a fresh pass launched -- with no human having seen the failure. So the record
+a shutdown-sweep kill, an accounting left unresolved, and a quota retirement the
+comment would not take, which withholds the tick's state -- a held return writes
+the run's accounting and nothing else. Whatever the pass left would then be read
+by the next tick as a branch nothing failed on -- its commit published by the
+recovered-commit shortcut, or a fresh pass launched -- with no human having seen
+the failure. So the record
 is landed BEFORE the launch rather than after the failure is known, where a
 write that does not land could lose it: every Antigravity docs launch first
 lands `docs_launched_sha`, the head it is launched on, alone through the
@@ -22,11 +24,10 @@ did not land on is not made (`_armed`). Only Antigravity runs can fall short
 here, so no other backend's launch pays the write.
 
 The record stands until the run's outcome is known not to need it: the
-disposition drops it in whatever write records the outcome, and a paused pass
-that succeeded or a run no disposition may read -- a shutdown-sweep kill, a
-launch never made -- drops it alone (`_settle`). A pass that fell short under
-a pause, or a tick a quota retirement withheld, writes nothing and leaves it
-standing, as does a poller that died mid-run. The next tick that is not
+disposition drops it in whatever write records the outcome, and a launch never
+made drops it alone (`_settle`), having run nothing. A held return writes
+nothing of it and leaves it standing, whatever the pass did, as does a poller
+that died mid-run. The next tick that is not
 answering a park and finds it takes the park the pass earned instead of the
 recovered or fresh shape (`_unfinished_pass_owed`); that park, a stamped docs
 verdict, and a drift unwind that resets the commits away each drop it
@@ -35,8 +36,8 @@ the branch still while it stands (`git/base_sync/frozen`): rebased first, the
 pass's commit -- or with none, the base -- would be pushed and the issue
 handed back to review before that park could be taken. A drop that does not
 land leaves the record standing, so that next tick parks: a pass that
-succeeded can be asked about once more, but one that failed is never published
-unseen.
+succeeded, or one held before anything read its outcome, can be asked about
+once more, but one that failed is never published unseen.
 """
 from __future__ import annotations
 
@@ -90,7 +91,7 @@ def _armed(ctx: _models._DocumentingContext, head: str) -> bool:
 
 
 def _settle(ctx: _models._DocumentingContext) -> None:
-    """Drop `docs_launched_sha` alone, for a tick that writes nothing else and whose run did not fall short.
+    """Drop `docs_launched_sha` alone, for a launch never made: no process ran that could need it.
 
     A tick whose state a quota retirement withheld writes nothing over the
     comment at all, so the record stands for the next tick to park on.

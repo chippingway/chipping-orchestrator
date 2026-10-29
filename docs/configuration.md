@@ -688,8 +688,8 @@ examples.
   low-level `run_agent` call every role goes through — so a run that crashed, timed out, was killed mid-flight, or came
   back to an issue you had just `paused` is still spent, its outcome discarded but its compute already gone. That is
   also why this count can sit above the `issue_agent_runs` figure the terminal receipt reports,
-  since that one records only the runs whose usage parsed. A launch whose charge could not be written invokes no
-  process at all. Where an issue that has spent it all STOPS is the park on
+  since that one records only the runs whose usage parsed and whose accounting landed. A launch whose charge could not
+  be written invokes no process at all. Where an issue that has spent it all STOPS is the park on
   [`workflow/engine/run_limit.py`](../orchestrator/workflow/engine/run_limit.py): `awaiting_human` with a stable
   `agent_run_limit` reason, a notice recorded before it is posted and said once per park, and a hold in the
   dispatcher that keeps such an issue off every stage handler — behind only an authorized restart and a cancelled
@@ -1311,10 +1311,11 @@ pinned into an in-flight session — are in
   before any post-agent side effect, and discards the result rather than pushing, opening a PR, relabeling,
   advancing watermarks, or posting comments, so the committed work stays on the branch and republishes once the label
   is removed. The two conversation stages honor it on the same terms: a `paused` that lands while a `question` or
-  `discussion` round is running suppresses every disposition below it, so nothing is posted, parked, folded into the
-  usage counters, or written to pinned state. A discussion round that had just committed the confirmed plan keeps that
-  commit on its branch and has it published by the tick after the label comes off, classified against the round anchor
-  the stage wrote before the spawn.
+  `discussion` round is running suppresses every disposition below it, so nothing is posted, parked, or written to
+  pinned state. The one write a paused run still leaves, in every stage, is its own usage accounting: the exit is
+  counted on the per-issue usage counters once as it returns, before the pause is read, and buys the run no replay.
+  A discussion round that had just committed the confirmed plan keeps that commit on its branch and has it published
+  by the tick after the label comes off, classified against the round anchor the stage wrote before the spawn.
 - `workflow:community_contribution` — Applied automatically (not by an operator) by the per-tick open-PR sweep: any
   open PR whose author is outside `ALLOWED_ISSUE_AUTHORS` is labeled and `HITL_HANDLE` is @-mentioned once per PR so a
   human reviews the community-submitted work. Bot authors (Dependabot, Renovate, CI bots) are skipped, and so are an

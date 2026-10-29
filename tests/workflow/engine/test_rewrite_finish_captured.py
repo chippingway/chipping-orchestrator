@@ -237,9 +237,9 @@ class CapturedRouteTest(captured_support.CapturedEvidenceCase, unittest.TestCase
         return self.asks(_captured.stands_before_the_route, finish, proof=proof)
 
 
-# A usage total the tick staged and has not written, and what it staged it as.
-_STAGED_USAGE = "issue_total_tokens"
-_STAGED_TOKENS = 4242
+# A field the tick staged and has not written, and what it staged it as.
+_STAGED = "dev_session_id"
+_STAGED_SESSION = "staged-by-the-tick"
 
 
 class AbandonmentWriteTest(unittest.TestCase, captured_support.CapturedEvidenceCase):
@@ -263,18 +263,18 @@ class AbandonmentWriteTest(unittest.TestCase, captured_support.CapturedEvidenceC
         self.assert_dormant(self.abandoned())
 
     def test_it_lands_what_the_tick_staged(self) -> None:
-        # The tick staged a usage total it has not written when the checkout
+        # The tick staged a field it has not written when the checkout
         # left the landed head: the abandonment lands it once beside the
         # retired run, and the tick goes on holding it as written.
         finish = self.landed()
-        finish.state.set(_STAGED_USAGE, _STAGED_TOKENS)
+        finish.state.set(_STAGED, _STAGED_SESSION)
         self.world.checkout_head = _world.STRAY_SHA
 
         self.assertEqual(self.asks(_captured.stands_before_the_route, finish), _HELD)
 
         durable = readings.pinned(self)
-        staged = (finish.state.get(_STAGED_USAGE), durable.get(_STAGED_USAGE))
-        self.assertEqual(staged, (_STAGED_TOKENS, _STAGED_TOKENS))
+        staged = (finish.state.get(_STAGED), durable.get(_STAGED))
+        self.assertEqual(staged, (_STAGED_SESSION, _STAGED_SESSION))
         self.assert_dormant(self.abandoned())
 
     def test_a_replaced_attempt_keeps_its_records(self) -> None:

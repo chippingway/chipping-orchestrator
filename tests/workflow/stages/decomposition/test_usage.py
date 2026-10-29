@@ -19,12 +19,14 @@ from tests.workflow.fixtures import (
     LABEL_DECOMPOSING,
     _agent,
     _manifest,
+    assert_only_accounted,
 )
 from tests.workflow.stages.decomposition.decomposing_test_support import (
     _DecomposingWorkflowMixin,
 )
 
 KEY_DECOMPOSER_AGENT = "decomposer_agent"
+KEY_USAGE_RECEIPTS = "issue_usage_receipts"
 KEY_DECOMPOSER_SESSION_ID = "decomposer_session_id"
 KEY_CHILDREN = "children"
 KEY_UMBRELLA = "umbrella"
@@ -98,11 +100,11 @@ class DecomposerRunUsageAccumulationTest(
     unittest.TestCase,
     _DecomposingWorkflowMixin,
 ):
-    """`_handle_decomposing` folds each real decomposer exit into the
-    per-issue usage counters, at both the fresh-spawn and awaiting-human
-    resume sites, and leaves them unpersisted when the run was interrupted
-    (empty stdout parses to a `no-usage` metric: a counted run with zero
-    tokens).
+    """Each real decomposer exit is counted on the per-issue usage counters
+    exactly once, at both the fresh-spawn and awaiting-human resume sites --
+    an interrupted one included, whose disposition is withheld while its
+    accounting is not (empty stdout parses to a `no-usage` metric: a counted
+    run with zero tokens).
     """
 
     def test_fresh_run_persists_one_run(self) -> None:
@@ -182,7 +184,7 @@ class DecomposerRunUsageAccumulationTest(
         self.assertNotIn(KEY_ISSUE_AGENT_RUNS, state)
         self.assertNotIn(KEY_ISSUE_TOTAL_TOKENS, state)
 
-    def test_interrupted_run_keeps_counters_clear(self) -> None:
+    def test_interrupted_run_is_accounted_alone(self) -> None:
         gh = FakeGitHubClient()
         issue = make_issue(INTERRUPTED_USAGE_ISSUE_NUMBER, label=LABEL_DECOMPOSING)
         gh.add_issue(issue)
@@ -190,9 +192,10 @@ class DecomposerRunUsageAccumulationTest(
             INTERRUPTED_USAGE_ISSUE_NUMBER,
             # Seed the drift baseline so `_detect_user_content_change` does
             # not itself write on first encounter -- this test asserts the
-            # handler writes NOTHING once the run is interrupted.
+            # handler writes nothing of its own once the run is interrupted.
             user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
         )
+        before = gh.pinned_data(INTERRUPTED_USAGE_ISSUE_NUMBER)
 
         self._run_decomposing(
             gh,
@@ -206,23 +209,22 @@ class DecomposerRunUsageAccumulationTest(
         )
 
         # A shutdown-killed decomposer returns before `write_pinned_state`,
-        # so neither the folded counters nor a silent/invalid park reach
-        # GitHub.
+        # so no silent/invalid park reaches GitHub; the exit it was is counted
+        # once, as it returned, and nothing else of it.
         state = gh.pinned_data(INTERRUPTED_USAGE_ISSUE_NUMBER)
-        self.assertNotIn(KEY_ISSUE_AGENT_RUNS, state)
-        self.assertNotIn(KEY_ISSUE_TOTAL_TOKENS, state)
+        assert_only_accounted(self, before, state)
         self.assertFalse(state.get(KEY_AWAITING_HUMAN))
 
-    def test_dirty_interrupt_parks_without_counters(
+    def test_dirty_interrupt_parks_and_counts_once(
         self,
     ) -> None:
         # An interrupted decomposer that nonetheless left changes in the
         # worktree must still hit the read-only dirty park -- the interrupted
         # guard sits AFTER that park precisely so a killed misbehaving run
         # does not slip through and lose the inspection worktree. That park
-        # DOES write pinned state, so the usage fold must be skipped for the
-        # interrupted run or a counter would persist despite the run being
-        # killed.
+        # DOES write pinned state, behind the accounting the run landed as it
+        # returned: the park keeps the one count rather than adding the run
+        # again or putting it back.
         gh = FakeGitHubClient()
         issue = make_issue(
             DIRTY_INTERRUPTED_USAGE_ISSUE_NUMBER,
@@ -246,7 +248,7 @@ class DecomposerRunUsageAccumulationTest(
         self.assertIn(READ_ONLY_FRAGMENT, gh.posted_comments[-1][1])
         # Worktree kept for inspection (the dirty park's contract).
         mocks[CLEANUP_DECOMPOSE_WORKTREE].assert_not_called()
-        # The park wrote pinned state, but the killed run's usage was NOT
-        # folded, so no counter accrued.
-        self.assertNotIn(KEY_ISSUE_AGENT_RUNS, state)
-        self.assertNotIn(KEY_ISSUE_TOTAL_TOKENS, state)
+        self.assertEqual(
+            (state[KEY_ISSUE_AGENT_RUNS], len(state[KEY_USAGE_RECEIPTS]["recent"])),
+            (1, 1),
+        )

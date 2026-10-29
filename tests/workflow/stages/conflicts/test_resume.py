@@ -13,8 +13,8 @@ from tests.workflow.agent_failure_values import agy_quota_stop
 from tests.workflow.fixtures import (
     _FAKE_WT,
     _TEST_SPEC,
-    AGENT_RUN_CHARGE_WRITES,
     MEASURED_CANDIDATE_SHA,
+    Launched,
     _agent,
 )
 from tests.workflow.session_limit_parks import READ_THEN_UNREADABLE, assert_session_limit_park
@@ -284,7 +284,7 @@ class ResolvingConflictAwaitingHumanResumeTest(unittest.TestCase, _ResolvingConf
             conflict_round=1,
             last_action_comment_id=1000,
         )
-        before_writes = gh.write_state_calls
+        launched = Launched.over(gh, CONFLICT_ISSUE)
 
         mocks, merge_mock, _ = self._run_with_merge(
             gh,
@@ -300,9 +300,7 @@ class ResolvingConflictAwaitingHumanResumeTest(unittest.TestCase, _ResolvingConf
 
         mocks[RUN_AGENT].assert_called_once()
         merge_mock.assert_not_called()
-        self.assertEqual(
-            gh.write_state_calls, before_writes + AGENT_RUN_CHARGE_WRITES,
-        )
+        launched.held(self, gh, CONFLICT_ISSUE)
         # Park not consumed, reply watermark not advanced -- the next process
         # re-resumes on the same comment.
         _assert_interrupted_resume_state(self, gh)

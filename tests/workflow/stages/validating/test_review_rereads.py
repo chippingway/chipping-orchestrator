@@ -6,9 +6,11 @@ The tick reads the comment, resolves its reviewer's subject over that reading,
 and stages its own moves; another road's write lands on the comment before
 the reread. Wherever the reread carries anything -- a persisted verdict's
 recheck over records that stand, the return's own reading over records that
-moved -- a field both roads moved keeps both moves where they add up or only
-advance: the runs each folded into the usage totals, the cost tags beside
-them, each thread read as far as either read it. The ledger of the
+moved -- a field both roads moved keeps both moves where they only advance:
+each thread read as far as either read it. The usage accounting is always the
+comment's: its one writer lays what it lands onto the tick's state as the
+comment's, so a reading measured from before the tick's own run was accounted
+counts it once, never adding it to what another writer left there. The ledger of the
 orchestrator's own comments is merged, within its bound, and an entry naming
 no comment -- or a ledger that is no list -- is dropped from either side
 rather than read as one or left for the next scan of the ledger to fail on. Every other field both moved
@@ -22,8 +24,8 @@ already holds as the tick does, which is not counted a second time.
 
 The return's own write behind a reread is a guarded commit over a fresh
 reading, so another road writing between the two is never written back over:
-its folds, its reading of either thread, and its posts are kept beside the
-return's own, while a record the return was decided on -- a later report, a
+the runs it counted, its reading of either thread, and its posts are kept
+beside the return's own, while a record the return was decided on -- a later report, a
 repoint, another round's verdict, or any of them spelled anew, `null` for none
 or `true` for `1` -- a field the tick moved too, a comment that no longer reads
 as the one read, or one with no room left refuses it with nothing written. A
@@ -85,10 +87,10 @@ LEDGER = "orchestrator_comment_ids"
 
 REVIEW_ROUND = "review_round"
 
+LAST_REVIEW_SESSION = "last_review_session_id"
+
 # The cost tags a folded run can carry.
 REPORTED = "reported"
-
-ESTIMATED = "estimated"
 
 UNPRICED = "unknown-price"
 
@@ -108,15 +110,11 @@ _RESOLVED = MappingProxyType({
 })
 
 # Each road's moves over that reading, and the comment it posted: this tick's
-# run folded, the pull-request thread read furthest, and the round moved on;
-# another road's run folded with a cost nobody priced, the issue thread read
+# pull-request thread read furthest, and the round moved on; another road's
+# run counted on the totals with a cost nobody priced, the issue thread read
 # furthest, and a round of its own.
 _OURS = (
     MappingProxyType({
-        AGENT_RUNS: 4,
-        TOKENS: 320,
-        COST: 3.5,
-        COST_SOURCES: [ESTIMATED, REPORTED],
         ISSUE_THREAD_MARK: 110,
         PR_THREAD_MARK: 215,
         REVIEW_ROUND: 2,
@@ -137,14 +135,14 @@ _THEIRS = (
     120,
 )
 
-# Every move both roads made that is kept whole: the runs each folded added
-# up, the cost tags joined, each thread read as far as either read it, and
-# both roads' comments on the ledger.
+# Every move both roads made that is kept whole: the usage totals the other
+# road counted, as the comment carries them, each thread read as far as either read
+# it, and both roads' comments on the ledger.
 _BOTH_KEPT = MappingProxyType({
-    AGENT_RUNS: 5,
-    TOKENS: 370,
-    COST: 3.75,
-    COST_SOURCES: [ESTIMATED, REPORTED, UNPRICED],
+    AGENT_RUNS: 4,
+    TOKENS: 350,
+    COST: 3.25,
+    COST_SOURCES: [REPORTED, UNPRICED],
     ISSUE_THREAD_MARK: 120,
     PR_THREAD_MARK: 215,
     LEDGER: [100, 110, 120],
@@ -220,14 +218,11 @@ _READINGS = (
 
 
 # Values another road's write left spelled as no writer spells them -- hand
-# edits: a word, or a flag, for a total; a fraction for a count of runs; a
-# word for the list of cost tags; a flag for a comment-id watermark.
+# edits: a flag for a comment-id watermark, and a word for the comment id the
+# issue thread was read through.
 _HAND_EDITS = (
-    (TOKENS, "lots"),
-    (TOKENS, True),
-    (AGENT_RUNS, 4.5),
-    (COST_SOURCES, UNPRICED),
     (PR_THREAD_MARK, True),
+    (ISSUE_THREAD_MARK, "read"),
 )
 
 # Entries on the comment's ledger that name no comment: one it already
@@ -246,9 +241,9 @@ _MERGED_LEDGER = (100, 110, 120)
 
 # What this tick wrote earlier in the tick than the reading a subject is bound
 # to, what it staged behind that write, and what another road moved and posted
-# after it: a run folded with a cost nobody priced, the issue thread read
-# furthest, and a round of its own.
-_WRITTEN_EARLIER = MappingProxyType({TOKENS: 320, PR_THREAD_MARK: 215})
+# after it: a run counted on the totals with a cost nobody priced, the issue
+# thread read furthest, and a round of its own.
+_WRITTEN_EARLIER = MappingProxyType({PR_THREAD_MARK: 215})
 
 _STAGED = MappingProxyType({ISSUE_THREAD_MARK: 110, REVIEW_ROUND: 2})
 
@@ -265,10 +260,10 @@ _THEIRS_BEFORE_THE_BINDING = (
 
 # What the binding leaves: the other road's run and its cost tag, the issue
 # thread read as far as either read it, and its notice as the orchestrator's;
-# the total and the mark this tick wrote once each; and the round this tick's.
+# the mark this tick wrote once; and the round this tick's.
 _BOUND = MappingProxyType({
     AGENT_RUNS: 4,
-    TOKENS: 320,
+    TOKENS: 300,
     COST: 3.25,
     COST_SOURCES: [REPORTED, UNPRICED],
     ISSUE_THREAD_MARK: 120,
@@ -300,11 +295,11 @@ class ConcurrentWritesTest(unittest.TestCase):
         self.github.add_issue(self.issue)
 
     def test_both_moves_are_kept_either_way(self) -> None:
-        # Kept whole, neither road's fold of a run is written away by the
-        # other's, no comment either read is handed to the next reader as new,
-        # and no comment either posted is read back as a human's. A field that
-        # neither adds up nor advances -- the round -- is one road's to say.
-        # The reread hands back the comment exactly as the other road left it.
+        # Kept whole, no run the other road counted is written away, no
+        # comment either read is handed to the next reader as new, and no
+        # comment either posted is read back as a human's. A field that does
+        # not advance -- the round -- is one road's to say. The reread hands
+        # back the comment exactly as the other road left it.
         for reading in _READINGS:
             with self.subTest(reading.name):
                 theirs = ({**_THEIRS[0], **reading.theirs}, _THEIRS[1])
@@ -324,9 +319,9 @@ class ConcurrentWritesTest(unittest.TestCase):
 
     def test_a_value_no_writer_records_is_one_roads(self) -> None:
         # A value another road left as no writer spells it -- a hand edit --
-        # cannot be added to, joined, or advanced past: like any other field
-        # both moved, it is this tick's over records that stand, and the other
-        # road's where they moved.
+        # cannot be advanced past: like any other field both moved, it is this
+        # tick's over records that stand, and the other road's where they
+        # moved.
         for reading, (field, edited) in itertools.product(_READINGS, _HAND_EDITS):
             with self.subTest(reading.name, field=field, edited=edited):
                 self.setUp()
@@ -457,11 +452,17 @@ OTHER_PR = PR + 1
 # What the comment carried when the return's reread read it.
 _RETURNED_OVER = MappingProxyType({**_RESOLVED, "pr_number": PR})
 
-# This tick's own moves of the return -- its run folded, the pull-request
-# thread read furthest, the round moved on -- and another road's behind its
-# reread that the return's commit keeps beside them: a run folded with a cost
-# nobody priced, the issue thread read furthest, and a notice it posted.
-_RETURN_MOVES = (MappingProxyType({**_OURS[0], LEDGER: [100]}), None)
+# This tick's own moves of the return -- the session its reviewer ran as, the
+# pull-request thread read furthest, the round moved on -- and another road's
+# behind its reread that the return's commit keeps beside them: a run
+# counted on the totals with a cost nobody priced, the issue thread read furthest, and a
+# notice it posted.
+_RETURN_SESSION = "rev-sess"
+
+_RETURN_MOVES = (
+    MappingProxyType({**_OURS[0], LEDGER: [100], LAST_REVIEW_SESSION: _RETURN_SESSION}),
+    None,
+)
 
 _INDEPENDENT = _roads.Writes({
     **{field: written for field, written in _THEIRS[0].items() if field != REVIEW_ROUND},
@@ -513,11 +514,12 @@ class ReturnCommitTest(unittest.TestCase):
         self.github.add_issue(self.issue)
 
     def test_independent_moves_are_kept(self) -> None:
-        # Another road folds a run, reads the issue thread further, and posts
-        # a notice once the reread is taken: the commit lays the return over
-        # that, adding up both runs, joining both cost tags, keeping each
-        # thread read as far as either read it and both roads' comments, and
-        # the state then reads as the comment does.
+        # Another road counts a run on the totals, reads the issue thread
+        # further, and posts a notice once the reread is taken: the commit lays
+        # the return over that, keeping the run that road counted as the comment
+        # carries it -- the return owns no total -- each thread read as far as
+        # either read it, and both roads' comments, and the state then reads
+        # as the comment does.
         state = self._reread()
         _INDEPENDENT(self)
 
@@ -561,7 +563,7 @@ class ReturnCommitTest(unittest.TestCase):
         self.assertEqual(
             (landed, state.withheld, self._written()), (False, True, written),
         )
-        self.assertEqual(written[0][TOKENS], _OURS[0][TOKENS])
+        self.assertEqual(written[0][LAST_REVIEW_SESSION], _RETURN_SESSION)
 
     def test_a_full_comment_posts_no_park(self) -> None:
         # A reviewer that left no verdict parks, and the comment has no room

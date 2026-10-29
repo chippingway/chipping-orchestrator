@@ -16,9 +16,12 @@ over the reading the tick last synced with the comment (`PinnedState.synced`),
 which every reading of the round lays its moves into
 (`review_comment._Reread.lays_over`), owning every field the tick staged since
 beside the fields each write declares (`ReportWrite`), and keeping both moves
-of a usage total, its cost tags, a comment-id watermark, and the ledger of the
-orchestrator's own comments by the validating stage's own rule for each.
-Every other field is the fresh reading's.
+of a comment-id watermark and the ledger of the orchestrator's own comments by
+the validating stage's own rule for each. Every other field is the fresh
+reading's -- the usage accounting among them, which no write here owns: the
+tracked boundary landed the reviewer's in a commit of its own and laid it on
+the tick's state as the comment's, so a return neither counts the run again
+nor puts the totals back as the tick read them.
 
 Each write is decided on records it holds the comment to, as that reading
 spells them: the launch, a return, and a return's park on the developer
@@ -44,7 +47,7 @@ not land. A write GitHub took and never confirmed is answered the same way --
 nothing acts on it -- and the records it may have left settle it on a later
 tick: a launch's records written again over themselves with nothing sent, a
 verdict and its transaction finished by that tick's reconciliation and
-recovery with no second reviewer, artifact, fold, charge, or round.
+recovery with no second reviewer, artifact, count, charge, or round.
 
 A change request's handoff, the retirement or drop of a handed one, the park
 its launch takes, and the recovery's own writes -- an anchor written back, a
@@ -96,14 +99,10 @@ log = logging.getLogger("orchestrator.workflow")
 
 _AWAITING_HUMAN = "awaiting_human"
 
-# What a returned run leaves on the comment: the usage it folded into the
-# issue's totals and their cost tags, the session it ran as, when it
-# returned, and the subject it was handed.
+# What a returned run leaves on the comment: the session it ran as, when it
+# returned, and the subject it was handed. Its usage is the accounting
+# checkpoint's to write, and is accounted before any of these.
 _RETURNED = frozenset((
-    "issue_agent_runs",
-    "issue_total_tokens",
-    "issue_total_cost_usd",
-    "issue_cost_sources",
     _review_records._LAST_REVIEW_SESSION_ID,
     _review_records._LAST_REVIEW_AT,
     _review_subjects.RETURNED_SUBJECT,
@@ -265,9 +264,8 @@ def lands_the_launch(
 
 
 def stages_the_return(state: PinnedState, run: _models._ReviewerRun) -> None:
-    """Stage on `state` what `run`'s reviewer left: its usage, its session, when it returned, and what it read."""
-    returned = run.agent_result
-    _review_records._records_the_return(state, returned.usage, returned.session_id, run.subject)
+    """Stage on `state` what `run`'s reviewer left: its session, when it returned, and what it read."""
+    _review_records._records_the_return(state, run.agent_result.session_id, run.subject)
 
 
 def parks_the_return(

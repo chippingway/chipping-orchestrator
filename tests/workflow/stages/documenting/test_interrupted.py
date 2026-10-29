@@ -14,10 +14,13 @@ from tests.support.fakes import (
 )
 from tests.workflow.agent_failure_values import agy_signal_killed
 from tests.workflow.fixtures import (
-    AGENT_RUN_CHARGE_WRITES,
+    AGENT_RUN_WRITES,
     MEASURED_CANDIDATE_SHA,
+    Launched,
+    RecordsTheLaunch,
     _agent,
     _open_pr_for,
+    assert_only_accounted,
 )
 
 # --- Workflow labels this stage routes between --------------------------
@@ -81,8 +84,9 @@ DOCS_ARCHITECTURE = "docs/architecture.md"
 RUN_AGENT = "run_agent"
 PUSH_BRANCH = "_push_branch"
 # What an Antigravity docs launch writes of its own record: landed ahead of the
-# run, and dropped once the run proves to need none.
-LAUNCH_RECORD_WRITES = 2
+# run, and left standing by a return the tick holds.
+LAUNCH_RECORD_WRITES = 1
+DOCS_LAUNCHED_SHA = "docs_launched_sha"
 
 UNCOMMITTED_CHANGE = "uncommitted change"
 TRUSTED_AUTHOR = "alice"
@@ -181,12 +185,14 @@ class HandleDocumentingInterruptedTest(unittest.TestCase, _DocumentingWorkflowMi
     """A docs run the shutdown sweep killed mid-flight
     (`AgentResult.interrupted`) must be ignored: the handler returns WITHOUT
     writing pinned state, so the pre-spawn `docs_checked_sha` / watermark
-    writes are discarded and durable state stays retryable. It must not park,
+    writes are discarded and durable state stays retryable -- the run's usage
+    alone is accounted, as it returned. It must not park,
     advance to `in_review`, post a HITL question, or set a docs verdict off
     the partial result."""
 
     def test_interrupted_final_docs_keeps_state(self) -> None:
-        gh, issue, before_writes = _interrupted_fixture()
+        gh, issue, _ = _interrupted_fixture()
+        launched = Launched.over(gh, INTERRUPTED_ISSUE_NUMBER)
 
         mocks = self._run_documenting(
             gh,
@@ -199,14 +205,11 @@ class HandleDocumentingInterruptedTest(unittest.TestCase, _DocumentingWorkflowMi
         )
 
         self.assertEqual(mocks[RUN_AGENT].call_count, 1)
-        self.assertEqual(
-            gh.write_state_calls, before_writes + AGENT_RUN_CHARGE_WRITES,
-        )
         self.assertNotIn(
             (INTERRUPTED_ISSUE_NUMBER, IN_REVIEW),
             gh.label_history,
         )
-        pinned_state = gh.pinned_data(INTERRUPTED_ISSUE_NUMBER)
+        pinned_state = launched.held(self, gh, INTERRUPTED_ISSUE_NUMBER)
         self.assertFalse(pinned_state.get(AWAITING_HUMAN))
         self.assertNotIn(DOCS_VERDICT, pinned_state)
         # The pre-spawn `docs_checked_sha=before_sha` write was discarded.
@@ -225,27 +228,32 @@ class HandleDocumentingInterruptedTest(unittest.TestCase, _DocumentingWorkflowMi
         # The sweep's SIGTERM killed an Antigravity docs pass after it
         # committed. The failure record that run carries is no cancellation of
         # its own -- the process's return is the signal's -- so it is ignored
-        # like any other kill: nothing parks and nothing is published, and the
-        # only writes beside the run's charge are the launch's record and its
-        # drop, so the next process republishes the commit as recovered work.
-        gh, issue, before_writes = _interrupted_fixture(stream.SPEC)
+        # like any other kill: nothing parks and nothing is published. Measured
+        # from the comment as the agent was invoked over it, the held return
+        # writes the run's accounting alone, so the record its launch landed
+        # ahead of the run stands, as a poller that died mid-run leaves it, and
+        # the next process takes the park that pass earned rather than
+        # publishing what it left unseen.
+        gh, issue, _ = _interrupted_fixture(stream.SPEC)
+        launched = Launched.over(gh, INTERRUPTED_ISSUE_NUMBER)
+        killed = RecordsTheLaunch(gh, INTERRUPTED_ISSUE_NUMBER, (agy_signal_killed(),))
 
-        mocks = self._run_documenting(
+        self._run_documenting(
             gh,
             issue,
-            run_agent=agy_signal_killed(),
+            run_agent=killed,
             head_shas=[SHA_BEFORE, SHA_AFTER],
             branch_ahead_behind=(0, 0),
-        )
+        )[PUSH_BRANCH].assert_not_called()
 
-        self.assertEqual(
-            gh.write_state_calls, before_writes + AGENT_RUN_CHARGE_WRITES + LAUNCH_RECORD_WRITES,
-        )
-        mocks[PUSH_BRANCH].assert_not_called()
         self.assertEqual((gh.label_history, gh.posted_comments), ([], []))
-        state = gh.pinned_data(INTERRUPTED_ISSUE_NUMBER)
+        state = launched.held(
+            self, gh, INTERRUPTED_ISSUE_NUMBER,
+            writes=AGENT_RUN_WRITES + LAUNCH_RECORD_WRITES, beside=(DOCS_LAUNCHED_SHA,),
+        )
+        assert_only_accounted(self, killed.launched_over[0], state)
         self.assertFalse(state.get(AWAITING_HUMAN))
-        self.assertIsNone(state.get("docs_launched_sha"))
+        self.assertEqual(state.get(DOCS_LAUNCHED_SHA), SHA_BEFORE)
 
     def test_awaiting_human_resume_keeps_reply(
         self,
@@ -268,7 +276,7 @@ class HandleDocumentingInterruptedTest(unittest.TestCase, _DocumentingWorkflowMi
             user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
         )
         _approved(gh, issue, INTERRUPTED_RESUME_PR_NUMBER)
-        before_writes = gh.write_state_calls
+        launched = Launched.over(gh, INTERRUPTED_RESUME_ISSUE_NUMBER)
 
         mocks = self._run_documenting(
             gh,
@@ -280,10 +288,7 @@ class HandleDocumentingInterruptedTest(unittest.TestCase, _DocumentingWorkflowMi
 
         # The reply DID drive a resume, but the interruption is ignored.
         self.assertEqual(mocks[RUN_AGENT].call_count, 1)
-        self.assertEqual(
-            gh.write_state_calls, before_writes + AGENT_RUN_CHARGE_WRITES,
-        )
-        state = gh.pinned_data(INTERRUPTED_RESUME_ISSUE_NUMBER)
+        state = launched.held(self, gh, INTERRUPTED_RESUME_ISSUE_NUMBER)
         # The park is not consumed and the consumed-reply watermark bump is
         # discarded, so the next process re-resumes on the same reply.
         self.assertTrue(state.get(AWAITING_HUMAN))

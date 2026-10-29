@@ -52,10 +52,10 @@ _FOUND_TO_REVIEW = f"{_FOUND}{_TO_REVIEW} so the reviewer re-runs against the re
 
 _ROUTED = (support.LABEL_VALIDATING,)
 
-# The usage totals the comment carries as the tick read them, and as the tick
-# staged them before its finish: one run and its tokens spent.
-_USAGE_READ = MappingProxyType({"issue_agent_runs": 4, "issue_total_tokens": 100})
-_USAGE_STAGED = MappingProxyType({"issue_agent_runs": 5, "issue_total_tokens": 120})
+# What the comment carries of the tick's last run as the tick read it, and as
+# the tick staged it before its finish: the session it ran as and when.
+_RUN_READ = MappingProxyType({"dev_session_id": "read", "last_agent_action_at": "2026-01-01T00:00:00Z"})
+_RUN_STAGED = MappingProxyType({"dev_session_id": "staged", "last_agent_action_at": "2026-01-02T00:00:00Z"})
 
 # The method a landing this tick sent nothing for is filed under, and the one a
 # push a recovery made is.
@@ -282,22 +282,22 @@ class AnnouncedFinishTest(unittest.TestCase):
                 )
                 self.assertEqual(world.github.write_state_calls, 1)
 
-    def test_staged_usage_lands_once_with_the_route(self) -> None:
-        # The tick staged a run and its tokens on the comment before an
-        # announced landing's route: the retirement behind the relabel lands
-        # them once, as staged.
+    def test_a_staged_run_lands_with_the_route(self) -> None:
+        # The tick staged its run's session and time before an announced
+        # landing's route: the retirement behind the relabel lands them, as
+        # staged.
         world = support.FinishWorld.seeded(**{
             support.KEY_ANNOUNCED: support.LANDED,
             support.KEY_REWRITE_DEBT: support.owed(),
-            **_USAGE_READ,
+            **_RUN_READ,
         })
         finish = world.finish(support.FOUND)
-        finish.state.state_data.update(_USAGE_STAGED)
+        finish.state.state_data.update(_RUN_STAGED)
 
         self.assertEqual(world.finalizes(finish=finish), FinishOutcome.ROUTED)
 
-        landed = map(world.pinned().get, _USAGE_STAGED)
-        self.assertEqual(tuple(landed), tuple(_USAGE_STAGED.values()))
+        landed = map(world.pinned().get, _RUN_STAGED)
+        self.assertEqual(tuple(landed), tuple(_RUN_STAGED.values()))
 
     def test_an_earlier_marks_debt_precedes_its_route(self) -> None:
         # A mark an earlier build wrote with no debt beside it: the claim is

@@ -19,19 +19,22 @@ checkout can publish (`stages/fixing/report_recovery.py`).
 
 The reading it is guarded by is the one the tick last synced with the comment
 (`PinnedState.synced`), not the state the tick holds now. A tick stages changes
-of its own between two writes -- a run's usage and session, the park a reply
-answered, a waiver a finished run retires -- and every one of them has always
-ridden the next write. They still do: a field the tick changed since that
-reading is one it owns, and it lands as the tick spells it. Beside them each
+of its own between two writes -- a run's session, the park a reply answered, a
+waiver a finished run retires -- and every one of them has always ridden the
+next write. They still do: a field the tick changed since that reading is one
+it owns, and it lands as the tick spells it. A run's usage is not among them:
+the accounting checkpoint landed it as the run returned and told the tick's
+reading so (`usage_checkpoint`), so it rides no write here and is the fresh
+reading's like any field the tick left alone. Beside them each
 write declares the fields it owns itself and the records it was decided on
 (`ReportWrite`): another writer that moved one of those records since refuses
 the write, and so does one that moved a field the write changes. Every other
-field is the fresh reading's. A field two roads both move by adding up or by
-moving forward -- a usage total, the cost tags, a comment-id watermark, the
-ledger of this orchestrator's own comments -- keeps both moves instead of
-conflicting, by the validating stage's own rule for it and the ledger's own
-writer; where another road left such a field as nothing that rule joins, the
-move is refused as a conflict like any other field's. A binding is decided on
+field is the fresh reading's. A field two roads both move by moving forward --
+a comment-id watermark, the ledger of this orchestrator's own comments --
+keeps both moves instead of conflicting, by the validating stage's own rule
+for it and the ledger's own writer; where another road left such a field as
+nothing that rule joins, the move is refused as a conflict like any other
+field's. A binding is decided on
 the publication's own pinned fields as well (`ReportWrite.on_the_publication`).
 
 A write something depends on is held to the comment it lands on. The check

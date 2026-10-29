@@ -6,7 +6,8 @@ The token and cost half of an `agent_exit`: what the provider's stdout is
 metered into, and the one boundary where a stream the parser cannot read
 cancels the record instead of degrading it. The parsed metrics are also
 attached back onto the result the caller still holds, which is what lets the
-per-issue meter fold the same object the record was built from.
+per-issue accounting count the same object the record was built from. The
+record itself stays observational: the meter is the pinned comment's.
 """
 
 from __future__ import annotations

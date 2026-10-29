@@ -13,7 +13,7 @@ import copy
 from unittest.mock import patch
 
 from orchestrator.github.pinned_state import SCHEMA_VERSION_KEY, PinnedState
-from orchestrator.workflow.engine import report_delivery as _delivery
+from orchestrator.workflow.engine import report_delivery as _delivery, usage_receipts as _usage_receipts
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.engine import report_delivery_test_support as delivery_support
 
@@ -118,9 +118,20 @@ class _Behind:
         self._pending = True
 
     def __call__(self, *request, **options):
-        """Send the request, then write the other road's fields over the comment, once."""
+        """Send the request, then write the other road's fields over the comment, once.
+
+        Not behind a run's accounting, which the tracked spawn lands as the run
+        returns, ahead of every commit of this domain: the other road writes
+        behind the request the case is about.
+        """
         answered = self._sends(*request, **options)
-        if self._pending:
+        if self._pending and not self._accounts_alone(*request, **options):
             self._pending = False
             another_road(self._github, self._issue, **self._fields)
         return answered
+
+    def _accounts_alone(self, *request, over: dict | None = None, **_options) -> bool:
+        """Whether `request` is the strict edit of a run's accounting: the one write that takes a usage receipt."""
+        if over is None:
+            return False
+        return request[1].get(_usage_receipts.RECEIPTS) != over.get(_usage_receipts.RECEIPTS)

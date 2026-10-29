@@ -91,7 +91,7 @@ it over what moved; it keeps no reading of the comment for a later step to
 reconcile against another orchestrator writer, since none writes the issue
 while the claim is held. An abandonment that lands is this recovery's own
 checkpoint: what the tick staged ahead of it and had not written -- a gate's
-records of its hold, a reply recorded read, a run's usage -- rides it once,
+records of its hold, a reply recorded read -- rides it once,
 and the tick's state reads as the comment does for the park or hold behind it.
 """
 from __future__ import annotations

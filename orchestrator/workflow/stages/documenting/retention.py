@@ -64,7 +64,7 @@ id, or the tree of a commit the repository holds -- and neither does a pull
 request found over, by the proof or by that last reading, which the next
 tick's terminals answer. Nothing is
 announced, stamped, retired, or relabelled; what the tick staged -- the run's
-usage and session, the launch record a finished pass drops -- lands alone
+session, the launch record a finished pass drops -- lands alone
 (`_HELD`), and the next tick runs the pass again, as it does behind any clean
 no-change whose completion did not land.
 
@@ -217,8 +217,9 @@ def _retains(ctx: _models._DocumentingContext, checked: str) -> bool:
 def _holds(ctx: _models._DocumentingContext, checked: str, refusal: str) -> None:
     """Hold the unchanged pass over `checked` for `refusal`: what the tick staged lands alone, through a checkpoint.
 
-    The run's usage and session, and the launch record a finished pass
-    drops, land as a write over the reading the tick last confirmed, so the
+    The run's session, and the launch record a finished pass drops, land
+    as a write over the reading the tick last confirmed -- its usage was
+    accounted as it returned -- so the
     next tick runs the pass again rather than taking the park a launch whose
     outcome nothing recorded earns. Nothing is announced, stamped, retired,
     or relabelled.

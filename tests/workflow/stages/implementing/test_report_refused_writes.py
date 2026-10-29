@@ -21,7 +21,11 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator.github.developer_reports import content_digest
 from orchestrator.github.pull_request_reports import ReportLocation
-from orchestrator.workflow.engine import report_record_state as _record_state, report_records as _records
+from orchestrator.workflow.engine import (
+    report_record_state as _record_state,
+    report_records as _records,
+    usage_receipts as _usage_receipts,
+)
 from orchestrator.workflow.state import WorkflowLabel
 from tests.support.fakes import FakePRRef
 from tests.workflow.engine import report_commit_test_support as commit_support
@@ -108,8 +112,10 @@ class RefusedWritesTest(unittest.TestCase, support._ReportDeliveryMixin):
             support.REPORT_ISSUE, **github.pinned_data(support.REPORT_ISSUE),
             dev_agent="claude", dev_session_id=support.DEV_SESSION,
         )
-        github.pinned_failures.lost.add(support.REPORT_ISSUE)
-        with commit_support.behind(github, issue, commit_support.EDIT, **_EVIDENCE):
+        with (
+            patch.object(github, commit_support.EDIT, _LosesTheRecord(github)),
+            commit_support.behind(github, issue, commit_support.EDIT, **_EVIDENCE),
+        ):
             first = self.deliver(github, issue, support.ready_message())
         github.pinned_failures.lost.discard(support.REPORT_ISSUE)
         first[PUSH_BRANCH].assert_not_called()
@@ -249,6 +255,19 @@ class _Loses:
         """Land the push, and lose the answer to every edit after it."""
         self._github.pinned_failures.lost.add(support.REPORT_ISSUE)
         return True
+
+
+class _LosesTheRecord:
+    """The strict edit, its answer lost from the first one past the run's accounting, which lands as the run returns."""
+
+    def __init__(self, github) -> None:
+        self._github = github
+
+    def __call__(self, issue, state, *, over: dict):
+        """Send the edit, its answer lost unless it is the accounting's: the one write that takes a usage receipt."""
+        if state.get(_usage_receipts.RECEIPTS) == over.get(_usage_receipts.RECEIPTS):
+            self._github.pinned_failures.lost.add(issue.number)
+        return type(self._github).edit_pinned_state(self._github, issue, state, over=over)
 
 
 class _Beside:

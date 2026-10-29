@@ -14,7 +14,7 @@ from tests.workflow.agent_failure_values import agy_quota_stop
 from tests.workflow.fixtures import _reported
 from tests.workflow.stages.implementing import drift_test_support as support
 
-AGENT_RUN_CHARGE_WRITES = support.AGENT_RUN_CHARGE_WRITES
+Launched = support.Launched
 
 AWAITING_HUMAN = support.AWAITING_HUMAN
 DEV_AGENT = support.DEV_AGENT
@@ -95,12 +95,9 @@ def _assert_body_drift_outcome(test_case, github, prompt) -> None:
 def _assert_interrupted_drift_state(
     test_case,
     github,
-    before_writes,
+    before,
 ) -> None:
-    test_case.assertEqual(
-        github.write_state_calls, before_writes + AGENT_RUN_CHARGE_WRITES,
-    )
-    state = github.pinned_data(INTERRUPTED_DRIFT_ISSUE)
+    state = before.held(test_case, github, INTERRUPTED_DRIFT_ISSUE)
     test_case.assertEqual(
         state.get(USER_CONTENT_HASH),
         STALE_CONTENT_HASH,
@@ -313,7 +310,7 @@ class ImplementingDriftInterruptedResumeTest(
             last_action_comment_id=HUMAN_COMMENT_ID,
             branch=_issue_branch(INTERRUPTED_DRIFT_ISSUE),
         )
-        before_writes = gh.write_state_calls
+        before = Launched.over(gh, INTERRUPTED_DRIFT_ISSUE)
 
         self._mocks = self._run_implementing(
             gh,
@@ -325,7 +322,7 @@ class ImplementingDriftInterruptedResumeTest(
 
         # The resume spawned, then the interruption was observed.
         self._mocks[RUN_AGENT].assert_called_once()
-        _assert_interrupted_drift_state(self, gh, before_writes)
+        _assert_interrupted_drift_state(self, gh, before)
 
 
 class ImplementingDriftHeadShaDeltaTest(

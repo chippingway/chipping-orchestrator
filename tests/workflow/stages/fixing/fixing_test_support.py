@@ -184,7 +184,7 @@ PARK_AGENT_EXECUTION_FAILED = "agent_execution_failed"
 
 AWAITING_HUMAN = "awaiting_human"
 
-AGENT_RUN_CHARGE_WRITES = fixtures.AGENT_RUN_CHARGE_WRITES
+Launched = fixtures.Launched
 PARK_REASON = "park_reason"
 LAST_ACTION_COMMENT_ID = fixtures.LAST_ACTION_COMMENT_ID
 REVIEW_ROUND = "review_round"

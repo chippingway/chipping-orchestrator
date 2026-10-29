@@ -17,6 +17,7 @@ from functools import partial
 from unittest.mock import patch
 
 from orchestrator.workflow.stages.validating import review_verdicts as _verdicts
+from tests.workflow.fixtures import assert_only_accounted
 from tests.workflow.stages.validating import (
     disposed_verdict_test_support as _disposed,
     review_verdict_readings as _read,
@@ -79,7 +80,8 @@ class ForeignRunTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
         # A change request's feedback and fix, or an approval and its squash,
         # would go to another pull request than the one reviewed -- or to one
         # named by no whole number, as no record spells it: nothing is
-        # written, posted, relabelled, or launched.
+        # written, posted, relabelled, or launched, save the run's accounting,
+        # which landed as the reviewer returned and buys the verdict nothing.
         for pr_number, message in itertools.product(_NAMED_ELSEWHERE, _REPLIES):
             with self.subTest(pr_number=pr_number, verdict=message.splitlines()[-1]):
                 self.setUp()
@@ -91,13 +93,13 @@ class ForeignRunTest(_disposed.DisposedVerdictWorld, unittest.TestCase):
 
                 self.assertEqual(
                     (
-                        self.pinned(),
                         self.github.posted_pr_comments,
                         ran[_world.RUN_AGENT].call_count,
                         self.github.label_history,
                     ),
-                    (before, [], 0, []),
+                    ([], 0, []),
                 )
+                assert_only_accounted(self, before, self.pinned())
 
     def test_a_waiting_verdict_needs_its_own_run(self) -> None:
         # Through its own run, a change request is handed to its developer

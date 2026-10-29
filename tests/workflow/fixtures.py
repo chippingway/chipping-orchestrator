@@ -6,8 +6,9 @@ Each name below is defined by the leaf beside it -- the event names, the two
 label vocabularies, the repo spec and backend values, the pinned-state keys and
 role names, the verdict messages, the provider-failure messages, the
 recovery-follow-up wording, the pinned fields an authorized settlement leaves,
-the value builders, the report a pull request's delivery published, and the
-hermetic patch context a stage handler runs inside. This module is the one import site the tests that
+the value builders, the report a pull request's delivery published, what a
+held return leaves durable, and the hermetic patch context a stage handler
+runs inside. This module is the one import site the tests that
 span several of those leaves reach them through.
 """
 from __future__ import annotations
@@ -30,6 +31,14 @@ from tests.workflow.authorized_exemption import (
     _fabricated_authorization as _make_fabricated_authorization,
 )
 from tests.workflow.engine import event_values as _event_values
+from tests.workflow.held_returns import (
+    REVIEWER_LAUNCH_KEYS as _REVIEWER_LAUNCH_KEYS,
+    Launched as _Launched,
+    RecordsTheLaunch as _RecordsTheLaunch,
+    accounted as _accounted,
+    assert_only_accounted as _assert_only_accounted,
+    moved as _moved,
+)
 from tests.workflow.other_labels import (
     LABEL_BLOCKED as _LABEL_BLOCKED,
     LABEL_DONE as _LABEL_DONE,
@@ -98,8 +107,11 @@ TEST_REPO_SLUG = _repo_values.TEST_REPO_SLUG
 _FAKE_WT = _repo_values._FAKE_WT
 _TEST_SPEC = _repo_values._TEST_SPEC
 
+AGENT_RUN_ACCOUNTING_KEYS = _state_values.AGENT_RUN_ACCOUNTING_KEYS
 AGENT_RUN_CHARGE_KEYS = _state_values.AGENT_RUN_CHARGE_KEYS
 AGENT_RUN_CHARGE_WRITES = _state_values.AGENT_RUN_CHARGE_WRITES
+AGENT_RUN_WRITES = _state_values.AGENT_RUN_WRITES
+REVIEWER_LAUNCH_KEYS = _REVIEWER_LAUNCH_KEYS
 KEY_AWAITING_HUMAN = _state_values.KEY_AWAITING_HUMAN
 KEY_ISSUE_AGENT_RUNS = _state_values.KEY_ISSUE_AGENT_RUNS
 KEY_ISSUE_TOTAL_TOKENS = _state_values.KEY_ISSUE_TOTAL_TOKENS
@@ -145,6 +157,11 @@ _issue_branch = _value_helpers._issue_branch
 _manifest = _value_helpers._manifest
 _open_pr_for = _value_helpers._open_pr_for
 publishes_the_report = _publish_the_report
+Launched = _Launched
+RecordsTheLaunch = _RecordsTheLaunch
+accounted = _accounted
+assert_only_accounted = _assert_only_accounted
+moved = _moved
 _state_with_pr_number = _value_helpers._state_with_pr_number
 
 _authorize_command = _make_authorize_command

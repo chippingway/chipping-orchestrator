@@ -33,10 +33,12 @@ What each prompt grants and forbids, and how a session is continued across round
      that is not the issue's own refuses the resume with nothing written and every file in place.
   3. **Fresh spawn.** Ensure the per-issue worktree, resolve the question spec via `_read_question_session` (falls back
      to the decomposer's spec on the first-ever spawn), persist `question_agent` BEFORE invoking `run_agent`, build the
-     read-only `_build_question_prompt`, spawn, and persist `question_session_id`. A mid-run `paused` / `backlog`
-     re-check (`_paused_during_agent_run`) right after the run returns short-circuits the resume and fresh spawn alike
-     BEFORE the usage fold, park, or pinned-state write, so the next tick re-runs from durable state (the
-     `_question_run_cleanup` context manager still disposes the worktree per `keep_worktree`).
+     read-only `_build_question_prompt`, spawn, and persist `question_session_id`. The run's usage is accounted as it
+     returns, at the tracked spawn, whatever follows. A mid-run `paused` / `backlog` re-check
+     (`_paused_during_agent_run`) right after the run returns -- or an accounting left unresolved
+     (`AgentResult.unaccounted`) -- short-circuits the resume and fresh spawn alike BEFORE the park or pinned-state
+     write, so the next tick re-runs from durable state, the accounting alone landed (the `_question_run_cleanup`
+     context manager still disposes the worktree per `keep_worktree`).
   4. Branch on result:
      - a launch that never became a process (`invoked=False` — the agent-run circuit refused it) → return WITHOUT
        writing, ahead of the pause re-check and every reading below it. Nothing in the worktree is that launch's
@@ -337,9 +339,10 @@ the per-issue checkout only has to survive a tick when an unsafe park keeps it f
 - **Disposition** (in order): a launch that never became a process (`invoked=False` — the agent-run circuit refused
   it) is declined first of all, ahead of the pause and every reading under it: no head, tree, or reply below is
   about a process that did not exist, and a park in its name would overwrite the durable `agent_run_limit` one the
-  refusal took. Then a `paused` / `backlog` label applied mid-run suppresses every disposition below and
-  returns without writing anything — the anchor above is what keeps that safe for a round that committed. Otherwise
-  `last_discussion_at` is stamped and a non-interrupted run's usage is folded, then whether the commit question can
+  refusal took. Then a `paused` / `backlog` label applied mid-run, or an accounting left unresolved, suppresses every
+  disposition below and returns without writing anything of the round — its usage was accounted as it returned, at the
+  tracked spawn, an interrupted round's included, and buys the round no replay; the anchor above is what keeps that
+  safe for a round that committed. Otherwise `last_discussion_at` is stamped, then whether the commit question can
   be answered at all — both ends of it are `HEAD` reads, and either failing parks `discussion_unreadable_worktree`
   with nothing published, since the empty string a failed `rev-parse` returns compares unequal to the SHA the round
   opened on and would publish the branch's existing commit as this round's — then the commit (a run that

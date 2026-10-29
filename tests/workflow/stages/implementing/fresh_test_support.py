@@ -12,7 +12,6 @@ from orchestrator import config
 from orchestrator.agents.backends import claude
 from orchestrator.agents.models import AgentResult, AgentRunOptions
 from tests.workflow import report_guidance as _report_guidance
-from tests.workflow.fixtures import AGENT_RUN_CHARGE_WRITES
 from tests.workflow.stages import implementing_fixing_test_cases
 
 _AWAITING_HUMAN = "awaiting_human"
@@ -86,16 +85,16 @@ def assert_human_reply_resume(
 def assert_interrupted_spawn_state(
     test_case,
     github,
-    before_writes,
+    before,
     issue_number,
 ) -> None:
-    test_case.assertEqual(
-        github.write_state_calls, before_writes + AGENT_RUN_CHARGE_WRITES,
-    )
+    """`before` is what the spawn was launched over (`Launched`)."""
     test_case.assertEqual(github.opened_prs, [])
     test_case.assertEqual(github.label_history, [])
     test_case.assertEqual(github.posted_comments, [])
-    state = github.pinned_data(issue_number)
+    # The killed run's usage is accounted as it returned, and nothing else of
+    # it is written.
+    state = before.held(test_case, github, issue_number)
     # The interrupted spawn's session id is NOT persisted -- the next
     # process re-spawns fresh rather than resuming a half-built session.
     test_case.assertNotIn("dev_session_id", state)
@@ -107,14 +106,12 @@ def assert_interrupted_spawn_state(
 def assert_interrupted_resume_state(
     test_case,
     github,
-    before_writes,
+    before,
     issue_number,
     action_comment_id,
 ) -> None:
-    test_case.assertEqual(
-        github.write_state_calls, before_writes + AGENT_RUN_CHARGE_WRITES,
-    )
-    state = github.pinned_data(issue_number)
+    """`before` is what the resume was launched over (`Launched`)."""
+    state = before.held(test_case, github, issue_number)
     test_case.assertTrue(state.get(_AWAITING_HUMAN))
     test_case.assertEqual(
         state.get("last_action_comment_id"),

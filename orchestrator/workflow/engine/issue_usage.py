@@ -7,8 +7,8 @@ usage counters decides nothing about the separate lifetime launch allowance,
 whose ledger reads the run count only as a floor under its own charges.
 
 The counter names and one run's token total are shared with the accounting
-checkpoint, whose own arithmetic over a fresh reading -- the same increment
-this fold makes -- and spelling rules live on `usage_counters`."""
+checkpoint (`usage_checkpoint`), the one writer of these counters, whose
+arithmetic over a fresh reading and spelling rules live on `usage_counters`."""
 from __future__ import annotations
 
 from github.Issue import Issue
@@ -28,64 +28,10 @@ COST_SOURCES = "issue_cost_sources"
 USAGE_COUNTERS = (AGENT_RUNS, TOTAL_TOKENS, TOTAL_COST, COST_SOURCES)
 
 
-def _accumulate_issue_usage(
-    state: PinnedState, usage: UsageMetrics | None
-) -> None:
-    """Fold one agent run's parsed usage into the per-issue running totals.
-
-    Called by the developer (implementing) and reviewer (validating) run
-    sites right after `_run_agent_tracked` returns, mutating the SAME
-    `PinnedState` the handler persists later -- never a second writer. The
-    runner deliberately does not write pinned state itself, so an
-    `interrupted` run whose handler returns without `write_pinned_state`
-    (the shutdown-sweep contract) simply never persists these counters: a
-    slight, accepted undercount on killed runs, with the analytics sink
-    still holding ground truth.
-
-    Keys folded:
-      * ``issue_agent_runs``     -- +1 per real agent exit.
-      * ``issue_total_tokens``   -- input + output + cache-read + cache-write.
-        codex's ``cached_tokens`` is intentionally excluded: it is the
-        portion of ``input_tokens`` already served from cache, so summing it
-        would double-count part of the input.
-      * ``issue_total_cost_usd`` -- sum of each run's ``cost_usd``; ``None``
-        costs (``no-usage`` / ``unknown-price``) contribute nothing.
-      * ``issue_cost_sources``   -- sorted distinct ``cost_source`` tags seen.
-        The minimal aggregate a terminal verdict needs to mark ``(est.)``
-        (any ``estimated``) or an unpriced ``unknown`` (any ``unknown-price``)
-        without re-reading the analytics sink.
-
-    A ``None`` usage -- the fail-open case where the parse itself failed --
-    is a no-op: with no parsed metrics there is nothing to fold and the run
-    is not counted.
-    """
-    if usage is None:
-        return
-
-    agent_runs = int(state.get(AGENT_RUNS) or 0)
-    state.set(AGENT_RUNS, agent_runs + 1)
-
-    state.set(
-        TOTAL_TOKENS,
-        int(state.get(TOTAL_TOKENS) or 0) + _run_tokens(usage),
-    )
-
-    if usage.cost_usd is not None:
-        state.set(
-            TOTAL_COST,
-            float(state.get(TOTAL_COST) or 0) + usage.cost_usd,
-        )
-
-    prior_sources = state.get(COST_SOURCES)
-    seen = set(prior_sources) if isinstance(prior_sources, list) else set()
-    seen.add(usage.cost_source)
-    state.set(COST_SOURCES, sorted(seen))
-
-
 def _format_issue_usage_verdict(state: PinnedState) -> str | None:
     """Render the cumulative per-issue usage verdict for a terminal surface.
 
-    Reads the counters `_accumulate_issue_usage` folds onto pinned state and
+    Reads the counters the accounting checkpoint lands on pinned state and
     returns a single visible line:
 
         :receipt: this issue: 3 agent runs · 45,200 tokens · $0.87

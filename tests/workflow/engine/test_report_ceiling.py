@@ -181,9 +181,7 @@ class CeilingTransactionTest(unittest.TestCase, support.ReportTransactionCase):
         _run_ledger._reserve_run(self.state, _LAUNCH_FINGERPRINT)
         self._assert_within_the_comment()
         _run_ledger._start_reserved_run(self.state)
-        _review_records._records_the_return(
-            self.state, None, _REVIEWER_SESSION, reviewed,
-        )
+        _review_records._records_the_return(self.state, _REVIEWER_SESSION, reviewed)
         _review_subjects.record_approved(self.state, reviewed)
         self._assert_within_the_comment()
 

@@ -752,9 +752,9 @@ orchestrator/
                         comment around it and where it sits in a body are the compact format's
                         (`verification_compact_artifacts.py`)
   agents/               publishes the run/result models, runner entry point, and process shutdown hook
-    models.py           the agent result with its unfinished-step and terminal-failure diagnostics and the
-                        identity of the process invocation it came from, and the run-option and subprocess-result
-                        models
+    models.py           the agent result with its unfinished-step and terminal-failure diagnostics, the
+                        identity of the process invocation it came from, and whether its usage accounting is
+                        unresolved, and the run-option and subprocess-result models
     environment.py      credential and virtualenv filtering and the injected git identity
     session_ids.py      the backend-agnostic session-id walk: a UUID-shaped value at a known key, anywhere in
                         any CLI's event tree, so a resume is issued against what the run actually reported

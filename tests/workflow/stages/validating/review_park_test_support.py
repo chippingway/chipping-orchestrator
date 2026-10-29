@@ -161,7 +161,8 @@ class ParkedVerdictWorld(_world.ReviewVerdictWorld):
             return
         state = self.github.read_pinned_state(self.issue)
         run = _world.returned_run(self, state, _RETURNED[UNVERIFIED])
-        _review_records._records_the_return(state, run.agent_result.usage, run.agent_result.session_id, run.subject)
+        _world.charged_and_accounted(self, state, run)
+        _review_records._records_the_return(state, run.agent_result.session_id, run.subject)
         returned = _verdicts.ReturnedVerdict(run.round_n, _verdicts.APPROVED, run.subject.recorded())
         state.set(_verdicts.RETURNED_VERDICT, returned.recorded())
         self.github.write_pinned_state(self.issue, state)
@@ -205,11 +206,11 @@ class ParkedVerdictWorld(_world.ReviewVerdictWorld):
         state = self.github.read_pinned_state(self.issue)
         self.run = _world.returned_run(self, state, _RETURNED[reason])
         if reason == UNRECORDED:
-            # The launch's lifetime charge, and what the returned run leaves.
-            charged = state.get(_world.AGENT_RUNS_USED) or 0
-            state.set(_world.AGENT_RUNS_USED, charged + 1)
+            # The launch's lifetime charge, the run's accounting, and what the
+            # returned run leaves.
+            _world.charged_and_accounted(self, state, self.run)
             returned = self.run.agent_result
-            _review_records._records_the_return(state, returned.usage, returned.session_id, self.run.subject)
+            _review_records._records_the_return(state, returned.session_id, self.run.subject)
         if meanwhile is not None:
             meanwhile(self)
         if reason == UNVERIFIED:

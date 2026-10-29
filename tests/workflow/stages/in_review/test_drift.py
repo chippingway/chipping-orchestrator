@@ -23,11 +23,11 @@ from tests.support.fakes import (
 from tests.workflow import approval_records as _approval_records
 from tests.workflow.agent_failure_values import agy_quota_stop
 from tests.workflow.fixtures import (
-    AGENT_RUN_CHARGE_WRITES,
     LABEL_DOCUMENTING,
     LABEL_IN_REVIEW,
     LABEL_VALIDATING,
     MEASURED_CANDIDATE_SHA,
+    Launched,
     _agent,
     _issue_branch,
     _PatchedWorkflowMixin,
@@ -222,11 +222,13 @@ class HandleInReviewResumeOnHashChangeTest(
     def test_body_drift_interrupted_resume_is_ignored(self) -> None:
         # A shutdown-killed (interrupted) drift resume must be ignored
         # entirely: the handler bails WITHOUT bumping the in_review
-        # watermarks or writing, so the pre-staged `user_content_hash`
-        # refresh, consumed drift comments, `last_agent_action_at`, and the
-        # `awaiting_human` clear from `_resume_dev_with_text` never reach
-        # GitHub. The next tick re-detects the body change and retries.
+        # watermarks or writing past the run's charge and accounting, so the
+        # pre-staged `user_content_hash` refresh, consumed drift comments,
+        # `last_agent_action_at`, and the `awaiting_human` clear from
+        # `_resume_dev_with_text` never reach GitHub. The next tick re-detects
+        # the body change and retries.
         gh, issue = self.seed_drift(INTERRUPTED_DRIFT_ISSUE, INTERRUPTED_DRIFT_PR)
+        launched = Launched.over(gh, INTERRUPTED_DRIFT_ISSUE)
 
         mocks = self._run_in_review(
             gh,
@@ -241,8 +243,9 @@ class HandleInReviewResumeOnHashChangeTest(
 
         mocks[RUN_AGENT].assert_called_once()
         mocks["_push_branch"].assert_not_called()
-        # Nothing persisted: the interrupted resume is ignored.
-        self.assertEqual(gh.write_state_calls, AGENT_RUN_CHARGE_WRITES)
+        # Nothing of the run's disposition persisted: the interrupted resume is
+        # ignored, its usage alone accounted as it returned.
+        launched.held(self, gh, INTERRUPTED_DRIFT_ISSUE)
         self.assertNotIn((INTERRUPTED_DRIFT_ISSUE, LABEL_VALIDATING), gh.label_history)
         self.assertNotIn((INTERRUPTED_DRIFT_ISSUE, LABEL_DOCUMENTING), gh.label_history)
         state = gh.pinned_data(INTERRUPTED_DRIFT_ISSUE)

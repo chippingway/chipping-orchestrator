@@ -1,7 +1,7 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Agent run options, result models, the identity of the process a result came from, and unfinished-step and
-terminal-failure diagnostics."""
+"""Agent run options, result models, the identity of the process a result came from and whether its accounting is
+unresolved, and unfinished-step and terminal-failure diagnostics."""
 from __future__ import annotations
 
 import signal
@@ -110,6 +110,13 @@ class AgentResult:
     # produced, and for one a backend returned outside that spawn: neither has
     # a run whose usage could be accounted once.
     invocation: AgentInvocation | None = None
+    # Whether the tracked spawn's accounting of this result is unresolved:
+    # its checkpoint was refused, or sent and never confirmed. Everything that
+    # depends on that accounting -- the run's disposition, and a further
+    # invocation a wrapper would make behind it -- holds on it. False for a
+    # result whose usage is accounted or owed nothing, and for every result
+    # no checkpoint was asked for.
+    unaccounted: bool = False
 
 
 @dataclass(frozen=True)

@@ -92,7 +92,8 @@ def _resume_dev_with_text(
     live pause -- True when `request.pause_guard` is set AND a hard-skip control label
     (`paused` / `backlog`) was applied to a freshly fetched issue while an agent
     run was in flight -- or, whatever `pause_guard` says, a quota retirement
-    the pinned comment would not take (`quota_retirement`), which leaves the
+    the pinned comment would not take (`quota_retirement`) or an accounting
+    left unresolved (`AgentResult.unaccounted`), either of which leaves the
     state withheld and the tick held exactly as a pause does. `pause_guard` is
     opt-in (default False): every
     developer-resume caller -- implementing, validating, documenting, in_review,

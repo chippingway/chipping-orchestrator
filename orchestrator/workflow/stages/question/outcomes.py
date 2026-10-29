@@ -3,9 +3,14 @@
 """What a finished question run left behind, in the order that matters.
 
 The live pause comes first and writes nothing, because every mutation below it
--- the timestamp, the usage fold, the session id already retained -- has to
-replay identically on the next active tick. Then the timeout, which keeps its
-worktree: a killed run may have been mid-edit.
+-- the timestamp, the session id already retained, the reply consumed -- has
+to replay identically on the next active tick. The run's usage is no part of
+that: it was accounted as the run returned, at the tracked boundary
+(`usage._run_agent_tracked`), a killed or timed-out run's included, and an
+answer held here buys no replay by it. A run whose accounting stayed
+unresolved is held beside the pause, since its disposition writes the state
+that accounting is laid on. Then the timeout, which keeps its worktree: a
+killed run may have been mid-edit.
 
 Everything after that is the read-only contract. New commits and a dirty tree
 are inspected BEFORE interruption and before the answer, so a run that wrote
@@ -37,7 +42,6 @@ from orchestrator.git.worktrees import creation as _worktree_creation, paths as 
 from orchestrator.workflow.engine import (
     agent_diagnostics as _agent_diagnostics,
     guards as _guards,
-    issue_usage as _issue_usage,
     usage as _usage,
 )
 from orchestrator.workflow.stages.question import models as _models, run as _run, state as _state
@@ -57,13 +61,12 @@ def _assess_question_outcome(
         return _models._QuestionOutcome(None, run.keep_worktree)
 
     # A live pause must leave every in-memory session and watermark mutation
-    # unpersisted so the next active tick can replay the same durable state.
-    if _guards._paused_during_agent_run(run.gh, run.issue):
+    # unpersisted so the next active tick can replay the same durable state;
+    # so must a run whose accounting is unresolved.
+    if question_result.unaccounted or _guards._paused_during_agent_run(run.gh, run.issue):
         return _models._QuestionOutcome(None, run.keep_worktree)
 
     run.state.set("last_question_at", _usage._now_iso())
-    if not question_result.interrupted:
-        _issue_usage._accumulate_issue_usage(run.state, question_result.usage)
 
     if question_result.timed_out:
         return _models._QuestionOutcome(_state._QUESTION_TIMEOUT, True)

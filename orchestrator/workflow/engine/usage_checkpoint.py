@@ -9,7 +9,7 @@ nothing counted. The commit owns the four usage counters and the ledger alone:
 every other field -- the lifetime launch ledger, its allowance and parks, a
 session, a watermark the caller staged -- is the fresh reading's, so this
 writes nothing a held return withholds and refunds no charge. The counters are
-added over their fresh values, so another road's fold since is kept.
+added over their fresh values, so another invocation's count since is kept.
 
 Keyed by the invocation's identity (`AgentResult.invocation`), never by its
 request fingerprint or session id. Every call reads the receipt back before
@@ -35,8 +35,11 @@ Only SETTLED answers (`AccountingOutcome.settled`) let work that depends on
 the accounting follow. A refusal wrote nothing; an UNCONFIRMED write may read
 either way until the receipt is read back. The caller holds the issue's writer
 claim, as every stage handler does, so a moved record is a human's edit, not a
-second writer's. No production road calls this yet: the stage-local folds
-remain what persists an issue's usage until the tracked boundary settles here.
+second writer's. The one caller is the tracked spawn
+(`usage._run_agent_tracked`), which asks this of every result a process
+returns before anything above it can discard the result, and holds the
+result's disposition, and any further invocation a wrapper would make, on an
+answer that is not settled: this is the only writer of the usage counters.
 """
 from __future__ import annotations
 
@@ -63,8 +66,10 @@ from orchestrator.workflow.late_split import keys as _late_keys
 
 log = logging.getLogger("orchestrator.workflow")
 
-# What this checkpoint writes, and the only fields it lays back onto its caller.
-_ACCOUNTING = (*_issue_usage.USAGE_COUNTERS, _usage_receipts.RECEIPTS)
+# What this checkpoint writes, and the only fields it lays back onto its caller:
+# no other road writes them, so a stage's own write keeps them as the comment
+# spells them rather than as a state it holds.
+ACCOUNTING = (*_issue_usage.USAGE_COUNTERS, _usage_receipts.RECEIPTS)
 
 
 class AccountingStatus(enum.Enum):
@@ -192,7 +197,7 @@ class _Checkpoint:
         guard = _commit_models.PinnedCommit.capture(
             fresh,
             prerequisites=(_usage_receipts.RECEIPTS, _late_keys.CYCLE_ID),
-            owned=_ACCOUNTING,
+            owned=ACCOUNTING,
         )
         staged = dict(fresh.state_data)
         staged[_usage_receipts.RECEIPTS] = receipts.taking(self.invocation).spelled()
@@ -212,12 +217,12 @@ class _Checkpoint:
 
     def laid_back(self, reading: PinnedState) -> None:
         """Lay `reading`'s accounting fields onto the caller's state, as the comment's rather than its own moves."""
-        for field in _ACCOUNTING:
+        for field in ACCOUNTING:
             if reading.carries(field):
                 self.state.set(field, copy.deepcopy(reading.get(field)))
             else:
                 self.state.state_data.pop(field, None)
-        _pinned_commit.takes_in(self.state, reading.state_data, _ACCOUNTING)
+        _pinned_commit.takes_in(self.state, reading.state_data, ACCOUNTING)
 
 
 def _refused(issue: Issue, refusal: AccountingRefusal) -> AccountingOutcome:

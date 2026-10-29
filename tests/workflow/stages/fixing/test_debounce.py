@@ -16,7 +16,6 @@ from tests.workflow.stages.fixing.prompt_expectations import (
 IssueScenario = support.IssueScenario
 
 ALICE = support.ALICE
-AGENT_RUN_CHARGE_WRITES = support.AGENT_RUN_CHARGE_WRITES
 AWAITING_HUMAN = support.AWAITING_HUMAN
 CONTINUE_WORD = support.CONTINUE_WORD
 DEBOUNCE_CONFIG = support.DEBOUNCE_CONFIG
@@ -311,7 +310,8 @@ class FixingDebounceAndAckTest(unittest.TestCase, _FixingFixtureMixin):
 
     def test_interrupted_no_commit_resume_is_ignored(self) -> None:
         # A shutdown-killed (interrupted) resume that produced no commit
-        # must be ignored entirely: the handler bails WITHOUT persisting, so
+        # must be ignored entirely: the handler bails WITHOUT persisting
+        # anything but the run's charge and accounting, so
         # the delivery settlement, bookmark clear, and awaiting_human
         # reset never reach GitHub. The next tick re-feeds the same comment
         # to a fresh dev session. Distinct from a no-commit no-ACK reply,
@@ -327,6 +327,7 @@ class FixingDebounceAndAckTest(unittest.TestCase, _FixingFixtureMixin):
                 )
                 pr = self._open_pr()
                 scenario = IssueScenario(*self._seed(pr=pr, issue_comments=[comment]))
+                self._launched = support.Launched.over(scenario.github, ISSUE)
 
                 with patch.object(config, DEBOUNCE_CONFIG, DEBOUNCE_SECONDS):
                     mocks = self._run_fixing(
@@ -338,12 +339,9 @@ class FixingDebounceAndAckTest(unittest.TestCase, _FixingFixtureMixin):
 
                 self.assertEqual(only_prompt(mocks), pr_feedback_prompt((comment,)))
                 mocks[PUSH_BRANCH].assert_not_called()
-                self.assertEqual(
-                    scenario.github.write_state_calls, AGENT_RUN_CHARGE_WRITES,
-                )
                 self.assertEqual(scenario.github.label_history, [])
                 self.assertEqual(scenario.github.posted_comments, [])
-                self._pinned_data = scenario.github.pinned_data(ISSUE)
+                self._pinned_data = self._launched.held(self, scenario.github, ISSUE)
                 self.assertEqual(
                     self._pinned_data.get(PR_LAST_COMMENT_ID),
                     INITIAL_PR_COMMENT_WATERMARK,
@@ -370,6 +368,7 @@ class FixingDebounceAndAckTest(unittest.TestCase, _FixingFixtureMixin):
         )
         pr = self._open_pr()
         scenario = IssueScenario(*self._seed(pr=pr, issue_comments=[comment]))
+        self._launched = support.Launched.over(scenario.github, ISSUE)
 
         with patch.object(config, DEBOUNCE_CONFIG, DEBOUNCE_SECONDS):
             mocks = self._run_fixing(
@@ -386,12 +385,9 @@ class FixingDebounceAndAckTest(unittest.TestCase, _FixingFixtureMixin):
         self.assertEqual(only_prompt(mocks), pr_feedback_prompt((comment,)))
         # The interrupted commit is NOT pushed and nothing is consumed.
         mocks[PUSH_BRANCH].assert_not_called()
-        self.assertEqual(
-            scenario.github.write_state_calls, AGENT_RUN_CHARGE_WRITES,
-        )
         self.assertEqual(scenario.github.label_history, [])
         self.assertEqual(scenario.github.posted_comments, [])
-        self._pinned_data = scenario.github.pinned_data(ISSUE)
+        self._pinned_data = self._launched.held(self, scenario.github, ISSUE)
         self.assertEqual(
             self._pinned_data.get(PR_LAST_COMMENT_ID),
             INITIAL_PR_COMMENT_WATERMARK,

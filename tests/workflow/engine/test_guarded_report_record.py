@@ -78,15 +78,16 @@ _PARKED = MappingProxyType({
 })
 
 # What the tick read of the fields two roads both move, what it staged on them
-# since -- a run of its own folded, a shorter reading, a post, a session -- and
-# what another road wrote meanwhile: evidence and a verdict of its own, a run
-# folded, a further reading, a post. Kept, the totals add up, the watermark
-# keeps the further reading, the ledger both posts, and every field one road
-# alone wrote is that road's.
+# since -- a shorter reading, a post, a session -- and what another road wrote
+# meanwhile: evidence and a verdict of its own, a further reading, a post, and a
+# usage total an operator corrected by hand beside it. Kept, the watermark keeps
+# the further reading, the ledger both posts, the usage total is the comment's
+# -- no write of the tick's moves it -- and every field one road alone wrote is
+# that road's.
 _TICK_READ = MappingProxyType({_TOKENS: 100, _WATERMARK: 40, _LEDGER: [5]})
 
 _TICK_STAGED = MappingProxyType({
-    _TOKENS: 130, _WATERMARK: 50, _LEDGER: [5, 7], _SESSION: "sess-tick",
+    _WATERMARK: 50, _LEDGER: [5, 7], _SESSION: "sess-tick",
 })
 
 _ANOTHER_ROAD = MappingProxyType({
@@ -96,10 +97,10 @@ _ANOTHER_ROAD = MappingProxyType({
 
 _KEPT = MappingProxyType({
     _EVIDENCE: {"revision": 3}, _VERDICT: {"round": 2},
-    _TOKENS: 180, _WATERMARK: 60, _SESSION: "sess-tick",
+    _TOKENS: 150, _WATERMARK: 60, _SESSION: "sess-tick",
 })
 
-# The run a tick folds in itself.
+# A total a hand edit moved under a tick that staged one of its own.
 _TICK_FOLD = 30
 
 # What a park the tick takes writes beside its notice: its flags, the debt, and
@@ -246,11 +247,12 @@ class GuardedRecordingTest(unittest.TestCase):
     """
 
     def test_another_road_s_fields_survive_the_record(self) -> None:
-        # Another road settles evidence, returns a verdict, folds a run, reads
-        # further, and posts; the tick folds its own run, reads less far,
-        # posts, and starts a session. The record lands beside all of it: the
-        # totals add up, the watermark keeps the further reading, the ledger
-        # both posts, and the tick's own staging rides the write.
+        # Another road settles evidence, returns a verdict, reads further, and
+        # posts, and the usage total is corrected by hand beside it; the tick
+        # reads less far, posts, and starts a session. The record lands beside
+        # all of it: the total is the comment's, the watermark keeps the
+        # further reading, the ledger both posts, and the tick's own staging
+        # rides the write.
         tick = self._tick(**_TICK_READ)
         tick.state.state_data.update(_TICK_STAGED)
         commit_support.another_road(tick.github, tick.issue, **_ANOTHER_ROAD)
@@ -269,21 +271,21 @@ class GuardedRecordingTest(unittest.TestCase):
         )
         self.assertEqual(tick.state.state_data, pinned)
 
-    def test_a_fold_laid_over_the_tick_counts_once(self) -> None:
-        # A road that lays another's fold over the tick's state says so, and
-        # the record counts that fold as the comment's: only the tick's own run
-        # is added to it.
+    def test_laid_back_accounting_counts_once(self) -> None:
+        # The accounting checkpoint lays the total it landed over the tick's
+        # state and says so, so the record behind it counts that total as the
+        # comment's: it neither adds the run again nor puts back the total the
+        # tick read.
         tick = self._tick(**{_TOKENS: _TICK_READ[_TOKENS]})
-        folded = commit_support.another_road(
+        accounted = commit_support.another_road(
             tick.github, tick.issue, **{_TOKENS: _ANOTHER_ROAD[_TOKENS]},
         )
-        tick.state.set(_TOKENS, folded[_TOKENS])
-        _pinned_commit.takes_in(tick.state, folded, (_TOKENS,))
-        tick.state.set(_TOKENS, _ANOTHER_ROAD[_TOKENS] + _TICK_FOLD)
+        tick.state.set(_TOKENS, accounted[_TOKENS])
+        _pinned_commit.takes_in(tick.state, accounted, (_TOKENS,))
 
         self.assertFalse(tick.records())
 
-        self.assertEqual(tick.pinned()[_TOKENS], _ANOTHER_ROAD[_TOKENS] + _TICK_FOLD)
+        self.assertEqual(tick.pinned()[_TOKENS], _ANOTHER_ROAD[_TOKENS])
 
     def test_a_comment_moved_under_it_writes_nothing(self) -> None:
         # The tick ends with nothing written, posted, or parked, and its own
