@@ -1320,7 +1320,11 @@ The keys that matter for the state machine fall into a few groups:
   takes.
 - **Decomposition.** `children`, `dep_graph` (`{child_idx_str: [child_idx, ...]}` — GitHub has no first-class blocks
   relation), `decomposed_at`, `pickup_comment_id`. An ordinary split writes `expected_children_count`, `umbrella`, the
-  whole declared `dep_graph`, `split_attempt`, and `split_rationale` in one write before its first child exists.
+  whole declared `dep_graph`, `split_attempt`, and `split_rationale` in one write before its first child exists, and a
+  late split writes the count ahead of its first create too, so a
+  `children` register standing beside no integer `expected_children_count` is no split the
+  [half-finished recovery](delivery-stages.md#_handle_decomposing-label-workflowdecomposing) can finish: it parks the
+  parent with every recorded child kept rather than seeding or finalizing over it.
   `split_rationale` is the decomposer's account of the split — on a parent that is no umbrella, the work it kept for the
   parent's own pass — as the manifest's optional `rationale` gave it, stripped and cut to `MAX_RATIONALE` with
   `RATIONALE_TRUNCATION_MARKER` as a late record is; a manifest whose `rationale` is missing, `null`, blank, or not a

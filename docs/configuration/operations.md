@@ -2144,7 +2144,10 @@ every such park. Where it lands tells you what to repair:
 
 A crash recovery that cannot take over the child it finds — one a human closed or relabelled, one whose body ends on
 a receipt other than this slice's, one the register already records, or a receipt more than one issue carries —
-parks the parent under `decomposition_crash` and names it rather than creating the slice again. A drift reset that
+parks the parent under `decomposition_crash` and names it rather than creating the slice again. So does a register
+no split could have left — `children` recorded beside no integer `expected_children_count` — with every recorded
+child kept and none seeded: close any partial children and re-decompose, or put back the count the split was made
+with. A drift reset that
 discards a manifest also drops the split's attempt, so a child the discarded split left behind is never adopted into
 the next one — but it is written onto `late_consumers` first, so the ref waits for it as an orphan.
 
