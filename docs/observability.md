@@ -180,7 +180,9 @@ Summarized here; the reference is [`observability/usage.md`](observability/usage
 Pure-Python, dependency-free decoder for the agent CLI's JSONL stdout, producing a `UsageMetrics` dataclass — backend,
 distinct model(s), turn count, the five token totals, `cost_usd`, and a `cost_source` tag of `reported` / `estimated`
 / `unknown-price` / `no-usage`. A `total_cost_usd` the CLI reported itself always wins; otherwise the parser estimates
-from the first-party price tables, and an unpriced SKU yields `unknown-price` with `cost_usd=None` rather than a
+from an active row of the dated first-party API price catalogue, matched only by exact model ID, documented alias, or
+published snapshot, and a model with no active row — unknown, or catalogued but still dormant — yields `unknown-price`
+with `cost_usd=None` rather than a
 guess. Malformed JSONL lines are skipped, so one bad line never invalidates a stream. Two siblings ride the same
 stream under the same contract: the opt-in skill-trigger extractor behind `TRACK_SKILL_TRIGGERS`, and the trajectory
 classifier that reconstructs a run's timeline. That page carries the module layout, the per-backend parsers and their
