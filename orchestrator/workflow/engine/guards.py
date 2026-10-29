@@ -26,6 +26,12 @@ shutdown sweep produced. A mid-run
 screened the hard-skip labels once at tick start, and the handler has been
 holding that snapshot for however long the agent ran.
 
+None of them holds back the run's usage: the tracked spawn accounted it as the
+run returned, before any of them is asked (`usage._run_agent_tracked`), so
+"writing nothing" here means nothing of the run's disposition. A result whose
+accounting stayed unresolved (`AgentResult.unaccounted`) is held the same way,
+read off the result beside the pause.
+
 The first two are asked in that order wherever a stage inspects the worktree
 before it asks about interruption -- and several do, deliberately. What a
 killed run left on disk is the operator's to see; what a launch that never

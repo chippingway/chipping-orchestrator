@@ -146,7 +146,7 @@ per-stage behavior is in
   head, report, or requirements revision; it declares the verification it relies on (see
   [the reviewer verification contract](conversations.md#the-reviewer-verification-contract)), and what it returns is
   persisted as `review_returned_verdict` before that evidence is published or the verdict acted on, so a publication
-  or handoff retry finishes the verdict without a second reviewer, usage fold, run charge, round, or developer run.
+  or handoff retry finishes the verdict without a second reviewer, usage count, run charge, round, or developer run.
   A reviewer run that timed out, crashed, or ran out of provider quota is answered by the next fresh reviewer, never
   by the developer session: a timeout or crash (`reviewer_timeout` / `reviewer_failed`) is retried on a quiet tick
   or by any reply, while a `reviewer_usage_limit` park — the one a Codex reviewer takes when its last turn failed
@@ -172,7 +172,7 @@ per-stage behavior is in
   `workflow:decomposing` label, by `_adjudicate_late_generation` on
   `workflow/stages/decomposition/late_coordinator.py`. It is an additive mode rather than a stage: an analytics row
   reads `agent_role=decomposer` and `stage=decomposing` exactly as the initial decomposer's does, the spawn spends
-  the same per-issue retry budget and folds its usage into the same counters, and the initial decomposer's prompt,
+  the same per-issue retry budget and is counted on the same usage counters, and the initial decomposer's prompt,
   fence, and missing-manifest handling are untouched. What it does not share is the pin or the conversation:
   `late_agent` + `late_session_id` are a fourth independent pair, seeded from `DECOMPOSE_AGENT` on an issue's first
   late run and locked from then on. One late run in three resumes it: a human answering the categorized question the
@@ -245,6 +245,16 @@ still spend ([`../state-machine.md#per-tick-flow-workflowengineticktick`](../sta
 The caps each role already had still refuse first — a cap that fired only after the charge would spend a run on work
 nothing ran — so a spent review cap, conflict cap, or daily spawn budget parks its own way with the lifetime count
 untouched.
+
+The same boundary accounts each process's usage as it returns, before any role's handler sees the result: the
+`issue_*` usage counters gain the run once, with a receipt naming the process, whether its disposition is kept or
+thrown away — a paused, killed, timed-out, or incomplete run, a reviewer whose subject moved, a refused report, the
+poisoned session a fresh retry replaced, and the Antigravity run a recovery continued are all counted. That count is
+all a held return writes beside the quota retirement it may owe, and it licenses no replay: a reviewer verdict, a
+conversation answer, a decomposition, a docs completion, or a conflict outcome is still decided only by the round that
+reads it. Where the accounting itself does not land or will not confirm, the handler holds as it does on a live
+pause and the role makes no further run behind it that tick
+([`../state-machine/labels-and-state.md#pinned-state`](../state-machine/labels-and-state.md#pinned-state)).
 
 ## The size gate a committed candidate passes
 

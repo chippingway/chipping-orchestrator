@@ -24,7 +24,7 @@ from unittest.mock import patch
 
 from orchestrator import config
 from tests.workflow.fixtures import (
-    AGENT_RUN_CHARGE_WRITES,
+    AGENT_RUN_WRITES,
     KEY_AWAITING_HUMAN,
     KEY_LAST_ACTION_COMMENT_ID,
     KEY_PARK_REASON,
@@ -79,8 +79,9 @@ class DiscussionResumeNoopTest(unittest.TestCase, _DiscussionWorkflowMixin):
 
     def test_an_interrupted_resume_is_replayed(self) -> None:
         # The sweep kills the round before it can answer, so nothing the reply
-        # touched is made durable: it is still new to the next process, which
-        # runs it again rather than dropping the human's answer.
+        # touched is made durable -- only the round's usage is accounted, as it
+        # returned: the reply is still new to the next process, which runs it
+        # again rather than dropping the human's answer.
         gh, issue = _seed_parked_discussion(
             _INTERRUPTED_ISSUE_NUMBER, replies=(_reply(DISCUSSION_REPLY),),
         )
@@ -93,10 +94,11 @@ class DiscussionResumeNoopTest(unittest.TestCase, _DiscussionWorkflowMixin):
         mocks[_support.RUN_AGENT].assert_called_once()
         self.assertEqual(gh.posted_comments, [])
         self._assert_reply_unconsumed(gh, issue)
-        # The round's provenance write and the charge its spawn took are all
-        # that landed, and neither records anything about the reply.
+        # The round's provenance write, the charge its spawn took, and the
+        # killed round's accounting are all that landed, and none records
+        # anything about the reply.
         self.assertEqual(
-            gh.write_state_calls, writes_before + 1 + AGENT_RUN_CHARGE_WRITES,
+            gh.write_state_calls, writes_before + 1 + AGENT_RUN_WRITES,
         )
 
     def test_a_moved_anchor_holds_the_resume(self) -> None:

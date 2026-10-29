@@ -487,16 +487,22 @@ and lineage checks, and an umbrella keeps its own drift route. Neither an edit n
 works past `paused`/`backlog`: a held child is not released, a held parent is neither polled nor handed back to
 `workflow:ready`, and the `ready` decision stops at either control or at a relabel back to `workflow:blocked`. The
 release and the parent's return move only the workflow label, and the walk reads the parent's controls again in front
-of every release, so a hold applied while the poll runs is never written away or worked past. Lifetime agent-run
-charges and the grant that permits further runs are covered by [C-15].
+of every release, so a hold applied while the poll runs is never written away or worked past. A hold a finished agent
+run meets, or an accounting checkpoint of it that neither landed nor read back, permits that run's usage accounting
+alone, beside a quota retirement it owes: the exit is counted once, as it returns, and nothing else of the run -- a
+publication, a label, a park, a consumed input, a further launch -- is written or made, nor does the count give any
+stage outcome a replay. Lifetime agent-run charges and the grant that permits further runs are covered by [C-15].
 
 **Specs:** [controls](state-machine/labels-and-state.md#workflow-labels),
 [waiting for human action](state-machine.md#per-tick-flow-workflowengineticktick),
 [dependency holds](state-machine/delivery-stages.md#_handle_blocked-label-workflowblocked),
 [deferred drift](state-machine/delivery-stages.md#user-content-drift-detection),
-[retry budget](state-machine/labels-and-state.md#the-retry-budget).
+[retry budget](state-machine/labels-and-state.md#the-retry-budget),
+[held accounting](state-machine/labels-and-state.md#pinned-state).
 
 **Checks:** [live holds](../tests/workflow/engine/test_guards_paused.py),
+[held accounting](../tests/workflow/engine/test_exit_accounting.py),
+[held developer runs](../tests/workflow/stages/implementing/test_paused.py),
 [ready holds](../tests/workflow/stages/decomposition/test_ready_holds.py),
 [dependency holds](../tests/workflow/stages/decomposition/test_blocked_deferral.py),
 [held releases](../tests/workflow/stages/decomposition/test_claimed_release.py),
@@ -530,7 +536,8 @@ container, or VM.
 **Limits:** The base-rewrite finish reads the configured audit log and its rotated copies to avoid duplicate
 `base_rebased` events, which record rebases onto the updated base branch. An unreadable log holds that finish.
 Deleting a rotated copy or truncating the log without keeping a copy while a finish awaits retry can emit
-`base_rebased` twice.
+`base_rebased` twice. The per-issue usage counters are the accounting checkpoint's alone: an exit no usable checkpoint
+landed is not counted, and nothing reconstructs it from the analytics or audit sinks.
 
 **Specs:** [audit recovery](observability/event-streams.md#audit-event-log-event_log_path).
 

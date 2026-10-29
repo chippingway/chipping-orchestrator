@@ -686,7 +686,7 @@ to resume, any extra environment, the deadline, and the role spec's extra argume
 unchanged; `_run_agent_tracked` builds it from its request (`run_requests._AgentRunRequest.run_options`). All runners
 return a unified
 `AgentResult(session_id, last_message, exit_code, timed_out, stdout, stderr,`
-`interrupted, usage, invoked, unfinished_steps, terminal_failure, invocation)`.
+`interrupted, usage, invoked, unfinished_steps, terminal_failure, invocation, unaccounted)`.
 `interrupted`
 (default `False`) flags a run the runner observed exiting on SIGTERM/SIGKILL, in either form: the negative
 returncode `Popen` reports when the child itself dies from the signal (`-15` / `-9`), or the shell-convention
@@ -706,9 +706,10 @@ is held against none. `usage` (default `None`) is the parsed
 `UsageMetrics` -- the one on `observability/usage/metrics.py` -- that `recording.record_agent_exit` attaches during a
 tracked run so callers can read token / cost metrics off the result without re-parsing stdout; it stays `None` for a
 result that never flowed through
-`_run_agent_tracked` or whose usage parse failed (fail-open). What the spawning handlers do with it — the per-issue
-counters `_accumulate_issue_usage` folds each run into, and the one visible receipt comment
-`_format_issue_usage_verdict` reads them back out of at a terminal — is in
+`_run_agent_tracked` or whose usage parse failed (fail-open). What becomes of it — the per-issue counters the
+accounting checkpoint (`workflow/engine/usage_checkpoint.py`) lands each invoked run on as `_run_agent_tracked`
+returns it, and the one visible receipt comment `_format_issue_usage_verdict` reads them back out of at a terminal —
+is in
 [`state-machine/labels-and-state.md#pinned-state`][pinned-state] and
 [`observability/usage.md`](observability/usage.md); nothing gates on the figure. `invocation` (default `None`) is
 the `AgentInvocation` naming the one process a result came from, which `_run_agent_tracked` stamps on what the
@@ -717,7 +718,9 @@ runner returned, as it attaches `usage`: minted over the durable reading the run
 stands at, and a random nonce), so two runs of an identical request and a run with no session id stay distinct where
 the request's fingerprint and the session id do not. It is what usage accounting is keyed by
 ([The agent-run circuit](state-machine/labels-and-state.md#the-agent-run-circuit)), and stays `None` for a result
-no charged process produced. `unfinished_steps` (default `()`)
+no charged process produced. `unaccounted` (default `False`) is set by `_run_agent_tracked` where that accounting
+neither landed nor read back covered -- refused, or sent and never confirmed: the run's disposition and any further
+invocation its wrapper would make hold on it, as on a live pause. `unfinished_steps` (default `()`)
 carries structured diagnostics (`ToolLifecycle`) for any tool steps left unfinished when a backend emits terminal
 output (such as Antigravity active commands); when present, the terminal response is suppressed from `last_message`
 and the result is forced non-zero so recovery can act on it. `terminal_failure` (default `None`) is the

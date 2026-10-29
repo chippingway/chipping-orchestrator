@@ -30,8 +30,8 @@ comment it read and would pin a second one. The reading that agreed goes on
 with the subject, and is laid over the state in hand before the round writes
 anything, measured from the comment as the tick read it
 (`_ResolvedSubject.lays_over`): what another road wrote while the subject was
-resolved -- a run it charged and folded, a notice it posted -- is on it and
-nowhere in hand, and every later reading is measured from it, so none would see
+resolved -- a run it charged and accounted, a notice it posted -- is on it
+and nowhere in hand, and every later reading is measured from it, so none would see
 that move. The round's launch is committed over that reading
 (`review_writes.lands_the_launch`), and what the commit landed -- the launch and
 whatever another road wrote since the binding -- is laid over the state in hand
@@ -68,9 +68,11 @@ service holds the verdict's evidence claim to, over the comment as read last,
 rather than calling a settlement of the very evidence it claims a move -- a
 round a reply bought, a run another road charged, or the thread it read
 through, none of which a write may put back. Where the records stand, a field
-this tick changed too is its own write's to say. A field both changed that adds
-up or only advances keeps both changes instead -- a usage total, its cost tags,
-a comment-id watermark (`state._keeps_both_moves`) -- and the ledger of the
+this tick changed too is its own write's to say. A field both changed that only
+advances keeps both changes instead -- a comment-id watermark
+(`state._keeps_both_moves`) -- the usage accounting is always the comment's,
+since its one writer laid what it landed onto the state in hand as the
+comment's (`usage_checkpoint`), and the ledger of the
 orchestrator's own comments is merged rather than carried or kept: every road
 adds to it, and an id either side recorded is a comment every later prompt has
 to know as the orchestrator's, kept once among the newest its bound holds --
@@ -124,6 +126,7 @@ from orchestrator.workflow.engine import (
     report_records as _records,
     review_evidence_prompts as _evidence_prompts,
     review_subjects as _review_subjects,
+    usage_checkpoint as _usage_checkpoint,
     verification_records as _evidence_records,
 )
 from orchestrator.workflow.stages.validating import (
@@ -214,7 +217,7 @@ class _ResolvedSubject:
         """Carry onto `state` what the comment this subject was bound to changed since the tick read it as `read`.
 
         The binding reading is the first the round takes again, and every
-        later one is measured from it: a run another road charged and folded
+        later one is measured from it: a run another road charged and accounted
         while the subject was resolved, the thread it read through, a notice it
         posted, are on it and nowhere in hand, and left out of `state` here no
         later reading would see them move -- the round's writes would put the
@@ -222,13 +225,12 @@ class _ResolvedSubject:
         request, and the returned-verdict record agree by then
         (`_resolved_over`), and the launch's commit lands only over them as
         they read there (`review_writes.lands_the_launch`), so a field both
-        changed is this tick's own to say, or keeps both moves where they add
-        up or only advance (`_Reread.lays_over`). A field the comment already spells as
-        `state` does -- one this tick wrote earlier in the tick -- has nothing
-        to carry, and measured from `read` it would read as both roads' move
-        and be kept twice. No road ahead of a reviewer on its tick folds a run
-        of its own, so the totals `state` holds are the ones the tick read or
-        wrote.
+        changed is this tick's own to say, or keeps both moves where they only
+        advance (`_Reread.lays_over`), and the usage accounting is the
+        comment's. A field the comment already spells as `state` does -- one
+        this tick wrote earlier in the tick -- has nothing to carry, and
+        measured from `read` it would read as both roads' move and be kept
+        twice.
         """
         fields = {*read, *self.resolved_over, *state.state_data}
         agreed = fields.difference(_moved(self.resolved_over, state.state_data, fields))
@@ -275,11 +277,12 @@ class _Reread:
         """Carry onto `state` what the comment changed since `since`, as the write behind this reading has to keep it.
 
         Every field the comment changed, save one `state` changed too: that
-        keeps both changes where they add up or only advance
+        keeps both changes where they only advance
         (`state._keeps_both_moves`), and is otherwise this tick's own where
-        the records stood and the comment's where they moved. The ledger of
-        the orchestrator's own comments is merged instead, every entry either
-        side holds that names no comment dropped.
+        the records stood and the comment's where they moved. The usage
+        accounting is always the comment's (`usage_checkpoint.ACCOUNTING`).
+        The ledger of the orchestrator's own comments is merged instead, every
+        entry either side holds that names no comment dropped.
         """
         # Every field the comment changed since `since`, as `_moved` spells a
         # change: a field Python calls equal -- `true` over `1` -- is still
@@ -293,8 +296,11 @@ class _Reread:
         _pinned_commit.takes_in(
             state, self.read, {*fields, _comments._ORCH_COMMENT_IDS},
         )
-        # ...save one this tick changed too.
-        for field in _moved(state.state_data, since, fields):
+        # ...save one this tick changed too. The usage accounting is never
+        # this tick's own: the checkpoint is its one writer and laid what it
+        # landed onto the state as the comment's, so a reading behind it
+        # carries that or a newer one, never a move to keep beside it.
+        for field in _moved(state.state_data, since, set(fields).difference(_usage_checkpoint.ACCOUNTING)):
             if _state._keeps_both_moves(state, field, self.read, since) or self.stood:
                 fields.remove(field)
         for field in fields:
@@ -456,9 +462,9 @@ def _records_stand(
     `resolved_over` is carried onto `state` -- evidence records included, which
     a caller holding a persisted verdict judges its claim over -- save, where
     they stand, one `state` changed itself, which is that write's own to say.
-    A field both changed keeps both changes where they add up or only advance
-    -- a usage total, its cost tags, a comment-id watermark
-    (`state._keeps_both_moves`) -- and the ledger of the orchestrator's own
+    A field both changed keeps both changes where they only advance -- a
+    comment-id watermark (`state._keeps_both_moves`) -- the usage accounting
+    is the comment's, and the ledger of the orchestrator's own
     comments is merged (`comments._track_orchestrator_comment`). `read` is the
     comment as this reading found it, for a later reading of the same run to
     be measured against. None where the comment will not read or parse, or is

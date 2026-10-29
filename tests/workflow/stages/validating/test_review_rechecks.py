@@ -15,10 +15,13 @@ tick to answer. So does a current report its settlement handoff no longer
 describes, on every road that would reuse an approval: the settled squash
 handoff, the recovery of an unfinished squash, and the ready ping.
 
-A round's return is written over what another road wrote while its subject
-was resolved or while the reviewer ran -- a run it charged and folded, the
-thread it read through, a notice it posted -- each kept once, however many
-readings the round takes behind it. A verdict of a pull request the issue no
+A round's return is written over what an external edit of the pinned comment
+-- a hand edit made with the orchestrator's own login, the one writer besides
+the round a writer claim leaves -- wrote while its subject was resolved or while
+the reviewer ran: a run it counted on the usage totals, the thread it marked
+read, a comment it recorded as the orchestrator's. Each is kept once, however
+many readings the round takes behind it, and the reviewer's own accounting
+lands beside it rather than over it. A verdict of a pull request the issue no
 longer points at is not acted on.
 """
 
@@ -90,9 +93,11 @@ BEFORE_THE_TICK = "before the tick"
 
 WHILE_MERGING = "while merging"
 
-# What another road does while a reviewer runs beside it: it charges a run of
-# its own and folds it, tokens and a cost nobody priced, and reads the thread
-# through a notice it posted.
+# What an operator's hand edit of the pinned comment does while a reviewer runs
+# beside it: it counts a run the orchestrator never saw on the usage totals,
+# tokens and a cost nobody priced, and marks the thread read through a comment
+# it posted and recorded as the orchestrator's. It charges nothing: the
+# lifetime ledger is the run circuit's alone.
 THEIR_TOKENS = 50
 
 UNPRICED = "unknown-price"
@@ -103,9 +108,11 @@ THREAD_MARK = "last_action_comment_id"
 
 LEDGER = "orchestrator_comment_ids"
 
-# What an issue has spent, as the comment spells it: runs charged, runs folded,
-# and tokens folded.
+# What an issue has spent, as the comment spells it: runs charged, runs counted,
+# and tokens counted -- and what the hand edit beside one reviewer adds to each.
 SPENT = ("agent_runs_used", "issue_agent_runs", "issue_total_tokens")
+
+_EDITED_SPEND = (0, 1, THEIR_TOKENS)
 
 # A pull request the issue is pointed at in place of the one reviewed, and
 # each verdict a reviewer could return about the one reviewed.
@@ -135,14 +142,21 @@ _REPOINTS = (
 # the commit was decided on, where no request of the round's own leaves room.
 _GUARDED_COMMIT = (_pinned_commit, "commit")
 
-# When another road's run lands beside a round, as the seam its write lands
-# behind: while the reviewer runs, while the report its subject is resolved
-# from is read, right before the reading the round is bound to, and right
-# ahead of the commit recording its launch.
+# How many guarded commits a round lands before the park of a reviewer that
+# left no verdict: the launch's record, and the run's accounting, landed as it
+# returned.
+_AHEAD_OF_THE_PARK = 2
+
+# When the hand edit lands beside a round, as the seam it lands behind -- while
+# the reviewer runs, while the report its subject is resolved from is read,
+# right before the reading the round is bound to, and right ahead of the commit
+# recording its launch -- and the runs the round's charge leaves charged: one,
+# or, where the edit's run is counted ahead of that charge, two, since the
+# ledger is never read below the usage meter and the charge is taken over it.
 _RUNS_BESIDE = (
-    ("while the reviewer ran", None),
-    ("while its subject was resolved", (_settled_reading, "carried_text")),
-    ("ahead of its launch's commit", _GUARDED_COMMIT),
+    ("while the reviewer ran", None, 1),
+    ("while its subject was resolved", (_settled_reading, "carried_text"), 2),
+    ("ahead of its launch's commit", _GUARDED_COMMIT, 2),
 )
 
 # The park a timed-out reviewer leaves, which the next tick retries silently.
@@ -208,13 +222,13 @@ _REPEATED = (
     (
         "the park cleared ahead of a timed-out reviewer's park",
         partial(world.restate, **{AWAITING_HUMAN: False, PARK_REASON: None}),
-        (TIMED_OUT_PARK, 1, _NO_VERDICT[0][1]),
+        (TIMED_OUT_PARK, _AHEAD_OF_THE_PARK, _NO_VERDICT[0][1]),
         1,
     ),
     (
         "the park cleared ahead of a verdict-less reviewer's park",
         partial(world.restate, **{AWAITING_HUMAN: False, PARK_REASON: None}),
-        ("reviewer_unrecorded", 1, _NO_VERDICT[1][1]),
+        ("reviewer_unrecorded", _AHEAD_OF_THE_PARK, _NO_VERDICT[1][1]),
         1,
     ),
 )
@@ -275,13 +289,14 @@ class _ApprovedReports(world._ReviewedReports):
         })
 
     def _runs_beside(self, *_case) -> None:
-        """Another road's run beside the reviewer's, charged and folded, and the notice it posted and read through.
+        """An operator's hand edit beside the reviewer: a run counted, and a comment it posted marked read and recorded.
 
-        The notice's id is kept as `theirs`.
+        Made with the orchestrator's own login, as any hand edit of the pinned
+        comment is; the comment's id is kept as `theirs`.
         """
         state = self.github.read_pinned_state(self.issue)
-        self.theirs = self.github.comment(self.issue, "another road's notice").id
-        for spent, by in zip(SPENT, (1, 1, THEIR_TOKENS), strict=True):
+        self.theirs = self.github.comment(self.issue, "an operator's note").id
+        for spent, by in zip(SPENT, _EDITED_SPEND, strict=True):
             state.set(spent, state.get(spent) + by)
         state.set(COST_SOURCES, sorted({*state.get(COST_SOURCES), UNPRICED}))
         state.set(THREAD_MARK, self.theirs)
@@ -348,7 +363,7 @@ class ReviewRecheckTest(unittest.TestCase, _ApprovedReports):
         # is lost: no reviewer is spawned behind a launch nobody confirmed,
         # and nothing is charged. The next tick finds the launch recorded,
         # commits it again with nothing sent, and runs exactly one reviewer,
-        # charged and folded once.
+        # charged and counted once.
         self.seeded(ISSUE, PR, LABEL_VALIDATING)
         self.reported_round(world.FIRST_REPORT)
         before = self.pinned()
@@ -611,15 +626,17 @@ class ReturnRaceTest(unittest.TestCase, _ApprovedReports):
     Or refused off its PR.
     """
 
-    def test_a_return_keeps_another_roads_run(self) -> None:
-        # Another road charges and folds a run of its own, and reads the
-        # thread through a notice it posted, while the reviewer runs or while
-        # its subject is resolved, ahead of the reading the round is bound to.
-        # The approval is acted on, and every write behind it -- the return's
-        # own and the one behind the verify gate -- keeps both runs' charges
-        # and folds, each counted once, both cost tags, the thread read as far
-        # as that road read it, and its notice as the orchestrator's own.
-        for window, seam in _RUNS_BESIDE:
+    def test_a_return_keeps_a_hand_edit(self) -> None:
+        # An operator's hand edit counts a run on the usage totals and marks
+        # the thread read through a comment it records as the orchestrator's,
+        # while the reviewer runs or while its subject is resolved, ahead of
+        # the reading the round is bound to. The approval is acted on, and
+        # every write behind it -- the return's own and the one behind the
+        # verify gate -- keeps the edit's run beside the reviewer's, each
+        # counted once, the reviewer's charge taken over the meter the edit
+        # left, both cost tags, the thread read as far as the edit marked it, and its comment
+        # as the orchestrator's own.
+        for window, seam, charged in _RUNS_BESIDE:
             with self.subTest(window):
                 self.seeded(ISSUE, PR, LABEL_VALIDATING)
                 self.reported_round(world.FIRST_REPORT)
@@ -627,7 +644,7 @@ class ReturnRaceTest(unittest.TestCase, _ApprovedReports):
 
                 self._raced(self._runs_beside, REVIEW_APPROVED_MESSAGE, seam)
 
-                self._keeps_both_runs(before)
+                self._keeps_both_runs(before, charged)
 
     def test_a_repointed_verdict_is_not_acted_on(self) -> None:
         # The issue is pointed at another pull request while the reviewer
@@ -679,17 +696,18 @@ class ReturnRaceTest(unittest.TestCase, _ApprovedReports):
             (LABEL_VALIDATING, OTHER_PR, None, posted),
         )
 
-    def _keeps_both_runs(self, before: dict) -> None:
-        """The approval acted on, and the comment it leaves keeping another road's run beside the reviewer's, once each.
+    def _keeps_both_runs(self, before: dict, charged: int) -> None:
+        """The approval acted on, and the comment it leaves keeping the edit's run beside the reviewer's, each once.
 
-        Measured from the comment as it stood `before` the tick.
+        Measured from the comment as it stood `before` the tick, with `charged`
+        runs charged on the ledger since.
         """
         pinned = self.pinned()
         spent = [pinned[field] - before[field] for field in SPENT]
         self.assertEqual(
             (self.github.label_history[-1], pinned[LAST_REVIEWER]), (DOCUMENTED, LATE_REVIEWER),
         )
-        self.assertEqual(spent, [2, 2, THEIR_TOKENS])
+        self.assertEqual(spent, [charged, 2, THEIR_TOKENS])
         self.assertEqual(
             (pinned[COST_SOURCES], pinned[THREAD_MARK]),
             (sorted({*before[COST_SOURCES], UNPRICED}), self.theirs),
@@ -726,14 +744,16 @@ class RoundCommitTest(unittest.TestCase, _ApprovedReports):
                     (0, self.left_behind, LABEL_VALIDATING),
                 )
 
-    def test_a_return_park_keeps_another_roads_run(self) -> None:
-        # A reviewer times out, or leaves no verdict line, and another road
-        # charges and folds a run of its own, reading the thread through a
-        # notice it posted, right ahead of the commit recording the park --
-        # behind the park's own notice: the park lands over it with the
-        # reviewer's session recorded, both runs charged and folded once
-        # each, that road's tokens and cost tag kept, the thread read as far
-        # as that road read it, and its notice recorded as the orchestrator's.
+    def test_a_return_park_keeps_a_hand_edit(self) -> None:
+        # A reviewer times out, or leaves no verdict line, and an operator's
+        # hand edit counts a run on the usage totals and marks the thread read
+        # through a comment it records as the orchestrator's, right ahead of
+        # the commit recording the park -- behind the reviewer's accounting and
+        # the park's own notice: the park lands over it with the reviewer's
+        # session recorded, the edit's run kept beside the reviewer's, each
+        # counted once, the edit's tokens and cost tag kept, the thread read as
+        # far as the edit marked it, and its comment recorded as the
+        # orchestrator's.
         for name, reviewer, reason in _NO_VERDICT:
             with self.subTest(name):
                 self.seeded(ISSUE, PR, LABEL_VALIDATING)
@@ -751,7 +771,7 @@ class RoundCommitTest(unittest.TestCase, _ApprovedReports):
                     ),
                     (
                         (True, reason, LATE_REVIEWER),
-                        [2, 2, THEIR_TOKENS],
+                        [1, 2, THEIR_TOKENS],
                         (sorted({*before[COST_SOURCES], UNPRICED}), self.theirs),
                     ),
                 )
@@ -801,7 +821,7 @@ class RoundCommitTest(unittest.TestCase, _ApprovedReports):
 
     def _parks_behind(self, road, reviewer) -> None:
         """One tick whose `reviewer` left no verdict, with `road` landing right ahead of its park's commit."""
-        self._raced(partial(self._leaves_behind, road), reviewer, _GUARDED_COMMIT, passes=1)
+        self._raced(partial(self._leaves_behind, road), reviewer, _GUARDED_COMMIT, passes=_AHEAD_OF_THE_PARK)
 
     def _leaves_behind(self, road, *_case) -> None:
         """`road`'s work on this case, and what it left kept as `left_behind` (`_left`)."""

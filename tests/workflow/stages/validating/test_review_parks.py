@@ -46,7 +46,7 @@ LAST_ACTION = _parked.LAST_ACTION
 LEDGER = _comments._ORCH_COMMENT_IDS
 
 # Where the pinned comment records the reviewer session a round ran, and the
-# usage it folded.
+# usage it counted.
 LAST_REVIEW_SESSION = "last_review_session_id"
 
 TOKENS = "issue_total_tokens"
@@ -136,7 +136,7 @@ _BEHIND_THE_NOTICE = tuple(
 )
 
 # The round another road spends behind a notice, and the tokens its own run
-# folds: fields no verdict stands on.
+# counts: fields no verdict stands on.
 _SPENT_ROUND = 7
 
 _THEIR_TOKENS = 100
@@ -166,7 +166,8 @@ class ParkLandsTest(_parked.ParkedVerdictWorld, unittest.TestCase):
         # The notice mentions a human, says why, asks for room on the pinned
         # comment only where room refused the verdict, and says what buys a
         # fresh reviewer; the park drops the verdict it refuses, keeps what the
-        # run staged -- the reviewer's session and usage -- records its notice
+        # run left -- the reviewer's session, and its usage, counted as it
+        # returned -- records its notice
         # as the orchestrator's and the thread read through it, and reports
         # the wait with the round, session, and pull request it ran for.
         for reason, why, asks_for_room in _CAUSES:
@@ -241,17 +242,19 @@ class ParkRoomTest(_parked.ParkedVerdictWorld, unittest.TestCase):
     def test_a_full_comment_parks_what_it_carries(self) -> None:
         # No room beside what the returned run staged, and room for the park
         # alone: the park is taken over the comment as it stands, the run's
-        # session and usage unrecorded, and reports the reviewer it parked.
+        # session unrecorded, and reports the reviewer it parked. The run's
+        # usage is counted all the same: its accounting landed apart, as the
+        # reviewer returned, and no room the verdict lacked takes it back.
         _parked.fills_to(self, _ROOM_FOR_THE_PARK_ALONE)
 
         self.parks(UNRECORDED)
 
-        unrecorded = tuple(map(self.pinned().get, (LAST_REVIEW_SESSION, TOKENS)))
+        recorded = tuple(map(self.pinned().get, (LAST_REVIEW_SESSION, TOKENS)))
         self.assertEqual(
-            (self.parked(), unrecorded, _parked.reported(self)),
+            (self.parked(), recorded, _parked.reported(self)),
             (
                 ((UNRECORDED, True), None, [UNRECORDED]),
-                (None, None),
+                (None, _world.REVIEWER_TOKENS),
                 [dict(_REPORTED, reason=UNRECORDED)],
             ),
         )
@@ -402,12 +405,12 @@ class ParkWriteTest(_parked.ParkedVerdictWorld, unittest.TestCase):
     """A park's write is composed over the comment as it stands behind its notice, and made only where it fits."""
 
     def test_a_park_keeps_what_another_road_wrote(self) -> None:
-        # Another road spends a round behind the notice, folds a run of its
+        # Another road spends a round behind the notice, counts a run of its
         # own, reads the thread past every post there, and records two
         # notices of its own. The park lands over the comment as it stands:
-        # the round is not written back over, the runs each road folded add
-        # up, the thread stays read as far as that road read it, and the
-        # ledger keeps both roads' posts.
+        # the round is not written back over, the run that road counted stands
+        # beside the reviewer's, counted as it returned, the thread stays read
+        # as far as that road read it, and the ledger keeps both roads' posts.
         for reason in _PARKS:
             with self.subTest(reason):
                 self.setUp()
@@ -471,7 +474,7 @@ class ParkWriteTest(_parked.ParkedVerdictWorld, unittest.TestCase):
         return [said.id for said in self.issue.comments if notice in said.body]
 
     def _works_behind(self, _case) -> None:
-        """Another road's round, a run it folded, the thread read one past every comment, and two notices it posted."""
+        """Another road's round, a run it counted, the thread read one past every comment, and two notices it posted."""
         state = self.github.read_pinned_state(self.issue)
         self.theirs = [
             _comments._post_issue_comment(self.github, self.issue, state, "Another road's notice.").id

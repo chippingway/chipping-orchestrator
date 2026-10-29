@@ -26,7 +26,7 @@ FakeGitHubClient = review_support.FakeGitHubClient
 FakeUser = review_support.FakeUser
 make_issue = review_support.make_issue
 EVENT_AGENT_SPAWN = review_support.EVENT_AGENT_SPAWN
-AGENT_RUN_CHARGE_WRITES = review_support.AGENT_RUN_CHARGE_WRITES
+Launched = review_support.Launched
 LABEL_VALIDATING = review_support.LABEL_VALIDATING
 REVIEW_APPROVED_MESSAGE = review_support.REVIEW_APPROVED_MESSAGE
 ROLE_REVIEWER = review_support.ROLE_REVIEWER
@@ -576,6 +576,7 @@ class ValidatingInterruptedResumeHandlerTest(unittest.TestCase, _PatchedWorkflow
             pr_number=SECONDARY_PR,
             branch=_issue_branch(8),
         )
+        launched = Launched.over(interrupted_github, 8)
 
         interrupted_patches = self._run_validating(
             interrupted_github,
@@ -592,14 +593,11 @@ class ValidatingInterruptedResumeHandlerTest(unittest.TestCase, _PatchedWorkflow
         # but produced no commit and was killed.
         interrupted_patches[RUN_AGENT].assert_called_once()
         interrupted_patches[PUSH_BRANCH].assert_not_called()
-        # Nothing but the resume's own charge persisted: the rest of the
-        # seeded state stands untouched, so the next tick re-detects the
-        # drift and retries the resume.
-        self.assertEqual(
-            interrupted_github.write_state_calls, AGENT_RUN_CHARGE_WRITES,
-        )
+        # Nothing but the resume's own charge and accounting persisted: the
+        # rest of the seeded state stands untouched, so the next tick
+        # re-detects the drift and retries the resume.
         self.assertEqual(interrupted_github.label_history, [])
-        interrupted_state = interrupted_github.pinned_data(8)
+        interrupted_state = launched.held(self, interrupted_github, 8)
         self.assertEqual(interrupted_state.get(USER_CONTENT_HASH), "stale-hash-forces-drift")
         self.assertEqual(interrupted_state.get(LAST_ACTION_COMMENT_ID), PICKUP_COMMENT_ID)
 
@@ -617,18 +615,18 @@ class ValidatingInterruptedResumeHandlerTest(unittest.TestCase, _PatchedWorkflow
         # Seed a matching content hash so `_detect_user_content_change`
         # returns None (no drift, no first-call persist) and the handler
         # reaches the awaiting-human resume path cleanly.
-        prior_hash = _content_hash._compute_user_content_hash(interrupted_issue, set())
         interrupted_github.seed_state(
             9,
             awaiting_human=True,
             last_action_comment_id=1000,
-            user_content_hash=prior_hash,
+            user_content_hash=_content_hash._compute_user_content_hash(interrupted_issue, set()),
             dev_agent=BACKEND_CLAUDE,
             dev_session_id=DEV_SESSION,
             review_round=1,
             pr_number=INTERRUPTED_RESUME_PR,
             branch=_issue_branch(9),
         )
+        launched = Launched.over(interrupted_github, 9)
 
         interrupted_patches = self._run_validating(
             interrupted_github,
@@ -643,13 +641,10 @@ class ValidatingInterruptedResumeHandlerTest(unittest.TestCase, _PatchedWorkflow
 
         interrupted_patches[RUN_AGENT].assert_called_once()
         interrupted_patches[PUSH_BRANCH].assert_not_called()
-        # Nothing but the resume's own charge persisted: the park stays put
-        # and the human reply is re-consumed next tick against a fresh dev
-        # session.
-        self.assertEqual(
-            interrupted_github.write_state_calls, AGENT_RUN_CHARGE_WRITES,
-        )
-        interrupted_state = interrupted_github.pinned_data(9)
+        # Nothing but the resume's own charge and accounting persisted: the
+        # park stays put and the human reply is re-consumed next tick against
+        # a fresh dev session.
+        interrupted_state = launched.held(self, interrupted_github, 9)
         self.assertTrue(interrupted_state.get(AWAITING_HUMAN))
         self.assertEqual(interrupted_state.get(LAST_ACTION_COMMENT_ID), 1000)
 

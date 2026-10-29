@@ -17,7 +17,7 @@ from unittest.mock import MagicMock, patch
 from orchestrator.github.labels import PAUSED_LABEL
 from tests.support.fakes import FakeGitHubClient, FakeLabel, FakePR, make_issue
 from tests.workflow import approval_records as _approval_records
-from tests.workflow.fixtures import AGENT_RUN_CHARGE_WRITES, _agent, _PatchedWorkflowMixin
+from tests.workflow.fixtures import Launched, _agent, _PatchedWorkflowMixin
 
 ISSUE = 85
 PR_NUMBER = 805
@@ -67,7 +67,8 @@ class InReviewLivePauseDriftTest(unittest.TestCase, _PatchedWorkflowMixin):
         # watermarks, and bounce to `validating`. Asserting none of that
         # happens (and the stale hash survives) proves the guard reads
         # `gh.get_issue` and honors it, leaving the drift for a later tick.
-        gh, issue, before_writes = self.seed_paused_drift()
+        gh, issue, _ = self.seed_paused_drift()
+        launched = Launched.over(gh, ISSUE)
 
         get_issue_mock = MagicMock(return_value=_paused_view(ISSUE))
         with patch.object(gh, "get_issue", get_issue_mock):
@@ -84,10 +85,9 @@ class InReviewLivePauseDriftTest(unittest.TestCase, _PatchedWorkflowMixin):
         mocks["run_agent"].assert_called_once()
         get_issue_mock.assert_called_with(ISSUE)
         mocks["_push_branch"].assert_not_called()
-        # Nothing persisted, no relabel: the drift stays unconsumed.
-        self.assertEqual(
-            gh.write_state_calls, before_writes + AGENT_RUN_CHARGE_WRITES,
-        )
+        # Nothing persisted past the run's charge and accounting, no relabel:
+        # the drift stays unconsumed.
+        launched.held(self, gh, ISSUE)
         self.assertNotIn((ISSUE, "workflow:validating"), gh.label_history)
         self.assertNotIn((ISSUE, "workflow:documenting"), gh.label_history)
         self.assert_pause_state(gh)

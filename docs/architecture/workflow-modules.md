@@ -731,11 +731,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the issue's comment guarded by the reading the tick last synced with, not by the state it
                             holds now, so every field the tick changed since rides the write as the tick spells it while
                             every field another road moved is the fresh reading's. A report record moved under the
-                            decision, or a field the write changes moved another way, refuses it; a usage total, the
-                            cost tags, a comment-id watermark, and the ledger of this orchestrator's comments keep both
-                            roads' moves instead, by the validating stage's own rule (`stages/validating/state.py`) and
-                            the ledger's own writer, and a move that rule cannot join -- another road left the field as
-                            no such value at all -- is refused as an owned conflict rather than written over.
+                            decision, or a field the write changes moved another way, refuses it; a comment-id
+                            watermark and the ledger of this orchestrator's comments keep both roads' moves instead, by
+                            the validating stage's own rule (`stages/validating/state.py`) and the ledger's own writer,
+                            and a move that rule cannot join -- another road left the field as no such value at all --
+                            is refused as an owned conflict rather than written over. The usage totals are no field it
+                            writes: their one writer is the accounting checkpoint, so they stand as the comment carries
+                            them.
                             `on_the_publication` decides a
                             write on the pull request, branch and code-publication receipt as well, the implementing
                             stage's own fields resolved when asked; `deciding_on` on further fields of the caller's,
@@ -2400,8 +2402,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             counts whole numbers of any size, never converted, and the cost one a float holds -- and the
                             tags a list of words, a run's parsed usage countable only where
                             what it adds is spelled alike, and the per-counter transformations over a fresh reading --
-                            the stage fold's arithmetic -- answering CONFLICT where the value laid over, the increment,
-                            or the total made is spelled as nothing its writers write
+                            one run, its tokens, its cost where it has one, and its tag -- answering CONFLICT where the
+                            value laid over, the increment, or the total made is spelled as nothing its writers write
     invocations.py          the identity of each actual agent process (`agents.models.AgentInvocation`), minted over
                             the durable reading its charge was started on: repository, issue, the pinned comment that
                             start was written on, workflow cycle (the record's `late_cycle_id`, 0 only where the field
@@ -2416,12 +2418,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and cycle, refusing a damaged ledger, cycle identity, or counter -- the cost total included
                             where the run adds no cost, and on the read-back as in the commit -- and a parsed usage no
                             counter can take, and read back before anything is sent, so an
-                            unconfirmed edit, a lost response, a restart, or a later settlement adds nothing. Only a
-                            settled answer licenses dependent work. Dormant: no road calls it yet, so the stage folds
-                            still persist usage
+                            unconfirmed edit, a lost response, a restart, or a later settlement adds nothing; what
+                            landed is laid back onto the caller's state as the comment's (`ACCOUNTING`, the fields the
+                            reviewer's rereads keep as the comment's too). Only a settled answer licenses dependent
+                            work. The counters' one writer: no stage folds usage of its own
     usage.py                the tracked agent invocation: charge the required issue budget, emit spawn, call the runner,
-                            record its exit and skills, and return the result for the stage to settle, stamped with
-                            the identity minted over the reading the charge was started on
+                            record its exit and skills, stamp the result with the identity minted over the reading
+                            the charge was started on, account its usage through the checkpoint before anything
+                            above can discard it, and return it for the stage to settle -- `unaccounted`, with the
+                            caller's state withheld, where that accounting is unresolved
   late_split/               the late size gate's own domain: what one generation IS, apart from anything that drives
                             one
     formats.py              what any late value has to look like -- a real integer, a git object id, a bounded
@@ -3045,8 +3050,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             recorded result that
                             does not answer, in whatever spelling, parks `late_children_failed` instead, spawning and
                             creating nothing
-      late_completion.py    account usage, refuse unstarted, timed-out, interrupted, or mutated-candidate answers,
-                            and record the session and verdict; re-read the owner for every completed or reused answer
+      late_completion.py    defer a run a live pause stopped or whose accounting stayed unresolved -- its usage
+                            already accounted as it returned, at the tracked spawn, and buying its verdict no replay --
+                            refuse unstarted, timed-out, interrupted, or mutated-candidate answers, and record the
+                            session and verdict; re-read the owner for every completed or reused answer
                             before settlement, handing only a guarded split to the transaction; none of its
                             refusals repays the owed replies a run was quoted, which only a recorded verdict does
       late_retry_cap.py     the same standing park on the adjudication's own road: the gate its fresh spawn is
@@ -3669,7 +3676,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             cancelled, interrupted, or missing terminal result, or an Antigravity process that exited
                             nonzero behind a terminal that said it succeeded -- and `docs_launched_sha`, which every
                             Antigravity docs launch lands alone through the guarded commit before it is made, and
-                            which stands until the outcome is recorded or proved not to need it, so a tick that ended
+                            which stands until the outcome is recorded or proved not to need it -- a held return,
+                            paused or killed whatever the pass did, writing its accounting alone and leaving it, and
+                            only a launch never made dropping it alone -- so a tick that ended
                             writing nothing leaves the next one to take the park that pass earned instead of
                             publishing or rerunning it unasked -- the pre-tick base refresh holding the branch still
                             while it stands (`git/base_sync/frozen`)
@@ -4187,7 +4196,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             of one an account quota stopped, whose retirement every attempt -- the continuation
                             included -- lands as it returns (`quota_retirement.py`), ahead of its pause check, a
                             retirement that will not land holding the tick and refusing each launch until it does,
-                            and a resume naming a conversation the tick's state records as retired never launched;
+                            an attempt whose accounting stayed unresolved answering held with no retry or
+                            continuation behind it, and a resume naming a conversation the tick's state records as
+                            retired never launched;
                             and the identity an attempt is charged under, spelled once
                             (`_launch_identity`), so the fingerprint a resume's first attempt would be charged under is
                             read without resuming (`_first_launch_fingerprint`) -- how a handed change request's
@@ -5146,7 +5157,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             JSONL stream by `provider_failures.codex_usage_limit_failure`), its notice naming the
                             limit, the provider's reset, and the trusted `/orchestrator continue` that retries it,
                             and an approval or a change request goes to `review_disposition.py`, which
-                            records that return over its own last reading, so the usage is folded once. The developer
+                            records that return over its own last reading; the reviewer's usage is no part of either
+                            write, accounted once as it returned (`engine/usage.py`). A return whose accounting is
+                            unresolved is held ahead of the live-pause check, writing nothing. The developer
                             report is resolved through `review_report.py` ahead of the spawn and the subject it yields
                             committed beside the reviewer spec before the spawn, over the comment as that resolution
                             read it (`review_writes.lands_the_launch`) -- decided on the report records, the pull
@@ -5154,7 +5167,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             that moved, a comment that will not read, or an edit never confirmed spawns no reviewer --
                             once that reading is laid over the
                             state the tick holds, measured from the comment as the tick read it, and what the commit
-                            landed over laid over it behind that, so a run another road charged and folded or a
+                            landed over laid over it behind that, so a run another road charged and accounted or a
                             notice it posted while the subject was resolved is kept by every write of the round; behind
                             that commit the verification evidence current for exactly that subject is asked through
                             `review_evidence.py` and handed to the prompt beside the report; the launch charge written
@@ -5322,8 +5335,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             synced with, and the tail's last reading as it found them -- so a field another road
                             wrote, which the reading ahead of it took in, is never read as one the tick deleted; and
                             since the squash's reply does not say
-                            whether it wrote, measured from the reading before a squash that wrote a usage fold its
-                            write carried would be counted twice, while taken whole behind one that wrote nothing a
+                            whether it wrote, measured from the reading before a squash that wrote a field its write
+                            carried would be counted as the tick's own, while taken whole behind one that wrote nothing a
                             round another road spent meanwhile would be written back over. A write of another
                             issue's comment is neither guarded nor followed
       verify.py             the approval's local verify gate: its run of the configured `VERIFY_COMMANDS` under
@@ -5672,9 +5685,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             writes nothing. The writes behind the reviewer's return, the disposition, and the parks it
                             asks for are guarded commits captured over the reading this hands back
                             (`review_writes.py`), so what the comment changes after it is kept as well, or refuses
-                            them. A field both roads changed keeps both changes where they add up or only
-                            advance -- the usage totals, their cost tags, a comment-id watermark, each only as its
-                            writers spell it (`state.py`) -- and the ledger of the orchestrator's own comments is
+                            them. A field both roads changed keeps both changes where they only advance -- a
+                            comment-id watermark, only as its writers spell it (`state.py`) -- the usage accounting is
+                            always the comment's, since its one writer laid what it landed onto the state in hand as
+                            the comment's (`engine/usage_checkpoint.py`), and the ledger of the orchestrator's own comments is
                             merged rather than carried or kept whole, an id either side recorded kept once among the
                             newest its bound holds -- a ledger already past the bound cut to it even where the merge
                             adds nothing -- and an entry naming no comment dropped from either side, so no later scan
@@ -5749,15 +5763,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             land -- and the session, return time and returned subject it leaves; and the reservation of
                             the whole round at its widest (spec, subject, launch charge, session, return time, returned
                             subject, and approval), so a report is never accepted into a comment its own reviewer cannot
-                            write to. The usage meters the return folds are left out: running totals every run folds,
-                            already on the comment from the developer run whose report it is wherever that run's usage
-                            parsed
+                            write to. The usage accounting is no part of the round's writes and is left out: running
+                            totals every run adds to, already on the comment from the developer run whose report it is
+                            wherever that run's usage parsed
       review_writes.py      the guarded commits (`engine/pinned_commit.py`) a reviewer round's writes land through,
                             under the developer report's tick-state guard (`engine/report_commits.py`): each captured
                             over the reading the tick last synced with -- which every reading of the round lays its
                             moves into -- owning what the tick staged since beside the fields it declares, and keeping
-                            both moves of a usage total, its cost tags, a comment-id watermark, and the comment-id
-                            ledger. The launch (`lands_the_launch`) is captured over the reading its subject was bound
+                            both moves of a comment-id watermark and the comment-id ledger, and owning no usage total
+                            -- the accounting checkpoint's alone, kept as the fresh reading carries it. The launch (`lands_the_launch`) is captured over the reading its subject was bound
                             to rather than the state in hand, and owns the spec and the subject it is handed; a
                             return's own records (`RETURN`), and the park a reviewer that left no verdict takes with
                             them (`parks_the_return`, prepared before its notice with what posting it writes reserved
@@ -5828,7 +5842,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             preparation (`prepares_the_verdict`) mints the evidence, then holds the subject to what
                             stands with the pinned comment read again behind that resolution -- an evidence record moved
                             since refusing it as a report does -- then stages the run's own records over that reading,
-                            its usage folded over whatever usage another road folded meanwhile, the last requests before
+                            its usage left as the run's own accounting landed it, the last requests before
                             the verdict is persisted with its minted transaction in one guarded commit
                             (`review_writes.lands_the_verdict`), which a record moved after that reading refuses with
                             nothing written or published, and an edit never confirmed leaves for a later tick to finish
@@ -5976,7 +5990,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             retry or recovery prompt goes on.
                             Each reading it accepts is laid over the state the developer's run is written back from,
                             measured against the last one, so that run's writes keep what another road wrote there -- a
-                            run allowance granted, a usage total folded. It writes nothing itself: a refusal launches
+                            run allowance granted, a run's usage accounted. It writes nothing itself: a refusal launches
                             nobody and leaves the verdict handed for the next entry
       review_launch_park.py the park a handed change request's developer launch takes where it may have run and left
                             nothing to show, and what moves such a request on instead (`has_moved_on`): its claimed
@@ -6003,7 +6017,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             refuses a record or owned field moved after it with nothing written, and its event goes out
                             only once it is down
       review_resume.py      the recovery of a verdict an earlier tick persisted and never disposed of, running no
-                            reviewer and folding no usage or round again. On
+                            reviewer and counting no usage or round again. On
                             `workflow:validating`, ahead of the round cap and the spawn (`resumes_a_returned_verdict`):
                             a verdict not yet handed is finished through a run rebuilt of its round over the subject
                             resolved again, which has to record as the verdict's -- a moved subject drops it for good,
@@ -6200,8 +6214,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             -- and the grouping of every outcome that healed nothing, which is what keeps a road
                             testing for the words it knows from reading a later addition as a recovery. The fields
                             a write laid over the comment as it stands keeps both moves of are named here too, with
-                            how: the `issue_*` usage totals add up -- the run and token counts as whole numbers --
-                            `issue_cost_sources` joins, and a comment-id watermark keeps whichever reading went
-                            further, each only over values spelled as its writers spell them; every other field
-                            both moved, and one a hand edit left in no writer's shape, is one road's to say
+                            how: a comment-id watermark keeps whichever reading went further, only over values spelled
+                            as its writers spell them; every other field both moved, and one a hand edit left in no
+                            writer's shape, is one road's to say. The `issue_*` usage totals are no member: the
+                            accounting checkpoint alone moves them
 ```

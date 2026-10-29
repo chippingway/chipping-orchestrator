@@ -26,7 +26,7 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
-from tests.workflow.fixtures import AGENT_RUN_CHARGE_WRITES, _agent, _PatchedWorkflowMixin
+from tests.workflow.fixtures import Launched, _agent, _PatchedWorkflowMixin
 from tests.workflow.stages.fixing import fixing_test_support as support
 from tests.workflow.stages.fixing.prompt_expectations import (
     only_prompt,
@@ -95,15 +95,12 @@ def _assert_fixing_pause_preserves_state(
     test_case,
     github,
     mocks,
-    before_writes,
+    before,
 ) -> None:
     mocks["_push_branch"].assert_not_called()
     test_case.assertEqual(github.label_history, [])
     test_case.assertEqual(github.posted_comments, [])
-    test_case.assertEqual(
-        github.write_state_calls, before_writes + AGENT_RUN_CHARGE_WRITES,
-    )
-    pinned_data = github.pinned_data(ISSUE)
+    pinned_data = before.held(test_case, github, ISSUE)
     test_case.assertEqual(
         pinned_data.get("pr_last_comment_id"),
         INITIAL_COMMENT_WATERMARK,
@@ -134,7 +131,7 @@ class FixingLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
         # reads `gh.get_issue` and honors it.
         gh = FakeGitHubClient()
         issue = _seed_fixing_pause(gh)
-        before_writes = gh.write_state_calls
+        before = Launched.over(gh, ISSUE)
 
         get_issue_mock = MagicMock(return_value=_paused_view(ISSUE))
         with (
@@ -157,7 +154,7 @@ class FixingLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
             self,
             gh,
             mocks,
-            before_writes,
+            before,
         )
 
     def test_unpause_republishes_via_resume(self) -> None:

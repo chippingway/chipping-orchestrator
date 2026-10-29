@@ -6,8 +6,9 @@ of what they left.
 An operator who applies `paused` (or `backlog`) while the round is in flight,
 and a shutdown sweep that kills it, reach the same requirement from different
 directions: whatever the round produced must not be posted, parked, or written,
-and the durable state has to stay exactly as the previous tick left it so the
-next active tick opens the same first round again. Both are read after the
+and the durable state has to stay as the previous tick left it -- save the
+round's usage, accounted once as it returned -- so the next active tick opens
+the same first round again. Both are read after the
 spawn returns -- the pause off a freshly fetched issue, since the handler's own
 snapshot predates the label.
 
@@ -31,6 +32,7 @@ from tests.workflow.fixtures import (
     KEY_AWAITING_HUMAN,
     KEY_PARK_REASON,
     _agent,
+    assert_only_accounted,
 )
 from tests.workflow.stages.discussion import discussion_test_support as _support
 from tests.workflow.stages.discussion.discussion_test_support import _DiscussionWorkflowMixin
@@ -44,6 +46,17 @@ _PAUSED_CLEAN_ISSUE_NUMBER = 934
 # anchor, and once as the tip the publication check would publish.
 _MOVED = (_support.HEAD_AFTER_COMMIT, _support.HEAD_AFTER_COMMIT)
 _UNMOVED = (_support.HEAD_BEFORE_ROUND,)
+
+# What a round records ahead of its spawn: the anchor, the round's branch and
+# base, and the command it runs under.
+_PRE_SPAWN = (
+    _support.KEY_ROUND_SHA,
+    _support.KEY_ROUND_BRANCH,
+    _support.KEY_ROUND_OPEN,
+    _support.KEY_BASE_SHA,
+    _support.KEY_PUBLISHING_SHA,
+    _support.KEY_DISCUSSION_AGENT,
+)
 
 
 class DiscussionLivePauseTest(unittest.TestCase, _DiscussionWorkflowMixin):
@@ -157,6 +170,7 @@ class DiscussionLivePauseTest(unittest.TestCase, _DiscussionWorkflowMixin):
         self, issue_number: int, control_label: str,
     ) -> None:
         gh, issue = _support._seed_discussion(issue_number)
+        before = gh.pinned_data(issue_number)
 
         with patch.object(
             gh,
@@ -174,9 +188,11 @@ class DiscussionLivePauseTest(unittest.TestCase, _DiscussionWorkflowMixin):
 
         mocks[_support.RUN_AGENT].assert_called_once()
         # No disposition: no comment, no park, and no session pointer to a
-        # conversation the humans never saw. Only the pre-spawn record stands.
+        # conversation the humans never saw. Only the pre-spawn record stands,
+        # beside the round's charge and its accounting.
         self.assertEqual(gh.posted_comments, [])
         pinned_data = gh.pinned_data(issue_number)
+        assert_only_accounted(self, before, pinned_data, beside=_PRE_SPAWN)
         self.assertNotIn(KEY_PARK_REASON, pinned_data)
         self.assertNotIn(_support.KEY_DISCUSSION_SESSION_ID, pinned_data)
         self.assertFalse(pinned_data.get(KEY_AWAITING_HUMAN))
@@ -192,6 +208,7 @@ class DiscussionInterruptedRoundTest(unittest.TestCase, _DiscussionWorkflowMixin
 
     def test_interrupted_round_publishes_nothing(self) -> None:
         gh, issue = _support._seed_discussion(_INTERRUPTED_ISSUE_NUMBER)
+        before = gh.pinned_data(issue.number)
 
         self._run_discussion(
             gh,
@@ -205,9 +222,10 @@ class DiscussionInterruptedRoundTest(unittest.TestCase, _DiscussionWorkflowMixin
         )
 
         # An interrupted run is not a silent one: it must not park, comment,
-        # or persist the session it opened.
+        # or persist the session it opened. Its usage alone is accounted.
         self.assertEqual(gh.posted_comments, [])
         pinned_data = gh.pinned_data(issue.number)
+        assert_only_accounted(self, before, pinned_data, beside=_PRE_SPAWN)
         self.assertNotIn(_support.KEY_DISCUSSION_SESSION_ID, pinned_data)
         self.assertFalse(pinned_data.get(KEY_AWAITING_HUMAN))
         self.assertIsNone(pinned_data.get(KEY_PARK_REASON))

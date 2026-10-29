@@ -38,8 +38,10 @@ from unittest.mock import patch
 from orchestrator.observability.usage.metrics import UsageMetrics
 from orchestrator.workflow.engine import (
     completion_verdicts as _completion_verdicts,
+    invocations as _invocations,
     prompt_context as _prompt_context,
     review_findings as _findings,
+    usage_checkpoint as _usage_checkpoint,
     verification_transaction as _transaction,
 )
 from orchestrator.workflow.stages.validating import (
@@ -212,6 +214,18 @@ def returned_run(case, state, message: str) -> _models._ReviewerRun:
     )
 
 
+def charged_and_accounted(case, state, run: _models._ReviewerRun) -> None:
+    """What the live round's launch leaves on `state` by the time its reviewer has returned `run`.
+
+    The lifetime charge its run circuit takes, and the run's accounting, which
+    its tracked spawn lands on the comment as the reviewer returns and lays
+    onto the round's state as the comment's.
+    """
+    state.set(AGENT_RUNS_USED, (state.get(AGENT_RUNS_USED) or 0) + 1)
+    run.agent_result.invocation = _invocations.minted(state, case.issue.number)
+    _usage_checkpoint.checkpoint(case.github, case.issue, state, run.agent_result)
+
+
 def reconciles(case) -> bool:
     """The dispatcher's evidence reconciliation on `case`'s issue; whether it held the tick."""
     return _transaction._reconciles_pending_evidence(
@@ -301,8 +315,7 @@ class ReviewVerdictWorld(_review_world.ReviewWorld):
         """The returned round, as the live one records it, handed to the preparation."""
         state = self.github.read_pinned_state(self.issue)
         run = returned_run(self, state, message)
-        # The launch's lifetime charge, which the live round's run circuit takes.
-        state.set(AGENT_RUNS_USED, (state.get(AGENT_RUNS_USED) or 0) + 1)
+        charged_and_accounted(self, state, run)
         verdict, body = _completion_verdicts._parse_review_verdict(message)
         self.decision = _models._ReviewerDecision(run, verdict, body)
         self.prepared = _disposition.prepares_the_verdict(self.github, _TEST_SPEC, self.issue, state, self.decision)

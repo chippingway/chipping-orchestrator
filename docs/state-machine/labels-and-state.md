@@ -66,8 +66,10 @@ Three non-workflow **control labels** modify behavior without occupying the work
   the stages whose agent is not a developer (the decomposer run in `decomposing`, fresh spawn and awaiting-human
   resume; the reviewer run in `validating`; and the question and discussion runs, opening round and awaiting-human
   resume alike) all consult it. If the fresh label fetch fails, the guard allows processing to continue. A `paused`
-  applied mid-run stops before a PR opens, the label flips, a HITL park or ACK comment posts, a docs push lands, usage
-  counters fold, child issues are created, watermarks advance, or pinned state advances, so a dev stage's committed
+  applied mid-run stops before a PR opens, the label flips, a HITL park or ACK comment posts, a docs push lands, child
+  issues are created, watermarks advance, or pinned state advances past the run's own accounting -- which the tracked
+  spawn landed as the run returned, before the pause is asked, and which buys the run no replay -- so a dev stage's
+  committed
   work stays on the branch and republishes through the normal recovered-worktree / stranded-fix path once the label is
   removed, while the read-only decomposer / reviewer / question runs simply re-run from durable state on the next
   tick. The `discussion` run is read-only only until the humans confirm the design: a confirmed round commits
@@ -1190,10 +1192,12 @@ for and the retirement of its own `report_record_damaged` park, the `report_unde
 binding takes, and the fixing recovery's release of a report no checkout can publish. Each is captured
 over the reading its tick last synced with the comment — what a state remembers it was read from or written as
 (`PinnedState.synced`) — rather than over the state the tick holds, because a tick stages changes between two writes (a
-run's usage and session, the park a reply answered) that have always ridden the next one. A field the tick changed since
+run's session, the park a reply answered) that have always ridden the next one. A field the tick changed since
 that reading is its own and lands as the tick spells it; the write declares its own fields beside those, and the report
-records it was decided on. A usage total, the cost tags, a comment-id watermark, and the comment-id ledger keep both
-roads' moves rather than conflicting. A road that lays another road's moves over a tick's state without writing — the
+records it was decided on. A comment-id watermark and the comment-id ledger keep both roads' moves rather than
+conflicting. The usage totals are no field a tick stages: the accounting checkpoint lands each run's as it returns and
+lays them onto the tick's state as the comment's, so every one of these writes keeps them as the fresh reading carries
+them. A road that lays another road's moves over a tick's state without writing — the
 validating reread, the run circuit's merge — advances that reading for the fields it laid, and one that replaces the
 state with what its own commit landed — the verification settlement and the evidence retirements — advances it to that
 reading whole (`pinned_commit.takes_in`), so none of it counts as the tick's own move. A refused report write leaves the
@@ -1210,8 +1214,9 @@ A reviewer round's writes on `workflow:validating` land through the same tick-st
 (`stages/validating/review_writes.py`), each declaring the fields it owns and the records it was decided on, as those
 records read on the reading behind it: the launch's `review_agent` and `review_subject`, captured over the reading its
 subject was bound to rather than the tick's state and decided on the report records, `pr_number`, and
-`review_returned_verdict`; a returned run's own records -- its usage folded into the `issue_*` totals, its session,
-`last_review_at`, and `review_returned_subject` -- and the park a timeout or a missing VERDICT line takes with them,
+`review_returned_verdict`; a returned run's own records -- its session, `last_review_at`, and
+`review_returned_subject`, the run's usage being the accounting checkpoint's and owned by no write here -- and the park
+a timeout or a missing VERDICT line takes with them,
 decided on the same records; and the returned verdict persisted with the transaction its claim was minted as, its drop,
 and the `reviewer_unverified` / `reviewer_unrecorded` parks and a failed verify gate's park, each decided on those and
 the `verification_evidence_*` records besides. Each is decided as well on the fields of its own it may stage exactly as
@@ -1621,10 +1626,11 @@ The keys that matter for the state machine fall into a few groups:
   is decided on the three report records and on the fields the publication it is bound to was resolved from —
   `pr_number`, `branch`, and the code-publication receipt — and owns the two records it swaps, so a pull request or
   receipt another road repointed since binds nothing and publishes nothing. Each is captured over the reading its tick
-  last synced with, so what the tick staged since — a run's usage and session, a park a reply answered — rides the
-  write, and a usage total or ledger the tick moved that another road left in no shape the two moves join is refused as
-  an owned conflict rather than written over. The room either write needs is decided by its own validator, carried on
-  the guard and asked of the very candidate the commit sends over the reading its edit lands on — never of the comment
+  last synced with, so what the tick staged since — a run's session, a park a reply answered — rides the write, and a
+  watermark or ledger the tick moved that another road left in no shape the two moves join is refused as an owned
+  conflict rather than written over; the usage totals, the accounting checkpoint's alone, ride none of them. The room
+  either write needs is decided by its own validator, carried on the guard and asked of the very candidate the commit
+  sends over the reading its edit lands on — never of the comment
   the tick read, which only refuses a record whose own reading fails or which no comment could carry — so room another
   road spent since refuses there, before the push or the post, and room it gave back is room: as a `CommentOverflow` the
   park explains for a record, and as the crowded comment the next tick retries for a binding. A comment that will not
@@ -1871,8 +1877,8 @@ The keys that matter for the state machine fall into a few groups:
   when it approves — so the
   measurement replays that whole round through the validating stage's own writers, each at its widest
   (`stages/validating/review_records.py`), and a report is never accepted into a comment its own reviewer could not
-  then write to. The usage meters that return folds are the one part left out: running totals every agent run
-  folds, already on the comment from the developer run whose report it is wherever that run's usage parsed.
+  then write to. The usage accounting is no part of the round's writes and is left out: running totals every agent
+  run adds to, already on the comment from the developer run whose report it is wherever that run's usage parsed.
 
   **The same measurement is taken again at publication**, against the comment as it stands then, and that is not
   belt-and-braces: it is the only one that can be right. A transaction the dispatcher's reconciliation cannot
@@ -2983,10 +2989,10 @@ The keys that matter for the state machine fall into a few groups:
   `pr_number`, the record itself, or a `verification_evidence_*` record another road moves after that reading refuses
   the commit with nothing written or published, and so does a comment that will not read or parse or was replaced; an
   edit never confirmed publishes and acts on nothing, and the record and transaction it may have left are published and
-  finished by the next tick with no second reviewer, artifact, fold, charge, or round. The service stages those run
-  records itself -- `last_review_session_id`, `last_review_at`, `review_returned_subject`, and the reviewer's usage
-  folded into `issue_agent_runs` / `issue_total_tokens` / `issue_total_cost_usd` / `issue_cost_sources` -- over that
-  last reading, so a usage total another road folded meanwhile is added to rather than written back over. A subject
+  finished by the next tick with no second reviewer, artifact, count, charge, or round. The service stages those run
+  records itself -- `last_review_session_id`, `last_review_at`, and `review_returned_subject`; the reviewer's usage
+  was accounted as it returned and is owned by none of its writes -- over that last reading, so the usage totals stay
+  as the comment carries them rather than being written back over. A subject
   proved to have moved by then, or a `verification_evidence_*` record another road moved since the subject was resolved
   -- the transaction was minted, and a reuse named its evidence, over the records it replaced -- writes the run's own
   records and no verdict; one that would not read writes nothing. A record that would not read back as written --
@@ -3015,28 +3021,29 @@ The keys that matter for the state machine fall into a few groups:
   verdict stands on, such as a `review_round` a reply bought or the `last_action_comment_id` it read through -- save,
   where the report records, the record, and `pr_number` stand, a field the service changed itself; a record it was
   decided on that moves after that reading refuses it, and a drop refused so leaves the record waiting for a later tick
-  to decide again. A field both it and another road moved keeps both moves where they add up
-  or only advance, however the records went -- the `issue_*` usage totals add, `issue_cost_sources` joins, and
-  `last_action_comment_id` and the `pr_last_*` watermarks keep whichever reading went further, each only over values
-  spelled as their writers spell them -- whole numbers for the run and token counts and the watermarks -- a hand edit
-  being one road's to say -- and the `orchestrator_comment_ids` ledger is merged, an id either side recorded kept
-  once among the newest 500 it holds, an id one reading already evicted evicted again rather than a newer one, a
-  ledger already past 500 -- an older binary's, a hand edit -- cut to it even where the merge adds nothing, and an
-  entry naming no comment -- or a ledger that is no list -- dropped from either side, so no later scan of the ledger
-  fails on it. Every drop names the verdict it holds, so one another road put in its place is never the one dropped,
-  and a caller holding none drops nothing -- a record no reader takes, which reads as none, included.
+  to decide again. A field both it and another road moved keeps both moves where they only advance, however the
+  records went -- `last_action_comment_id` and the `pr_last_*` watermarks keep whichever reading went further, only
+  over values spelled as whole numbers, as their writers spell them, a hand edit being one road's to say -- the
+  `issue_*` usage totals and `issue_usage_receipts` are the comment's as it carries them, the returned run already
+  counted there by its own accounting, and the `orchestrator_comment_ids` ledger is merged, an id either side
+  recorded kept once among the newest 500 it holds, an id one reading already evicted evicted again rather than a
+  newer one, a ledger already past 500 -- an older binary's, a hand edit -- cut to it even where the merge adds
+  nothing, and an entry naming no comment -- or a ledger that is no list -- dropped from either side, so no later scan
+  of the ledger fails on it. Every drop names the verdict it holds, so one another road put in its place is never the
+  one dropped, and a caller holding none drops nothing -- a record no reader takes, which reads as none, included.
   Two parks answer a verdict that may not be acted on (`stages/validating/review_parks.py`): an approval relying on no
   valid evidence parks under `reviewer_unverified`, and a verdict that could not be persisted under
   `reviewer_unrecorded`, with nothing published or acted on -- its notice asking for room on the pinned comment only
   where room is what refused the record, and not where it would not read back as written. Each is measured before its
   notice is posted at the park's own write -- its flags beside the notice's ledger entry and `last_action_comment_id`,
   each at the widest id, with the record it refuses set to `null` -- and taken over the comment as it stands, the
-  returned run's usage and session unrecorded, where it has no room beside what that run staged, but only while that
+  returned run's session unrecorded -- its usage stays counted, accounted as it returned in a commit of its own --
+  where it has no room beside what that run staged, but only while that
   reading carries the report records, `pr_number`, the record, and the `verification_evidence_*` records the tick last
   read; nothing is posted or written where there is room for no park. Behind the notice the subject is resolved again
   and the comment read last, against the one the tick last read or wrote -- the state a `reviewer_unverified` park began
   over, the reading a returned run was resolved over for `reviewer_unrecorded` -- so what that run staged, its session
-  and usage among them, lands with the park: a push, a later report, a moved `pr_number`, a record another road put in
+  among them, lands with the park: a push, a later report, a moved `pr_number`, a record another road put in
   place of the one parked, or a `verification_evidence_*` record moved there lands no park and sets the record held to
   `null` alone, over the newer records, whether or not the notice left an id; where nothing proved a move, a subject
   that would not read, or a notice that left no id and so may have reached nobody, lands none either and leaves the
@@ -3111,7 +3118,7 @@ The keys that matter for the state machine fall into a few groups:
   subject resolved again right behind the charge (`review_launch_hold.py`; see [the agent-run
   circuit](#the-agent-run-circuit)). Whatever else another road
   wrote on a reading the launch stands on is carried onto the state the developer's run is written back from, so that
-  run's writes keep it -- a run allowance granted, a usage total folded. Either launch is made only while
+  run's writes keep it -- a run allowance granted, a run's usage accounted. Either launch is made only while
   `pending_fix_reviewer_comment_id` names, as a whole comment id, the comment the record's `anchor` does: the fixing
   stage clears it with the round's other bookmarks, and a handoff that lost it, whose anchor names another comment, or
   whose anchor is spelled as anything but a whole id -- a float over the same number included, which the fixing stage's
@@ -3121,7 +3128,8 @@ The keys that matter for the state machine fall into a few groups:
   over, and the recovery (below) calls it to finish one an earlier tick left waiting; an issue without the key has no
   verdict waiting, as does every issue whose last verdict was returned before the key existed.
   A record an issue already carries is finished by the stage handlers themselves (`stages/validating/review_resume.py`),
-  running no reviewer, folding no usage, and spending no round: its reviewer's run, usage, and round went down with it.
+  running no reviewer, counting no usage, and spending no round: its reviewer's run, usage, and round went down with
+  it.
   `workflow:validating` asks behind the report hold and ahead of the round cap and the spawn. A record not yet `handed`
   is finished through a run rebuilt of its own `round` over the subject resolved again as a round resolves it, the issue
   fetched afresh, which has to record as the record's `subject`: a push, a later or edited report, or an edited issue
@@ -3501,13 +3509,13 @@ The keys that matter for the state machine fall into a few groups:
   here because the code-publication receipt's own lease is rewritten by any later republication.
   `docs_launched_sha` (additive) is the head an Antigravity docs pass was launched on, landed alone through the
   guarded commit ahead of the launch — a launch it did not land on is not made — and standing until the run's outcome
-  is recorded or proved not to need it: the disposition drops it in the write that records the outcome, and a paused
-  pass that succeeded or a run no disposition may read (a shutdown-sweep kill, a launch never made) drops it alone. A
-  pass that fell short under a live pause, a tick a quota retirement withheld, or a poller that died mid-run writes
-  nothing and leaves it, so the next tick not answering a park takes the park the pass earned (retryable
-  `agent_silent`) instead of publishing what it left through the recovered-commit shortcut or launching a pass
-  unasked, and drops it in that park's own write; a stamped docs verdict and a drift unwind that resets the commits
-  away drop it too.
+  is recorded or proved not to need it: the disposition drops it in the write that records the outcome, and a launch
+  never made drops it alone. A held return -- a pass a live pause or the shutdown sweep stopped, whatever it did, or a
+  tick a quota retirement or an unresolved accounting withheld -- writes its accounting and nothing else, and leaves
+  it, as does a poller that died mid-run, so the next tick not answering a park takes the park the pass earned
+  (retryable `agent_silent`) instead of publishing what it left through the recovered-commit shortcut or launching a
+  pass unasked, and drops it in that park's own write; a stamped docs verdict and a drift unwind that resets the
+  commits away drop it too.
   `ready_ping_sha` records the head the in_review handler already posted a `:bell:` HITL ping for. Both it and
   `docs_verdict` are keyed on a head alone, so a recorded approval retires both (below): an approval of a new report
   on the head they name would otherwise be read as documented before its docs pass ran, and pinged by nobody.
@@ -3890,21 +3898,28 @@ The keys that matter for the state machine fall into a few groups:
   fresh spawn), `merged_at` / `closed_without_merge_at` terminal stamps, and the per-round stamps `last_question_at` /
   `last_discussion_at` the two operator-applied conversation stages set on every run they settle.
 - **Usage meter.** `issue_agent_runs` + `issue_total_tokens` + `issue_total_cost_usd` + `issue_cost_sources` are
-  per-issue cumulative counters folded in by `engine/issue_usage.py`'s `_accumulate_issue_usage` at each developer
-  (implementing), reviewer
-  (validating), decomposer (decomposing), question, and discussion run site from the `UsageMetrics` that
+  per-issue cumulative counters, counted on every invoked run of every role -- developer, reviewer, the initial and
+  late decomposer, question, discussion, documentation, and conflict runs -- from the `UsageMetrics` that
   `_run_agent_tracked` parses. `issue_total_tokens` sums input +
   output + cache-read + cache-write (codex `cached_tokens` is excluded — it is already part of `input_tokens`, so
   summing it would double-count); `issue_total_cost_usd` sums each run's `cost_usd` (`None` costs from `no-usage` /
   `unknown-price` runs add nothing); `issue_cost_sources` is the sorted distinct `cost_source` set a terminal verdict
-  reads to mark `(est.)` (any `estimated`) or unpriced `unknown` (any `unknown-price`). The increment rides the
-  handler's existing single `write_pinned_state`, so an `interrupted` run that returns without writing never accrues.
-  Where a returned reviewer's write is laid over the pinned comment read again (`stages/validating/review_comment.py`)
-  and committed over that reading (`stages/validating/review_writes.py`), a total another road folded a run into since
-  the tick read the comment -- while the reviewer's subject was resolved, while it ran, or between that reading and the
-  commit -- is added to the reviewer's own fold, and the tags join, rather than either road's fold being written away.
-  The decomposer / question / discussion stages additionally skip the fold for `interrupted` runs, so even
-  their dirty/commits inspection park (which does write pinned state) records no counter.
+  reads to mark `(est.)` (any `estimated`) or unpriced `unknown` (any `unknown-price`). The increment is landed by the
+  accounting checkpoint described below, which `_run_agent_tracked` asks of every result a process returns, before any
+  pause, interruption, timeout, wrapper, or stage disposition can discard it -- so a held, killed, timed-out, failed,
+  or incomplete run is counted as it returned, each attempt of a poisoned session's retry and of an Antigravity
+  command-recovery continuation counts on its own, and no stage folds a run of its own. What the checkpoint landed is
+  laid onto the caller's state as the comment's, with the reading it was synced with, so the disposition's own write
+  behind it -- whole-state or guarded -- neither counts the run again nor puts back the totals the handler read, and no
+  write of a stage owns a counter: where a returned reviewer's write is laid over the pinned comment read again
+  (`stages/validating/review_comment.py`) and committed over that reading (`stages/validating/review_writes.py`), the
+  totals are the comment's, whatever a later run of the same tick's or a hand edit left there, never the state's
+  added to them. A held return writes the accounting and nothing else of the run, beside the quota retirement it may
+  owe; the count buys no reviewer verdict, conversation answer, decomposition, docs completion, or conflict outcome a
+  replay. A checkpoint that neither landed nor read back covered marks the result `unaccounted` and withholds the
+  caller's state: the run's disposition, and any further invocation its wrapper would make, hold on it as they hold on
+  a live pause, and a later tick reads the comment afresh. An exit is kept only where such a checkpoint lands; one lost
+  before it, or refused by it, is never counted, and nothing reconstructs it from the analytics or audit sinks.
   `issue_usage_receipts` is the bounded ledger of which agent invocations those counters cover, spelled
   `{"floor": <count>, "recent": [[<ordinal>, "<nonce>"], ...]}`. A pair names one process by the identity
   `_run_agent_tracked` stamped on its result (`AgentResult.invocation`, minted by `engine/invocations.py`): the
@@ -3926,9 +3941,7 @@ The keys that matter for the state machine fall into a few groups:
   anything is read, and no transformation lands a total past that spelling (`engine/usage_counters.py`): a count is a
   whole number of any size, never converted, and a cost total one a float holds. It reads the receipt back before
   anything it sends, so a retry after an unconfirmed edit, a lost response, a restart, or a later settlement adds
-  nothing, and it owes nothing for an unparsed usage or a result no process produced. That checkpoint is dormant: no
-  road calls it yet, so the stage folds above are what persist usage and no issue carries the ledger until a later
-  change settles the tracked boundary through it.
+  nothing, and it owes nothing for an unparsed usage or a result no process produced.
 - **Agent-run ledger.** `agent_run_allowance` + `agent_runs_used` + `agent_run_reservation` are read by
   [`run_ledger_values.py`](../../orchestrator/workflow/engine/run_ledger_values.py) and mutated by
   [`run_ledger.py`](../../orchestrator/workflow/engine/run_ledger.py). The
@@ -4266,7 +4279,8 @@ drives the real handlers against a spent ledger so an unwired road is caught as 
 - **The process is identified by its charge, not by its request.** The reading the start lands on is handed back to
   `_run_agent_tracked`, which mints the process's `AgentInvocation` over it (`engine/invocations.py`) — repository,
   issue, the pinned comment the start was written on, workflow cycle, the count the charge stands at, and a random
-  nonce — and stamps it on the result.
+  nonce — and stamps it on the result, then accounts the run's parsed usage under that identity before handing the
+  result back (see the usage meter under [Pinned state](#pinned-state)).
   Only a `reserved` charge is ever started, so no two processes share one, while `agent_run_fingerprint` is shared by
   every attempt at one round: it stays the logical launch's identity and is never an accounting key.
 - **Durable state is re-read, and only the circuit's own fields come back.** The charge is written onto a fresh
@@ -5965,7 +5979,8 @@ session opened before a revision replaced the candidate holds a conversation abo
 The identity fields are written before the agent starts, and that write deliberately carries the retry accounting
 unchanged. `retry_count` and `retry_window_start` are incremented in memory to gate the spawn, but they become
 durable only on a path that records what the run decided — so a run the tick then declines (an operator's `paused`
-label, a shutdown sweep) costs the issue's daily budget nothing, exactly as a declined run in every other stage does.
+label, a shutdown sweep, an accounting left unresolved) costs the issue's daily budget nothing, exactly as a declined
+run in every other stage does. Its usage is counted all the same, as it returned, and buys its verdict no replay.
 The session id is pinned at the two exits that persist, a timeout and a completed reply, and at neither of the two
 that do not.
 

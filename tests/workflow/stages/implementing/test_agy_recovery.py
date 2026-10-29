@@ -24,6 +24,7 @@ from orchestrator.workflow.stages.implementing import (
     quota_record as _quota_record,
 )
 from tests.support import fakes
+from tests.workflow.fixtures import accounted
 
 _ISSUE_NUMBER = 42
 _STAGE = "implementing"
@@ -46,10 +47,6 @@ _CIRCUIT_IN_TWO = 120
 _CIRCUIT_OUT_TWO = 60
 _EXPECTED_RUNS = 2
 _EXPECTED_BUDGET_EVENTS = 4
-_TOTAL_TOKENS = (
-    _INCOMPLETE_IN_TOKENS + _INCOMPLETE_OUT_TOKENS
-    + _COMPLETED_IN_TOKENS + _COMPLETED_OUT_TOKENS
-)
 
 _RUN_AGENT_TRACKED = "_run_agent_tracked"
 _AGENT_SPAWN = "agent_spawn"
@@ -209,6 +206,11 @@ class _AGYRecoveryBase(TestCase):
         self.assertEqual(self.state.get(_RUNS_USED), _EXPECTED_RUNS)
         durable = self.gh.read_pinned_state(self.issue)
         self.assertEqual(durable.get(_RUNS_USED), _EXPECTED_RUNS)
+        # Each attempt is accounted once as it returns, though only the
+        # continuation is handed back, and the caller holds what the comment
+        # does.
+        self.assertEqual(accounted(durable.state_data), (_EXPECTED_RUNS, _EXPECTED_RUNS))
+        self.assertEqual(accounted(self.state.state_data), accounted(durable.state_data))
 
         budget_events = [
             event for event in self.gh.recorded_events
@@ -329,8 +331,6 @@ class AGYRecoveryContinuationTest(_AGYRecoveryBase):
             self.assertFalse(paused)
             self.assertEqual(tracked_mock.call_count, _EXPECTED_RUNS)
             self._assert_continuation_calls(tracked_mock)
-            self.assertEqual(self.state.get("issue_agent_runs"), _EXPECTED_RUNS)
-            self.assertEqual(self.state.get("issue_total_tokens"), _TOTAL_TOKENS)
 
     def test_second_premature_exit_returns_failure(self) -> None:
         second_exit = _incomplete_result(
@@ -467,6 +467,31 @@ class AGYRecoveryGuardsAndCircuitTest(_AGYRecoveryBase):
             self.assertIs(guarded, refused)
             self.assertFalse(paused)
             tracked_mock.assert_called_once()
+
+    def test_unresolved_accounting_stops_recovery(self) -> None:
+        # The first attempt's accounting landed and its response was lost, so
+        # nothing can say it landed until a later reading: the attempt answers
+        # held and no continuation is made behind it. The comment carries the
+        # one exit, and the caller's state is withheld from any whole-state
+        # write that would put the count back.
+        self.gh.pinned_failures.lost.add(_ISSUE_NUMBER)
+        incomplete = _incomplete_result()
+        with mock.patch(_RUNNER_RUN_AGENT, return_value=incomplete) as runner:
+            guarded, paused = _execution._coordinate_developer_run(
+                self.gh,
+                issue=self.issue,
+                state=self.state,
+                worktree=self.worktree,
+                backend=_protocol.AGY,
+                stage=_STAGE,
+                prompt=_PROMPT,
+            )
+            runner.assert_called_once()
+
+        self.assertIs(guarded, incomplete)
+        self.assertEqual((guarded.unaccounted, paused), (True, True))
+        self.assertTrue(self.state.withheld)
+        self.assertEqual(accounted(self.gh.pinned_data(_ISSUE_NUMBER)), (1, 1))
 
     def test_freshly_observed_pause_stops_recovery(self) -> None:
         incomplete = _incomplete_result()

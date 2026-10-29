@@ -190,7 +190,10 @@ one bad line never invalidates a stream. Two siblings ride the same
 stream under the same contract: the opt-in skill-trigger extractor behind `TRACK_SKILL_TRIGGERS`, and the trajectory
 classifier that reconstructs a run's timeline. That page carries the module layout, the per-backend parsers and their
 dispatcher, the cost-precedence rule, the per-issue verdict line a terminal posts, and the evidence model both
-siblings return.
+siblings return. The per-issue counters that verdict reads are not these sinks: each invoked exit is counted on the
+pinned comment once, by the accounting checkpoint the tracked spawn asks as the run returns, a held or killed run's
+included, and an exit no checkpoint landed is never reconstructed from the analytics or audit records, which stay
+observational.
 
 ## Summary of "what runs when"
 

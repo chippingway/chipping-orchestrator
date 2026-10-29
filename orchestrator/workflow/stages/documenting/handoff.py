@@ -63,12 +63,13 @@ reading the tick last confirmed -- the one it took once the claim was held, or
 what its own last write landed (`PinnedState.synced`) -- is the comment the
 completion is decided over. So it goes through the tick-state guarded commit
 (`report_commits.ReportCommit`) over that reading (`_COMPLETION`): owning the
-stamp and whatever the tick staged since -- a run's usage, the notice's ledger
-entry, the ratcheted watermark, each kept beside any other move by its own
-rule -- and decided on the stamp's own records, the publication and the debt
-of a push not yet landed, and every record the opening read the approval
-over; a pass that changed nothing over evidence proved to still answer for its
-head is decided as well on every record that proof read (`retention.UNCHANGED`).
+stamp and whatever the tick staged since -- the notice's ledger entry, the
+ratcheted watermark, each kept beside any other move by its own rule, the
+run's usage being the accounting checkpoint's and on the comment already --
+and decided on the stamp's own records, the publication and the debt of a
+push not yet landed, and every record the opening read the approval over; a
+pass that changed nothing over evidence proved to still answer for its head is
+decided as well on every record that proof read (`retention.UNCHANGED`).
 A record that reads otherwise was moved by no write of this tick's, and
 refuses it with nothing put back, adopted, or repaired. A completion recording
 its final head's verification owns that record and a run's transaction, and is

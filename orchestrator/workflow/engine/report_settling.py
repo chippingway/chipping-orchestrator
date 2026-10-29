@@ -21,8 +21,9 @@ no report describes, and the publication the evidence was proved against
 (`ReportWrite.on_the_publication`): another road that moved any of them since
 the tick read them refuses it, and so does one that moved a field it writes
 some other way. Every other field is the fresh reading's -- another domain's
-evidence or verdict, a usage total -- and a watermark, the usage totals and the
-ledger of this orchestrator's comments keep both roads' moves.
+evidence or verdict, a usage total, whose one writer is the accounting
+checkpoint -- and a watermark and the ledger of this orchestrator's comments
+keep both roads' moves.
 
 The same commit is PREPARED before anything is posted (`prepares`), staged
 with everything a settlement owes besides its two records, and held through

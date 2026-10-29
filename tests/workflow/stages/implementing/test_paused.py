@@ -5,8 +5,10 @@
 before the run's results are published. The guard re-fetches the issue after
 the run returns (`gh.get_issue`) rather than trusting the handler's label
 snapshot, and on a hit the handler returns without opening a PR, relabeling,
-parking, consuming the action watermark, or advancing pinned state -- so once
-the label is removed a later tick republishes the committed work normally."""
+parking, consuming the action watermark, or advancing pinned state past the
+run's charge and its accounting, which lands once as the run returns -- so
+once the label is removed a later tick republishes the committed work
+normally."""
 
 from __future__ import annotations
 
@@ -31,8 +33,8 @@ from tests.support.fakes import (
 from tests.workflow.fixtures import (
     _FAKE_WT,
     _TEST_SPEC,
-    AGENT_RUN_CHARGE_WRITES,
     LABEL_IMPLEMENTING,
+    Launched,
     _agent,
     _PatchedWorkflowMixin,
 )
@@ -58,17 +60,14 @@ def _paused_view(number: int) -> object:
 def _assert_fresh_pause_state(
     test_case,
     github,
-    before_writes,
+    before,
     get_issue_mock,
 ) -> None:
     get_issue_mock.assert_called_with(1)
     test_case.assertEqual(github.opened_prs, [])
     test_case.assertEqual(github.label_history, [])
     test_case.assertEqual(github.posted_comments, [])
-    test_case.assertEqual(
-        github.write_state_calls, before_writes + AGENT_RUN_CHARGE_WRITES,
-    )
-    pinned_state = github.pinned_data(1)
+    pinned_state = before.held(test_case, github, 1)
     test_case.assertNotIn("dev_session_id", pinned_state)
     test_case.assertFalse(pinned_state.get(AWAITING_HUMAN))
 
@@ -77,17 +76,14 @@ def _assert_poisoned_pause_state(
     test_case,
     github,
     get_issue_mock,
-    before_writes,
+    before,
     mocks,
 ) -> None:
     mocks["run_agent"].assert_called_once()
     test_case.assertEqual(get_issue_mock.call_count, 1)
     test_case.assertEqual(github.opened_prs, [])
     test_case.assertEqual(github.label_history, [])
-    test_case.assertEqual(
-        github.write_state_calls, before_writes + AGENT_RUN_CHARGE_WRITES,
-    )
-    pinned_state = github.pinned_data(POISONED_RESUME_ISSUE)
+    pinned_state = before.held(test_case, github, POISONED_RESUME_ISSUE)
     test_case.assertEqual(
         pinned_state.get("dev_session_id"),
         "sess-old",
@@ -115,7 +111,7 @@ class ImplementingLivePauseFreshSpawnTest(unittest.TestCase, _PatchedWorkflowMix
             1,
             user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
         )
-        before_writes = gh.write_state_calls
+        before = Launched.over(gh, 1)
 
         get_issue_mock = MagicMock(return_value=_paused_view(1))
         with patch.object(gh, GET_ISSUE, get_issue_mock):
@@ -134,7 +130,7 @@ class ImplementingLivePauseFreshSpawnTest(unittest.TestCase, _PatchedWorkflowMix
         _assert_fresh_pause_state(
             self,
             gh,
-            before_writes,
+            before,
             get_issue_mock,
         )
 
@@ -173,7 +169,7 @@ class ImplementingLivePauseResumeTest(unittest.TestCase, _PatchedWorkflowMixin):
             branch=f"orchestrator/chippingway__chipping-orchestrator/issue-{POISONED_RESUME_ISSUE}",
             user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
         )
-        self._before_writes = gh.write_state_calls
+        self._before = Launched.over(gh, POISONED_RESUME_ISSUE)
 
         unpaused_view = make_issue(POISONED_RESUME_ISSUE, label=LABEL_IMPLEMENTING)
         get_issue_mock = MagicMock(
@@ -194,7 +190,7 @@ class ImplementingLivePauseResumeTest(unittest.TestCase, _PatchedWorkflowMixin):
             self,
             gh,
             get_issue_mock,
-            self._before_writes,
+            self._before,
             self._mocks,
         )
 
@@ -214,8 +210,8 @@ class ImplementingLivePauseRecoveryTest(unittest.TestCase, _PatchedWorkflowMixin
 
         # Tick 1: fresh spawn commits, but the guard reads the paused view and
         # stops before PR open / relabel, leaving the commit on the branch and
-        # pinned state untouched.
-        before_writes = gh.write_state_calls
+        # pinned state untouched past the run's charge and accounting.
+        launched = Launched.over(gh, RECOVERY_ISSUE)
         with patch.object(gh, GET_ISSUE, return_value=_paused_view(RECOVERY_ISSUE)):
             self._run_implementing(
                 gh,
@@ -227,9 +223,7 @@ class ImplementingLivePauseRecoveryTest(unittest.TestCase, _PatchedWorkflowMixin
             )
         self.assertEqual(gh.opened_prs, [])
         self.assertEqual(gh.label_history, [])
-        self.assertEqual(
-            gh.write_state_calls, before_writes + AGENT_RUN_CHARGE_WRITES,
-        )
+        launched.held(self, gh, RECOVERY_ISSUE)
 
         # Tick 2: `paused` removed. `get_issue` now returns the live
         # (unpaused) issue, so the recovered-worktree path skips the agent --

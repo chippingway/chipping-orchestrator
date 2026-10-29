@@ -10,9 +10,10 @@ from orchestrator.agents.models import ToolLifecycle
 from tests.workflow.fixtures import (
     _FAKE_WT,
     _TEST_SPEC,
-    AGENT_RUN_CHARGE_WRITES,
     MEASURED_CANDIDATE_SHA,
+    Launched,
     _agent,
+    accounted,
 )
 from tests.workflow.stages.conflicts import report_debt_support as _debt_world
 from tests.workflow.stages.conflicts.conflicts_test_support import (
@@ -109,6 +110,10 @@ class ResolvingConflictAgentExecutionTest(unittest.TestCase, _ResolvingConflictM
         self.assertIn((CONFLICT_ISSUE, LABEL_VALIDATING), gh.label_history)
         self.assertNotIn((CONFLICT_ISSUE, "workflow:documenting"), gh.label_history)
         _assert_resolved_state(self, gh)
+        # The resolution's run is counted once, as it returned: the
+        # publication's writes behind that neither add it again nor put the
+        # count back.
+        self.assertEqual(accounted(gh.pinned_data(CONFLICT_ISSUE)), (1, 1))
 
     def test_it_freezes_the_head_it_read(self) -> None:
         # This stage read the remote for itself and pinned its push to what it
@@ -184,7 +189,7 @@ class ResolvingConflictAgentExecutionTest(unittest.TestCase, _ResolvingConflictM
         # round increment, no push off the partial tree.
         gh, issue, _ = self._seed()
         self._seed_with_baseline_hash(gh, issue)
-        before_writes = gh.write_state_calls
+        launched = Launched.over(gh, CONFLICT_ISSUE)
 
         mocks, _, _ = self._run_with_merge(
             gh,
@@ -201,9 +206,7 @@ class ResolvingConflictAgentExecutionTest(unittest.TestCase, _ResolvingConflictM
 
         # The conflict-resolution dev run spawned, then was seen interrupted.
         mocks[RUN_AGENT].assert_called_once()
-        self.assertEqual(
-            gh.write_state_calls, before_writes + AGENT_RUN_CHARGE_WRITES,
-        )
+        launched.held(self, gh, CONFLICT_ISSUE)
         mocks[PUSH_BRANCH].assert_not_called()
         _assert_interrupted_state(self, gh)
 

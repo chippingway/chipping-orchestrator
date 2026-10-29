@@ -30,13 +30,16 @@ After the run the order matters just as much: the interruption and live-pause
 refusals both precede the disposition and both return WITHOUT writing pinned
 state, so the mutations the pass staged -- the advanced watermark, the
 pre-spawn `docs_checked_sha` -- are discarded and the next process re-derives
-the tick from what durable state still says. Committed docs work stays on the
-branch and republishes through the recovered-commit shortcut -- unless the
-paused run fell short of success, or a quota retirement withheld the tick: the
-record an Antigravity launch landed ahead of the run then stands, and the next
-tick parks instead (`failed_pass`). Only an OS signal's kill is an
-interruption here: a backend that cancelled its own run reported a failure,
-and the disposition parks it.
+the tick from what durable state still says. A held return writes the run's
+accounting, landed as it returned, and nothing else, so the record an
+Antigravity launch landed ahead of the run stands through a pause, a
+shutdown-sweep kill, an accounting left unresolved, or a quota retirement that
+withheld the tick, and the next tick takes the park that pass earned
+(`failed_pass`); committed docs work under any other command stays on the
+branch and republishes through the recovered-commit shortcut. Only a launch
+that never became a process drops the record, having run nothing to need it.
+Only an OS signal's kill is an interruption here: a backend that cancelled its
+own run reported a failure, and the disposition parks it.
 """
 from __future__ import annotations
 
@@ -84,23 +87,25 @@ def _drive_documenting_pass(ctx: _models._DocumentingContext):
     # synthesizes its own non-interrupted result, so only a real resume /
     # fresh-docs spawn can land here). Ignore it and return WITHOUT writing
     # pinned state -- the pre-spawn `docs_checked_sha` / watermark mutations
-    # are discarded so the next process re-runs the docs pass. The one write
-    # made drops the launch record alone, since no failure is known here.
+    # are discarded. The record an Antigravity launch landed stands, as it does
+    # for a poller that died mid-run, so the next process parks that pass
+    # rather than publishing what it left unseen; only a launch never made
+    # drops it, having run nothing to need it.
     if _ignores_the_run(ctx, run.agent_result):
-        _failed_pass._settle(ctx)
+        if not run.agent_result.invoked:
+            _failed_pass._settle(ctx)
         return None
 
-    # Live pause applied while the docs agent ran: honor the decision the
-    # resume helper already made (the recovered `ahead > 0` shape ran no agent
-    # and reports False). Stop before the disposition posts a PR comment,
-    # pushes, advances to `in_review`, or writes pinned state. The committed
-    # docs work stays on the branch and republishes through the
-    # recovered-worktree path once the label is removed -- save from a pass
-    # that fell short, which leaves the record its launch landed standing, so
-    # the next tick parks it instead.
+    # Live pause applied while the docs agent ran, or an accounting left
+    # unresolved: honor the decision the resume helper already made (the
+    # recovered `ahead > 0` shape ran no agent and reports False). Stop before
+    # the disposition posts a PR comment, pushes, advances to `in_review`, or
+    # writes pinned state -- the run's accounting, landed as it returned, is
+    # all a held return writes. The record an Antigravity launch landed stands,
+    # whatever the pass did, so the next tick takes the park it earned; the
+    # committed docs work of any other command republishes through the
+    # recovered-worktree path once the label is removed.
     if run.paused:
-        if not _failed_pass._fell_short(ctx, run.agent_result):
-            _failed_pass._settle(ctx)
         return None
 
     return run

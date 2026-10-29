@@ -45,9 +45,9 @@ AGENT_RUN_FINGERPRINT = "agent_run_fingerprint"
 # such launch has started.
 AGENT_RUN_OWED_STARTED = "agent_run_owed_started"
 
-# The per-issue meter the usage accounting folds every parsed agent exit onto
-# (`issue_usage._accumulate_issue_usage`), a current producer of its own. Read
-# here as the floor of the count above, never written.
+# The per-issue meter the usage accounting counts every parsed agent exit on
+# (`usage_checkpoint`), a current producer of its own. Read here as the floor
+# of the count above, never written.
 _METERED_RUNS = "issue_agent_runs"
 
 

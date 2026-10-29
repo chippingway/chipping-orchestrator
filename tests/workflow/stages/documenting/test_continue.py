@@ -10,8 +10,10 @@ from orchestrator import config
 from tests.support import agy_stream as stream
 from tests.workflow.agent_failure_values import AGY_TERMINAL_ERROR, agy_responded
 from tests.workflow.fixtures import (
+    AGENT_RUN_ACCOUNTING_KEYS,
     MEASURED_CANDIDATE_SHA,
     _agent,
+    moved,
 )
 from tests.workflow.session_limit_parks import assert_session_limit_park
 from tests.workflow.stages.documenting import (
@@ -242,12 +244,23 @@ FULL_DOCS_CONTEXT = (QUOTA_ISSUE_BODY, EARLIER_GUIDANCE, "DOCS: NO_CHANGE")
 LAUNCHED_DOCS_SHA = "docs_launched_sha"
 # Passes a live pause stopped after each committed: one whose terminal
 # succeeded, and one an error terminal no quota named failed.
-PAUSED_SUCCESS = agy_responded("Documented --dry-run in the README.")
-PAUSED_FAILURE = agy_responded("Documented --dry-run in the README.", error=AGY_TERMINAL_ERROR)
+PAUSED_STOPS = (
+    ("succeeded", agy_responded("Documented --dry-run in the README.")),
+    ("failed", agy_responded("Documented --dry-run in the README.", error=AGY_TERMINAL_ERROR)),
+)
 
-# The holds a pass that failed can return under: an operator's pause, alone and
+# The holds a stopped pass can return under: an operator's pause, alone and
 # with every edit made once the agent spawned refused.
 PAUSED_HOLDS = ("_paused_meanwhile", "_refused_under_pause")
+
+
+# Every stopped pass under every hold: how it ended, what it returned, and the
+# hold its tick runs under.
+PAUSED_CASES = tuple((*stopped, hold) for stopped in PAUSED_STOPS for hold in PAUSED_HOLDS)
+
+# The heads a continued pass reads: the stopped pass's commit, twice, then the
+# replacement its publication amends it into.
+RESUMED_HEADS = (SHA_STOPPED, SHA_STOPPED, SHA_DOCS)
 
 # The holds a quota stop's tick can run under, each leaving no park behind it:
 # an operator's pause the run returns to, and a retirement edit GitHub refuses.
@@ -424,42 +437,45 @@ class DocumentingQuotaContinueTest(unittest.TestCase, _ContinueAssertions):
 class DocumentingPausedPassTest(unittest.TestCase, _ContinueAssertions):
     """What the tick after a live pause makes of the pass the pause stopped."""
 
-    def test_paused_success_publishes_next_tick(self) -> None:
-        # An operator paused the issue while a pass ran, committed, and
-        # succeeded, so its tick wrote nothing of it: the next tick publishes
-        # the commit as recovered work, with no agent run, and completes it
-        # into `in_review`.
-        gh, issue, run_agent = self._stopped(self._paused_meanwhile, stop=PAUSED_SUCCESS)
-        self.assertIsNone(self._pinned(gh).get(LAUNCHED_DOCS_SHA))
-
-        published = self._tick(gh, issue, run_agent)
-
-        self.assertEqual(run_agent.call_count, 1)
-        self.assertEqual(published[PUSH_BRANCH].call_args.kwargs[documenting_support.REVISION], SHA_DOCS)
-        self.assertEqual(gh.label_history, [(QUOTA_ISSUE_NUMBER, IN_REVIEW)])
-
-    def test_paused_failure_waits_for_continue(self) -> None:
-        # The same pause over a pass an error terminal no quota named failed
-        # after it committed -- with GitHub taking edits, and refusing every
-        # one made once the agent spawned. Either way its tick posts nothing,
-        # parks nothing, and needs no write: the record its launch landed
-        # ahead of the run stands. The next tick parks instead of publishing,
-        # launching nothing, and drops that record in the park's own write.
-        # The continue resumes the conversation no quota retired, and only its
-        # success publishes the commit and advances.
-        for hold in PAUSED_HOLDS:
-            with self.subTest(hold=hold):
-                gh, issue, run_agent = self._stopped(getattr(self, hold), stop=PAUSED_FAILURE)
-                self.assertEqual(gh.posted_comments, [])
-                self.assertEqual(self._pinned(gh).get(LAUNCHED_DOCS_SHA), SHA_BEFORE)
+    def test_a_paused_pass_waits_for_continue(self) -> None:
+        # An operator paused the issue while a pass ran and committed, whether
+        # its terminal succeeded or an error no quota named failed it -- with
+        # GitHub taking edits, and refusing every one made once the agent
+        # spawned. Its held return posts nothing and writes nothing but the
+        # run's accounting, measured from the comment as the agent was invoked
+        # over it: the record its launch landed ahead of the run stands. The
+        # next tick parks instead of publishing what nobody read, launching
+        # nothing, and drops that record in the park's own write. The continue
+        # resumes the conversation no quota retired, and only its success
+        # publishes the commit and advances.
+        for case in PAUSED_CASES:
+            with self.subTest(case[0], hold=case[2]):
+                gh, issue, run_agent = self._stopped_under(case)
+                self._assert_held(gh, run_agent)
 
                 self._assert_waits_for_continue(gh, run_agent, self._tick(gh, issue, run_agent))
                 self.assertIsNone(self._pinned(gh).get(LAUNCHED_DOCS_SHA))
 
                 self._continue(gh, issue)
-                resumed = self._tick(gh, issue, run_agent, head_shas=(SHA_STOPPED, SHA_STOPPED, SHA_DOCS))
+                self._assert_documented(
+                    gh,
+                    run_agent,
+                    self._tick(gh, issue, run_agent, head_shas=RESUMED_HEADS),
+                    pinned=stream.SESSION_ID,
+                )
                 self.assertEqual(_launches(run_agent), [STOPPED_LAUNCH, STOPPED_LAUNCH])
-                self._assert_documented(gh, run_agent, resumed, pinned=stream.SESSION_ID)
+
+    def _stopped_under(self, case: tuple):
+        """The issue once the pass `case` names returned under its hold, and the launch mock every later tick shares."""
+        _, stop, hold = case
+        return self._stopped(getattr(self, hold), stop=stop)
+
+    def _assert_held(self, gh, run_agent) -> None:
+        """The held tick posted nothing and moved nothing but the run's accounting since the pass was invoked."""
+        launched_over = run_agent.side_effect.launched_over[0]
+        self.assertEqual(gh.posted_comments, [])
+        self.assertLessEqual(moved(launched_over, self._pinned(gh)), AGENT_RUN_ACCOUNTING_KEYS)
+        self.assertEqual(self._pinned(gh).get(LAUNCHED_DOCS_SHA), SHA_BEFORE)
 
     def _refused_under_pause(self, gh) -> ExitStack:
         """An operator's pause the run returns to, with every edit made once the agent spawned refused."""

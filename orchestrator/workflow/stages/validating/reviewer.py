@@ -43,17 +43,23 @@ well, and is taken into the reading the round's return is measured against
 (`_launches`), so a run another road charges while the reviewer runs is kept
 the same way.
 
+The reviewer's usage is accounted as it returns, at the tracked boundary
+(`usage._run_agent_tracked`), and nowhere in this round: whatever becomes of
+its verdict -- paused, killed, timed out, its subject moved -- the exit is
+counted once, and none of that buys the verdict a replay. A return whose
+accounting stayed unresolved is held before anything else is read.
+
 After the run, two refusals stand between the reviewer and any disposition,
 and their order is the contract. The live-pause check runs first, and the
 interruption check behind it, because a shutdown-killed reviewer emits
-nothing: read as a verdict it would park the issue as a reviewer failure AND
-persist the usage it ran up. Both return before usage is folded or the
-session recorded, so an operator who pauses mid-review leaves durable state
-exactly as the prior tick wrote it, and nothing is stranded -- the reviewer is
-read-only and starts over next tick.
+nothing: read as a verdict it would park the issue as a reviewer failure.
+Both return before the session is recorded, so an operator who pauses
+mid-review leaves durable state as the prior tick wrote it, save the
+accounting the tracked boundary landed, and nothing is stranded -- the
+reviewer is read-only and starts over next tick.
 
 The verdict itself fans out to two owners. A timeout or a missing VERDICT line
-parks, its return -- usage, session, and the subject it read -- recorded by
+parks, its return -- session, and the subject it read -- recorded by
 the park's own guarded commit, prepared before its notice is posted
 (`review_writes.parks_the_return`). So does a Codex reviewer its account's
 usage limit stopped, recognized off the JSONL stream its failed turn left
@@ -139,7 +145,7 @@ def _run_reviewer_round(
     `read` is the pinned comment as the tick read it. The reading the round's
     subject is bound to is laid over `state` measured from it before anything
     of the round is written (`review_comment._ResolvedSubject.lays_over`): a
-    run another road charged and folded while the subject was resolved is on
+    run another road charged and accounted while the subject was resolved is on
     that reading and nowhere in hand, and every later reading of the round is
     measured from it, so no later one would see it move. A launch whose commit
     did not land ends the tick with no reviewer spawned.
@@ -267,8 +273,9 @@ def _read_again_on_return(
 ) -> _models._ReviewerRun | None:
     """The run, the pinned comment read again behind it; None to end the tick unwritten.
 
-    A run an operator paused under, or one the shutdown sweep killed, ends the
-    tick before that, in that order, with nothing of its return staged.
+    A run whose accounting is unresolved, one an operator paused under, or one
+    the shutdown sweep killed, ends the tick before that, in that order, with
+    nothing of its return staged.
 
     The comment is read before anything the run leaves is written -- a park
     for a timeout or a missing verdict as much as the record of a verdict --
@@ -287,23 +294,27 @@ def _read_again_on_return(
     interrupted run does: the next tick spawns a reviewer over whatever the
     comment carries then.
     """
+    # A return whose accounting is unresolved settles nothing that depends on
+    # it, and every write below is laid over the state that accounting is.
+    if reviewer_run.agent_result.unaccounted:
+        return None
+
     # Live pause: an operator applied `paused` / `backlog` while the reviewer
     # ran. Dispatch only saw the pre-run labels, so re-check a freshly fetched
-    # issue and return WITHOUT folding usage, recording the review session,
-    # parking, or relabeling -- durable GitHub state stays exactly as the prior
-    # tick left it and the next tick re-spawns a fresh reviewer once the label
-    # is removed. Nothing is stranded: the reviewer is read-only and spawns
-    # fresh each round.
+    # issue and return WITHOUT recording the review session, parking, or
+    # relabeling -- durable GitHub state stays as the prior tick left it, save
+    # the accounting the tracked boundary landed, and the next tick re-spawns
+    # a fresh reviewer once the label is removed. Nothing is stranded: the
+    # reviewer is read-only and spawns fresh each round.
     if _guards._paused_during_agent_run(gh, issue):
         return None
 
     # Shutdown-sweep interruption: a reviewer run the orchestrator killed
     # mid-flight has no trustworthy verdict. Its empty output would otherwise
     # fall through to the `unknown` -> `reviewer_failed` park below and, on
-    # the ensuing `write_pinned_state`, persist the usage it ran up (and the
-    # session / `last_review_at` it returned with). Ignore it and return
-    # WITHOUT writing, and the next process re-spawns the reviewer. Must
-    # precede the timeout/verdict branches.
+    # the ensuing write, persist the session / `last_review_at` it returned
+    # with. Ignore it and return WITHOUT writing, and the next process
+    # re-spawns the reviewer. Must precede the timeout/verdict branches.
     if _guards._ignore_if_interrupted(issue, reviewer_run.agent_result):
         return None
     reread = _review_comment._records_stand(
@@ -387,7 +398,8 @@ def _dispatch_reviewer_result(
     A run that leaves no verdict has its return recorded by its park's guarded
     commit (`review_writes.parks_the_return`); one that does leaves it to the
     disposition, which records it over the reading it persists the verdict
-    behind, so the usage is folded once. Two such runs park before any VERDICT
+    behind. Neither writes the run's usage, which the tracked boundary
+    accounted as it returned. Two such runs park before any VERDICT
     is read: a timeout, and a Codex run its account's usage limit stopped
     (`provider_failures.codex_usage_limit_failure`), which parks under
     `reviewer_usage_limit` with the provider's reset and message

@@ -8,9 +8,9 @@ the verdict acted on (`review_disposition`), so a tick that ended in between
 post that failed, a relabel or a developer launch that never landed, a
 process that died -- leaves it on the pinned comment. The next tick finishes
 it here and runs no reviewer: the one that returned was charged for its run,
-its usage and session were written with the verdict, and the round it ran as
-is the one the verdict names, so nothing here charges a run, folds usage, or
-spends a round of its own. By then the dispatcher's reconciliation has
+its usage accounted as it returned and its session written with the verdict,
+and the round it ran as is the one the verdict names, so nothing here charges
+a run, counts usage, or spends a round of its own. By then the dispatcher's reconciliation has
 published and settled the evidence the verdict claims, or held the tick before
 any handler, so what is left is the disposition itself.
 

@@ -173,9 +173,7 @@ class DisposedVerdictWorld(_world.ReviewVerdictWorld):
         """The returned round, as the live one records it, handed to the disposition."""
         state = self.github.read_pinned_state(self.issue)
         self.run = _world.returned_run(self, state, message)
-        # The launch's lifetime charge, which the live round's run circuit takes.
-        charged = state.get(_world.AGENT_RUNS_USED) or 0
-        state.set(_world.AGENT_RUNS_USED, charged + 1)
+        _world.charged_and_accounted(self, state, self.run)
         verdict, body = _completion_verdicts._parse_review_verdict(message)
         decision = _models._ReviewerDecision(self.run, verdict, body)
         _disposition.disposes_of_the_verdict(self.github, _TEST_SPEC, self.issue, state, decision)

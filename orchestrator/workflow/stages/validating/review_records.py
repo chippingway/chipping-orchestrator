@@ -6,12 +6,13 @@ A round writes onto the comment the developer report it reviews settled on,
 at three points. Before the spawn it writes the configured reviewer spec and
 the subject the reviewer is handed (`_records_the_launch`), durably and ahead
 of the launch, so a round that dies mid-review still says what it was shown.
-At the launch the circuit writes the lifetime run charge. On the return the
-round writes the usage the reviewer ran up, the session it ran as, when it
-returned, and the subject it was handed, again, as the one a reviewer really
-read (`_records_the_return`) -- and, where it approves, the subject the
-approval covers in that same write. The writers here only stage; the launch
-and the return land through guarded commits (`review_writes`).
+At the launch the circuit writes the lifetime run charge, and as the reviewer
+returns the tracked boundary accounts its usage in a commit of its own
+(`usage_checkpoint`). On the return the round writes the session the reviewer
+ran as, when it returned, and the subject it was handed, again, as the one a
+reviewer really read (`_records_the_return`) -- and, where it approves, the
+subject the approval covers in that same write. The writers here only stage;
+the launch and the return land through guarded commits (`review_writes`).
 
 A developer report is accepted only where the comment its settlement leaves
 has room for every one of those (`reserves_the_round`). Otherwise a report
@@ -24,11 +25,11 @@ and the session at the width of the UUID every session id is read as. Each
 REPLACES what stands under its key, so the widest of each bounds what any
 number of later rounds leaves.
 
-The usage meters are the one part of the return not reserved. They are running
-totals every agent run on the issue folds, put down by the developer run whose
-report this is wherever its usage parsed, and a fold grows them by digits
-rather than by a record -- which no measurement in this repository models for
-any run.
+The usage accounting is no part of the round's writes, and is not reserved
+here. Its counters are running totals every agent run on the issue adds to,
+put down by the developer run whose report this is wherever its usage parsed,
+and a run grows them by digits rather than by a record -- which no measurement
+in this repository models for any run.
 """
 from __future__ import annotations
 
@@ -37,9 +38,7 @@ from uuid import UUID
 
 from orchestrator import config
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.observability.usage.metrics import UsageMetrics
 from orchestrator.workflow.engine import (
-    issue_usage as _issue_usage,
     report_record_values as _record_values,
     review_subjects as _review_subjects,
     run_ledger as _run_ledger,
@@ -78,19 +77,18 @@ def _records_the_launch(
 
 def _records_the_return(
     state: PinnedState,
-    usage: UsageMetrics | None,
     session_id: str | None,
     subject: _review_subjects.ReviewSubject,
 ) -> None:
-    """Stage what a returned reviewer leaves: its usage, its session, when, and what it read.
+    """Stage what a returned reviewer leaves: its session, when, and what it read.
 
     The subject is the one the launch wrote, recorded again because only this
     write says a reviewer was really handed it: the launch's own goes down
     before the run budget is asked, so a launch that budget refused leaves it
     beside a reviewer nobody invoked. A run that yielded no session id leaves
-    the last one standing. The caller writes.
+    the last one standing. Its usage is not staged: the tracked boundary
+    accounted it as the reviewer returned. The caller writes.
     """
-    _issue_usage._accumulate_issue_usage(state, usage)
     if session_id:
         state.set(_LAST_REVIEW_SESSION_ID, session_id)
     state.set(_LAST_REVIEW_AT, _usage._now_iso())
@@ -113,5 +111,5 @@ def reserves_the_round(state: PinnedState) -> None:
         _run_ledger_values.AGENT_RUNS_USED, _record_values.MAX_RECORDED_NUMBER - 1,
     )
     _run_ledger._reserve_run(state, _WIDEST_FINGERPRINT)
-    _records_the_return(state, None, _WIDEST_SESSION_ID, widest)
+    _records_the_return(state, _WIDEST_SESSION_ID, widest)
     state.set(_review_subjects.APPROVED_SUBJECT, widest.recorded())

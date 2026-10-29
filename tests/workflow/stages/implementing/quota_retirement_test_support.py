@@ -106,14 +106,17 @@ def _ran_after(change, stop, *_launch_args, **_launch_options):
 
 
 def edit_after_a_move(github, issue, state, *, over: dict):
-    """The strict pinned-comment edit, with another writer landing on the comment just ahead of it.
+    """The strict pinned-comment edit, with another writer landing on the comment just ahead of a retirement's.
 
-    The writer lands the same field every time, so only the first edit finds
-    the comment moved; one after it is ordinary.
+    Only an edit carrying a retirement record is moved under -- not the run's
+    accounting, which lands as the run returns, ahead of it. The writer lands
+    the same field every time, so only the first such edit finds the comment
+    moved; one after it is ordinary.
     """
-    moved = github.read_pinned_state(issue)
-    moved.set(MOVED, True)
-    github.write_pinned_state(issue, moved)
+    if state.get(RECORD) is not None:
+        moved = github.read_pinned_state(issue)
+        moved.set(MOVED, True)
+        github.write_pinned_state(issue, moved)
     return type(github).edit_pinned_state(github, issue, state, over=over)
 
 

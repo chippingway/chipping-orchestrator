@@ -4,12 +4,13 @@
 sites: the decomposer run in `decomposing`, the reviewer run in `validating`,
 and the question run in `question`. An operator who applies `paused` (or
 `backlog`) WHILE one of those agents is in flight freezes the issue before the
-run's disposition -- usage counters, timeout/answer parks, child creation,
-workflow relabeling, and pinned-state writes -- takes effect. Each handler
-re-fetches the issue after the run returns (`gh.get_issue`) rather than trusting
-the pre-run label snapshot, and on a hit returns without touching durable GitHub
-state, so the next tick simply re-runs from durable state once the label is
-removed.
+run's disposition -- timeout/answer parks, child creation, workflow
+relabeling, and pinned-state writes -- takes effect. Each handler re-fetches
+the issue after the run returns (`gh.get_issue`) rather than trusting the
+pre-run label snapshot, and on a hit returns without touching durable GitHub
+state past the run's charge and its accounting, which the tracked spawn landed
+as the run returned, so the next tick simply re-runs from durable state once
+the label is removed.
 
 The same guard (`_paused_during_agent_run`) that the implementing dev run uses;
 these cases establish the pattern for future direct `_run_agent_tracked` paths.
@@ -32,7 +33,9 @@ from tests.support.fakes import (
 )
 from tests.workflow.fixtures import (
     _TEST_SPEC,
-    AGENT_RUN_CHARGE_WRITES,
+    AGENT_RUN_WRITES,
+    REVIEWER_LAUNCH_KEYS,
+    Launched,
     _agent,
     _manifest,
     _open_pr_for,
@@ -78,7 +81,7 @@ class DecomposerLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
             _DECOMPOSER_ISSUE_NUMBER,
             user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
         )
-        before_writes = gh.write_state_calls
+        launched = Launched.over(gh, _DECOMPOSER_ISSUE_NUMBER)
         manifest = _manifest(
             '{"decision": "split", "rationale": "two pieces", "children": ['
             '{"title": "A", "body": "a", "depends_on": []},'
@@ -101,11 +104,10 @@ class DecomposerLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
         self.assertEqual(gh.created_child_issues, [])
         self.assertEqual(gh.label_history, [])
         self.assertEqual(gh.posted_comments, [])
-        # The spawn's own charge is the only durable write: the post-spawn
-        # session id is discarded and no pinned-state advancement is written.
-        self.assertEqual(
-            gh.write_state_calls, before_writes + AGENT_RUN_CHARGE_WRITES,
-        )
+        # The spawn's own charge and its accounting are the only durable
+        # writes: the post-spawn session id is discarded and no pinned-state
+        # advancement is written.
+        launched.held(self, gh, _DECOMPOSER_ISSUE_NUMBER)
         self.assertNotIn(
             "decomposer_session_id",
             gh.pinned_data(_DECOMPOSER_ISSUE_NUMBER),
@@ -118,8 +120,8 @@ class ReviewerLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
         # `fixing`, and resume the dev (a SECOND agent run) absent the guard.
         # The guard stops right after the reviewer returns, so `run_agent` fires
         # exactly once and no relabel / PR comment lands. The only durable
-        # writes are the ones ahead of the spawn: the reviewer's spec and
-        # subject, and the charge its launch took.
+        # writes are the ones ahead of the spawn -- the reviewer's spec and
+        # subject, and the charge its launch took -- and its accounting.
         gh = FakeGitHubClient()
         issue = make_issue(_REVIEWER_ISSUE_NUMBER, label=_VALIDATING_LABEL)
         gh.add_issue(issue)
@@ -133,7 +135,7 @@ class ReviewerLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
             user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
         )
         _open_pr_for(gh, issue_number=_REVIEWER_ISSUE_NUMBER, pr_number=_REVIEW_PR_NUMBER)
-        before_writes = gh.write_state_calls
+        launched = Launched.over(gh, _REVIEWER_ISSUE_NUMBER)
 
         get_issue_mock = MagicMock(
             return_value=_paused_view(
@@ -156,9 +158,7 @@ class ReviewerLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
             (gh.label_history, gh.posted_pr_comments, gh.posted_comments),
             ([], [], []),
         )
-        self.assertEqual(
-            gh.write_state_calls, before_writes + 1 + AGENT_RUN_CHARGE_WRITES,
-        )
+        launched.held(self, gh, _REVIEWER_ISSUE_NUMBER, writes=1 + AGENT_RUN_WRITES, beside=REVIEWER_LAUNCH_KEYS)
         self.assertNotIn(
             "last_review_session_id",
             gh.pinned_data(_REVIEWER_ISSUE_NUMBER),
@@ -173,7 +173,8 @@ class QuestionLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
     def test_fresh_pause_blocks_answer_park(self) -> None:
         # The fresh question spawn would post the answer + HITL park and persist
         # the session absent the guard. On a hit the handler posts nothing,
-        # writes nothing, and reaps the read-only worktree as on any clean exit
+        # writes nothing past the run's charge and accounting, and reaps the
+        # read-only worktree as on any clean exit
         # (no prior unsafe park, so `keep_worktree` stayed False).
         gh = FakeGitHubClient()
         issue = make_issue(
@@ -182,7 +183,7 @@ class QuestionLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
             body="Where does X live?",
         )
         gh.add_issue(issue)
-        before_writes = gh.write_state_calls
+        launched = Launched.over(gh, _FRESH_QUESTION_ISSUE_NUMBER)
 
         get_issue_mock = MagicMock(
             return_value=_paused_view(
@@ -204,9 +205,7 @@ class QuestionLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
             (gh.opened_prs, gh.label_history, gh.posted_comments),
             ([], [], []),
         )
-        self.assertEqual(
-            gh.write_state_calls, before_writes + AGENT_RUN_CHARGE_WRITES,
-        )
+        launched.held(self, gh, _FRESH_QUESTION_ISSUE_NUMBER)
         self.assertNotIn(
             "question_session_id",
             gh.pinned_data(_FRESH_QUESTION_ISSUE_NUMBER),
@@ -221,7 +220,8 @@ class QuestionLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
         # `last_action_comment_id` past the human's new comment and clears
         # `awaiting_human` in-memory BEFORE the spawn. A `paused` applied during
         # the resume must discard those pre-spawn mutations -- the guard returns
-        # without writing, so the next tick re-consumes the same reply.
+        # without writing past the run's accounting, so the next tick
+        # re-consumes the same reply.
         gh = FakeGitHubClient()
         issue = make_issue(
             _RESUMED_QUESTION_ISSUE_NUMBER,
@@ -244,7 +244,7 @@ class QuestionLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
             question_agent="claude",
             question_session_id="q-sess-old",
         )
-        before_writes = gh.write_state_calls
+        launched = Launched.over(gh, _RESUMED_QUESTION_ISSUE_NUMBER)
 
         get_issue_mock = MagicMock(
             return_value=_paused_view(
@@ -261,9 +261,7 @@ class QuestionLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
         mocks["run_agent"].assert_called_once()
         self.assertEqual(gh.label_history, [])
         self.assertEqual(gh.posted_comments, [])
-        self.assertEqual(
-            gh.write_state_calls, before_writes + AGENT_RUN_CHARGE_WRITES,
-        )
+        launched.held(self, gh, _RESUMED_QUESTION_ISSUE_NUMBER)
         self.assertEqual(
             gh.pinned_data(_RESUMED_QUESTION_ISSUE_NUMBER).get(
                 "last_action_comment_id",

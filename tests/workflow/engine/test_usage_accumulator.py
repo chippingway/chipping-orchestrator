@@ -1,14 +1,14 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Per-issue cumulative usage meter: the `_accumulate_issue_usage` fold, the
-`_format_issue_usage_verdict` reader that renders the terminal receipt line,
-and their wiring into the developer (implementing) and reviewer (validating)
-run sites. Covers the token formula (codex `cached_tokens` excluded), the cost
-/ cost-source aggregates, the `(est.)` / `unknown` verdict slots, and the
-single-writer discipline that leaves an interrupted run's counters
-unpersisted. The accounting checkpoint lands the same counters the fold does
-for every parsed meaning, and owes nothing for a result with no process or no
-parsed usage."""
+"""Per-issue cumulative usage meter: what one accounted run adds to the counters,
+the `_format_issue_usage_verdict` reader that renders the terminal receipt line,
+and the tracked spawn that accounts every actual exit through the checkpoint as
+it returns. Covers the token formula (codex `cached_tokens` excluded), the cost
+/ cost-source aggregates, the `(est.)` / `unknown` verdict slots, each exit
+counted once whatever its stage makes of it -- an interrupted one, each attempt
+of a poisoned session's retry, and the disposition's own write behind it -- and
+the hold an accounting left unresolved puts on the retry behind it. A result
+with no process or no parsed usage owes nothing."""
 from __future__ import annotations
 
 import unittest
@@ -30,6 +30,7 @@ from tests.workflow.engine import (
     usage_accumulator_test_support as support,
     usage_checkpoint_test_support as _accounting,
 )
+from tests.workflow.fixtures import REVIEWER_LAUNCH_KEYS, accounted, assert_only_accounted
 
 FakeGitHubClient = support.FakeGitHubClient
 make_issue = support.make_issue
@@ -54,6 +55,7 @@ _TOKENS_KEY = "issue_total_tokens"
 _COST_KEY = "issue_total_cost_usd"
 _COST_SOURCES_KEY = "issue_cost_sources"
 _RESUME_ISSUE_NUMBER = 940
+_POISONED_SESSION = "poisoned-sess"
 _DEVELOPER_ISSUE_NUMBER = 30
 _INTERRUPTED_DEVELOPER_ISSUE_NUMBER = 31
 _REVIEWER_ISSUE_NUMBER = 32
@@ -83,15 +85,29 @@ _PRIOR_METERS = (
     {_RUNS_KEY: 2, _TOKENS_KEY: 9, _COST_KEY: 1.0, _COST_SOURCES_KEY: [_COST_SOURCE_REPORTED]},
 )
 
-# Each meaning a parsed run's usage carries: reported, estimated, unpriced, and
-# `no-usage` costs, and codex's cached input inside its prompt.
+# Each meaning a parsed run's usage carries -- reported, estimated, unpriced,
+# and `no-usage` costs, and codex's cached input inside its prompt -- and what
+# it adds: its tokens, its cost (None for none), and its tag.
 _PARSED_MEANINGS = (
-    _usage(cost_usd=_CLAUDE_RUN_COST, cost_source=_COST_SOURCE_REPORTED, input_tokens=100),
-    _usage(cost_usd=_ESTIMATED_RUN_COST, output_tokens=_CLAUDE_OUTPUT_TOKENS),
-    _usage(cost_source=_COST_SOURCE_UNKNOWN, cache_read_tokens=_CLAUDE_CACHE_READ_TOKENS),
-    _usage(cost_source=_COST_SOURCE_NO_USAGE),
-    _usage(backend=_BACKEND_CODEX, cost_source=_COST_SOURCE_REPORTED, input_tokens=100, cached_tokens=60),
+    (
+        _usage(cost_usd=_CLAUDE_RUN_COST, cost_source=_COST_SOURCE_REPORTED, input_tokens=100),
+        (100, _CLAUDE_RUN_COST, _COST_SOURCE_REPORTED),
+    ),
+    (
+        _usage(cost_usd=_ESTIMATED_RUN_COST, output_tokens=_CLAUDE_OUTPUT_TOKENS),
+        (_CLAUDE_OUTPUT_TOKENS, _ESTIMATED_RUN_COST, _COST_SOURCE_ESTIMATED),
+    ),
+    (
+        _usage(cost_source=_COST_SOURCE_UNKNOWN, cache_read_tokens=_CLAUDE_CACHE_READ_TOKENS),
+        (_CLAUDE_CACHE_READ_TOKENS, None, _COST_SOURCE_UNKNOWN),
+    ),
+    (_usage(cost_source=_COST_SOURCE_NO_USAGE), (0, None, _COST_SOURCE_NO_USAGE)),
+    (
+        _usage(backend=_BACKEND_CODEX, cost_source=_COST_SOURCE_REPORTED, input_tokens=100, cached_tokens=60),
+        (100, None, _COST_SOURCE_REPORTED),
+    ),
 )
+
 
 # Results the checkpoint owes nothing for: a parse that failed, and metrics
 # supplied beside a result no process produced.
@@ -120,104 +136,75 @@ def _resume_seed():
     return gh, issue
 
 
-class AccumulateIssueUsageHelperTest(unittest.TestCase):
-    """The pure fold: token/cost math and the cost-source aggregate, which the accounting checkpoint lands alike."""
+class AccountedRunArithmeticTest(unittest.TestCase):
+    """What one accounted run adds to the counters: token and cost math, and the cost-source aggregate."""
 
-    def test_single_fold_sums_and_records_source(self) -> None:
-        state = PinnedState()
-        _issue_usage._accumulate_issue_usage(
-            state,
-            _usage(
-                input_tokens=100,
-                output_tokens=_CLAUDE_OUTPUT_TOKENS,
-                cache_read_tokens=_CLAUDE_CACHE_READ_TOKENS,
-                cache_write_tokens=_CLAUDE_CACHE_WRITE_TOKENS,
-                cost_usd=_CLAUDE_RUN_COST,
-                cost_source=_COST_SOURCE_ESTIMATED,
-            ),
+    def test_one_run_sums_and_records_source(self) -> None:
+        world = _accounting.seeded()
+
+        world.ran(usage=_usage(
+            input_tokens=100,
+            output_tokens=_CLAUDE_OUTPUT_TOKENS,
+            cache_read_tokens=_CLAUDE_CACHE_READ_TOKENS,
+            cache_write_tokens=_CLAUDE_CACHE_WRITE_TOKENS,
+            cost_usd=_CLAUDE_RUN_COST,
+            cost_source=_COST_SOURCE_ESTIMATED,
+        ))
+
+        self.assertEqual(
+            _accounting.counted(world.record()),
+            (1, _CLAUDE_TOTAL_TOKENS, _CLAUDE_RUN_COST, [_COST_SOURCE_ESTIMATED]),
         )
-        self.assertEqual(state.get(_RUNS_KEY), 1)
-        self.assertEqual(state.get(_TOKENS_KEY), _CLAUDE_TOTAL_TOKENS)
-        self.assertEqual(state.get(_COST_KEY), _CLAUDE_RUN_COST)
-        self.assertEqual(state.get(_COST_SOURCES_KEY), [_COST_SOURCE_ESTIMATED])
 
     def test_codex_cached_tokens_excluded_from_total(self) -> None:
         # codex reports `input_tokens` as the whole prompt and `cached_tokens`
         # as the portion of it served from cache; summing the latter would
         # double-count part of the input.
-        state = PinnedState()
-        _issue_usage._accumulate_issue_usage(
-            state,
-            _usage(
-                backend=_BACKEND_CODEX,
-                input_tokens=100,
-                output_tokens=_CODEX_OUTPUT_TOKENS,
-                cached_tokens=60,
-                cost_usd=0.5,
-                cost_source=_COST_SOURCE_REPORTED,
-            ),
-        )
-        self.assertEqual(state.get(_TOKENS_KEY), _CODEX_TOTAL_TOKENS)
+        world = _accounting.seeded()
 
-    def test_runs_dedupe_sources_and_none_cost(
-        self,
-    ) -> None:
-        usage_state = PinnedState()
+        world.ran(usage=_usage(
+            backend=_BACKEND_CODEX,
+            input_tokens=100,
+            output_tokens=_CODEX_OUTPUT_TOKENS,
+            cached_tokens=60,
+            cost_usd=0.5,
+            cost_source=_COST_SOURCE_REPORTED,
+        ))
+
+        self.assertEqual(world.record()[_TOKENS_KEY], _CODEX_TOTAL_TOKENS)
+
+    def test_runs_dedupe_sources_and_none_cost(self) -> None:
         # A priced run, an unpriced run (cost None), and a second priced run
-        # sharing the first's source.
-        _issue_usage._accumulate_issue_usage(
-            usage_state,
-            _usage(
-                input_tokens=10,
-                cost_usd=1.0,
-                cost_source=_COST_SOURCE_ESTIMATED,
-            ),
-        )
-        _issue_usage._accumulate_issue_usage(
-            usage_state,
-            _usage(
-                input_tokens=5,
-                cost_usd=None,
-                cost_source=_COST_SOURCE_UNKNOWN,
-            ),
-        )
-        _issue_usage._accumulate_issue_usage(
-            usage_state,
-            _usage(
-                output_tokens=7,
-                cost_usd=_MULTI_RUN_COST,
-                cost_source=_COST_SOURCE_ESTIMATED,
-            ),
-        )
-        self.assertEqual(usage_state.get(_RUNS_KEY), 3)
-        self.assertEqual(usage_state.get(_TOKENS_KEY), _MULTI_RUN_TOKENS)
-        # None-cost run contributes nothing to the dollar total.
-        self.assertEqual(usage_state.get(_COST_KEY), _MULTI_RUN_TOTAL_COST)
-        # Distinct sources, sorted, for the terminal verdict's (est.)/unknown.
+        # sharing the first's source, each under its own charge.
+        world = _accounting.seeded()
+        for ordinal, parsed in enumerate((
+            _usage(input_tokens=10, cost_usd=1.0, cost_source=_COST_SOURCE_ESTIMATED),
+            _usage(input_tokens=5, cost_usd=None, cost_source=_COST_SOURCE_UNKNOWN),
+            _usage(output_tokens=7, cost_usd=_MULTI_RUN_COST, cost_source=_COST_SOURCE_ESTIMATED),
+        ), start=1):
+            world.ran(ordinal, usage=parsed)
+
+        # The None-cost run adds nothing to the dollar total, and the tags are
+        # the distinct sources, sorted, a terminal verdict reads (est.) and
+        # unknown off.
         self.assertEqual(
-            usage_state.get(_COST_SOURCES_KEY),
-            [_COST_SOURCE_ESTIMATED, _COST_SOURCE_UNKNOWN],
+            _accounting.counted(world.record()),
+            (3, _MULTI_RUN_TOKENS, _MULTI_RUN_TOTAL_COST, [_COST_SOURCE_ESTIMATED, _COST_SOURCE_UNKNOWN]),
         )
 
-    def test_the_checkpoint_folds_alike(self) -> None:
-        # Over an empty meter and a moved one, each parsed meaning lands
-        # exactly the counters the fold makes of the same record -- a `None`
-        # cost leaving the total as it stands -- and the receipt reads alike.
+    def test_each_parsed_meaning_lands_over_any_meter(self) -> None:
+        # Over an empty meter and a moved one, each parsed meaning adds one
+        # exit, its tokens, its cost where it has one -- a `None` cost leaving
+        # the total as it stands -- and its tag.
         for prior in _PRIOR_METERS:
-            for parsed in _PARSED_MEANINGS:
+            for parsed, added in _PARSED_MEANINGS:
                 with self.subTest(prior=prior, cost_source=parsed.cost_source):
-                    folded = PinnedState(state_data=dict(prior))
-                    _issue_usage._accumulate_issue_usage(folded, parsed)
                     world = _accounting.seeded(**prior)
 
                     world.ran(usage=parsed)
 
-                    landed = _accounting.counted(world.record())
-                    self.assertEqual(landed, _accounting.counted(folded.state_data))
-                    self.assertEqual(
-                        _issue_usage._format_issue_usage_verdict(PinnedState(state_data=world.record())),
-                        _issue_usage._format_issue_usage_verdict(folded),
-                    )
+                    expected = self._added(prior, added)
+                    self.assertEqual(_accounting.counted(world.record()), expected)
 
     def test_the_checkpoint_owes_nothing_unparsed(self) -> None:
         # A parse that failed counts no exit and no metric, and a result no
@@ -243,17 +230,18 @@ class AccumulateIssueUsageHelperTest(unittest.TestCase):
 
                 self.assertIs(fold(carried, carried, carried), _commit_models.CONFLICT)
 
-    def test_none_usage_is_noop(self) -> None:
-        # Fail-open: a parse failure surfaces `result.usage is None`, which
-        # must neither count a run nor create any counter key.
-        empty = PinnedState()
-        _issue_usage._accumulate_issue_usage(empty, None)
-        self.assertEqual(empty.state_data, {})
-        # And it leaves existing counters untouched.
-        seeded = PinnedState(state_data={_RUNS_KEY: 2, _TOKENS_KEY: 9})
-        _issue_usage._accumulate_issue_usage(seeded, None)
-        self.assertEqual(seeded.get(_RUNS_KEY), 2)
-        self.assertEqual(seeded.get(_TOKENS_KEY), 9)
+    def _added(self, prior: dict, added: tuple) -> tuple:
+        """The meter `prior` carries with one run adding `added`'s tokens, cost, and tag."""
+        tokens, cost, tag = added
+        cost_total = prior.get(_COST_KEY)
+        if cost is not None:
+            cost_total = (cost_total or 0) + cost
+        return (
+            prior.get(_RUNS_KEY, 0) + 1,
+            prior.get(_TOKENS_KEY, 0) + tokens,
+            cost_total,
+            sorted({*prior.get(_COST_SOURCES_KEY, []), tag}),
+        )
 
 
 class FormatIssueUsageVerdictTest(unittest.TestCase):
@@ -322,9 +310,9 @@ class FormatIssueUsageVerdictTest(unittest.TestCase):
 
 
 class DeveloperRunUsageAccumulationTest(unittest.TestCase, _PatchedWorkflowMixin):
-    """A fresh implementing spawn folds its usage into the pinned state the
-    handler writes; an interrupted spawn returns without writing, so nothing
-    accrues."""
+    """A fresh implementing spawn's exit is counted once, as it returns, and
+    the handler's own write behind it keeps that count; an interrupted spawn
+    returns without writing, and its exit alone is counted."""
 
     def test_fresh_spawn_persists_one_run(self) -> None:
         gh = FakeGitHubClient()
@@ -341,20 +329,26 @@ class DeveloperRunUsageAccumulationTest(unittest.TestCase, _PatchedWorkflowMixin
             )
 
         state = gh.pinned_data(_DEVELOPER_ISSUE_NUMBER)
-        self.assertEqual(state[_RUNS_KEY], 1)
+        self.assertEqual(accounted(state), (1, 1))
         # Empty stdout parses to a `no-usage` metric: a counted run with zero
         # tokens and no dollar cost.
         self.assertEqual(state[_TOKENS_KEY], 0)
         self.assertNotIn(_COST_KEY, state)
         self.assertEqual(state[_COST_SOURCES_KEY], [_COST_SOURCE_NO_USAGE])
 
-    def test_interrupted_spawn_keeps_counters_clear(self) -> None:
+    def test_interrupted_spawn_is_accounted_alone(self) -> None:
         gh = FakeGitHubClient()
         issue = make_issue(
             _INTERRUPTED_DEVELOPER_ISSUE_NUMBER,
             label="workflow:implementing",
         )
         gh.add_issue(issue)
+        # The drift baseline is seeded so the first encounter writes none.
+        gh.seed_state(
+            _INTERRUPTED_DEVELOPER_ISSUE_NUMBER,
+            user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
+        )
+        before = gh.pinned_data(_INTERRUPTED_DEVELOPER_ISSUE_NUMBER)
 
         with patch.object(config, "DEV_AGENT", _BACKEND_CLAUDE):
             self._run_implementing(
@@ -367,15 +361,16 @@ class DeveloperRunUsageAccumulationTest(unittest.TestCase, _PatchedWorkflowMixin
             )
 
         # The shutdown-sweep contract returns before `write_pinned_state`, so
-        # the in-memory fold never reaches GitHub.
-        state = gh.pinned_data(_INTERRUPTED_DEVELOPER_ISSUE_NUMBER)
-        self.assertNotIn(_RUNS_KEY, state)
-        self.assertNotIn(_TOKENS_KEY, state)
+        # nothing of the run's disposition reaches GitHub; the exit it was is
+        # counted once, as it returned.
+        assert_only_accounted(self, before, gh.pinned_data(_INTERRUPTED_DEVELOPER_ISSUE_NUMBER))
 
 
 class ResumeRunUsageAccumulationTest(unittest.TestCase):
-    """`_resume_dev_with_text` counts every real agent exit once: one for a
-    plain resume, two when a poisoned resume triggers a fresh-spawn retry."""
+    """`_resume_dev_with_text` counts every real agent exit once, as it
+    returns: one for a plain resume, two when a poisoned resume triggers a
+    fresh-spawn retry though only the retry is handed back -- and none
+    retried behind a poisoned exit whose accounting is unresolved."""
 
     def test_plain_resume_counts_one_exit(self) -> None:
         gh, issue = _resume_seed()
@@ -398,17 +393,13 @@ class ResumeRunUsageAccumulationTest(unittest.TestCase):
         ):
             _resume._resume_dev_with_text(_resume_request._DevResumeRequest(gh, _TEST_SPEC, issue, state, "go"))
 
-        self.assertEqual(state.get(_RUNS_KEY), 1)
+        self.assertEqual(
+            (accounted(gh.pinned_data(_RESUME_ISSUE_NUMBER)), accounted(state.state_data)),
+            ((1, 1), (1, 1)),
+        )
 
     def test_poisoned_retry_counts_both_exits(self) -> None:
-        gh, issue = _resume_seed()
-        gh.seed_state(
-            _RESUME_ISSUE_NUMBER,
-            dev_agent=_BACKEND_CLAUDE,
-            dev_session_id="poisoned-sess",
-            silent_park_count=0,
-        )
-        state = gh.read_pinned_state(issue)
+        gh, issue, state = self._poisoned()
 
         run_recorder = _PoisonedThenFreshRun()
 
@@ -417,14 +408,51 @@ class ResumeRunUsageAccumulationTest(unittest.TestCase):
         ), patch.object(_agent_runner, "run_agent", run_recorder):
             _resume._resume_dev_with_text(_resume_request._DevResumeRequest(gh, _TEST_SPEC, issue, state, "go"))
 
-        self.assertEqual(run_recorder.calls, ["poisoned-sess", None])
-        # Both the poisoned resume and the fresh retry burned a real exit.
-        self.assertEqual(state.get(_RUNS_KEY), 2)
+        self.assertEqual(run_recorder.calls, [_POISONED_SESSION, None])
+        # Both the poisoned resume and the fresh retry burned a real exit,
+        # each accounted under its own receipt as it returned.
+        self.assertEqual(
+            (accounted(gh.pinned_data(_RESUME_ISSUE_NUMBER)), accounted(state.state_data)),
+            ((2, 2), (2, 2)),
+        )
+
+    def test_unresolved_accounting_holds_the_retry(self) -> None:
+        # The poisoned exit's accounting landed and its response was lost:
+        # until a later reading says it landed, nothing that depends on it
+        # follows -- no fresh retry is spawned, the resume answers held, and
+        # the state the caller would write is withheld.
+        gh, issue, state = self._poisoned()
+        gh.pinned_failures.lost.add(_RESUME_ISSUE_NUMBER)
+        run_recorder = _PoisonedThenFreshRun()
+
+        with patch.object(
+            _worktree_creation, "_ensure_worktree", _fake_worktree,
+        ), patch.object(_agent_runner, "run_agent", run_recorder):
+            resumed = _resume._resume_dev_with_text(
+                _resume_request._DevResumeRequest(gh, _TEST_SPEC, issue, state, "go"),
+            )
+
+        self.assertEqual(run_recorder.calls, [_POISONED_SESSION])
+        self.assertTrue(resumed[1].unaccounted)
+        self.assertEqual((resumed[2], state.withheld), (True, True))
+        self.assertEqual(accounted(gh.pinned_data(_RESUME_ISSUE_NUMBER)), (1, 1))
+
+    def _poisoned(self) -> tuple:
+        """An issue whose pinned developer session is one the backend lost, and the state read off it."""
+        gh, issue = _resume_seed()
+        gh.seed_state(
+            _RESUME_ISSUE_NUMBER,
+            dev_agent=_BACKEND_CLAUDE,
+            dev_session_id=_POISONED_SESSION,
+            silent_park_count=0,
+        )
+        return gh, issue, gh.read_pinned_state(issue)
 
 
 class ReviewerRunUsageAccumulationTest(unittest.TestCase, _PatchedWorkflowMixin):
-    """A validating reviewer run folds its usage into the same pinned state the
-    approval handoff writes."""
+    """A validating reviewer run's exit is counted once, as it returns, and
+    the approval handoff's writes behind it keep that count; an interrupted
+    reviewer's exit alone is counted."""
 
     def test_reviewer_run_persists_one_run(self) -> None:
         gh = FakeGitHubClient()
@@ -453,11 +481,11 @@ class ReviewerRunUsageAccumulationTest(unittest.TestCase, _PatchedWorkflowMixin)
             )
 
         state = gh.pinned_data(_REVIEWER_ISSUE_NUMBER)
-        self.assertEqual(state[_RUNS_KEY], 1)
+        self.assertEqual(accounted(state), (1, 1))
         self.assertEqual(state[_TOKENS_KEY], 0)
         self.assertEqual(state[_COST_SOURCES_KEY], [_COST_SOURCE_NO_USAGE])
 
-    def test_interrupted_review_keeps_counters_clear(self) -> None:
+    def test_interrupted_review_is_accounted_alone(self) -> None:
         gh = FakeGitHubClient()
         issue = make_issue(
             _INTERRUPTED_REVIEWER_ISSUE_NUMBER,
@@ -473,9 +501,14 @@ class ReviewerRunUsageAccumulationTest(unittest.TestCase, _PatchedWorkflowMixin)
             review_round=0,
             # Seed the drift baseline so `_detect_user_content_change` does not
             # itself write pinned state on first encounter -- this test asserts
-            # the handler writes NOTHING once the reviewer run is interrupted.
+            # the handler writes nothing of its own once the reviewer run is
+            # interrupted.
             user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
         )
+        _open_pr_for(
+            gh, issue_number=_INTERRUPTED_REVIEWER_ISSUE_NUMBER, pr_number=_INTERRUPTED_REVIEWER_ISSUE_NUMBER,
+        )
+        before = gh.pinned_data(_INTERRUPTED_REVIEWER_ISSUE_NUMBER)
 
         with patch.object(config, "REVIEW_AGENT", _BACKEND_CODEX):
             self._run_validating(
@@ -487,14 +520,13 @@ class ReviewerRunUsageAccumulationTest(unittest.TestCase, _PatchedWorkflowMixin)
                 ),
             )
 
-        # A shutdown-killed reviewer returns before `write_pinned_state`, so
-        # neither the folded counters nor a `reviewer_failed` park reach GitHub.
+        # A shutdown-killed reviewer returns before its return is written, so
+        # no `reviewer_failed` park reaches GitHub; beside the launch's own
+        # record, the exit it was is counted once, as it returned.
         state = gh.pinned_data(_INTERRUPTED_REVIEWER_ISSUE_NUMBER)
-        self.assertNotIn(_RUNS_KEY, state)
-        self.assertNotIn(_TOKENS_KEY, state)
+        assert_only_accounted(self, before, state, beside=REVIEWER_LAUNCH_KEYS)
         self.assertNotEqual(state.get("park_reason"), "reviewer_failed")
         self.assertFalse(state.get("awaiting_human"))
-
 
 
 if __name__ == "__main__":

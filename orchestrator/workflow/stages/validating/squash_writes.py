@@ -28,10 +28,11 @@ to rewrite, or an install that makes no new collapse, writes nothing. Every
 write the tail makes behind it is laid over the comment measured from the
 comment as the tail last read or wrote it (`handoff._Held`), so that last
 write has to be known rather than guessed. Measured from the comment read
-before a squash that wrote, a move the squash's write already carried -- a
-usage total -- reads as another road's and is added a second time. Taken whole
-over the comment behind a squash that wrote nothing, a field another road
-wrote while it ran -- a round a reply spent -- is written back over.
+before a squash that wrote, a move the squash's write already carried reads as
+one the tail still owes, so another road's later move of that field refuses
+the tail's write as a conflict rather than being kept. Taken whole over the
+comment behind a squash that wrote nothing, a field another road wrote while
+it ran -- a round a reply spent -- is written back over.
 
 Nor may a write of the squash's own put back what another road wrote ahead of
 it. Its first write comes a request or more after the tail last read the

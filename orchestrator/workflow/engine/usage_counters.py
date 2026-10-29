@@ -13,8 +13,12 @@ it is refused before anything is read or written rather than landed as a total
 the next reading refuses. Each transformation asks the same of the total it
 makes, so no candidate carries a counter its own read-back would refuse.
 
-The arithmetic is the stage fold's (`issue_usage._accumulate_issue_usage`):
-one run, its tokens, its cost where it has one, and its cost tag.
+What one run adds: one to the run count, its tokens -- input, output,
+cache-read, and cache-write, codex's `cached_tokens` left out as part of its
+input already (`issue_usage._run_tokens`) -- to the token total, its cost
+where it has one to the cost total, and its cost tag to the sorted, distinct
+tags a terminal verdict reads an estimate or an unpriced total off. A run with
+no cost -- `no-usage` or `unknown-price` -- adds nothing to the cost total.
 """
 from __future__ import annotations
 
@@ -39,9 +43,9 @@ def usage_folds(usage: UsageMetrics) -> dict[str, _commit_models.Transform]:
     """What one invoked run's parsed `usage` adds to each counter, as transformations over its fresh value.
 
     Applied over whatever the comment carries when the commit lands, so
-    another road's fold since is kept beside it. A `None` cost adds nothing to
-    the cost total and creates no zero: a `no-usage` or `unknown-price` run
-    leaves it exactly as it stands, absent included. A counter spelled as
+    another invocation's count since is kept beside it. A `None` cost adds
+    nothing to the cost total and creates no zero: a `no-usage` or
+    `unknown-price` run leaves it exactly as it stands, absent included. A counter spelled as
     nothing its writers write, before or after the run is added, answers
     CONFLICT, so the commit is refused rather than landing a number nobody kept.
     """

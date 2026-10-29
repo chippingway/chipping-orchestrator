@@ -34,7 +34,7 @@ caller imported. Everything else -- the cost and token evidence, the price
 catalogue, the protocol keys, the per-provider decoders -- is reached on its
 owner, so nothing private is published here.
 
-The parser is what a tracked run folds its per-issue counters from, so no owner
+The parser is what a tracked run counts its per-issue usage from, so no owner
 here may reach the workflow that calls it: the dependency runs the other way,
 and a parser is fed a payload rather than an issue.
 """

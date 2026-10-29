@@ -85,9 +85,9 @@ decision's reroute and its handoff -- prepared before its pickup -- each read
 back before its relabel (`stages/decomposition/ready.py`,
 `ready_handoff.py`), with the `decomposing` tick's retirement of that
 reroute's marker (`stages/decomposition/drift.py`). So does an agent
-invocation's usage, its increment and receipt landed together
-(`usage_checkpoint`), though no road accounts through it yet. Every other
-road still rewrites the whole record.
+invocation's usage, its increment and receipt landed together as the tracked
+spawn returns (`usage_checkpoint`). Every other road still rewrites the whole
+record.
 
 The report's commits are captured over the reading a tick last synced with the
 comment (`PinnedState.synced`), so what the tick staged since is told from what
@@ -215,8 +215,8 @@ def takes_in(
     For a road that has just laid those fields of a fresh reading over a
     tick's state, without writing it. Counted from the reading the tick last
     synced with instead, each would read as a move the tick made itself: a
-    commit would carry it as the tick's own, add a total another road folded
-    to that road's fold a second time, and refuse a record the tick decided on
+    commit would carry it as the tick's own, write back a total another road
+    counted as one the tick decided, and refuse a record the tick decided on
     as one that moved under it. A state nothing was read into has no such
     reading to advance. `fields` None is the whole reading, for a road that
     has just replaced the state with what a commit landed: the state now holds

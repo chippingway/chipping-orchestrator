@@ -23,6 +23,7 @@ from tests.workflow import report_guidance as _report_guidance
 from tests.workflow.fixtures import (
     BACKEND_CODEX,
     LABEL_IMPLEMENTING,
+    Launched,
     _agent,
     _PatchedWorkflowMixin,
     _recovered_report,
@@ -342,7 +343,7 @@ class HandleImplementingInterruptedTest(unittest.TestCase, _PatchedWorkflowMixin
             branch=f"orchestrator/chippingway__chipping-orchestrator/issue-{INTERRUPTED_RESUME_ISSUE}",
             user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
         )
-        before_writes = gh.write_state_calls
+        before = Launched.over(gh, INTERRUPTED_RESUME_ISSUE)
 
         self._mocks = self._run_implementing(
             gh,
@@ -356,7 +357,7 @@ class HandleImplementingInterruptedTest(unittest.TestCase, _PatchedWorkflowMixin
         fresh_test_support.assert_interrupted_resume_state(
             self,
             gh,
-            before_writes,
+            before,
             INTERRUPTED_RESUME_ISSUE,
             ACTION_COMMENT_ID,
         )
@@ -444,12 +445,13 @@ class HandleImplementingInterruptedTest(unittest.TestCase, _PatchedWorkflowMixin
         issue = make_issue(INTERRUPTED_SPAWN_ISSUE, label=LABEL_IMPLEMENTING)
         gh.add_issue(issue)
         # Seed the content hash so the first-encounter drift baseline write
-        # doesn't fire -- this test asserts ZERO state writes.
+        # doesn't fire -- this test asserts no state write but the run's
+        # charge and accounting.
         gh.seed_state(
             INTERRUPTED_SPAWN_ISSUE,
             user_content_hash=_content_hash._compute_user_content_hash(issue, set()),
         )
-        before_writes = gh.write_state_calls
+        before = Launched.over(gh, INTERRUPTED_SPAWN_ISSUE)
 
         mocks = self._run_implementing(
             gh,
@@ -465,7 +467,7 @@ class HandleImplementingInterruptedTest(unittest.TestCase, _PatchedWorkflowMixin
         fresh_test_support.assert_interrupted_spawn_state(
             self,
             gh,
-            before_writes,
+            before,
             INTERRUPTED_SPAWN_ISSUE,
         )
 

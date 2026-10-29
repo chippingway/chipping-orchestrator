@@ -85,12 +85,14 @@ against nothing, and finding that out from a refused telemetry record means
 the run has already been paid for.
 
 Everything after the spawn is the shared post-run contract every other stage
-runs: a `paused` label applied mid-run wins over the whole disposition and
-leaves durable state exactly as the prior tick left it, a timeout parks, and
-an interrupted run is dropped without being interpreted. The usage fold, the
-retry budget, and the tracked spawn are the ones the rest of the workflow
-already uses -- late adjudication spends the same per-issue budget as any
-other decomposing run and is attributed to the same stage. "Leaves durable
+runs: a `paused` label applied mid-run -- or an accounting left unresolved --
+wins over the whole disposition and leaves durable state as the prior tick
+left it, save the run's accounting, a timeout parks, and an interrupted run is
+dropped without being interpreted. The accounting, the retry budget, and the
+tracked spawn are the ones the rest of the workflow already uses -- late
+adjudication spends the same per-issue budget as any other decomposing run,
+is counted on the same usage meter as it returns, and is attributed to the
+same stage. "Leaves durable
 state exactly as the prior tick left it" is what makes the pre-spawn write
 the one place accounting is held back: the late identity goes out before the
 agent starts, the retry slot does not, and a declined run therefore costs the

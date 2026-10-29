@@ -587,7 +587,8 @@ division of labour between the developer and the orchestrator never changes.
     into `in_review` with the round count the approval left.
 
   Agent runs are counted where they are spawned and nowhere else: each launch is charged once to `agent_runs_used`
-  and its usage folded once into the per-issue totals, and a recovery that finishes a result spawns nobody. Review
+  and its usage accounted once on the per-issue totals as it returns, at the tracked spawn -- a held, killed, or
+  refused one's included, which buys its result no replay -- and a recovery that finishes a result spawns nobody. Review
   caps, `/orchestrator add-review-rounds`, and `/orchestrator add-agent-runs` bound the same counters on every road.
 
 `tests/workflow/test_report_lifecycle.py` walks this whole sequence through the dispatcher — a requirements edit, a
@@ -661,7 +662,7 @@ pull-request, verdict, or evidence record another road moves after that reading 
 written or published — and the transaction is published through the dispatcher's own evidence reconciliation before
 either verdict is acted on. A publication that holds or stands down ends the tick with the verdict waiting, as does a
 commit GitHub never confirmed; a later tick publishes it and finishes the verdict from the record
-(`stages/validating/review_resume.py`) with no second reviewer, usage fold, run charge, or round. Evidence that can
+(`stages/validating/review_resume.py`) with no second reviewer, usage count, run charge, or round. Evidence that can
 never settle — retired, superseded, or bound to a verification context that has since moved — drops the verdict for a
 fresh reviewer, and so does a subject that moves while it waits. One the pinned comment has no room to persist, with
 the transaction its commands were minted as, is acted on not at all and parks under `reviewer_unrecorded`.

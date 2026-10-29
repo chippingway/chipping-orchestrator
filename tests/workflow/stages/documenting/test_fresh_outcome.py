@@ -12,6 +12,7 @@ from tests.workflow.agent_failure_values import AGY_TERMINAL_ERROR, agy_quota_st
 from tests.workflow.fixtures import (
     MEASURED_CANDIDATE_SHA,
     _agent,
+    accounted,
 )
 
 # --- Workflow labels this stage routes between --------------------------
@@ -198,9 +199,11 @@ class HandleDocumentingFreshOutcomeTest(
         # records it as one still owed a push; the push that lands pays that
         # debt. Left standing it would freeze this branch out of the pre-tick
         # base refresh with nothing coming back to drop it.
-        self.assertIsNone(
-            gh.pinned_data(self.issue_number).get(LATE_APPROVED_SHA),
-        )
+        pinned = gh.pinned_data(self.issue_number)
+        self.assertIsNone(pinned.get(LATE_APPROVED_SHA))
+        # The pass's run is counted once, as it returned: the completion's
+        # writes behind that neither add it again nor put the count back.
+        self.assertEqual(accounted(pinned), (1, 1))
 
     def test_lifecycle_events_carry_review_round(self) -> None:
         # Documenting runs once per reviewer-approval handoff between

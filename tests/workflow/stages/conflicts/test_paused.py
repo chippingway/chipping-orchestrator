@@ -17,7 +17,7 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator.github.labels import PAUSED_LABEL
 from tests.support.fakes import FakeComment, FakeLabel, FakeUser, make_issue
-from tests.workflow.fixtures import AGENT_RUN_CHARGE_WRITES, _agent
+from tests.workflow.fixtures import Launched, _agent
 from tests.workflow.stages.conflicts.conflicts_test_support import (
     RESOLVED_HEAD_SHA,
     _ResolvingConflictMixin,
@@ -79,7 +79,7 @@ class ResolvingConflictLivePauseTest(unittest.TestCase, _ResolvingConflictMixin)
         # untouched.
         gh, issue, _ = self._seed()
         self._seed_with_baseline_hash(gh, issue)  # quiet drift, no baseline write
-        before_writes = gh.write_state_calls
+        launched = Launched.over(gh, CONFLICT_ISSUE)
 
         with patch.object(gh, "get_issue", MagicMock(return_value=_paused_view(CONFLICT_ISSUE))):
             mocks, merge_mock, _ = self._run_with_merge(
@@ -94,9 +94,7 @@ class ResolvingConflictLivePauseTest(unittest.TestCase, _ResolvingConflictMixin)
         mocks["run_agent"].assert_called_once()
         merge_mock.assert_called_once()  # the rebase ran and conflicted
         mocks["_push_branch"].assert_not_called()
-        self.assertEqual(
-            gh.write_state_calls, before_writes + AGENT_RUN_CHARGE_WRITES,
-        )
+        launched.held(self, gh, CONFLICT_ISSUE)
         self.assertNotIn((CONFLICT_ISSUE, "workflow:validating"), gh.label_history)
         _assert_fresh_pause_state(self, gh)
         _assert_no_park_comment(self, gh)
@@ -130,7 +128,7 @@ class ResolvingConflictLivePauseTest(unittest.TestCase, _ResolvingConflictMixin)
             conflict_round=1,
             last_action_comment_id=1000,
         )
-        before_writes = gh.write_state_calls
+        launched = Launched.over(gh, CONFLICT_ISSUE)
 
         with patch.object(gh, "get_issue", MagicMock(return_value=_paused_view(CONFLICT_ISSUE))):
             mocks, merge_mock, _ = self._run_with_merge(
@@ -147,9 +145,7 @@ class ResolvingConflictLivePauseTest(unittest.TestCase, _ResolvingConflictMixin)
         mocks["run_agent"].assert_called_once()
         merge_mock.assert_not_called()
         mocks["_push_branch"].assert_not_called()
-        self.assertEqual(
-            gh.write_state_calls, before_writes + AGENT_RUN_CHARGE_WRITES,
-        )
+        launched.held(self, gh, CONFLICT_ISSUE)
         self.assertNotIn((CONFLICT_ISSUE, "workflow:validating"), gh.label_history)
         _assert_resume_pause_state(self, gh)
 
@@ -162,7 +158,7 @@ class ResolvingConflictLivePauseTest(unittest.TestCase, _ResolvingConflictMixin)
         gh, issue = self._seed(
             extra_state={"user_content_hash": "stale-hash"},
         )[:2]
-        before_writes = gh.write_state_calls
+        launched = Launched.over(gh, CONFLICT_ISSUE)
 
         with patch.object(gh, "get_issue", MagicMock(return_value=_paused_view(CONFLICT_ISSUE))):
             mocks, merge_mock, _ = self._run_with_merge(
@@ -179,9 +175,7 @@ class ResolvingConflictLivePauseTest(unittest.TestCase, _ResolvingConflictMixin)
         mocks["run_agent"].assert_called_once()
         merge_mock.assert_not_called()  # drift returns before the base rebase
         mocks["_push_branch"].assert_not_called()
-        self.assertEqual(
-            gh.write_state_calls, before_writes + AGENT_RUN_CHARGE_WRITES,
-        )
+        launched.held(self, gh, CONFLICT_ISSUE)
         self.assertNotIn((CONFLICT_ISSUE, "workflow:validating"), gh.label_history)
         _assert_drift_pause_state(self, gh)
 

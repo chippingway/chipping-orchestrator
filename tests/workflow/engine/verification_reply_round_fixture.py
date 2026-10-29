@@ -44,7 +44,7 @@ def settles_a_granted_round(case) -> _review_subjects.ReviewSubject:
     if handed is None:
         raise AssertionError("the reader refused the round the grant bought")
     _review_records._records_the_launch(case.state, handed.subject)
-    _review_records._records_the_return(case.state, None, None, handed.subject)
+    _review_records._records_the_return(case.state, None, handed.subject)
     _reviewer._settles_what_bought_the_round(case.state, parked, _models._ReviewerRun(
         wt=case.world.path,
         round_n=0,

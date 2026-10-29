@@ -15,11 +15,15 @@ check runs after BOTH runs, because each opens its own live-pause window -- the
 first before the retry spawns a second agent, the second before anything is
 persisted -- and a fired guard returns before the session id is pinned and
 before `awaiting_human` is cleared, so the next tick re-derives the resume from
-untouched durable state. The one write not left to that is the retirement of
-a conversation an exhausted account quota stopped, which every attempt lands
-as it returns (`quota_retirement`), ahead of its pause check: a tick that
-writes nothing still never resumes it, and the post-run persistence refuses to
-pin it again. One the comment would not take answers paused too, so the tick
+untouched durable state. Two writes are not left to that. Each attempt's usage
+is accounted as it returns, at the tracked boundary ahead of everything here
+(`usage._run_agent_tracked`), so a poisoned session's exit is counted though
+only its retry is handed back, and an attempt whose accounting stayed
+unresolved answers paused, so no retry is spawned behind it. The other is the
+retirement of a conversation an exhausted account quota stopped, which every
+attempt lands as it returns (`quota_retirement`), ahead of its pause check: a
+tick that writes nothing still never resumes it, and the post-run persistence
+refuses to pin it again. One the comment would not take answers paused too, so the tick
 is held as a pause holds it, and every launch after it -- a restarted poller's
 included -- is refused with the run circuit's own answer until a later reading
 lands it; the resume plan built here asks first, so a retirement landed then is
@@ -56,7 +60,6 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.observability.usage import protocol as _protocol
 from orchestrator.workflow.engine import (
     guards as _guards,
-    issue_usage as _issue_usage,
     observations as _observations,
     prompt_notes as _prompt_notes,
     run_charge_state as _run_charge_state,
@@ -249,7 +252,8 @@ def _should_recover_incomplete_agy(
 ) -> bool:
     """Whether an incomplete AGY command outcome earns an immediate continuation.
 
-    Stops recovery on a freshly observed pause, a launch the run circuit
+    Stops recovery on a freshly observed pause or an attempt whose accounting
+    is unresolved (both answered `paused`), a launch the run circuit
     refused, a shutdown sweep interruption, a process timeout, an exhausted
     account quota, a missing recorded conversation id, an outcome that is
     non-AGY or normally completed, or a conversation `state` records as retired
@@ -289,7 +293,7 @@ class _DevRunCoordinator:
         else:
             agent_result = initial_result
             held = self._held_on_quota(agent_result, self._options.get("resume_session_id"))
-            paused = held or bool(self._options.get("initial_paused", False))
+            paused = held or agent_result.unaccounted or bool(self._options.get("initial_paused", False))
 
         backend = str(self._options[_BACKEND])
         if _should_recover_incomplete_agy(backend, agent_result, paused, self._state()):
@@ -342,8 +346,7 @@ class _DevRunCoordinator:
                 "retry_count", self._state().get(_state._RETRY_COUNT),
             ),
         )
-        _issue_usage._accumulate_issue_usage(self._state(), agent_result.usage)
-        paused = self._held_on_quota(agent_result, resume_session_id) or (
+        paused = self._held_on_quota(agent_result, resume_session_id) or agent_result.unaccounted or (
             self._options.get("pause_guard", True)
             and _guards._paused_during_agent_run(self._gh, self._issue())
         )
@@ -414,6 +417,13 @@ def _coordinate_developer_run(
     or freshly observed pause stops recovery.
     A second premature exit returns the structured failure for child 3 to park.
     No loop or direct backend/subprocess call is made.
+
+    Each attempt is its own invocation, accounted as it returns at the tracked
+    boundary (`usage._run_agent_tracked`), so the first of two attempts is
+    counted though only the second is handed back. An attempt whose accounting
+    is unresolved (`AgentResult.unaccounted`) answers held, as a live pause
+    does: no continuation is made behind it, and the caller disposes of
+    nothing.
 
     Every attempt -- the first, handed in or run here, and the continuation
     -- is the developer result boundary an account quota is decided at: the

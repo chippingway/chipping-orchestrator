@@ -4,8 +4,9 @@
 
 Only a fresh run spends the shared retry budget. The attempt owner persists
 its identity with that charge held back; pause and launch refusals remain
-free. The completion owner folds usage, proves the candidate unchanged,
-and guards the recorded answer before settlement. A split transaction that
+free. The run's usage is accounted as it returns, at the tracked spawn; the
+completion owner proves the candidate unchanged, and guards the recorded
+answer before settlement. A split transaction that
 has begun over a recorded outcome no longer answering parks instead: no fresh
 run is bought over children and a snapshot already on the remote.
 """

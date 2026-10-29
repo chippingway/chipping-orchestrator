@@ -7,7 +7,7 @@ its verification evidence is published, or the evidence it reused is proved
 still current, and only then is the approval or the change request carried
 out. Any of those can be refused or interrupted, and the next tick has to
 finish them from what the reviewer said rather than from a second reviewer --
-which would spend another run, fold its usage again, and could say something
+which would spend another run, count another exit, and could say something
 else about the same subject. So the verdict is to be written onto the pinned
 comment in the write that records the returned reviewer's run, before the
 evidence is published or the verdict disposed of, and dropped by whichever

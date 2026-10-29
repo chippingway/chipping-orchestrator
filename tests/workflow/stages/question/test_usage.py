@@ -14,12 +14,14 @@ from tests.workflow.fixtures import (
     KEY_PARK_REASON,
     LABEL_QUESTION,
     _agent,
+    assert_only_accounted,
 )
 from tests.workflow.stages.question.question_conversation_test_support import (
     _QuestionWorkflowMixin,
 )
 
 KEY_QUESTION_SESSION_ID = "question_session_id"
+KEY_USAGE_RECEIPTS = "issue_usage_receipts"
 
 PARK_QUESTION_ANSWER = "question_answer"
 PARK_QUESTION_COMMITS = "question_commits"
@@ -127,11 +129,11 @@ class HandleQuestionRunUsageAccumulationTest(
     unittest.TestCase,
     _QuestionWorkflowMixin,
 ):
-    """`_handle_question` folds each real question-agent exit into the
-    per-issue usage counters, at both the fresh-spawn and awaiting-human
-    resume sites, and leaves them unpersisted when the run was interrupted
-    (empty stdout parses to a `no-usage` metric: a counted run with zero
-    tokens).
+    """Each real question-agent exit is counted on the per-issue usage
+    counters exactly once, at both the fresh-spawn and awaiting-human resume
+    sites -- an interrupted one included, whose disposition is withheld while
+    its accounting is not (empty stdout parses to a `no-usage` metric: a
+    counted run with zero tokens).
     """
 
     def test_fresh_run_persists_one_run(self) -> None:
@@ -211,10 +213,11 @@ class HandleQuestionRunUsageAccumulationTest(
         self.assertNotIn(KEY_ISSUE_AGENT_RUNS, pinned_data)
         self.assertNotIn(KEY_ISSUE_TOTAL_TOKENS, pinned_data)
 
-    def test_interrupted_run_keeps_counters_clear(self) -> None:
+    def test_interrupted_run_is_accounted_alone(self) -> None:
         gh = FakeGitHubClient()
         issue = make_issue(INTERRUPTED_USAGE_ISSUE_NUMBER, label=LABEL_QUESTION)
         gh.add_issue(issue)
+        before = gh.pinned_data(issue.number)
 
         self._run_question(
             gh,
@@ -228,21 +231,20 @@ class HandleQuestionRunUsageAccumulationTest(
         )
 
         # A shutdown-killed question agent returns before
-        # `write_pinned_state`, so neither the folded counters nor a silent
-        # park reach GitHub.
+        # `write_pinned_state`, so no silent park reaches GitHub; the exit it
+        # was is counted once, as it returned, and nothing else of it.
         pinned_data = gh.pinned_data(issue.number)
-        self.assertNotIn(KEY_ISSUE_AGENT_RUNS, pinned_data)
-        self.assertNotIn(KEY_ISSUE_TOTAL_TOKENS, pinned_data)
+        assert_only_accounted(self, before, pinned_data)
         self.assertFalse(pinned_data.get(KEY_AWAITING_HUMAN))
         self.assertNotEqual(pinned_data.get(KEY_PARK_REASON), PARK_QUESTION_SILENT)
         self.assertEqual(gh.posted_comments, [])
 
-    def test_committed_interrupt_parks_no_counters(self) -> None:
+    def test_committed_interrupt_counts_once(self) -> None:
         # A killed question agent that ALSO left commits still hits the
         # read-only `question_commits` park (which writes pinned state and
-        # keeps the worktree for inspection). Because that write path fires,
-        # the usage fold must be skipped for the interrupted run or a counter
-        # would persist despite the run being killed.
+        # keeps the worktree for inspection). The run was accounted as it
+        # returned, so the park's own whole-state write behind that keeps the
+        # one count rather than adding the run again or putting it back.
         gh = FakeGitHubClient()
         issue = make_issue(COMMITTED_INTERRUPT_ISSUE_NUMBER, label=LABEL_QUESTION)
         gh.add_issue(issue)
@@ -262,7 +264,7 @@ class HandleQuestionRunUsageAccumulationTest(
         self.assertEqual(pinned_data.get(KEY_PARK_REASON), PARK_QUESTION_COMMITS)
         # Worktree kept for inspection (the commits park's contract).
         mocks[CLEANUP_QUESTION_WORKTREE].assert_not_called()
-        # The park wrote pinned state, but the killed run's usage was NOT
-        # folded, so no counter accrued.
-        self.assertNotIn(KEY_ISSUE_AGENT_RUNS, pinned_data)
-        self.assertNotIn(KEY_ISSUE_TOTAL_TOKENS, pinned_data)
+        self.assertEqual(
+            (pinned_data[KEY_ISSUE_AGENT_RUNS], len(pinned_data[KEY_USAGE_RECEIPTS]["recent"])),
+            (1, 1),
+        )

@@ -145,8 +145,8 @@ _VALIDATING_REVIEW_RECORDS_OWNER = f"{_VALIDATING_PACKAGE}.review_records"
 _VALIDATING_REVIEW_REPORT_OWNER = f"{_VALIDATING_PACKAGE}.review_report"
 
 # The owner of which pinned fields keep both of two roads' moves rather than
-# one -- a usage total that adds up, cost tags that join, a comment-id
-# watermark that keeps the further reading -- and of how. Named here and
+# one -- a comment-id watermark that keeps the further reading; the usage
+# totals are none, their one writer the accounting checkpoint -- and of how. Named here and
 # resolved when called for the same reason: a developer report's guarded
 # commit keeps a field the tick moved beside another road's move by that very
 # rule, and asking the stage directly would make the engine's own import pull

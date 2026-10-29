@@ -143,7 +143,9 @@ def _records(finish: LandedFinish, staged: PinnedState) -> FinishOutcome | None:
     the tick read it, so a record that reads otherwise before the checkpoint
     still refuses the checkpoint behind it. What else the tick staged and had
     not written rides this write too and is taken in by neither, so the
-    checkpoint behind it lands a staged usage total's delta a second time.
+    checkpoint behind it lands it again, spelled as before: nothing a tick
+    stages adds up -- a run's usage is accounted at the tracked spawn, never
+    staged -- so the second landing counts nothing twice.
     """
     held = copy.deepcopy(finish.state)
     recorded = _recording(finish)

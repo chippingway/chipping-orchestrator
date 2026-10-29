@@ -48,8 +48,10 @@ be the wider of the two, and is measured behind the notice with the rest:
 measured up front, a waiting approval on a nearly full comment would never be
 parked, and nobody would ever be told. A comment with no room for the park
 beside what the returned run staged takes it over the comment as it stands
-instead: the run's usage and session go unrecorded, a smaller loss than a park
-that never lands. That reading is one more request, so where it no longer
+instead: the run's session goes unrecorded, a smaller loss than a park that
+never lands. Its usage is not lost with it -- the tracked spawn accounted it
+as the reviewer returned, in a commit of its own, before any park was
+measured. That reading is one more request, so where it no longer
 carries the records the tick last read the verdict stands on, nothing is posted
 or written, and the next tick answers what moved. One with no room even for the
 park posts and writes nothing, and says so.
@@ -91,9 +93,10 @@ record it finds, one no reader takes included -- and it reports the human wait
 moment the issue enters one. The write that lands is laid over the comment
 as it stands whichever way the records went, so a field another road wrote
 behind the notice -- a round spent by a reply -- is kept rather than written
-back over by the state in hand, one both moved keeps both moves where they add
-up or only advance -- the run's usage beside that road's, the thread read as
-far as either read it (`state._keeps_both_moves`) -- and the ledger of the
+back over by the state in hand, one both moved keeps both moves where they only
+advance -- the thread read as far as either read it (`state._keeps_both_moves`)
+-- the usage totals stay as the comment carries them, the run's own accounting
+already among them, and the ledger of the
 orchestrator's own comments is merged, the notice among them; and so is what
 another road writes between that reading and the commit.
 
@@ -218,8 +221,8 @@ def parks_unrecorded(
     so it drops none: one the comment has waiting stays exactly as it is.
     `run.resolved_over` is the comment as the tick last
     read it, so what the returned run staged beside the verdict it could not
-    persist -- its usage and session -- is this tick's own move and lands with
-    the park.
+    persist -- its session -- is this tick's own move and lands with the park;
+    its usage was accounted as it returned, and is on the comment already.
     """
     remedy = "free room on the pinned comment, then " if why == NO_ROOM else ""
     words = (

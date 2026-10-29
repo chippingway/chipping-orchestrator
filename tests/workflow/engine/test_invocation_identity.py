@@ -5,7 +5,8 @@
 Every case goes through `_run_agent_tracked`, the one boundary a process is
 started from: a process is identified by the charge it was started under and a
 random nonce, never by its request, so two runs of an identical request -- with
-no session id between them -- are two invocations, each accounted once.
+no session id between them -- are two invocations, each accounted once, as it
+returns through that boundary.
 """
 from __future__ import annotations
 
@@ -24,14 +25,10 @@ _LATE_CYCLE = 4
 _DAMAGED_CYCLE = "damaged"
 _STANDING_COUNT = 6
 
-# Two launches of one request, and what accounting each twice comes to.
+# Two launches of one request, and what settling each again twice comes to
+# once the tracked run accounted it.
 _LAUNCHES = range(2)
-_ACCOUNTED_TWICE = (
-    _accounting.STATUS.ACCOUNTED,
-    _accounting.STATUS.ACCOUNTED,
-    _accounting.STATUS.COVERED,
-    _accounting.STATUS.COVERED,
-)
+_SETTLED_AGAIN = (_accounting.STATUS.COVERED,) * 4
 
 # The meter two unpriced runs leave: two exits, no tokens, and no cost.
 _TWO_UNPRICED_RUNS = (2, 0, None, ["no-usage"])
@@ -85,16 +82,20 @@ class InvocationIdentityTest(unittest.TestCase):
     def test_identical_runs_are_each_counted_once(self) -> None:
         # The same parsed usage from two runs of one request: only the
         # identity each was started under tells them apart, so the meter
-        # counts two exits, and settling each again adds nothing.
+        # counts two exits as they return, and settling each again -- a later
+        # settlement of the same run, twice over -- adds nothing.
         launch = support.seeded()
         answers = [support.run_launch(launch).answer for _ in _LAUNCHES]
+        counted = _accounting.counted(launch.durable)
 
         outcomes = tuple(
             _usage_checkpoint.checkpoint(launch.gh, launch.issue, launch.state, answer).status
             for answer in (*answers, *answers)
         )
 
-        self.assertEqual(outcomes, _ACCOUNTED_TWICE)
+        self.assertFalse(any(answer.unaccounted for answer in answers))
+        self.assertEqual(outcomes, _SETTLED_AGAIN)
+        self.assertEqual(counted, _TWO_UNPRICED_RUNS)
         self.assertEqual(_accounting.counted(launch.durable), _TWO_UNPRICED_RUNS)
 
 

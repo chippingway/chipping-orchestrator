@@ -5,9 +5,11 @@
 Requests identify the logical round; the run circuit reserves and starts its
 charge before any process is invoked, and the process is identified by the
 charge it was started under (`invocations`), not by its request. Spawn and exit
-records bracket the real runner call, and its result is returned for the stage
-to settle, carrying that identity. Request construction, exit reporting,
-issue-wide usage totals, and the accounting checkpoint have sibling owners."""
+records bracket the real runner call, the exit's parsed usage is accounted on
+the issue under that identity before anything above can discard the result
+(`usage_checkpoint`), and the result is returned for the stage to settle.
+Request construction, exit reporting, issue-wide usage totals, and the
+accounting checkpoint have sibling owners."""
 from __future__ import annotations
 
 import logging
@@ -24,6 +26,7 @@ from orchestrator.workflow.engine import (
     run_circuit as _run_circuit,
     run_reporting as _run_reporting,
     run_requests as _run_requests,
+    usage_checkpoint as _usage_checkpoint,
 )
 
 log = logging.getLogger("orchestrator.workflow")
@@ -96,18 +99,35 @@ def _run_agent_tracked(
     `usage` field -- `record_agent_exit` attaches the `UsageMetrics` it parsed
     from the same stdout, independent of whether the sink is enabled -- so
     callers can read token / cost metrics off the result without re-parsing.
-    It is `None` when the usage parse failed (fail-open); this is best-effort
-    observability plumbing and does not touch the pinned state.
+    It is `None` when the usage parse failed (fail-open), which owes the
+    issue's meter nothing.
 
     The result also carries the identity of the process it came from
     (`AgentResult.invocation`), minted over the durable reading the charge was
     started on (`invocations.minted`): one per process, so two runs of an
     identical request, or two with no CLI session id, are never one. The
     request's `fingerprint` stays the identity of the logical launch a charge
-    is recognized by and is no accounting key. Usage is accounted against that
-    identity by `usage_checkpoint.checkpoint`, which no road calls yet; until
-    one does, the stage-local folds below this boundary remain what persists
-    an issue's usage.
+    is recognized by and is no accounting key.
+
+    Usage is accounted against that identity HERE, and nowhere above
+    (`usage_checkpoint.checkpoint`): this is the one return every invoked
+    process comes back through, so the exit a live pause, a shutdown sweep, a
+    timeout, a refused report, or a reviewer subject that moved withholds the
+    disposition of is still counted, once -- and so is each attempt of a
+    wrapper that hands its caller only the last, a poisoned session's fresh
+    retry and an Antigravity command-recovery continuation alike. The
+    checkpoint writes only the accounting, in a guarded commit of its own,
+    and lays what it landed back onto `budget.state` as the comment's, so the
+    disposition's own write behind it neither counts the run again nor puts
+    the totals back as the handler read them, and no other field the handler
+    staged is persisted by it. A held return writes that and nothing else of
+    the run. A checkpoint that neither landed nor read back covered -- refused,
+    or sent and never confirmed -- leaves the result `unaccounted` and the
+    caller's state withheld from every whole-state write: whatever depends on
+    the accounting, the run's disposition and a wrapper's next invocation,
+    holds on it, as it holds on a live pause, and a later tick reads the
+    comment afresh. A result no process produced, and one whose usage did not
+    parse, owe nothing and hold nothing.
 
     The `prompt` is forwarded to `record_agent_exit` so it can land as the
     redacted `user_input` of the separate, opt-in trajectory record -- and
@@ -168,4 +188,9 @@ def _run_agent_tracked(
     _run_reporting._emit_triggered_skills(
         gh, budget.issue.number, run_request, triggered_skills,
     )
+    agent_result.unaccounted = not _usage_checkpoint.checkpoint(
+        gh, budget.issue, budget.state, agent_result,
+    ).settled
+    if agent_result.unaccounted:
+        budget.state.withheld = True
     return agent_result

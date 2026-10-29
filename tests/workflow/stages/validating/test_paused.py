@@ -36,10 +36,12 @@ from tests.support.fakes import (
     make_issue,
 )
 from tests.workflow.fixtures import (
-    AGENT_RUN_CHARGE_WRITES,
+    AGENT_RUN_WRITES,
     MEASURED_CANDIDATE_SHA,
+    Launched,
     _agent,
     _PatchedWorkflowMixin,
+    accounted,
 )
 from tests.workflow.git_owners import seam_patch
 
@@ -55,6 +57,7 @@ LABEL_VALIDATING = "workflow:validating"
 LABEL_FIXING = "workflow:fixing"
 DEV_SESSION = "dev-sess"
 REVIEW_ROUND = "review_round"
+SETTLED_REPORT = ("developer_report_current", "developer_report_handoff")
 REVIEWER_ANCHOR = "pending_fix_reviewer_comment_id"
 RETURNED_VERDICT = "review_returned_verdict"
 RUN_AGENT = "run_agent"
@@ -181,7 +184,7 @@ class _ValidatingPauseFixtureMixin(_PatchedWorkflowMixin):
                 head_shas=(MEASURED_CANDIDATE_SHA,),
             )
 
-    def _assert_drift_paused(self, github, mocks, before_writes: int) -> None:
+    def _assert_drift_paused(self, github, mocks, before: Launched) -> None:
         mocks[PUSH_BRANCH].assert_not_called()
         self.assertEqual(github.label_history, [])
         self.assertEqual(github.posted_pr_comments, [])
@@ -191,23 +194,18 @@ class _ValidatingPauseFixtureMixin(_PatchedWorkflowMixin):
                 for _, body in github.posted_comments
             ),
         )
-        self.assertEqual(
-            github.write_state_calls, before_writes + AGENT_RUN_CHARGE_WRITES,
-        )
-        state = github.pinned_data(DRIFT_ISSUE)
+        state = before.held(self, github, DRIFT_ISSUE)
         self.assertEqual(state.get(REVIEW_ROUND), 1)
         self.assertEqual(state.get("user_content_hash"), "stale-hash")
 
-    def _assert_resume_paused(self, github, mocks, before_writes: int) -> None:
+    def _assert_resume_paused(self, github, mocks, before: Launched) -> None:
         mocks[RUN_AGENT].assert_called_once()
         mocks[PUSH_BRANCH].assert_not_called()
         self.assertEqual(github.label_history, [])
         self.assertEqual(github.posted_comments, [])
         self.assertEqual(github.posted_pr_comments, [])
-        self.assertEqual(
-            github.write_state_calls, before_writes + AGENT_RUN_CHARGE_WRITES,
-        )
-        state = github.pinned_data(HUMAN_RESUME_ISSUE)
+        # The report the pull request carries, settled ahead of the resume.
+        state = before.held(self, github, HUMAN_RESUME_ISSUE, beside=SETTLED_REPORT)
         self.assertTrue(state.get("awaiting_human"))
         self.assertEqual(
             state.get("last_action_comment_id"),
@@ -229,13 +227,15 @@ class _ValidatingPauseFixtureMixin(_PatchedWorkflowMixin):
         # The reviewer's spec and subject, written ahead of its spawn; its
         # verdict, persisted before the change request is acted on; the
         # pre-spawn flip's own write; and the charge each of the two runs
-        # took before it reached a process.
+        # took before it reached a process and the accounting each landed as
+        # it returned -- the paused developer's included, once.
         self.assertEqual(
             github.write_state_calls,
-            before_writes + 3 + 2 * AGENT_RUN_CHARGE_WRITES,
+            before_writes + 3 + 2 * AGENT_RUN_WRITES,
         )
         state = github.pinned_data(CHANGES_REQUESTED_ISSUE)
         self.assertEqual(state.get(REVIEW_ROUND), 0)
+        self.assertEqual(accounted(state), (2, 2))
 
 
 class ValidatingLivePauseDriftResumeTest(
@@ -248,7 +248,7 @@ class ValidatingLivePauseDriftResumeTest(
         # during that resume: the guard must stop BEFORE
         # `_post_user_content_change_result` posts an ack / pushes / bumps the
         # round, and before pinned state is written.
-        gh, issue, before_writes = self._pause_fixture(
+        gh, issue, _ = self._pause_fixture(
             _PauseCase(
                 issue_number=DRIFT_ISSUE,
                 pr_number=DRIFT_PR,
@@ -256,6 +256,7 @@ class ValidatingLivePauseDriftResumeTest(
                 state={"user_content_hash": "stale-hash"},
             ),
         )
+        before = Launched.over(gh, DRIFT_ISSUE)
 
         mocks = self._run_paused(
             gh,
@@ -265,7 +266,7 @@ class ValidatingLivePauseDriftResumeTest(
         )
 
         # Result handler never ran: no push, no relabel, no ack comment.
-        self._assert_drift_paused(gh, mocks, before_writes)
+        self._assert_drift_paused(gh, mocks, before)
 
 
 class ValidatingLivePauseAwaitingHumanTest(
@@ -279,7 +280,7 @@ class ValidatingLivePauseAwaitingHumanTest(
         # the dev is resumed. `paused` applied mid-resume must stop BEFORE
         # `_handle_dev_fix_result` parks / pushes / bumps the round -- and
         # before any pinned write -- leaving the park intact.
-        gh, issue, before_writes = self._pause_fixture(
+        gh, issue, _ = self._pause_fixture(
             _PauseCase(
                 issue_number=HUMAN_RESUME_ISSUE,
                 pr_number=HUMAN_RESUME_PR,
@@ -298,6 +299,7 @@ class ValidatingLivePauseAwaitingHumanTest(
                 },
             ),
         )
+        before = Launched.over(gh, HUMAN_RESUME_ISSUE)
 
         mocks = self._run_paused(
             gh,
@@ -307,7 +309,7 @@ class ValidatingLivePauseAwaitingHumanTest(
         )
 
         # Exactly the dev resume ran; no push / relabel / comment followed.
-        self._assert_resume_paused(gh, mocks, before_writes)
+        self._assert_resume_paused(gh, mocks, before)
 
 
 class ValidatingLivePauseChangesRequestedTest(
