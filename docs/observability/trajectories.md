@@ -54,10 +54,16 @@ redacted tool input, tool result, or text turn — `name` / `tool_id` are `null`
 naming the item type in `name`, its id in `tool_id`, and its reported status in `content` — `null` for an item type
 that reports none), and the final `output`. `run_usage`
 is the denormalized `UsageMetrics` (`models`, `input_tokens`, `output_tokens`, `cached_tokens`, `cache_read_tokens`,
-`cache_write_tokens`, `turns` count, `cost_usd`, `cost_source`) minus `backend` (already on the record) — the run
-headline, and the codex surface too, since codex has no per-turn detail. Each `turns[]` entry is one claude assistant
-turn (`turn` index, `model`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, and an
-always-*estimated* `cost_usd` / `cost_source`); each billed `steps[]` entry (`assistant_message` / `tool_call`) carries
+`cache_write_tokens`, `turns` count, `cost_usd`, `cost_source`, `cost_evidence`, `token_evidence`) minus `backend`
+(already on the record) — the run headline, and the codex surface too, since codex has no per-turn detail. Its two
+evidence objects are the ones the same run's `agent_exit` record carries. Each `turns[]` entry is one claude assistant
+turn (`turn` index, `model`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, an
+always-*estimated* `cost_usd` / `cost_source`, and that turn's own `cost_evidence` and `token_evidence`). A turn's cost
+is always an Anthropic API estimate, or `incomplete` with no amount: a run whose CLI reported its cost records that
+`cli-reported` amount in `run_usage` alone, so the run figure stays authoritative and the turns' estimates never
+replace it. The evidence shapes, `recorded_cost`, `reduce_costs`, and `non_overlapping_total` are described in
+[`usage.md`](usage.md#usage-parser); a record an earlier build wrote carries neither object and reads back with an
+`unknown` basis. Each billed `steps[]` entry (`assistant_message` / `tool_call`) carries
 the same `turn` index tying it to its turn, while a `tool_result` / `user_message` step is a turn *input* and omits
 `turn`. The only turns no step names are subagents' closing messages, which the stream prints only as their hand-backs'
 usage: each is numbered after every stepped turn and carries its output count alone, as

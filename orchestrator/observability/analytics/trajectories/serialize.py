@@ -167,8 +167,9 @@ def build_trajectory_record(
     `metrics` (the same `UsageMetrics` the baseline `agent_exit` record
     already carries) is denormalized into a `run_usage` summary so the
     file-only viewer needs no re-parse; it is `UsageMetrics.to_dict()` minus
-    `backend` (already a record field). Its token counts / cost / model name
-    are not secret-shaped, so they skip redaction. The claude per-turn
+    `backend` (already a record field), so its cost and token evidence are the
+    objects the baseline record carries. Its token counts / cost / evidence /
+    model name are not secret-shaped, so they skip redaction. The claude per-turn
     breakdown rides along as `turns` (empty on codex, whose usage frames are
     cumulative -- `build_record` then drops the key).
 

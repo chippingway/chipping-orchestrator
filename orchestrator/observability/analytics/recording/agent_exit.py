@@ -36,7 +36,11 @@ from orchestrator.observability.analytics.recording.usage import parse_agent_exi
 from orchestrator.observability.analytics.trajectories import (
     persistence as trajectory_persistence,
 )
-from orchestrator.observability.usage import metrics as usage_metrics
+from orchestrator.observability.usage import (
+    cost_evidence as usage_cost,
+    metrics as usage_metrics,
+    token_evidence as usage_tokens,
+)
 
 
 def build_agent_exit_record(
@@ -44,7 +48,12 @@ def build_agent_exit_record(
     metrics: usage_metrics.UsageMetrics,
     skill_fields: AgentExitSkillFields,
 ) -> dict:
-    """Build the allowlisted baseline event without raw run content."""
+    """Build the allowlisted baseline event without raw run content.
+
+    The cost and token evidence ride as the same objects `UsageMetrics.to_dict()` serializes them as, and metrics
+    holding none leave both keys off, so the record reads back as one stating no basis.
+    """
+    usage_fields = metrics.to_dict()
     return events.build_record(
         repo=context.repo,
         issue=context.issue,
@@ -69,6 +78,8 @@ def build_agent_exit_record(
         turns=metrics.turns,
         cost_usd=metrics.cost_usd,
         cost_source=metrics.cost_source,
+        cost_evidence=usage_fields[usage_cost.COST_EVIDENCE],
+        token_evidence=usage_fields[usage_tokens.TOKEN_EVIDENCE],
         skills_triggered=skill_fields.skills_triggered,
         skills_triggered_count=skill_fields.skills_triggered_count,
         skills_available=skill_fields.skills_available,

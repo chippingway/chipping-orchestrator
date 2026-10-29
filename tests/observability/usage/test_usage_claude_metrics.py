@@ -6,7 +6,11 @@ import json
 import unittest
 from dataclasses import replace
 
-from orchestrator.observability.usage import metrics as _metrics
+from orchestrator.observability.usage import (
+    cost_evidence as _cost,
+    metrics as _metrics,
+    token_evidence as _tokens,
+)
 from tests.observability.usage import (
     usage_assertions as _assertions,
     usage_claude_events as _claude,
@@ -335,4 +339,11 @@ class ClaudeUsageErrorTest(unittest.TestCase):
 
     def test_empty_stdout(self) -> None:
         metrics = _metrics.parse_claude_usage("")
-        self.assertEqual(metrics, _metrics.UsageMetrics(backend=_usage_cases.CLAUDE))
+        self.assertEqual(
+            metrics,
+            _metrics.UsageMetrics(
+                backend=_usage_cases.CLAUDE,
+                cost_evidence=_cost.CostEvidence(_cost.NO_USAGE),
+                token_evidence=_tokens.TokenEvidence((), _tokens.DISJOINT),
+            ),
+        )

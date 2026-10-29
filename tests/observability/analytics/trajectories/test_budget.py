@@ -80,7 +80,7 @@ _TURNS_KEY = _support.TURNS_KEY
 _RECORD_BUDGET = "TRAJECTORY_RECORD_BUDGET"
 
 
-_DROPS_EXCESS_STEPS_OBJECT_ARGUMENT = 2000
+_DROPS_EXCESS_STEPS_OBJECT_ARGUMENT = 3552
 
 
 _DROPS_EXCESS_STEPS_RESULT_TEXT = 20
@@ -126,7 +126,7 @@ _NO_ACCOUNTING_STEP_COUNT = len(_NO_ACCOUNTING_TRAJECTORY.steps)
 # summary, and both serialized steps. A summary the record leaves off is
 # charged none of the budget, so this is the whole of what the record has to
 # fit inside.
-_NO_ACCOUNTING_BUDGET = 336
+_NO_ACCOUNTING_BUDGET = 469
 
 
 _IDENTIFIED_ITEM_COUNT = CODEX_ACCOUNTING_COUNTS[_IDENTIFIED_ITEMS_KEY]
@@ -135,13 +135,13 @@ _IDENTIFIED_ITEM_COUNT = CODEX_ACCOUNTING_COUNTS[_IDENTIFIED_ITEMS_KEY]
 # Three points in the draw-down of one accounting stream: a budget the six
 # accounting rows fit inside but the steps behind them do not, one that stops
 # partway through the rows, and one already spent before the first of them.
-_STEPS_CUT_BUDGET = 900
+_STEPS_CUT_BUDGET = 1070
 
 
-_ACCOUNTING_PREFIX_BUDGET = 500
+_ACCOUNTING_PREFIX_BUDGET = 670
 
 
-_ACCOUNTING_SPENT_BUDGET = 300
+_ACCOUNTING_SPENT_BUDGET = 470
 
 
 # Each case names a point, the budget that reaches it, and whether the

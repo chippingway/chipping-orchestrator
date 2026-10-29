@@ -6,9 +6,10 @@ The output count on a message's `assistant` frames is the one it started with. A
 `message_delta` closing it. A subagent prints no stream events: the message that closes it prints no frame at all,
 only the usage its hand-back carries, and the final count of any earlier subagent message is printed nowhere. What
 the `result` frame's `modelUsage` reports for a model beyond every count the stream printed is what those earlier
-messages produced together, so it settles one only when it is the model's sole open message, and only when the
-model's input and cache counts in `modelUsage` are exactly the ones the stream printed -- the evidence that it covers
-these messages and no others. Several open messages share a total no frame splits, so each keeps its start count.
+messages produced together, so it settles one only when it is the model's sole open message, only when it reports
+every one of its input, cache, and output totals, and only when those input and cache counts are exactly the ones the
+stream printed -- the evidence that it covers these messages and no others. Several open messages share a total no
+frame splits, so each keeps its start count.
 
 A stream with no `message_delta` -- printed without partial messages -- settles nothing: every message keeps the count
 its last frame carries, and neither hand-backs nor `modelUsage` are read.
@@ -26,10 +27,19 @@ from typing import Any
 from orchestrator.observability.usage import (
     claude_rows,
     claude_summary,
-    event_stream,
     model_names,
     protocol,
+    token_evidence,
 )
+
+# The token class each `modelUsage` field totals; it reports cache writes as one count, with no TTL split.
+_MODEL_USAGE_FIELDS = (
+    (protocol.INPUT, "inputTokens"),
+    (protocol.CACHE_WRITE_FIVE_MIN, "cacheCreationInputTokens"),
+    (protocol.CACHE_READ, "cacheReadInputTokens"),
+    (protocol.OUTPUT, "outputTokens"),
+)
+_MODEL_USAGE_CLASSES = frozenset(token_class for token_class, _ in _MODEL_USAGE_FIELDS)
 
 
 def subagent_message_id(event: dict[str, Any]) -> str | None:
@@ -43,31 +53,31 @@ def subagent_message_id(event: dict[str, Any]) -> str | None:
 
 
 def model_usage_counts(event: dict[str, Any]) -> dict[str, protocol.TokenBucket]:
-    """The per-model totals a `result` frame's `modelUsage` reports, as usage buckets."""
+    """The per-model totals a `result` frame's `modelUsage` reports, as usage buckets of the classes it reports."""
     if event.get(protocol.TYPE) != protocol.RESULT_KEY:
         return {}
     model_usage = event.get("modelUsage")
     if not isinstance(model_usage, dict):
         return {}
     return {
-        model: {
-            protocol.INPUT: event_stream.token_count(totals.get("inputTokens")),
-            protocol.CACHE_WRITE_FIVE_MIN: event_stream.token_count(totals.get("cacheCreationInputTokens")),
-            protocol.CACHE_WRITE_ONE_HOUR: 0,
-            protocol.CACHE_READ: event_stream.token_count(totals.get("cacheReadInputTokens")),
-            protocol.OUTPUT: event_stream.token_count(totals.get("outputTokens")),
-        }
+        model: token_evidence.reported_counts({
+            token_class: token_evidence.reported_count(totals.get(field_name))
+            for token_class, field_name in _MODEL_USAGE_FIELDS
+        })
         for model, totals in model_usage.items()
         if isinstance(totals, dict)
     }
 
 
 def input_and_cache(bucket: protocol.TokenBucket) -> tuple[int, int, int]:
-    """Input, cache-read, and cache-write counts, the cache-write TTL buckets summed as `modelUsage` reports them."""
+    """Input, cache-read, and cache-write counts, the cache-write TTL buckets summed as `modelUsage` reports them.
+
+    `modelUsage` reports its cache writes as one count, so a bucket of its totals holds no one-hour class.
+    """
     return (
         bucket[protocol.INPUT],
         bucket[protocol.CACHE_READ],
-        bucket[protocol.CACHE_WRITE_FIVE_MIN] + bucket[protocol.CACHE_WRITE_ONE_HOUR],
+        bucket[protocol.CACHE_WRITE_FIVE_MIN] + bucket.get(protocol.CACHE_WRITE_ONE_HOUR, 0),
     )
 
 
@@ -123,12 +133,12 @@ class ClaudeSettlement:
         """
         if not self.final_outputs:
             return []
-        usage_rows = []
-        for ordinal, model, record in self.handbacks.values():
-            output_only = dict.fromkeys(record, 0)
-            output_only[protocol.OUTPUT] = record[protocol.OUTPUT]
-            usage_rows.append((ordinal, model, output_only))
-        return usage_rows
+        # A run's input and cache counts are its frames', so a hand-back's row
+        # states none of them -- no class at all, rather than a zero.
+        return [
+            (ordinal, model, token_evidence.reported_counts({protocol.OUTPUT: record.get(protocol.OUTPUT)}))
+            for ordinal, model, record in self.handbacks.values()
+        ]
 
     def _closed(self, message_id: str, usage_row: claude_rows.ClaudeUsageRow) -> claude_rows.ClaudeUsageRow:
         final_output = self.final_outputs.get(message_id)
@@ -139,7 +149,7 @@ class ClaudeSettlement:
         unprinted = None if open_message is None else self._unprinted_output(model, settled)
         if open_message is None or unprinted is None:
             return
-        start = settled[open_message][2][protocol.OUTPUT]
+        start = settled[open_message][2].get(protocol.OUTPUT, 0)
         settled[open_message] = with_output(settled[open_message], start + unprinted)
 
     def _sole_open_message(self, model: str, settled: dict[str, claude_rows.ClaudeUsageRow]) -> str | None:
@@ -160,10 +170,12 @@ class ClaudeSettlement:
         """What `modelUsage` reports beyond every printed output count, if it covers exactly what was printed.
 
         A `modelUsage` that also covers usage no frame of this stream printed shows it in its input and cache
-        counts, and leaves nothing to attribute.
+        counts, and leaves nothing to attribute. One missing any of the totals the check reads attributes nothing
+        either: an absent input or cache total establishes no coverage, and an absent output total no remainder, so
+        the open message's output stays as its frames left it.
         """
         reported = self.model_usage.get(model)
-        if reported is None:
+        if reported is None or not _MODEL_USAGE_CLASSES <= reported.keys():
             return None
         printed_rows = [*settled.values(), *self.handbacks.values()]
         printed = claude_summary.aggregate_by_model(printed_rows).per_model[model]

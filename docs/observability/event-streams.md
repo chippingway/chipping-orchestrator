@@ -481,7 +481,15 @@ every tracked agent run, distinct from (and in addition to) the audit `agent_spa
 - **Spec / session** — the configured `agent_spec` (the role's full `*_AGENT_SPEC` string, e.g. `claude --model
   claude-opus-4-7`), both the `resume_session_id` passed into the spawn and the live `session_id` from the result.
 - **Usage parser output** — `input_tokens`, `output_tokens`, `cached_tokens`, `cache_read_tokens`,
-  `cache_write_tokens`, the distinct `models` observed in the stream, `turns`, `cost_usd`, and `cost_source`.
+  `cache_write_tokens`, the distinct `models` observed in the stream, `turns`, `cost_usd`, and `cost_source`, beside
+  the two evidence objects that say what they mean: `cost_evidence` (the run's monetary contributions by basis —
+  `cli-reported` or a provider's `*-api-estimate`, with the verification dates of the rates an estimate used — and
+  their completeness) and `token_evidence` (the counters the stream observed and whether its cache counters sit inside
+  its input). Both are the objects `UsageMetrics.to_dict()` serializes, described in
+  [`usage.md`](usage.md#usage-parser); the database keeps them in `extras` until a column promotes them. A record
+  without them — every one an earlier build wrote — states no basis: `recorded_cost` reads its `cost_usd` under the
+  `unknown` basis and `non_overlapping_total` totals it only when no cache counter is nonzero, inferring no provider
+  breakdown and backfilling nothing.
 - **Skill triggers (opt-in)** — only when `TRACK_SKILL_TRIGGERS` is on (default off): `skills_triggered` (distinct
   skill names, first-seen order), `skills_triggered_count` (total trigger count, so three `develop` pulls read `3` while
   the list carries `develop` once), `skills_evidence` (name → the per-load evidence tier: `confirmed` for a claude

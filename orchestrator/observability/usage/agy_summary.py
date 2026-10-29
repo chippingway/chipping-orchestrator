@@ -6,10 +6,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from orchestrator.observability.usage import agy_events, event_stream, protocol
+from orchestrator.observability.usage import agy_events, event_stream, protocol, token_evidence
 
 if TYPE_CHECKING:
     from orchestrator.observability.usage.metrics import UsageMetrics
+
+# The counters a completed step's usage is read for, each under its own name.
+_COUNTERS = (protocol.INPUT_TOKENS, protocol.OUTPUT_TOKENS, protocol.CACHE_READ_TOKENS)
 
 
 def completed_steps(
@@ -26,11 +29,14 @@ def completed_steps(
 
 def usage_records(
     events: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
+) -> list[dict[str, int]]:
+    """The counts each completed step's usage reports, by counter; a counter it reports no count for has no key."""
     # Terminal usage includes earlier conversation turns on a resume. Only
     # the steps emitted by this invocation belong in its per-run counters.
     return [
-        step[protocol.USAGE]
+        token_evidence.reported_counts({
+            counter: token_evidence.reported_count(step[protocol.USAGE].get(counter)) for counter in _COUNTERS
+        })
         for step in completed_steps(events)
         if isinstance(step.get(protocol.USAGE), dict)
     ]
@@ -42,14 +48,14 @@ def apply_usage(
     fallback_model: str | None,
 ) -> None:
     records = usage_records(events)
-    metrics.input_tokens = sum(
-        event_stream.token_count(row.get(protocol.INPUT_TOKENS)) for row in records
-    )
-    metrics.output_tokens = sum(
-        event_stream.token_count(row.get(protocol.OUTPUT_TOKENS)) for row in records
-    )
-    metrics.cache_read_tokens = sum(
-        event_stream.token_count(row.get("cache_read_tokens")) for row in records
+    metrics.input_tokens = sum(row.get(protocol.INPUT_TOKENS, 0) for row in records)
+    metrics.output_tokens = sum(row.get(protocol.OUTPUT_TOKENS, 0) for row in records)
+    metrics.cache_read_tokens = sum(row.get(protocol.CACHE_READ_TOKENS, 0) for row in records)
+    # Nothing established yet says whether a step's cache reads are part of
+    # its input count, so a run that read from cache beside it has no total.
+    metrics.token_evidence = token_evidence.TokenEvidence.reporting(
+        (counter for row in records for counter in row),
+        token_evidence.UNKNOWN,
     )
     metrics.turns = sum(
         step.get(agy_events.STEP_TYPE) == "user_input" for step in completed_steps(events)
@@ -61,4 +67,5 @@ def apply_usage(
     )
     if not metrics.models and fallback_model:
         metrics.models = (fallback_model,)
-    metrics.cost_source = "unknown-price" if records else "no-usage"
+    # The CLI prints no USD amount, and nothing prices its usage yet.
+    metrics.apply_cost(event_stream.select_cost(None, None, bool(records)))

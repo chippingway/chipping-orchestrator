@@ -7,6 +7,8 @@ import unittest
 
 from orchestrator.observability.usage import (
     metrics as _metrics,
+    protocol as _protocol,
+    token_evidence as _tokens,
     trajectory as _trajectory,
     trajectory_models as _records,
 )
@@ -25,6 +27,13 @@ _SUBAGENT_RUN_PRINTED = (
     _capture.SUBAGENT_RUN_LEAD_MESSAGES[0],
     *_capture.SUBAGENT_RUN_SUBAGENT_MESSAGES,
     *_capture.SUBAGENT_RUN_LEAD_MESSAGES[1:],
+)
+
+
+# What a turn whose usage reports input, output, and both cache classes observes.
+_REPORTED_ALL_CLASSES = _tokens.TokenEvidence(
+    (_protocol.INPUT_TOKENS, _protocol.OUTPUT_TOKENS, _protocol.CACHE_READ_TOKENS, _protocol.CACHE_WRITE_TOKENS),
+    _tokens.DISJOINT,
 )
 
 
@@ -126,6 +135,8 @@ class ClaudeTurnUsageTest(unittest.TestCase):
                 cache_write_tokens=_usage_cases.CLAUDE_TURN_CACHE_WRITE_TOKENS,
                 cost_usd=turn0.cost_usd,
                 cost_source=_usage_cases.ESTIMATED_COST_SOURCE,
+                cost_evidence=turn0.cost_evidence,
+                token_evidence=_REPORTED_ALL_CLASSES,
             ),
         )
         _assertions.assert_cost(
@@ -267,7 +278,7 @@ class ClaudeTurnUsageTest(unittest.TestCase):
 
     def test_per_turn_estimates_sum_to_run_estimate(self) -> None:
         # The per-turn builder and the run aggregate share one estimator,
-        # `claude_estimate_cost` on the `prices` owner, and pricing is linear
+        # `claude_estimate` on the `prices` owner, and pricing is linear
         # in token counts -- so the per-turn estimates must sum to the
         # run-level estimated cost.
         stdout = _jsonl.jsonl(

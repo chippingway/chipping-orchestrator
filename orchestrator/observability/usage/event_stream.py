@@ -4,12 +4,11 @@
 
 from __future__ import annotations
 
-import contextlib
 import json
 from collections.abc import Iterable
 from typing import Any
 
-from orchestrator.observability.usage import protocol
+from orchestrator.observability.usage import cost_evidence, protocol, token_evidence
 
 
 def iter_events(stdout: str) -> list[dict[str, Any]]:
@@ -28,13 +27,8 @@ def iter_events(stdout: str) -> list[dict[str, Any]]:
 
 
 def token_count(raw_count: Any) -> int:
-    number = 0
-    if isinstance(raw_count, (int, float)):
-        number = int(raw_count)
-    elif isinstance(raw_count, str):
-        with contextlib.suppress(ValueError):
-            number = int(float(raw_count))
-    return number
+    """The count a raw usage field reports, zero when it reports none."""
+    return token_evidence.reported_count(raw_count) or 0
 
 
 def walk_objects(node: Any) -> Iterable[dict[str, Any]]:
@@ -78,13 +72,17 @@ def dedup_models(models: Iterable[str]) -> tuple[str, ...]:
 
 def select_cost(
     reported: float | None,
-    estimated: float | None,
+    estimated: cost_evidence.CostContribution | None,
     has_usage: bool,
-) -> tuple[float | None, str]:
+) -> cost_evidence.CostEvidence:
+    """A CLI-reported amount, an explicit zero included, wins over any estimate; unpriced usage states no amount."""
     if reported is not None:
-        return reported, "reported"
+        return cost_evidence.CostEvidence(
+            cost_evidence.COMPLETE,
+            (cost_evidence.CostContribution(cost_evidence.CLI_REPORTED, reported),),
+        )
     if estimated is not None:
-        return estimated, "estimated"
+        return cost_evidence.CostEvidence(cost_evidence.COMPLETE, (estimated,))
     if not has_usage:
-        return None, "no-usage"
-    return None, "unknown-price"
+        return cost_evidence.CostEvidence(cost_evidence.NO_USAGE)
+    return cost_evidence.CostEvidence(cost_evidence.INCOMPLETE)

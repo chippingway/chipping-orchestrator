@@ -109,7 +109,16 @@ unknown rather than inferred from another (a skill load is no evidence of its of
 query's SELECT list raises rather than reading as NULL. A current optional field's absence, an ID-less CLI run, an
 unpriced cost, and a malformed record's containment remain current answers. A usage estimate prices a model only through
 an active price-catalogue row naming its exact ID, documented alias, or published snapshot; an unknown version, an
-arbitrary suffix, or a dormant row is an unpriced cost, never another row's rates. A recorded requirements fingerprint
+arbitrary suffix, or a dormant row is an unpriced cost, never another row's rates. A usage record states what its
+cost and counters mean in its `cost_evidence` and `token_evidence`, which `UsageMetrics`, each `TurnUsage`, the
+`agent_exit` record, and the trajectory `run_usage` serialize alike: a CLI-reported amount, an explicit zero included,
+outranks an estimate and is labelled CLI-reported, never a verified bill; an estimate is a token-only Standard API
+list-price equivalent on its provider's basis; an unpriced cost states no complete amount; no-usage stays its own
+answer; and a counter no usage payload reported is missing evidence, never a reported zero. A record without that
+evidence -- every one an earlier build wrote -- is read with an `unknown` basis and completeness, its `cost_usd` kept
+under that basis, and with a cache overlap nothing establishes, so its tokens total only where no cache counter is
+nonzero: no provider breakdown, completeness, or overlap is inferred from its `cost_source`, backend, or models, and
+nothing backfills it. A recorded requirements fingerprint
 (`user_content_hash`, `observed_user_content_hash`) is compared with the current fingerprint alone, which leaves bare
 operator controls out: a value no current reading reproduces -- one an earlier producer wrote counting a bare
 `/orchestrator continue` included -- is drift for the stage's deliberate drift or hold route, and is never recognized
@@ -193,6 +202,7 @@ or lost write interrupted are current state, not historical compatibility.
 [branch refusal](state-machine/labels-and-state.md#branch-refusal),
 [analytics readers](observability/analytics-dashboard.md#read-model-orchestratorobservabilityanalyticsquery),
 [price catalogue](observability/usage.md),
+[usage evidence](observability/usage.md#usage-parser),
 [requirements baselines](state-machine/delivery-stages.md#user-content-drift-detection),
 [watermark initialization](state-machine/delivery-stages.md#_handle_in_review-label-in_review),
 [replay batches](state-machine/labels-and-state.md#pinned-state),
@@ -211,6 +221,10 @@ or lost write interrupted are current state, not historical compatibility.
 [artifact admission](../tests/git/worktrees/test_maintenance_admission.py),
 [analytics readers](../tests/observability/analytics/query/test_skill_adoption_reads.py),
 [price catalogue](../tests/observability/usage/test_usage_price_catalogue.py),
+[cost evidence](../tests/observability/usage/test_usage_cost_evidence.py),
+[token evidence](../tests/observability/usage/test_usage_token_evidence.py),
+[recorded evidence](../tests/workflow/engine/test_usage_metrics.py),
+[trajectory evidence](../tests/observability/analytics/trajectories/test_record.py),
 [verification artifacts](../tests/github/test_verification_artifacts.py),
 [requirements baselines](../tests/workflow/engine/test_drift.py),
 [late first baselines](../tests/workflow/stages/decomposition/test_late_first_baseline.py),

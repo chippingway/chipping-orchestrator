@@ -3,7 +3,8 @@
 """Build Claude per-turn usage aligned with trajectory steps.
 
 A turn is one API message, keyed the way the trajectory steps it produced are. Its output count is settled by the
-same `claude_settlement.ClaudeSettlement` the run aggregate reads, so the turns sum to the run.
+same `claude_settlement.ClaudeSettlement` the run aggregate reads, so the turns sum to the run. Each turn is priced on
+its own as an Anthropic API estimate and observes the token classes its own usage row reported.
 """
 
 from __future__ import annotations
@@ -15,6 +16,8 @@ from typing import Any
 from orchestrator.observability.usage import (
     claude_rows,
     claude_settlement,
+    claude_summary,
+    event_stream,
     model_names,
     prices,
     protocol,
@@ -60,17 +63,23 @@ class ClaudeTurnUsageBuilder:
 
 
 def turn_usage_from_row(usage_row: TurnUsageRow) -> TurnUsage:
+    """One turn's usage, priced on its own as an API estimate: a run-level reported cost never reaches a turn.
+
+    Its token evidence observes the classes its own row reported, so a hand-back turn observes its output alone.
+    """
     turn, model, record = usage_row
-    estimated_cost = prices.claude_estimate_cost(model, record)
+    cost = event_stream.select_cost(None, prices.claude_estimate(model, record), has_usage=True)
     return TurnUsage(
         turn=turn,
         model=model,
-        input_tokens=record[protocol.INPUT],
-        output_tokens=record[protocol.OUTPUT],
-        cache_read_tokens=record[protocol.CACHE_READ],
-        cache_write_tokens=(record[protocol.CACHE_WRITE_FIVE_MIN] + record[protocol.CACHE_WRITE_ONE_HOUR]),
-        cost_usd=estimated_cost,
-        cost_source="unknown-price" if estimated_cost is None else "estimated",
+        input_tokens=record.get(protocol.INPUT, 0),
+        output_tokens=record.get(protocol.OUTPUT, 0),
+        cache_read_tokens=record.get(protocol.CACHE_READ, 0),
+        cache_write_tokens=record.get(protocol.CACHE_WRITE_FIVE_MIN, 0) + record.get(protocol.CACHE_WRITE_ONE_HOUR, 0),
+        cost_usd=cost.complete_usd,
+        cost_source=cost.cost_source,
+        cost_evidence=cost,
+        token_evidence=claude_summary.token_evidence_of((record,)),
     )
 
 

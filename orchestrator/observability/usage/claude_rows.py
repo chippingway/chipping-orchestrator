@@ -14,9 +14,9 @@ from __future__ import annotations
 from typing import Any
 
 from orchestrator.observability.usage import (
-    event_stream,
     model_names,
     protocol,
+    token_evidence,
 )
 
 ClaudeUsageRow = tuple[int, str, protocol.TokenBucket]
@@ -28,32 +28,32 @@ _MESSAGE_CONTENT: protocol.ModelPath = (protocol.MESSAGE, "content")
 
 
 def claude_usage_record(usage: dict[str, Any]) -> protocol.TokenBucket:
+    """The counts one usage block reports, by token class; a class it reports no count for has no key.
+
+    A missing class prices and sums as zero, while its absence is what tells it apart from a reported zero.
+    """
     flat_cache_write = usage.get("cache_creation_input_tokens")
     if flat_cache_write is None:
         cache_creation = usage.get("cache_creation")
         cache_map = cache_creation if isinstance(cache_creation, dict) else {}
-        cache_write_five_min = event_stream.token_count(
-            cache_map.get("ephemeral_5m_input_tokens") or usage.get("ephemeral_5m_input_tokens"),
+        cache_write_five_min = token_evidence.first_count(
+            cache_map.get("ephemeral_5m_input_tokens"), usage.get("ephemeral_5m_input_tokens"),
         )
-        cache_write_one_hour = event_stream.token_count(
-            cache_map.get("ephemeral_1h_input_tokens") or usage.get("ephemeral_1h_input_tokens"),
+        cache_write_one_hour = token_evidence.first_count(
+            cache_map.get("ephemeral_1h_input_tokens"), usage.get("ephemeral_1h_input_tokens"),
         )
     else:
-        cache_write_five_min = event_stream.token_count(flat_cache_write)
-        cache_write_one_hour = 0
-    return {
-        protocol.INPUT: event_stream.token_count(
-            usage.get(protocol.INPUT_TOKENS) or usage.get("prompt_tokens"),
-        ),
+        cache_write_five_min = token_evidence.reported_count(flat_cache_write)
+        cache_write_one_hour = None
+    return token_evidence.reported_counts({
+        protocol.INPUT: token_evidence.first_count(usage.get(protocol.INPUT_TOKENS), usage.get("prompt_tokens")),
         protocol.CACHE_WRITE_FIVE_MIN: cache_write_five_min,
         protocol.CACHE_WRITE_ONE_HOUR: cache_write_one_hour,
-        protocol.CACHE_READ: event_stream.token_count(
-            usage.get("cache_read_input_tokens") or usage.get("cached_input_tokens") or usage.get("cache_read_tokens"),
+        protocol.CACHE_READ: token_evidence.first_count(
+            usage.get("cache_read_input_tokens"), usage.get("cached_input_tokens"), usage.get("cache_read_tokens"),
         ),
-        protocol.OUTPUT: event_stream.token_count(
-            usage.get(protocol.OUTPUT_TOKENS) or usage.get("completion_tokens"),
-        ),
-    }
+        protocol.OUTPUT: token_evidence.first_count(usage.get(protocol.OUTPUT_TOKENS), usage.get("completion_tokens")),
+    })
 
 
 def claude_assistant_usage_row(
@@ -97,11 +97,12 @@ def claude_message_delta_output(event: dict[str, Any]) -> tuple[str, int] | None
     if not isinstance(stream_event, dict) or stream_event.get(protocol.TYPE) != _MESSAGE_DELTA:
         return None
     usage = stream_event.get(protocol.USAGE)
-    final_output = usage.get(protocol.OUTPUT_TOKENS) if isinstance(usage, dict) else None
+    reported_output = usage.get(protocol.OUTPUT_TOKENS) if isinstance(usage, dict) else None
+    final_output = token_evidence.reported_count(reported_output)
     message_id = event.get("api_message_id")
     if final_output is None or not message_id:
         return None
-    return str(message_id), event_stream.token_count(final_output)
+    return str(message_id), final_output
 
 
 def claude_handback_usage_row(
