@@ -8,7 +8,9 @@ request up with nothing pointing at it, and the next tick re-derives the same
 publishable artifact from the same branch -- so asking for the open one first
 is what turns that replay into a reuse instead of a duplicate GitHub would 422,
 and why the `pr_opened` event is emitted only on the branch that really opened
-one, so a recovered publication is not counted twice.
+one, so a recovered publication is not counted twice. That lookup is a request,
+so the checkout is proven the issue's own again behind it, before the body is
+edited or anything is opened.
 
 What comes back from that lookup is only guaranteed to be open on this branch
 against this base, never that anything here opened it. A human can open one by
@@ -30,6 +32,7 @@ from __future__ import annotations
 import logging
 
 from orchestrator.git.publication import titles as _titles
+from orchestrator.git.worktrees import creation as _worktree_creation
 from orchestrator.workflow.stages.discussion import (
     models as _models,
     publication_parks as _publication_parks,
@@ -57,22 +60,32 @@ def _reuse_or_open_plan_pr(
     What comes back is only guaranteed to be open on this branch, not to be
     the one a previous tick of this stage opened, so the reuse fixes up the
     body rather than trusting it.
+
+    Behind the lookup the checkout is proven the issue's own again
+    (`creation._proven_checkout`), ahead of the body's edit or the open: the
+    lookup is a request, and a tree switched onto the flat branch while it
+    ran raises `naming.BranchRefused` with nothing opened or edited, and the
+    publication's marker standing for the recovery that finds the checkout
+    restored. Where one is to be opened, the title is read off the branch's
+    history first and the proof taken immediately before the open, since
+    that read is a window of its own.
     """
     plan_pr = run.gh.find_open_pr(
         branch=artifact.branch, base=run.spec.base_branch,
     )
     if plan_pr is not None:
+        _worktree_creation._proven_checkout(run.spec, run.issue.number, artifact.worktree)
         log.info(
             "issue=#%s reusing existing plan PR #%d for %s",
             run.issue.number, plan_pr.number, artifact.branch,
         )
         _attribute_reused_pr(run, artifact, plan_pr)
         return plan_pr
+    title = _plan_pr_title(run, artifact)
+    body = _plan_pr_body(run, artifact)
+    _worktree_creation._proven_checkout(run.spec, run.issue.number, artifact.worktree)
     plan_pr = run.gh.open_pr(
-        branch=artifact.branch,
-        base=run.spec.base_branch,
-        title=_plan_pr_title(run, artifact),
-        body=_plan_pr_body(run, artifact),
+        branch=artifact.branch, base=run.spec.base_branch, title=title, body=body,
     )
     run.gh.emit_event(
         _PR_OPENED_EVENT,

@@ -10,6 +10,7 @@ owed for beside it -- and what runs here are the effects that decision buys.
 The push comes first, made where the verdict was measured. A candidate that is
 an auto-rebase replay the generation took over owes the report debt that push
 leaves (`late_replay_debt`), recorded before anything hands the head on. Then
+the checkout is proven the issue's own once more, behind that write, and then
 the label, handed to the stage the record names rather than to `implementing`,
 because a generation entered on the published side names the one stage whose
 completion the candidate still owes -- save that taken-over replay, which goes
@@ -102,6 +103,7 @@ def _continued(context: _LateContext) -> _LateDisposition | None:
     stopped = _late_owner._latch_stops(context)
     if stopped is not None:
         return stopped
+    _late_verdict_push._proven_before_the_label(context)
     context.gh.set_workflow_label(context.issue, _continues_at(context))
     stopped = _late_owner._latch_stops(context)
     if stopped is not None:

@@ -113,7 +113,9 @@ meets a record a human's edit left refused is abandoned there, no agent launch i
 parent seeds, releases, finalizes, or tells no child whose record, read under that child's claim, is refused, nor
 deletes a snapshot such a consumer was cut from. An admitted record naming no branch live work may use — a recorded pull
 request with no branch beside it, or a pinned flat or any other name — abandons a handler the same way before any
-checkout, launch, or push ([branch refusal](state-machine/labels-and-state.md#branch-refusal)). The
+checkout, launch, or push, and a checkout found off the issue's branch when a push, rewrite, pull-request open, or
+handoff proves it again stops that step, the handler abandoned or the handoff held
+([branch refusal](state-machine/labels-and-state.md#branch-refusal)). The
 cap exemptions, the
 `duplicate_active` gate, the writer claim, and what each step reads and writes are in
 [`state-machine/labels-and-state.md`][per-tick]; the multi-repo dispatch and
@@ -171,7 +173,8 @@ pinned comment is admitted before any route reads a branch, a pull request, or a
 admission refuses no route runs at all — no rebase, push, reset, recovery, notice, publication, relabel, or
 settlement — and its checkout, branches, pull request, labels, and comment stay as they stand, the refusal said only
 in a local warning; the base fetch every worktree shares licenses nothing on them. An admitted record naming no branch
-live work may use, and a checkout not proven the issue's own, are left the same way
+live work may use, and a checkout not proven the issue's own, are left the same way, and so is one switched off its
+branch while a route runs, since each rebase, reset, and clean proves the checkout again last
 ([branch refusal](state-machine/labels-and-state.md#branch-refusal)). A pre-PR
 worktree rebases locally; a PR-having one in `workflow:validating` / `workflow:documenting` / `in_review` /
 `workflow:fixing` pushes the clean rebase with a pinned `--force-with-lease`, resets `review_round`, records the report

@@ -24,6 +24,16 @@ the push, where nothing is published and the tick simply stops, and once the
 pull request is open, where the publication stands and only the handoff stops.
 Everything past that handoff reads the checkout and none of it measures again.
 
+WHOSE checkout it is gets proved at more points than that, since a tree
+switched onto the flat branch at the published commit, clean, passes both of
+those proofs: on entry, behind the head's read before it is recorded as the
+intent, last before the push -- behind the remote's tip, which is read here
+as the lease and handed to the transport rather than read inside the push --
+behind the pull request's lookup (`dev_pr`), before the
+handoff (`report_handoff`), and between the handoff's write and its label
+(`handoff`). Refused before the push or the open, the intent stands for the
+retry; refused at the handoff, that handoff is owed.
+
 What the pull request itself says -- its title, its body, and the dev session
 the body attributes the branch to -- is `dev_pr`'s, along with the reuse that
 hands back a pull request somebody else opened with its description untouched.
@@ -46,7 +56,7 @@ from github.Issue import Issue
 
 from orchestrator import config
 from orchestrator.config import models as _config_models
-from orchestrator.git import branch_transport as _branch_transport
+from orchestrator.git import branch_transport as _branch_transport, push_questions as _push_questions
 from orchestrator.git.measurement import commits as _measurement_commits
 from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming, paths as _worktree_paths
 from orchestrator.github import client as _client, pinned_state as _pinned_state
@@ -112,6 +122,41 @@ def _leased_against(
     return _late_approval_reading._approved_lease(state) or None
 
 
+def _pushes(
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    work: _models._PRWork,
+    published: str,
+    pinned: str | None,
+) -> bool:
+    """Push `published` from `work`'s checkout, leased against `pinned` or the remote's own tip read here.
+
+    The lease is in hand before the checkout's last proof, never read behind
+    it. Left to the transport, an unpinned push reads the remote inside the
+    push itself, and a tree switched onto the flat branch while that read ran
+    would be published from. Read here and handed over explicitly -- a branch
+    the remote does not have as the empty lease that says it must not exist
+    -- the transport takes no reading of its own between the proof and
+    `git push`. The transport still prepares the push in the worktree -- the
+    token, the config refusal, the session -- so the same proof is handed in
+    as the push's own question (`push_questions`), asked after all of that
+    and immediately before `git push`. A remote that would not say answers
+    False, the failed push it always was.
+    """
+    lease = pinned
+    if lease is None:
+        lease = _branch_transport._remote_branch_read(spec, work.worktree, work.branch).sha
+    if lease is None:
+        return False
+    _worktree_creation._proven_checkout(spec, issue.number, work.worktree, rebasing=True)
+    with _push_questions.asked_before_the_push(
+        _worktree_creation._proven_checkout, spec, issue.number, work.worktree, rebasing=True,
+    ):
+        return _branch_transport._push_branch(
+            spec, work.worktree, work.branch, revision=published, force_with_lease=lease,
+        )
+
+
 def _publication_intent(
     gh: _client.GitHubClient,
     issue: Issue,
@@ -119,7 +164,7 @@ def _publication_intent(
     approved: _models._ApprovedWork,
     worktree: Path,
 ) -> str | None:
-    """The one commit this publication is about, durable before it is pushed.
+    """The one commit this publication is about, named before it is recorded or pushed.
 
     Everything past this line is named against what it returns: the push, the
     record the handoff leaves, and the proof taken once the pull request is
@@ -135,13 +180,11 @@ def _publication_intent(
     of the MEASUREMENT; it does not make them unnameable, and it is an
     operator's to turn back on between one tick and the next.
 
-    Then it is made durable, and only where the record does not already say
-    it. Between this line and the handoff the branch goes to the remote and a
-    pull request opens over it, and a tick that died in there would leave an
-    issue whose branch is published and whose record says nothing was owed --
-    which the next tick reads as work nobody has ruled on. The roads that
-    were approved or adjudicated already wrote this commit down and pay
-    nothing here; the ones that were not pay one write.
+    Making it durable (`_recorded_intent`) is the caller's, behind a proof
+    that the checkout is still the issue's own: a head read here off a tree
+    switched onto another branch, carrying a commit of its own, would
+    otherwise be written down as this issue's intent, and the issue's own
+    checkout, once restored, held to a commit it never had.
 
     None is the answer that stops the publication, and both roads reach it.
     The checkout is not on the commit the gate approved, so nothing may be
@@ -163,12 +206,12 @@ def _publication_intent(
             gh, issue, state, approved, worktree,
         ):
             return None
-        return _recorded_intent(gh, issue, state, approved.candidate_sha)
+        return approved.candidate_sha
     proved = _measurement_commits._prove_candidate_commit(
         worktree, _checkout._HEAD,
     )
     if proved.is_frozen:
-        return _recorded_intent(gh, issue, state, proved.sha)
+        return proved.sha
     log.error(
         "issue=#%s worktree cannot name the commit it is on (%s); refusing to "
         "publish a branch under no commit", issue.number, proved.failure,
@@ -189,6 +232,13 @@ def _recorded_intent(
     published: str,
 ) -> str:
     """Make the commit about to be pushed durable, if it is not already.
+
+    Between this write and the handoff the branch goes to the remote and a
+    pull request opens over it, and a tick that died in there would leave an
+    issue whose branch is published and whose record says nothing was owed --
+    which the next tick reads as work nobody has ruled on. The roads that
+    were approved or adjudicated already wrote this commit down and pay
+    nothing here; the ones that were not pay one write.
 
     It is recorded as the commit this issue owes a push, because that is what
     it is right up to the moment the push lands -- the same field an approval
@@ -222,7 +272,8 @@ def _on_commits(
     name one publishes nothing at all, because a push that names nothing sends
     whatever the branch has become by the time git runs it and leaves every
     proof past this line with no commit to hold it to.
-    `_publication_intent` is where that is settled and made durable.
+    `_publication_intent` is where that is settled, and `_recorded_intent`
+    where it is made durable.
 
     Naming the commit is only half of it, because what the handoff passes on
     is the CHECKOUT. Every stage past this one reads that checkout: the
@@ -272,7 +323,18 @@ def _on_commits(
     every push onto an existing pull request goes through
     (`creation._proven_checkout`): a tree at the issue's path on any other
     branch raises `naming.BranchRefused` with no intent recorded and nothing
-    pushed, whatever its commits are.
+    pushed, whatever its commits are. It is proven again behind every reading
+    and request that follows -- behind the head's read, before it is recorded
+    as the intent, so a tree switched onto another branch while that read ran
+    leaves its commit unrecorded; last before the push, behind the lease's own
+    reading (`_pushes`); after the pull-request lookup, before anything is
+    opened (`dev_pr._reuse_or_open_pr`); and before the handoff, behind its
+    reads (`report_handoff._hands_on`) -- because a tree switched onto the
+    flat branch at the published commit passes every reading of that commit
+    and tree. Refused before the push or the open, the intent stands for the
+    retry over the issue's own checkout, as it would behind a process that
+    died at the same point; refused at the handoff, the receipt is down and
+    the handoff is owed.
     """
     wt = _worktree_creation._proven_checkout(
         spec, issue.number, _worktree_paths._worktree_path(spec, issue.number), rebasing=True,
@@ -280,15 +342,17 @@ def _on_commits(
     published = _publication_intent(gh, issue, state, approved, wt)
     if published is None:
         return
+    _worktree_creation._proven_checkout(spec, issue.number, wt, rebasing=True)
+    _recorded_intent(gh, issue, state, published)
     if _checkout._dirtied_before_the_push(
         gh, issue, state, published, wt,
     ) or _barrier._ended_before_the_push(gh, spec, issue, state, approved):
         return
-    branch = _naming._resolve_branch_name(state, spec, issue.number)
-    if not _branch_transport._push_branch(
-        spec, wt, branch, revision=published,
-        force_with_lease=_leased_against(state, approved, published),
-    ):
+    work = _models._PRWork(
+        approved.agent_result, wt, _naming._resolve_branch_name(state, spec, issue.number),
+        approved.delivered_pr, published,
+    )
+    if not _pushes(spec, issue, work, published, _leased_against(state, approved, published)):
         # Park on awaiting_human like the timeout/question paths. Otherwise the
         # worktree's commits keep _has_new_commits() true, so every poll would
         # re-enter _on_commits() and re-comment indefinitely until a human acts.
@@ -300,12 +364,7 @@ def _on_commits(
         )
         # _handle_implementing writes pinned state after we return.
         return
-    pr, opened = _dev_pr._reuse_or_open_pr(
-        gh, spec, issue, state,
-        _models._PRWork(
-            approved.agent_result, wt, branch, approved.delivered_pr, published,
-        ),
-    )
+    pr, opened = _dev_pr._reuse_or_open_pr(gh, spec, issue, state, work)
     if pr is None:
         return
     # The push landed, so what was an intent is now a receipt: written here, so
@@ -333,11 +392,11 @@ def _on_commits(
     )
     gh.write_pinned_state(issue, state)
     if opened:
-        _dev_pr._announce_opened_pr(gh, issue, state, pr, branch)
+        _dev_pr._announce_opened_pr(gh, issue, state, pr, work.branch)
     if not _report_handoff._hands_on(
         gh, issue, state,
-        _report_binding.ReportPublication(pr, spec.slug, branch, published),
-        wt,
+        _report_binding.ReportPublication(pr, spec.slug, work.branch, published),
+        spec,
     ):
         _owes_the_handoff(state, published)
 

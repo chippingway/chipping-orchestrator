@@ -4,8 +4,11 @@
 
 Reached only where the push landed, the pull request carries it, and the
 checkout was proved twice over to still be the thing that was measured -- so
-nothing here refuses and nothing here parks. What is left is a record to spend
-and a claim to give up, in that order.
+nothing here parks. What is left is a record to spend and a claim to give up,
+in that order, with one question between them: the record's write is a
+request, so the checkout is proven the issue's own once more before the label
+moves, and a tree switched onto the flat branch while it ran keeps the issue
+here with the record down and the handoff owed.
 
 The record names `pr_number` AND `branch` together, because a state that
 arrived without a branch (an awaiting-human resume that opened the pull request
@@ -26,8 +29,11 @@ from __future__ import annotations
 
 from github.Issue import Issue
 
+from orchestrator.config import models as _config_models
+from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
+    report_binding as _report_binding,
     report_delivery as _report_delivery,
     retry_values as _retry_values,
 )
@@ -35,6 +41,7 @@ from orchestrator.workflow.stages.discussion.state import (
     _PLAN_SHA as _DISCUSSION_PLAN_SHA,
 )
 from orchestrator.workflow.stages.implementing import (
+    checkout_guards as _checkout,
     late_approval_state as _late_approval_state,
     late_park_state as _late_park_state,
     state as _state,
@@ -52,10 +59,14 @@ _SPENT_PARK_REASONS = frozenset((
 
 
 def _advance_to_validating(
-    gh: _client.GitHubClient, issue: Issue, state: _pinned_state.PinnedState, pr, branch: str
-) -> None:
+    gh: _client.GitHubClient,
+    issue: Issue,
+    state: _pinned_state.PinnedState,
+    reached: _report_binding.ReportPublication,
+    spec: _config_models.RepoSpec,
+) -> bool:
     """Record the published PR/branch, reset the per-PR budgets, and hand off
-    to `validating`.
+    to `validating`; whether the label moved.
 
     The docs pass runs only as the final-docs handoff after the reviewer agent
     approves, so a fresh commit goes straight to validating.
@@ -84,8 +95,15 @@ def _advance_to_validating(
     pushed commit goes down in this same write: the next tick recognizes it,
     publishes it without a reading, reuses the pull request that already
     carries it, and finishes the relabel this one could not.
+
+    Between the write and the label the checkout is proven the issue's own
+    again (`checkout_guards._still_its_own`), because the write is a request
+    and a tree switched onto the flat branch while it ran would be handed to
+    review. Refused, the label stays and False tells the caller to record the
+    handoff as owed, which that same next tick finishes over the restored
+    checkout.
     """
-    state.set(_state._PR_NUMBER, pr.number)
+    state.set(_state._PR_NUMBER, reached.pull_request.number)
     # Whatever this issue's recorded PR was before, it is an implementation's
     # now. The `discussion` stage records the commit its plan PR carried so
     # implementing's merged-PR terminal does not read a design being agreed to
@@ -101,10 +119,13 @@ def _advance_to_validating(
     # site) would leave `pr_number` set with `branch` unset, a record the
     # resolver refuses -- holding every downstream tick while the live PR is
     # on the branch this push just published.
-    state.set(_state._BRANCH, branch)
+    state.set(_state._BRANCH, reached.branch)
     _reset_implementing_counters(state)
     gh.write_pinned_state(issue, state)
+    if not _checkout._still_its_own(spec, issue.number, _worktree_paths._worktree_path(spec, issue.number)):
+        return False
     gh.set_workflow_label(issue, WorkflowLabel.VALIDATING)
+    return True
 
 
 def _spend_records_the_label_ends(state: _pinned_state.PinnedState) -> None:

@@ -3030,6 +3030,22 @@ and handed off -- and this is what it guarantees and what stops it.
        `_Last agent message:_` tails and human annotations included; any other parks under `report_undeliverable`
        with the two lines to add quoted in the notice, and a failed re-read holds silently. Persists `pr_number` /
        `branch` and resets `review_round=0` and `retry_count=0` via `handoff._reset_implementing_counters`.
+       The checkout is proven the issue's own on entry and again behind the head's read, immediately before the intent
+       is written -- so a tree switched onto another branch while that read ran leaves its commit unrecorded -- again
+       last before the push, behind the
+       lease's own reading (`implementing/publication._pushes`, which reads the remote tip itself and hands it to the
+       transport, an absent branch as the empty lease and an unanswered read as the failed push), again behind the pull
+       request's lookup before one is reused and immediately before one is opened, behind the title's read of the
+       branch's history (`implementing/dev_pr._reuse_or_open_pr`), ahead of the handoff's
+       moved- and dirty-checkout guards and again before its write (`implementing/report_handoff._hands_on`) -- so a
+       foreign tree carrying a commit or an edit of its own is held silently rather than parked as this issue's moved
+       checkout, save one switched while those guards themselves read, which the guard that sees it parks first --
+       and between that write and the relabel
+       (`implementing/handoff._advance_to_validating`), since a tree switched onto the flat branch at the published
+       commit passes every reading of that commit and tree ([branch refusal](labels-and-state.md#branch-refusal)).
+       Refused before the push or the open, nothing is pushed or opened and the intent stands for the retry over the
+       restored checkout; refused at the handoff, the receipt stands, the label stays, and the handoff is recorded as
+       owed.
      - **the report the run wrote** is what the publication owes beside the code (records under [pinned
        state](labels-and-state.md#pinned-state)). It is recorded between the tree reading and the size gate, and BOUND
        to the publication and posted once the pull request is known (`implementing/report_handoff.py`). The requirements
@@ -3236,8 +3252,12 @@ and handed off -- and this is what it guarantees and what stops it.
      back to `workflow:validating` — with `docs_drift_unwind_asked_at` beside it — so an operator unpark on a parked
      cleanup re-enters the drift block instead of falling through to a docs spawn. That reset discards whatever the
      tree carries, so the checkout at the issue's path is proven the issue's own (`creation._retained_checkout`)
-     before the notice: one on any other branch, the flat `orchestrator/issue-<n>` among them, refuses
-     (`naming.BranchRefused`) with nothing posted, recorded, reset, or relabelled.
+     before the notice, again before the reset, behind its fetch and probe, once more before the clean behind that
+     reset, and last before the unwind is completed -- a tree already in sync and clean takes no reset, so that last
+     proof is what keeps one switched at the same commit during the fetch from being handed back
+     (`creation._proven_checkout`): one on any other branch, the flat `orchestrator/issue-<n>` among them, refuses
+     (`naming.BranchRefused`) with nothing posted, recorded, reset, cleaned, or relabelled past that point, and
+     `docs_drift_unwind_pending` left on the record.
   5. Awaiting-human + no new comment → early return BEFORE the fetch so a transient `fetch_failed` / `diverged_branch`
      doesn't re-post its park every tick.
   6. Ensure the PR worktree (`_ensure_pr_worktree`, restored from `<remote>/<branch>` so the dev's commits are intact)
@@ -3396,7 +3416,12 @@ and handed off -- and this is what it guarantees and what stops it.
         never to HEAD: `git commit-tree` rebuilds it from the commit's own tree, parents, and author, so only the
         subject and the committer differ and no landing commit is added, and `git update-ref` moves HEAD onto it only
         if HEAD is still that commit. A checkout something committed on after the pass read its head refuses the move
-        instead of having the newer commit rewritten and handed to a gate that would accept it for being named. HEAD
+        instead of having the newer commit rewritten and handed to a gate that would accept it for being named, and
+        the move is made only once the checkout is proven the issue's own again (`creation._proven_checkout`), since
+        it rewrites whatever branch HEAD names and the agent's run, the commit's reads, and the replacement's
+        construction all came after the pass's own proof -- asked once the replacement exists, immediately before HEAD
+        moves: a tree switched onto the flat branch at that commit refuses with nothing amended or parked and every
+        branch where it was. HEAD
         is then read back before the gate is entered, and the replacement's id — the one git created, not the one
         HEAD reads — is handed on only where HEAD is standing on it. The message is read and written back as the
         bytes git stored, so a CR LF body or a lone carriage return survives the rebuild, and only the subject's own
@@ -3542,8 +3567,19 @@ where an Antigravity quota retired the old one, which runs under that same pinne
 
 Every push onto a pull request the remote already carries goes through the same late size gate
 (`implementing/late_push._publishes`, over the `late_overflow` entry, the `late_publication` answer, and the
-`late_gate` owners that answer for the implementing seam too). There are nine
-such pushes and no others:
+`late_gate` owners that answer for the implementing seam too). The checkout it pushes from is proven the issue's own
+on entry, again last before the push, and again before the handoff
+([branch refusal](labels-and-state.md#branch-refusal)): the gate's and a transport's readings run between the first
+proof and the push, and a tree switched onto the flat branch at the measured commit passes every reading of that commit
+and tree, so the push refuses with nothing sent, and a switch while the push runs holds the handoff with the claim the
+push owes recorded and nothing parked. The handoff's proof is asked whether or not the push could name its commit,
+again behind the post-push head and tree readings -- so a retry with nothing left to settle records the claim too --
+and once more behind the write that carries the receipt: a switch during that write holds the handoff too, its claim put
+back in a write of its own beside the receipt. The one refusal past the push that parks is a switch during those head
+and tree readings themselves, onto a branch carrying a commit or edits of its own: that reading parks it as a moved or
+dirty checkout, with its comment, before ownership is asked again, and the handoff is held with the claim recorded all
+the same. A push the gate froze no head for reads its lease itself ahead of that last proof and hands it to the
+transport, rather than leaving the reading to the push. There are nine such pushes and no others:
 
 - the shared dev-fix publication `validating/dev_fix._publish_dev_fix` (the reviewer's `CHANGES_REQUESTED` loop, the
   awaiting-human resume, and the body-edit drift resume an open PR takes). It proves the checkout's tree for itself
@@ -3595,7 +3631,10 @@ such pushes and no others:
 
 One more seam pushes without measuring, and it skips the reading for a reason and nothing else beside it.
 `decomposition/late_verdict_push`'s `_publishes_approved` ships a commit a human's adjudication already accepted:
-the checkout is re-proved, the push is named and leased from the record, and the debt is spent exactly as it is here.
+the checkout is re-proved — proven the issue's own last before the push, again before the handoff, and once more
+immediately before the label, behind the report debt a taken-over replay writes, since one switched onto the flat
+branch at the accepted commit stands on it cleanly — the push is named and leased from the record, and the debt is
+spent exactly as it is here.
 `git/publication/squash` is not one of them: the squash-on-approval goes through the whole gate, through
 `late_rewrite`. What it publishes is a NEW object — a squash collapses the approved commits into one commit that did
 not exist when any earlier push was measured — so that commit is the candidate, proved, frozen against the base the
@@ -3723,6 +3762,15 @@ would throw that edit away to undo a squash it had nothing to do with, and it is
 back. Left where it is, it survives the restore as the uncommitted change it was, and the retry refuses on the same
 tree — the planning probes stop on a dirty worktree — rather than collapsing it into a squash nobody asked to carry
 it.
+
+The soft reset that makes the squash, the commit behind it, and each reset that puts a refused one back, are made only
+once the checkout is proven the issue's own again (`creation._proven_checkout`), last of all behind the record's write,
+the reset itself, and the gate's readings ([branch refusal](labels-and-state.md#branch-refusal)). A tree switched onto
+the flat branch at the planned head, or at the squash, passes both the tree and the head proofs, and the reset would
+collapse or put back that branch instead -- and one switched while the soft reset ran would have the staged collapse
+committed onto it; each is refused (`naming.BranchRefused`) with nothing rewritten, committed, or put back, the switched
+tree keeping its branch and its index, and the collapse record stands exactly as a process dying at the same point
+leaves it, for the recovery that finds the checkout restored.
 
 The entry is asked twice, and the first time is not redundant. One refusal there is a hole no lease covers:
 **closing a pull request does not move its branch**, so a `--force-with-lease` succeeds against a publication nobody
@@ -6353,7 +6401,10 @@ of those recoverable without telling a human twice
       names when it settles, so one left for after the rebase would be bound to the head the rebase left and handed
       to a reviewer as that head's account. While it cannot settle nothing is rebased; where it never can, the hold
       parks for a human under `report_undeliverable`. The cap is asked behind it (`rebase._capped`), so a counter
-      that has spent every round settles what it owes before it parks.
+      that has spent every round settles what it owes before it parks. The checkout step 6 proved is proven the
+      issue's own again last before the rebase (`creation._proven_checkout`), behind that settlement and the replay
+      record's write: a tree switched onto the flat branch in between refuses (`naming.BranchRefused`) with its
+      branch unreplayed and nothing posted or relabelled.
   11. **Clean rebase succeeded**: a PROVED clean tree first — a status read that established nothing names no
       paths, exactly as a tree with nothing in it does, so only a reading that happened AND named nothing gets past
       it, and either failure parks `dirty_worktree`. Then the post-rebase HEAD, proved rather than assumed: one that
@@ -6363,7 +6414,14 @@ of those recoverable without telling a human twice
       `conflict_round += 1`). Counting no-ops against the cap surfaces a perpetually-unmergeable-due-to-branch-
       protection PR within `MAX_CONFLICT_ROUNDS` ticks; nothing was rewritten, so it records no report debt and leaves
       a standing one as it is. If HEAD moved, force-with-lease push, record the report debt the rewritten head owes
-      (see *A rewrite owes its report* below), and flip to `workflow:validating`.
+      (see *A rewrite owes its report* below), and flip to `workflow:validating`. Every flip a counted round makes, and
+      the owed one a later tick makes from the claim its count write left, is made only once the checkout is proven the
+      issue's own again, immediately before the label (`conflicts/handoff`): one switched onto the flat branch during
+      the report-debt or count write refuses (`naming.BranchRefused`) with the label, the receipt, and the claim
+      standing for the tick that finds the checkout restored. The no-op flip, which writes its count only behind the
+      label, proves the checkout behind the head's read and again behind the round's audit event, immediately before the
+      label: one switched during either refuses with nothing counted, and the tick that finds the checkout restored
+      counts the round, and reports it, again.
   12. **Conflicted rebase**: build a conflict-resolution prompt via `_build_conflict_resolution_prompt`, resume the dev
       with it (`pause_guard=True`), then run `_post_conflict_resolution_result`.
   13. `_post_conflict_resolution_result`: `interrupted` (shutdown sweep killed the run mid-flight) → ignore the

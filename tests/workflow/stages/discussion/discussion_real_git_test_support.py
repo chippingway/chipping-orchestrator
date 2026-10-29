@@ -19,7 +19,9 @@ from.
 The base branch and slug are spelled here rather than taken from the hermetic
 fixtures, because these modules build their own world: what has to agree is the
 branch the upstream carries and the branch the spec names, and nothing here
-depends on the values every mocked tick is seeded with.
+depends on the values every mocked tick is seeded with. A case driving the
+whole handler over them points the worktrees root and the event logs into its
+own directory first (`_held_outside`).
 """
 
 from __future__ import annotations
@@ -27,8 +29,11 @@ from __future__ import annotations
 import os
 import subprocess
 from pathlib import Path
+from unittest.mock import patch
 
+from orchestrator import config
 from orchestrator.config import models as _config_models
+from orchestrator.observability.analytics import settings
 
 GIT_COMMAND = "git"
 QUIET_FLAG = "-q"
@@ -81,6 +86,13 @@ def _commit_file(repo: Path, path: str, text: str) -> str:
     _git(repo, "add", "-A")
     _git(repo, "commit", QUIET_FLAG, MESSAGE_FLAG, path)
     return _git(repo, "rev-parse", "HEAD").strip()
+
+
+def _held_outside(case, root: Path) -> None:
+    """Point the worktrees root and the event logs under `root` for the case."""
+    case.enterContext(patch.object(config, "WORKTREES_DIR", root / "worktrees"))
+    case.enterContext(patch.object(settings, "ANALYTICS_LOG_PATH", root / "analytics.jsonl"))
+    case.enterContext(patch.object(settings, "TRAJECTORY_LOG_PATH", root / "trajectory.jsonl"))
 
 
 def _real_git_spec(root: Path) -> _config_models.RepoSpec:

@@ -18,7 +18,10 @@ to the agent.
 Ahead of the rebase, and of the `MAX_CONFLICT_ROUNDS` cap that refuses it, a
 report this issue recorded and has not settled is settled, so neither a
 rewrite nor a cap park ever lands over a report still owed. A branch in sync
-with its remote is asked earlier still, ahead of the reply wait.
+with its remote is asked earlier still, ahead of the reply wait. Last of all,
+behind that settlement and the replay record's write, the checkout is proven
+the issue's own again, so a tree switched onto the flat branch meanwhile is
+never replayed onto the base.
 """
 from __future__ import annotations
 
@@ -29,6 +32,7 @@ from orchestrator import config
 from orchestrator.git import branch_transport as _branch_transport
 from orchestrator.git.base_sync import pre_pr as _base_sync_pre_pr
 from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.worktrees import creation as _worktree_creation
 from orchestrator.workflow.stages.conflicts import (
     evidence as _evidence,
     models as _models,
@@ -180,6 +184,12 @@ def _rebase_and_dispose(
     rebase left rather than to the commit it describes. The cap is asked
     behind it, so a counter that has spent every round still settles the
     report it owes before it parks.
+
+    The checkout this stage proved before it worked in it is proven the
+    issue's own again last before the rebase (`creation._proven_checkout`),
+    since the report settlement and the replay record's write run between
+    the two: a tree switched onto the flat branch in that window raises
+    `naming.BranchRefused` with its branch unreplayed.
     """
     if _resume_reports._holds_the_rewrite(ctx) or _capped(ctx, conflict_round):
         return
@@ -190,6 +200,7 @@ def _rebase_and_dispose(
         return
     replayed = _evidence._replayed(spec, wt, before_sha)
     _replay_records._records_the_replay(ctx, replayed, pr_number)
+    _worktree_creation._proven_checkout(spec, ctx.issue.number, wt, rebasing=True)
     succeeded, conflicted_files = _base_sync_pre_pr._rebase_base_into_worktree(
         spec, wt,
     )

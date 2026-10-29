@@ -14,7 +14,9 @@ the pushes onto a pull request the remote already carries: named against the
 commit the squash produced, and pinned to the head the entry froze -- the same
 pre-rebase SHA, checked against the head the publication was standing on
 before any of this ran. A remote that moved underneath the rewrite rejects the
-push instead of losing the update.
+push instead of losing the update. The commit behind the soft reset, and the
+rollback, each move whatever branch HEAD names, so each is made only once the
+checkout is proven the issue's own again.
 
 The squash commit itself is created through ``commits``, which spells the one
 hardened envelope the documenting stage's replacement of its docs commit is
@@ -30,6 +32,7 @@ from pathlib import Path
 from orchestrator.git import commands
 from orchestrator.git.publication import commits, models, planning
 from orchestrator.git.verification import probes as verification_probes
+from orchestrator.git.worktrees import creation as _worktree_creation
 
 # The channel is named for the branch-publication domain rather than for this
 # module's path: operators filter the rendered `orchestrator.branch_publication`
@@ -100,7 +103,15 @@ def _rollback_squash(
     squash it had nothing to do with, and it is the one repair a human cannot
     get back. Left where it is, it survives the restore as the uncommitted
     change it was, and the retry refuses on the same tree until it is settled.
+
+    The checkout is proven the issue's own first (`creation._proven_checkout`):
+    the reset moves whatever branch HEAD names, and the gate's reading that
+    refused came after the squash's own proof -- a tree switched onto the flat
+    branch at the squash in that window would have that branch put back. It
+    raises `naming.BranchRefused` with nothing reset, and the collapse record
+    standing for the recovery that finds the checkout restored.
     """
+    _worktree_creation._proven_checkout(gate.spec, gate.issue.number, gate.worktree)
     rollback_result = commands._git_hardened(
         "reset", "--mixed", restored, cwd=gate.worktree,
     )
@@ -179,6 +190,13 @@ def _rewrite_squash(
         late_collapse_state._forgets_the_collapse(gate.state)
         return _squash_failure(f"reset --soft failed: {detail}")
 
+    # The commit lands on whatever branch HEAD names and takes whatever the
+    # index holds, and the reset is a window a tree can be switched in: one
+    # switched onto the flat branch there would have the staged collapse
+    # committed onto it. Refused, nothing is committed, the switched tree's
+    # index stays as it is, and the collapse record stands for the recovery,
+    # exactly as a process dying between the reset and the commit leaves it.
+    _worktree_creation._proven_checkout(gate.spec, gate.issue.number, gate.worktree)
     commit_result = _create_squash_commit(gate.worktree, plan.message)
     if commit_result.returncode != 0:
         detail = (commit_result.stderr or "").strip()

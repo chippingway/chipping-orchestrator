@@ -17,6 +17,9 @@ it only by a compare-and-swap against that commit: a checkout something
 committed on in the meantime refuses the move instead of having the newer
 commit rewritten and handed on in the docs commit's place. `git commit --amend`
 cannot make that promise, since it rewrites whatever HEAD is when it runs.
+The swap is about the commit and not the branch, since HEAD names whichever
+branch the checkout is on, so a caller may hand in a question of its own --
+whose checkout this still is -- asked immediately before the move.
 
 The message a replacement starts from is read off the same object, and both
 that read and the rebuild carry the bytes git stored: text capture translates a
@@ -30,7 +33,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -60,6 +63,9 @@ _AUTHOR_RE = re.compile(
 
 # What the reflog says moved HEAD onto a replacement.
 _REPLACEMENT_REFLOG = "orchestrator: name the pull request in the commit subject"
+
+# A caller's question asked immediately before HEAD is moved onto a replacement.
+_MoveProof = Callable[[], object]
 
 
 @dataclass(frozen=True)
@@ -149,7 +155,11 @@ def _commit_message(worktree: Path, revision: str) -> str | None:
 
 
 def _amend_commit_message(
-    worktree: Path, commit: str, message: str,
+    worktree: Path,
+    commit: str,
+    message: str,
+    *,
+    ahead_of_the_move: _MoveProof | None = None,
 ) -> _Amendment:
     """Replace `commit` at HEAD with a commit carrying `message` instead.
 
@@ -158,10 +168,19 @@ def _amend_commit_message(
     back is the one commit a caller may publish in `commit`'s place, and a HEAD
     read afterwards is no substitute for it. The index is never read: anything
     staged stays staged and out of the replacement.
+
+    That compare-and-swap is about the commit and not about the branch: HEAD
+    is a symbolic ref, so the move lands on whichever branch HEAD names when
+    it runs, and a checkout switched onto another branch at `commit` while the
+    replacement was built passes it. `ahead_of_the_move` is the caller's own
+    question about that, asked after the replacement exists and immediately
+    before the move; whatever it raises leaves every ref where it was.
     """
     replacement = _replacement(worktree, commit, message)
     if not replacement.sha:
         return replacement
+    if ahead_of_the_move is not None:
+        ahead_of_the_move()
     swapped = commands._git_hardened(
         "update-ref", "-m", _REPLACEMENT_REFLOG,
         "HEAD", replacement.sha, commit,

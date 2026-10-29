@@ -733,7 +733,10 @@ which paths reach an issue decides what keeps it away:
   reuse, or restore a checkout, launch an agent, or push, with a local warning each tick and nothing written, and the
   base refresh routes nothing over them. A checkout at an issue's current path standing on the flat branch, another
   repository's, or a detached HEAD no unfinished rebase of the issue's branch accounts for is refused by every road
-  that would resume, reuse, rebase, recover, or publish from it, whatever commits it carries
+  that would resume, reuse, rebase, recover, or publish from it, whatever commits it carries — one switched there
+  while a road runs included, since each push, rebase, reset, clean, squash, amendment, and pull-request open proves
+  the checkout again, as do the handoffs the branch-refusal reference names; a stage's own writes after its seam push
+  and before its relabel are not proven again
   ([branch refusal](../state-machine/labels-and-state.md#branch-refusal)). No later tick resumes such an issue: finish
   it under a build that still reads it, or close it, whose teardown deletes only the current-layout branch.
 - **Community pull requests.** The per-tick community sweep writes to open pull requests from authors outside

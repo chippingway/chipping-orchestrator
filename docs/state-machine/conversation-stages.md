@@ -134,6 +134,16 @@ the per-issue checkout only has to survive a tick when an unsafe park keeps it f
   reason with `discussion_publishing`, in the same write that spends the reply, so a crash inside the retry resumes
   here like any other unfinished publication instead of waiting for a human to say the same thing twice. Every ending
   of the attempt writes its own reason over that one, so it is durable only inside that window.
+  The checkout the commit is read from is proven the issue's own before that reading, again last before the push
+  (`discussion/publication._publish_plan`), and once more behind the plan pull request's own lookup, before its body
+  is edited, and immediately before one is opened, behind its title's read of the branch's history
+  (`discussion/plan_pr._reuse_or_open_plan_pr`) -- and before a pull request the lookup
+  by commit found already carrying the plan is adopted (`discussion/records._record_landed_plan`) -- and again behind
+  that open or the body edit a reused or adopted one gets, before the records that retire the marker -- since the
+  marker, the pull-request requests, and the remote tip all come after the first proof: a tree switched onto the flat
+  branch
+  in any of those windows refuses (`naming.BranchRefused`) with nothing pushed, opened, edited, or recorded past it,
+  and the marker stays for the resume that finds the checkout restored.
   While the marker stands it answers for the branch outright: a tip that is neither
   the commit it names nor the round's own anchor parks `discussion_stale_publication` — written once, since its own
   reason is what the repeat reads — rather than falling through to a reading that would publish a second plan-shaped

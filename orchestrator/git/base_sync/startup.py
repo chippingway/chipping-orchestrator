@@ -7,7 +7,9 @@ lease a later force-push is pinned to and the anchor a crashed tick is
 recovered from, so it has to be readable before git is allowed to move HEAD
 and pinned before the rewrite runs -- an attempt that mutated the worktree
 first and recorded the anchor second would leave a tick that died in between
-with a rewritten branch nobody can compare against. Reading it fails closed,
+with a rewritten branch nobody can compare against. Between that write and
+the rebase the checkout is proven the issue's own again (`checkout_proof`),
+and a refusal leaves the anchor standing with nothing rebased. Reading it fails closed,
 and a rebase that then fails is aborted back onto it before the outcome is
 routed: conflicted files are the dev agent's work, anything else is a park.
 
@@ -28,7 +30,7 @@ from github.PullRequest import PullRequest
 
 from orchestrator import config
 from orchestrator.git import commands
-from orchestrator.git.base_sync import attempts, conflicts, persistence, pre_pr
+from orchestrator.git.base_sync import attempts, checkout_proof, conflicts, persistence, pre_pr
 from orchestrator.git.base_sync.models import _AutoRebaseContext, _ConflictRouteContext
 from orchestrator.git.base_sync.state import (
     _AWAITING_HUMAN,
@@ -124,7 +126,19 @@ def _handle_failed_auto_rebase(
     pr: PullRequest,
     conflicted_files: list[str],
 ) -> None:
-    """Abort a failed rebase, then route conflicts or park other failures."""
+    """Abort a failed rebase, then route conflicts or park other failures.
+
+    The abort switches the checkout back onto the branch the rebase was
+    rewriting and discards what the index holds, so it is made only once the
+    checkout is proven the issue's own again (`checkout_proof`): a tree
+    switched while the rebase or its conflict read ran keeps its branch and its
+    staged content, nothing is routed or parked, and the anchor stands for the
+    recovery that finds the checkout restored.
+    """
+    if not checkout_proof._still_its_checkout(
+        context.spec, context.issue.number, context.worktree, "aborting the rebase",
+    ):
+        return
     abort = commands._git_hardened("rebase", "--abort", cwd=context.worktree)
     if abort.returncode != 0:
         log.warning(
@@ -179,12 +193,32 @@ def _start_auto_rebase(
     pr: PullRequest,
     consumed_comment_id: int | None,
 ) -> str | None:
-    """Anchor and execute the rebase, returning the known pre-rebase SHA."""
+    """Anchor and execute the rebase, returning the known pre-rebase SHA.
+
+    The checkout is proven the issue's own again behind the head's read and
+    ahead of the anchor's write (`checkout_proof._still_its_checkout`): the
+    anchor is what a recovery resets the branch back to, so a head read off a
+    tree switched onto the flat branch in that window is never recorded as
+    one, and nothing is written, rebased, or parked. It is proven once more
+    behind that write and ahead of the rebase, since the write is a request a
+    tree can be switched during and the rebase would replay whatever branch
+    HEAD names; refused there, nothing is rebased or parked, and the anchor
+    stands over the issue's own head for the recovery that finds the
+    checkout restored.
+    """
     before_sha = probes._head_sha(context.worktree) or ""
+    if not checkout_proof._still_its_checkout(
+        context.spec, context.issue.number, context.worktree, "anchoring the rebase",
+    ):
+        return None
     if not before_sha:
         _park_unreadable_pre_rebase_head(context)
         return None
     _record_auto_rebase_attempt(context, before_sha, consumed_comment_id)
+    if not checkout_proof._still_its_checkout(
+        context.spec, context.issue.number, context.worktree, "rebasing the checkout",
+    ):
+        return None
     succeeded, conflicted_files = pre_pr._rebase_base_into_worktree(
         context.spec, context.worktree,
     )

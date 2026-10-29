@@ -171,8 +171,9 @@ def _inherited_tip(
     if onto and onto == str(anchor or ""):
         return _HandoffTip(sha=anchor)
     # The move hard-resets whatever tree stands at the issue's path, so that
-    # tree is proven the issue's own first; one on any other branch refuses
-    # the handoff with its head, index, and files untouched.
+    # tree is proven the issue's own first, and the move proves it again at
+    # the reset, behind its fetch; one on any other branch refuses the
+    # handoff with its head, index, and files untouched.
     _worktree_creation._retained_checkout(spec, issue.number)
     anchored = _anchoring._anchor_pr_worktree(
         spec,

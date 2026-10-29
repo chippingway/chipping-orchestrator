@@ -10,7 +10,8 @@ the clone, on the issue's current-layout branch, at its layout path under
 checkout is the clone itself, a plain directory, a faked path, or a worktree
 it resolves the issue's path to outside `WORKTREES_DIR` has nothing either
 read could prove, so both answers are stated rather than read -- as the
-issue's own.
+issue's own, until a case states the checkout switched off the issue's branch
+partway through a road (`stated_switch`).
 """
 from __future__ import annotations
 
@@ -35,3 +36,8 @@ def stated_ownership() -> contextlib.ExitStack:
 def stated_identity(test_case) -> None:
     """Answer both reads as the issue's own until the case ends."""
     test_case.enterContext(stated_ownership())
+
+
+def stated_switch() -> None:
+    """Have the stated identity read refute the checkout from here on, as one switched off the issue's branch."""
+    _evidence._checkout_identity.return_value = _worktree_models.ProbeAnswer.REFUTED

@@ -32,8 +32,11 @@ this road all leave the comment as it stands, logged, for the next tick to read.
 The tail's hard reset is decided on the same records and moves the checkout
 ahead of every write, so it is made only once the comment, read afresh, still
 spells them as the tick last confirmed them
-(`checkpoints._still_owns_the_attempt`), and nothing is reset, cleaned, or
-parked where it does not.
+(`checkpoints._still_owns_the_attempt`) and the checkout, proven again behind
+that reading, is still the issue's own (`checkout_proof._still_its_checkout`):
+nothing is reset, cleaned, or parked where either does not hold. The clean
+behind a landed reset asks the checkout again, and a refusal there cleans and
+parks nothing.
 The finish of a rewrite that landed is the workflow's
 (`workflow/engine/rewrite_finish.py`), whichever road reached it.
 """
@@ -45,7 +48,7 @@ from types import MappingProxyType
 from github.Issue import Issue
 
 from orchestrator.git import commands
-from orchestrator.git.base_sync import attempts, checkpoints
+from orchestrator.git.base_sync import attempts, checkout_proof, checkpoints
 from orchestrator.git.base_sync.models import (
     _AutoRebaseContext,
     _AutoRebaseRecoveryContext,
@@ -199,13 +202,23 @@ def _reset_clear_and_park(
     so the comment is asked first whether it still spells the attempt and its
     evidence as the tick last confirmed them (`_resets`). One that does not
     has nothing reset, cleaned, or parked: the tail goes no further, and the
-    record stands as the comment carries it for the next tick to read.
+    record stands as the comment carries it for the next tick to read. The
+    clean deletes whatever untracked files the tree holds, so the checkout is
+    proven the issue's own once more between the reset and it
+    (`checkout_proof._still_its_checkout`): one switched while the reset ran
+    is neither cleaned nor parked, and the attempt stands for the recovery
+    that finds the checkout restored, whose reset to the same anchor moves
+    nothing.
     """
     reset = _resets(context, reset_sha)
     if reset is None:
         return
     cleaned = None
     if clean:
+        if not checkout_proof._still_its_checkout(
+            context.spec, context.issue.number, context.worktree, "cleaning the checkout",
+        ):
+            return
         cleaning = commands._git_hardened("clean", "-fd", cwd=context.worktree)
         cleaned = cleaning.returncode == 0
         if not cleaned:
@@ -319,9 +332,14 @@ def _resets(
 
     None, with nothing reset, where the comment no longer spells the attempt
     and its evidence as the tick last confirmed them
-    (`checkpoints._still_owns_the_attempt`).
+    (`checkpoints._still_owns_the_attempt`), or where the checkout is no
+    longer proven the issue's own (`checkout_proof._still_its_checkout`).
     """
     if not checkpoints._still_owns_the_attempt(context.gh, context.issue, context.state, "resetting the checkout"):
+        return None
+    if not checkout_proof._still_its_checkout(
+        context.spec, context.issue.number, context.worktree, "resetting the checkout",
+    ):
         return None
     reset = commands._git_hardened("reset", "--hard", reset_sha, cwd=context.worktree)
     if reset.returncode:

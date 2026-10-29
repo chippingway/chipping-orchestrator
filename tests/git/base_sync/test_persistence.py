@@ -23,7 +23,7 @@ from orchestrator.git import commands
 from orchestrator.git.base_sync import persistence, recovery_holds
 from orchestrator.github.pinned_state import MAX_PINNED_BODY, pinned_state_body
 from tests.git.base_sync import base_sync_helpers as fixtures
-from tests.git.base_sync.base_sync_helpers import _OrderedCall, _recorded_calls
+from tests.support.checkout_identity import stated_identity
 
 PARK_MESSAGE = "@human the rebase could not finalize"
 
@@ -176,7 +176,7 @@ class ParkAutoRebaseFailureTest(unittest.TestCase):
         context = fixtures._recovery_context()
         ordered: list[str] = []
 
-        with _recorded_calls(
+        with fixtures._recorded_calls(
             ordered, context.gh, ISSUE_COMMENT, EMIT_EVENT, RECORD_STATE,
         ):
             persistence._park_auto_rebase_failure(
@@ -397,6 +397,9 @@ class ResetClearAndParkTest(unittest.TestCase):
         in_flight: bool = False,
         breaks=None,
     ):
+        # The tail proves the checkout the issue's own before it resets, and
+        # the context's checkout here is no real worktree at a layout path.
+        stated_identity(self)
         seeded = dict(_IN_FLIGHT) if in_flight else {
             fixtures.KEY_PENDING_PUSH_SHA: fixtures.PRE_REBASE_SHA,
         }
@@ -405,8 +408,8 @@ class ResetClearAndParkTest(unittest.TestCase):
             _breaks(context, breaks)
         hardened = hardened or MagicMock(return_value=fixtures._git_result())
         ordered: list[str] = []
-        recorder = _OrderedCall(ordered, fixtures.GIT_HARDENED, hardened)
-        with _recorded_calls(
+        recorder = fixtures._OrderedCall(ordered, fixtures.GIT_HARDENED, hardened)
+        with fixtures._recorded_calls(
             ordered, context.gh, ISSUE_COMMENT, EMIT_EVENT, RECORD_STATE,
         ), patch.object(commands, fixtures.GIT_HARDENED, recorder):
             persistence._reset_clear_and_park(
@@ -422,6 +425,11 @@ class ResetClearAndParkTest(unittest.TestCase):
 
 class ResetAnswerTest(unittest.TestCase):
     """What a recovery owes over its landed reset rides the park's one write; nothing is reset over a moved record."""
+
+    def setUp(self) -> None:
+        # The tail proves the checkout the issue's own before it resets, and
+        # the context's checkout here is no real worktree at a layout path.
+        stated_identity(self)
 
     def test_the_answer_rides_the_park_write(self) -> None:
         # Asked while the attempt it answers for still stands, whether the
@@ -448,7 +456,7 @@ class ResetAnswerTest(unittest.TestCase):
         owed = _Owed()
         context, takes = road(owed)
         ordered: list[str] = []
-        with _recorded_calls(ordered, context.gh, RECORD_STATE), patch.object(
+        with fixtures._recorded_calls(ordered, context.gh, RECORD_STATE), patch.object(
             commands, fixtures.GIT_HARDENED, MagicMock(return_value=fixtures._git_result(returncode=exit_code)),
         ):
             takes()

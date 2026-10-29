@@ -18,6 +18,8 @@ neither reports a reading that did not happen as a clean worktree, which is
 what would let the stale commit survive. The reset is paired with `git clean -fd` because
 `reset --hard` leaves untracked files -- and a docs agent's output is often a
 new file or a new directory under `docs/` that no reviewer ever approved.
+Since the pair discards whatever the tree holds, the checkout is proven the
+issue's own again before them, behind the fetch and the probe.
 """
 from __future__ import annotations
 
@@ -27,6 +29,7 @@ from contextlib import suppress
 from orchestrator import config
 from orchestrator.git import branch_transport as _branch_transport, commands as _git_commands
 from orchestrator.git.verification import status as _worktree_status
+from orchestrator.git.worktrees import creation as _worktree_creation
 from orchestrator.workflow.stages.documenting import models as _models, parks as _parks
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -120,9 +123,20 @@ def _documenting_drift_hard_reset(ctx: _models._DocumentingContext, wt) -> bool:
     the docs agent created but the reviewer never approved. Returns True on
     success; on a git failure parks with `worktree_reset_failed` and returns
     False.
+
+    The checkout is proven the issue's own again first
+    (`creation._proven_checkout`): the unwind proved it before the fetch and
+    the probe, and a tree switched onto another branch since raises
+    `naming.BranchRefused` with nothing reset or cleaned. It is proven once
+    more between the two, because the clean deletes whatever untracked files
+    the tree holds and the reset is a window of its own: a tree switched
+    while it ran raises the same way with its files in place, nothing parked,
+    and the pending unwind left on the record for the tick that finds the
+    checkout restored.
     """
     spec = ctx.spec
     branch = ctx.branch
+    _worktree_creation._proven_checkout(spec, ctx.issue.number, wt)
     reset = _git_commands._git_hardened(
         "reset", "--hard", f"{spec.remote_name}/{branch}", cwd=wt,
     )
@@ -144,6 +158,7 @@ def _documenting_drift_hard_reset(ctx: _models._DocumentingContext, wt) -> bool:
             "worktree_reset_failed",
         )
         return False
+    _worktree_creation._proven_checkout(spec, ctx.issue.number, wt)
     clean = _git_commands._git_hardened("clean", "-fd", cwd=wt)
     if clean.returncode != 0:
         log.error(
@@ -189,7 +204,8 @@ def _reset_documenting_drift_worktree(
     modified-tracked and untracked paths, so any non-empty list is a cleanup
     trigger).
 
-    Returns True on success (worktree in sync). Returns False when a git
+    Returns True on success (worktree in sync), once the checkout is proven
+    the issue's own again behind every step here. Returns False when a git
     step failed and the issue was parked -- a stale local commit silently
     riding into the next approval is worse than parking.
     """
@@ -200,6 +216,12 @@ def _reset_documenting_drift_worktree(
         return False
     ahead, behind = probe
     dirty = _worktree_status._worktree_dirty_files(wt)
-    if ahead > 0 or behind > 0 or dirty:
-        return _documenting_drift_hard_reset(ctx, wt)
+    drifted = ahead > 0 or behind > 0 or bool(dirty)
+    if drifted and not _documenting_drift_hard_reset(ctx, wt):
+        return False
+    # A worktree in sync is the unwind complete, and its caller hands the tree
+    # back to validating -- so the checkout is proven the issue's own once more
+    # behind the fetch, the probe, and whatever reset and clean ran, a tree
+    # switched in any of them clean at the same commit included.
+    _worktree_creation._proven_checkout(ctx.spec, ctx.issue.number, wt)
     return True

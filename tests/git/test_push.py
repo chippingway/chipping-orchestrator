@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from orchestrator import config
-from orchestrator.git import branch_transport
+from orchestrator.git import branch_transport, push_questions
 from tests.git.token_transport_test_support import (
     FAKE_TOKEN,
     REPOSITORY_SLUG,
@@ -133,6 +133,26 @@ class PushBranchLeaseTest(unittest.TestCase):
                 f"--force-with-lease={ISSUE_REF}:{PINNED_SHA}",
                 push_cmd,
             )
+
+    def test_the_caller_s_question_comes_last(self) -> None:
+        # A caller whose push is right only while its checkout is still the
+        # one it proved hands that question in. It is asked behind the
+        # transport probe -- a read of the worktree's own config -- and
+        # immediately before the push; a refusal sends nothing.
+        asked_at = []
+        with _patched_push([_git_result(), _git_result()]) as answered:
+            with push_questions.asked_before_the_push(lambda: asked_at.append(answered.call_count)):
+                pushed = branch_transport._push_branch(
+                    _spec(), WORKTREE, ISSUE_BRANCH, force_with_lease=PINNED_SHA,
+                )
+            self.assertEqual((pushed, asked_at, answered.call_count), (True, [1], 2))
+        refusal = MagicMock(side_effect=RuntimeError("the checkout is no longer the issue's own"))
+        with _patched_push([_git_result()]) as refused, push_questions.asked_before_the_push(refusal):
+            self.assertRaises(
+                RuntimeError, branch_transport._push_branch,
+                _spec(), WORKTREE, ISSUE_BRANCH, force_with_lease=PINNED_SHA,
+            )
+            self.assertEqual(refused.call_count, 1)
 
     def test_a_named_revision_is_what_gets_published(self) -> None:
         # A caller that decided to push by INSPECTING a commit must publish

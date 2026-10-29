@@ -65,6 +65,7 @@ _OWNERS = (
     "orchestrator.git.base_sync.transfer_publication",
 
     "orchestrator.git.base_sync.attempt_records",
+    "orchestrator.git.base_sync.checkout_proof",
     "orchestrator.git.base_sync.checkpoints",
     "orchestrator.git.base_sync.recovery_holds",
     "orchestrator.git.base_sync.recovery_notices",

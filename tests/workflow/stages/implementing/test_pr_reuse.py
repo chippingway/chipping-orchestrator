@@ -6,8 +6,10 @@ from __future__ import annotations
 
 import unittest
 from functools import partial
+from unittest.mock import patch
 
-from orchestrator.git.worktrees import naming as _naming
+from orchestrator import config
+from orchestrator.git.worktrees import evidence as _worktree_evidence, naming as _naming
 from orchestrator.git.worktrees.models import ProbeAnswer
 from orchestrator.workflow.engine import content_hash as _content_hash
 from orchestrator.workflow.stages.implementing import handler as _implementing
@@ -36,9 +38,15 @@ FLAT_BRANCH = "orchestrator/issue-4"
 # The current-layout name of issue 4's branch, which an open pull request stands on.
 CURRENT_BRANCH = "orchestrator/chippingway__chipping-orchestrator/issue-4"
 
+# The push seam, which a publication refused before it pushes leaves uncalled.
+_PUSH = "_push_branch"
+
 # Every seam a tick refused on its branch must leave uncalled: the launch, both
 # checkout creators, and the push.
-REFUSED_SEAMS = ("run_agent", "_ensure_worktree", "_ensure_pr_worktree", "_push_branch")
+REFUSED_SEAMS = ("run_agent", "_ensure_worktree", "_ensure_pr_worktree", _PUSH)
+
+# The commit a publication records it owes a push, in the write ahead of that push.
+_INTENT = "late_approved_sha"
 
 
 class OnCommitsPRReuseTest(unittest.TestCase, _PatchedWorkflowMixin):
@@ -203,3 +211,68 @@ class OnCommitsPRReuseTest(unittest.TestCase, _PatchedWorkflowMixin):
             pinned_data.get("branch"),
             "orchestrator/chippingway__chipping-orchestrator/issue-11",
         )
+
+
+class SwitchedPublicationTest(unittest.TestCase, _PatchedWorkflowMixin):
+    """A publication over the issue's own checkout, which the ownership read refutes partway through.
+
+    The publication proves the checkout before its intent, and again last
+    before the push and before the pull request is opened: the intent's write,
+    the barrier's readings, and the push itself all come after the first
+    proof, and a tree switched onto the flat branch at the published commit
+    passes every reading of that commit and tree. The size gate is off, so
+    the commit the push is owed is the publication's own write rather than
+    an approval the gate recorded ahead of the first proof.
+    """
+
+    def setUp(self) -> None:
+        self.enterContext(patch.object(config, "DECOMPOSE", False))
+        self.gh = FakeGitHubClient()
+        self.issue = make_issue(4, label=LABEL_IMPLEMENTING)
+        self.gh.add_issue(self.issue)
+        existing = FakePR(
+            number=EXISTING_PR_NUMBER, head_branch=CURRENT_BRANCH,
+            body=support._named_description(4, DEV_SESSION),
+        )
+        self.gh.add_pr(existing)
+        self.gh.existing_open_pr[CURRENT_BRANCH] = existing
+        self._write = self.gh.write_pinned_state
+
+    def test_a_switch_at_the_intent_pushes_nothing(self) -> None:
+        with patch.object(self.gh, "write_pinned_state", side_effect=self._switched_at_the_intent):
+            mocks = self._publishes(push_branch=True)
+
+        mocks[_PUSH].assert_not_called()
+        self.assertEqual((self.gh.opened_prs, self.gh.label_history), ([], []))
+        self.assertTrue(self.gh.pinned_data(4).get(_INTENT))
+
+    def test_a_switch_mid_push_opens_nothing(self) -> None:
+        mocks = self._publishes(push_branch=self._switched_push)
+
+        self.assertEqual(mocks[_PUSH].call_count, 1)
+        self.assertEqual((self.gh.opened_prs, self.gh.label_history), ([], []))
+        self.assertTrue(self.gh.pinned_data(4).get(_INTENT))
+
+    def _publishes(self, *, push_branch) -> dict:
+        """One implementing tick whose run committed on a clean tree, refused partway; the seams it used."""
+        return self._run(
+            partial(
+                self.assertRaises, _naming.BranchRefused,
+                _implementing._handle_implementing, self.gh, support._TEST_SPEC, self.issue,
+            ),
+            run_agent=_agent(session_id=DEV_SESSION, last_message=DONE_MESSAGE),
+            has_new_commits=[False, True],
+            dirty_files=(),
+            push_branch=push_branch,
+        )
+
+    def _switched_at_the_intent(self, issue, state, *args, **kwargs):
+        """Write the record, refuting the checkout from the write that records the commit it owes a push."""
+        if state.get(_INTENT):
+            _worktree_evidence._checkout_identity.return_value = ProbeAnswer.REFUTED
+        return self._write(issue, state, *args, **kwargs)
+
+    def _switched_push(self, *_args, **_kwargs) -> bool:
+        """A push that lands while the checkout is switched under it."""
+        _worktree_evidence._checkout_identity.return_value = ProbeAnswer.REFUTED
+        return True

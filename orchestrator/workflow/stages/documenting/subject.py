@@ -19,7 +19,10 @@ that would accept it for being the commit it was named. HEAD is then read back
 before anything else runs, and the replacement is handed on only where HEAD is
 standing on it: the id is still the one git created, and the read proves the
 checkout the gate goes on to prove is that commit rather than whatever landed
-on top of it after the move.
+on top of it after the move. The move rewrites whatever branch HEAD names, so
+the checkout is proven the issue's own again immediately before it, once the
+replacement exists: the agent's run, the commit's reads, and the
+replacement's construction all came between the pass's own proof and there.
 
 It is an edit of the subject's own text and nothing else. The author, the
 tree, and every other byte of the message -- the subject line's ending
@@ -38,6 +41,7 @@ the subject without it.
 from __future__ import annotations
 
 import logging
+from functools import partial
 
 from orchestrator import config
 from orchestrator.git.publication import (
@@ -45,6 +49,7 @@ from orchestrator.git.publication import (
     pr_references as _pr_references,
 )
 from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.worktrees import creation as _worktree_creation
 from orchestrator.workflow.stages.documenting import (
     models as _models,
     parks as _parks,
@@ -133,9 +138,19 @@ def _amended_docs_commit(
     it is standing on that id: a checkout something committed on after the
     move is not the replacement, and handing the gate the id HEAD reads instead
     would carry the race the move closed straight to it.
+
+    The checkout is proven the issue's own (`creation._proven_checkout`) once
+    the replacement exists, immediately before HEAD is moved onto it: the move
+    rewrites whatever branch HEAD names, the agent's run, the commit's reads,
+    and the replacement's construction all came after the pass's own proof,
+    and a tree switched onto the flat branch at `after_sha` in any of them
+    would have that branch's tip replaced. The refusal raises
+    `naming.BranchRefused` with nothing amended or parked and every branch
+    where it was.
     """
     amended = _publication_commits._amend_commit_message(
         wt, after_sha, message,
+        ahead_of_the_move=partial(_worktree_creation._proven_checkout, ctx.spec, ctx.issue.number, wt),
     )
     if not amended.sha:
         log.error(

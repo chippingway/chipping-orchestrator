@@ -9,10 +9,15 @@ UID. The pre-PR path is the only caller that may abort on conflict and leave
 the worktree on its original SHA -- nothing is pushed yet, so no remote head
 depends on the rewrite and conflict resolution can wait until a PR exists.
 The rebase-state probes are published for the conflict stage, which asks
-whether a worktree still sits mid-rebase before it parks one.
+whether a worktree still sits mid-rebase before it parks one. The abort
+switches the checkout back onto the branch the rebase was rewriting and
+discards what the index holds, so the caller hands in the question it asks
+first -- whose checkout this still is -- and a tree switched while the
+rebase or its conflict read ran keeps its branch and its staged content.
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 from orchestrator.config import models as _config_models
@@ -85,8 +90,15 @@ def _sync_pre_pr_worktree(
     worktree: Path,
     issue_number: int,
     behind: int,
+    *,
+    ahead_of_the_abort: Callable[[], bool],
 ) -> None:
-    """Rebase one clean pre-PR worktree and restore it on failure."""
+    """Rebase one clean pre-PR worktree and restore it on failure.
+
+    `ahead_of_the_abort` is asked before a failed rebase is aborted, and a
+    False answer leaves the worktree exactly as the rebase left it. It is
+    required, so no caller can abort a tree it has not asked about.
+    """
     base_ref = f"{spec.remote_name}/{spec.base_branch}"
     succeeded, conflicted_files = _rebase_base_into_worktree(spec, worktree)
     if succeeded:
@@ -96,6 +108,8 @@ def _sync_pre_pr_worktree(
             base_ref,
             behind,
         )
+        return
+    if not ahead_of_the_abort():
         return
 
     abort_result = _commands._git_hardened("rebase", "--abort", cwd=worktree)

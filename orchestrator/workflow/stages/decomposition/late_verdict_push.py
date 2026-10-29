@@ -24,13 +24,19 @@ Both of those still owe the CHECKOUT, which is why the proof is on the road out
 rather than inside the push. What the verdict licensed is one commit, and the
 worktree it was accepted from is writable through the whole adjudication,
 through the push itself, and through the tick that died between a landed push
-and the retry that finds it.
+and the retry that finds it. The proof first holds that worktree to the issue's
+own branch, since one switched onto the flat branch at the accepted commit
+stands on it cleanly.
 """
 from __future__ import annotations
 
 import logging
 
-from orchestrator.git.worktrees import naming as _naming, paths as _worktree_paths
+from orchestrator.git.worktrees import (
+    creation as _worktree_creation,
+    naming as _naming,
+    paths as _worktree_paths,
+)
 from orchestrator.workflow.late_split.models import LateFailure
 from orchestrator.workflow.stages.decomposition import (
     late_outcome as _late_outcome,
@@ -143,6 +149,23 @@ def _accepted_push_landed(context: _LateContext, worktree) -> bool:
     return False
 
 
+def _proven_before_the_label(context: _LateContext) -> None:
+    """Prove a published candidate's checkout the issue's own again, immediately before its label moves.
+
+    The handoff's own proof (`_proved_before_the_handoff`) comes ahead of the
+    writes behind it -- the report debt a taken-over replay leaves among them
+    -- and each is a window a tree can be switched in. So it is asked again
+    last, and `naming.BranchRefused` leaves the label on the adjudication,
+    the generation live, and the receipt the push landed standing. A
+    pre-publication verdict has no checkout this settlement proved, and its
+    handback to `implementing` asks for one on its own terms.
+    """
+    if context.generation.publication.is_complete:
+        _worktree_creation._proven_checkout(
+            context.spec, context.issue.number, _worktree_paths._worktree_path(context.spec, context.issue.number),
+        )
+
+
 def _proved_before_the_handoff(context: _LateContext, worktree) -> bool:
     """Refuse the handoff where the checkout is not what the verdict accepted.
 
@@ -165,7 +188,13 @@ def _proved_before_the_handoff(context: _LateContext, worktree) -> bool:
     Reached with a checkout in hand on both roads: a push is made from one or
     not at all, and a recorded verdict is refused for a missing worktree well
     before it is settled.
+
+    The checkout is proven the issue's own first (`creation._proven_checkout`),
+    since a tree switched onto the flat branch at the accepted commit stands
+    on it cleanly: it raises `naming.BranchRefused` with nothing parked, and
+    the label and the generation left on the adjudication.
     """
+    _worktree_creation._proven_checkout(context.spec, context.issue.number, worktree)
     if _late_accepted._standing_on(
         worktree, context.generation.candidate_sha,
     ):

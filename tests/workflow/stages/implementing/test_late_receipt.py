@@ -62,8 +62,9 @@ _REVISION = "revision"
 _LEASE = "force_with_lease"
 _STANDING_EXACTLY_ON = "standing_exactly_on"
 
-# The last step this seam takes before its barrier, which is the window a poll
-# on another worker can end the publication in.
+# The step this seam names its commit in, ahead of the intent's write and its
+# barrier, which is the window a poll on another worker can end the
+# publication in.
 _PUBLICATION_INTENT = "_publication_intent"
 
 # Somebody else's copy of this repository: where a fork's head lives, which is
