@@ -454,11 +454,11 @@ class CallerStateTest(unittest.TestCase):
         # over: the caller's copy may hold a staged edit of the same field,
         # and the charge is not the write that decides it.
         launch = support.seeded(decomposer_agent="codex")
-        launch.state.data.pop("decomposer_agent")
+        launch.state.state_data.pop("decomposer_agent")
 
         support.run_launch(launch)
 
-        self.assertNotIn("decomposer_agent", launch.state.data)
+        self.assertNotIn("decomposer_agent", launch.state.state_data)
         self.assertEqual(launch.state.get(support.USED), 1)
 
 

@@ -243,11 +243,11 @@ class ConsumerWriteTest(unittest.TestCase):
         ):
             with self.subTest(shape=shape):
                 lineage = _support.decide(state)
-                before = dict(state.data)
+                before = dict(state.state_data)
 
                 lineage.protect(state, PROTECTED_CHILD)
 
-                self.assertEqual(state.data, before)
+                self.assertEqual(state.state_data, before)
                 self.assertEqual(lineage.child_ancestry(state, PROTECTED_CHILD), lineage.ancestry)
 
 
@@ -349,23 +349,23 @@ class SeedRepairTest(unittest.TestCase):
         """What the parent's lineage answers for a child carrying `carried` -- unreadable for None -- and that child."""
         child = PinnedState(parsed=False)
         if carried is not None:
-            child = PinnedState(data=dict(carried))
+            child = PinnedState(state_data=dict(carried))
         lineage = _support.decide(parent)
         return lineage.repair(parent, _support.PARENT, PROTECTED_CHILD, child, instructed), child
 
     def _assert_refused(self, parent: PinnedState, carried: dict | None, instructed: frozenset) -> None:
         """A refusal naming the child, with nothing to write and nothing written to either record."""
-        before = dict(parent.data)
+        before = dict(parent.state_data)
         repair, child = self._repair(parent, carried, instructed)
 
         self.assertIn(f"child #{PROTECTED_CHILD}", repair.refusal or "")
         self.assertEqual((repair.ancestry, repair.protect), (None, False))
-        self.assertEqual((parent.data, child.data), (before, carried or {}))
+        self.assertEqual((parent.state_data, child.state_data), (before, carried or {}))
 
 
 def _without_consumers(state: PinnedState) -> dict:
     """Everything the parent's pinned comment carries but its consumer ledger."""
-    return {key: written for key, written in state.data.items() if key != KEY_CONSUMERS}
+    return {key: written for key, written in state.state_data.items() if key != KEY_CONSUMERS}
 
 
 # What a protected root replacement's instructions say: the pointer, the range

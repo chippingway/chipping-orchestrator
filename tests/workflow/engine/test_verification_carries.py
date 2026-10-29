@@ -181,7 +181,7 @@ class CarryAbandonmentTest(unittest.TestCase, support.VerificationEvidenceCase):
         # and what it frees takes the carry's entry too.
         pending = self.record(self.binding().retargeted(support.SQUASHED_SHA))
         self.state.set(FILLER, "")
-        room = MAX_PINNED_BODY - len(pinned_state_body(self.state.data))
+        room = MAX_PINNED_BODY - len(pinned_state_body(self.state.state_data))
         self.state.set(FILLER, "y" * room)
         self.gh.write_pinned_state(self.issue, self.state)
 
@@ -192,7 +192,7 @@ class CarryAbandonmentTest(unittest.TestCase, support.VerificationEvidenceCase):
             (
                 written.get(_review_subjects.APPROVED_SUBJECT),
                 _record_state.read_pending_evidence(written),
-                _report_record_state.fits_the_comment(written.data),
+                _report_record_state.fits_the_comment(written.state_data),
             ),
             (None, None, True),
         )
@@ -230,7 +230,7 @@ class GuardedAbandonmentTest(unittest.TestCase, support.VerificationEvidenceCase
                     ),
                     (None, [(self.carry.receipt, _ABANDONED)], None),
                 )
-                self.assertEqual({**persisted.data, **road.INDEPENDENT}, persisted.data)
+                self.assertEqual({**persisted.state_data, **road.INDEPENDENT}, persisted.state_data)
                 self.assertIn(road.ANOTHER_ROADS_COMMENT, persisted.get(support.LEDGER))
 
     def test_a_moved_approval_refuses_it(self) -> None:
@@ -329,7 +329,7 @@ class RefusedSettlementTest(unittest.TestCase, support.VerificationEvidenceCase)
                     ),
                     (None, [(self.carry.receipt, _ABANDONED)], None, [self.carry.artifact]),
                 )
-                self.assertEqual({**persisted.data, **road.INDEPENDENT}, persisted.data)
+                self.assertEqual({**persisted.state_data, **road.INDEPENDENT}, persisted.state_data)
                 self.assertLessEqual(
                     {road.ANOTHER_ROADS_COMMENT, self.pull_request.issue_comments[-1].id},
                     set(persisted.get(support.LEDGER)),

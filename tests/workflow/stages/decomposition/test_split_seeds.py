@@ -104,7 +104,7 @@ class UnseededChildTest(_ChildCase):
         for shape, carried in _LAPSED.items():
             with self.subTest(shape=shape):
                 self.setUp()
-                state = PinnedState(data=dict(carried))
+                state = PinnedState(state_data=dict(carried))
                 held = [self._holds(WorkflowLabel.READY, state) for _ in range(2)]
 
                 self.assertEqual(held, [True, True])
@@ -124,14 +124,14 @@ class UnseededChildTest(_ChildCase):
         self.assertEqual(held, [True, True])
         self.assertEqual(self.github.write_state_calls, 0)
         self.assertEqual(self.github.pinned_data(CHILD), _WHOLE)
-        self.assertEqual(state.data, {})
+        self.assertEqual(state.state_data, {})
         self.assertEqual(len(self.github.posted_comments), 0)
         self.assertEqual(self._parks(), [])
 
     def test_any_lineage_on_a_child_owed_none_is_held(self) -> None:
         self.setUp(_UNOWED_STAMP)
 
-        self.assertTrue(self._holds(None, PinnedState(data=_WHOLE)))
+        self.assertTrue(self._holds(None, PinnedState(state_data=_WHOLE)))
         self.assertEqual(self._parks(), [PARK_HOLD])
 
 
@@ -142,10 +142,10 @@ class RunnableChildTest(_ChildCase):
         for shape, (receipt, carried) in _RUNNABLE.items():
             with self.subTest(shape=shape):
                 self.setUp(receipt)
-                state = PinnedState(data=dict(carried))
+                state = PinnedState(state_data=dict(carried))
 
                 self.assertFalse(self._holds(WorkflowLabel.DECOMPOSING, state))
-                self.assertEqual(state.data, carried)
+                self.assertEqual(state.state_data, carried)
                 self.assertEqual(self._parks(), [])
 
     def test_no_split_child_is_held(self) -> None:

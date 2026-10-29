@@ -219,7 +219,7 @@ class OwnerSeed:
             mirror_first=True,
             scope="the slice this owner was cut for",
         ))
-        github.seed_state(PARENT_NUMBER, **recorded.data)
+        github.seed_state(PARENT_NUMBER, **recorded.state_data)
 
     def seed_child(self, github: FakeGitHubClient, child_label: str) -> None:
         """Add the one consumer, with the ancestry a split writes on it.
@@ -260,7 +260,7 @@ class OwnerSeed:
             mirror_first=self.child_mirror_first,
             scope="the slice this child owns",
         ))
-        github.seed_state(CHILD_NUMBER, **recorded.data)
+        github.seed_state(CHILD_NUMBER, **recorded.state_data)
 
 
 @dataclass(frozen=True)
@@ -379,7 +379,7 @@ def split_umbrella(
         PARENT_NUMBER,
         children=[CHILD_NUMBER] if seed.child else [],
         umbrella=True,
-        **recorded.data,
+        **recorded.state_data,
     )
     seed.seed_ancestry(github, parent)
     return SeededUmbrella(github=github, parent=parent)

@@ -189,7 +189,7 @@ class ReviewerAnchorReconstructionTest(
         from orchestrator.github.pinned_state import PinnedState
 
         state = PinnedState(
-            data={
+            state_data={
                 PENDING_FIX_AT: PENDING_FIX_AT_TS,
                 PENDING_FIX_ISSUE_MAX_ID: BATCH_PR_CONVERSATION_ID,
                 PENDING_FIX_REVIEW_MAX_ID: BATCH_INLINE_SECOND_ID,

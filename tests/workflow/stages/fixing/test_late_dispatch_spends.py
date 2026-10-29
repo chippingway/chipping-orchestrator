@@ -271,7 +271,7 @@ class RecordedSpendsReadingTest(unittest.TestCase):
             (_recorded(("conflict_settled_outcome", 7)), ()),
         ):
             with self.subTest(recorded=recorded):
-                state = PinnedState(data={KEY_SPENDS: recorded})
+                state = PinnedState(state_data={KEY_SPENDS: recorded})
 
                 self.assertEqual(
                     _late_state.read_late_spends(state), restored,
@@ -281,11 +281,11 @@ class RecordedSpendsReadingTest(unittest.TestCase):
         # A generation frozen by a seam with no bookkeeping behind it -- the
         # whole implementing side -- leaves the key absent rather than empty,
         # so a reader cannot tell an empty list from a damaged one.
-        state = PinnedState(data={KEY_SPENDS: list(FROZEN_SPENDS)})
+        state = PinnedState(state_data={KEY_SPENDS: list(FROZEN_SPENDS)})
 
         _late_state.write_late_spends(state, ())
 
-        self.assertNotIn(KEY_SPENDS, state.data)
+        self.assertNotIn(KEY_SPENDS, state.state_data)
 
 
 class RecoveredRoundEndToEndTest(unittest.TestCase, _FrozenPairMixin):

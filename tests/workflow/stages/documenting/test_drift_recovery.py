@@ -375,7 +375,7 @@ class _RecordsEveryWrite:
         self.written: list = []
 
     def __call__(self, issue, state):
-        self.written.append(dict(state.data))
+        self.written.append(dict(state.state_data))
         return self._record(issue, state)
 
 

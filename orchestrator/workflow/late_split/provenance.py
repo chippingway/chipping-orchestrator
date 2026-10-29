@@ -223,7 +223,7 @@ def _ancestry_record_refusal(state: PinnedState, ancestry: _ancestry.LateAncestr
         return _UNREADABLE_ANCESTRY
     rewritten = PinnedState()
     _lineage.write_late_ancestry(rewritten, ancestry)
-    written = rewritten.data.items()
+    written = rewritten.state_data.items()
     dropped = [key for key in carried if (key, state.get(key)) not in written]
     return _DROPPED_ANCESTRY.format(key=dropped[0]) if dropped else None
 

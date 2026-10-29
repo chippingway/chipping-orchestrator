@@ -193,7 +193,7 @@ class SquashRaceTest(
             (
                 _settlement.read_current_report(written).report_revision,
                 written.get(REVIEW_ROUND),
-                _support.COLLAPSE_KEY in written.data,
+                _support.COLLAPSE_KEY in written.state_data,
                 bool(written.get(_support.AWAITING_HUMAN)),
                 github.label_history,
             ),
@@ -228,7 +228,7 @@ class SquashRaceTest(
         github, issue, _pr = self._setup()
         with _one.LosesOneResponse(SimpleNamespace(github=github), _THE_RECORD).patched():
             self._run_squash_approval(github, issue, _RecordsItsCollapse())
-        written = github.read_pinned_state(issue).data
+        written = github.read_pinned_state(issue).state_data
         self.assertEqual(
             (
                 (_support.COLLAPSE_KEY in written, written.get(_APPROVED_SUBJECT) is not None),
@@ -240,7 +240,7 @@ class SquashRaceTest(
 
         mocks = self._run_squash_approval(github, issue, _LandsWithACollapseRecorded())
 
-        written = github.read_pinned_state(issue).data
+        written = github.read_pinned_state(issue).state_data
         self.assertEqual(
             (
                 (mocks[_support.RUN_AGENT].call_count, mocks[_support.SQUASH_SEAM].call_count),
@@ -291,7 +291,7 @@ class SquashRaceTest(
         return (
             _settlement.read_current_report(written).report_revision,
             written.get(REVIEW_ROUND),
-            _support.COLLAPSE_KEY in written.data or bool(written.get(_support.AWAITING_HUMAN)),
+            _support.COLLAPSE_KEY in written.state_data or bool(written.get(_support.AWAITING_HUMAN)),
             written.get(THEIR_NOTE),
             github.label_history,
         )

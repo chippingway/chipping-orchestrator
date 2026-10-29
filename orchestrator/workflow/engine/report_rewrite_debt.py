@@ -280,7 +280,7 @@ def records_rewrite(state: PinnedState, rewrite: RewriteDebt) -> bool:
         staged = None if standing is None else standing.retargeted(state, rewrite)
     if staged is None:
         return False
-    if not _report_record_state.fits_the_comment({**state.data, REWRITE_DEBT: staged.recorded()}):
+    if not _report_record_state.fits_the_comment({**state.state_data, REWRITE_DEBT: staged.recorded()}):
         return False
     state.set(REWRITE_DEBT, staged.recorded())
     return True

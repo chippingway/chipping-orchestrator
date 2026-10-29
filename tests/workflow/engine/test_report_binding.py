@@ -449,7 +449,7 @@ class GuardedBindingTest(unittest.TestCase, _Publication):
             ),
             (dict(_ANOTHER_ROAD), None, delivered.receipt),
         )
-        self.assertEqual(self.state.data, pinned)
+        self.assertEqual(self.state.state_data, pinned)
 
     def test_a_comment_moved_under_it_binds_nothing(self) -> None:
         # The delivery stays where the tick holds it, and the comment as the
@@ -463,12 +463,12 @@ class GuardedBindingTest(unittest.TestCase, _Publication):
                 self.state.set(_AWAITING, False)
                 moves(self)
                 found = self.gh.pinned_data(support.ISSUE_NUMBER)
-                held = dict(self.state.data)
+                held = dict(self.state.state_data)
 
                 self.publishes()
 
                 self.assertEqual(
-                    (self.gh.pinned_data(support.ISSUE_NUMBER), self.state.data, self.gh.posted_comments),
+                    (self.gh.pinned_data(support.ISSUE_NUMBER), self.state.state_data, self.gh.posted_comments),
                     (found, held, []),
                 )
                 self.assertEqual(support.report_comments(self), [])
@@ -645,7 +645,7 @@ class FreshReadingTest(unittest.TestCase, _Publication):
                 self.state.set(_PR_NUMBER, support.PR_NUMBER)
                 self.state.set(_BRANCH, support.BRANCH)
                 self.pins()
-                found = self.gh.read_pinned_state(self.issue).data
+                found = self.gh.read_pinned_state(self.issue).state_data
 
                 with commit_support.behind(self.gh, self.issue, commit_support.NOTICE, **repointed):
                     self.publishes()
@@ -654,7 +654,7 @@ class FreshReadingTest(unittest.TestCase, _Publication):
                 self.assertEqual(
                     (
                         len(self.gh.posted_comments),
-                        self.gh.read_pinned_state(self.issue).data,
+                        self.gh.read_pinned_state(self.issue).state_data,
                         self.state.withheld,
                     ),
                     (1, {**found, **repointed}, True),

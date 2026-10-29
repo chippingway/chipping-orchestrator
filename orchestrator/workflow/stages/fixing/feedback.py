@@ -363,7 +363,7 @@ def _read_by_an_owed_report(state, feedback: _models._FixingFeedback) -> bool:
     if not recorded.watermarks:
         return False
     answered = PinnedState(
-        comment_id=state.comment_id, state_data=dict(state.data),
+        comment_id=state.comment_id, state_data=dict(state.state_data),
     )
     _consumed.advance_consumed(answered, recorded.watermarks)
     return not _consumed_delivery(answered, feedback).consumed_pairs(answered)

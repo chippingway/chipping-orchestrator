@@ -39,7 +39,7 @@ class ReceiptEvidenceTest(unittest.TestCase, support.ReportEvidenceCase):
         for member in (
             support.PUBLISHED_SHA, support.PUBLISHED_PR, support.PUBLISHED_LEASE,
         ):
-            self.state.data.pop(member, None)
+            self.state.state_data.pop(member, None)
 
         self.assertEqual(self.evidence().verdict, support.DEFER)
 

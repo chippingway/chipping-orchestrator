@@ -576,7 +576,10 @@ because there it is the claim that this stage has already rerouted rather than a
      not met a second time.
   3. **Half-finished decomposition recovery.** If `expected_children_count` is set OR `children` is non-empty (a prior
      tick crashed mid-split, or left a child another poller held unseeded), the handler cannot safely respawn the
-     decomposer. When `expected_children_count` is set
+     decomposer. Every split writes the count before its first create, so a `children` register with no
+     `expected_children_count` beside it, or a count that is not an integer, says nothing about whether the split
+     finished: it parks with `decomposition_crash` before any child is adopted, repaired, summarized, or finalized,
+     keeping every recorded child as it stands. When `expected_children_count` is an integer
      and `len(children) < expected_children_count`, look for the one child a crash between a create and the write
      recording it can leave behind: an issue this orchestrator opened whose body carries the receipt naming this
      parent, its `split_attempt`, and the next slice, every issue walked to find it. The only one carrying it, found

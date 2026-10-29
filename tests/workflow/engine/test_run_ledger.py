@@ -88,7 +88,7 @@ _UNREADABLE_LAUNCHES = ("", 7, None, ["a3f1"])
 
 
 def _state(**fields) -> PinnedState:
-    return PinnedState(comment_id=1, data=dict(fields))
+    return PinnedState(comment_id=1, state_data=dict(fields))
 
 
 def _read(state: PinnedState, *, configured: int = _CONFIGURED):
@@ -257,8 +257,8 @@ class ChargeTest(unittest.TestCase):
         _run_ledger._settle_run(state)
 
         self.assertEqual(state.get(_USED), 1)
-        self.assertNotIn(_RESERVATION, state.data)
-        self.assertNotIn(_FINGERPRINT, state.data)
+        self.assertNotIn(_RESERVATION, state.state_data)
+        self.assertNotIn(_FINGERPRINT, state.state_data)
 
     def test_a_charge_records_its_launch(self) -> None:
         # Charged ahead of the spawn, so a run that crashed, timed out, or was
@@ -301,7 +301,7 @@ class ChargeTest(unittest.TestCase):
         state = _state()
 
         self.assertFalse(_run_ledger._start_reserved_run(state))
-        self.assertEqual(state.data, {})
+        self.assertEqual(state.state_data, {})
 
 
 class WireContractTest(unittest.TestCase):
@@ -371,12 +371,12 @@ class WireContractTest(unittest.TestCase):
         state = _state()
         _reserve(state)
 
-        body = pinned_state_body(state.data)
+        body = pinned_state_body(state.state_data)
 
         self.assertIn('"agent_run_reservation": "reserved"', body)
 
     def _reparsed(self, state: PinnedState) -> PinnedState:
-        state_data = dict(state.data)
+        state_data = dict(state.state_data)
         if SCHEMA_VERSION_KEY not in state_data:
             state_data[SCHEMA_VERSION_KEY] = SUPPORTED_SCHEMA_VERSION
         comment = FakeComment(

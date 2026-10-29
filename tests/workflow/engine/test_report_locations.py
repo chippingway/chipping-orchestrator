@@ -92,7 +92,7 @@ def _verified_at(location: ReportLocation) -> dict:
         state, replace(record_support.VERIFIED, location=location),
     )
     settled_fixture.records_current(state, SUBJECT, 1, location=location)
-    return dict(state.data)
+    return dict(state.state_data)
 
 
 def _claims(carried: dict) -> tuple:
@@ -128,7 +128,7 @@ class ClaimedDescriptionTest(unittest.TestCase):
         # A record nobody can read claims the description unless the place it
         # still names is readably elsewhere -- and so does a settled pair
         # missing its current report, unless the handoff names another PR.
-        dangling = dict(_handed_off().data)
+        dangling = dict(_handed_off().state_data)
         for damaged, claimed in (
             ({_records.DELIVERED_REPORT: dict(DAMAGED_ON)}, (True, False)),
             ({_records.PENDING_REPORT: dict(DAMAGED_ELSEWHERE)}, (False, True)),
@@ -165,8 +165,8 @@ class SettledPublicationTest(unittest.TestCase):
         # one whose handoff is missing, or disagrees -- answers for nothing.
         lone = PinnedState()
         settled_fixture.records_current(lone, SUBJECT, 1)
-        settled = _handed_off(**lone.data)
-        disagreeing = _handed_off(settled_fixture.NEXT_REVISION, **lone.data)
+        settled = _handed_off(**lone.state_data)
+        disagreeing = _handed_off(settled_fixture.NEXT_REVISION, **lone.state_data)
 
         self.assertEqual(
             _locations.settled_publication(settled, *NAMED).subject, SUBJECT,

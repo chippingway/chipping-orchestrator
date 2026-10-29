@@ -97,9 +97,9 @@ class _Readings(support.ReportTransactionCase):
     def posted_and_unsettled(self) -> _records.PendingReport:
         """The crash window: the report on the thread, the record still owed."""
         pending = self.record()
-        interrupted = self.state.data.copy()
+        interrupted = self.state.state_data.copy()
         self.reconcile()
-        self.state.data = interrupted
+        self.state.state_data = interrupted
         return pending
 
     def still_carries(self) -> ReportPresence:

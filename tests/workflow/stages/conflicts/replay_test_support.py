@@ -136,8 +136,8 @@ def adjudicated_state(*, identity: bool = True, damaged: tuple = ()) -> dict:
         state, ADJUDICATED_HEAD, ADJUDICATED_BASE, CONTRIBUTION_DIGEST,
     )
     for taken in damaged:
-        state.data.pop(taken, None)
-    return state.data
+        state.state_data.pop(taken, None)
+    return state.state_data
 
 
 def granted_state() -> dict:
@@ -164,7 +164,7 @@ def granted_state() -> dict:
         state, REPLAYED_HEAD, ADJUDICATED_HEAD,
         _late_approval_reading.LateApprovalBasis.UNMEASURED,
     )
-    return state.data
+    return state.state_data
 
 
 def replayed_state(**damage) -> dict:
@@ -192,7 +192,7 @@ def replayed_state(**damage) -> dict:
     }
     for key, written in recorded.items():
         state.set(key, written)
-    return state.data
+    return state.state_data
 
 
 # Every way the group a replay left cannot be shown to be about the commit and

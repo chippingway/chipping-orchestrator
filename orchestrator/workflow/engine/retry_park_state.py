@@ -50,7 +50,7 @@ def _settle_notice(state: PinnedState) -> None:
     than an event: a sentence posted to the thread and a park a continuation
     retired before anybody read it leave exactly nothing owed.
     """
-    state.data.pop(_retry_values.RETRY_CAP_NOTICE, None)
+    state.state_data.pop(_retry_values.RETRY_CAP_NOTICE, None)
 
 
 def _cap_message(decision: _retry_values.RetryDecision) -> str:

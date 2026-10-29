@@ -112,7 +112,7 @@ class NestedLineageTest(LateSplitCase, unittest.TestCase):
         seeded = PinnedState()
         _late_state.write_late_generation(seeded, self.generation)
         _lineage.write_late_ancestry(seeded, ancestry)
-        github.seed_state(number, **seeded.data)
+        github.seed_state(number, **seeded.state_data)
         self.github = github
         self.issue = issue
 
@@ -176,7 +176,7 @@ class ContradictedLineageTest(LateSplitCase, unittest.TestCase):
         """Record the lineage this issue was created under."""
         seeded = self.github.read_pinned_state(self.issue)
         _lineage.write_late_ancestry(seeded, self.ancestry)
-        self.github.seed_state(self.issue.number, **seeded.data)
+        self.github.seed_state(self.issue.number, **seeded.state_data)
 
 
 if __name__ == "__main__":

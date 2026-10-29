@@ -119,7 +119,7 @@ class AncestryAbsenceTest(unittest.TestCase):
     """An issue that was never split into carries no lineage at all."""
 
     def test_a_legacy_issue_reads_back_absent(self) -> None:
-        state = PinnedState(data=dict(LEGACY_STATE))
+        state = PinnedState(state_data=dict(LEGACY_STATE))
 
         read = _lineage.read_late_ancestry(state)
 
@@ -127,19 +127,19 @@ class AncestryAbsenceTest(unittest.TestCase):
         self.assertFalse(read.has_snapshot)
 
     def test_an_absent_ancestry_adds_no_key(self) -> None:
-        state = PinnedState(data=dict(LEGACY_STATE))
+        state = PinnedState(state_data=dict(LEGACY_STATE))
 
         _lineage.write_late_ancestry(state, _ancestry.LateAncestry())
 
-        self.assertEqual(state.data, dict(LEGACY_STATE))
+        self.assertEqual(state.state_data, dict(LEGACY_STATE))
 
     def test_clearing_leaves_every_other_stage_alone(self) -> None:
-        state = PinnedState(data=dict(LEGACY_STATE))
+        state = PinnedState(state_data=dict(LEGACY_STATE))
         _lineage.write_late_ancestry(state, ancestry())
 
         _lineage.clear_late_ancestry(state)
 
-        self.assertEqual(state.data, dict(LEGACY_STATE))
+        self.assertEqual(state.state_data, dict(LEGACY_STATE))
 
 
 class AncestryFailClosedTest(unittest.TestCase):

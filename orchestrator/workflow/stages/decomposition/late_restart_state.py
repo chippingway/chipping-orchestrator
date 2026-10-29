@@ -193,11 +193,11 @@ def _projected(
     """
     _session_retirement._clear_dev_session_pins(state)
     kept = {
-        key: state.data[key] for key in _RETAINED_KEYS if key in state.data
+        key: state.state_data[key] for key in _RETAINED_KEYS if key in state.state_data
     }
     kept.update(seed)
-    state.data.clear()
-    state.data.update(kept)
+    state.state_data.clear()
+    state.state_data.update(kept)
     _late_state.write_late_generation(state, fresh)
 
 

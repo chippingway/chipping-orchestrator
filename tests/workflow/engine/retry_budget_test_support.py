@@ -62,7 +62,7 @@ _RETRY_CAP_STAGE = _retry_values.RETRY_CAP_STAGE
 
 
 def state_with(**fields) -> PinnedState:
-    return PinnedState(comment_id=1, data=dict(fields))
+    return PinnedState(comment_id=1, state_data=dict(fields))
 
 
 def parked_state(**fields) -> PinnedState:

@@ -272,7 +272,7 @@ class EvidenceWriteTest(unittest.TestCase, finish_support.RewriteFinishCase):
 
         self.assertEqual(self.finishes(REBASED, FOUND), FinishOutcome.HELD)
 
-        receipt = readings.records(recorded.data)[0].receipt
+        receipt = readings.records(recorded.state_data)[0].receipt
         abandoned = (*self.invalidated(), (receipt, readings.ABANDONED))
         held = readings.records(readings.pinned(self))
         self.assertEqual(held, (None, None, abandoned))

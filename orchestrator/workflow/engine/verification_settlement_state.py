@@ -164,7 +164,7 @@ def settled_state(
     # read from: written without one, it would land as a second state comment
     # beside the one still recording the transaction as owed.
     composed = PinnedState(
-        comment_id=state.comment_id, state_data=dict(state.data), parsed=state.parsed, supported=state.supported,
+        comment_id=state.comment_id, state_data=dict(state.state_data), parsed=state.parsed, supported=state.supported,
     )
     superseded = read_current_evidence(composed)
     if superseded is not None:
@@ -191,16 +191,16 @@ def retire_current_evidence(state: PinnedState) -> bool:
     """
     if state.get(_records.CURRENT_EVIDENCE) is None:
         return False
-    composed = PinnedState(state_data=dict(state.data))
+    composed = PinnedState(state_data=dict(state.state_data))
     current = read_current_evidence(composed)
     if current is not None:
         _appends_history(composed, _records.HistoricalEvidence.of(
             current, _records.Retirement.INVALIDATED,
         ))
     composed.set(_records.CURRENT_EVIDENCE, None)
-    if not _report_record_state.fits_the_comment(composed.data):
+    if not _report_record_state.fits_the_comment(composed.state_data):
         return False
-    state.data = composed.data
+    state.state_data = composed.state_data
     return True
 
 
@@ -225,15 +225,15 @@ def retire_pending_evidence(
     standing = _record_fields.pending_from(stored) if isinstance(stored, dict) else None
     if standing != pending:
         return False
-    composed = PinnedState(state_data=dict(state.data))
+    composed = PinnedState(state_data=dict(state.state_data))
     if pending is not None:
         _appends_history(composed, _records.HistoricalEvidence.of(
             pending, _records.Retirement.ABANDONED,
         ))
     composed.set(_records.PENDING_EVIDENCE, None)
-    if not _report_record_state.fits_the_comment(composed.data):
+    if not _report_record_state.fits_the_comment(composed.state_data):
         return False
-    state.data = composed.data
+    state.state_data = composed.state_data
     return True
 
 

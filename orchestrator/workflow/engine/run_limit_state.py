@@ -83,7 +83,7 @@ def _restore_displaced(state: PinnedState) -> None:
     one -- comes down to no park at all.
     """
     displaced = _run_limit_values.DisplacedPark.recorded(
-        state.data.pop(_run_limit_values.AGENT_RUN_LIMIT_DISPLACED, None),
+        state.state_data.pop(_run_limit_values.AGENT_RUN_LIMIT_DISPLACED, None),
     )
     state.set(_run_limit_values._AWAITING_HUMAN, displaced.awaiting)
     state.set(_run_limit_values._PARK_REASON, displaced.reason)
@@ -128,7 +128,7 @@ def _settle_notice(state: PinnedState) -> None:
     than an event: a sentence posted to the thread and one a park retired
     before anybody read it leave exactly nothing owed.
     """
-    state.data.pop(_run_limit_values.AGENT_RUN_LIMIT_NOTICE, None)
+    state.state_data.pop(_run_limit_values.AGENT_RUN_LIMIT_NOTICE, None)
 
 
 def _limit_message(ledger: AgentRunLedger) -> str:

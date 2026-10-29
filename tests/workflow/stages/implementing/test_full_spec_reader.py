@@ -39,7 +39,9 @@ class FullSpecSessionReaderTest(unittest.TestCase, _FullSpecFixtureMixin):
         ):
             with self.subTest(spec=spec):
                 self.assertEqual(
-                    _session_read._read_dev_session(PinnedState(data={DEV_AGENT_KEY: spec, DEV_SESSION_ID: "sid-y"})),
+                    _session_read._read_dev_session(
+                        PinnedState(state_data={DEV_AGENT_KEY: spec, DEV_SESSION_ID: "sid-y"}),
+                    ),
                     (spec, backend, args, "sid-y"),
                 )
 
@@ -56,6 +58,6 @@ class FullSpecSessionReaderTest(unittest.TestCase, _FullSpecFixtureMixin):
         for seeded in ({}, {_UNREAD_SESSION_KEY: "unread-sid"}):
             with self.subTest(seeded=seeded):
                 self.assertEqual(
-                    _session_read._read_dev_session(PinnedState(data=seeded)),
+                    _session_read._read_dev_session(PinnedState(state_data=seeded)),
                     (CLAUDE_SPEC, BACKEND_CLAUDE, CLAUDE_ARGS, None),
                 )

@@ -38,7 +38,7 @@ class _ConsentComments:
         state = self._state()
         self.issue.comments.append(FakeComment(
             state.comment_id,
-            pinned_state_body(state.data),
+            pinned_state_body(state.state_data),
             user=FakeUser(self.github._bot_login),
         ))
         return state.comment_id

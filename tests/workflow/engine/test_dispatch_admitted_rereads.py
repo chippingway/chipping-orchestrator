@@ -176,7 +176,7 @@ class RefusedChildReleaseTest(WriterClaimDispatchCase):
     def _seeded_late_family(self) -> None:
         """The blocked parent with its children on a late split's register, the waiting one's record refused."""
         self.seeded_family()
-        register = PinnedState(data={"children": [DONE_CHILD, WAITING_CHILD]})
+        register = PinnedState(state_data={"children": [DONE_CHILD, WAITING_CHILD]})
         register.set("dep_graph", {"1": [0]})
         generation = _late_models.LateGeneration(
             cycle_id=1,
@@ -188,7 +188,7 @@ class RefusedChildReleaseTest(WriterClaimDispatchCase):
             split_children=(DONE_CHILD, WAITING_CHILD),
         )
         _late_state.write_late_generation(register, generation)
-        self.github.seed_state(FAMILY_PARENT, **register.data)
+        self.github.seed_state(FAMILY_PARENT, **register.state_data)
         self.github.seed_state(
             WAITING_CHILD, raw=True, schema_version=_ANOTHER_VERSION, parent_number=FAMILY_PARENT,
         )

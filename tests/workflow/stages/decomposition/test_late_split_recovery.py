@@ -114,7 +114,7 @@ def rewrite_generation(github, issue, **fields) -> None:
     _late_state.write_late_generation(
         state, replace(_late_state.read_late_generation(state), **fields),
     )
-    github.seed_state(issue.number, **state.data)
+    github.seed_state(issue.number, **state.state_data)
 
 
 def generation_of(github, issue):

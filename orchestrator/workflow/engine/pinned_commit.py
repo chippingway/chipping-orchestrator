@@ -177,9 +177,9 @@ def commit(
     prepared = change.over(issue, fresh)
     if prepared.status is not _models.CommitStatus.PREPARED:
         return prepared
-    if fresh.reads_as(prepared.reading.data):
+    if fresh.reads_as(prepared.reading.state_data):
         return replace(prepared, status=_models.CommitStatus.COMMITTED)
-    edit = gh.edit_pinned_state(issue, prepared.reading, over=fresh.data)
+    edit = gh.edit_pinned_state(issue, prepared.reading, over=fresh.state_data)
     refusal = _UNSENT.get(edit)
     if refusal is not None:
         return _refused(issue, refusal)
@@ -300,14 +300,14 @@ class _Change:
 
     def over(self, issue: Issue, fresh: PinnedState) -> _models.CommitOutcome:
         """This change laid over `fresh` and measured, or the refusal it earns there."""
-        moved = self.guard.moved(fresh.data)
+        moved = self.guard.moved(fresh.state_data)
         if moved:
             return _refused(issue, _models.CommitRefusal.PREREQUISITE_CHANGED, moved)
-        derived = self._derived(fresh.data)
+        derived = self._derived(fresh.state_data)
         conflicts = sorted({
             *(
                 field for field in self.assigned()
-                if _models.spelled(fresh.data, field) not in {
+                if _models.spelled(fresh.state_data, field) not in {
                     self.guard.read.get(field),
                     self.staged.get(field),
                 }
@@ -316,7 +316,7 @@ class _Change:
         })
         if conflicts:
             return _refused(issue, _models.CommitRefusal.OWNED_CONFLICT, tuple(conflicts))
-        return self._admitted(issue, fresh, self._candidate(fresh.data, derived))
+        return self._admitted(issue, fresh, self._candidate(fresh.state_data, derived))
 
     def _admitted(
         self, issue: Issue, fresh: PinnedState, candidate: dict | None,

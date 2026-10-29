@@ -83,7 +83,7 @@ class _LabelledWrites:
         label = self._client.workflow_label(issue)
         if label == self._failing_under:
             raise RuntimeError("the pass died before its write landed")
-        self.seen.append((label, dict(state.data)))
+        self.seen.append((label, dict(state.state_data)))
         return self._wrote(issue, state)
 
     def retirement(self) -> tuple[str | None, dict]:

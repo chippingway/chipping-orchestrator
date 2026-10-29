@@ -122,7 +122,7 @@ class RecordedExemptionTest(unittest.TestCase):
                 with self.assertRaises(InvalidLateValue):
                     _exemption.record_exemption(state, written)
 
-                self.assertEqual(state.data, {})
+                self.assertEqual(state.state_data, {})
 
     def test_a_damaged_field_exempts_nothing(self) -> None:
         # The gate reads this to decide whether a candidate may publish
@@ -131,7 +131,7 @@ class RecordedExemptionTest(unittest.TestCase):
         for written in _NOT_A_COMMIT:
             with self.subTest(written=written):
                 state = PinnedState(
-                    data={_exemption_reading.LATE_EXEMPT_SHA: written},
+                    state_data={_exemption_reading.LATE_EXEMPT_SHA: written},
                 )
 
                 self.assertIsNone(_exemption_reading.read_exemption(state))
@@ -152,7 +152,7 @@ class RecordedExemptionTest(unittest.TestCase):
         self.assertEqual(_exemption_reading.read_exemption(state), DESCENDANT_SHA)
         for key in _IDENTITY_KEYS:
             with self.subTest(key=key):
-                self.assertNotIn(key, state.data)
+                self.assertNotIn(key, state.state_data)
 
     def test_re_recording_one_commit_keeps_it(self) -> None:
         # The crash-recovery window: a settlement that died between the
@@ -171,11 +171,11 @@ class RecordedExemptionTest(unittest.TestCase):
         # The identity describes the commit the exemption names, so a comment
         # that exempts none may not go on describing what one carried.
         state = _exemption_support.identified_state()
-        state.data["pr_number"] = 12
+        state.state_data["pr_number"] = 12
 
         _exemption.clear_exemption(state)
 
-        self.assertEqual(state.data, {"pr_number": 12})
+        self.assertEqual(state.state_data, {"pr_number": 12})
 
 
 class ExemptionScopeTest(unittest.TestCase):
@@ -329,7 +329,7 @@ class ClaimedExemptionTest(unittest.TestCase):
         for written in _NOT_A_COMMIT:
             with self.subTest(written=written):
                 state = _exemption_support.exempted_state()
-                state.data[_exemption_reading.LATE_EXEMPT_SHA] = written
+                state.state_data[_exemption_reading.LATE_EXEMPT_SHA] = written
 
                 self.assertTrue(_exemption_reading.unreadable_exemption(state))
 

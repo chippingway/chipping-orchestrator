@@ -229,7 +229,7 @@ class _EditedBefore:
 
     def __call__(self, issue, state):
         """Edit the comment where this is the write picked, then write as the client does."""
-        if self.edited is None and self._when(state.data):
+        if self.edited is None and self._when(state.state_data):
             comment_id = self._github._pinned[issue.number].comment_id
             refuse_record(self._github, issue.number)
             self.edited = self._github._pinned[issue.number]
@@ -256,7 +256,7 @@ def _retired_with_its_terminal_due(seeded) -> None:
     github = seeded.github
     state = github.read_pinned_state(seeded.parent)
     _umbrella_terminal._retired_cycle(state)
-    github.seed_state(_support.PARENT_NUMBER, **{**state.data, _support.RESOLVED_STAMP: _support.CANCELLED_AT})
+    github.seed_state(_support.PARENT_NUMBER, **{**state.state_data, _support.RESOLVED_STAMP: _support.CANCELLED_AT})
     github.comment(seeded.parent, receipt_for(_support.PARENT_NUMBER, CYCLE_ID))
 
 

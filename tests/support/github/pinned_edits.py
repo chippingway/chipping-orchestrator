@@ -46,7 +46,7 @@ class _PinnedEditService:
             return None
         return issue, PinnedState(
             comment_id=pinned.comment_id,
-            data=copy.deepcopy(pinned.data) if pinned.supported else {},
+            state_data=copy.deepcopy(pinned.state_data) if pinned.supported else {},
             parsed=pinned.parsed,
             supported=pinned.supported,
             admission_status=pinned.admission_status,

@@ -86,7 +86,7 @@ class StandInHandler:
             raise RuntimeError("the handler failed")
         gh.comment(issue, RAN_COMMENT)
         state = gh.read_pinned_state(issue)
-        state.data[RUNS_KEY] = state.data.get(RUNS_KEY, 0) + 1
+        state.state_data[RUNS_KEY] = state.state_data.get(RUNS_KEY, 0) + 1
         gh.write_pinned_state(issue, state)
 
 

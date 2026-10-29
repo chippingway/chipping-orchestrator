@@ -400,7 +400,7 @@ class _PollsAfterTheRetirement:
     def __call__(self, issue, state):
         """Answer this write, and poll behind the one that retires."""
         answered = self._writing(issue, state)
-        if self._polled or state.data.get(_CYCLE_ID) is not None:
+        if self._polled or state.state_data.get(_CYCLE_ID) is not None:
             return answered
         self._polled = True
         _dispatch_closure._kept_closed_reading(

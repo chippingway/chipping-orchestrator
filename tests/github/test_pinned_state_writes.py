@@ -167,7 +167,7 @@ class WritePinnedStateTest(unittest.TestCase):
         # GitHub answers with goes back onto the state, which is the only
         # thing that keeps the NEXT tick from posting a second one.
         issue = _issue(_human_reply())
-        state = PinnedState(data=dict(_RECORD))
+        state = PinnedState(state_data=dict(_RECORD))
 
         written = self.client.write_pinned_state(issue, state)
 
@@ -190,7 +190,7 @@ class WritePinnedStateTest(unittest.TestCase):
                 record = bot_comment(_RECORDED_ID, _RECORD_BODY)
                 reply = _human_reply()
                 issue = _issue(*ahead, reply, record)
-                state = PinnedState(comment_id=_RECORDED_ID, data=dict(_REWRITTEN))
+                state = PinnedState(comment_id=_RECORDED_ID, state_data=dict(_REWRITTEN))
 
                 self.client.write_pinned_state(issue, state)
 
@@ -208,7 +208,7 @@ class WritePinnedStateTest(unittest.TestCase):
         # would raise against GitHub and strand the issue: the record is
         # posted again and the state re-pointed at what came back.
         issue = _issue(_human_reply())
-        state = PinnedState(comment_id=_RECORDED_ID, data=dict(_RECORD))
+        state = PinnedState(comment_id=_RECORDED_ID, state_data=dict(_RECORD))
 
         self.client.write_pinned_state(issue, state)
 
@@ -225,19 +225,19 @@ class WritePinnedStateTest(unittest.TestCase):
         # a thread carrying ordinary conversation too, which is the only shape
         # a live issue ever has.
         issue = _issue(_human_reply())
-        state = PinnedState(data=dict(_RECORD))
+        state = PinnedState(state_data=dict(_RECORD))
 
         self.client.write_pinned_state(issue, state)
         created = self.client.read_pinned_state(issue)
         self.client.write_pinned_state(issue, PinnedState(
-            comment_id=state.comment_id, data=dict(_REWRITTEN),
+            comment_id=state.comment_id, state_data=dict(_REWRITTEN),
         ))
         edited = self.client.read_pinned_state(issue)
 
         self.assertEqual(created.comment_id, state.comment_id)
-        self.assertEqual(created.data, _RECORD)
+        self.assertEqual(created.state_data, _RECORD)
         self.assertEqual(edited.comment_id, state.comment_id)
-        self.assertEqual(edited.data, _REWRITTEN)
+        self.assertEqual(edited.state_data, _REWRITTEN)
         self.assertTrue(edited.parsed)
 
     def test_what_was_read_or_written_is_remembered(self) -> None:
@@ -246,7 +246,7 @@ class WritePinnedStateTest(unittest.TestCase):
         # moves that: a guarded commit tells the tick's own changes from the
         # comment's by it. A state built in memory has read nothing.
         issue = _issue(_human_reply())
-        state = PinnedState(data=dict(_RECORD))
+        state = PinnedState(state_data=dict(_RECORD))
         built = state.synced
 
         self.client.write_pinned_state(issue, state)
@@ -269,7 +269,7 @@ class WritePinnedStateTest(unittest.TestCase):
         for case, forged in _NOT_RECORDS.items():
             with self.subTest(case=case):
                 issue = _issue(forged)
-                state = PinnedState(data=dict(_RECORD))
+                state = PinnedState(state_data=dict(_RECORD))
 
                 self.client.write_pinned_state(issue, state)
                 read = self.client.read_pinned_state(issue)
@@ -289,7 +289,7 @@ class UnwrittenStateTest(unittest.TestCase):
         # back untouched.
         record = bot_comment(_RECORDED_ID, _RECORD_BODY)
         issue = _issue(_human_reply(), record)
-        state = PinnedState(comment_id=_RECORDED_ID, data=dict(_REWRITTEN))
+        state = PinnedState(comment_id=_RECORDED_ID, state_data=dict(_REWRITTEN))
         state.withheld = True
 
         written = state_client().write_pinned_state(issue, state)
@@ -308,7 +308,7 @@ class UnwrittenStateTest(unittest.TestCase):
             with self.subTest(comment_id=comment_id):
                 record = bot_comment(_RECORDED_ID, _RECORD_BODY)
                 issue = _issue(_human_reply(), record)
-                state = PinnedState(comment_id=comment_id, data=dict(_REWRITTEN))
+                state = PinnedState(comment_id=comment_id, state_data=dict(_REWRITTEN))
 
                 self.assertIs(client.write_pinned_state(issue, state), state)
 
@@ -356,7 +356,7 @@ class LatestCommentIdTest(unittest.TestCase):
         # has handed out on the thread, so a comment minted after it is
         # unambiguously one nobody has read.
         issue = _issue(_human_reply())
-        state = PinnedState(data=dict(_RECORD))
+        state = PinnedState(state_data=dict(_RECORD))
 
         self.client.write_pinned_state(issue, state)
 
@@ -392,11 +392,11 @@ class WritePinnedStateAdmissionTest(unittest.TestCase):
     def test_first_write_stamps_schema_version(self) -> None:
         # A genuinely new pin carrying no schema_version is stamped with schema_version: 1
         issue = _issue(_human_reply())
-        fresh_state = PinnedState(data={"branch": _BRANCH})
+        fresh_state = PinnedState(state_data={"branch": _BRANCH})
 
         self.client.write_pinned_state(issue, fresh_state)
 
-        self.assertEqual(fresh_state.data.get(_SCHEMA_VERSION), 1)
+        self.assertEqual(fresh_state.state_data.get(_SCHEMA_VERSION), 1)
         self.assertEqual(len(issue.comments), 2)
         posted = issue.comments[-1]
         self.assertIn('"schema_version": 1', posted.body)
@@ -408,7 +408,7 @@ class WritePinnedStateAdmissionTest(unittest.TestCase):
         for case, comment_id in product(_REFUSED_RECORDS, (_RECORDED_ID, None, _STALE_ID)):
             with self.subTest(case=case, comment_id=comment_id):
                 record = bot_comment(_RECORDED_ID, _REFUSED_RECORDS[case])
-                staged = PinnedState(comment_id=comment_id, data={_BRANCH_KEY: _BRANCH, _SCHEMA_VERSION: 1})
+                staged = PinnedState(comment_id=comment_id, state_data={_BRANCH_KEY: _BRANCH, _SCHEMA_VERSION: 1})
                 self.assert_writes_nothing(_issue(_human_reply(), record), staged, refused=True)
 
     def test_a_refused_target_behind_the_pin_stands(self) -> None:
@@ -418,7 +418,7 @@ class WritePinnedStateAdmissionTest(unittest.TestCase):
         for case, body in _REFUSED_RECORDS.items():
             with self.subTest(case=case):
                 current = bot_comment(_CURRENT_ID, _RECORD_BODY)
-                staged = PinnedState(comment_id=_RECORDED_ID, data=dict(_REWRITTEN))
+                staged = PinnedState(comment_id=_RECORDED_ID, state_data=dict(_REWRITTEN))
                 thread = _issue(_human_reply(), current, bot_comment(_RECORDED_ID, body))
                 self.assert_writes_nothing(thread, staged, refused=True)
 
@@ -436,7 +436,7 @@ class WritePinnedStateAdmissionTest(unittest.TestCase):
                     edit=edit,
                 )
 
-                staged = PinnedState(comment_id=_RECORDED_ID, data=dict(_REWRITTEN))
+                staged = PinnedState(comment_id=_RECORDED_ID, state_data=dict(_REWRITTEN))
 
                 try:
                     self.client.write_pinned_state(issue, staged)
@@ -455,7 +455,7 @@ class WritePinnedStateAdmissionTest(unittest.TestCase):
         for refused, recorded in product(REFUSED_PAYLOADS, (True, False)):
             with self.subTest(refused=refused, recorded=recorded):
                 thread = (bot_comment(_RECORDED_ID, _RECORD_BODY),) if recorded else ()
-                staged = PinnedState(comment_id=_RECORDED_ID, data={_BRANCH_KEY: "changed", **refused})
+                staged = PinnedState(comment_id=_RECORDED_ID, state_data={_BRANCH_KEY: "changed", **refused})
                 self.assert_writes_nothing(_issue(_human_reply(), *thread), staged)
 
 

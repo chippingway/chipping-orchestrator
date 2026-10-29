@@ -57,7 +57,7 @@ def _issue(**issue_fields):
 def _signal(issue, generation, state=None):
     """Read one content signal against an issue and a recorded generation."""
     return _late_content._read_content_signal(
-        issue, state or PinnedState(data={}), generation,
+        issue, state or PinnedState(state_data={}), generation,
     )
 
 
@@ -174,7 +174,7 @@ class CountedThreadTest(unittest.TestCase):
         # A legacy comment posted before the marker existed is filtered by id,
         # which lives on the pinned state this reader is handed.
         issue = _issue(comments=[_content_replies.human_comment(_content_replies.GUIDANCE_ID, ":robot: picked up")])
-        tracked = PinnedState(data={TRACKED_IDS: [_content_replies.GUIDANCE_ID]})
+        tracked = PinnedState(state_data={TRACKED_IDS: [_content_replies.GUIDANCE_ID]})
 
         hidden = _signal(issue, late_generation(), tracked)
 

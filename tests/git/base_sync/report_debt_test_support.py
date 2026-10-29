@@ -69,7 +69,7 @@ def refreshes(durable: dict, head: str) -> bool:
     debt = _rewrite_debt.RewriteDebt.read(durable.get(KEY_REWRITE_DEBT))
     if debt is None:
         return False
-    return debt.owes_a_refresh(PinnedState(data=dict(durable)), head)
+    return debt.owes_a_refresh(PinnedState(state_data=dict(durable)), head)
 
 
 class DurableAtTheRelabel:

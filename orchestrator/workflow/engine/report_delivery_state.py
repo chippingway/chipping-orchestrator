@@ -279,11 +279,11 @@ def binds_delivered_report(
         return UNBINDABLE_RECORD
     if subject.requirements_revision != delivered.requirements_revision:
         return UNBINDABLE_RECORD
-    bound = _pinned_state.PinnedState(state_data=dict(state.data))
+    bound = _pinned_state.PinnedState(state_data=dict(state.state_data))
     clear_delivered_report(bound)
     pending = delivered.bound_to(subject)
     if _record_state.record_pending_report(bound, pending):
-        state.data = bound.data
+        state.state_data = bound.state_data
         return ""
     if _record_state.record_pending_report(_pinned_state.PinnedState(), pending):
         return CROWDED_COMMENT
@@ -368,9 +368,9 @@ def _room_refusal(
     ):
         carried = later.over(state)
         carried.set(_records.DELIVERED_REPORT, recorded)
-        if not _record_state.fits_the_comment(carried.data):
+        if not _record_state.fits_the_comment(carried.state_data):
             return _room.CommentOverflow.of(
-                carried.data, _room.MeasuredWrite.RECORD, later,
+                carried.state_data, _room.MeasuredWrite.RECORD, later,
             )
     reserved = _WIDEST_SUBJECT
     if delivered.location is not None:

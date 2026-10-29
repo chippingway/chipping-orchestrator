@@ -263,7 +263,7 @@ class _Beside:
     def __call__(self, *_args, **_kwargs):
         """Write the other road's fields, then answer as the request would."""
         reading = self._github.read_pinned_state(self._issue)
-        reading.data.update(self._written)
+        reading.state_data.update(self._written)
         self._github.write_pinned_state(self._issue, reading)
         return self._answer
 

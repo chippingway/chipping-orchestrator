@@ -58,7 +58,7 @@ def latches_on_write(github, repo_slug: str, issue_number: int, key: str):
         "write_pinned_state",
         repo_slug,
         issue_number,
-        lambda asked: asked[1].data.get(key) is not None,
+        lambda asked: asked[1].state_data.get(key) is not None,
     ).answering()
 
 
@@ -78,7 +78,7 @@ def latches_on_retirement(
     """
     seam = _LatchingSeam(
         github, "write_pinned_state", repo_slug, issue_number,
-        lambda asked: asked[1].data.get(_CYCLE_ID) is None,
+        lambda asked: asked[1].state_data.get(_CYCLE_ID) is None,
     )
     seam.after_the_call = after
     return seam.answering()

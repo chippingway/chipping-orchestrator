@@ -20,7 +20,7 @@ CONTRIBUTION_DIGEST = "e" * DIGEST_LENGTH
 
 def empty_state() -> PinnedState:
     """A pinned comment carrying nothing at all."""
-    return PinnedState(data={})
+    return PinnedState(state_data={})
 
 
 def exempted_state() -> PinnedState:
@@ -47,7 +47,7 @@ def damaged_state(damage: dict) -> PinnedState:
     state = identified_state()
     for key, written in damage.items():
         if written is None:
-            state.data.pop(key, None)
+            state.state_data.pop(key, None)
         else:
-            state.data[key] = written
+            state.state_data[key] = written
     return state

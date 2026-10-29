@@ -121,5 +121,5 @@ class _ParkCase(unittest.TestCase):
         return self.gh.pinned_data(support.ISSUE_NUMBER)
 
     def _assert_ledger_untouched(self) -> None:
-        self.assertNotIn(support.ALLOWANCE_FIELD, self.state.data)
+        self.assertNotIn(support.ALLOWANCE_FIELD, self.state.state_data)
         self.assertEqual(self.state.get(support.USED_FIELD), _limit_seeds.ALLOWANCE)

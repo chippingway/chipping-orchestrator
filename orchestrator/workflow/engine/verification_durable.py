@@ -164,7 +164,7 @@ def durable_comment(
     durable = _commit.reread(gh, issue, guard)
     if not isinstance(durable, PinnedState):
         return None, _UNREAD
-    moved = guard.moved(durable.data)
+    moved = guard.moved(durable.state_data)
     if not moved:
         return durable, None
     named = ", ".join(moved)
@@ -189,11 +189,11 @@ def lands(
     as the tick's own move; otherwise the refusal its outcome earns here
     (`refusal_of`), with `state` as it was.
     """
-    outcome = _commit.commit(gh, issue, guard, staged.data)
+    outcome = _commit.commit(gh, issue, guard, staged.state_data)
     refused = refusal_of(outcome)
     if refused is None:
-        state.data = outcome.reading.data
-        _commit.takes_in(state, outcome.reading.data)
+        state.state_data = outcome.reading.state_data
+        _commit.takes_in(state, outcome.reading.state_data)
     return refused
 
 

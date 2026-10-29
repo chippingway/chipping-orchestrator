@@ -46,7 +46,7 @@ GATE_CEILING = 5
 
 def recorded_generation(**overrides) -> dict:
     """The pinned fields a conflict tick's frozen pair is retried from."""
-    recorded = PinnedState(data={})
+    recorded = PinnedState(state_data={})
     _late_state.write_late_generation(
         recorded,
         LateGeneration(**{
@@ -67,4 +67,4 @@ def recorded_generation(**overrides) -> dict:
             ),
         }),
     )
-    return recorded.data
+    return recorded.state_data

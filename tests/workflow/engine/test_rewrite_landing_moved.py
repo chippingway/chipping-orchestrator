@@ -223,7 +223,7 @@ class StagingKeptTest(unittest.TestCase, captured_support.CapturedEvidenceCase):
         # tick's own, and the park behind it -- landing over that checkpoint --
         # counts the usage once.
         recovery = _recovery(self)
-        recovery.state.data.update(_STAGED)
+        recovery.state.state_data.update(_STAGED)
 
         self.assertTrue(self.asks(_landing_moved.abandons_off_the_landing, recovery, _ON_THE_ANCHOR))
 

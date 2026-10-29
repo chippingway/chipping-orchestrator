@@ -150,7 +150,7 @@ def _handle_validating(gh: GitHubClient, spec: _config_models.RepoSpec, issue: I
     _conflict_handoff._retires_the_claim(gh, issue, state)
     # The comment as this tick read it, which the reading a reviewer round is
     # bound to is measured from: every road below stages its moves on `state`.
-    read = copy.deepcopy(state.data)
+    read = copy.deepcopy(state.state_data)
 
     if _finalize_validating_terminal(gh, spec, issue, state):
         return

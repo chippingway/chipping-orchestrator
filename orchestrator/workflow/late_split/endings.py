@@ -96,7 +96,7 @@ def clear_retired_cycle(state: PinnedState) -> None:
     leaves the correlation and the receipt as the only pair a later one can
     read the ending back from.
     """
-    state.data.pop(LATE_RETIRED_CYCLE_ID, None)
+    state.state_data.pop(LATE_RETIRED_CYCLE_ID, None)
 
 
 def terminal_confirmed(state: PinnedState, cycle_id: int) -> bool:
@@ -130,4 +130,4 @@ def record_terminal(
     if confirmed:
         state.set(LATE_TERMINAL_CONFIRMED, True)
     else:
-        state.data.pop(LATE_TERMINAL_CONFIRMED, None)
+        state.state_data.pop(LATE_TERMINAL_CONFIRMED, None)

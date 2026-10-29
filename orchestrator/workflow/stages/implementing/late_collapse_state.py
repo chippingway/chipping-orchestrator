@@ -73,7 +73,7 @@ def _records_the_collapse(
 
     Answers with the refusal, or "" where the terms are durable.
     """
-    before = dict(gate.state.data)
+    before = dict(gate.state.state_data)
     try:
         _collapses.record_pending_collapse(
             gate.state, head=head, base_sha=base_sha, count=count,
@@ -91,8 +91,8 @@ def _records_the_collapse(
             "%s; leaving the approved commits on the branch",
             gate.issue.number, head, exc_info=True,
         )
-        gate.state.data.clear()
-        gate.state.data.update(before)
+        gate.state.state_data.clear()
+        gate.state.state_data.update(before)
         return "the squash could not be recorded before it ran"
     return ""
 

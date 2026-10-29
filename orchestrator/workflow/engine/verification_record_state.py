@@ -147,17 +147,17 @@ def record_pending_evidence(
         return standing == pending and _latest_revision(state) is not None
     if not _acceptable(state, pending):
         return False
-    composed = PinnedState(state_data=dict(state.data))
+    composed = PinnedState(state_data=dict(state.state_data))
     # A readable earlier record has to go into history; nothing stored, or one
     # nobody can read, is simply replaced.
     retired = _settlement.retire_pending_evidence(composed, standing) or standing is None
     composed.set(_records.PENDING_EVIDENCE, _fields.pending_object(pending))
     composed.set(_records.REVISION_FLOOR, pending.revision)
     settled = settled_payload(composed, pending)
-    written = (composed.data, settled) if retired and settled is not None else ()
+    written = (composed.state_data, settled) if retired and settled is not None else ()
     if not written or not all(map(_report_record_state.fits_the_comment, written)):
         return False
-    state.data = composed.data
+    state.state_data = composed.state_data
     return True
 
 
@@ -175,15 +175,15 @@ def settled_payload(
     a comment the settlement filled would strand the evidence as current.
     """
     widest = _record_values.MAX_RECORDED_NUMBER
-    composed = PinnedState(state_data=dict(state.data))
+    composed = PinnedState(state_data=dict(state.state_data))
     _comments._reserve_comment_slot(composed, widest)
     settled = _settlement.settled_state(
         composed, pending, widest, _report_record_state._WIDEST_LABEL,
     )
     if settled is None:
         return None
-    invalidated = PinnedState(state_data=dict(settled.data))
-    return settled.data if _settlement.retire_current_evidence(invalidated) else None
+    invalidated = PinnedState(state_data=dict(settled.state_data))
+    return settled.state_data if _settlement.retire_current_evidence(invalidated) else None
 
 
 def _acceptable(state: PinnedState, pending: _records.PendingEvidence) -> bool:

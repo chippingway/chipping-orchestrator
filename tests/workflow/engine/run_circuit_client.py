@@ -48,15 +48,15 @@ class CircuitGitHubClient(FakeGitHubClient):
         if self.unreadable:
             raise RuntimeError(_READ_REFUSED)
         if self.unparsed:
-            return PinnedState(comment_id=1, data={}, parsed=False)
+            return PinnedState(comment_id=1, state_data={}, parsed=False)
         if self.unsupported:
-            return PinnedState(comment_id=1, data={}, supported=False)
+            return PinnedState(comment_id=1, state_data={}, supported=False)
         return super().read_pinned_state(issue)
 
     def write_pinned_state(
         self, issue: FakeIssue, state: PinnedState,
     ) -> PinnedState:
-        self.writes.append(dict(state.data))
+        self.writes.append(dict(state.state_data))
         self._edit_when_due(issue)
         if self._writes_allowed is not None:
             if self._writes_allowed <= 0:

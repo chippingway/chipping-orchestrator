@@ -259,7 +259,7 @@ class _Held:
         """
         landed = _squash_writes.lands(gh, issue, state, write)
         if landed.status is _commit_models.CommitStatus.COMMITTED:
-            self.comment = copy.deepcopy(state.data)
+            self.comment = copy.deepcopy(state.state_data)
             return True
         if landed.refusal in _NO_ROOM:
             return None
@@ -287,13 +287,13 @@ class _Held:
         A decision that staged no carry is not retried: what it writes is
         already the least the write can carry.
         """
-        unstaged = copy.deepcopy(state.data)
+        unstaged = copy.deepcopy(state.state_data)
         carried.stages(state, issue.number)
         carrying = write.owning(*carried.writes).admitting(carried.admits)
         landed = self.lands(gh, issue, state, carrying)
         if landed is not None or carried.carry is None:
             return bool(landed)
-        state.data = unstaged
+        state.state_data = unstaged
         carried = carried.without_room()
         carried.stages(state, issue.number)
         carrying = write.owning(*carried.writes)
@@ -470,12 +470,12 @@ def _holds_its_records(
     durable = _review_comment._read(gh, issue, state, purpose)
     if durable is None:
         return False
-    measured = state.data if held.comment is None else held.comment
-    proved = _review_comment._moved(durable.data, state.data, _HELD_RECORDS) or _review_comment._moved(
-        durable.data, measured, _APPROVED_OVER,
+    measured = state.state_data if held.comment is None else held.comment
+    proved = _review_comment._moved(durable.state_data, state.state_data, _HELD_RECORDS) or _review_comment._moved(
+        durable.state_data, measured, _APPROVED_OVER,
     )
     apart = held.comment is not None and _review_comment._moved(
-        durable.data, held.comment, _HELD_APART,
+        durable.state_data, held.comment, _HELD_APART,
     )
     if proved or apart:
         log.warning(
@@ -491,7 +491,7 @@ def _holds_its_records(
             gh, issue, state, durable, held if proved else replace(held, verdict=None),
         )
         return False
-    read = dict(durable.data)
+    read = dict(durable.state_data)
     _review_comment._Reread(stood=True, read=read).lays_over(
         state, read if held.comment is None else held.comment,
     )

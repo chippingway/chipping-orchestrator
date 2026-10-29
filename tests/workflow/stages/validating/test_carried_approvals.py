@@ -193,7 +193,7 @@ class RetiredApprovalTest(_support.SquashedRoundWorld, unittest.TestCase):
         self.later()
         filled = self.github.read_pinned_state(self.issue)
         filled.set(_FILLER, "")
-        room = MAX_PINNED_BODY - len(pinned_state_body(filled.data))
+        room = MAX_PINNED_BODY - len(pinned_state_body(filled.state_data))
         filled.set(_FILLER, "y" * room)
         self.github.write_pinned_state(self.issue, filled)
         self.later(checkout_tree=_support.OTHER_TREE)
@@ -349,7 +349,7 @@ class RefusedPublicationTest(_support.SquashedRoundWorld, unittest.TestCase):
         timeout = config.VERIFY_TIMEOUT
         filled = self.github.read_pinned_state(self.issue)
         filled.set(_FILLER, "")
-        room = MAX_PINNED_BODY - len(pinned_state_body(filled.data))
+        room = MAX_PINNED_BODY - len(pinned_state_body(filled.state_data))
         filled.set(_FILLER, "y" * room)
         self.github.write_pinned_state(self.issue, filled)
         self.moves_the_context()
@@ -521,7 +521,7 @@ class OwedCarryTest(_support.SquashedRoundWorld, unittest.TestCase):
         """Another road filling the pinned comment to its limit with a field of its own."""
         filling = self.github.read_pinned_state(self.issue)
         filling.set(_FILLER, "")
-        room = MAX_PINNED_BODY - len(pinned_state_body(filling.data))
+        room = MAX_PINNED_BODY - len(pinned_state_body(filling.state_data))
         filling.set(_FILLER, "y" * room)
         self.github.write_pinned_state(self.issue, filling)
 

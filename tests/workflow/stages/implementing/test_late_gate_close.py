@@ -194,7 +194,7 @@ class _ClosingRetirement:
         self._recorded = False
 
     def __call__(self, issue, state, **written):
-        named = state.data.get(_KEY_CYCLE_ID) is not None
+        named = state.state_data.get(_KEY_CYCLE_ID) is not None
         retiring = self._recorded and not named
         self._recorded = self._recorded or named
         answered = self._writing(issue, state, **written)

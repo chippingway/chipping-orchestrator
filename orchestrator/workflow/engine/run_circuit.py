@@ -172,7 +172,7 @@ def _reserve(
     sink is a run this issue durably owes rather than one a refused request
     left it never charged for.
     """
-    recorded = dict(durable.data)
+    recorded = dict(durable.state_data)
     charged = _run_ledger._reserve_run(durable, launch.fingerprint)
     if not _run_charge_state._persist(gh, budget, durable, recorded):
         return False
@@ -196,7 +196,7 @@ def _start(
     launch owed once records the count it was owed at in the same write
     (`run_ledger_values.AGENT_RUN_OWED_STARTED`).
     """
-    recorded = dict(durable.data)
+    recorded = dict(durable.state_data)
     _run_ledger._start_reserved_run(durable, budget.owed_at)
     if not _run_charge_state._persist(gh, budget, durable, recorded):
         return False
@@ -239,7 +239,7 @@ def _park_spent(
     `pinned_refusal.RecordRefused`, which is let through, so the handler is
     abandoned rather than told only that nothing was invoked.
     """
-    recorded = dict(durable.data)
+    recorded = dict(durable.state_data)
     try:
         parked = _run_limit._park_exhausted(gh, budget.issue, durable, ledger, launch)
     except _pinned_refusal.RecordRefused:

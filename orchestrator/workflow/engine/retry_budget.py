@@ -174,5 +174,5 @@ def _grant_continuation(
     state.set(_retry_values._RETRY_COUNT, 0)
     state.set(_retry_values._AWAITING_HUMAN, False)
     state.set(_retry_values._PARK_REASON, None)
-    state.data.pop(_retry_values.RETRY_CAP_STAGE, None)
+    state.state_data.pop(_retry_values.RETRY_CAP_STAGE, None)
     _retry_park_state._settle_notice(state)

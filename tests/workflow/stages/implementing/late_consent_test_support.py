@@ -85,7 +85,7 @@ class SettlesWithItsOwnWrite:
         self.given: list[dict] = []
 
     def __call__(self, gate, generation) -> bool:
-        self.given.append(dict(gate.state.data))
+        self.given.append(dict(gate.state.state_data))
         gate.gh.write_pinned_state(gate.issue, gate.state)
         return False
 

@@ -110,8 +110,8 @@ def _reserved() -> int:
     _settlement.record_handoff(labelled, _WIDEST_HANDOFF)
     _settlement.record_handoff(bare, replace(_WIDEST_HANDOFF, settled_under=None))
     return (
-        len(pinned_state_body(entered.data)) - len(pinned_state_body({}))
-        + len(pinned_state_body(labelled.data)) - len(pinned_state_body(bare.data))
+        len(pinned_state_body(entered.state_data)) - len(pinned_state_body({}))
+        + len(pinned_state_body(labelled.state_data)) - len(pinned_state_body(bare.state_data))
     )
 
 
@@ -250,7 +250,7 @@ class RoundTripTest(unittest.TestCase):
                 state = PinnedState()
 
                 self.assertFalse(writer(state, settling))
-                self.assertEqual(state.data, {})
+                self.assertEqual(state.state_data, {})
                 self.assertFalse(_settlement.carries_settled_record(state))
 
     def test_a_settlement_round_trips(self) -> None:
@@ -364,7 +364,7 @@ class BoundedRecordTest(unittest.TestCase):
         # that this refusal is about.
         self.assertEqual(
             len(pinned_state_body({
-                **crowded.data, _records.PENDING_REPORT: recorded,
+                **crowded.state_data, _records.PENDING_REPORT: recorded,
             })),
             MAX_PINNED_BODY,
         )
@@ -413,13 +413,13 @@ class BoundedRecordTest(unittest.TestCase):
         ):
             with self.subTest(refused=refused):
                 state = PinnedState(state_data={_FILLER: _CROWDING * MAX_PINNED_BODY})
-                found = dict(state.data)
+                found = dict(state.state_data)
 
                 self.assertIs(
                     _record_state.stage_pending_report(state, unwritable),
                     refusal,
                 )
-                self.assertEqual(state.data, found)
+                self.assertEqual(state.state_data, found)
 
     def test_an_unfittable_record_is_not_written(self) -> None:
         half = MAX_PINNED_BODY // 2
@@ -439,7 +439,7 @@ class BoundedRecordTest(unittest.TestCase):
                 write=_room.MeasuredWrite.RECORD,
                 later=_room.LaterWrites(),
                 size=len(pinned_state_body({
-                    **state.data,
+                    **state.state_data,
                     _records.PENDING_REPORT: support.recorded(oversized),
                 })),
                 limit=MAX_PINNED_BODY,
@@ -489,7 +489,7 @@ class BoundedRecordTest(unittest.TestCase):
             refused = _record_state.stage_pending_report(state, support.PUBLISHED)
 
         self.assertIs(refused, _REFUSAL.INVALID_RECORD)
-        self.assertEqual(state.data, full)
+        self.assertEqual(state.state_data, full)
 
     def test_a_refusal_keeps_every_record(self) -> None:
         # Whatever refuses a later transaction -- its report, its record, or
@@ -510,12 +510,12 @@ class BoundedRecordTest(unittest.TestCase):
         ):
             with self.subTest(refused=refused):
                 state = self._full_comment()
-                found = dict(state.data)
+                found = dict(state.state_data)
 
                 self.assertIsNotNone(_record_state.stage_pending_report(state, later))
                 self.assertFalse(_record_state.record_pending_report(state, later))
 
-                self.assertEqual(state.data, found)
+                self.assertEqual(state.state_data, found)
                 self.assertEqual(support.reads_back(state), support.PUBLISHED)
 
     def _full_comment(self) -> PinnedState:
@@ -524,7 +524,7 @@ class BoundedRecordTest(unittest.TestCase):
         _settlement.record_current_report(state, support.CURRENT)
         _settlement.record_handoff(state, support.HANDOFF)
         _record_state.record_pending_report(state, support.PUBLISHED)
-        room = MAX_PINNED_BODY - len(pinned_state_body(state.data))
+        room = MAX_PINNED_BODY - len(pinned_state_body(state.state_data))
         state.set(_FILLER, _CROWDING * room)
         return state
 

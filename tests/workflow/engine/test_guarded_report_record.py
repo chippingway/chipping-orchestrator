@@ -252,7 +252,7 @@ class GuardedRecordingTest(unittest.TestCase):
         # totals add up, the watermark keeps the further reading, the ledger
         # both posts, and the tick's own staging rides the write.
         tick = self._tick(**_TICK_READ)
-        tick.state.data.update(_TICK_STAGED)
+        tick.state.state_data.update(_TICK_STAGED)
         commit_support.another_road(tick.github, tick.issue, **_ANOTHER_ROAD)
 
         self.assertFalse(tick.records())
@@ -267,7 +267,7 @@ class GuardedRecordingTest(unittest.TestCase):
             ),
             (_KEPT, [5, 7, 9], None, delivery_support.DELIVERED),
         )
-        self.assertEqual(tick.state.data, pinned)
+        self.assertEqual(tick.state.state_data, pinned)
 
     def test_a_fold_laid_over_the_tick_counts_once(self) -> None:
         # A road that lays another's fold over the tick's state says so, and
@@ -292,12 +292,12 @@ class GuardedRecordingTest(unittest.TestCase):
             with self.subTest(moved=described):
                 tick = self._tick()
                 moves(tick.github, tick.issue, tick.state)
-                found = (tick.pinned(), dict(tick.state.data), [])
+                found = (tick.pinned(), dict(tick.state.state_data), [])
 
                 self.assertTrue(tick.records())
 
                 self.assertEqual(
-                    (tick.pinned(), tick.state.data, tick.github.posted_comments), found,
+                    (tick.pinned(), tick.state.state_data, tick.github.posted_comments), found,
                 )
 
     def test_the_fresh_comment_s_room_decides(self) -> None:
@@ -330,7 +330,7 @@ class GuardedRecordingTest(unittest.TestCase):
         # it keeps what another road wrote meanwhile. What the next tick reads
         # is that very record, at its own revision.
         tick = self._tick()
-        held = dict(tick.state.data)
+        held = dict(tick.state.state_data)
         tick.github.pinned_failures.lost.add(tick.issue.number)
 
         self.assertTrue(tick.records())
@@ -344,7 +344,7 @@ class GuardedRecordingTest(unittest.TestCase):
                 _delivery_state.read_delivered_report(landed),
                 landed.get(_EVIDENCE),
                 landed.get(delivery_support.PARK_REASON),
-                (tick.state.data, tick.state.withheld),
+                (tick.state.state_data, tick.state.withheld),
                 tick.github.posted_comments,
             ),
             (delivery_support.DELIVERED, _EVIDENCE_SINCE[_EVIDENCE], None, (held, True), []),

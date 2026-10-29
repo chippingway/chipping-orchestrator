@@ -378,10 +378,10 @@ class FrozenBookkeepingTest(unittest.TestCase):
         state = PinnedState(state_data={support.REVIEW_ROUND: _BEHIND})
 
         _consumed.close_bookkeeping(state, support.PUBLISHED.spends)
-        closed = dict(state.data)
+        closed = dict(state.state_data)
         _consumed.close_bookkeeping(state, support.PUBLISHED.spends)
 
-        self.assertEqual(state.data, closed)
+        self.assertEqual(state.state_data, closed)
         for owed_field, spent in support.PUBLISHED.spends:
             with self.subTest(owed=owed_field):
                 self.assertEqual(state.get(owed_field), spent)

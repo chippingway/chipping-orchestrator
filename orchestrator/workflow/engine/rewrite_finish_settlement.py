@@ -264,7 +264,7 @@ def _answered_alone(
     captured before the answer.
     """
     state = finish.state
-    if attempt.moved(state.data):
+    if attempt.moved(state.state_data):
         return False
     if _record_state.carries_pending_evidence(state):
         return _record_state.read_pending_evidence(state) == pending

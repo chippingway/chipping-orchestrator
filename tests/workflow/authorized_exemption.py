@@ -61,7 +61,7 @@ def _authorized_exemption(
     cases about a transfer need: the exact-SHA claim is what the gate reads,
     and every other case is about that.
     """
-    seeded = PinnedState(data={})
+    seeded = PinnedState(state_data={})
     _exemption.record_exemption(seeded, candidate_sha)
     if identity:
         _exemption.record_semantic_identity(
@@ -71,7 +71,7 @@ def _authorized_exemption(
             fingerprint=ACCEPTED_DIGEST,
         )
     _authorize(seeded, candidate_sha, base_sha, ACCEPTED_DIGEST)
-    return seeded.data
+    return seeded.state_data
 
 
 def _bare_exemption(candidate_sha: str = MEASURED_CANDIDATE_SHA) -> dict:
@@ -82,9 +82,9 @@ def _bare_exemption(candidate_sha: str = MEASURED_CANDIDATE_SHA) -> dict:
     and leaves the exemption standing. The candidate it names goes to the
     ordinary cumulative gate.
     """
-    seeded = PinnedState(data={})
+    seeded = PinnedState(state_data={})
     _exemption.record_exemption(seeded, candidate_sha)
-    return seeded.data
+    return seeded.state_data
 
 
 def _fabricated_authorization(

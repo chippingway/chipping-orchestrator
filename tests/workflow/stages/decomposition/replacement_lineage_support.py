@@ -138,19 +138,19 @@ def record(
         _late_state.write_late_generation(state, generation)
     if ancestry is not None:
         _lineage.write_late_ancestry(state, ancestry)
-    state.data.update(edits)
+    state.state_data.update(edits)
     return state
 
 
 def seeded(ancestry: _ancestry.LateAncestry | None = None, **edits) -> dict:
     """A child's pinned fields linking it to the parent and carrying `ancestry`, `edits` landing over them."""
-    child = PinnedState(data={
+    child = PinnedState(state_data={
         SCHEMA_VERSION_KEY: SUPPORTED_SCHEMA_VERSION,
         "parent_number": PARENT,
     })
     if ancestry is not None:
         _lineage.write_late_ancestry(child, ancestry)
-    return {**child.data, **edits}
+    return {**child.state_data, **edits}
 
 
 def retired(ref_state: _obligations.LateResourceState, cycle: int | None = CYCLE) -> PinnedState:

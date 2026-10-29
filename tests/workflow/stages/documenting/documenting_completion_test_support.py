@@ -70,17 +70,17 @@ class _StripsWhilePosting:
 
     def __call__(self, *args, **options):
         posted = self._post(*args, **options)
-        self._pinned[self._issue_number].data.pop(self._field, None)
+        self._pinned[self._issue_number].state_data.pop(self._field, None)
         return posted
 
 
 def _leaves_no_room(github, issue_number: int) -> None:
     """Fill the issue's pinned comment up to exactly its limit, as a human's notes on it might."""
-    pinned = github._pinned[issue_number].data
+    pinned = github._pinned[issue_number].state_data
     pinned[FILLER] = ""
     pinned[FILLER] = "x" * (MAX_PINNED_BODY - len(pinned_state_body(pinned)))
 
 
 def _makes_room(github, issue_number: int) -> None:
     """Take the filler back off the issue's pinned comment, as a human making room does."""
-    github._pinned[issue_number].data.pop(FILLER)
+    github._pinned[issue_number].state_data.pop(FILLER)

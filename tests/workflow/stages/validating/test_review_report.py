@@ -137,7 +137,7 @@ class _DamagedReports(world._ReviewedReports):
 
     def unreports(self) -> None:
         """Leave the pull request with no settled report on record at all."""
-        pinned = self.github._pinned[ISSUE].data
+        pinned = self.github._pinned[ISSUE].state_data
         for record in (_records.CURRENT_REPORT, _records.REPORT_HANDOFF):
             pinned.pop(record)
 

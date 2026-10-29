@@ -78,7 +78,7 @@ class _IdSpaceCase:
 
     def _minted_fresh_record(self) -> int:
         """The record `write_pinned_state` mints for an issue carrying none."""
-        fresh = PinnedState(data={})
+        fresh = PinnedState(state_data={})
         self.github.write_pinned_state(self.issues[1], fresh)
         return fresh.comment_id
 

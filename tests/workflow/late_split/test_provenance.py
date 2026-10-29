@@ -198,7 +198,7 @@ def read(
     on is the wire shape a live issue carries; `edits` then lands on top of it
     as a hand edit or an older binary would, or takes a field off it.
     """
-    state = PinnedState(data=dict(LEGACY_STATE))
+    state = PinnedState(state_data=dict(LEGACY_STATE))
     for record in records:
         if isinstance(record, LateGeneration):
             _late_state.write_late_generation(state, record)
@@ -206,7 +206,7 @@ def read(
             _lineage.write_late_ancestry(state, record)
     for key, edited in edits:
         if edited is DROPPED:
-            state.data.pop(key)
+            state.state_data.pop(key)
         else:
             state.set(key, edited)
     return _provenance.read_provenance(state, issue, body)

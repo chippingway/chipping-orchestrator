@@ -217,9 +217,9 @@ def _taken_hold(
         plan_pr_head=held_pr.head_sha,
         plan_pr_body=held_pr.body,
     )
-    prospective = PinnedState(data=dict(state.data))
+    prospective = PinnedState(state_data=dict(state.state_data))
     _late_state.write_late_generation(prospective, holding)
-    if not _late_session._holdable(prospective.data, holding):
+    if not _late_session._holdable(prospective.state_data, holding):
         log.error(
             "issue=#%d cannot preserve the body of PR #%d and still "
             "record the run; refusing to hold it",

@@ -260,7 +260,7 @@ class FixingReportCase:
 
     def pinned(self) -> dict:
         """What the pinned comment carries now, as GitHub holds it."""
-        return self.gh.read_pinned_state(self.issue).data
+        return self.gh.read_pinned_state(self.issue).state_data
 
     def records_a_settlement(self, *, under: WorkflowLabel | None) -> None:
         """Leave the comment a settlement under `under` would have left.

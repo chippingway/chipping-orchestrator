@@ -41,7 +41,7 @@ def reviewed_tick(github: FakeGitHubClient, issue) -> Callable[[], Any]:
     in place of whatever report an earlier round left, written against the
     thread the round answered -- which is the baseline its settlement leaves.
     """
-    github._pinned[issue.number].data[_BASELINE] = _prompt_context._delivered_thread(
+    github._pinned[issue.number].state_data[_BASELINE] = _prompt_context._delivered_thread(
         github, issue, github.read_pinned_state(issue),
     ).requirements_revision
     _published_reports.republishes_the_report(github, issue)

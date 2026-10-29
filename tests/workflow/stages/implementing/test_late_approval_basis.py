@@ -62,7 +62,7 @@ def _approved(
     `lease=""` is the pre-publication shape -- what every implementing-seam
     approval is -- whose push takes its own reading of the remote.
     """
-    state = PinnedState(data={})
+    state = PinnedState(state_data={})
     _late_approval_state._approve(state, MEASURED_CANDIDATE_SHA, lease, basis)
     return state
 
@@ -157,7 +157,7 @@ class ApprovalBasisRecordTest(unittest.TestCase):
                 self.assertTrue(_late_approval_reading._unreadable_approval(state))
         with self.subTest("a commit with no basis at all"):
             self.assertTrue(_late_approval_reading._unreadable_approval(
-                PinnedState(data={_state._APPROVED_SHA: MEASURED_CANDIDATE_SHA}),
+                PinnedState(state_data={_state._APPROVED_SHA: MEASURED_CANDIDATE_SHA}),
             ))
 
         # And every shape a sound comment arrives in. The paid one is a group
@@ -169,7 +169,7 @@ class ApprovalBasisRecordTest(unittest.TestCase):
 
         for described, state in (
             ("one a settlement paid", paid),
-            ("none ever written", PinnedState(data={})),
+            ("none ever written", PinnedState(state_data={})),
             ("a pre-publication approval", _approved(
                 _late_approval_reading.LateApprovalBasis.READING, lease="",
             )),
@@ -238,7 +238,7 @@ class StandingBasisTest(unittest.TestCase):
             ),
         ):
             with self.subTest(described):
-                paid = PinnedState(data=dict(seeded))
+                paid = PinnedState(state_data=dict(seeded))
                 _late_approval_state._forget_approval(paid)
 
                 self.assertEqual(_late_approval_state._standing_basis(paid), minted)
@@ -268,7 +268,7 @@ class SeamMintedDebtTest(unittest.TestCase):
         # debt and cannot say what granted it. Upgraded to `unmeasured`, it
         # would become debt this workflow owns -- a bypass nobody would ever
         # revalidate -- so it is carried as the damage it is.
-        state = PinnedState(data={_state._APPROVED_SHA: MEASURED_CANDIDATE_SHA})
+        state = PinnedState(state_data={_state._APPROVED_SHA: MEASURED_CANDIDATE_SHA})
 
         _late_approval_state._owes_a_publication(state, MEASURED_CANDIDATE_SHA)
 
@@ -286,7 +286,7 @@ class SeamMintedDebtTest(unittest.TestCase):
             ("truncated by a hand edit", MEASURED_CANDIDATE_SHA[:7]),
         ):
             with self.subTest(exemption=described):
-                state = PinnedState(data={_KEY_EXEMPT_SHA: exempt})
+                state = PinnedState(state_data={_KEY_EXEMPT_SHA: exempt})
 
                 _late_approval_state._owes_a_publication(state, MEASURED_CANDIDATE_SHA)
 
@@ -300,7 +300,7 @@ class SeamMintedDebtTest(unittest.TestCase):
         # than about this writer refusing to mint anything: a receipt, a
         # permit, or a candidate the switch kept out of the gate leaves debt
         # this workflow made for itself and re-derives on the next tick.
-        state = PinnedState(data={})
+        state = PinnedState(state_data={})
 
         _late_approval_state._owes_a_publication(state, MEASURED_CANDIDATE_SHA)
 
@@ -320,7 +320,7 @@ class UnmeasuredDebtBasisTest(unittest.TestCase):
     """
 
     def test_it_records_the_unmeasured_basis(self) -> None:
-        gate = _gate(PinnedState(data={}))
+        gate = _gate(PinnedState(state_data={}))
 
         staged = _late_verdict_debt._stages_unmeasured_debt(
             gate, MEASURED_CANDIDATE_SHA, _LEASE_SHA,
@@ -382,7 +382,7 @@ class PaidPublicationBasisTest(unittest.TestCase):
         # claim with no debt behind it to carry grounds from, so it rests on
         # what a debt minted now would: never a commit with no basis, which
         # the next tick would read as damage.
-        gate = _gate(PinnedState(data={}))
+        gate = _gate(PinnedState(state_data={}))
 
         _push._publication_paid(gate, _LANDED, unproven=True)
 

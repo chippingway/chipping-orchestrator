@@ -38,7 +38,7 @@ class RetryDecisionTest(unittest.TestCase):
         decision = support.decide(state, cap=0)
 
         self.assertTrue(decision.allowed)
-        self.assertEqual(state.data, {})
+        self.assertEqual(state.state_data, {})
 
     def test_the_first_attempt_opens_the_window(self) -> None:
         state = support.state_with()
@@ -66,7 +66,7 @@ class RetryDecisionTest(unittest.TestCase):
         self.assertEqual(decision.cap, support.CAP)
         self.assertEqual(decision.stage, support.STAGE)
         self.assertEqual(
-            state.data,
+            state.state_data,
             {"retry_count": support.CAP, "retry_window_start": opened},
         )
 
@@ -106,7 +106,7 @@ class RetryDecisionTest(unittest.TestCase):
             support.decide(budget).allowed for _ in range(support.CAP + 1)
         ]
         under_none = support.decide(budget, cap=0).allowed
-        dropped = dict(budget.data)
+        dropped = dict(budget.state_data)
 
         self.assertEqual(under_cap, [True, True, True, False])
         self.assertTrue(under_none)
@@ -375,8 +375,8 @@ class ContinuationTest(unittest.TestCase):
 
         self.assertFalse(state.get(support.AWAITING_HUMAN))
         self.assertIsNone(state.get(support.PARK_REASON))
-        self.assertNotIn(_retry_values.RETRY_CAP_STAGE, state.data)
-        self.assertNotIn(_retry_values.RETRY_CAP_NOTICE, state.data)
+        self.assertNotIn(_retry_values.RETRY_CAP_STAGE, state.state_data)
+        self.assertNotIn(_retry_values.RETRY_CAP_NOTICE, state.state_data)
         self.assertEqual(gh.posted_comments, [])
         # One attempt, not a fresh day of them: the second is refused again.
         self.assertEqual(allowed, [True, False])

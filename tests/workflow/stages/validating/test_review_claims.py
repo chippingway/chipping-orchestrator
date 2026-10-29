@@ -157,7 +157,7 @@ class ClaimedEvidenceTest(unittest.TestCase, support.VerificationEvidenceCase):
             agent_result=returned,
             delivery=None,
             subject=self.subject,
-            resolved_over=dict(self.state.data),
+            resolved_over=dict(self.state.state_data),
             evidence=self.handed if handed is ... else handed,
         )
         with self.seams():

@@ -86,9 +86,11 @@ taken as current could start work or license an irreversible effect.
 **Limits:** Current formats include pinned-state keys (with explicit integer `schema_version: 1`), workflow labels,
 comment markers, watermarks, event formats, branch/ref names, host record formats, agent command specs, and logger
 names. Public Python names are the explicit `__all__` exports [C-13] covers: `orchestrator.agents` publishes its result
-model as `AgentResult` alone, and the agent runner and the scheduler's `submit` take only their typed records,
-`AgentRunOptions` and `SubmissionRequest`; no keyword form beside them is a current call shape. An internal refactor
-changes none of them; a deliberate change updates the affected contracts, specifications, and tests with the behavior.
+model as `AgentResult` alone, `orchestrator.github` publishes `PinnedState`, built from keywords and carrying its
+payload as `state_data` alone, and the agent runner and the scheduler's `submit` take only their typed records,
+`AgentRunOptions` and `SubmissionRequest`; no keyword form or attribute beside them is a current call shape. An
+internal refactor changes none of them; a deliberate change updates the affected contracts, specifications, and tests
+with the behavior.
 
 The 1.0 release preparation supports current formats only: breaking changes have already landed, and earlier state has
 no promised conversion or continuity. Pinned-state admission accepts only version 1; records missing `schema_version` or
@@ -135,11 +137,13 @@ exempts that commit alone. A recorded decomposition outcome is read only whole, 
 was held to: a split child with no stated `depends_on` list, a late slice with no `estimated_added_lines`, and a late
 `single` with no `split_blocker` are no outcome, so nothing is created, released, parked, or announced on one, and
 a park waiting on one comes down -- the candidate is adjudicated again before a split transaction begins, and once one
-has begun the issue parks over what it made, whatever spelling its recorded verdict is in. A late pull-request hold is
-recognized only in the two spellings this build writes, on either side of publication; a description in any other is
-never rewritten, released, or restored over: its hold marker refuses capturing it as somebody's description and, on
-an open pull request, holds every release that would drop the preserved copy. An optional rationale, an omitted
-ordinary `umbrella` flag, an
+has begun the issue parks over what it made, whatever spelling its recorded verdict is in. A split's recorded
+`children` beside no integer `expected_children_count` -- the count every split writes before its first create -- is
+no finished split: recovery parks it with every child kept, adopting, seeding, or finalizing nothing. A late
+pull-request hold is recognized only in the two spellings this build writes, on either side of publication; a
+description in any other is never rewritten, released, or restored over: its hold marker refuses capturing it as
+somebody's description and, on an open pull request, holds every release that would drop the preserved copy. An
+optional rationale, an omitted ordinary `umbrella` flag, an
 ordinary child with no budget, and no split marker at all for a split that never started remain current answers.
 
 Unsupported input cannot serve as fresh work, current evidence, or authorization to publish or delete artifacts. Neither
@@ -211,6 +215,7 @@ or lost write interrupted are current state, not historical compatibility.
 [late records](../tests/workflow/stages/decomposition/test_late_session.py),
 [unexplained singles](../tests/workflow/stages/decomposition/test_late_unsplit_park.py),
 [hold spellings](../tests/workflow/stages/decomposition/test_late_hold.py),
+[split recovery](../tests/workflow/stages/decomposition/test_recovery.py),
 [branch resolution](../tests/git/worktrees/test_resolution.py),
 [checkout reuse](../tests/git/worktrees/test_creation.py),
 [refused drift unwind](../tests/workflow/stages/documenting/test_drift_checkout.py),

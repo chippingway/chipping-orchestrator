@@ -85,7 +85,7 @@ class AdjudicatedRebaseJourneyTest(
         reviewer = self._reviews()
 
         reviewer.assert_called_once()
-        paid = self._durable().data
+        paid = self._durable().state_data
         self.assertIn(KEY_REWRITE_DEBT, paid)
         self.assertIsNone(paid[KEY_REWRITE_DEBT])
         self.assertEqual(

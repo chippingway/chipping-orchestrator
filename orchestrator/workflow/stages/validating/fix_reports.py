@@ -151,7 +151,7 @@ def _records_the_fix(
             run.agent_result, _guards._ROUTE_DEV_FIX, before_sha=run.before_sha,
         ))
         return True
-    state.data.update(run.handed.retires)
+    state.state_data.update(run.handed.retires)
     _report_delivery.parks_the_debt(
         _commits.ReportCommit(gh, issue, state), state,
         _UNFINISHED_PARK.format(mentions=config.HITL_MENTIONS),

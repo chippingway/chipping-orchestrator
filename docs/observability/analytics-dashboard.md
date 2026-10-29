@@ -453,10 +453,6 @@ goes through the scope owner so it runs on the socket the waves above it opened.
 a number narrows anything, since GitHub issue numbers repeat across repositories, and the section names the control
 that answers it; an empty window names the repository, issue, and filters it found nothing under; and a failed read
 banners itself and returns rather than stopping a page whose panels already rendered.
-`drilldown_request.py` is the call shape that section is still reachable under: the seven keyword arguments a caller
-outside the render pipeline names, the declared signature they are bound through — the same object the adapter
-reports, so the historical shape stays one description — and the typed request they are read back as before the page
-state is rebuilt from it.
 `page_states.py` is what is drawn where none of those panels can be, and it holds two dead ends of different kinds. A
 database nobody has ingested into has no extent to pick a window from, so there is no filter bar to offer: the banner
 is drawn with every count it carries zeroed, the notice names the sync command that fills the table, and the script
@@ -776,8 +772,7 @@ panels is
 is scanned by, the offset its timestamp is read on, the collapsed expander it is drawn inside, and the notice a window
 with no `agent_exit` row renders instead — and the trace under it is `observability/dashboard/drilldown.py` — the one
 page read issued outside the cached wrappers, the columns one event is traced in, and the notices a number typed
-before a repository, an empty window, and a failed read are answered with. The historical call
-shape that trace is still reachable under is `observability/dashboard/drilldown_request.py`. The three sections that
+before a repository, an empty window, and a failed read are answered with. The three sections that
 listing's window is
 compared across are `observability/dashboard/stage_cost_panel.py` — the paired lifecycle bars, the 7:5 columns they
 are laid out in, and the one height both figures are pinned to together with the row and base measurement behind it —

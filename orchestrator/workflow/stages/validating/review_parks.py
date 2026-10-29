@@ -199,7 +199,7 @@ def parks_unverified(
         f"requires: {refusal}. The approval was not acted on; {_RETRY}"
     )
     parks_over_the_subject(
-        gh, issue, state, replace(run, resolved_over=dict(state.data)),
+        gh, issue, state, replace(run, resolved_over=dict(state.state_data)),
         (_state._REASON_REVIEWER_UNVERIFIED, words, _REVIEWER, waiting),
     )
 
@@ -259,7 +259,7 @@ def parks_over_the_subject(
         return
     # A park over the comment as it stands writes nothing but that reading,
     # so that reading is what it is measured against.
-    baseline = dict(run.resolved_over if parked is state else parked.data)
+    baseline = dict(run.resolved_over if parked is state else parked.state_data)
     lands = _behind_the_notice(gh, issue, parked, replace(run, resolved_over=baseline), park)
     if lands is None or not _review_writes.lands(gh, issue, parked, _review_writes.PARK):
         log.error(

@@ -93,7 +93,7 @@ def _holds_beside_an_unstarted_attempt(case: support.VerificationRecoveryCase, h
 def _spends(case: support.VerificationRecoveryCase, hold: str) -> None:
     """Take `hold` off the comment, ending its freeze as its owner's spend does."""
     state = case.gh.read_pinned_state(case.issue)
-    state.data.pop(hold)
+    state.state_data.pop(hold)
     case.gh.write_pinned_state(case.issue, state)
 
 
@@ -150,7 +150,7 @@ class UnstartedClearCheckpointTest(support.VerificationRecoveryCase, unittest.Te
         support.VerificationRecoveryCase.setUp(self)
         git_support.advances_the_base(self)
         state = self.gh.read_pinned_state(self.issue)
-        state.data.update(
+        state.state_data.update(
             finish_support.attempt_record(self.anchor, None, git_support.PR_NUMBER, git_support.REVIEWING),
         )
         self.gh.write_pinned_state(self.issue, state)

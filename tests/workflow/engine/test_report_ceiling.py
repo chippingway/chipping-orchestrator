@@ -206,7 +206,7 @@ class CeilingTransactionTest(unittest.TestCase, support.ReportTransactionCase):
     def _assert_within_the_comment(self) -> None:
         """The pinned state is one GitHub would still accept as a comment."""
         self.assertLessEqual(
-            len(pinned_state_body(self.state.data)), MAX_PINNED_BODY,
+            len(pinned_state_body(self.state.state_data)), MAX_PINNED_BODY,
         )
 
 
@@ -215,7 +215,7 @@ def _seeds_no_receipt(case) -> None:
     for member in (
         support.PUBLISHED_SHA, support.PUBLISHED_PR, support.PUBLISHED_LEASE,
     ):
-        case.state.data.pop(member, None)
+        case.state.state_data.pop(member, None)
 
 
 def _seeds_an_earlier_receipt(case) -> None:
@@ -265,7 +265,7 @@ def _largest_filler(case, pending) -> int:
     while low < high:
         tried = (low + high + 1) // 2
         crowded = PinnedState(comment_id=1, state_data={
-            **case.state.data, _FILLER: "y" * tried,
+            **case.state.state_data, _FILLER: "y" * tried,
         })
         if _record_state.record_pending_report(crowded, pending):
             low = tried

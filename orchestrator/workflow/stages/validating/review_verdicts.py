@@ -316,13 +316,14 @@ class ReturnedVerdict:
         """
         reserved = self.at_its_handoff(state)
         if pending is None:
-            return _report_record_state.fits_the_comment(reserved.data)
+            return _report_record_state.fits_the_comment(reserved.state_data)
         if not _record_state.record_pending_evidence(reserved, pending):
             return False
         settled = _record_state.settled_payload(reserved, pending)
         if settled is None:
             return False
-        return _report_record_state.fits_the_comment(reserved.data) and _report_record_state.fits_the_comment(settled)
+        reserved_fits = _report_record_state.fits_the_comment(reserved.state_data)
+        return reserved_fits and _report_record_state.fits_the_comment(settled)
 
     def at_its_handoff(self, state: PinnedState) -> PinnedState:
         """A copy of `state` carrying this verdict as the widest write it is part of; never written.
@@ -342,7 +343,7 @@ class ReturnedVerdict:
         commit asks no more room than its preparation before the post did. An
         approval is never handed, and is measured as it is.
         """
-        reserved = PinnedState(comment_id=state.comment_id, state_data=dict(state.data))
+        reserved = PinnedState(comment_id=state.comment_id, state_data=dict(state.state_data))
         written = self
         if self.verdict == CHANGES_REQUESTED:
             widest = _record_values.MAX_RECORDED_NUMBER

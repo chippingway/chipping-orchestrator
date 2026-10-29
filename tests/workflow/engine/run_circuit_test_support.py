@@ -172,7 +172,7 @@ def seeded(gh: _circuit_client.CircuitGitHubClient | None = None, **pinned) -> L
     client = gh or _circuit_client.CircuitGitHubClient()
     issue = make_issue(ISSUE_NUMBER, label=LABEL_IMPLEMENTING)
     client.add_issue(issue)
-    client.write_pinned_state(issue, _pinned_state.PinnedState(data=dict(pinned)))
+    client.write_pinned_state(issue, _pinned_state.PinnedState(state_data=dict(pinned)))
     client.writes.clear()
     return Launch(gh=client, issue=issue, state=client.read_pinned_state(issue))
 

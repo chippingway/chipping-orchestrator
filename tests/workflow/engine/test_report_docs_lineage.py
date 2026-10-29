@@ -81,12 +81,12 @@ class DocsLineageTest(unittest.TestCase, final_support.FinalDocsCase):
             with self.subTest(squashed=squashed):
                 self.setUp()
                 self.rebases_the_docs(squashed=squashed)
-                before = dict(self.state.data)
+                before = dict(self.state.state_data)
 
                 proved = self.lineage()
 
                 self.assertTrue(proved.proved, proved.refusal)
-                self.assertEqual(self.gh.read_pinned_state(self.issue).data, before)
+                self.assertEqual(self.gh.read_pinned_state(self.issue).state_data, before)
 
     def test_what_moved_proves_nothing(self) -> None:
         for name, moves, verdict in _MOVES:

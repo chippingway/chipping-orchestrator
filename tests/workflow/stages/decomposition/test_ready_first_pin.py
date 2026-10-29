@@ -89,7 +89,7 @@ class ReadyFirstPinTest(unittest.TestCase, _PatchedWorkflowMixin, _support.Ready
         self.assertEqual(len(self._pins(issue)), 1)
         self.assertEqual(self.ready_tick(gh, issue), 0)
 
-        owed = gh.read_pinned_state(issue).data.get(_support.KEY_REROUTE)
+        owed = gh.read_pinned_state(issue).state_data.get(_support.KEY_REROUTE)
         self.assertEqual(gh.workflow_label(issue), _support.LABEL_DECOMPOSING)
         self.assertEqual(len(self._pins(issue)), 1)
         self.assertIs(owed["unbaselined"], True)
@@ -107,7 +107,7 @@ class ReadyFirstPinTest(unittest.TestCase, _PatchedWorkflowMixin, _support.Ready
 
         self.assertEqual(held[0], 0)
         self.assertEqual(held[1][0], ())
-        self.assertEqual(gh.read_pinned_state(issue).data, _HAND_PINNED)
+        self.assertEqual(gh.read_pinned_state(issue).state_data, _HAND_PINNED)
 
     def test_a_pin_before_a_reroute_create_holds_it(self) -> None:
         # A trusted comment lands while the pickup goes out, so the handoff
@@ -120,7 +120,7 @@ class ReadyFirstPinTest(unittest.TestCase, _PatchedWorkflowMixin, _support.Ready
         gh, issue, held = self._shadowed_reroute()
         record = gh.read_pinned_state(issue)
         self.assertEqual(held, (0, ((), _support.SAID_PICKUP, 0)))
-        self.assertEqual(record.data, _HAND_PINNED)
+        self.assertEqual(record.state_data, _HAND_PINNED)
         self.assertIn(_support.KEY_REROUTE, self._pins(issue)[-1])
 
         self.assertEqual(self.ready_tick(gh, issue), 0)
@@ -129,7 +129,7 @@ class ReadyFirstPinTest(unittest.TestCase, _PatchedWorkflowMixin, _support.Ready
             (rerouted.comment_id, gh.workflow_label(issue), _support.notices(gh)),
             (record.comment_id, _support.LABEL_DECOMPOSING, (0, 1, 1)),
         )
-        self.assertIs(rerouted.data[_support.KEY_REROUTE]["unbaselined"], True)
+        self.assertIs(rerouted.state_data[_support.KEY_REROUTE]["unbaselined"], True)
 
     def _unpinned(self) -> tuple:
         """A client on the production pinned roads, and an issue on `ready` that pinned nothing."""

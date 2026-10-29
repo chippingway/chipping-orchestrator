@@ -98,6 +98,6 @@ def _apply_accounting(state: PinnedState, accounting: dict) -> None:
     """
     for name, counted in accounting.items():
         if counted is None:
-            state.data.pop(name, None)
+            state.state_data.pop(name, None)
         else:
             state.set(name, counted)

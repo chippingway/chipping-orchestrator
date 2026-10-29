@@ -366,7 +366,7 @@ def carry_publication_override(
 def clear_publication_override(state: PinnedState) -> None:
     """Drop the whole authorization, leaving every other field alone."""
     for key in _OVERRIDE_KEYS:
-        state.data.pop(key, None)
+        state.state_data.pop(key, None)
 
 
 def is_authorized(state: PinnedState, candidate_sha: str) -> bool:

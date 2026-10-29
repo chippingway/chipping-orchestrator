@@ -91,7 +91,7 @@ class _PollsAfterTheRetirement:
     def __call__(self, *asked, **answering):
         """Answer this write, and poll behind the one that retires."""
         written = self._answering(*asked, **answering)
-        if self._polled or asked[1].data.get(_KEY_CYCLE_ID) is not None:
+        if self._polled or asked[1].state_data.get(_KEY_CYCLE_ID) is not None:
             return written
         self._polled = True
         _dispatch_closure._kept_closed_reading(
@@ -335,13 +335,13 @@ class SupersededCorrelationTest(_RetiredRecordCase, unittest.TestCase):
         _late_state.write_late_generation(
             state, late_generation(cycle_id=_NEXT_CYCLE),
         )
-        self.github.seed_state(LATE_ISSUE_NUMBER, **state.data)
+        self.github.seed_state(LATE_ISSUE_NUMBER, **state.state_data)
 
     def _completed(self) -> None:
         """What that cycle's own umbrella terminal leaves on the record."""
         state = self._state()
         _umbrella_terminal._retired_cycle(state)
-        self.github.seed_state(LATE_ISSUE_NUMBER, **state.data)
+        self.github.seed_state(LATE_ISSUE_NUMBER, **state.state_data)
 
 
 if __name__ == "__main__":

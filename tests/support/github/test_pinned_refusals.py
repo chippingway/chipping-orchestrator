@@ -55,7 +55,9 @@ class PinnedRefusalTest(unittest.TestCase):
                 pinned = client._pinned[_ISSUE]
 
                 with self.assertRaises(_pinned_refusal.RecordRefused):
-                    client.write_pinned_state(issue, PinnedState(pinned.comment_id, {_BRANCH_KEY: _STAGED}))
+                    client.write_pinned_state(
+                        issue, PinnedState(comment_id=pinned.comment_id, state_data={_BRANCH_KEY: _STAGED}),
+                    )
 
                 self.assertEqual(client.write_state_calls, 0)
                 self.assertIs(client._pinned[_ISSUE], pinned)

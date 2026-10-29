@@ -76,7 +76,7 @@ class RetiredCycleTest(unittest.TestCase):
 
         _endings.clear_retired_cycle(state)
 
-        self.assertEqual(state.data, {"branch": "orchestrator/issue-9"})
+        self.assertEqual(state.state_data, {"branch": "orchestrator/issue-9"})
 
 
 class AppliedTerminalTest(unittest.TestCase):
@@ -101,7 +101,7 @@ class AppliedTerminalTest(unittest.TestCase):
 
         _endings.record_terminal(state, _LATER_CYCLE, confirmed=False)
 
-        self.assertNotIn(_endings.LATE_TERMINAL_CONFIRMED, state.data)
+        self.assertNotIn(_endings.LATE_TERMINAL_CONFIRMED, state.state_data)
 
     def test_another_cycles_proof_is_not_this_one(self) -> None:
         state = PinnedState(state_data={})

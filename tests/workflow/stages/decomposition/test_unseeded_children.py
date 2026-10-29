@@ -186,7 +186,7 @@ class UnseededChildTest(unittest.TestCase):
         seed.set(KEY_PARENT_NUMBER, _support.PARENT)
         seed.set(KEY_AWAITING_HUMAN, False)
         held = github.pinned_data(child.number)
-        github.seed_state(child.number, **{**held, **seed.data})
+        github.seed_state(child.number, **{**held, **seed.state_data})
 
         ran = [
             _split.redecompose(github, child, IMPLEMENTED_MESSAGE, tick=_dispatch)[RUN_AGENT].call_count

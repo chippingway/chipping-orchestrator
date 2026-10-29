@@ -128,7 +128,7 @@ def baselined(
     with a reader that changed.
     """
     signal = _late_content._read_content_signal(
-        issue, PinnedState(data={}), generation,
+        issue, PinnedState(state_data={}), generation,
     )
     return _late_content._rebaselined(generation, signal.fingerprint)
 
@@ -165,12 +165,12 @@ def late_issue(
     recorded = _support.late_generation() if generation is None else generation
     if baseline:
         recorded = baselined(recorded, issue)
-    written = PinnedState(data=dict(extra_state))
+    written = PinnedState(state_data=dict(extra_state))
     _late_state.write_late_generation(written, recorded)
     if not bounded:
         # Recorded before the flag existed, so the key is simply not there.
-        written.data.pop(_late_keys.BASELINE_BOUNDED, None)
-    github.seed_state(_support.LATE_ISSUE_NUMBER, **written.data)
+        written.state_data.pop(_late_keys.BASELINE_BOUNDED, None)
+    github.seed_state(_support.LATE_ISSUE_NUMBER, **written.state_data)
     return github, issue
 
 

@@ -121,7 +121,7 @@ class RecoveredTransferTest(_transfer_case._RecoveryCase, unittest.TestCase):
         # some other commit is a comment disagreeing with itself. Compared
         # against the commit the record names, a hand-edited target would make
         # the permit invisible and the approval would look like any other.
-        self.state.data[_rewrite_fields.LATE_REWRITE_TO_SHA] = _transfer_payloads.FOREIGN_SHA
+        self.state.state_data[_rewrite_fields.LATE_REWRITE_TO_SHA] = _transfer_payloads.FOREIGN_SHA
 
         self.assertTrue(_late_transfer_reading._licensed_by_a_permit(self.state))
         self.assertFalse(self._bypasses())

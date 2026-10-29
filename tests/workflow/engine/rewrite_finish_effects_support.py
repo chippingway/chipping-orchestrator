@@ -68,7 +68,7 @@ class DurableAtTheRelabel:
 
 def leaves(world: FinishWorld, room: int) -> None:
     """Fill issue #7's pinned comment until `room` characters are left under the limit."""
-    pinned = world.github._pinned[ISSUE].data
+    pinned = world.github._pinned[ISSUE].state_data
     pinned[FILLER] = ""
     filled = MAX_PINNED_BODY - room - len(pinned_state_body(pinned))
     pinned[FILLER] = "x" * filled
@@ -77,7 +77,7 @@ def leaves(world: FinishWorld, room: int) -> None:
 def makes_room(world: FinishWorld) -> None:
     """Take the filler back off issue #7's pinned comment, as a human making room does."""
     pinned = world.github._pinned[ISSUE]
-    pinned.data.pop(FILLER)
+    pinned.state_data.pop(FILLER)
 
 
 def room_for(world: FinishWorld, **added: object) -> int:

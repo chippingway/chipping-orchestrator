@@ -74,7 +74,7 @@ class _HoldCase(unittest.TestCase):
         """Whether dispatch defers for this label, checkout, and comment."""
         return recovery_holds._recovery_holds_dispatch(
             make_issue(ISSUE, label=str(label)), label,
-            PinnedState(data={ANCHOR_KEY: ANCHOR, **pinned}),
+            PinnedState(state_data={ANCHOR_KEY: ANCHOR, **pinned}),
             worktree or self.worktree,
         )
 

@@ -156,7 +156,7 @@ def parks(launch: _handoffs.HandedLaunch, moved_on: Callable[[], bool | None]) -
             context.issue.number, launch.handed.anchor, context.state.get(_ANCHOR),
         )
         return
-    measured = dict(context.state.data)
+    measured = dict(context.state.state_data)
     if not _prepares(launch):
         return
     posted = _parks._posts_the_notice(context.gh, context.issue, context.state, _UNFINISHED)
@@ -215,7 +215,7 @@ def _prepares(launch: _handoffs.HandedLaunch) -> bool:
     commit = _commits.ReportCommit(context.gh, context.issue, context.state)
     staged = commit.staging()
     _verdicts.drops_the_verdict(staged, only=launch.handed)
-    staged.data.update({
+    staged.state_data.update({
         _ANCHOR: launch.handed.anchor,
         _AWAITING_HUMAN: True,
         _PARK_REASON: _PARK_EXECUTION_FAILED,
@@ -275,7 +275,7 @@ def _lands(
     if reread is None:
         return None
     # The anchor as that reading spelled it, its absence included.
-    context.state.data.pop(_ANCHOR, None)
+    context.state.state_data.pop(_ANCHOR, None)
     spelled = reread.read.get(_ANCHOR, _review_comment._ABSENT)
     if spelled is not _review_comment._ABSENT:
         context.state.set(_ANCHOR, spelled)
@@ -302,7 +302,7 @@ def _lands(
         )
         return False
     _verdicts.drops_the_verdict(context.state, only=launch.handed)
-    context.state.data.update({
+    context.state.state_data.update({
         _ANCHOR: launch.handed.anchor,
         _AWAITING_HUMAN: True,
         _PARK_REASON: _PARK_EXECUTION_FAILED,

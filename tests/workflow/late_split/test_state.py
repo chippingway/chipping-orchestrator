@@ -133,7 +133,7 @@ class RoundTripTest(unittest.TestCase):
         # the same as never having recorded a lineage at all.
         rooted = LateGeneration(cycle_id=1, current_issue=9, lineage_depth=0)
         state = _written(rooted)
-        self.assertIn(_DEPTH_KEY, state.data)
+        self.assertIn(_DEPTH_KEY, state.state_data)
         self.assertEqual(_late_state.read_late_generation(state), rooted)
 
     def test_the_deepest_generations_keep_their_depth(self) -> None:
@@ -148,7 +148,7 @@ class RoundTripTest(unittest.TestCase):
         # The pinned comment is written with `json.dumps`, so a typed member
         # that reached it as anything but its wire string would raise there
         # rather than here.
-        written = json.loads(json.dumps(_written(_support.full_generation()).data))
+        written = json.loads(json.dumps(_written(_support.full_generation()).state_data))
         self.assertEqual(written["late_phase"], "snapshotting")
         self.assertEqual(written[_MEASUREMENT_FAILURE_KEY], "diff_unreadable")
         self.assertEqual(written["late_cancelled_phase"], "splitting")
@@ -175,13 +175,13 @@ class RoundTripTest(unittest.TestCase):
             state,
             LateGeneration(cycle_id=_support.CYCLE_ID, current_issue=9),
         )
-        self.assertNotIn("late_candidate_sha", state.data)
-        self.assertNotIn("late_cancelled", state.data)
+        self.assertNotIn("late_candidate_sha", state.state_data)
+        self.assertNotIn("late_cancelled", state.state_data)
 
     def test_other_stages_keys_are_untouched(self) -> None:
         state = _written(_support.full_generation())
         _late_state.clear_late_generation(state)
-        self.assertEqual(state.data, _LEGACY_STATE)
+        self.assertEqual(state.state_data, _LEGACY_STATE)
 
 
 class FieldContractTest(unittest.TestCase):
@@ -247,7 +247,7 @@ class FieldContractTest(unittest.TestCase):
             with self.subTest(key=key, damaged=damaged):
                 self.assertNotIn(
                     key,
-                    _support.rewritten_state(_damaged(key, damaged)).data,
+                    _support.rewritten_state(_damaged(key, damaged)).state_data,
                 )
 
 
@@ -274,7 +274,7 @@ class MeasurementRetryTest(unittest.TestCase):
         state = _written(_support.measured_generation())
         for key in _MEASUREMENT_RETRY_KEYS:
             with self.subTest(key=key):
-                self.assertNotIn(key, state.data)
+                self.assertNotIn(key, state.state_data)
         read_back = _support.read_state(state)
         self.assertEqual(read_back.measurement_miss_count, 0)
         self.assertIsNone(read_back.measurement_failure)
@@ -285,13 +285,13 @@ class MeasurementRetryTest(unittest.TestCase):
         # park a reading that has not failed yet.
         state = self._recorded()
         for key in _MEASUREMENT_RETRY_KEYS:
-            self.assertIn(key, state.data)
+            self.assertIn(key, state.state_data)
 
         _late_state.clear_late_generation(state)
 
         for key in _MEASUREMENT_RETRY_KEYS:
             with self.subTest(key=key):
-                self.assertNotIn(key, state.data)
+                self.assertNotIn(key, state.state_data)
 
     def _recorded(self) -> PinnedState:
         """A pinned comment carrying the miss and the step it stopped at."""
@@ -318,7 +318,7 @@ class PublicationProvenanceTest(unittest.TestCase):
         state = _written(_support.measured_generation())
         for key in _PUBLICATION_KEYS:
             with self.subTest(key=key):
-                self.assertNotIn(key, state.data)
+                self.assertNotIn(key, state.state_data)
         read_back = _support.read_state(state)
         self.assertFalse(read_back.publication.post_publication)
         self.assertFalse(read_back.publication.is_complete)
@@ -331,7 +331,7 @@ class PublicationProvenanceTest(unittest.TestCase):
         for key in _NAMED_CONTEXT:
             with self.subTest(key=key):
                 damaged = _written(_support.full_generation())
-                damaged.data.pop(key)
+                damaged.state_data.pop(key)
 
                 read_back = _support.read_state(damaged)
 
@@ -346,10 +346,10 @@ class PublicationProvenanceTest(unittest.TestCase):
 
         state = _written(owed)
 
-        self.assertIn(_RESOURCES_KEY, state.data)
+        self.assertIn(_RESOURCES_KEY, state.state_data)
         for key in _PUBLICATION_KEYS:
             with self.subTest(key=key):
-                self.assertNotIn(key, state.data)
+                self.assertNotIn(key, state.state_data)
 
 
 class LegacyCompatibilityTest(unittest.TestCase):
@@ -369,7 +369,7 @@ class LegacyCompatibilityTest(unittest.TestCase):
         # state on every issue leaves a legacy pinned comment as it found it.
         state = PinnedState(state_data=dict(_LEGACY_STATE))
         self.assertEqual(
-            _support.rewritten_state(state).data, _LEGACY_STATE,
+            _support.rewritten_state(state).state_data, _LEGACY_STATE,
         )
 
     def test_a_cycle_less_record_is_not_written(self) -> None:
@@ -379,7 +379,7 @@ class LegacyCompatibilityTest(unittest.TestCase):
         _late_state.write_late_generation(
             state, LateGeneration(current_issue=9, phase=LatePhase.MEASURING),
         )
-        self.assertEqual(state.data, _LEGACY_STATE)
+        self.assertEqual(state.state_data, _LEGACY_STATE)
 
     def test_unreadable_fields_read_as_absent(self) -> None:
         # A hand-edited comment, or one an older binary wrote differently:
@@ -418,7 +418,7 @@ class LegacyCompatibilityTest(unittest.TestCase):
             _CYCLE_KEY: _support.CYCLE_ID,
             _DEPTH_KEY: "corrupt",
         })
-        self.assertNotIn(_DEPTH_KEY, _support.rewritten_state(state).data)
+        self.assertNotIn(_DEPTH_KEY, _support.rewritten_state(state).state_data)
 
 if __name__ == "__main__":
     unittest.main()

@@ -31,7 +31,10 @@ decomposer may run, and the one the split's own summary quotes. Fewer mean
 the loop stopped short: the one child a crash can leave created and
 unrecorded is adopted by its receipt (`split_receipts`), and anything short
 of that parks, since the manifest that declared the rest is not kept to
-create them from.
+create them from. Markers with no whole count among them -- `children` with
+none beside it, or a count that is no integer -- are neither: no split this
+build makes leaves them, so they park before any child is adopted, repaired,
+or summarized, keeping every recorded child as it stands.
 
 Finalizing repairs every recorded child first, against the lineage the
 parent's record proves (`ReplacementLineage.repair`): a missing parent link
@@ -71,7 +74,7 @@ from orchestrator import config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import guards as _guards
-from orchestrator.workflow.late_split import state as _late_state
+from orchestrator.workflow.late_split import formats as _formats, state as _late_state
 from orchestrator.workflow.stages.decomposition import (
     child_claims as _child_claims,
     late_relabel as _late_relabel,
@@ -105,6 +108,32 @@ def _park_incomplete_decomposition(
         reason="decomposition_crash",
     )
     gh.write_pinned_state(issue, state)
+
+
+def _parked_uncounted(gh: GitHubClient, issue: Issue, state: PinnedState, expected, children) -> bool:
+    """Park a split whose markers carry no whole count to read its register against; whether it did.
+
+    Every split this build makes, ordinary or late, puts the count down before
+    its first create, so a register standing without one -- or beside a count
+    that is no integer -- cannot say whether its loop finished. Finalizing
+    would hand the parent on over a split that may be short, and repairing
+    would seed children nothing proves complete, so neither happens: the
+    recorded children stay recorded and untouched for a human to dispose of.
+    """
+    if _formats.whole_number(expected):
+        return False
+    recorded = _state._issue_ref_list(children) if isinstance(children, list) and children else "none"
+    _guards._park_awaiting_human(
+        gh, issue, state,
+        f"{config.HITL_MENTIONS} decomposition's split record carries no whole "
+        f"`expected_children_count` (children recorded: {recorded}), so nothing "
+        "says whether the split finished; manual intervention needed (close "
+        "any partial children and re-decompose, or record the count the split "
+        "was made with).",
+        reason="decomposition_crash",
+    )
+    gh.write_pinned_state(issue, state)
+    return True
 
 
 def _repair_recovered_child(
@@ -222,19 +251,18 @@ def _recover_stale_manifest(
     `blocked` means we cannot safely respawn the decomposer. Branch by
     whether the recorded count matches expectations once any orphan is
     adopted: equal -> finalize to `blocked`; less, or an orphan that may not
-    be adopted -> park awaiting human. Legacy state from a deploy that
-    pre-dates `expected_children_count` still routes through the
-    `children`-only branch and finalizes.
+    be adopted -> park awaiting human. Markers with no whole count among
+    them park too (`_parked_uncounted`), before any child is touched.
     """
     expected_raw = state.get("expected_children_count")
     children_recorded = state.get(_state._CHILDREN) or []
     if expected_raw is None and not children_recorded:
         return False
-    if _markers_not_ours(issue, state):
+    if _markers_not_ours(issue, state) or _parked_uncounted(gh, issue, state, expected_raw, children_recorded):
         return True
-    if expected_raw is not None and len(children_recorded) < int(expected_raw):
+    if len(children_recorded) < expected_raw:
         adoption = _split_receipts.adopt_unrecorded(gh, spec, issue, state, children_recorded)
-        if adoption.stranded is not None or len(adoption.children) < int(expected_raw):
+        if adoption.stranded is not None or len(adoption.children) < expected_raw:
             _park_incomplete_decomposition(gh, issue, state, expected_raw, adoption)
             return True
         children_recorded = adoption.children

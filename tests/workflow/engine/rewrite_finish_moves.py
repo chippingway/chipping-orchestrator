@@ -46,7 +46,7 @@ def fills_the_comment(case, left: int = 0) -> None:
     """Fill the pinned comment to `left` characters short of its limit, as another road's records would."""
     filled = case.gh.read_pinned_state(case.issue)
     filled.set(_FILLER, "")
-    room = MAX_PINNED_BODY - len(pinned_state_body(filled.data))
+    room = MAX_PINNED_BODY - len(pinned_state_body(filled.state_data))
     filled.set(_FILLER, "x" * (room - left))
     case.gh.write_pinned_state(case.issue, filled)
 
@@ -54,7 +54,7 @@ def fills_the_comment(case, left: int = 0) -> None:
 def makes_room(case) -> None:
     """Take the filler back off the pinned comment, as a human making room does."""
     emptied = case.gh.read_pinned_state(case.issue)
-    emptied.data.pop(_FILLER)
+    emptied.state_data.pop(_FILLER)
     case.gh.write_pinned_state(case.issue, emptied)
 
 

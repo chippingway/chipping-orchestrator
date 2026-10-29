@@ -544,7 +544,8 @@ orchestrator/
     pinned_refusal.py   the refusal (`RecordRefused`) raised where something meant to act on a pinned record admission
                         refuses: the whole-state write over one, with nothing written, and a stage handler's admitted
                         reading in `workflow/engine/record_admission.py`; a dispatch catches it around the handler
-    pinned_state.py     the pinned durable-state model, the comment body it is written as -- with the wrapper's own
+    pinned_state.py     the pinned durable-state model (`PinnedState`, built from keywords alone, which carries its
+                        payload as `state_data` alone), the comment body it is written as -- with the wrapper's own
                         terminator escaped in the SERIALIZED payload and never in the value, since a recorded
                         explanation or a preserved pull-request body carrying `-->` would close that comment early
                         and leave the rest of the record as visible issue text, and with that escape stood down for a

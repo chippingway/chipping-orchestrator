@@ -82,7 +82,7 @@ _NEVER_SETTLES = (
     ("a later revision was spent", lambda case, pending: case.state.set(
         _records.REVISION_FLOOR, pending.revision + 1,
     )),
-    ("the floor is gone", lambda case, _pending: case.state.data.pop(_records.REVISION_FLOOR)),
+    ("the floor is gone", lambda case, _pending: case.state.state_data.pop(_records.REVISION_FLOOR)),
 )
 
 
@@ -90,7 +90,7 @@ def _fills_the_comment(case, _landed) -> None:
     """Fill the pinned comment to its limit with a field of its own, as another road would."""
     filling = case.gh.read_pinned_state(case.issue)
     filling.set(_FILLER, "")
-    room = MAX_PINNED_BODY - len(pinned_state_body(filling.data))
+    room = MAX_PINNED_BODY - len(pinned_state_body(filling.state_data))
     filling.set(_FILLER, "y" * room)
     case.gh.write_pinned_state(case.issue, filling)
 
@@ -314,7 +314,7 @@ class ReplayedEvidenceTest(unittest.TestCase, support.VerificationEvidenceCase):
                 filled = self.gh.read_pinned_state(self.issue)
                 self.assertEqual(
                     (
-                        len(pinned_state_body(filled.data)) <= MAX_PINNED_BODY,
+                        len(pinned_state_body(filled.state_data)) <= MAX_PINNED_BODY,
                         _record_state.read_pending_evidence(filled),
                         _settlement.read_current_evidence(filled),
                         len(self.artifacts()),
@@ -322,7 +322,7 @@ class ReplayedEvidenceTest(unittest.TestCase, support.VerificationEvidenceCase):
                     (True, self.pending, None, int(posted)),
                 )
 
-                filled.data.pop(_FILLER)
+                filled.state_data.pop(_FILLER)
                 self.gh.write_pinned_state(self.issue, filled)
                 self.assertFalse(self.reconcile())
 
@@ -453,7 +453,7 @@ class RetiredEvidenceTest(unittest.TestCase, support.VerificationEvidenceCase):
         pending = self.record()
         self.pull_request.state = "closed"
         self.state.set(_FILLER, "")
-        room = MAX_PINNED_BODY - len(pinned_state_body(self.state.data))
+        room = MAX_PINNED_BODY - len(pinned_state_body(self.state.state_data))
         self.state.set(_FILLER, "y" * room)
         self.gh.write_pinned_state(self.issue, self.state)
         writes = self.gh.write_state_calls
@@ -560,7 +560,7 @@ class SubjectMovedMeanwhileTest(unittest.TestCase, support.VerificationEvidenceC
 
     def removes_the_review_subject(self, state) -> None:
         """Another road's reading of the comment, the review subject gone from it."""
-        state.data.pop(_review_subjects.REVIEW_SUBJECT)
+        state.state_data.pop(_review_subjects.REVIEW_SUBJECT)
 
     def records_an_approval(self, state) -> None:
         """Another road's reading of the comment, an approval of the subject recorded on it."""

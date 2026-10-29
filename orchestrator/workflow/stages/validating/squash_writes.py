@@ -119,11 +119,11 @@ class _FollowsItsWrites:
         """
         if issue.number != self._issue_number:
             return self._gh.write_pinned_state(issue, state)
-        fields = copy.deepcopy(state.data)
+        fields = copy.deepcopy(state.state_data)
         synced, comment = state.synced, self._held.comment
         if not (self._holds(state) and self._lands(state)):
-            state.data.clear()
-            state.data.update(fields)
+            state.state_data.clear()
+            state.state_data.update(fields)
             state.synced = synced
             self._held.comment = comment
             raise _Unwritten(

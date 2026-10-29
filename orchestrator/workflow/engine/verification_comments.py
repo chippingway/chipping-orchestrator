@@ -100,12 +100,12 @@ def records_the_artifact(
     it this tick.
     """
     guard = _commit_models.PinnedCommit.capture(state, owned=MERGED_LEDGER)
-    staged = PinnedState(state_data=dict(state.data))
+    staged = PinnedState(state_data=dict(state.state_data))
     _comments._track_orchestrator_comment(staged, comment_id)
-    outcome = _commit.commit(gh, issue, guard, staged.data, MERGED_LEDGER)
+    outcome = _commit.commit(gh, issue, guard, staged.state_data, MERGED_LEDGER)
     if outcome.status is _commit_models.CommitStatus.COMMITTED:
-        state.data = outcome.reading.data
-        _commit.takes_in(state, outcome.reading.data)
+        state.state_data = outcome.reading.state_data
+        _commit.takes_in(state, outcome.reading.state_data)
         return False
     return _durable.refusal_of(outcome).holds
 

@@ -46,7 +46,7 @@ def record_exemption(state: PinnedState, candidate_sha: str) -> None:
         )
     if _exemption_reading.read_exemption(state) != candidate_sha:
         for key in _exemption_reading._IDENTITY_KEYS:
-            state.data.pop(key, None)
+            state.state_data.pop(key, None)
     state.set(_exemption_reading.LATE_EXEMPT_SHA, candidate_sha)
 
 
@@ -94,4 +94,4 @@ def record_semantic_identity(
 def clear_exemption(state: PinnedState) -> None:
     """Drop the exemption and its identity, leaving every other field alone."""
     for key in _exemption_reading._EXEMPTION_KEYS:
-        state.data.pop(key, None)
+        state.state_data.pop(key, None)

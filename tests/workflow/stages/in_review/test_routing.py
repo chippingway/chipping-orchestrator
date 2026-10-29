@@ -226,7 +226,7 @@ class HandleInReviewTest(
         # approval names its subject.
         pr = self._open_pr(approved=True, mergeable=True, check_state=CHECKS_SUCCESS)
         github, issue = self._seed(pr=pr)
-        github._pinned[ROUTING_ISSUE].data.pop(_review_subjects.APPROVED_SUBJECT)
+        github._pinned[ROUTING_ISSUE].state_data.pop(_review_subjects.APPROVED_SUBJECT)
 
         mocks = self._run_in_review(github, issue, run_agent=_agent())
 

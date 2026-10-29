@@ -475,7 +475,8 @@ not its words, and a late split's retained manifest proves no more: the body it 
 branch, remote, and mirror, which no record keeps, so a child reading as that manifest renders it now may have been
 edited to match a configuration changed since. Half-finished splits recover rather than re-spawn — adopting a child
 created and never recorded by the receipt in its body, and posting the split's summary, its rationale read back off the
-parent's record, only where its own receipt is not already on the thread — a
+parent's record, only where its own receipt is not already on the thread, and parking a register recorded beside no
+integer count — a
 `DECOMPOSE` kill switch falls through to `workflow:implementing`, and commits or a dirty tree
 park with the worktree kept. An issue standing on a `retry_cap` park is held ahead of all of that — the
 drift reset, the kill switch, and the human-reply resume each answer a park that is not this one — so it keeps

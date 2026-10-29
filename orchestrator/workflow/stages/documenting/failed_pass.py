@@ -136,10 +136,10 @@ def _landed(ctx: _models._DocumentingContext, head: str | None) -> bool:
     if isinstance(fresh, _commit_models.CommitOutcome):
         outcome = fresh
     else:
-        staged = PinnedState(comment_id=fresh.comment_id, state_data=copy.deepcopy(fresh.data))
+        staged = PinnedState(comment_id=fresh.comment_id, state_data=copy.deepcopy(fresh.state_data))
         staged.set(_state._LAUNCHED_DOCS_SHA, head)
         guard = _commit_models.PinnedCommit.capture(fresh, owned=(_state._LAUNCHED_DOCS_SHA,))
-        outcome = _pinned_commit.commit(ctx.gh, ctx.issue, guard, staged.data)
+        outcome = _pinned_commit.commit(ctx.gh, ctx.issue, guard, staged.state_data)
     if outcome.status is not _commit_models.CommitStatus.COMMITTED:
         log.warning(
             "issue=#%d could not record docs_launched_sha=%r on the pinned comment (%s)",
@@ -147,5 +147,5 @@ def _landed(ctx: _models._DocumentingContext, head: str | None) -> bool:
         )
         return False
     ctx.state.set(_state._LAUNCHED_DOCS_SHA, head)
-    _pinned_commit.takes_in(ctx.state, outcome.reading.data, (_state._LAUNCHED_DOCS_SHA,))
+    _pinned_commit.takes_in(ctx.state, outcome.reading.state_data, (_state._LAUNCHED_DOCS_SHA,))
     return True

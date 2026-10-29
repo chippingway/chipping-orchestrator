@@ -259,7 +259,7 @@ class _WorkflowStateService:
         number = issue.number if isinstance(issue, FakeIssue) else issue
         self._pinned[number] = PinnedState(
             comment_id=self._next_comment_id(thread),
-            data=payload,
+            state_data=payload,
             parsed=True,
             supported=refusal is None,
             admission_status=AdmissionStatus.SUPPORTED if refusal is None else AdmissionStatus.UNSUPPORTED,
@@ -328,7 +328,7 @@ class _WorkflowStateService:
             return PinnedState(issue_number=issue.number, repo_slug=self._repo_slug)
         reading = PinnedState(
             comment_id=existing.comment_id,
-            data=dict(existing.data) if existing.supported else {},
+            state_data=dict(existing.state_data) if existing.supported else {},
             parsed=existing.parsed,
             supported=existing.supported,
             admission_status=existing.admission_status,
@@ -339,7 +339,7 @@ class _WorkflowStateService:
             repo_slug=self._repo_slug,
         )
         if reading.parsed and reading.supported:
-            reading.synced = json.dumps(reading.data, sort_keys=True)
+            reading.synced = json.dumps(reading.state_data, sort_keys=True)
         return reading
 
     def write_pinned_state(
@@ -359,35 +359,35 @@ class _WorkflowStateService:
         existing = self._pinned.get(issue.number)
         if existing is not None and not existing.supported:
             raise _pinned_refusal.RecordRefused(f"issue #{issue.number} holds a pinned record admission refuses")
-        state.data.setdefault(SCHEMA_VERSION_KEY, SUPPORTED_SCHEMA_VERSION)
-        if PinnedAdmission.payload_refusal(state.data) is not None:
+        state.state_data.setdefault(SCHEMA_VERSION_KEY, SUPPORTED_SCHEMA_VERSION)
+        if PinnedAdmission.payload_refusal(state.state_data) is not None:
             return state
         self._issue_history._write_state_calls += 1
         if state.comment_id is None:
             state.comment_id = self._next_comment_id(issue)
             issue.comments.append(FakeComment(
                 id=state.comment_id,
-                body=pinned_state_body(state.data),
+                body=pinned_state_body(state.state_data),
                 user=FakeUser(self._bot_login),
             ))
         self._pinned[issue.number] = PinnedState(
             comment_id=state.comment_id,
-            data=dict(state.data),
+            state_data=dict(state.state_data),
             parsed=True,
             supported=True,
             admission_status=AdmissionStatus.SUPPORTED,
-            found_version=state.data[SCHEMA_VERSION_KEY],
+            found_version=state.state_data[SCHEMA_VERSION_KEY],
             issue_number=issue.number,
             repo_slug=self._repo_slug,
         )
-        state.synced = json.dumps(state.data, sort_keys=True)
+        state.synced = json.dumps(state.state_data, sort_keys=True)
         return state
 
     def pinned_data(self, issue_number: int) -> dict[str, Any]:
         pinned_state = self._pinned.get(issue_number)
         if pinned_state is None:
             return {}
-        return dict(pinned_state.data)
+        return dict(pinned_state.state_data)
 
 
 class _IssueCommentService:

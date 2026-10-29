@@ -114,11 +114,11 @@ def records(staged: PinnedState, pending: PendingEvidence) -> bool:
     so the transaction and the word that it is the finish's land together or
     not at all. A refusal leaves `staged` exactly as it was.
     """
-    kept = dict(staged.data)
+    kept = dict(staged.state_data)
     staged.set(_base_sync_state._PENDING_EVIDENCE_RECEIPT, pending.receipt)
     if _record_state.record_pending_evidence(staged, pending):
         return True
-    staged.data = kept
+    staged.state_data = kept
     return False
 
 

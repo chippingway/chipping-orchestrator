@@ -157,9 +157,9 @@ class AccumulateIssueUsageHelperTest(unittest.TestCase):
         # must neither count a run nor create any counter key.
         empty = PinnedState()
         _issue_usage._accumulate_issue_usage(empty, None)
-        self.assertEqual(empty.data, {})
+        self.assertEqual(empty.state_data, {})
         # And it leaves existing counters untouched.
-        seeded = PinnedState(data={_RUNS_KEY: 2, _TOKENS_KEY: 9})
+        seeded = PinnedState(state_data={_RUNS_KEY: 2, _TOKENS_KEY: 9})
         _issue_usage._accumulate_issue_usage(seeded, None)
         self.assertEqual(seeded.get(_RUNS_KEY), 2)
         self.assertEqual(seeded.get(_TOKENS_KEY), 9)
@@ -176,7 +176,7 @@ class FormatIssueUsageVerdictTest(unittest.TestCase):
         self.assertIsNone(_issue_usage._format_issue_usage_verdict(PinnedState()))
         self.assertIsNone(
             _issue_usage._format_issue_usage_verdict(
-                PinnedState(data={_RUNS_KEY: 0}),
+                PinnedState(state_data={_RUNS_KEY: 0}),
             )
         )
 
@@ -209,7 +209,7 @@ class FormatIssueUsageVerdictTest(unittest.TestCase):
                     verdict_data[_COST_KEY] = cost
                 self.assertEqual(
                     _issue_usage._format_issue_usage_verdict(
-                        PinnedState(data=verdict_data),
+                        PinnedState(state_data=verdict_data),
                     ),
                     f":receipt: this issue: 3 agent runs · "
                     f"45,200 tokens · {expected_cost}",
@@ -217,7 +217,7 @@ class FormatIssueUsageVerdictTest(unittest.TestCase):
 
     def test_tokens_are_thousands_separated(self) -> None:
         line = _issue_usage._format_issue_usage_verdict(
-            PinnedState(data={
+            PinnedState(state_data={
                 _RUNS_KEY: 1,
                 _TOKENS_KEY: 1234567,
                 _COST_KEY: 12.3,

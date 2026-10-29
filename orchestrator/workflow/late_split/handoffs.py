@@ -77,4 +77,4 @@ def record_settled_handoff(state: PinnedState, published: str) -> None:
 
 def clear_settled_handoff(state: PinnedState) -> None:
     """Drop the handoff record, leaving every other field alone."""
-    state.data.pop(LATE_COLLAPSE_HANDOFF, None)
+    state.state_data.pop(LATE_COLLAPSE_HANDOFF, None)

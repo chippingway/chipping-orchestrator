@@ -146,7 +146,7 @@ def _recorded(**overrides) -> PinnedState:
         KEY_REWRITE_STAGE: str(ATTEMPT_STAGE),
         **overrides,
     }
-    return PinnedState(data={
+    return PinnedState(state_data={
         key: recorded for key, recorded in written.items()
         if recorded is not None
     })
@@ -189,7 +189,7 @@ class PendingRewriteReadTest(unittest.TestCase):
         self.assertFalse(pending.answers_for(ATTEMPT_PR, None))
 
     def test_a_comment_with_no_member_claims_nothing(self) -> None:
-        pending = _attempt_records._pending_rewrite(PinnedState(data={}))
+        pending = _attempt_records._pending_rewrite(PinnedState(state_data={}))
 
         self.assertFalse(pending.is_declared)
         self.assertFalse(pending.is_recorded)
@@ -340,7 +340,7 @@ class ClearedAttemptTest(unittest.TestCase):
 
         for key in attempts._ATTEMPT_KEYS:
             with self.subTest(key=key):
-                self.assertIn(key, state.data)
+                self.assertIn(key, state.state_data)
                 self.assertIsNone(state.get(key))
         self.assertEqual(state.get("review_round"), 3)
 

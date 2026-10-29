@@ -104,8 +104,8 @@ def starts(case, how: str) -> None:
         # Handed at the count that charge was already in, so starting it moved nothing past that count.
         state.set(_world.RETURNED_VERDICT, {**verdict, _disposed.HANDED: _run_ledger_values._runs_used(state)})
     if how == NO_FINGERPRINT:
-        state.data.pop(_run_ledger_values.AGENT_RUN_FINGERPRINT)
-    state.data.update(_UNREAD_LEDGERS.get(how, {}))
+        state.state_data.pop(_run_ledger_values.AGENT_RUN_FINGERPRINT)
+    state.state_data.update(_UNREAD_LEDGERS.get(how, {}))
     case.github.write_pinned_state(case.issue, state)
 
 

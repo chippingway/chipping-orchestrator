@@ -235,12 +235,12 @@ class UnrecordedVerificationTest(unittest.TestCase, _FinalVerificationCase):
         if answer is None:
             self.persists(_review_subjects.APPROVED_SUBJECT, None)
         self.answer = answer
-        persisted = dict(self.gh.read_pinned_state(self.issue).data)
+        persisted = dict(self.gh.read_pinned_state(self.issue).state_data)
 
         verified = self.verifies(final_support.DOCS_SHA)
 
         self.assertEqual(
-            (verified.route, verified.final, verified.run, self.state.data),
+            (verified.route, verified.final, verified.run, self.state.state_data),
             (route, None, answer, persisted),
         )
         self.assertEqual(self.runs, int(answer is not None))

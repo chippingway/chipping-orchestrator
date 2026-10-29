@@ -167,9 +167,9 @@ class CommitLandingTest(unittest.TestCase):
         self.assertIs(outcome.status, _STATUS.COMMITTED)
         self.assertEqual(world.record(), support.recorded(settled=True, **_ANOTHER_ROAD))
         self.assertEqual(world.github.write_state_calls, 2, "one write for the other road, one for the commit")
-        self.assertEqual(outcome.reading.data, world.record(), "the committed reading is what reads back")
+        self.assertEqual(outcome.reading.state_data, world.record(), "the committed reading is what reads back")
         self.assertEqual(outcome.reading.comment_id, world.state.comment_id)
-        self.assertEqual(world.state.data, support.recorded(settled=True), "the caller's state is its own")
+        self.assertEqual(world.state.state_data, support.recorded(settled=True), "the caller's state is its own")
 
     def test_agreeing_owned_edits_send_nothing(self) -> None:
         # Another road settled exactly what this caller staged: the record
@@ -183,7 +183,7 @@ class CommitLandingTest(unittest.TestCase):
 
         self.assertIs(outcome.status, _STATUS.COMMITTED)
         self.assertEqual(world.snapshot(), before)
-        self.assertEqual(outcome.reading.data, world.record())
+        self.assertEqual(outcome.reading.state_data, world.record())
 
     def test_transformations_decide_over_fresh_values(self) -> None:
         # A total and a ledger both roads moved keep both moves; a field the
@@ -211,13 +211,13 @@ class CommitLandingTest(unittest.TestCase):
         world = support.seeded()
         world.settle()
 
-        prepared = _commit.prepare(world.github, world.issue, world.guard, world.state.data)
+        prepared = _commit.prepare(world.github, world.issue, world.guard, world.state.state_data)
         sent = world.github.write_state_calls
         world.another_road(**_MOVED_TOTAL)
         committed = world.commit()
 
         self.assertIs(prepared.status, _STATUS.PREPARED)
-        self.assertEqual(prepared.reading.data, support.recorded(settled=True))
+        self.assertEqual(prepared.reading.state_data, support.recorded(settled=True))
         self.assertEqual(sent, 0)
         self.assertIs(committed.status, _STATUS.COMMITTED)
         self.assertEqual(world.record(), support.recorded(settled=True, **_MOVED_TOTAL))
@@ -349,7 +349,7 @@ class CommitRefusalTest(unittest.TestCase):
 
                 self.assertEqual((outcome.status, outcome.refusal), (_STATUS.REFUSED, refusal))
                 self.assertEqual(world.record()[support.SETTLED], _SETTLED_READ)
-                self.assertEqual(world.state.data, support.recorded(settled=True))
+                self.assertEqual(world.state.state_data, support.recorded(settled=True))
 
 
 class CommitBoundaryTest(unittest.TestCase):
@@ -411,7 +411,7 @@ class CommitBoundaryTest(unittest.TestCase):
                 outcome = world.commit()
 
                 self.assertIs(outcome.status, _STATUS.UNCONFIRMED)
-                self.assertEqual(outcome.reading.data, support.recorded(settled=True))
+                self.assertEqual(outcome.reading.state_data, support.recorded(settled=True))
                 self.assertEqual(world.record(), support.recorded(settled=lands))
                 self.assertEqual(world.github.write_state_calls, 1)
 
@@ -420,7 +420,7 @@ class CommitBoundaryTest(unittest.TestCase):
         world.settle()
         support.unparse(world, malformed=False)
 
-        outcome = _commit.prepare(world.github, world.issue, world.guard, world.state.data)
+        outcome = _commit.prepare(world.github, world.issue, world.guard, world.state.state_data)
         self.assertIs(outcome.status, _STATUS.REFUSED)
         self.assertIs(outcome.refusal, _REFUSAL.UNSUPPORTED)
 
@@ -431,7 +431,7 @@ class CommitBoundaryTest(unittest.TestCase):
             with self.subTest(field=field):
                 world = support.seeded(owned=(support.SETTLED, "schema_version"))
                 world.settle()
-                staged = {**world.state.data, field: refused}
+                staged = {**world.state.state_data, field: refused}
 
                 outcome = _commit.commit(world.github, world.issue, world.guard, staged)
 
@@ -448,10 +448,10 @@ class CommitBoundaryTest(unittest.TestCase):
                 world = support.seeded()
                 world.settle()
                 fields, derived = _UNSPELLABLE[case]
-                world.state.data.update(fields)
+                world.state.state_data.update(fields)
 
                 self.assertEqual(
-                    guarded(world.github, world.issue, world.guard, world.state.data, derived),
+                    guarded(world.github, world.issue, world.guard, world.state.state_data, derived),
                     _models.CommitOutcome(_STATUS.REFUSED, refusal=_REFUSAL.UNSUPPORTED),
                 )
                 self.assertEqual(world.record(), support.recorded())
@@ -468,7 +468,7 @@ class CommitCaptureTest(unittest.TestCase):
     def test_a_capture_is_not_moved_by_its_caller(self) -> None:
         # The caller's state is mutable and mutated in place; what the
         # commit was captured over is not.
-        state = PinnedState(comment_id=1, data={support.PR: {_IDS: [1]}})
+        state = PinnedState(comment_id=1, state_data={support.PR: {_IDS: [1]}})
         guard = _models.PinnedCommit.capture(state, prerequisites=(support.PR,))
 
         state.get(support.PR)[_IDS].append(2)
@@ -489,7 +489,7 @@ class CommitCaptureTest(unittest.TestCase):
         _commit.takes_in(world.state, fresh, (support.TOTAL,))
         partly = json.loads(world.state.synced)
         _commit.takes_in(world.state, fresh)
-        unread = PinnedState(data=dict(fresh))
+        unread = PinnedState(state_data=dict(fresh))
         _commit.takes_in(unread, fresh, (support.TOTAL,))
 
         self.assertEqual(
@@ -527,7 +527,7 @@ class CommitCaptureTest(unittest.TestCase):
                 fresh = _commit.reread(world.github, world.issue, world.guard)
 
                 self.assertEqual(
-                    (fresh.data, world.guard.moved(fresh.data), world.snapshot()),
+                    (fresh.state_data, world.guard.moved(fresh.state_data), world.snapshot()),
                     (world.record(), () if case == "nothing moved" else (support.PR,), before),
                 )
 

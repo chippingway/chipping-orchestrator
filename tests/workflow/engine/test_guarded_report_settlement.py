@@ -134,7 +134,7 @@ class SettlementInterleavingTest(unittest.TestCase, _Comment):
                 support.RECEIPT,
             ),
         )
-        self.assertEqual(self.state.data, pinned)
+        self.assertEqual(self.state.state_data, pinned)
 
     def test_a_move_before_the_post_posts_nothing(self) -> None:
         # Moved between the tick's reading and the settlement's preparation:
@@ -143,7 +143,7 @@ class SettlementInterleavingTest(unittest.TestCase, _Comment):
         for moved, fields in _MOVES:
             with self.subTest(moved=moved):
                 self.setUp()
-                left = {**copy.deepcopy(self.state.data), **fields}
+                left = {**copy.deepcopy(self.state.state_data), **fields}
 
                 self.assertTrue(self.reconcile(**fields))
 
@@ -160,7 +160,7 @@ class SettlementInterleavingTest(unittest.TestCase, _Comment):
         for moved, fields in _MOVES:
             with self.subTest(moved=moved):
                 self.setUp()
-                left = {**copy.deepcopy(self.state.data), **fields}
+                left = {**copy.deepcopy(self.state.state_data), **fields}
 
                 with commit_support.behind(self.gh, self.issue, _POST, **fields):
                     self.assertTrue(self.reconcile())
@@ -309,7 +309,7 @@ class SettlementRecoveryTest(unittest.TestCase, _Comment):
         # settlement no longer fits beside what it wrote. Nothing is written
         # over it and the tick holds; the next tick, over that full comment,
         # posts nothing again and stands down with the report still owed.
-        filler = {_FILLER: _CROWDING * _largest_filler(self.state.data)}
+        filler = {_FILLER: _CROWDING * _largest_filler(self.state.state_data)}
         with commit_support.behind(self.gh, self.issue, _POST, **filler):
             self.assertTrue(self.reconcile())
 
@@ -364,7 +364,7 @@ class CompletionRoomTest(unittest.TestCase, _Comment):
         """How much filler the comment that round's settlement leaves carries and stays one GitHub accepts."""
         self._owes_a_fixing_round()
         self.assertFalse(self.reconcile())
-        return _largest_filler(self.state.data)
+        return _largest_filler(self.state.state_data)
 
 
 class RetirementCommitTest(unittest.TestCase, _Comment):
@@ -397,7 +397,7 @@ class RetirementCommitTest(unittest.TestCase, _Comment):
                 self.setUp()
                 self.record()
                 self.pull_request.merged = True
-                left = {**copy.deepcopy(self.state.data), **fields}
+                left = {**copy.deepcopy(self.state.state_data), **fields}
 
                 self.assertTrue(self.reconcile(**fields))
 
@@ -413,7 +413,7 @@ class RetirementCommitTest(unittest.TestCase, _Comment):
                 self.state.set(_records.PENDING_REPORT, {"receipt": support.RECEIPT})
                 self.reconcile()
                 _record_state.clear_pending_report(self.state)
-                left = {**copy.deepcopy(self.state.data), **since}
+                left = {**copy.deepcopy(self.state.state_data), **since}
 
                 self.assertEqual(self.reconcile(**since), not retires)
 

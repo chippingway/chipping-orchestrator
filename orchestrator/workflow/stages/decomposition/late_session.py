@@ -148,7 +148,7 @@ def _record_late_spawn(
     if run.session_id:
         state.set(_late_run_reading._LATE_SESSION_ID, run.session_id)
     else:
-        state.data.pop(_late_run_reading._LATE_SESSION_ID, None)
+        state.state_data.pop(_late_run_reading._LATE_SESSION_ID, None)
     _drop_late_result(state)
 
 
@@ -173,7 +173,7 @@ def _drop_late_result(state: _pinned_state.PinnedState) -> None:
     owner rather than remembering to drop the permission beside it.
     """
     for recorded in _RESULT_KEYS:
-        state.data.pop(recorded, None)
+        state.state_data.pop(recorded, None)
     _overrides.clear_publication_override(state)
 
 
@@ -237,7 +237,7 @@ def _record_late_result(
     limit, afterwards.
     """
     recorded = _late_result_payloads._result_payload(adjudication)
-    if not _late_result_payloads._fits_the_comment({**state.data, **recorded}, MAX_RECORDED_BODY):
+    if not _late_result_payloads._fits_the_comment({**state.state_data, **recorded}, MAX_RECORDED_BODY):
         return False
     for key, written in recorded.items():
         state.set(key, written)
@@ -260,10 +260,10 @@ def _holdable(
     longer of the two spellings a late write puts there, so the measurement
     errs toward refusing.
     """
-    written = _pinned_state.PinnedState(data=dict(state_data))
+    written = _pinned_state.PinnedState(state_data=dict(state_data))
     _record_late_spawn(written, _late_run_reading._spawn_record_for(written, generation))
     written.set(_late_run_reading._LATE_SESSION_ID, "s" * MAX_SESSION_ID)
-    return _late_result_payloads._fits_the_comment(written.data, MAX_RECORDED_BODY)
+    return _late_result_payloads._fits_the_comment(written.state_data, MAX_RECORDED_BODY)
 
 
 def _spawn_late_adjudicator(

@@ -263,7 +263,7 @@ class ReconstructPendingFixBatchTest(
         settled = PinnedState(state_data={})
         _feedback._settle_consumed_feedback(settled, rebuilt)
 
-        self.assertEqual(settled.data, {
+        self.assertEqual(settled.state_data, {
             LAST_ACTION_COMMENT_ID: BATCH_ISSUE_ID,
             PR_LAST_COMMENT_ID: BATCH_PR_CONVERSATION_ID,
             PR_LAST_REVIEW_COMMENT_ID: BATCH_INLINE_SECOND_ID,

@@ -124,7 +124,7 @@ class DeliveredReportRecordTest(unittest.TestCase):
                 state = delivery_support.crowded_comment(
                     delivery_support.CROWDED_FOR_RESERVATION,
                 )
-                found = dict(state.data)
+                found = dict(state.state_data)
 
                 self.assertIs(
                     _delivery_state.stage_delivered_report(
@@ -133,7 +133,7 @@ class DeliveredReportRecordTest(unittest.TestCase):
                     refusal,
                 )
 
-                self.assertEqual(state.data, found)
+                self.assertEqual(state.state_data, found)
 
     def test_a_locationless_verify_is_refused(self) -> None:
         # A location is what a verification is: with none there is nothing to
@@ -148,7 +148,7 @@ class DeliveredReportRecordTest(unittest.TestCase):
             _REFUSAL.INVALID_RECORD,
         )
 
-        self.assertEqual(state.data, {})
+        self.assertEqual(state.state_data, {})
 
     def test_a_refusal_keeps_the_standing_delivery(self) -> None:
         # Whatever refuses a second report -- its text, its record, or the
@@ -164,7 +164,7 @@ class DeliveredReportRecordTest(unittest.TestCase):
                     delivery_support.CROWDED_FOR_RESERVATION,
                     {_records.DELIVERED_REPORT: delivery_support.delivered_object()},
                 )
-                found = dict(crowded.data)
+                found = dict(crowded.state_data)
 
                 self.assertIsNotNone(_delivery_state.stage_delivered_report(
                     crowded, replace(delivery_support.REDELIVERED, report=report),
@@ -173,7 +173,7 @@ class DeliveredReportRecordTest(unittest.TestCase):
                     crowded, replace(delivery_support.REDELIVERED, report=report),
                 ))
 
-                self.assertEqual(crowded.data, found)
+                self.assertEqual(crowded.state_data, found)
                 self.assertEqual(
                     _delivery_state.read_delivered_report(crowded),
                     delivery_support.DELIVERED,
@@ -206,7 +206,7 @@ class DeliveredReportCapacityTest(unittest.TestCase):
                 _room.MeasuredWrite.RECORD,
                 _room.LaterWrites(),
                 len(pinned_state_body({
-                    **crowded.data,
+                    **crowded.state_data,
                     _records.DELIVERED_REPORT: delivery_support.delivered_object(),
                 })),
             ),
@@ -222,7 +222,7 @@ class DeliveredReportCapacityTest(unittest.TestCase):
         crowded = delivery_support.crowded_comment(delivery_support.CROWDED_FOR_RESERVATION)
 
         self.assertTrue(_record_state.fits_the_comment({
-            **crowded.data, _records.DELIVERED_REPORT: delivery_support.delivered_object(),
+            **crowded.state_data, _records.DELIVERED_REPORT: delivery_support.delivered_object(),
         }))
         overflow = _overflow_of(self, crowded, delivery_support.DELIVERED)
 
@@ -262,7 +262,7 @@ class DeliveredReportCapacityTest(unittest.TestCase):
         self.assertEqual(
             _delivery_state.binds_delivered_report(
                 PinnedState(state_data={
-                    **tombstoned.data,
+                    **tombstoned.state_data,
                     _records.DELIVERED_REPORT: delivery_support.delivered_object(),
                 }),
                 delivery_support.DELIVERED,
@@ -290,11 +290,11 @@ class DeliveredReportCapacityTest(unittest.TestCase):
             delivery_support.outstanding_comment(),
         )
         staged = {
-            **crowded.data,
+            **crowded.state_data,
             _records.DELIVERED_REPORT: delivery_support.delivered_object(),
         }
         pushed = {
-            **_room.with_later_writes(crowded, receipt=True).data,
+            **_room.with_later_writes(crowded, receipt=True).state_data,
             _records.DELIVERED_REPORT: delivery_support.delivered_object(),
         }
 
@@ -330,7 +330,7 @@ class DeliveredReportCapacityTest(unittest.TestCase):
             delivery_support.CROWDED_FOR_HAND_BACK, reviewed=True,
         )
         staged = {
-            **crowded.data,
+            **crowded.state_data,
             _records.DELIVERED_REPORT: delivery_support.delivered_object(
                 delivery_support.HANDED_BACK,
             ),
@@ -432,13 +432,13 @@ def _overflow_of(
     Every overflow names a comment past the one ceiling GitHub holds a pinned
     comment to, and the caller's state is exactly as it was found.
     """
-    found = dict(state.data)
+    found = dict(state.state_data)
     refused = _delivery_state.stage_delivered_report(state, delivered)
 
     case.assertIsInstance(refused, _room.CommentOverflow)
     case.assertEqual(refused.limit, MAX_PINNED_BODY)
     case.assertGreater(refused.size, refused.limit)
-    case.assertEqual(state.data, found)
+    case.assertEqual(state.state_data, found)
     return refused
 
 
@@ -839,11 +839,11 @@ class ParkNoticeTest(unittest.TestCase):
         # saving that write needs: a rewrite one character short of it leaves
         # the same write refused by one, and one saving all of it fits there.
         crowded = delivery_support.crowded_comment(_CLOSING_SLACK, baselined=True)
-        refused = _delivery_state.stage_delivered_report(PinnedState(state_data=dict(crowded.data)), _CLOSING)
+        refused = _delivery_state.stage_delivered_report(PinnedState(state_data=dict(crowded.state_data)), _CLOSING)
         over = refused.size - refused.limit
         retried = [
             _delivery_state.stage_delivered_report(
-                PinnedState(state_data=dict(crowded.data)),
+                PinnedState(state_data=dict(crowded.state_data)),
                 replace(_CLOSING, report=_CLOSING.report[saved:]),
             )
             for saved in (over - 1, over)
@@ -897,7 +897,7 @@ class ParkNoticeTest(unittest.TestCase):
         `{over}` in what is said is the overflow the writer measured.
         """
         overflow = _delivery_state.stage_delivered_report(
-            PinnedState(state_data=dict(state.data)), run[1],
+            PinnedState(state_data=dict(state.state_data)), run[1],
         )
         self.assertIs(overflow.write, write)
         over = overflow.size - overflow.limit
@@ -1162,7 +1162,7 @@ class DeliveredReportBindingTest(unittest.TestCase):
         )
         for described, state in carried:
             with self.subTest(delivery=described):
-                before = dict(state.data)
+                before = dict(state.state_data)
 
                 self.assertEqual(
                     _delivery_state.binds_delivered_report(
@@ -1171,7 +1171,7 @@ class DeliveredReportBindingTest(unittest.TestCase):
                     _delivery_state.UNBINDABLE_RECORD,
                 )
 
-                self.assertEqual(state.data, before)
+                self.assertEqual(state.state_data, before)
                 self.assertFalse(_record_state.carries_pending_report(state))
 
 if __name__ == "__main__":

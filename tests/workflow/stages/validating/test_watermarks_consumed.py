@@ -703,7 +703,7 @@ class ContinueRetryRegroundingTest(_FrozenBatchPark, unittest.TestCase):
         state.set(PARK_REASON, AGENT_TIMEOUT_REASON)
         for field, written in session.items():
             if written is None:
-                state.data.pop(field, None)
+                state.state_data.pop(field, None)
             else:
                 state.set(field, written)
         self.github.write_pinned_state(self.issue, state)

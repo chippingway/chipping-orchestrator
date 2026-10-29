@@ -277,7 +277,7 @@ class VerdictInHand:
                 "evidence it declared is confirmed on PR #%s", issue.number, self.decision.run.pr_number,
             )
             return Prepared()
-        ready = _ready(gh, issue, state, returned, dict(state.data))
+        ready = _ready(gh, issue, state, returned, dict(state.state_data))
         return Prepared(self if ready else None)
 
     def _acts(
@@ -304,7 +304,7 @@ class VerdictInHand:
         if self.refusal:
             _parks.parks_unverified(gh, issue, state, run, self.refusal)
             return
-        proved_over = dict(state.data)
+        proved_over = dict(state.state_data)
         gate = _late_records._gate(gh, spec, issue, state, run.wt)
         refusal = _unverified.approves(gate, run)
         if refusal is None:
@@ -399,7 +399,7 @@ def prepares_the_verdict(
     if stands is None:
         return Prepared()
     _review_writes.stages_the_return(state, run)
-    evidence_moved = _review_comment._moved(state.data, run.resolved_over, _review_comment._EVIDENCE_RECORDS)
+    evidence_moved = _review_comment._moved(state.state_data, run.resolved_over, _review_comment._EVIDENCE_RECORDS)
     if run.subject_moved or not stands or evidence_moved:
         _review_writes.lands(gh, issue, state, _review_writes.RETURN)
         return Prepared()
@@ -422,7 +422,7 @@ def waiting_verdict_ready(
     waiting = _verdicts.read_returned_verdict(state)
     if waiting is None:
         return None
-    read = dict(state.data)
+    read = dict(state.state_data)
     return waiting if _ready(gh, issue, state, waiting, read) else None
 
 

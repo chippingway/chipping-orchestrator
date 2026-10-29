@@ -188,7 +188,7 @@ class _SeedsWithoutAncestry:
             self._spared -= 1
             if self._spared < 0:
                 for key in _lineage.LATE_ANCESTRY_KEYS:
-                    state.data.pop(key, None)
+                    state.state_data.pop(key, None)
         return self._wrote(issue, state)
 
 

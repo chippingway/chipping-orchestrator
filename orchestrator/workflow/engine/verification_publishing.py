@@ -139,7 +139,7 @@ def _settlement_room(
         if prepared.fields:
             reading.observes(refused)
         return refused
-    invalidated = PinnedState(state_data=prepared.reading.data)
+    invalidated = PinnedState(state_data=prepared.reading.state_data)
     return None if _settlement.retire_current_evidence(invalidated) else _NO_ROOM
 
 

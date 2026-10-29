@@ -240,5 +240,5 @@ def owner_holding_a_ref() -> FakeGitHubClient:
     ))
     # The flag the split writes before its first child, which is what says
     # this parent has no implementation of its own to go back to.
-    github.seed_state(OWNER_NUMBER, umbrella=True, **state.data)
+    github.seed_state(OWNER_NUMBER, umbrella=True, **state.state_data)
     return github

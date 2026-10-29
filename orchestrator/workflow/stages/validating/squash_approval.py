@@ -131,7 +131,7 @@ def holds_the_dispatch(
         return False
     if _collapses.carries_pending_collapse(state) and not _admitted(spec, issue, state):
         return not _late_terminal._work_has_ended(gh, issue, state)
-    held = _handoff._Held(None, comment=dict(state.data))
+    held = _handoff._Held(None, comment=dict(state.state_data))
     return allowance(gh, spec, issue, state, held) is None
 
 

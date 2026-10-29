@@ -79,7 +79,7 @@ class AbandonedAuthorizationTest(_transfer_case._TransferCase, unittest.TestCase
     def test_a_damaged_authorization_is_not_dropped(self) -> None:
         # Dropping a permission nobody can check would throw away the only
         # account of how the exemption came to name what it names.
-        self.state.data.pop(_rewrite_fields.LATE_REWRITE_FROM_BASE_SHA)
+        self.state.state_data.pop(_rewrite_fields.LATE_REWRITE_FROM_BASE_SHA)
 
         self.assertFalse(
             _transfer._abandoned_authorization(self.gate, _transfer_payloads.ACCEPTED_SHA),

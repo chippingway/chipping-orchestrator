@@ -166,7 +166,7 @@ class _DrainTestMixin(_PatchedWorkflowMixin):
     ) -> None:
         context = drain_result.context
         self.assertIn((context.issue.number, label), context.gh.label_history)
-        self.assertIn(state_key, context.state.data)
+        self.assertIn(state_key, context.state.state_data)
         self.assertTrue(context.issue.closed)
         drain_result.mocks[_CLEANUP_MOCK_KEY].assert_called_once_with(
             context.gh,

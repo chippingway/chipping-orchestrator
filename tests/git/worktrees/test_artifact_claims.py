@@ -98,7 +98,7 @@ _READ_STATE = "read_pinned_state"
 def _claims(gh, spec, branches=(BRANCH,), **pinned) -> tuple:
     """Every open pull request claiming this issue's artifacts."""
     return claims._open_pull_request_retentions(
-        gh, spec, _support.ISSUE_NUMBER, branches, PinnedState(data=dict(pinned)),
+        gh, spec, _support.ISSUE_NUMBER, branches, PinnedState(state_data=dict(pinned)),
     )
 
 
@@ -179,7 +179,7 @@ class PinnedStateTest(unittest.TestCase):
                 with patch.object(
                     self.gh,
                     _READ_STATE,
-                    return_value=PinnedState(data=payload),
+                    return_value=PinnedState(state_data=payload),
                 ):
                     malformed = claims._read_state(
                         self.gh, self.issue, _support.ISSUE_NUMBER,
@@ -206,7 +206,7 @@ class PinnedStateTest(unittest.TestCase):
                     trusted_login=BOT_LOGIN,
                     issue_number=_support.ISSUE_NUMBER,
                 )
-                self.assertEqual(corrupted.data, {})
+                self.assertEqual(corrupted.state_data, {})
 
                 with patch.object(
                     self.gh, _READ_STATE, return_value=corrupted,
@@ -245,7 +245,7 @@ class RecordAdmissionTest(unittest.TestCase):
                     issue_number=_support.ISSUE_NUMBER,
                     repo_slug=_REPO_SLUG,
                 )
-                self.assertEqual(refused.data, {})
+                self.assertEqual(refused.state_data, {})
 
                 with (
                     patch.object(self.gh, _READ_STATE, return_value=refused),
@@ -273,7 +273,7 @@ class RecordAdmissionTest(unittest.TestCase):
                 pinned = claims._read_state(self.gh, self.issue, _support.ISSUE_NUMBER)
 
         self.assertIsInstance(unpinned, PinnedState)
-        self.assertEqual(unpinned.data, {})
+        self.assertEqual(unpinned.state_data, {})
         self.assertEqual(pinned, Retention(RetentionReason.STATE_UNSUPPORTED, f"#{_support.ISSUE_NUMBER}"))
 
 

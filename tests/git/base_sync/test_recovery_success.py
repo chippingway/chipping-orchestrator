@@ -391,7 +391,7 @@ class MovedRecordRecoveryUnitTest(_SyncWorktreeWithBaseFixture, unittest.TestCas
     def _runs_moved(self, scenario) -> None:
         """Run `scenario`, the attempt's records moved on the comment right behind the refresh's reading."""
         moved = self.gh.read_pinned_state(self.gh.get_issue(ISSUE))
-        moved.data.update(_MOVED)
+        moved.state_data.update(_MOVED)
         moves = partial(self.gh.write_pinned_state, self.gh.get_issue(ISSUE), moved)
         with patch.object(self.gh, "read_pinned_state", _RacesPastTheCall(self.gh.read_pinned_state, 1, moves)):
             scenario.run(self)

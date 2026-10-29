@@ -209,4 +209,4 @@ class InPlace:
     def __call__(self, gh: FakeGitHubClient, issue: FakeIssue) -> None:
         """Lay the edits over the record as pinned."""
         pinned = gh._pinned[issue.number]
-        pinned.data.update(self._edits)
+        pinned.state_data.update(self._edits)

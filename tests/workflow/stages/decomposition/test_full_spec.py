@@ -121,7 +121,7 @@ class FullSpecDecomposerPersistenceTest(
         # it round-trips cleanly to `("codex", "codex", ())`.
         spec, backend, args, sid = _decomposer_session._read_decomposer_session(
             PinnedState(
-                data={DECOMPOSER_AGENT: BACKEND_CODEX, "decomposer_session_id": "sid-x"},
+                state_data={DECOMPOSER_AGENT: BACKEND_CODEX, "decomposer_session_id": "sid-x"},
             )
         )
         self.assertEqual(spec, BACKEND_CODEX)

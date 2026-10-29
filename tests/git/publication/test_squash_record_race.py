@@ -76,7 +76,7 @@ class RecordRaceRealGitTest(
             squash_run = self._squashes(gate)
 
         self.assertEqual(squash_run.standing, BRANCH_INTACT)
-        self.assertNotIn(KEY_COLLAPSE_HEAD, gate.state.data)
+        self.assertNotIn(KEY_COLLAPSE_HEAD, gate.state.state_data)
 
     def test_a_moved_head_is_never_published(self) -> None:
         # The sharper half of the same window: something committed over the

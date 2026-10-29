@@ -261,7 +261,7 @@ def fresh_state(**kept) -> dict:
     so a case asserting the WHOLE comment is asserting what survived the
     projection rather than re-deriving the projection itself.
     """
-    projected = PinnedState(data={})
+    projected = PinnedState(state_data={})
     _late_state.write_late_generation(projected, LateGeneration(
         cycle_id=RESTART_CYCLE_ID,
         root_issue=ROOT_ISSUE,
@@ -271,7 +271,7 @@ def fresh_state(**kept) -> dict:
     ))
     return {
         SCHEMA_VERSION_KEY: SUPPORTED_SCHEMA_VERSION,
-        **projected.data,
+        **projected.state_data,
         **kept,
     }
 
@@ -306,13 +306,13 @@ class RestartCase:
             LATE_ISSUE_NUMBER, label=label, author=author,
         )
         self.github.add_issue(self.issue)
-        recorded = PinnedState(data=dict(extra_state))
+        recorded = PinnedState(state_data=dict(extra_state))
         _late_state.write_late_generation(recorded, generation)
         if terminal and generation.is_present:
             _endings.record_terminal(
                 recorded, generation.cycle_id, confirmed=True,
             )
-        self.github.seed_state(LATE_ISSUE_NUMBER, **recorded.data)
+        self.github.seed_state(LATE_ISSUE_NUMBER, **recorded.state_data)
 
     def _route(self) -> Mock:
         """Route this issue the way a tick does, holding every handler call.

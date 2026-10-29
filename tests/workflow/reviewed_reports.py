@@ -87,9 +87,9 @@ def forgets_approval(case, member: str = "") -> None:
     """
     state = case.github.read_pinned_state(case.issue)
     if member:
-        state.data[APPROVED].pop(member)
+        state.state_data[APPROVED].pop(member)
     else:
-        state.data.pop(APPROVED)
+        state.state_data.pop(APPROVED)
     case.github.write_pinned_state(case.issue, state)
 
 
