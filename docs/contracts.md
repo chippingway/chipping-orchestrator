@@ -362,6 +362,7 @@ Credential filtering does not enforce push authority; see [C-11].
 [switched initial publication](../tests/workflow/stages/implementing/test_initial_publication_checkout.py),
 [switched seam push](../tests/workflow/stages/implementing/test_publication_checkout.py),
 [switched accepted verdict](../tests/workflow/stages/decomposition/test_late_accepted_checkout.py),
+[switched verdict label](../tests/workflow/stages/decomposition/test_late_settlement_replay.py),
 [switched plan publication](../tests/workflow/stages/discussion/test_publication_checkout.py),
 [switched plan handoff](../tests/workflow/stages/implementing/test_plan_handoff_checkout.py),
 [switched squash](../tests/git/publication/test_squash_record_race.py),
@@ -369,6 +370,7 @@ Credential filtering does not enforce push authority; see [C-11].
 [switched conflict rebase](../tests/workflow/stages/conflicts/test_rebase_checkout.py),
 [switched docs amendment](../tests/workflow/stages/documenting/test_subject_checkout.py),
 [switched drift unwind](../tests/workflow/stages/documenting/test_drift_checkout.py),
+[switched refresh abort](../tests/workflow/engine/test_base_refresh_abort.py),
 [switched refresh clean](../tests/git/base_sync/test_checkout_proof.py),
 [switched conflict handoff](../tests/workflow/stages/conflicts/test_handoff_checkout.py).
 
