@@ -686,7 +686,7 @@ to resume, any extra environment, the deadline, and the role spec's extra argume
 unchanged; `_run_agent_tracked` builds it from its request (`run_requests._AgentRunRequest.run_options`). All runners
 return a unified
 `AgentResult(session_id, last_message, exit_code, timed_out, stdout, stderr,`
-`interrupted, usage, invoked, unfinished_steps, terminal_failure)`.
+`interrupted, usage, invoked, unfinished_steps, terminal_failure, invocation)`.
 `interrupted`
 (default `False`) flags a run the runner observed exiting on SIGTERM/SIGKILL, in either form: the negative
 returncode `Popen` reports when the child itself dies from the signal (`-15` / `-9`), or the shell-convention
@@ -710,7 +710,14 @@ result that never flowed through
 counters `_accumulate_issue_usage` folds each run into, and the one visible receipt comment
 `_format_issue_usage_verdict` reads them back out of at a terminal — is in
 [`state-machine/labels-and-state.md#pinned-state`][pinned-state] and
-[`observability/usage.md`](observability/usage.md); nothing gates on the figure. `unfinished_steps` (default `()`)
+[`observability/usage.md`](observability/usage.md); nothing gates on the figure. `invocation` (default `None`) is
+the `AgentInvocation` naming the one process a result came from, which `_run_agent_tracked` stamps on what the
+runner returned, as it attaches `usage`: minted over the durable reading the run's charge was started on
+(repository, issue, the pinned comment the start was written on, workflow cycle, the lifetime count that charge
+stands at, and a random nonce), so two runs of an identical request and a run with no session id stay distinct where
+the request's fingerprint and the session id do not. It is what usage accounting is keyed by
+([The agent-run circuit](state-machine/labels-and-state.md#the-agent-run-circuit)), and stays `None` for a result
+no charged process produced. `unfinished_steps` (default `()`)
 carries structured diagnostics (`ToolLifecycle`) for any tool steps left unfinished when a backend emits terminal
 output (such as Antigravity active commands); when present, the terminal response is suppressed from `last_message`
 and the result is forced non-zero so recovery can act on it. `terminal_failure` (default `None`) is the

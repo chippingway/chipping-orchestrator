@@ -7,7 +7,8 @@ written on: a count that never reads below the usage meter, so a ledger count
 nobody can read refunds nothing, a count that only ever goes up -- including while
 the ceiling is off -- an allowance the issue's own record governs where it
 carries one, and a reservation whose two phases survive the trip through a
-pinned comment as the wire strings live issues carry.
+pinned comment as the wire strings live issues carry. Accounting a run's usage
+against that meter charges and refunds nothing, however often it is settled.
 """
 from __future__ import annotations
 
@@ -26,8 +27,10 @@ from orchestrator.workflow.engine import (
     run_ledger as _run_ledger,
     run_ledger_models as _run_ledger_models,
     run_ledger_values as _run_ledger_values,
+    usage_checkpoint as _usage_checkpoint,
 )
 from tests.support.fakes import FakeComment, FakeUser
+from tests.workflow.engine import run_circuit_test_support as _circuit
 
 _CONFIGURED = 50
 
@@ -131,6 +134,25 @@ class MeterFloorTest(unittest.TestCase):
         ledger = _read(_state(**{_USED: _AHEAD, _METERED_RUNS: _BEHIND}))
 
         self.assertEqual(ledger.used, _AHEAD)
+
+    def test_accounting_every_run_moves_no_charge(self) -> None:
+        # Each charged run accounted, then settled again: the allowance, the
+        # count, and the launch standing read exactly as the charges left
+        # them, with the meter beside the count rather than past it -- so a
+        # count a hand edit then removes reads off the meter, refunding
+        # nothing, and a repeated settlement buys the issue no phantom run.
+        launch = _circuit.seeded(**{_ALLOWANCE: _AHEAD})
+        answers = [_circuit.run_launch(launch).answer for _ in range(2)]
+        charged = _read(_state(**launch.durable))
+
+        for answer in answers * 2:
+            _usage_checkpoint.checkpoint(launch.gh, launch.issue, launch.state, answer)
+
+        accounted = launch.durable
+        self.assertEqual(_read(_state(**accounted)), charged)
+        self.assertEqual(accounted[_METERED_RUNS], accounted[_USED])
+        accounted.pop(_USED)
+        self.assertEqual(_read(_state(**accounted)).used, charged.used)
 
     def test_a_charge_leaves_the_meter_alone(self) -> None:
         # The meter has its own writer and its own receipt to render;

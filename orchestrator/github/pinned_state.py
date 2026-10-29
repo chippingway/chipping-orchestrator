@@ -20,8 +20,9 @@ named one is gone or no longer state -- which every caller writing the whole
 record relies on. Both decide on one walk of the thread that admits every
 comment it passes and is the read they land from (`_pinned_comment`).
 `edit_pinned_state` is the strict one a guarded commit lands through: in
-place or not at all, over the reading it was derived from, with an answer
-that says whether GitHub confirmed it. Strict edits remain non-creating.
+place or not at all, over the reading it was derived from, on a comment that is
+still the issue's record, with an answer that says whether GitHub confirmed it.
+Strict edits remain non-creating.
 
 A state read from the comment, or written over it, also remembers what the
 comment carried at that moment (`PinnedState.synced`), so what a tick staged on
@@ -645,9 +646,11 @@ class GitHubStateMixin(GitHubIssuePollingMixin):
 
         The strict counterpart of `write_pinned_state`, for a caller that
         derived `state` from a reading and has to land on that reading or
-        nowhere. It never posts: a comment that is gone, or that is no longer
-        the authenticated state-only comment it was, is answered MISSING
-        rather than recreated. The walk that finds the comment is also the
+        nowhere. It never posts: a comment that is gone, that is no longer
+        the authenticated state-only comment it was, or that a supported
+        record ahead of it on the thread has displaced as the one every reader
+        takes, is answered MISSING rather than recreated or edited where no
+        reader would see it. The walk that finds the comment is also the
         last reading before the edit, so a comment another writer moved since
         `over` was read -- compared as the comment's JSON spells it, where
         `null` is not an absent field and `true` is not `1` -- is answered
@@ -672,7 +675,7 @@ class GitHubStateMixin(GitHubIssuePollingMixin):
             )
             return PinnedEdit.UNSUPPORTED
         try:
-            located = self._pinned_comment(issue, state.comment_id)
+            located = self._pinned_comment(issue, state.comment_id, authoritative=True)
         except Exception:
             log.exception(
                 "issue=#%s could not read its pinned comment to rewrite it",
@@ -745,7 +748,7 @@ class GitHubStateMixin(GitHubIssuePollingMixin):
         return latest_id
 
     def _pinned_comment(
-        self, issue: Issue, comment_id: int | None,
+        self, issue: Issue, comment_id: int | None, *, authoritative: bool = False,
     ) -> tuple[IssueComment, PinnedState] | None:
         """The comment a write naming `comment_id` answers to, and what it reads as, or None.
 
@@ -762,6 +765,12 @@ class GitHubStateMixin(GitHubIssuePollingMixin):
         named comment gone, edited into prose, or by an author the read does
         not trust, since a rewrite of that would be the record of nobody's
         reading.
+
+        `authoritative` is the strict edit's walk, which stops at the first
+        record the read would take: a supported one ahead of the named comment
+        answers None as well, since that comment is no longer the record any
+        reader takes, and an edit landing there would be confirmed over a
+        record nobody reads. The whole-state writer walks on past it.
         """
         trusted_login = getattr(self, "_bot_login", None)
         repo_name = getattr(getattr(issue, "repository", None), "full_name", None)
@@ -773,8 +782,12 @@ class GitHubStateMixin(GitHubIssuePollingMixin):
                 issue_number=issue.number,
                 repo_slug=repo_slug,
             )
-            if reading is not None and (issue_comment.id == comment_id or not reading.supported):
+            if reading is None:
+                continue
+            if issue_comment.id == comment_id or not reading.supported:
                 return issue_comment, reading
+            if authoritative:
+                return None
         return None
 
     def _send_pinned_edit(self, issue_comment: IssueComment, body: str) -> str:

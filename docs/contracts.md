@@ -147,6 +147,12 @@ description in any other is never rewritten, released, or restored over: its hol
 somebody's description and, on an open pull request, holds every release that would drop the preserved copy. An
 optional rationale, an omitted ordinary `umbrella` flag, an
 ordinary child with no budget, and no split marker at all for a split that never started remain current answers.
+A usage receipt ledger (`issue_usage_receipts`) is read only in the shape its checkpoint writes: absent is an issue
+that accounted nothing, and any other shape is damage, never an empty ledger, so nothing is counted on it or written
+over it. A run is accounted only on the pinned comment its charge was written on, never a replacement copying it, and
+only over a `late_cycle_id` that is absent or a positive whole number: a damaged one is no absent cycle. A parsed usage
+adding what no counter's total is spelled as -- a negative count, or a negative cost or one no float holds -- is
+refused, never committed as a total the next reading refuses.
 
 Unsupported input cannot serve as fresh work, current evidence, or authorization to publish or delete artifacts. Neither
 a format change nor a refusal grants permission to discard that input or the artifacts it names; the owning
@@ -220,6 +226,7 @@ or lost write interrupted are current state, not historical compatibility.
 [unexplained singles](../tests/workflow/stages/decomposition/test_late_unsplit_park.py),
 [hold spellings](../tests/workflow/stages/decomposition/test_late_hold.py),
 [split recovery](../tests/workflow/stages/decomposition/test_recovery.py),
+[usage receipts](../tests/workflow/engine/test_usage_checkpoint.py),
 [branch resolution](../tests/git/worktrees/test_resolution.py),
 [checkout reuse](../tests/git/worktrees/test_creation.py),
 [refused drift unwind](../tests/workflow/stages/documenting/test_drift_checkout.py),
@@ -308,8 +315,12 @@ that notice owed rather than recording it delivered.
 A refused or unconfirmed write stops the steps that depend on it; a later tick reads state afresh. Guarded commits
 and direct writes check admission: neither writer may overwrite an unsupported or malformed authoritative comment,
 create a replacement beside it, or silently stamp it as current, whatever comment id its caller holds, and neither
-sends a state the next reading would refuse; strict edits remain non-creating, and a direct write over such a comment
-raises, so the steps depending on it stop.
+sends a state the next reading would refuse; strict edits remain non-creating and land only on a comment still the
+issue's record, never one a record ahead of it has displaced, and a direct write over such a comment raises, so the
+steps depending on it stop. A usage checkpoint reads its invocation's receipt back before anything it
+sends, so one left unconfirmed settles nothing until that read-back, and asking again adds nothing where it landed; a
+refused checkpoint, an unreadable read-back, or a receipt read back beside a damaged counter licenses nothing that
+depends on the accounting.
 Writer exclusion comes from [C-05].
 
 **Specs:** [transactions](state-machine/labels-and-state.md#pinned-state),
@@ -320,6 +331,9 @@ Writer exclusion comes from [C-05].
 [ready decision](state-machine/delivery-stages.md#_handle_ready-label-workflowready--workflowimplementing).
 
 **Checks:** [guarded commits](../tests/workflow/engine/test_pinned_commit.py),
+[strict edits](../tests/github/test_pinned_state_edits.py),
+[usage checkpoints](../tests/workflow/engine/test_usage_checkpoint.py),
+[displaced records](../tests/workflow/engine/test_usage_checkpoint_thread.py),
 [recovery checkpoints](../tests/git/base_sync/test_persistence.py),
 [captured-run abandonment](../tests/workflow/engine/test_rewrite_landing_moved.py),
 [finalization checkpoints](../tests/workflow/engine/test_rewrite_finish_writes.py),
@@ -553,13 +567,18 @@ resumed, converted, or cleared as one.
 **Limits:** Only a trusted `/orchestrator add-agent-runs N` grants more runs to an issue parked at its lifetime limit;
 other budgets have their own rules. The count is never read below the `issue_agent_runs` usage meter, whose every
 counted exit was a launch charged first, so a count that is missing or unreadable refunds nothing that meter saw.
-Session rotation and retirement touch neither meter.
+Session rotation and retirement touch neither meter. Usage accounting charges, refunds, and parks nothing: an exit is
+accounted under the identity of the process it came from -- the charge that process was started under and a random
+nonce, never the request's fingerprint -- and a receipt, or the floor receipts retire under, covers that identity, so
+a settlement asked again never moves the meter past the charges it counts.
 
 **Specs:** [run budget](state-machine/labels-and-state.md#the-agent-run-circuit),
-[charging before launch](security.md#bounded-agent-spend-per-issue-max_agent_runs_per_issue).
+[charging before launch](security.md#bounded-agent-spend-per-issue-max_agent_runs_per_issue),
+[usage receipts](state-machine/labels-and-state.md#pinned-state).
 
 **Checks:** [charging](../tests/workflow/engine/test_run_circuit.py),
-[meter floor](../tests/workflow/engine/test_run_ledger.py).
+[meter floor](../tests/workflow/engine/test_run_ledger.py),
+[accounting once](../tests/workflow/engine/test_invocation_identity.py).
 
 ## Maintaining the contracts
 

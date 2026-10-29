@@ -3,9 +3,11 @@
 """Invoke an agent only after its lifetime run charge is durable.
 
 Requests identify the logical round; the run circuit reserves and starts its
-charge before any process is invoked. Spawn and exit records bracket the real
-runner call, and its result is returned intact for the stage to settle. Request
-construction, exit reporting, and issue-wide usage totals have sibling owners."""
+charge before any process is invoked, and the process is identified by the
+charge it was started under (`invocations`), not by its request. Spawn and exit
+records bracket the real runner call, and its result is returned for the stage
+to settle, carrying that identity. Request construction, exit reporting,
+issue-wide usage totals, and the accounting checkpoint have sibling owners."""
 from __future__ import annotations
 
 import logging
@@ -17,6 +19,7 @@ from orchestrator.agents import runner as _agent_runner
 from orchestrator.agents.models import AgentResult
 from orchestrator.github.client import GitHubClient
 from orchestrator.workflow.engine import (
+    invocations as _invocations,
     run_charge_state as _run_charge_state,
     run_circuit as _run_circuit,
     run_reporting as _run_reporting,
@@ -96,6 +99,16 @@ def _run_agent_tracked(
     It is `None` when the usage parse failed (fail-open); this is best-effort
     observability plumbing and does not touch the pinned state.
 
+    The result also carries the identity of the process it came from
+    (`AgentResult.invocation`), minted over the durable reading the charge was
+    started on (`invocations.minted`): one per process, so two runs of an
+    identical request, or two with no CLI session id, are never one. The
+    request's `fingerprint` stays the identity of the logical launch a charge
+    is recognized by and is no accounting key. Usage is accounted against that
+    identity by `usage_checkpoint.checkpoint`, which no road calls yet; until
+    one does, the stage-local folds below this boundary remain what persists
+    an issue's usage.
+
     The `prompt` is forwarded to `record_agent_exit` so it can land as the
     redacted `user_input` of the separate, opt-in trajectory record -- and
     ONLY when `TRAJECTORY_LOG_PATH` is enabled. With the trajectory sink off
@@ -122,7 +135,8 @@ def _run_agent_tracked(
     if request is not None and request_fields:
         raise TypeError("pass either request or keyword request fields, not both")
     run_request = request or _run_requests._AgentRunRequest(**request_fields)
-    if not _run_circuit._charge_launch(gh, budget, run_request.launch):
+    started = _run_circuit._charge_launch(gh, budget, run_request.launch)
+    if started is None:
         return _run_circuit._refused_run()
     start = time.monotonic()
     gh.emit_event(
@@ -141,9 +155,9 @@ def _run_agent_tracked(
         run_request.cwd,
         options=run_request.run_options,
     )
-    duration_s = round(time.monotonic() - start, 3)
+    agent_result.invocation = _invocations.minted(started, budget.issue.number)
     triggered_skills = _run_reporting._record_tracked_agent_exit(
-        gh, budget.issue.number, run_request, agent_result, duration_s,
+        gh, budget.issue.number, run_request, agent_result, round(time.monotonic() - start, 3),
     )
     # One `skill_triggered` audit event per distinct triggered skill, reusing
     # the list `record_agent_exit` already parsed (no second pass over stdout).

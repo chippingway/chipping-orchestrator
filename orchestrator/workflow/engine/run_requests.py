@@ -3,7 +3,9 @@
 """Agent invocation requests and the stable launch identity charged to an issue.
 
 The fingerprint describes the requested logical round. The budget reservation
-uses it to recognize a paid launch across a crash before process invocation."""
+uses it to recognize a paid launch across a crash before process invocation.
+It is the same for every attempt at that round, so it is no accounting key: each
+process a request starts is identified on its own (`invocations`)."""
 from __future__ import annotations
 
 import hashlib
@@ -48,6 +50,11 @@ class _AgentRunRequest:
         digest counting it would call every launch a new one and no crash
         window would ever be recognized. What is left is what a human reading
         the pinned state would name the launch by anyway.
+
+        Which is also why it names no process. Two runs of one request -- a
+        round asked again, a retry at the same count -- carry one fingerprint,
+        so usage is never deduplicated on it: every process is accounted under
+        the identity minted when it is started (`invocations.minted`).
         """
         named = (
             self.agent_role,

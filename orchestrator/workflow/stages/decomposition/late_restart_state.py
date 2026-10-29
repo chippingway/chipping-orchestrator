@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """Persist restart identities and project the fresh cycle onto retained issue usage.
 
-The retired cycle keeps thread attribution, lifetime spending, and the
+The retired cycle keeps thread attribution, lifetime spending, the usage
+receipts that say which invocations those totals cover, and the
 developer conversations retired as failed while dropping its sessions,
 publications, candidates, and children -- and the rationale a split recorded
 beside them, whether the restart puts the issue back in `decomposing` or
@@ -24,6 +25,7 @@ from orchestrator.github import (
 )
 from orchestrator.workflow.engine import (
     run_ledger as _run_ledger,
+    usage_receipts as _usage_receipts,
 )
 from orchestrator.workflow.late_split import (
     events as _events,
@@ -65,6 +67,12 @@ _RETAINED_KEYS = (
     "issue_total_tokens",
     "issue_total_cost_usd",
     "issue_cost_sources",
+    # Which invocations those counters already cover, kept beside them for the
+    # same reason: an invocation of the cycle that ended, settled again after
+    # the restart, is one they already count, and a ledger handed back empty
+    # would count it twice. It is evidence about the counters, not any
+    # outcome of that cycle, so nothing an invocation decided is carried.
+    _usage_receipts.RECEIPTS,
     # What the issue may spend and what it has spent of it, named by the
     # ledger owner rather than copied here, so a field that group grows is
     # kept by this projection without a second edit. A lifetime ceiling a
