@@ -1132,7 +1132,9 @@ thread that admits every comment it passes and is the read they land from: the c
 rewritten only where that walk admits it, and a refused one ahead of it — or anywhere, where no id is named or the named
 comment is not state — stops the write, so a stale id never reaches past a refused record, nor posts a replacement
 beside one (the strict edit answers `UNSUPPORTED`, or `MOVED` where that record will not parse; the whole-state write
-raises `RecordRefused`, from `github/pinned_refusal.py`, so its caller stops). Genuinely new pins are
+raises `RecordRefused`, from `github/pinned_refusal.py`, so its caller stops). The strict edit's walk also stops at a
+supported record ahead of the named comment — the one every reader now takes — and answers `MISSING`, editing neither,
+where the whole-state write walks on past it. Genuinely new pins are
 stamped with `schema_version: 1` on their first write, and neither writer sends a state the next reading would refuse —
 another version, a value JSON cannot spell, or nesting past the recursion limit. Ordinary dispatch refuses an issue
 whose comment is refused admission before any guard or handler reads it

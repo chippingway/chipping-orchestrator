@@ -2396,7 +2396,8 @@ the whole of it, since the authorization sits on the issue's own surface and no 
 
 What the fresh cycle inherits is what is true about the **issue** rather than about the attempt that ended: the
 pinned comment's own identity, the bounded list of comment ids this orchestrator posted, the cumulative usage the
-issue has already paid for, and the identity joining the new cycle to its predecessor. Every session, the pull
+issue has already paid for with the receipts saying which runs it covers, and the identity joining the new cycle to its
+predecessor. Every session, the pull
 request and branch, the children and the dependency graph, the snapshot it was cut from, the parks, the drift
 baseline, the counters, and the timestamps are gone, and the lineage depth and generation counter are back at zero —
 a restarted issue is a fresh attempt with room to split, not a cancelled one wearing a new number. The full key list

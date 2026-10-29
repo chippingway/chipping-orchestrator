@@ -154,6 +154,15 @@ incomplete. The PR merged / rejected finalizers and the closed-`question` termin
 comment; the `umbrella` close comment appends it. It is a read-only summary — nothing gates on the figure — and it is
 skipped when no run was ever counted.
 
+Those stage folds are the counters' only production writer for now. Beside them sits a dormant accounting checkpoint
+(`workflow/engine/usage_checkpoint.py`) that no road calls yet: it lands one invoked run's increment on the same four
+counters exactly once, keyed by the identity `_run_agent_tracked` stamps on each process's result
+(`AgentResult.invocation`) rather than by a request fingerprint or a CLI session id, together with a bounded
+`issue_usage_receipts` ledger in one guarded commit, and refuses parsed usage no counter can take — a negative count,
+or a negative cost or one no float holds. The parser's meanings are unchanged by it: a `None` usage adds nothing, a
+`no-usage` run counts one exit with no cost, and an unpriced run leaves the cost total as it stands. See
+[state-machine/labels-and-state.md][pinned-state] for its fields and refusals.
+
 `issue_agent_runs` has one reader outside that receipt: the lifetime agent-run ledger on
 `workflow/engine/run_ledger.py` never reads `agent_runs_used` below it, so a ledger count that is missing or
 unreadable refunds nothing this meter counted. The two count the same unit but not the same set — the ledger
