@@ -11,14 +11,16 @@ The record side arrives first. ``constants`` owns what one line is recognized,
 bracketed, and dismissed by; ``coercion`` owns the narrowing every untyped
 field passes through, so a hand-edited or damaged record costs a smaller row
 rather than a failed read. ``models`` owns the frozen pieces a record is read
-back as -- the step, the timeline entry, and the two usage summaries -- with
-the constructor signatures they are published under. ``runs`` is the record
-itself, and it defines no view of its own: ``usage_views`` answers for a run's
-tallies and its money, and ``timeline_views`` for the one ordered sequence it
-renders as, the labels it is picked by, and the tells that mark it a fixture.
-``parsing`` is what turns a decoded line into one of those records -- the event
-it is accepted for, the position it is stamped with, and the narrowing every
-field goes through.
+back as -- the step, the timeline entry, and the two usage summaries with the
+cost and token evidence beside their counters -- with the constructor
+signatures they are published under. ``runs`` is the record itself, and it
+defines no view of its own: ``usage_views`` answers for a run's tallies and its
+money, and ``timeline_views`` for the one ordered sequence it renders as, the
+labels it is picked by, and the tells that mark it a fixture. ``parsing`` is
+what turns a decoded line into one of those records -- the event it is
+accepted for, the position it is stamped with, the narrowing every field goes
+through, and the usage owner's readers every usage record's evidence is read
+with.
 
 The read over them arrives with it. ``reading`` is the whole of one pass over
 the file: the blank, malformed, and foreign lines skipped rather than raised
@@ -42,17 +44,19 @@ published surface, and a name bound only for a type checker is a
 What that read is then drawn as begins to arrive after it, and none of it
 imports Streamlit either. ``css`` is the stylesheet this page adds on top of
 the chrome both pages share, written against the same geometry owner the
-analytics page is set in; ``summary_html`` the banner and the five tiles a
-whole read is summarized in, built off the summary rather than the runs;
-``run_html`` the three renderings one run is identified by -- the metadata
-grid, the overview row, and the picker label; ``usage_html`` what a run cost,
-tallied once for the whole run and once per assistant turn, with the note
-saying why the authoritative figure and the estimates beneath it need not sum;
-and ``timeline_html`` the header one entry is read by and the decision of which
-entry a usage strip belongs above. What a caller passes into any of them is
-escaped before it reaches the markup, because a page writes these with
-``unsafe_allow_html=True`` and every value in them is record text this viewer
-does not own.
+analytics page is set in; ``cost_text`` the words every cost on the page is
+spelled in -- its exact amount, the basis it is stated on, and a qualifier
+wherever it is not complete spend; ``summary_html`` the banner and the five
+tiles a whole read is summarized in, built off the summary rather than the
+runs; ``run_html`` the three renderings one run is identified by -- the
+metadata grid, the overview row with what the run used and cost, and the
+picker label; ``usage_html`` what a run cost, tallied once for the whole run
+and once per assistant turn, with the note saying why the run's own amount and
+the estimates beneath it need not sum; and ``timeline_html`` the header one
+entry is read by and the decision of which entry a usage strip belongs above.
+What a caller passes into any of them is escaped before it reaches the markup,
+because a page writes these with ``unsafe_allow_html=True`` and every value in
+them is record text this viewer does not own.
 
 What draws that markup arrives last, and it does not import Streamlit either:
 each of these five takes the module in as an argument, the way a run and a

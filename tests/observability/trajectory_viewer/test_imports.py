@@ -21,6 +21,8 @@ _CONSTANTS_OWNER = "constants"
 
 _CONTROLS_OWNER = "controls"
 
+_COST_TEXT_OWNER = "cost_text"
+
 _CSS_OWNER = "css"
 
 _FILTER_MODELS_OWNER = "filter_models"
@@ -70,6 +72,7 @@ _OWNERS = (
     _COERCION_OWNER,
     _CONSTANTS_OWNER,
     _CONTROLS_OWNER,
+    _COST_TEXT_OWNER,
     _CSS_OWNER,
     _FILTER_MODELS_OWNER,
     _FILTER_VALUES_OWNER,
@@ -106,7 +109,6 @@ _OWNERS = (
 _SURFACES = MappingProxyType({
     _COERCION_OWNER: (
         "as_list",
-        "coerce_float",
         "coerce_int",
         "coerce_str",
         "coerce_str_tuple",
@@ -117,6 +119,14 @@ _SURFACES = MappingProxyType({
         "render_categorical_filters",
         "render_text_filters",
         "render_trajectory_sidebar",
+    ),
+    _COST_TEXT_OWNER: (
+        "basis_text",
+        "completeness_text",
+        "cost_figure",
+        "cost_text",
+        "fmt_cost_usd",
+        "rates_text",
     ),
     _CSS_OWNER: (),
     _FILTER_MODELS_OWNER: (
@@ -203,7 +213,7 @@ _SURFACES = MappingProxyType({
     _SUMMARIES_OWNER: ("TrajectorySummary", "summarize"),
     _SUMMARY_HTML_OWNER: (
         "card_header_html",
-        "fmt_cost_usd",
+        "cost_kpi",
         "kpi_strip_html",
         "topbar_html",
         "trajectory_kpi_html",
@@ -221,6 +231,7 @@ _SURFACES = MappingProxyType({
         "turn_map",
     ),
     _USAGE_HTML_OWNER: (
+        "counter_texts",
         "run_usage_chips",
         "run_usage_html",
         "run_usage_note",
@@ -228,8 +239,7 @@ _SURFACES = MappingProxyType({
         "usage_chip",
     ),
     _USAGE_OWNER: (
-        "cost_source",
-        "cost_usd",
+        "cost_evidence",
         "model",
         "step_count",
         "tool_calls",
@@ -258,9 +268,11 @@ _SURFACES = MappingProxyType({
 # of the same direction: each names what it draws -- the record for `run_html`,
 # `timeline_html`, and `usage_html`, the summary for `summary_html` -- and
 # nothing names them back, while `css` names nothing in the package at all.
-# `usage_html` is the one that also names a sibling renderer: the money on a run
-# row and on a turn strip is the exact-cents format the KPI tile is drawn with,
-# so it reaches `summary_html` for it rather than spelling a second one. The
+# Each of the three that shows money -- the tile on `summary_html`, the table
+# row on `run_html`, and the run row and turn strip on `usage_html` -- names
+# `cost_text` for its wording rather than spelling a second, and `cost_text`
+# names nothing in the package, so a cost reads alike on every surface without
+# one renderer reaching another. The
 # page owners close the same direction off at the top: they name the read, the
 # filter, and the markup owners under them and nothing here names them back,
 # with `page_render` the widest chain because it is the composition the rest are
@@ -272,6 +284,7 @@ _PLANTED = MappingProxyType({
     _CONSTANTS_OWNER: (),
     _CONTROLS_OWNER: (
         _CONSTANTS_OWNER,
+        _COST_TEXT_OWNER,
         _FILTER_MODELS_OWNER,
         _FILTER_VALUES_OWNER,
         _FILTERING_OWNER,
@@ -282,6 +295,7 @@ _PLANTED = MappingProxyType({
         _TIMELINE_OWNER,
         _USAGE_OWNER,
     ),
+    _COST_TEXT_OWNER: (),
     _CSS_OWNER: (),
     _FILTER_MODELS_OWNER: (),
     _FILTER_VALUES_OWNER: (
@@ -314,6 +328,7 @@ _PLANTED = MappingProxyType({
     _PAGE_RENDER_OWNER: (
         _COERCION_OWNER,
         _CONSTANTS_OWNER,
+        _COST_TEXT_OWNER,
         _CSS_OWNER,
         _FILTER_MODELS_OWNER,
         _FILTER_VALUES_OWNER,
@@ -337,6 +352,7 @@ _PLANTED = MappingProxyType({
     _PAGE_SETUP_OWNER: (
         _COERCION_OWNER,
         _CONSTANTS_OWNER,
+        _COST_TEXT_OWNER,
         _CSS_OWNER,
         _FILTER_MODELS_OWNER,
         _FILTER_VALUES_OWNER,
@@ -362,6 +378,7 @@ _PLANTED = MappingProxyType({
     _PICKER_OWNER: (
         _COERCION_OWNER,
         _CONSTANTS_OWNER,
+        _COST_TEXT_OWNER,
         _CSS_OWNER,
         _FILTER_MODELS_OWNER,
         _FILTER_VALUES_OWNER,
@@ -392,6 +409,7 @@ _PLANTED = MappingProxyType({
     ),
     _RUN_HTML_OWNER: (
         _CONSTANTS_OWNER,
+        _COST_TEXT_OWNER,
         _MODELS_OWNER,
         _RUNS_OWNER,
         _TIMELINE_OWNER,
@@ -399,6 +417,7 @@ _PLANTED = MappingProxyType({
     ),
     _RUN_RENDER_OWNER: (
         _CONSTANTS_OWNER,
+        _COST_TEXT_OWNER,
         _MODELS_OWNER,
         _RUN_HTML_OWNER,
         _RUNS_OWNER,
@@ -424,6 +443,7 @@ _PLANTED = MappingProxyType({
     ),
     _SUMMARY_HTML_OWNER: (
         _CONSTANTS_OWNER,
+        _COST_TEXT_OWNER,
         _MODELS_OWNER,
         _RUNS_OWNER,
         _SUMMARIES_OWNER,
@@ -440,10 +460,9 @@ _PLANTED = MappingProxyType({
     _TIMELINE_OWNER: (_CONSTANTS_OWNER, _MODELS_OWNER),
     _USAGE_HTML_OWNER: (
         _CONSTANTS_OWNER,
+        _COST_TEXT_OWNER,
         _MODELS_OWNER,
         _RUNS_OWNER,
-        _SUMMARIES_OWNER,
-        _SUMMARY_HTML_OWNER,
         _TIMELINE_OWNER,
         _USAGE_OWNER,
     ),
@@ -456,6 +475,23 @@ _ALWAYS_PLANTED = frozenset((
     "orchestrator",
     "orchestrator.observability",
     _PACKAGE,
+))
+
+# The usage owners a usage record's evidence is defined and read by. Naming one
+# of them pays for that whole package, whose initializer publishes its parsers,
+# and what that package plants is its own tests' to declare; what is declared
+# here is which owners reach it at all. Every owner that names the models pays
+# for it, since a usage summary carries its evidence typed by those owners, and
+# so does `cost_text`, which words that evidence; the five below are the ones
+# that name no usage record and stay free of it.
+_USAGE_TREE = "orchestrator.observability.usage"
+
+_USAGE_FREE = frozenset((
+    _COERCION_OWNER,
+    _CONSTANTS_OWNER,
+    _CSS_OWNER,
+    _FILTER_MODELS_OWNER,
+    _LOG_PATHS_OWNER,
 ))
 
 # The two sibling destinations an owner here may reach into, spelled once so a
@@ -593,10 +629,13 @@ class LayeringTest(unittest.TestCase):
             outside = planted - _ALWAYS_PLANTED - {
                 _qualified(sibling) for sibling in _OWNERS
             }
+            usage = {name for name in outside if name.startswith(_USAGE_TREE)}
             with self.subTest(owner=owner):
                 self.assertEqual(
-                    tuple(sorted(outside)), _EXTERNAL_CHAINS.get(owner, ()),
+                    tuple(sorted(outside - usage)),
+                    _EXTERNAL_CHAINS.get(owner, ()),
                 )
+                self.assertEqual(bool(usage), owner not in _USAGE_FREE)
 
 
 if __name__ == "__main__":

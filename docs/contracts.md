@@ -225,6 +225,7 @@ or lost write interrupted are current state, not historical compatibility.
 [token evidence](../tests/observability/usage/test_usage_token_evidence.py),
 [recorded evidence](../tests/workflow/engine/test_usage_metrics.py),
 [trajectory evidence](../tests/observability/analytics/trajectories/test_record.py),
+[viewer evidence](../tests/observability/trajectory_viewer/test_usage_parsing.py),
 [verification artifacts](../tests/github/test_verification_artifacts.py),
 [requirements baselines](../tests/workflow/engine/test_drift.py),
 [late first baselines](../tests/workflow/stages/decomposition/test_late_first_baseline.py),

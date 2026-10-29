@@ -365,6 +365,10 @@ class RecordedTokenTotalTest(unittest.TestCase):
         for evidence in ({}, *({_tokens.TOKEN_EVIDENCE: stated} for stated in _NOT_CURRENT_EVIDENCE)):
             with self.subTest(evidence=evidence):
                 for uncached in (_counts(), _TURN_SHAPED_COUNTS):
+                    self.assertEqual(
+                        _tokens.recorded_tokens({**uncached, **evidence}),
+                        _tokens.TokenEvidence.reporting(uncached, _tokens.UNKNOWN),
+                    )
                     self.assertEqual(_tokens.non_overlapping_total({**uncached, **evidence}), _UNCACHED_TOTAL)
                 cached = {**_counts(**{_CACHE_READ: _CACHE_READ_COUNT}), **evidence}
                 self.assertIsNone(_tokens.non_overlapping_total(cached))
@@ -373,6 +377,9 @@ class RecordedTokenTotalTest(unittest.TestCase):
         for counts, cache_overlap, total in _CACHE_TOTALS:
             with self.subTest(counts=counts, cache_overlap=cache_overlap):
                 record = {**counts, _tokens.TOKEN_EVIDENCE: _evidence(cache_overlap, *counts)}
+                self.assertEqual(
+                    _tokens.recorded_tokens(record), _tokens.TokenEvidence.reporting(counts, cache_overlap),
+                )
                 self.assertEqual(_tokens.non_overlapping_total(record), total)
 
     def test_malformed_observed_count_has_no_total(self) -> None:

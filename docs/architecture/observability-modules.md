@@ -124,7 +124,9 @@ orchestrator/
 - `trajectory_viewer/` runs the same way: the parse sits above the record and the views bound onto it, the file read
   above the parse, and the filter, summary, and markup owners open nothing. Which file a read opens comes off the
   settings holder the page hands down rather than one an owner captured, and nothing here imports Streamlit — the
-  owners that draw take it in as an argument.
+  owners that draw take it in as an argument. Its usage views read a record's cost and token evidence through
+  `usage/`'s own readers and fold costs with its reduction rather than a second copy of either, so every owner that
+  names a usage view pays for the `usage/` package, which is standard-library code and needs no optional group.
 - The two `streamlit run` targets are the one launch path each page has and own nothing the page decides:
   everything they compose is imported inside the pass that reaches it, Streamlit and pandas included, so importing
   an app costs the `sys.path` shim and nothing else.

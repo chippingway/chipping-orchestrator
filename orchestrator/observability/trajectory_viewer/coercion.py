@@ -31,19 +31,6 @@ def coerce_int(raw_value: Any) -> int | None:
     return None
 
 
-def coerce_float(raw_value: Any) -> float | None:
-    if isinstance(raw_value, bool):
-        return None
-    if isinstance(raw_value, (int, float)):
-        return float(raw_value)
-    if isinstance(raw_value, str):
-        try:
-            return float(raw_value.strip())
-        except ValueError:
-            return None
-    return None
-
-
 def coerce_str(raw_value: Any) -> str:
     if raw_value is None:
         return ""

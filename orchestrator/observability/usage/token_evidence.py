@@ -13,8 +13,9 @@ establishes either.
 
 `non_overlapping_total` is the one way to add the counters up, and it answers only where that evidence permits: every
 observed counter once, a cache counter left out only where it sits inside an input count that was observed. Beside an
-observed input, a nonzero cache counter of unknown overlap leaves the total unknown rather than guessed either way. A
-record that states no evidence is read with the counters it carries and an unknown overlap.
+observed input, a nonzero cache counter of unknown overlap leaves the total unknown rather than guessed either way.
+`recorded_tokens` is the evidence a serialized record is read with: a record that states none is read with the counters
+it carries and an unknown overlap.
 """
 
 from __future__ import annotations
@@ -68,7 +69,7 @@ class TokenEvidence:
     def total(self, counts: Mapping[str, Any]) -> int | None:
         """The non-overlapping total of the observed counters in `counts`, or None where evidence cannot settle it."""
         observed = {counter: counts.get(counter) for counter in self.observed}
-        if not all(_is_count(count) for count in observed.values()):
+        if not all(is_count(count) for count in observed.values()):
             return None
         whole = sum(observed.values())
         cached = sum(observed.get(counter, 0) for counter in CACHE_COUNTERS)
@@ -81,16 +82,25 @@ class TokenEvidence:
         return {OBSERVED: list(self.observed), CACHE_OVERLAP: self.cache_overlap}
 
 
+def recorded_tokens(record: Mapping[str, Any]) -> TokenEvidence:
+    """The token evidence one serialized usage record is read with.
+
+    A record whose `token_evidence` is missing, or is not evidence a current producer writes, is read as observing the
+    counters it carries, with a cache overlap nothing establishes: nothing is inferred from its backend or models.
+    """
+    evidence = TokenEvidence.from_dict(record.get(TOKEN_EVIDENCE))
+    if evidence is not None:
+        return evidence
+    return TokenEvidence(tuple(counter for counter in COUNTERS if counter in record), UNKNOWN)
+
+
 def non_overlapping_total(record: Mapping[str, Any]) -> int | None:
     """The token total one serialized usage record establishes, each token counted once, or None.
 
     A run that printed no usage observed nothing and totals zero; its empty `observed` list is what tells that zero
     apart from a counted one.
     """
-    evidence = TokenEvidence.from_dict(record.get(TOKEN_EVIDENCE))
-    if evidence is None:
-        evidence = TokenEvidence(tuple(counter for counter in COUNTERS if counter in record), UNKNOWN)
-    return evidence.total(record)
+    return recorded_tokens(record).total(record)
 
 
 def reported_count(raw: Any) -> int | None:
@@ -116,5 +126,6 @@ def reported_counts(counts: Mapping[str, int | None]) -> dict[str, int]:
     return {token_class: count for token_class, count in counts.items() if count is not None}
 
 
-def _is_count(raw: Any) -> bool:
+def is_count(raw: Any) -> bool:
+    """Whether a serialized counter holds a count a total can add: a non-negative integer, never a bool or a string."""
     return isinstance(raw, int) and not isinstance(raw, bool) and raw >= 0

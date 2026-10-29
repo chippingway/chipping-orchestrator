@@ -14,6 +14,19 @@ being trusted, and a step or a turn that cannot be read is dropped instead of
 raising, so a hand-edited entry costs its own row rather than the whole run. A
 usage summary that is missing or not an object reads as none, which is the one
 reading of a damaged line that still lets the rest of its run render.
+
+What a usage record's cost and counters mean is the one thing not narrowed
+here: the run summary and each turn are handed whole to the usage owner's
+``recorded_cost`` and ``recorded_tokens``, the readers every other surface
+reads a serialized usage record through. A record without that evidence, as
+every one an earlier build wrote, therefore reads with an unknown basis and
+completeness and an unknown cache overlap, and nothing is inferred in their
+place from its ``cost_source``, its backend, or its models. A token counter is
+read by the same owner's ``is_count`` rather than coerced: one the record
+carries no count for -- absent, null, negative, or spelled as a string -- is
+None rather than zero, so the total a view reports is the one that owner's
+``non_overlapping_total`` reads off the same line, unknown wherever an
+observed counter is.
 """
 
 from __future__ import annotations
@@ -27,6 +40,11 @@ from orchestrator.observability.trajectory_viewer.models import (
     TurnUsageView,
 )
 from orchestrator.observability.trajectory_viewer.runs import TrajectoryRun
+from orchestrator.observability.usage import (
+    cost_evidence as usage_cost,
+    protocol,
+    token_evidence as usage_tokens,
+)
 
 
 def parse_step(raw_step: Any) -> TrajectoryStepView | None:
@@ -50,13 +68,13 @@ def parse_run_usage(raw_usage: Any) -> RunUsageView | None:
     return RunUsageView(
         models=coercion.coerce_str_tuple(raw_usage.get("models")),
         turns=coercion.coerce_int(raw_usage.get("turns")),
-        input_tokens=coercion.coerce_int(raw_usage.get("input_tokens")) or 0,
-        output_tokens=coercion.coerce_int(raw_usage.get("output_tokens")) or 0,
-        cached_tokens=coercion.coerce_int(raw_usage.get("cached_tokens")) or 0,
-        cache_read_tokens=coercion.coerce_int(raw_usage.get("cache_read_tokens")) or 0,
-        cache_write_tokens=coercion.coerce_int(raw_usage.get("cache_write_tokens")) or 0,
-        cost_usd=coercion.coerce_float(raw_usage.get("cost_usd")),
-        cost_source=coercion.coerce_str(raw_usage.get("cost_source")),
+        input_tokens=_recorded_count(raw_usage, protocol.INPUT_TOKENS),
+        output_tokens=_recorded_count(raw_usage, protocol.OUTPUT_TOKENS),
+        cached_tokens=_recorded_count(raw_usage, protocol.CACHED_TOKENS),
+        cache_read_tokens=_recorded_count(raw_usage, protocol.CACHE_READ_TOKENS),
+        cache_write_tokens=_recorded_count(raw_usage, protocol.CACHE_WRITE_TOKENS),
+        cost_evidence=usage_cost.recorded_cost(raw_usage),
+        token_evidence=usage_tokens.recorded_tokens(raw_usage),
     )
 
 
@@ -66,12 +84,12 @@ def parse_turn(raw_turn: Any) -> TurnUsageView | None:
     return TurnUsageView(
         turn=coercion.coerce_int(raw_turn.get("turn")),
         model=coercion.coerce_str(raw_turn.get("model")),
-        input_tokens=coercion.coerce_int(raw_turn.get("input_tokens")) or 0,
-        output_tokens=coercion.coerce_int(raw_turn.get("output_tokens")) or 0,
-        cache_read_tokens=coercion.coerce_int(raw_turn.get("cache_read_tokens")) or 0,
-        cache_write_tokens=coercion.coerce_int(raw_turn.get("cache_write_tokens")) or 0,
-        cost_usd=coercion.coerce_float(raw_turn.get("cost_usd")),
-        cost_source=coercion.coerce_str(raw_turn.get("cost_source")),
+        input_tokens=_recorded_count(raw_turn, protocol.INPUT_TOKENS),
+        output_tokens=_recorded_count(raw_turn, protocol.OUTPUT_TOKENS),
+        cache_read_tokens=_recorded_count(raw_turn, protocol.CACHE_READ_TOKENS),
+        cache_write_tokens=_recorded_count(raw_turn, protocol.CACHE_WRITE_TOKENS),
+        cost_evidence=usage_cost.recorded_cost(raw_turn),
+        token_evidence=usage_tokens.recorded_tokens(raw_turn),
     )
 
 
@@ -106,3 +124,8 @@ def parse_record(record_object: Any, *, sequence: int) -> TrajectoryRun | None:
         turns=turns,
         truncated=bool(record_object.get("truncated")),
     )
+
+
+def _recorded_count(raw_usage: dict[str, Any], counter: str) -> int | None:
+    count = raw_usage.get(counter)
+    return count if usage_tokens.is_count(count) else None

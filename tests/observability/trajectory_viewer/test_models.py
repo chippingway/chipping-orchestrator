@@ -9,7 +9,10 @@ from dataclasses import FrozenInstanceError
 
 from orchestrator.observability.trajectory_viewer import models
 from tests.observability.trajectory_viewer.trajectory_viewer_test_support import (
+    AGY_TOKENS,
     ASSISTANT_MESSAGE,
+    CLAUDE_TOKENS,
+    CODEX_TOKENS,
     TOOL_BASH,
     TOOL_CALL,
     TOOL_RESULT,
@@ -32,6 +35,8 @@ _OUTPUT_TOKENS = 340
 _CACHE_READ_TOKENS = 18240
 
 _CACHE_WRITE_TOKENS = 512
+
+_CACHED_TOKENS = 9
 
 
 class ConstructionSignatureTest(unittest.TestCase):
@@ -122,34 +127,64 @@ class ModelBehaviorTest(unittest.TestCase):
 
 
 class UsageTotalTest(unittest.TestCase):
-    """Both usage summaries total the same four buckets."""
+    """Both usage summaries total each token once, or not at all."""
 
-    def test_the_total_leaves_the_cached_subset_out(self) -> None:
-        # Codex reports `cached_tokens` as a subset of its input count, so
-        # adding it would bill those tokens twice.
-        run_usage = models.RunUsageView(
-            input_tokens=_INPUT_TOKENS,
-            output_tokens=_OUTPUT_TOKENS,
-            cached_tokens=9,
-            cache_read_tokens=_CACHE_READ_TOKENS,
-            cache_write_tokens=_CACHE_WRITE_TOKENS,
-        )
-        turn_usage = models.TurnUsageView(
-            input_tokens=_INPUT_TOKENS,
-            output_tokens=_OUTPUT_TOKENS,
-            cache_read_tokens=_CACHE_READ_TOKENS,
-            cache_write_tokens=_CACHE_WRITE_TOKENS,
+    def test_each_backend_counts_its_cache_once(self) -> None:
+        # Claude's cache classes sit beside its input, so all four add up;
+        # Codex's `cached_tokens` is part of its input, so adding it would
+        # count those tokens twice.
+        claude_counts = {
+            "input_tokens": _INPUT_TOKENS,
+            "output_tokens": _OUTPUT_TOKENS,
+            "cache_read_tokens": _CACHE_READ_TOKENS,
+            "cache_write_tokens": _CACHE_WRITE_TOKENS,
+        }
+        claude_total = sum(claude_counts.values())
+        self.assertEqual(
+            models.RunUsageView(
+                **claude_counts, token_evidence=CLAUDE_TOKENS,
+            ).total_tokens,
+            claude_total,
         )
         self.assertEqual(
-            run_usage.total_tokens,
-            _INPUT_TOKENS + _OUTPUT_TOKENS + _CACHE_READ_TOKENS + _CACHE_WRITE_TOKENS,
+            models.TurnUsageView(
+                **claude_counts, token_evidence=CLAUDE_TOKENS,
+            ).total_tokens,
+            claude_total,
         )
-        self.assertEqual(turn_usage.total_tokens, run_usage.total_tokens)
+        codex = models.RunUsageView(
+            input_tokens=_INPUT_TOKENS,
+            output_tokens=_OUTPUT_TOKENS,
+            cached_tokens=_CACHED_TOKENS,
+            token_evidence=CODEX_TOKENS,
+        )
+        self.assertEqual(codex.total_tokens, _INPUT_TOKENS + _OUTPUT_TOKENS)
 
-    def test_a_summary_with_no_buckets_totals_zero(self) -> None:
-        # A record written before the cache buckets existed omits them.
+    def test_an_unstated_overlap_has_no_total(self) -> None:
+        # A view built without evidence reads as a record that stated none:
+        # with no cache count it still totals, and beside a nonzero one it has
+        # no answer rather than a guess either way.
         self.assertEqual(models.RunUsageView().total_tokens, 0)
         self.assertEqual(models.TurnUsageView().total_tokens, 0)
+        self.assertEqual(
+            models.RunUsageView(
+                input_tokens=_INPUT_TOKENS, output_tokens=_OUTPUT_TOKENS,
+            ).total_tokens,
+            _INPUT_TOKENS + _OUTPUT_TOKENS,
+        )
+        for cached in (
+            models.RunUsageView(input_tokens=_INPUT_TOKENS, cached_tokens=_CACHED_TOKENS),
+            models.TurnUsageView(
+                input_tokens=_INPUT_TOKENS, cache_read_tokens=_CACHE_READ_TOKENS,
+            ),
+        ):
+            with self.subTest(view=type(cached).__name__):
+                self.assertIsNone(cached.total_tokens)
+        self.assertIsNone(models.RunUsageView(
+            input_tokens=_INPUT_TOKENS,
+            cache_read_tokens=_CACHE_READ_TOKENS,
+            token_evidence=AGY_TOKENS,
+        ).total_tokens)
 
 
 if __name__ == "__main__":
