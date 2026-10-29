@@ -254,7 +254,8 @@ of the read path narrow a nullable duration the same way.
   backend" stacked-area toggle.
 - `get_cost_coverage` (agent-run view) — per `cost_source` rollups carrying both runs and `total_tokens`. The
   `unknown-price` cohort is exposed verbatim (never collapsed into a generic "unknown") because it is the maintenance
-  signal for the price tables in `observability/usage/prices.py`. NULL `cost_source` buckets under `"unknown"`.
+  signal for the price catalogue in `observability/usage/prices.py`: a model with no row there, or with a row still
+  dormant until its provider's accounting activates it. NULL `cost_source` buckets under `"unknown"`.
 
 **Filter contract.** The agent-run view has no `event` column (its WHERE `event = 'agent_exit'` is baked in), so
 view-backed functions cannot push an `event IN (...)` clause down. They honor the dashboard's event-filter contract by
