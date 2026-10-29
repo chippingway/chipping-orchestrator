@@ -5,7 +5,8 @@
 Home of the provider payloads a run is metered from. The owners divide by what
 a payload has to be turned into: the JSONL vocabulary and the resilient line
 decoder every provider reads through (``protocol``, ``event_stream``); the
-price tables and the nested model-name lookup an estimate needs (``prices``,
+price catalogue, its dated rows and bounded model lookup, and the nested
+model-name lookup an estimate needs (``prices``, ``price_catalogue``,
 ``model_names``); the per-provider frame decoding, settlement, and run summary
 the token counts come from (``claude_rows``, ``claude_settlement``,
 ``claude_summary``, ``codex_rows``, ``codex_summary``, ``agy_events``,
@@ -26,7 +27,7 @@ and ``SkillTriggers`` beside the parsers that fill them, and the
 quartet on ``trajectory_models``. Each is bound here once, at import, to the
 owner's own object rather than a wrapper around it; that binding does not
 follow a later patch, so a test intercepting a parser targets the module its
-caller imported. Everything else -- the price tables, the protocol keys, the
+caller imported. Everything else -- the price catalogue, the protocol keys, the
 per-provider decoders -- is reached on its owner, so nothing private is
 published here.
 

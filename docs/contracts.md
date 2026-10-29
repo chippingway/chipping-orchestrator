@@ -107,7 +107,9 @@ Historical forms the runtime still reads stay documented in their specifications
 Analytics and trajectory readers interpret only what current producers write: a field a producer did not report is
 unknown rather than inferred from another (a skill load is no evidence of its offer), and a row narrower than its
 query's SELECT list raises rather than reading as NULL. A current optional field's absence, an ID-less CLI run, an
-unpriced cost, and a malformed record's containment remain current answers. A recorded requirements fingerprint
+unpriced cost, and a malformed record's containment remain current answers. A usage estimate prices a model only through
+an active price-catalogue row naming its exact ID, documented alias, or published snapshot; an unknown version, an
+arbitrary suffix, or a dormant row is an unpriced cost, never another row's rates. A recorded requirements fingerprint
 (`user_content_hash`, `observed_user_content_hash`) is compared with the current fingerprint alone, which leaves bare
 operator controls out: a value no current reading reproduces -- one an earlier producer wrote counting a bare
 `/orchestrator continue` included -- is drift for the stage's deliberate drift or hold route, and is never recognized
@@ -184,6 +186,7 @@ or lost write interrupted are current state, not historical compatibility.
 [close recovery](state-machine/delivery-stages.md#closed-owner-cleanup-sweep-no-label-of-its-own),
 [branch refusal](state-machine/labels-and-state.md#branch-refusal),
 [analytics readers](observability/analytics-dashboard.md#read-model-orchestratorobservabilityanalyticsquery),
+[price catalogue](observability/usage.md),
 [requirements baselines](state-machine/delivery-stages.md#user-content-drift-detection),
 [watermark initialization](state-machine/delivery-stages.md#_handle_in_review-label-in_review),
 [replay batches](state-machine/labels-and-state.md#pinned-state),
@@ -201,6 +204,7 @@ or lost write interrupted are current state, not historical compatibility.
 [snapshot consumers](../tests/workflow/stages/decomposition/test_claimed_reclamation.py),
 [artifact admission](../tests/git/worktrees/test_maintenance_admission.py),
 [analytics readers](../tests/observability/analytics/query/test_skill_adoption_reads.py),
+[price catalogue](../tests/observability/usage/test_usage_price_catalogue.py),
 [verification artifacts](../tests/github/test_verification_artifacts.py),
 [requirements baselines](../tests/workflow/engine/test_drift.py),
 [late first baselines](../tests/workflow/stages/decomposition/test_late_first_baseline.py),

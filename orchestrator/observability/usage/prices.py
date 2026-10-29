@@ -1,127 +1,346 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""First-party model prices and usage-cost calculations."""
+"""Standard first-party API price catalogue and the usage-cost estimates priced from it.
+
+One table of `price_catalogue.PriceRow` per provider, verified on 2026-10-29 against the provider pricing pages --
+https://platform.claude.com/docs/en/about-claude/pricing, https://developers.openai.com/api/docs/pricing, and
+https://ai.google.dev/gemini-api/docs/pricing -- with each model page for the aliases and snapshot IDs a row answers
+to. Each rate tuple copies one row of its provider's page in that page's column order, a dash on the page being
+`None`, so a recheck compares them cell by cell.
+
+The active rows are Claude Opus 4 through 4.7, Sonnet 4 through 4.6, and Haiku 3.5 and 4.5, and OpenAI's GPT-5 through
+GPT-5.5 rows with their Codex and shut-down chat models. Every other row is dormant until its provider's accounting
+can price it: Claude Opus 4.8, 5, and 5.5, Sonnet 5 and 5.5, Fable 5 and 5.1, and Haiku 5.5; the GPT-5.6 and GPT-6
+families; and every Gemini row. The restricted Mythos and Daybreak (cyber) models carry no row: no captured stream
+shows a harness emitting their IDs, and `gpt-5.6-cyber` is a moving alias for whichever cyber model is current, as is
+the bare `chat-latest`.
+"""
 
 from __future__ import annotations
 
-import re
+from datetime import date
+from functools import partial
 
-from orchestrator.observability.usage import protocol
+from orchestrator.observability.usage import price_catalogue, protocol
 
-CLAUDE_RATES: tuple[protocol.ClaudeRateRow, ...] = (
-    (
-        re.compile(r"opus.*4([._-]?[567]|\.[567])"),
-        {
-            protocol.INPUT: 5,
-            protocol.CACHE_WRITE_FIVE_MIN: 6.25,
-            protocol.CACHE_WRITE_ONE_HOUR: 10,
-            protocol.CACHE_READ: 0.5,
-            protocol.OUTPUT: 25,
-        },
+_VERIFIED_ON = date.fromisoformat("2026-10-29")
+# The page guarantees GPT-5.6 Sol's promotional rates at least through this
+# date; past it the row needs a recheck, and its rates stand until one.
+_GPT_FIVE_SIX_SOL_REVIEW = date.fromisoformat("2026-11-21")
+_GEMINI_FOUR_ARGON_THROUGH = date.fromisoformat("2026-11-30")
+_GEMINI_FOUR_ARGON_STARTING = date.fromisoformat("2026-12-01")
+_GEMINI_FLASH_THROUGH = date.fromisoformat("2026-12-31")
+_GEMINI_FLASH_STARTING = date.fromisoformat("2027-01-01")
+
+_HAIKU_FIVE_FIVE_PROMPT_TIER = 100_000
+_OPENAI_LONG_CONTEXT_TIER = 272_000
+_GEMINI_PRO_PROMPT_TIER = 200_000
+
+# Base input, 5m cache writes, 1h cache writes, cache hits and refreshes, output.
+_CLAUDE_COLUMNS = (
+    protocol.INPUT,
+    protocol.CACHE_WRITE_FIVE_MIN,
+    protocol.CACHE_WRITE_ONE_HOUR,
+    protocol.CACHE_READ,
+    protocol.OUTPUT,
+)
+# Input, output, cached input, 30m write, 12h write; the older models' table
+# stops after cached input.
+_OPENAI_COLUMNS = (
+    protocol.INPUT,
+    protocol.OUTPUT,
+    protocol.CACHED,
+    protocol.CACHE_WRITE_THIRTY_MIN,
+    protocol.CACHE_WRITE_TWELVE_HOUR,
+)
+# Input, output including thinking tokens, context caching.
+_GEMINI_COLUMNS = (protocol.INPUT, protocol.OUTPUT, protocol.CACHED)
+
+
+def _page_rates(
+    columns: tuple[str, ...],
+    page_row: tuple[float | None, ...],
+) -> protocol.RateMap:
+    published = zip(columns, page_row, strict=False)
+    return {column: rate for column, rate in published if rate is not None}
+
+
+_claude = partial(_page_rates, _CLAUDE_COLUMNS)
+_openai = partial(_page_rates, _OPENAI_COLUMNS)
+_gemini = partial(_page_rates, _GEMINI_COLUMNS)
+
+_OPUS_FOUR_FIVE_TO_FIVE = _claude((5, 6.25, 10, 0.5, 25))
+_OPUS_FOUR_AND_FOUR_ONE = _claude((15, 18.75, 30, 1.5, 75))
+_SONNET_FOUR_TO_FOUR_SIX = _claude((3, 3.75, 6, 0.3, 15))
+
+CLAUDE_PRICES: tuple[price_catalogue.PriceRow, ...] = (
+    price_catalogue.PriceRow("claude-fable-5-1", _claude((10, 12.5, 20, 0.25, 50)), _VERIFIED_ON),
+    price_catalogue.PriceRow("claude-fable-5", _claude((10, 12.5, 20, 1, 50)), _VERIFIED_ON),
+    price_catalogue.PriceRow("claude-opus-5-5", _claude((4, 5, 8, 0.2, 20)), _VERIFIED_ON),
+    price_catalogue.PriceRow("claude-opus-5", _OPUS_FOUR_FIVE_TO_FIVE, _VERIFIED_ON),
+    price_catalogue.PriceRow("claude-opus-4-8", _OPUS_FOUR_FIVE_TO_FIVE, _VERIFIED_ON),
+    price_catalogue.PriceRow("claude-opus-4-7", _OPUS_FOUR_FIVE_TO_FIVE, _VERIFIED_ON, active=True),
+    price_catalogue.PriceRow("claude-opus-4-6", _OPUS_FOUR_FIVE_TO_FIVE, _VERIFIED_ON, active=True),
+    price_catalogue.PriceRow(
+        "claude-opus-4-5-20251101",
+        _OPUS_FOUR_FIVE_TO_FIVE,
+        _VERIFIED_ON,
+        aliases=("claude-opus-4-5",),
+        active=True,
     ),
-    (
-        re.compile(r"opus.*4"),
-        {
-            protocol.INPUT: 15,
-            protocol.CACHE_WRITE_FIVE_MIN: 18.75,
-            protocol.CACHE_WRITE_ONE_HOUR: 30,
-            protocol.CACHE_READ: 1.5,
-            protocol.OUTPUT: 75,
-        },
+    price_catalogue.PriceRow(
+        "claude-opus-4-1-20250805",
+        _OPUS_FOUR_AND_FOUR_ONE,
+        _VERIFIED_ON,
+        aliases=("claude-opus-4-1",),
+        active=True,
     ),
-    (
-        re.compile(r"sonnet"),
-        {
-            protocol.INPUT: 3,
-            protocol.CACHE_WRITE_FIVE_MIN: 3.75,
-            protocol.CACHE_WRITE_ONE_HOUR: 6,
-            protocol.CACHE_READ: 0.3,
-            protocol.OUTPUT: 15,
-        },
+    price_catalogue.PriceRow(
+        "claude-opus-4-20250514",
+        _OPUS_FOUR_AND_FOUR_ONE,
+        _VERIFIED_ON,
+        aliases=("claude-opus-4-0",),
+        active=True,
     ),
-    (
-        re.compile(r"haiku.*3([._-]?5|\.5)"),
-        {
-            protocol.INPUT: 0.8,
-            protocol.CACHE_WRITE_FIVE_MIN: 1,
-            protocol.CACHE_WRITE_ONE_HOUR: 1.6,
-            protocol.CACHE_READ: 0.08,
-            protocol.OUTPUT: 4,
-        },
+    price_catalogue.PriceRow("claude-sonnet-5-5", _claude((2, 2.5, 4, 0.1, 10)), _VERIFIED_ON),
+    price_catalogue.PriceRow("claude-sonnet-5", _claude((2, 2.5, 4, 0.2, 10)), _VERIFIED_ON),
+    price_catalogue.PriceRow("claude-sonnet-4-6", _SONNET_FOUR_TO_FOUR_SIX, _VERIFIED_ON, active=True),
+    price_catalogue.PriceRow(
+        "claude-sonnet-4-5-20250929",
+        _SONNET_FOUR_TO_FOUR_SIX,
+        _VERIFIED_ON,
+        aliases=("claude-sonnet-4-5",),
+        active=True,
     ),
-    (
-        re.compile(r"haiku"),
-        {
-            protocol.INPUT: 1,
-            protocol.CACHE_WRITE_FIVE_MIN: 1.25,
-            protocol.CACHE_WRITE_ONE_HOUR: 2,
-            protocol.CACHE_READ: 0.1,
-            protocol.OUTPUT: 5,
-        },
+    price_catalogue.PriceRow(
+        "claude-sonnet-4-20250514",
+        _SONNET_FOUR_TO_FOUR_SIX,
+        _VERIFIED_ON,
+        aliases=("claude-sonnet-4-0",),
+        active=True,
+    ),
+    price_catalogue.PriceRow(
+        "claude-haiku-5-5",
+        _claude((0.1, 0.125, 0.2, 0.01, 0.5)),
+        _VERIFIED_ON,
+        tier=price_catalogue.RequestTier(_HAIKU_FIVE_FIVE_PROMPT_TIER, _claude((0.5, 0.625, 1, 0.05, 2.5))),
+    ),
+    price_catalogue.PriceRow(
+        "claude-haiku-4-5-20251001",
+        _claude((1, 1.25, 2, 0.1, 5)),
+        _VERIFIED_ON,
+        aliases=("claude-haiku-4-5",),
+        active=True,
+    ),
+    price_catalogue.PriceRow(
+        "claude-3-5-haiku-20241022",
+        _claude((0.8, 1, 1.6, 0.08, 4)),
+        _VERIFIED_ON,
+        aliases=("claude-3-5-haiku-latest",),
+        active=True,
     ),
 )
 
-CODEX_RATES: tuple[protocol.CodexRateRow, ...] = (
-    ("gpt-5.5-pro", {protocol.INPUT: 30, protocol.CACHED: None, protocol.OUTPUT: 180}),
-    (
+_GPT_FIVE_PRO_LONG_CONTEXT = price_catalogue.RequestTier(_OPENAI_LONG_CONTEXT_TIER, _openai((60, 270, None)))
+_GPT_FIVE_ONE = _openai((1.25, 10, 0.125))
+_GPT_FIVE_TWO = _openai((1.75, 14, 0.175))
+_GPT_FIVE_MINI = _openai((0.25, 2, 0.025))
+
+OPENAI_PRICES: tuple[price_catalogue.PriceRow, ...] = (
+    price_catalogue.PriceRow(
+        "gpt-6-astra",
+        _openai((10, 50, 1, 12.5, 25)),
+        _VERIFIED_ON,
+        tier=price_catalogue.RequestTier(_OPENAI_LONG_CONTEXT_TIER, _openai((20, 75, 2, 25, 50))),
+    ),
+    price_catalogue.PriceRow(
+        "gpt-6.1-sol",
+        _openai((2, 10, 0.1, 2.5, 5)),
+        _VERIFIED_ON,
+        tier=price_catalogue.RequestTier(_OPENAI_LONG_CONTEXT_TIER, _openai((4, 15, 0.2, 5, 10))),
+    ),
+    price_catalogue.PriceRow(
+        "gpt-6.1-terra",
+        _openai((1, 5, 0.05, 1.25, 2.5)),
+        _VERIFIED_ON,
+        tier=price_catalogue.RequestTier(_OPENAI_LONG_CONTEXT_TIER, _openai((2, 7.5, 0.1, 2.5, 5))),
+    ),
+    price_catalogue.PriceRow(
+        "gpt-6-luna",
+        _openai((0.1, 0.5, 0.01, 0.125, 0.25)),
+        _VERIFIED_ON,
+        tier=price_catalogue.RequestTier(_OPENAI_LONG_CONTEXT_TIER, _openai((0.2, 0.75, 0.02, 0.25, 0.5))),
+    ),
+    price_catalogue.PriceRow(
+        "gpt-6-sol",
+        _openai((2, 10, 0.2, 2.5, 5)),
+        _VERIFIED_ON,
+        tier=price_catalogue.RequestTier(_OPENAI_LONG_CONTEXT_TIER, _openai((4, 15, 0.4, 5, 10))),
+    ),
+    price_catalogue.PriceRow(
+        "gpt-5.6-sol",
+        _openai((4, 20, 0.4, 5, 10)),
+        _VERIFIED_ON,
+        aliases=("gpt-5.6",),
+        tier=price_catalogue.RequestTier(_OPENAI_LONG_CONTEXT_TIER, _openai((8, 30, 0.8, 10, 20))),
+        review_after=_GPT_FIVE_SIX_SOL_REVIEW,
+    ),
+    price_catalogue.PriceRow(
+        "gpt-5.6-terra",
+        _openai((2, 12, 0.2, 2.5, 5)),
+        _VERIFIED_ON,
+        tier=price_catalogue.RequestTier(_OPENAI_LONG_CONTEXT_TIER, _openai((4, 18, 0.4, 5, 10))),
+    ),
+    price_catalogue.PriceRow(
+        "gpt-5.6-luna",
+        _openai((0.2, 1.2, 0.02, 0.25, 0.5)),
+        _VERIFIED_ON,
+        tier=price_catalogue.RequestTier(_OPENAI_LONG_CONTEXT_TIER, _openai((0.4, 1.8, 0.04, 0.5, 1))),
+    ),
+    price_catalogue.PriceRow(
         "gpt-5.5",
-        {
-            protocol.INPUT: 5,
-            protocol.CACHED: 0.5,
-            protocol.OUTPUT: 30,
-            protocol.LONG_CONTEXT_THRESHOLD: 272_000,
-            protocol.LONG_CONTEXT_INPUT_MULT: 2.0,
-            protocol.LONG_CONTEXT_OUTPUT_MULT: 1.5,
-        },
+        _openai((5, 30, 0.5)),
+        _VERIFIED_ON,
+        aliases=("gpt-5.5-2026-04-23",),
+        tier=price_catalogue.RequestTier(_OPENAI_LONG_CONTEXT_TIER, _openai((10, 45, 1))),
+        active=True,
     ),
-    (
-        "gpt-5.4-pro",
-        {
-            protocol.INPUT: 30,
-            protocol.CACHED: None,
-            protocol.OUTPUT: 180,
-            protocol.LONG_CONTEXT_THRESHOLD: 272_000,
-            protocol.LONG_CONTEXT_INPUT_MULT: 2.0,
-            protocol.LONG_CONTEXT_OUTPUT_MULT: 1.5,
-        },
+    price_catalogue.PriceRow(
+        "gpt-5.5-pro",
+        _openai((30, 180, None)),
+        _VERIFIED_ON,
+        aliases=("gpt-5.5-pro-2026-04-23",),
+        tier=_GPT_FIVE_PRO_LONG_CONTEXT,
+        active=True,
     ),
-    ("gpt-5.4-mini", {protocol.INPUT: 0.75, protocol.CACHED: 0.075, protocol.OUTPUT: 4.5}),
-    ("gpt-5.4-nano", {protocol.INPUT: 0.2, protocol.CACHED: 0.02, protocol.OUTPUT: 1.25}),
-    (
+    price_catalogue.PriceRow(
         "gpt-5.4",
-        {
-            protocol.INPUT: 2.5,
-            protocol.CACHED: 0.25,
-            protocol.OUTPUT: 15,
-            protocol.LONG_CONTEXT_THRESHOLD: 272_000,
-            protocol.LONG_CONTEXT_INPUT_MULT: 2.0,
-            protocol.LONG_CONTEXT_OUTPUT_MULT: 1.5,
-        },
+        _openai((2.5, 15, 0.25)),
+        _VERIFIED_ON,
+        aliases=("gpt-5.4-2026-03-05",),
+        tier=price_catalogue.RequestTier(_OPENAI_LONG_CONTEXT_TIER, _openai((5, 22.5, 0.5))),
+        active=True,
     ),
-    ("gpt-5.3-codex", {protocol.INPUT: 1.75, protocol.CACHED: 0.175, protocol.OUTPUT: 14}),
-    ("gpt-5.3", {protocol.INPUT: 1.75, protocol.CACHED: 0.175, protocol.OUTPUT: 14}),
-    ("gpt-5.2-pro", {protocol.INPUT: 21, protocol.CACHED: None, protocol.OUTPUT: 168}),
-    ("gpt-5.2", {protocol.INPUT: 1.75, protocol.CACHED: 0.175, protocol.OUTPUT: 14}),
-    ("gpt-5.1-codex-mini", {protocol.INPUT: 0.25, protocol.CACHED: 0.025, protocol.OUTPUT: 2}),
-    ("gpt-5.1-codex", {protocol.INPUT: 1.25, protocol.CACHED: 0.125, protocol.OUTPUT: 10}),
-    ("gpt-5.1", {protocol.INPUT: 1.25, protocol.CACHED: 0.125, protocol.OUTPUT: 10}),
-    ("gpt-5-pro", {protocol.INPUT: 15, protocol.CACHED: None, protocol.OUTPUT: 120}),
-    ("gpt-5-mini", {protocol.INPUT: 0.25, protocol.CACHED: 0.025, protocol.OUTPUT: 2}),
-    ("gpt-5-nano", {protocol.INPUT: 0.05, protocol.CACHED: 0.005, protocol.OUTPUT: 0.4}),
-    ("gpt-5-codex", {protocol.INPUT: 1.25, protocol.CACHED: 0.125, protocol.OUTPUT: 10}),
-    ("gpt-5", {protocol.INPUT: 1.25, protocol.CACHED: 0.125, protocol.OUTPUT: 10}),
-    ("codex-mini-latest", {protocol.INPUT: 1.5, protocol.CACHED: 0.375, protocol.OUTPUT: 6}),
+    price_catalogue.PriceRow(
+        "gpt-5.4-pro",
+        _openai((30, 180, None)),
+        _VERIFIED_ON,
+        aliases=("gpt-5.4-pro-2026-03-05",),
+        tier=_GPT_FIVE_PRO_LONG_CONTEXT,
+        active=True,
+    ),
+    price_catalogue.PriceRow(
+        "gpt-5.4-mini",
+        _openai((0.75, 4.5, 0.075)),
+        _VERIFIED_ON,
+        aliases=("gpt-5.4-mini-2026-03-17",),
+        active=True,
+    ),
+    price_catalogue.PriceRow(
+        "gpt-5.4-nano",
+        _openai((0.2, 1.25, 0.02)),
+        _VERIFIED_ON,
+        aliases=("gpt-5.4-nano-2026-03-17",),
+        active=True,
+    ),
+    price_catalogue.PriceRow("gpt-5.3-codex", _GPT_FIVE_TWO, _VERIFIED_ON, active=True),
+    # The chat models are shut down, so each `-latest` ID names one fixed
+    # model, and its model page keeps the rates it was billed at.
+    price_catalogue.PriceRow("gpt-5.3-chat-latest", _GPT_FIVE_TWO, _VERIFIED_ON, active=True),
+    price_catalogue.PriceRow("gpt-5.2", _GPT_FIVE_TWO, _VERIFIED_ON, aliases=("gpt-5.2-2025-12-11",), active=True),
+    price_catalogue.PriceRow("gpt-5.2-codex", _GPT_FIVE_TWO, _VERIFIED_ON, active=True),
+    price_catalogue.PriceRow("gpt-5.2-chat-latest", _GPT_FIVE_TWO, _VERIFIED_ON, active=True),
+    price_catalogue.PriceRow(
+        "gpt-5.2-pro",
+        _openai((21, 168, None)),
+        _VERIFIED_ON,
+        aliases=("gpt-5.2-pro-2025-12-11",),
+        active=True,
+    ),
+    price_catalogue.PriceRow("gpt-5.1", _GPT_FIVE_ONE, _VERIFIED_ON, aliases=("gpt-5.1-2025-11-13",), active=True),
+    price_catalogue.PriceRow("gpt-5.1-codex", _GPT_FIVE_ONE, _VERIFIED_ON, active=True),
+    price_catalogue.PriceRow("gpt-5.1-codex-max", _GPT_FIVE_ONE, _VERIFIED_ON, active=True),
+    price_catalogue.PriceRow("gpt-5.1-codex-mini", _GPT_FIVE_MINI, _VERIFIED_ON, active=True),
+    price_catalogue.PriceRow("gpt-5.1-chat-latest", _GPT_FIVE_ONE, _VERIFIED_ON, active=True),
+    price_catalogue.PriceRow("gpt-5", _GPT_FIVE_ONE, _VERIFIED_ON, aliases=("gpt-5-2025-08-07",), active=True),
+    price_catalogue.PriceRow("gpt-5-codex", _GPT_FIVE_ONE, _VERIFIED_ON, active=True),
+    price_catalogue.PriceRow("gpt-5-chat-latest", _GPT_FIVE_ONE, _VERIFIED_ON, active=True),
+    price_catalogue.PriceRow(
+        "gpt-5-pro",
+        _openai((15, 120, None)),
+        _VERIFIED_ON,
+        aliases=("gpt-5-pro-2025-10-06",),
+        active=True,
+    ),
+    price_catalogue.PriceRow(
+        "gpt-5-mini",
+        _GPT_FIVE_MINI,
+        _VERIFIED_ON,
+        aliases=("gpt-5-mini-2025-08-07",),
+        active=True,
+    ),
+    price_catalogue.PriceRow(
+        "gpt-5-nano",
+        _openai((0.05, 0.4, 0.005)),
+        _VERIFIED_ON,
+        aliases=("gpt-5-nano-2025-08-07",),
+        active=True,
+    ),
+    price_catalogue.PriceRow("codex-mini-latest", _openai((1.5, 6, 0.375)), _VERIFIED_ON, active=True),
+)
+
+_GEMINI_FLASH_BEFORE_CHANGE = _gemini((0.75, 3.75, 0.075))
+_GEMINI_FLASH_AFTER_CHANGE = _gemini((1.5, 7.5, 0.15))
+
+GEMINI_PRICES: tuple[price_catalogue.PriceRow, ...] = (
+    price_catalogue.PriceRow(
+        "gemini-4-argon",
+        _gemini((2, 10, 0.1)),
+        _VERIFIED_ON,
+        through=_GEMINI_FOUR_ARGON_THROUGH,
+    ),
+    price_catalogue.PriceRow(
+        "gemini-4-argon",
+        _gemini((4, 20, 0.2)),
+        _VERIFIED_ON,
+        starting=_GEMINI_FOUR_ARGON_STARTING,
+    ),
+    price_catalogue.PriceRow(
+        "gemini-3.8-flash",
+        _GEMINI_FLASH_BEFORE_CHANGE,
+        _VERIFIED_ON,
+        through=_GEMINI_FLASH_THROUGH,
+    ),
+    price_catalogue.PriceRow(
+        "gemini-3.8-flash",
+        _GEMINI_FLASH_AFTER_CHANGE,
+        _VERIFIED_ON,
+        starting=_GEMINI_FLASH_STARTING,
+    ),
+    price_catalogue.PriceRow(
+        "gemini-3.6-flash",
+        _GEMINI_FLASH_BEFORE_CHANGE,
+        _VERIFIED_ON,
+        through=_GEMINI_FLASH_THROUGH,
+    ),
+    price_catalogue.PriceRow(
+        "gemini-3.6-flash",
+        _GEMINI_FLASH_AFTER_CHANGE,
+        _VERIFIED_ON,
+        starting=_GEMINI_FLASH_STARTING,
+    ),
+    price_catalogue.PriceRow(
+        "gemini-3.1-pro-preview",
+        _gemini((2, 12, 0.2)),
+        _VERIFIED_ON,
+        tier=price_catalogue.RequestTier(_GEMINI_PRO_PROMPT_TIER, _gemini((4, 18, 0.4))),
+    ),
 )
 
 
-def claude_rates(model: str) -> protocol.ClaudeRateMap | None:
-    if not model or model == protocol.UNKNOWN:
-        return None
-    lowered = model.lower()
-    for pattern, rates in CLAUDE_RATES:
-        if pattern.search(lowered):
-            return rates
-    return None
+def claude_rates(model: str) -> protocol.RateMap | None:
+    row = price_catalogue.active_row(CLAUDE_PRICES, model)
+    return None if row is None else row.rates
 
 
 def claude_estimate_cost(
@@ -140,11 +359,5 @@ def claude_estimate_cost(
     ) / protocol.TOKENS_PER_MILLION
 
 
-def codex_rates(model: str) -> protocol.CodexRateMap | None:
-    if not model or model == protocol.UNKNOWN:
-        return None
-    lowered = model.lower()
-    for prefix, rates in CODEX_RATES:
-        if lowered.startswith(prefix):
-            return rates
-    return None
+def codex_row(model: str) -> price_catalogue.PriceRow | None:
+    return price_catalogue.active_row(OPENAI_PRICES, model)

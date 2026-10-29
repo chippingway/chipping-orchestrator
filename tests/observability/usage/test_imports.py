@@ -32,6 +32,7 @@ _OWNERS = (
     "event_stream",
     _METRICS_OWNER,
     "model_names",
+    "price_catalogue",
     "prices",
     "protocol",
     "shell_segments",

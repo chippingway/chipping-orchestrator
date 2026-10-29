@@ -21,10 +21,10 @@ class CodexGptFiveFivePricingTest(unittest.TestCase):
     """
 
     def test_gpt_five_five_estimates_cost(self) -> None:
-        # gpt-5.5 is in the priced family table; usage that names it
+        # gpt-5.5 has an active catalogue row; usage that names it
         # explicitly must produce an `estimated` cost rather than
         # falling through to `unknown-price`. Pricing-coverage guard:
-        # if the row gets accidentally dropped from `_CODEX_RATES`
+        # if the row gets accidentally dropped from `OPENAI_PRICES`
         # the test fails loudly and the dashboard's
         # `cost_source='unknown-price'` cohort gains a regression
         # before any operator notices.
@@ -114,34 +114,6 @@ class CodexGptFiveFivePricingTest(unittest.TestCase):
         expected = (
             _usage_cases.LONG_CONTEXT_THRESHOLD_TOKENS * 5
             + _usage_cases.CODEX_PRICING_OUTPUT_TOKENS * _usage_cases.PRICE_RATE_THIRTY
-        ) / _usage_cases.TOKENS_PER_MILLION
-        assert metrics.cost_usd is not None
-        self.assertAlmostEqual(metrics.cost_usd, expected, places=9)
-
-    def test_gpt_five_five_pro_stays_flat(self) -> None:
-        # OpenAI's official gpt-5.5-pro docs list flat $30 / $180
-        # with no >272K multiplier and no cached discount. The tier
-        # the standard gpt-5.5 and gpt-5.4-pro entries carry must
-        # therefore NOT be inherited by gpt-5.5-pro -- otherwise a
-        # no-reported-cost pro run would silently overestimate.
-        # Cached tokens stay at 0 here so the estimate path runs at
-        # all (gpt-5.5-pro's `cached=None` blocks the estimate when
-        # the run carries any cached input -- see
-        # test_cached_tokens_without_cached_rate_blocks_estimate).
-        stdout = _jsonl.jsonl(
-            _codex.turn_complete(
-                model="gpt-5.5-pro",
-                input=_usage_cases.LONG_CONTEXT_INPUT_TOKENS,
-                cached=0,
-                output=_usage_cases.CODEX_PRICING_OUTPUT_TOKENS,
-            ),
-        )
-        metrics = _metrics.parse_codex_usage(stdout)
-        self.assertEqual(metrics.cost_source, _usage_cases.ESTIMATED_COST_SOURCE)
-        # Flat pro rates: input=30, output=180; NO multipliers.
-        expected = (
-            _usage_cases.LONG_CONTEXT_INPUT_TOKENS * _usage_cases.PRICE_RATE_THIRTY
-            + _usage_cases.CODEX_PRICING_OUTPUT_TOKENS * _usage_cases.PRICE_RATE_ONE_EIGHTY
         ) / _usage_cases.TOKENS_PER_MILLION
         assert metrics.cost_usd is not None
         self.assertAlmostEqual(metrics.cost_usd, expected, places=9)

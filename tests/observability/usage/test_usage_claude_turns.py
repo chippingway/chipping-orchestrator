@@ -134,7 +134,7 @@ class ClaudeTurnUsageTest(unittest.TestCase):
             _pricing.sonnet_turn_cost(),
             places=_usage_cases.COST_ASSERT_PLACES,
         )
-        # haiku-3-5: input=0.80, output=4 (per 1M).
+        # haiku 3.5: input=0.80, output=4 (per 1M).
         self.assertEqual(turn1.turn, 1)
         self.assertEqual(turn1.model, _usage_cases.HAIKU)
         self.assertEqual(turn1.cache_read_tokens, 0)
