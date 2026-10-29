@@ -572,12 +572,54 @@ Only that checkout's unpushed commits are reused as an interrupted run's work, a
 when it carries none. A tree on the flat branch, on another repository's, or on a detached HEAD, one reached through a
 symlink, and one whose identity could not be read refuse the road with every commit and file in place, however far
 ahead of base they are. The one detached HEAD a road may resume in is an interrupted rebase's: the resume roads, the
-conflict stage, the initial publication, the publication seam, and a pinned anchor's recovery accept a tree whose
-unfinished rebase is rewriting exactly the issue's branch (`git/worktrees/evidence_reads._rebased_branch`), which is
-how a conflict
+conflict stage, the initial publication, the publication seam, a pinned anchor's recovery, and the base refresh's last
+proofs accept a tree whose unfinished rebase is rewriting exactly the issue's branch
+(`git/worktrees/evidence_reads._rebased_branch`), which is how a conflict
 resolution parked mid-rebase or a refresh killed mid-replay leaves the issue's own checkout. The unpushed-commit probe
 the read-only relabel guard convicts on asks about the current-layout branch alone, so no flat branch is offered as
 work to recover.
+
+The roads below prove the checkout again, last, before the rewrite, push, pull-request open, or handoff each names,
+because the fetches, requests, writes, agent runs, and pushes between the first proof and the step are a window a tree
+can be switched in, and one switched onto the flat branch at the same commit, clean, passes every reading of that commit
+and tree. The base refresh proves it again before each rebase it makes — the pre-PR one, and the ordinary one behind its
+anchor's write, the anchor itself recorded only behind a proof taken after the head it names was read — before the abort
+a rebase that stopped takes, and before its reset-and-park tail's reset and again before the clean behind it
+(`git/base_sync/checkout_proof`); the conflict stage before its rebase, behind the replay record's write; an accepted
+plan handoff at the reset its move makes behind its fetch (`git/worktrees/anchoring._move_branch_onto`); the approval
+squash before the soft reset that collapses the branch, between that reset and the commit behind it, and before the
+reset that puts a refused one back; a docs commit's subject amendment once its replacement exists, immediately before
+HEAD moves; a documenting drift unwind before the reset that discards the tree's work, again before the clean behind it,
+and last before the unwind completes, an in-sync tree included; a plan publication before its push, behind the plan pull
+request's lookup before its body is edited, immediately before one is opened (behind its title's read of the branch's
+history), before it adopts a pull request a lookup by commit found already carrying the plan, and behind that open or an
+adopted or reused one's body edit, before the records that retire its marker; the initial publication behind its head's
+read, before that head is recorded as its intent, before its push, behind the pull request's lookup before one is
+reused, immediately before one is opened (behind its title's read), ahead of its handoff's moved- and dirty-checkout
+guards, before its handoff's write, and again between that write and the label; a conflict round immediately before its
+move to `workflow:validating`, behind its report-debt and count writes — the no-op flip, which counts with no push and
+writes its count behind the label, behind the head's read and again behind its audit event — and before the owed move a
+later tick makes from the claim that write left; the publication seam before its push, again before its handoff, again
+behind the post-push head and tree readings, and once more behind the write that carries its receipt, whether or not the
+push could name its commit (`implementing/checkout_guards._still_its_own`); and an accepted late verdict before its
+push, before its handoff, and once more immediately before its label, behind the report debt a taken-over replay writes.
+A push no caller pinned a lease for — the initial publication's, and a gated one whose gate froze no head — has that
+lease read ahead of its last proof and handed to the transport, never read inside the push, and that last proof is
+handed to the transport too, as the push's own question (`git/push_questions`), asked behind its token, config refusal,
+and session and immediately before `git push`: an absent branch stays the empty lease that says it must not exist, and a
+read that established nothing is the failed push. Refused before its step, nothing is pushed, rebased, reset, cleaned,
+amended, opened, or parked, and the intent, approval, anchor, collapse record, or publication marker a process dying at
+the same point would leave stands for the tick that finds the checkout restored. Refused once a push landed, the push
+stands and only what follows it is withheld: the initial publication's intent stays for a retry that opens the pull
+request over the restored checkout, a plan publication's marker for one that opens or edits the plan pull request, a
+refused handoff keeps its receipt — recorded as owed where the initial publication refuses it — and the publication seam
+holds its handoff with the claim its push owes recorded and nothing parked. The one park past a push is a tree switched
+while a handoff's moved- or dirty-checkout reading itself runs, onto a commit or edits of its own: that reading parks it
+as this issue's moved or dirty checkout before ownership is asked again, and the handoff is held, its receipt and claim
+recorded, all the same. That is the whole of it: the handoff a stage makes after its own seam push — a dev fix or a
+bounce back to `workflow:validating`, the docs pass on to `in_review`, a base rewrite's finish — is held to the seam's
+proofs behind the push and its receipt, and the writes that stage makes after them, before its own relabel, are not
+proven again.
 
 A refusal changes nothing for current work: unpushed commits on the issue's own checkout are reused, a current pull
 request's checkout is restored from its remote head, a remote read nobody could answer still refuses that restore, and
@@ -632,7 +674,15 @@ checkout as well: a tree at the issue's path that is not proven a worktree of th
 flat branch, another repository's, or a detached HEAD, or one reached through a symlink — is left with every commit it
 holds. A pinned anchor's recovery is asked the same question, since a checkout can be switched between ticks and the
 recovery's reset takes whatever the tree holds; the one tree it adds is the issue's own left detached by an unfinished
-rebase of exactly that branch, which is how an interrupted attempt leaves it.
+rebase of exactly that branch, which is how an interrupted attempt leaves it. Each rebase the refresh makes, and the
+reset-and-park tail's reset, ask it again last (`git/base_sync/checkout_proof`), behind the pull-request reads, the
+anchor's write, and the fetches between the first proof and the rewrite, and the ordinary rebase's anchor is recorded
+only once the checkout is proven behind the head it names, so a head read off a switched tree is never what a
+recovery resets the branch back to; the clean behind that reset asks it once
+more, since the reset is a window of its own, and so does the abort a rebase that stopped on a conflict takes, since
+that abort switches the tree back and discards its index: a tree switched onto the flat branch in any of them is
+neither replayed onto the base, aborted, reset, nor cleaned, keeps its branch and its staged content, nothing is
+parked, and an anchor already written stands for the recovery that finds the checkout restored.
 
 Two paths depending on whether a PR exists:
 

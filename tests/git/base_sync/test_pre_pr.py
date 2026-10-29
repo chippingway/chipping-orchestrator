@@ -5,6 +5,7 @@ from __future__ import annotations
 import shutil
 import tempfile
 import unittest
+from itertools import product
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -121,27 +122,31 @@ class SyncPrePrWorktreeTest(unittest.TestCase):
     def test_clean_rebase_issues_no_abort(self) -> None:
         rebase = MagicMock(return_value=(True, []))
         hardened = MagicMock(return_value=_git_result())
+        proof = MagicMock(return_value=True)
         with _patch_base_sync(rebase=rebase, hardened=hardened):
-            pre_pr._sync_pre_pr_worktree(_SPEC, _WORKTREE, ISSUE, BEHIND)
+            pre_pr._sync_pre_pr_worktree(_SPEC, _WORKTREE, ISSUE, BEHIND, ahead_of_the_abort=proof)
         rebase.assert_called_once()
         hardened.assert_not_called()
+        proof.assert_not_called()
 
     def test_failed_rebase_aborts_once(self) -> None:
-        # Both failure shapes -- conflicted paths and a bare failure --
-        # put the worktree back on its original SHA with one abort.
-        for conflicted_files in ([], ["a.py", "b.py"]):
-            with self.subTest(conflicted=len(conflicted_files)):
+        # Both failure shapes -- conflicted paths and a bare failure -- put
+        # the worktree back on its original SHA with one abort, and only once
+        # the caller's question still says the checkout is the issue's own:
+        # answered no, the tree is left exactly as the rebase left it.
+        for conflicted_files, owned in product(([], ["a.py", "b.py"]), (True, False)):
+            with self.subTest(conflicted=len(conflicted_files), owned=owned):
                 hardened = MagicMock(return_value=_git_result())
                 with _patch_base_sync(
                     rebase=MagicMock(return_value=(False, conflicted_files)),
                     hardened=hardened,
                 ):
                     pre_pr._sync_pre_pr_worktree(
-                        _SPEC, _WORKTREE, ISSUE, BEHIND,
+                        _SPEC, _WORKTREE, ISSUE, BEHIND, ahead_of_the_abort=MagicMock(return_value=owned),
                     )
                 self.assertEqual(
                     [recorded.args for recorded in hardened.call_args_list],
-                    [(REBASE_COMMAND, ABORT_FLAG)],
+                    [(REBASE_COMMAND, ABORT_FLAG)] if owned else [],
                 )
 
 

@@ -55,7 +55,9 @@ answer.
 and a replayed round stays on the backend that opened it rather than on whatever `DECOMPOSE_AGENT` says now; the run
 itself is recorded under `agent_role="decomposer"` with `stage="discussion"`. The `issue-N` worktree is reused rather
 than rebuilt across the whole conversation, once each round proves it a worktree of the clone on the issue's own branch
-([branch refusal](../state-machine/labels-and-state.md#branch-refusal)), the clean response is posted as a comment
+(and the plan's publication proves it again before its push, behind the plan pull request's lookup, and before it
+adopts a pull request already carrying the plan;
+[branch refusal](../state-machine/labels-and-state.md#branch-refusal)), the clean response is posted as a comment
 pinging `HITL_HANDLE`, and the
 issue then waits for a human — a round on the thread is the humans' turn, and costs one comment read per tick until
 somebody answers. No developer or reviewer is ever spawned by this stage.

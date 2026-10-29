@@ -332,8 +332,19 @@ intervening work.
 handle. The publication protocol defines the commit and remote branch head checks and commit-selection fallbacks.
 The orchestrator publishes only to an issue's current-layout branch the live resolver names: a recorded pull request
 whose branch is missing, invalid, flat, another repository's, or otherwise not that name stops before any checkout,
-agent launch, or push, and no newly derived branch is substituted for it. Current unpushed work, a current pull
-request's restoration from its remote head, uncertain remote reads, and exact-head pushes keep their protocols.
+agent launch, or push, and no newly derived branch is substituted for it. Each push, and each rebase, rebase abort,
+reset, clean, squash, or subject amendment that rewrites or discards what a checkout stands on, is made only once that
+checkout is proven the issue's own again, behind the reads, writes, fetches, and agent runs on its road — a lease no
+caller pinned is read ahead of that proof and handed to the transport rather than read inside the push, and a push's
+last proof is asked by the transport itself, behind its own preparation — and so is
+each pull request opened, edited, or adopted. The handoff past a landed push is proven again on the far side of the
+push and of the write carrying its receipt, and the initial publication's, a conflict round's, and an accepted
+verdict's handoffs again behind their own writes, immediately before the label, so a tree switched onto the flat branch
+meanwhile is neither published, rewritten, cleaned, nor handed on by them. A refusal
+before the step leaves the intent, approval, anchor, or marker a crash there would leave; one after a landed push keeps
+the push, the intent or receipt recording it, and any handoff it owes, and withholds only what follows. Current
+unpushed work, a current pull request's restoration from its remote head, uncertain remote reads, and exact-head
+pushes keep their protocols.
 Credential filtering does not enforce push authority; see [C-11].
 
 **Specs:** [pushes](architecture.md#push-path-gitbranch_transport_push_branch),
@@ -347,7 +358,19 @@ Credential filtering does not enforce push authority; see [C-11].
 [refused seam push](../tests/workflow/stages/fixing/test_bounce.py),
 [refused resume](../tests/workflow/stages/implementing/test_resume_checkout.py),
 [refused refresh](../tests/workflow/engine/test_base_refresh_branch_refusal.py),
-[refused adjudication](../tests/workflow/stages/decomposition/test_late_charged_run.py).
+[refused adjudication](../tests/workflow/stages/decomposition/test_late_charged_run.py),
+[switched initial publication](../tests/workflow/stages/implementing/test_initial_publication_checkout.py),
+[switched seam push](../tests/workflow/stages/implementing/test_publication_checkout.py),
+[switched accepted verdict](../tests/workflow/stages/decomposition/test_late_accepted_checkout.py),
+[switched plan publication](../tests/workflow/stages/discussion/test_publication_checkout.py),
+[switched plan handoff](../tests/workflow/stages/implementing/test_plan_handoff_checkout.py),
+[switched squash](../tests/git/publication/test_squash_record_race.py),
+[switched squash rollback](../tests/git/publication/test_squash_mid_rewrite.py),
+[switched conflict rebase](../tests/workflow/stages/conflicts/test_rebase_checkout.py),
+[switched docs amendment](../tests/workflow/stages/documenting/test_subject_checkout.py),
+[switched drift unwind](../tests/workflow/stages/documenting/test_drift_checkout.py),
+[switched refresh clean](../tests/git/base_sync/test_checkout_proof.py),
+[switched conflict handoff](../tests/workflow/stages/conflicts/test_handoff_checkout.py).
 
 ## C-08: Agent reply protocols
 

@@ -19,6 +19,7 @@ import unittest
 from types import MappingProxyType
 from unittest.mock import patch
 
+from orchestrator.git.worktrees import naming as _naming
 from orchestrator.github.pinned_state import MAX_PINNED_BODY, pinned_state_body
 from orchestrator.workflow.engine import rewrite_takeover as _takeover
 from orchestrator.workflow.stages.decomposition import (
@@ -26,9 +27,12 @@ from orchestrator.workflow.stages.decomposition import (
     late_result_models as _late_result_models,
 )
 from orchestrator.workflow.stages.implementing import late_push as _late_push
-from tests.workflow.stages.decomposition import late_test_support as _late_support
-from tests.workflow.stages.decomposition.late_published_support import published_generation, seed_published_pr
-from tests.workflow.stages.decomposition.late_run_support import WorktreeSeed
+from tests.support.checkout_identity import stated_switch
+from tests.workflow.stages.decomposition import (
+    late_published_support as _published,
+    late_run_support as _run,
+    late_test_support as _late_support,
+)
 from tests.workflow.stages.decomposition.late_settlement_support import (
     PARK_PR_UNRECONCILED,
     PARK_SINGLE_DECISION,
@@ -112,11 +116,11 @@ class _ReplayCase(GuardedLateCase):
 
     def _seed_replay(self, *, replay_sha: str = _late_support.CANDIDATE_SHA, **pinned) -> None:
         """Re-seed the issue with the generation owning `replay_sha`, PR #78 open on its frozen head."""
-        seed_published_pr(self.github)
+        _published.seed_published_pr(self.github)
         self.github.seed_state(
             self.issue.number,
             branch=_late_support.PUBLISHED_BRANCH,
-            **_late_support.generation_state(published_generation(replay_sha=replay_sha)),
+            **_late_support.generation_state(_published.published_generation(replay_sha=replay_sha)),
             **pinned,
         )
 
@@ -206,6 +210,24 @@ class ReplayPublicationTest(_ReplayCase, unittest.TestCase):
                 )
                 self.assertEqual(self._pinned()[KEY_REVIEW_ROUND], _SPENT_ROUNDS)
 
+    def test_a_switch_mid_debt_write_holds_the_label(self) -> None:
+        # The report debt goes down ahead of the label, and the tree is
+        # switched off the issue's branch while that write runs. The checkout
+        # is proven again immediately before the label moves, so the issue
+        # stays on the adjudication with its generation live, the debt and the
+        # push's receipt standing.
+        self._seed_replay(review_round=_SPENT_ROUNDS)
+        self._writes = self.github.write_pinned_state
+
+        with patch.object(self.github, "write_pinned_state", side_effect=self._switched_behind_the_debt):
+            self.assertRaises(_naming.BranchRefused, self._settle)
+
+        pinned = self._pinned()
+        self.assertEqual(self.github.workflow_label(self.issue), LABEL_DECOMPOSING)
+        self.assertEqual(pinned.get(KEY_REWRITE_DEBT), _owed())
+        self.assertEqual(pinned[KEY_REPLAY], _late_support.CANDIDATE_SHA)
+        self.assertEqual(pinned[_late_support.KEYS.receipt_sha], _late_support.CANDIDATE_SHA)
+
     def test_ownership_alone_publishes_nothing(self) -> None:
         # The adjudicator answers `single` and no operator has authorized the
         # replay: owning it is no licence, so the issue parks for the human with
@@ -227,8 +249,8 @@ class ReplayPublicationTest(_ReplayCase, unittest.TestCase):
         # the push itself. Nothing is published or owed, and the generation
         # keeps the replay for the retry.
         for described, seeded, worktree in (
-            ("moved before the reading", _late_support.OTHER_SHA, WorktreeSeed()),
-            ("moved under the lease", _late_support.PUBLISHED_HEAD_SHA, WorktreeSeed(push=False)),
+            ("moved before the reading", _late_support.OTHER_SHA, _run.WorktreeSeed()),
+            ("moved under the lease", _late_support.PUBLISHED_HEAD_SHA, _run.WorktreeSeed(push=False)),
         ):
             with self.subTest(described):
                 self.setUp()
@@ -243,6 +265,14 @@ class ReplayPublicationTest(_ReplayCase, unittest.TestCase):
                     (pinned[_late_support.KEYS.park_reason], pinned[KEY_REPLAY]),
                     (PARK_PR_UNRECONCILED, _late_support.CANDIDATE_SHA),
                 )
+
+
+    def _switched_behind_the_debt(self, issue, state):
+        """Land the write, the checkout switched off the issue's branch behind the one carrying the report debt."""
+        written = self._writes(issue, state)
+        if state.get(KEY_REWRITE_DEBT):
+            stated_switch()
+        return written
 
 
 class InterruptedReplaySettlementTest(_ReplayCase, unittest.TestCase):
@@ -272,7 +302,7 @@ class InterruptedReplaySettlementTest(_ReplayCase, unittest.TestCase):
                     self._settle()
                 self._landed()
 
-                outcome = self._settle(worktree=WorktreeSeed(push=False))
+                outcome = self._settle(worktree=_run.WorktreeSeed(push=False))
 
                 self.assertEqual(
                     self._settled(outcome),
@@ -286,7 +316,7 @@ class InterruptedReplaySettlementTest(_ReplayCase, unittest.TestCase):
         self._published_then_filled(_debt_room() - _SHORT_OF_THE_DEBT)
         said = len(self.github.posted_comments)
 
-        parked = self._settle(worktree=WorktreeSeed(push=False))
+        parked = self._settle(worktree=_run.WorktreeSeed(push=False))
 
         pinned = self._pinned()
         self.assertEqual(self._settled(parked), (_LateDisposition.PARKED, LABEL_DECOMPOSING, None))
@@ -304,7 +334,7 @@ class InterruptedReplaySettlementTest(_ReplayCase, unittest.TestCase):
         self._published_then_filled(_NO_ROOM)
         standing = (self._pinned(), len(self.github.posted_comments))
 
-        held = self._settle(worktree=WorktreeSeed(push=False))
+        held = self._settle(worktree=_run.WorktreeSeed(push=False))
 
         self.assertEqual(self._settled(held), (_LateDisposition.PARKED, LABEL_DECOMPOSING, None))
         self.assertEqual((self._pinned(), len(self.github.posted_comments)), standing)
@@ -325,7 +355,7 @@ class InterruptedReplaySettlementTest(_ReplayCase, unittest.TestCase):
         """Make room, and settle with a push that would refuse: the debt is recorded and nothing is sent again."""
         self._pinned_comment().pop(_FILLER)
 
-        outcome = self._settle(worktree=WorktreeSeed(push=False))
+        outcome = self._settle(worktree=_run.WorktreeSeed(push=False))
 
         self.assertEqual(
             self._settled(outcome),

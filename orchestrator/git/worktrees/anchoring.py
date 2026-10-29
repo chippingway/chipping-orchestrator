@@ -4,8 +4,11 @@
 
 The target-root lock covers refresh, target validation, and branch movement.
 A live PR must still name the caller's expected head on the remote; only a caller
-that establishes the PR is over may ask for a freshly fetched base. Creation
-uses the same fetch helper when it restores a missing local branch.
+that establishes the PR is over may ask for a freshly fetched base. The reset
+that moves a standing checkout is made only once that tree is proven the
+issue's own again, after the fetch and under the lock, since the caller's proof
+came before both. Creation uses the same fetch helper when it restores a
+missing local branch.
 """
 from __future__ import annotations
 
@@ -13,7 +16,8 @@ import logging
 
 from orchestrator.config import models as _config_models
 from orchestrator.git import branch_transport, commands, locks
-from orchestrator.git.worktrees import paths
+from orchestrator.git.worktrees import evidence, naming as _naming, paths
+from orchestrator.git.worktrees.models import ProbeAnswer
 
 log = logging.getLogger("orchestrator.worktree_lifecycle")
 
@@ -239,9 +243,23 @@ def _move_branch_onto(
     commit's files into whatever directory it was pointed at: the issue's
     checkout stays on the plan it had, the caller records a baseline the tree
     does not match, and somebody else's files are overwritten on the way past.
+
+    The checkout is proven the issue's own first, asking the same question
+    the creators do (`creation._proven_checkout`), because the reset takes
+    whatever the tree holds and the caller's proof was taken before the fetch
+    above: a tree switched onto the flat branch while it ran raises
+    `naming.BranchRefused` with its head, index, and files untouched.
     """
     worktree = paths._worktree_path(spec, issue_number)
     if worktree.exists():
+        identity = evidence._checkout_identity(spec, issue_number, worktree)
+        if identity is not ProbeAnswer.CONFIRMED:
+            log.warning(
+                "issue=#%d checkout %s is not proven this issue's own (%s); "
+                "refusing to move it onto %s and leaving it for manual "
+                "disposition", issue_number, worktree, identity, head_sha,
+            )
+            raise _naming.BranchRefused(f"issue #{issue_number} has a checkout that is not its own")
         moved = commands._git_hardened(
             commands._work_tree_arg(worktree),
             "reset", "--hard", head_sha, cwd=worktree,

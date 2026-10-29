@@ -20,6 +20,8 @@ names it under, and a checkout something committed over. The routed and
 moved-checkout halves are pinned down in `test_squash_gate.py` beside this;
 what is here is the refusal it has to be told apart from, and the landed push
 whose receipt is the only thing saying the remote already carries the squash.
+A branch goes back only from a checkout proven the issue's own: one switched
+onto the flat branch at the squash in the same window is refused instead.
 """
 from __future__ import annotations
 
@@ -32,7 +34,9 @@ from orchestrator.git.measurement.models import (
     AdditionMeasurement,
     MeasurementFailure,
 )
-from orchestrator.git.worktrees import paths as _worktree_paths
+from orchestrator.git.publication import rewrite as _rewrite
+from orchestrator.git.worktrees import evidence as _evidence, naming as _naming, paths as _worktree_paths
+from orchestrator.git.worktrees.models import ProbeAnswer
 from orchestrator.workflow.stages.implementing import (
     late_reconcile as _reconcile,
 )
@@ -62,6 +66,9 @@ KEY_RECEIPT_SHA = "implementing_published_sha"
 
 _COUNT_HELPER = "_count_added_lines"
 _WORKTREE_HELPER = "_worktree_path"
+
+# The flat spelling of the squashed issue's branch, which no live work stands on.
+_FLAT_BRANCH = f"orchestrator/issue-{squash_support.SQUASH_ISSUE_NUMBER}"
 
 # The commit a frozen pair names, and the keyword a gated push names its own.
 KEY_CANDIDATE_SHA = "late_candidate_sha"
@@ -148,6 +155,44 @@ class SquashRefusedMidRewriteRealGitTest(
         # refuses on the same tree rather than collapsing somebody's edit into
         # a squash nobody asked it to carry.
         self.assertIsNotNone(self._squashes(squashed).error)
+
+    def test_a_flat_switch_is_never_put_back(self) -> None:
+        # The pull request is closed while the squash commit is made, so the
+        # gate's reading behind the commit refuses and the branch would go
+        # back -- but the tree is switched onto the flat branch at the squash
+        # during that reading, after every proof ahead of it, and the reset
+        # that puts a branch back moves whatever HEAD names. Proven the
+        # issue's own first, it is refused, and the flat branch keeps the squash.
+        squashed = self._gate_subject()
+        self._pull_request = squashed.gh.get_pr(SQUASH_PR_NUMBER)
+        self._commit = _rewrite._create_squash_commit
+        self._read = squashed.gh.get_pr
+        self._committed = False
+        self._switched = False
+
+        with (
+            patch.object(_rewrite, "_create_squash_commit", side_effect=self._closing_commit),
+            patch.object(squashed.gh, "get_pr", side_effect=self._switched_read),
+        ):
+            self.assertRaises(_naming.BranchRefused, self._squashes, squashed)
+
+        self.assertTrue(self._switched)
+        self.assertEqual(len(self._commits_on_branch()), 1)
+
+    def _closing_commit(self, worktree, message):
+        """Make the squash commit, and close the pull request behind it."""
+        made = self._commit(worktree, message)
+        self._pull_request.state = CLOSED
+        self._committed = True
+        return made
+
+    def _switched_read(self, number: int):
+        """Read pull request `number`, switching the checkout onto the flat branch on the first read past the commit."""
+        if self._committed and not self._switched:
+            squash_support.run_git("checkout", "-q", "-B", _FLAT_BRANCH, cwd=self.work)
+            _evidence._checkout_identity.return_value = ProbeAnswer.REFUTED
+            self._switched = True
+        return self._read(number)
 
 
 class SquashLandedHoldRealGitTest(

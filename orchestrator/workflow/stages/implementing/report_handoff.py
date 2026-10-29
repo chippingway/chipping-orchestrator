@@ -19,8 +19,11 @@ completed leaves a commit and no report; then the report -- owed, or settled
 and still standing where it settled -- read after the requirements request
 rather than before it, so an edit landing during that request is still seen;
 then the checkout, which is local and so is read after both of those requests;
-and the description last, since a human may have named it, or unnamed it, since
-the first reading. Anything short of all of them withholds the handoff, which
+the description, since a human may have named it, or unnamed it, since the
+first reading; and last of all whether the checkout is still the issue's own,
+since a tree switched onto the flat branch at the pushed commit passes the
+head and tree readings -- asked once more by `handoff` between its write and
+the label. Anything short of all of them withholds the handoff, which
 `publication` records as owed; the next tick republishes the same commit onto
 the same pull request with no developer run and nothing new opened. A debt no
 retry can pay parks once for the reply that resumes the developer to write the
@@ -30,11 +33,12 @@ from __future__ import annotations
 
 import logging
 from dataclasses import replace
-from pathlib import Path
 
 from github.Issue import Issue
 
 from orchestrator import config
+from orchestrator.config import models as _config_models
+from orchestrator.git.worktrees import paths as _worktree_paths
 from orchestrator.github import (
     client as _client,
     pinned_refusal as _pinned_refusal,
@@ -88,7 +92,7 @@ def _hands_on(
     issue: Issue,
     state: _pinned_state.PinnedState,
     reached: _report_binding.ReportPublication,
-    wt: Path,
+    spec: _config_models.RepoSpec,
 ) -> bool:
     """Deliver the report onto the publication, then relabel if all still holds.
 
@@ -97,8 +101,16 @@ def _hands_on(
     the requirements it answers; requirements that moved under a publication
     no report covers, or could not be read; a checkout that moved or dirtied
     after the push -- read after the report's requests, so one that moved
-    during them is seen; or a description that does not close this issue and
-    name this session, or one nobody could read.
+    during them is seen; a description that does not close this issue and
+    name this session, or one nobody could read; or a checkout at the issue's
+    path no longer proven the issue's own (`checkout_guards._still_its_own`),
+    since a tree switched onto the flat branch at the pushed commit passes the
+    head and tree readings. That is asked ahead of the two checkout guards, so
+    a foreign tree carrying a commit or an edit of its own is held silently
+    rather than parked as this issue's moved checkout -- save one switched
+    while those guards themselves read, which the guard that sees it parks
+    before ownership can be asked again; again behind the description's
+    request; and once more by the handoff between its own write and the label.
 
     A binding whose guarded write did not land over the comment the tick read
     -- refused over a comment another road moved since, or sent and never
@@ -114,6 +126,7 @@ def _hands_on(
     finds nothing owed where the commit landed after all.
     """
     pr = reached.pull_request
+    wt = _worktree_paths._worktree_path(spec, issue.number)
     described = _pr_description._names_the_implementation(gh, issue, state, pr)
     if described is not None:
         _report_binding.binds_and_publishes(
@@ -121,15 +134,20 @@ def _hands_on(
         )
     if state.withheld:
         return False
+    if _remote_readings_hold(gh, issue, state, reached):
+        return False
     if (
-        _remote_readings_hold(gh, issue, state, reached)
+        not _checkout._still_its_own(spec, issue.number, wt)
         or _checkout._moved_after_the_push(gh, issue, state, reached.commit, wt)
         or _checkout._dirtied_after_the_push(gh, issue, state, reached.commit, wt)
-        or not _pr_description._names_the_implementation(gh, issue, state, pr)
     ):
         return False
-    _handoff._advance_to_validating(gh, issue, state, pr, reached.branch)
-    return True
+    if (
+        not _pr_description._names_the_implementation(gh, issue, state, pr)
+        or not _checkout._still_its_own(spec, issue.number, wt)
+    ):
+        return False
+    return _handoff._advance_to_validating(gh, issue, state, reached, spec)
 
 
 def _remote_readings_hold(

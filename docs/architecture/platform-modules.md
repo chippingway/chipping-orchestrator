@@ -855,7 +855,8 @@ orchestrator/
     branch_transport.py the authenticated fetches, the remote read that answers what a branch is at without trusting
                         a local ref -- in the plain form a caller acts on and the form that also carries why a read
                         established nothing -- and the lease-pinned branch push, each spending one credential
-                        session
+                        session; the push asks the caller's question (`push_questions`) behind its token, config
+                        refusal, and session, immediately before `git push`
     commands.py         plain / hardened git execution in a decoded and an undecoded form over one shared
                         environment, the argv hardening and no-prompt environment every hardened call is spawned
                         under -- the streaming owner's included -- the per-call environment pin every hardened
@@ -868,6 +869,9 @@ orchestrator/
                         token-bearing caller puts that token's own output through before logging or handing it
                         back
     locks.py            the per-target-root re-entrant lock registry and its accessor
+    push_questions.py   the question a caller hands in for the length of a push -- whose checkout this still is --
+                        held per execution context and asked by the push transport after every preparation and
+                        immediately before `git push`, a refusal sending nothing
     ref_discovery.py    the one remote question that starts from no name at all: every refname a remote
                         carries under one pattern, which is the only way a branch this host holds no copy of is
                         found. Its own owner because nothing is leased to what it says -- the empty tuple is a
@@ -943,12 +947,19 @@ orchestrator/
                         before that park keeps the attempt -- and whether a park a stage left
                         still owes a standing anchor its recovery -- which the workflow's recovery coordinator
                         runs; a terminal PR ends an anchored attempt's whole handoff through `terminal_handoff`
-      pre_pr.py         the hardened rebase and rebase-state probes and the aborting pre-PR local rebase
+      pre_pr.py         the hardened rebase and rebase-state probes and the aborting pre-PR local rebase, which
+                        the workflow's refresh enters only once `checkout_proof` proves the checkout the issue's own
+                        again, and whose abort is made only once the question the refresh hands in
+                        (`checkout_proof._asked_before`) still says so
       startup.py        the pre-rebase HEAD guard, and the anchor, the attempt's terms, and the base tip the rebase
                         will replay onto -- frozen off `<remote>/<base>` and blanked where that ref moved while git
                         ran -- persisted before git runs: the write that spends the reply a park of the refresh's
                         let the rebase start on, and carries the retry the workflow staged read from it
-                        (`workflow/engine/rewrite_replies.py`)
+                        (`workflow/engine/rewrite_replies.py`) -- the anchor written only once `checkout_proof`
+                        proves the checkout the issue's own behind the head it names; the rebase itself is made only
+                        once `checkout_proof` proves the checkout the issue's own again behind that write, with the
+                        anchor left standing and nothing rebased or parked where it refuses, and a failed rebase's
+                        abort only once it proves it again, the anchor standing and nothing routed where it refuses
       attempts.py       the replay checkpoint, the announcement mark's presence checks, and the whole-record clear
                         that ends an auto-rebase attempt, the recorded base tip, the record of the `base_rebased`
                         event a finish files (`pending_auto_base_rebase_announced_event`), and a relabel member no
@@ -960,6 +971,11 @@ orchestrator/
                         workflow's handoff of an unpublished replay to a late generation
                         (`workflow/engine/rewrite_takeover.py`) retires the whole record through the same clear,
                         and with it any `auto_base_rebase_*` park the attempt's own road left (`_retires_its_park`)
+      checkout_proof.py the identity every rewrite the refresh makes asks last -- each rebase, the abort a failed
+                        one takes, the reset-and-park tail's `reset --hard`, and, asked again behind a reset that
+                        landed, the clean: the checkout proven the issue's own again as a recovery proves it, since the
+                        refresh's proof came before every fetch, read, and write the road made, and a refusal
+                        logged with nothing more rebased, reset, cleaned, or parked
       checkpoints.py    the checkpoints an attempt's road makes over the reading its tick last confirmed: every
                         auto-rebase park, and a recovery's clear, abandonment of a captured transaction, and record
                         of a gate's hold, landed through the tick-state guarded commit
@@ -1128,7 +1144,10 @@ orchestrator/
                         its answer lost, or over an attempt or evidence record that moved without it, it is logged
                         and puts nothing back for the next tick to read; the tail's reset is made only once the
                         comment still spells those records as the tick last confirmed them
-                        (`checkpoints._still_owns_the_attempt`), with nothing reset, cleaned, or parked otherwise.
+                        (`checkpoints._still_owns_the_attempt`) and the checkout is still proven the issue's own
+                        (`checkout_proof._still_its_checkout`), with nothing reset, cleaned, or parked otherwise;
+                        the clean behind a landed reset asks the checkout again, and a refusal there cleans and
+                        parks nothing, the attempt standing for the recovery.
                         The finish of a landing -- its report debt,
                         notice, event, announcement mark, and route -- is the workflow's
                         (`workflow/engine/rewrite_finish.py`)
@@ -1151,7 +1170,9 @@ orchestrator/
                         command envelope -- a `git log` rendering is what a repository-local config could change --
                         with None for a read that did not happen rather than an empty message, and both that read
                         and the rebuild carry the bytes git stored, since text capture would turn a CR LF body into
-                        an LF one on the way back in
+                        an LF one on the way back in. That swap moves whichever branch HEAD names, so a caller may
+                        hand in a question of its own, asked once the replacement exists and immediately before
+                        the move, whose refusal leaves every ref where it was
       models.py         the record a squash hands back, in the three shapes it can end in -- published, refused, or
                         held by the size gate for the adjudication -- with a refusal NAMING which of four places
                         it left the branch: the approved commits at HEAD, off the tip and reachable only from the
@@ -1210,13 +1231,17 @@ orchestrator/
                         the replay lands. An unfetched base, a revision this host does not hold, and two histories
                         with no ancestor between them each answer "" -- evidence the caller cannot produce, never a
                         base to fingerprint over
-      rewrite.py        the soft reset, the orchestrator-identity commit, the gated publication of the commit it
-                        just made -- measured, then named against it and pinned to the head the entry froze, with
+      rewrite.py        the soft reset, the orchestrator-identity commit -- made only once the checkout is proven
+                        the issue's own again behind that reset (`creation._proven_checkout`), so a tree switched
+                        while it ran keeps its staged index and branch and the collapse record stands -- the gated
+                        publication of the commit it just made -- measured, then named against it and pinned to the head the entry froze, with
                         the plan's pre-squash head and merge base handed over beside it, since a rewrite of the
                           exact commit an authorized settlement accepted may carry that exemption over and both ends
   of both
                         contributions are what says so -- and
-                        the rollback a post-reset failure takes -- the ref and the index, never the working tree,
+                        the rollback a post-reset failure takes -- made only once the checkout is proven the
+                        issue's own again (`creation._proven_checkout`), since the gate's refusing reading came
+                        after the squash's own proof -- the ref and the index, never the working tree,
                         since a squash has the same tree as the head it replaces and the only thing taking the
                         worktree too would restore is an edit somebody made while the rewrite ran -- which drops the
                         approval it abandons, and the permission a granted transfer will never spend, only once the
@@ -1310,7 +1335,10 @@ orchestrator/
                         the record goes down between the entry and
                         the reset, so no write is spent on a publication the entry refuses and none is owed once
                         the evidence is gone -- and a write GitHub refuses stops the squash rather than leaving a
-                        rewrite nothing could account for. Every failure is stamped on the way out with WHERE
+                        rewrite nothing could account for. Past that write the checkout is proven the issue's
+                        own last of all (`creation._proven_checkout`), since a tree switched onto the flat branch
+                        at the planned head passes the tree and head proofs, so the soft reset never collapses
+                        another branch's history. Every failure is stamped on the way out with WHERE
                         it left the branch, which `standing` beside it reads
       standing.py       which of the four places a refused squash left the branch in, read off the pinned
                         record AND the checkout rather than assumed. The terms go down before the reset, so an
@@ -1451,7 +1479,9 @@ orchestrator/
                         checkout's path has to resolve to its layout location before anything is created
                         there -- and the unpushed-commit probe reuse turns on
       anchoring.py      the shared restore fetch and the guarded move that re-anchors a reused checkout onto a PR
-                        head or its merged base, with the target-root lock held across refresh and movement
+                        head or its merged base, with the target-root lock held across refresh and movement; the
+                        reset that moves a standing checkout is made only once `evidence` proves it the issue's own
+                        again, behind that fetch, and raises `naming.BranchRefused` with the tree untouched otherwise
       cleanup.py        lock-held worktree removal and local branch deletion, each behind its best-effort boundary,
                         plus the fail-closed read a caller that has to RECORD the teardown asks afterwards. The
                         forced removal is spent only on a checkout `evidence` proves a worktree of the clone on the

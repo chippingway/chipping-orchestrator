@@ -26,6 +26,7 @@ from unittest.mock import Mock, patch
 from orchestrator.agents import runner as _agent_runner
 from orchestrator.git.base_sync.rewrite_handoffs import _BaseStanding, _PushOutcome
 from orchestrator.workflow.engine.rewrite_finish_models import FinishOutcome, LandedFinish
+from tests.support.checkout_identity import stated_identity
 from tests.workflow.engine import (
     rewrite_finish_evidence_test_support as finish_support,
     rewrite_finish_moves as moves,
@@ -112,6 +113,9 @@ class CapturedEvidenceCase(_LandedEvidenceCase):
 
     def setUp(self) -> None:
         _LandedEvidenceCase.setUp(self)
+        # A road off the landing that resets proves the checkout the issue's
+        # own first, and the checkout here is no real worktree at a layout path.
+        stated_identity(self)
         self.attempts(REBASED)
         self.rewrites(REBASED)
         self.during = moves.loses_answers

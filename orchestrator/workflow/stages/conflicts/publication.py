@@ -34,7 +34,7 @@ from pathlib import Path
 from orchestrator import config
 from orchestrator.config import models as _config_models
 from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
-from orchestrator.git.worktrees import naming as _naming
+from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming
 from orchestrator.workflow.engine import prompts as _prompts
 from orchestrator.workflow.stages.conflicts import (
     evidence as _evidence,
@@ -150,7 +150,7 @@ def _publish_clean_rebase(
         )
         return
     if after_sha == before_sha:
-        _flip_base_up_to_date(ctx, conflict_round, pr_number, after_sha)
+        _flip_base_up_to_date(ctx, wt, conflict_round, pr_number, after_sha)
         return
     # The other half of the record the caller opened before it rebased, made
     # durable before the gate is entered rather than after: the window it
@@ -263,7 +263,7 @@ def _unprovable_tree(ctx: _models._ConflictContext, wt: Path) -> bool:
 
 
 def _flip_base_up_to_date(
-    ctx: _models._ConflictContext, conflict_round: int, pr_number, after_sha,
+    ctx: _models._ConflictContext, wt: Path, conflict_round: int, pr_number, after_sha,
 ) -> None:
     """Hand a no-op base rebase (branch already current) back to `validating`.
 
@@ -277,14 +277,22 @@ def _flip_base_up_to_date(
     The replay record the caller opened goes with it, on this exit's own
     write: a rebase that moved nothing replaced nothing, so the account it
     began describes no replay for any later tick to finish.
+
+    The flip counts the round and hands the checkout to review with no push
+    behind it, so the checkout is proven the issue's own first
+    (`creation._proven_checkout`), behind the rebase and the head's read, as
+    every other counted move is, and again immediately before the label,
+    behind the round's audit event: a tree switched onto the flat branch at
+    either raises `naming.BranchRefused` with nothing counted and the label
+    as it stands. The count is written only behind the label, so the tick
+    that finds the checkout restored counts the round, and reports it, again.
     """
+    _worktree_creation._proven_checkout(ctx.spec, ctx.issue.number, wt, rebasing=True)
     log.info(
         "issue=#%d resolving_conflict: branch already up-to-date with %s/%s",
         ctx.issue.number, ctx.spec.remote_name, ctx.spec.base_branch,
     )
-    _replay_records._forgets_the_replay(ctx.state)
-    ctx.state.set(_state._REVIEW_ROUND, 0)
-    ctx.state.set(_state._CONFLICT_ROUND, conflict_round + 1)
+    _stages_the_no_op_round(ctx, conflict_round)
     _transitions._emit_conflict_round_incremented(
         ctx,
         pr_number=int(pr_number),
@@ -293,8 +301,16 @@ def _flip_base_up_to_date(
         sha=after_sha,
     )
     _conflict_parks._left_unparked(ctx)
+    _worktree_creation._proven_checkout(ctx.spec, ctx.issue.number, wt, rebasing=True)
     ctx.gh.set_workflow_label(ctx.issue, WorkflowLabel.VALIDATING)
     ctx.gh.write_pinned_state(ctx.issue, ctx.state)
+
+
+def _stages_the_no_op_round(ctx: _models._ConflictContext, conflict_round: int) -> None:
+    """Stage the round a no-op rebase counts: no replay left to finish, review restarted, the round spent."""
+    _replay_records._forgets_the_replay(ctx.state)
+    ctx.state.set(_state._REVIEW_ROUND, 0)
+    ctx.state.set(_state._CONFLICT_ROUND, conflict_round + 1)
 
 
 def _resolve_conflicts_with_agent(

@@ -616,7 +616,9 @@ class MergedPlanHandoffTest(unittest.TestCase):
         # writing the commit's files somewhere else entirely: the issue's
         # checkout stays on the plan it had, the caller records a baseline the
         # tree does not match, and whatever was in that other directory is
-        # overwritten on the way past.
+        # overwritten on the way past. Git reads such a tree as rooted at that
+        # other directory, so the move's proof behind its fetch refuses it as
+        # no checkout of the issue's own, with nothing reset anywhere.
         shadow = self._repo.worktree.parent / SHADOW_DIR
         shadow.mkdir()
         _run_git(
@@ -628,12 +630,15 @@ class MergedPlanHandoffTest(unittest.TestCase):
             cwd=self._repo.worktree,
         )
 
-        self.assertEqual(self._anchor_on_base(), self._merged)
+        self.assertRaises(_naming.BranchRefused, self._anchor_on_base)
 
-        # The real checkout is the one that moved, and the directory the
-        # config pointed at was never written into.
+        # The checkout keeps the plan it had, and the directory the config
+        # pointed at was never written into.
         self.assertEqual(
-            (self._repo.worktree / PLAN_PATH).read_text(), AMENDED_PLAN_TEXT,
+            self._repo.head_of(self._repo.worktree), self._repo.published,
+        )
+        self.assertEqual(
+            (self._repo.worktree / PLAN_PATH).read_text(), PUBLISHED_PLAN_TEXT,
         )
         self.assertEqual(list(shadow.iterdir()), [])
 

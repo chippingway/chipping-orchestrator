@@ -300,6 +300,18 @@ is: the worktree is writable while they run, and a descendant the timeout cleanu
 move it. The second refusal does not take the publication back — the commit is on the remote and its pull request
 carries it, which the record says — it stops the *handoff*, so review never reads the descendant.
 
+It has to be the issue's **own** checkout at each of those boundaries, too, not only where the publication began: a tree
+switched onto the flat branch at the same commit, clean, passes both readings. So the checkout is proven the issue's own
+again behind the head's read, before it is recorded as the intent, again last before the push — the lease that push
+carries read just ahead of that proof and handed over, rather than read inside the push — behind the pull request's
+lookup, immediately before one is opened (behind its title's read), ahead of the handoff's own checkout guards, before
+the handoff's write, and between that write and the label. Refused, nothing past that point is published, opened, or
+handed on and nothing is parked: the intent stands for the retry over the restored checkout, and a handoff refused
+behind a landed push is owed beside its receipt
+([branch refusal](../state-machine/labels-and-state.md#branch-refusal)). The one park past the push is a tree switched
+while the handoff's moved- or dirty-checkout guard reads, onto a commit or edits of its own: that guard parks it as this
+issue's moved or dirty checkout before ownership is asked again, and the handoff is held all the same.
+
 Both boundaries ask about the **tree** as well as the head, and for the same reason one step over. Loose work can
 appear beside a commit without moving it, so every proof about the commit passes while the checkout stops being what
 the gate measured — and the stage the handoff passes it to takes no reading of its own, so uncommitted work that

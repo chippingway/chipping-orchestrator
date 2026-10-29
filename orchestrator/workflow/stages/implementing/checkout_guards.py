@@ -28,6 +28,15 @@ every one of them is settled by the worktree rather than by words -- put back
 on the named commit, or cleaned, and the next tick finishes what stopped with
 nothing re-run and no agent spawned.
 
+Whose checkout it is gets asked beside both halves on the far side of the
+push (`_still_its_own`), and again behind every write that follows it before
+the handoff, because a tree switched onto the flat branch at the pushed
+commit, clean, passes both. That refusal parks nothing: the publication
+stands, the handoff is withheld as owed, and the tick that finds the checkout
+restored finishes it. Asked ahead of both halves, it keeps a foreign tree's
+own commit or edits from being parked as this issue's -- save a tree switched
+while those halves themselves read, which the half that sees it parks first.
+
 WHEN each of these is asked is the publication owner's, along with what the
 commit they are asked about is recorded as. This owner decides only what a
 proof looks at and what its refusal says.
@@ -40,8 +49,10 @@ from pathlib import Path
 from github.Issue import Issue
 
 from orchestrator import config
+from orchestrator.config import models as _config_models
 from orchestrator.git.measurement import commits as _measurement_commits
 from orchestrator.git.verification import status as _worktree_status
+from orchestrator.git.worktrees import creation as _worktree_creation, naming as _naming
 from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import guards as _guards
 from orchestrator.workflow.stages.implementing import (
@@ -273,6 +284,23 @@ def _dirtied_before_the_push(
             loose=loose,
         ),
     )
+    return True
+
+
+def _still_its_own(spec: _config_models.RepoSpec, issue_number: int, worktree: Path) -> bool:
+    """Whether `worktree` is still proven the issue's own past a push; the refusal said where it is not.
+
+    The proof every road takes (`creation._proven_checkout`), answered rather
+    than raised, since by now the push has landed and a refusal is a handoff
+    withheld rather than a publication refused. It is asked whether or not the
+    push could name its commit, because whose checkout it is needs no commit
+    to compare against, and as a resume asks it, so the issue's own checkout
+    detached by an interrupted rebase of its branch still answers.
+    """
+    try:
+        _worktree_creation._proven_checkout(spec, issue_number, worktree, rebasing=True)
+    except _naming.BranchRefused:
+        return False
     return True
 
 

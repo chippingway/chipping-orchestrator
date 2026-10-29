@@ -1038,6 +1038,17 @@ The orchestrator (not the agent) pushes. The push is hardened against the agent-
   rewrite, and the base-sync auto rebase and its crash recovery. Each of them refuses a moved REMOTE as well — the
   rewrite, the conflict publications, and the base-sync rebases pin `force_with_lease` to the SHA they observed
   before the rewrite, and the rest are pinned to the head the gate's own entry froze.
+- Every push names its lease, and each is made only once its checkout is proven the issue's own again, behind the
+  reads and writes on its road ([branch refusal](state-machine/labels-and-state.md#branch-refusal)). The two
+  pushes that decided on no head of the remote's — the initial implementing publication, and a gated push whose gate
+  froze none — read the remote tip themselves ahead of that last proof and hand it to the transport explicitly: an
+  absent branch as the empty lease that says it must not exist, and a read that established nothing as the failed
+  push it always was. Left to the transport, that reading would run between the proof and `git push`, and a tree
+  switched onto the flat branch while it ran would be published from. The transport still prepares each push in the
+  worktree -- the token, the refusal of a local config that could redirect it, the askpass session -- so a caller
+  hands its last proof in as the push's own question (`git/push_questions.py`), asked after all of that and
+  immediately before `git push`: the initial publication, the shared seam every gated push goes through, a plan
+  publication, and an accepted verdict's push each do.
 - A typed boundary carries the base-sync auto rebase's push. The workflow's ordinary publication of a clean rebase
   (`workflow/engine/rewrite_publication.py`) reads the candidate through it, has the size gate and the transfer permit
   rule on that candidate before any push, and hands the git owner exactly that candidate to publish through the gate's

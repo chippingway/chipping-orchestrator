@@ -43,6 +43,7 @@ _MODULES = (
     "orchestrator.git.commands",
     "orchestrator.git.credentials",
     "orchestrator.git.locks",
+    "orchestrator.git.push_questions",
     "orchestrator.git.ref_discovery",
     "orchestrator.git.ref_transport",
     "orchestrator.git.streaming",

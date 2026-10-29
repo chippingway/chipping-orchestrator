@@ -2179,7 +2179,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             on that branch, a pinned anchor's recovery included, which adds only the issue's own
                             checkout left detached by an unfinished rebase of that branch -- the
                             dirty-tree refusal a pre-PR rebase owes, the base-lag probe, and the route: the git
-                            `pre_pr` rebase for a branch nobody has pushed yet, the base-rewrite coordinator below
+                            `pre_pr` rebase for a branch nobody has pushed yet, entered only once
+                            `checkout_proof` proves the checkout the issue's own again behind those readings, the
+                            base-rewrite coordinator below
                             for one a pull request carries -- reached even with no lag, so a pinned anchor's
                             recovery is never skipped -- and, over a pinned anchor whose lag cannot be counted, that
                             coordinator's reset and park rather than a handler the dispatcher holds back. One
@@ -2615,12 +2617,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             push against -- refused when nothing could read it, since the gate reads no head as a
                             caller that established none and pins the push to whatever the pull request has moved
                             to -- the fork point that head's contribution is read over, taken in the same breath
-                            since the replay destroys it and made DURABLE before the rebase runs, the rebase, its
+                            since the replay destroys it and made DURABLE before the rebase runs, the rebase -- made
+                            only once the checkout is proven the issue's own again behind that write
+                            (`creation._proven_checkout`) -- its
                             `merge_attempt` event, and the three-way disposition -- none of it while a report this
                             issue recorded is still unsettled, since settled after the rebase it would be bound to
                             the head the rebase left. The `MAX_CONFLICT_ROUNDS` cap is asked here, behind that
                             settlement, and so is the earlier settlement of a saved report over a placed branch
-      publication.py        the unproven-tree and unreadable-head parks, the no-op flip, the rebased-head push
+      publication.py        the unproven-tree and unreadable-head parks, the no-op flip (its checkout proven the
+                            issue's own behind the head's read and again behind its audit event, before the label
+                            and the count written behind it), the rebased-head push
                             (measured by the size gate first, since a base that moved changes what the branch adds
                             to it, handed the pair the replay replaced beside it, and stamping the commit that
                             replay produced onto the durable record before the gate is entered), and the hand-off
@@ -2712,7 +2718,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             never landed is made by the next tick standing on that head without counting again, a
                             head nothing could prove holding the tick with the claim kept rather than dropping it --
                             and the proof that a checkout stands on a recorded commit, which the settled-round
-                            reader asks too
+                            reader asks too; both moves are made only once the checkout is proven the issue's own
+                            again, immediately before the label, a refusal keeping the label and the claim
       report_debt.py        the report debt a head this stage rewrote is owed, read off the code-publication receipt
                             the push left -- the commit it names, the pinned pull request, and the head it replaced --
                             and carried through the debt owner's retargeting; a receipt short of any of those records
@@ -3324,7 +3331,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             to the head the reading was taken over -- plus the checkout proved on the road out,
                             since every stage the label hands the issue to works from it and one carrying loose
                             edits or an unmeasured descendant would reach a review, a squash, and a merge with
-                            nobody having read it
+                            nobody having read it; that proof first holds the tree to the issue's own branch
+                            (`creation._proven_checkout`), refusing a handoff from any other, and is asked again
+                            immediately before the label (`_proven_before_the_label`), behind the writes between
       late_replay_debt.py   the report debt that push leaves where the candidate is an auto-rebase replay the
                             generation took over (`workflow/engine/rewrite_takeover.py`): proved by that ownership
                             and the code-publication receipt naming the replay over the frozen head on the frozen
@@ -3336,7 +3345,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             measured first -- its flags, and its notice's ledger entry and watermark at the widest
                             id -- and nothing posted or written where it does not fit either
       late_handback.py      the effects a settled decision licenses, in the order a crash in them is safe in:
-                            the push, the report debt a taken-over replay's push leaves, the label handed to the
+                            the push, the report debt a taken-over replay's push leaves, the checkout proven the
+                            issue's own once more behind that write, the label handed to the
                             stage the record names rather than to implementing -- a pre-publication candidate goes
                             back to the ordinary publication, and a taken-over replay to `validating`, where every
                             rebase this orchestrator publishes goes -- the accepted
@@ -3550,7 +3560,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             their routing
       publication.py        the re-runnable order a publishable commit earns: the durable marker that makes the
                             attempt recognizable, the lease the push is held to, the push itself, and the hold that
-                            stops where GitHub could not say whether the commit is already on a PR
+                            stops where GitHub could not say whether the commit is already on a PR -- the checkout
+                            proven the issue's own again last before the push (`creation._proven_checkout`), since
+                            the marker and the remote reads come after the artifact's own proof, and again behind
+                            the pull request's open or body edit, before the records that retire the marker, with
+                            the marker left standing for the recovery where it refuses
       artifact.py           one reading of what the branch carries -- the tree, the base-relative diff, the plan in
                             HEAD, and whether HEAD is the branch -- taken from the checkout the round ran in, once
                             it is proven the issue's own, and rebuilt only where that directory has gone, plus the
@@ -3566,10 +3580,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             taken from the plan commit's own subject the way a dev PR's is -- the tracked issue's
                             own trailing reference dropped off it by the title owner under `git/publication/` --
                             the body that names that session and says what merging or closing decides, and the
-                            refusal of a plan no session can be named for
+                            refusal of a plan no session can be named for -- the checkout proven the issue's own
+                            again behind the lookup, before the body is edited, and immediately before an open,
+                            behind the title's read
       records.py            what a finished publication writes down: the adoption of a PR already carrying the
-                            commit, and the plan path, branch, number, PR head, and moved round anchor one durable
-                            write leaves behind
+                            commit -- made only once the checkout is proven the issue's own again behind the lookup
+                            that found it, and again behind the body's edit (`creation._proven_checkout`) -- and the
+                            plan path, branch, number, PR head, and moved round anchor one durable write leaves
+                            behind
       parks.py              the funnel every way the stage hands the issue back goes through, which stamps each
                             park's reason, restores the consumed ceiling, and builds the bounded correlation the
                             park reports: the road off the tick's own record, the role, the pinned conversation,
@@ -3639,7 +3657,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             of the message kept as written; a subject the normalization hands back as written is
                             published as the commit it is, and a message that does not read, a replacement git
                             refuses, a moved checkout, or a HEAD that does not read back as the replacement parks
-                            `subject_amend_failed` rather than publishing it
+                            `subject_amend_failed` rather than publishing it. The move is made only once the
+                            checkout is proven the issue's own again (`creation._proven_checkout`) after the
+                            replacement exists, immediately before HEAD moves onto it, since the move rewrites
+                            whatever branch HEAD names and everything since the pass's own proof is a window
       publication.py        the size gate a docs commit passes -- the last one before a human is asked to merge,
                             and handed the commit this pass made so a checkout something moved is refused rather than
                             measured in its place -- then the push, and which completion a pass earns -- a published
@@ -3722,7 +3743,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             issue's path is proven its own (`creation._retained_checkout`) before the notice, the
                             record, or the reset, so a tree on another branch refuses with nothing announced
       drift_reset.py        the fetch / probe / hard-reset that puts the worktree back on the PR head, and the parks
-                            each failure earns
+                            each failure earns -- the reset made only once the checkout is proven the issue's own
+                            again (`creation._proven_checkout`), since the fetch and probe ran after the unwind's
+                            own proof, and the clean behind it only once it is proven again past the reset -- and
+                            the unwind completed, reset or already in sync, only once it is proven once more
       handoff.py            the completion every finished pass ends in (`_completes`): the docs verdict and checked
                             head stamped, the receipt, its lease, the launch record, and a park the pass answered
                             consumed, the PR notice, the `pr_last_comment_id` ratchet that keeps in_review from
@@ -4431,10 +4455,20 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the push and nowhere else here, since every guard above spends a reading, a diff or a
                             request after it and an ending landing in one of those windows would be answered one
                             push too late (the question itself is `late_publication`'s, beside the entry it is the
-                            far end of), and prove the checkout again on the far
+                            far end of), with the checkout proven the issue's own again behind it, last before the
+                            push, since the gate's and the transport's readings ran after the first proof and a
+                            tree switched onto the flat branch at the measured commit passes all of them -- a lease
+                            the gate froze none for read by the seam itself ahead of a proof rather than by the
+                            transport inside the push (`_pushed`) -- and prove the checkout again on the far
                             side of the effect -- AHEAD of that write, so what the proof answers rides it: a
-                            checkout that moved or was dirtied holds the handoff rather than the publication, and
-                            the claim it owes lands with the receipt rather than one write behind it, where a crash
+                            checkout no longer the issue's own, or one that moved or was dirtied, holds the handoff
+                            rather than the publication -- the refused one with nothing parked, save a tree
+                            switched during a post-push reading onto its own commit or edits, which that reading
+                            parks as moved or dirty first, asked even of a
+                            push that could name no commit, again behind the post-push readings, and again behind
+                            the settlement's write, a switch there putting the claim back in a write of its own --
+                            and the claim it
+                            owes lands with the receipt rather than one write behind it, where a crash
                             would take it and leave the stage below reading a dirty worktree as no stranded work;
                             asked through `checkout_guards` below, the same owner the initial publication is
                             proved by, for both; a pull request already
@@ -4468,7 +4502,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             directly rather than through the gated call, so it makes that call's own barrier for
                             itself -- and the window is the widest any publication has, since the pull request was
                             last read by the reconciliation and the exemption, the identity, the debt, the park
-                            persist and both checkout probes all run between that reading and the push
+                            persist and both checkout probes all run between that reading and the push -- and the
+                            seam's checkout proof too (`creation._proven_checkout`), last before the push, since a
+                            tree switched onto the flat branch at the accepted commit passes both probes
       late_collapse_state.py
                             immutable pre-squash values and durable head/base/count claims written before reset;
                             failed writes restore in-memory state, and handoff or proved rollback clears the claim
@@ -4680,7 +4716,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       late_parks.py         quiet transport retries and announce-once measurement failure handling; changed frozen bases
                             remain durable during a quiet repeat, and a different failure earns its own notice;
                             an unreadable candidate retains its resolved object id for recovery
-      publication.py        the push -- from a checkout proven the issue's own first, named against the commit the
+      publication.py        the push -- from a checkout proven the issue's own first, and again last before the
+                            push, behind the lease's own reading, which is taken here rather than inside the
+                            transport (`_pushes`), since the intent's write and the barrier's readings come between,
+                            named against the commit the
                             gate decided and pinned to the head the
                             answer that admitted it was about: a published approval's frozen head where there is
                             one, and the CANDIDATE itself where the gate admitted it because its pull request is
@@ -4692,12 +4731,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             delivered road and never a second one where it closed in between, and the commit the
                             push carried (decided once ahead of the push --
                             the one that passed the gate, or the checkout's own head where the switch named none
-                            -- and made durable there, with a checkout that can name none at all publishing
-                            nothing); the receipt naming that commit and pull request is written the moment the
+                            -- and made durable there, behind a proof that the checkout is still the issue's own
+                            so a head read off a switched tree is never recorded, with a checkout that can name
+                            none at all publishing nothing); the receipt naming that commit and pull request is written the moment the
                             pull request is known, before one this tick opened is announced, and everything from
                             there to the relabel is handed to `report_handoff.py`, the handoff left owed wherever
                             that refuses it, so the next tick republishes the same commit onto the same pull request
-      report_handoff.py     a landed push to the handoff: the description judged on a fresh read, the report the
+      report_handoff.py     a landed push to the handoff -- the checkout proven the issue's own ahead of the moved- and
+                            dirty-checkout guards, behind every request below, and again by the handoff between its
+                            write and the label, a refusal withholding the handoff as owed -- the description judged
+                            on a fresh read, the report the
                             run delivered bound and published through `engine/report_binding.py` with that verdict
                             -- a binding or settlement whose guarded write did not land over the comment the tick
                             read, refused over a moved comment or never confirmed, or a post that left the report
@@ -4746,7 +4789,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             group as it parks, through the same owner the publication mints one with: it stands
                             exactly where that publication would have recorded the debt this seam owes, so a
                             candidate a receipt or an exemption admitted would otherwise be parked as a commit
-                            with no account of what its push rests on
+                            with no account of what its push rests on. Whose checkout it is past a push is
+                            answered here too (`_still_its_own`), with or without a commit to compare against,
+                            for the seam, the initial handoff, and the writes between them and the label
       checkout_recovery.py  whether the checkout is the commit that was decided about, on the two parks that
                             turn on it. What a handoff refused for its checkout waits to see back is the only
                             park in this stage settled by a worktree rather than by a reply: the commit the
@@ -4764,7 +4809,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             off an approval, the recorded override first since it is the terms a human agreed
                             to and it outlives the generation a failed publication retires, and a record
                             naming no commit at all held rather than published under
-      dev_pr.py             what that pull request says and whose work it says it carries: the title taken from
+      dev_pr.py             what that pull request says and whose work it says it carries, reused or opened only
+                            once the checkout is proven the issue's own behind the lookup for one already open, an
+                            open's proof taken immediately before it, behind the title's read: the title
+                            taken from
                             the branch's own first commit subject, falling back to a prefix inferred from recent
                             base history so it reads like the repository it lands in, less the tracked issue's own
                             trailing reference, which the title owner under `git/publication/` takes off whichever
@@ -4817,7 +4865,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             forward and any of them left behind would mis-fire a later hop back into
                             implementing -- and every one of those written durably AHEAD of the
                             `workflow:validating` label, so nothing this line spends is stranded on an issue
-                            that has moved on and a relabel that fails leaves the branch recognizable
+                            that has moved on and a relabel that fails leaves the branch recognizable; between
+                            that write and the label the checkout is proven the issue's own again, and a tree
+                            switched while the write ran keeps the label, the handoff left owed
       park_correlation.py   the bounded payload the two parks below report beside their reason, since neither can
                             reach the shared funnel's: the caller's route, the session and exit status off the
                             result, and the pinned counters -- screened against the funnel's own allow-list, and
@@ -4898,7 +4948,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             aimed at the tip worth keeping
       plan_reading.py       what the recorded plan PR carries and where that leaves the branch, read afresh by
                             both halves rather than remembered, the checkout proven the issue's own before the move
-                            that resets it
+                            that resets it, which proves it again at the reset behind its fetch
+                            (`git/worktrees/anchoring.py`)
       plan_handoff.py       the reconcile that keeps an accepted plan handoff in step with its PR until a
                             developer commits, and the marker that makes its own re-anchor recoverable, written or
                             spent only once the record's branch and the tree at the issue's path are the issue's own

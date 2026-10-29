@@ -20,6 +20,10 @@ is where the two part: a branch push may look the remote up for itself, because
 a branch is a moving thing whose current tip is the honest expectation, while a
 ref update there states what the caller established was there and has no form
 that overwrites whatever it finds.
+
+A caller whose push is right only while its checkout is still the one it
+proved hands that question in through `push_questions`, and the push asks it
+after every preparation here and immediately before `git push`.
 """
 from __future__ import annotations
 
@@ -28,7 +32,7 @@ import subprocess
 from pathlib import Path
 
 from orchestrator.config import models as _config_models
-from orchestrator.git import commands, credentials, locks, ref_transport
+from orchestrator.git import commands, credentials, locks, push_questions, ref_transport
 
 # The channel is named for the git-plumbing domain rather than for this
 # module's path: operators filter the rendered `orchestrator.git_plumbing`
@@ -407,9 +411,15 @@ def _push_branch(
     pushed to the branch in between.
 
     When `force_with_lease` is None (the default), the function reads the
-    current remote SHA via `ls-remote` and uses that as the lease. This is
-    the normal-push path: the orchestrator owns the
-    `orchestrator/<slug>/issue-<n>` namespace, but a self-restart between commit
+    current remote SHA via `ls-remote` and uses that as the lease. No
+    workflow caller leaves the lease to that reading: the normal push -- the
+    initial implementing publication, and a gated push whose gate froze no
+    head -- reads the same SHA itself (`_remote_branch_read`) and hands it in
+    ahead of the last proof that its checkout is still the issue's own, so no
+    request runs between that proof and `git push`; "" is the lease saying
+    the branch must not exist, and a read that established nothing is the
+    failed push. That lease is what the normal push needs: the orchestrator
+    owns the `orchestrator/<slug>/issue-<n>` namespace, but a self-restart between commit
     and push can leave the worktree on a different SHA than what was
     already pushed -- e.g. a `resume=False` rerun of codex amending
     equivalent work. A plain push then fails non-fast-forward and parks
@@ -469,6 +479,10 @@ def _push_branch(
         )
         return False
     with credentials._git_auth_session(spec, token) as auth_session:
+        # The caller's own question, asked behind the token, the config
+        # refusal, and the session, since each runs in the worktree after the
+        # caller last looked at it; whatever it raises sends nothing.
+        push_questions._asks()
         # An empty expected SHA means the remote ref must not exist, which
         # preserves the create-branch lease behavior.
         return _push_with_auth(

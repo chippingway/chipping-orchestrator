@@ -26,6 +26,7 @@ from orchestrator.workflow.stages.implementing import (
     late_verdict_debt as _late_verdict_debt,
     state as _state,
 )
+from tests.support.checkout_identity import stated_identity
 from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.workflow.fixtures import (
     _TEST_SPEC,
@@ -394,7 +395,10 @@ class PaidPublicationBasisTest(unittest.TestCase):
 
     def test_a_proven_landing_leaves_no_debt(self) -> None:
         # The other exit: nothing is owed, so the whole group goes -- a basis
-        # left behind would stand beside whatever this issue records next.
+        # left behind would stand beside whatever this issue records next. The
+        # checkout is proven the issue's own again behind the write, and the
+        # gate's checkout here is no real worktree at a layout path.
+        stated_identity(self)
         gate = _gate(_approved(_late_approval_reading.LateApprovalBasis.ADJUDICATION))
 
         _push._publication_paid(gate, _LANDED, unproven=False)

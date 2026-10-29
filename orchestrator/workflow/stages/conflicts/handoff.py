@@ -32,6 +32,14 @@ cleanly -- would read it as this one's unfinished move and hand the head
 straight back to review with nothing resolved. The base refresh that opens
 such an episode drops it in the write that routes the issue here, for an
 issue it routes before `validating` ever ran.
+
+Both moves -- the one behind the count's write and the owed one a later tick
+makes -- are made only once the checkout is proven the issue's own again,
+immediately before the label: the publication's own proof came ahead of the
+round's report-debt and count writes, and a tree switched onto the flat
+branch during either would be handed to review. Refused, the label stays on
+`resolving_conflict` and the claim stands, for the tick that finds the
+checkout restored to make the move.
 """
 from __future__ import annotations
 
@@ -41,6 +49,7 @@ from pathlib import Path
 from github.Issue import Issue
 
 from orchestrator.git.measurement import commits as _measurement_commits
+from orchestrator.git.worktrees import creation as _worktree_creation, paths as _worktree_paths
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.late_split import formats as _formats, payloads as _payloads
@@ -66,7 +75,13 @@ def _writes_the_count(ctx: _models._ConflictContext, sha: str | None) -> None:
 
 
 def _moves_on(ctx: _models._ConflictContext) -> None:
-    """Move the label the written round paid for, then drop the claim it was written with."""
+    """Move the label the written round paid for, then drop the claim it was written with.
+
+    The checkout is proven the issue's own first (`creation._proven_checkout`),
+    raising `naming.BranchRefused` with the label and the claim as they stand.
+    """
+    worktree = _worktree_paths._worktree_path(ctx.spec, ctx.issue.number)
+    _worktree_creation._proven_checkout(ctx.spec, ctx.issue.number, worktree, rebasing=True)
     ctx.gh.set_workflow_label(ctx.issue, WorkflowLabel.VALIDATING)
     _retires_the_claim(ctx.gh, ctx.issue, ctx.state)
 
@@ -88,6 +103,9 @@ def _makes_the_owed_move(
     be resolved: the round already counted would be counted again by the
     no-op flip, or parked at the conflict cap that count reached, with its
     move never made. Held, the next tick that can prove the head makes it.
+    A checkout standing on the head but no longer proven the issue's own
+    raises `naming.BranchRefused` with the claim in place, as the move
+    behind the count's write does.
     """
     recorded = ctx.state.get(_state._HANDED_SHA)
     if recorded is None:
@@ -117,6 +135,7 @@ def _makes_the_owed_move(
         "and its move to validating never landed; making it",
         ctx.issue.number, handed[:8],
     )
+    _worktree_creation._proven_checkout(ctx.spec, ctx.issue.number, sync.worktree, rebasing=True)
     ctx.gh.set_workflow_label(ctx.issue, WorkflowLabel.VALIDATING)
     _retires_the_claim(ctx.gh, ctx.issue, ctx.state)
     return True

@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import logging
 
+from orchestrator.git.worktrees import creation as _worktree_creation
 from orchestrator.workflow.stages.discussion import (
     models as _models,
     plan_pr as _plan_pr,
@@ -95,7 +96,16 @@ def _record_landed_plan(
     is this stage's own pull request, opened by the publication that crashed,
     and a design the humans have merged or written their own commit on top of
     is not one to rewrite back at them -- annotations and all.
+
+    The lookup that found the pull request is a request, so the checkout the
+    artifact was read from is proven the issue's own again first
+    (`creation._proven_checkout`): a tree switched onto the flat branch while
+    it ran raises `naming.BranchRefused` with no body edited, nothing
+    recorded, and the publication marker standing for the tick that finds the
+    checkout restored. It is proven again behind the body's edit, before the
+    records that retire the marker, since that edit is a request too.
     """
+    _worktree_creation._proven_checkout(run.spec, run.issue.number, artifact.worktree)
     if not _plan_pr._attributable_plan(run, artifact):
         return
     log.info(
@@ -104,6 +114,7 @@ def _record_landed_plan(
         plan_pr.number, run.gh.pr_state(plan_pr),
     )
     _plan_pr._attribute_reused_pr(run, artifact, plan_pr)
+    _worktree_creation._proven_checkout(run.spec, run.issue.number, artifact.worktree)
     _record_published_plan(run, artifact, plan_pr.number)
     if run.gh.pr_state(plan_pr) == _settled_prs._OPEN_PR_STATE:
         _publication_parks._park_published_plan(run, artifact, plan_pr.number)

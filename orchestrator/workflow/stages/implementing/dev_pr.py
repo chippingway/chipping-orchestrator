@@ -32,6 +32,9 @@ rather than written twice.
 Reuse rather than a second open is also what makes the publication re-runnable:
 a tick that died between `open_pr` and the relabel comes back to a pull request
 already carrying the commit and adopts it, instead of 422-ing on a duplicate.
+The lookup is a request, so the checkout is proven the issue's own again behind
+it, before anything is reused or opened: a tree switched onto the flat branch
+while it ran has no pull request opened over the work it no longer stands on.
 """
 from __future__ import annotations
 
@@ -43,6 +46,7 @@ from github.Issue import Issue
 from orchestrator.agents.models import AgentResult
 from orchestrator.config import models as _config_models
 from orchestrator.git.publication import titles as _titles
+from orchestrator.git.worktrees import creation as _worktree_creation
 from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
     comments as _comments,
@@ -166,21 +170,33 @@ def _reuse_or_open_pr(
     A reused pull request is handed back with its description untouched; the
     caller asks `pr_description` what it says, before the report is bound and
     again before the handoff.
+
+    Behind the lookup the checkout is proven the issue's own again
+    (`creation._proven_checkout`): the lookup is a request, and a tree
+    switched onto the flat branch while it ran would have a pull request
+    reused or opened over the work it no longer stands on. Where one is to be
+    opened, the title is read off the branch's history first and the proof
+    taken immediately before the open, since that read is a window of its
+    own. It raises `naming.BranchRefused` with nothing opened, the caller's
+    intent standing for the retry.
     """
     if work.delivered_pr:
         return _delivered_pull_request(gh, issue, work), False
     pr = gh.find_open_pr(branch=work.branch, base=spec.base_branch)
     if pr is not None:
+        _worktree_creation._proven_checkout(spec, issue.number, work.worktree, rebasing=True)
         log.info(
             "issue=#%s reusing existing PR #%d for %s",
             issue.number, pr.number, work.branch,
         )
         return pr, False
-    return gh.open_pr(
-        branch=work.branch, base=spec.base_branch,
-        title=_derive_pr_title(spec, issue, work.worktree),
-        body=_build_pr_body(state, issue, work.agent_result),
-    ), True
+    title = _derive_pr_title(spec, issue, work.worktree)
+    body = _build_pr_body(state, issue, work.agent_result)
+    _worktree_creation._proven_checkout(spec, issue.number, work.worktree, rebasing=True)
+    opened = gh.open_pr(
+        branch=work.branch, base=spec.base_branch, title=title, body=body,
+    )
+    return opened, True
 
 
 def _announce_opened_pr(

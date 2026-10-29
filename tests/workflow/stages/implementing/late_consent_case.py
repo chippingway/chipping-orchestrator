@@ -104,9 +104,9 @@ class _ParkedTickAssertions:
         self.assertEqual(
             self.github.workflow_label(self.issue), LABEL_VALIDATING,
         )
-        self._assert_delivery_receipt(revision, pushed.call_args.kwargs)
+        self._assert_delivery_receipt(revision)
 
-    def _assert_delivery_receipt(self, revision: str, pushed: dict) -> None:
+    def _assert_delivery_receipt(self, revision: str) -> None:
         """The pull request this stage opened, and the whole receipt naming it.
 
         All three members, because the receipt is read as a GROUP. The commit
@@ -118,10 +118,10 @@ class _ParkedTickAssertions:
         relabel's own write, and the announcement is what a human is left
         able to find the pull request by.
 
-        The lease is held to what the push was actually leased against rather
-        than to a value of its own, which on every road this park reaches is
-        NOTHING: the pull request is opened by that push, so no head was
-        frozen for the receipt to be scoped to. What it catches here is a
+        The lease names NO head on every road this park reaches: the pull
+        request is opened by that push, so no head was frozen for the receipt
+        to be scoped to, whatever the push itself was leased against -- the
+        remote's own answer, read just before it. What it catches here is a
         build recording one anyway -- a receipt claiming a superseded head
         that never existed, dating it to an attempt nobody made. The roads
         that do record a head are the ones a branch was already published on,
@@ -146,10 +146,7 @@ class _ParkedTickAssertions:
         self.assertEqual(
             published[_consent_payloads.KEY_PUBLISHED_PR], opened.number,
         )
-        self.assertEqual(
-            published[_consent_payloads.KEY_PUBLISHED_LEASE],
-            pushed[_consent_payloads.FORCE_WITH_LEASE],
-        )
+        self.assertIsNone(published[_consent_payloads.KEY_PUBLISHED_LEASE])
         self.assertEqual(
             published[_consent_payloads.KEY_PR_NUMBER], opened.number,
         )

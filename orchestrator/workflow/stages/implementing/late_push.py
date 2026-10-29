@@ -19,6 +19,11 @@ request somebody pushed to in that same window rejects the push instead of
 being overwritten. Past the push the receipt and the debt are settled in one
 durable write, and the checkout is proved again -- what went out is right, and
 what can be wrong by then is the tree every stage behind this gate reads.
+Whose checkout it is gets asked on entry, last before the push, first of the
+handoff's questions, and once more behind the settlement's write, since a
+tree switched onto the flat branch at the measured commit passes every
+reading of that commit and tree; a lease the gate froze none for is read
+here, ahead of that last proof, rather than by the transport inside the push.
 
 That one write is also where a rewrite's exemption finally moves. The permit
 `late_transfer` granted licensed this push and rotated nothing, because the
@@ -44,7 +49,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, replace as _replace
 
-from orchestrator.git import branch_transport as _branch_transport
+from orchestrator.git import branch_transport as _branch_transport, push_questions as _push_questions
 from orchestrator.git.worktrees import creation as _worktree_creation
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.stages.implementing import (
@@ -157,7 +162,14 @@ def _publishes(
     but the issue's current one -- the flat layout's, another repository's, a
     detached HEAD no unfinished rebase of that branch accounts for -- raises
     `naming.BranchRefused` with nothing measured, held, pushed, or written,
-    however its commits compare with the remote.
+    however its commits compare with the remote. The same proof is taken
+    again last before the push, behind the ending barrier, because the
+    gate's and the transport's readings run between the first and the push,
+    and a tree switched onto the flat branch at the measured commit passes
+    every reading of the commit and the tree. Past the push it is the first
+    of the handoff's questions (`_unproven_checkout`), and it is asked once
+    more behind the settlement's write (`_publication_paid`), which a tree can
+    be switched during as well.
     """
     _worktree_creation._proven_checkout(gate.spec, gate.issue.number, gate.worktree, rebasing=True)
     gate = _replace(
@@ -181,15 +193,20 @@ def _publishes(
     ready = transport is None or transport.reads(gate, branch, published)
     if _publication_gate._publication_ended(gate):
         return _PushedCandidate(held=True)
+    _worktree_creation._proven_checkout(gate.spec, gate.issue.number, gate.worktree, rebasing=True)
     push = _pushed if transport is None else transport.pushes
-    if not (ready and push(gate, branch, published)):
+    # The transport prepares the push in the worktree after that proof, so the
+    # same proof is the push's own question, asked immediately before `git push`.
+    with _push_questions.asked_before_the_push(
+        _worktree_creation._proven_checkout, gate.spec, gate.issue.number, gate.worktree, rebasing=True,
+    ):
+        landed = ready and push(gate, branch, published)
+    if not landed:
         return _PushedCandidate()
     # The proof comes first and its answer rides the settlement's own write,
     # so no window exists in which the branch is published and the record
     # owes the checkout nothing.
-    unproven = _unproven_checkout(gate, published.revision)
-    _publication_paid(gate, published, unproven)
-    if unproven:
+    if _publication_paid(gate, published, _unproven_checkout(gate, published.revision)):
         return _PushedCandidate(held=True)
     return _PushedCandidate(landed=True)
 
@@ -246,13 +263,18 @@ def _unproven_checkout(gate: _late_gate_models._Gate, published: str) -> bool:
     The window the pre-push proof cannot cover, and the same one the initial
     publication asks about on the far side of its own push -- so it is asked
     with the checkout owner's two questions rather than a second pair worded
-    here. The push is a request and the worktree is writable while it runs: a
-    descendant an agent or a cleanup left, or an unstaged edit beside it, is
-    enough. What went out is exactly the commit that was named, so the branch
-    and its pull request are right; what is wrong is the CHECKOUT, and the
-    checkout is what every stage behind this gate works from -- the reviewer
-    reads a head ahead of the pushed branch as unpushed work, the squash
-    rewrites what is on it, the docs pass commits on top.
+    here, behind the one every road asks: whether the tree is still the
+    issue's own (`checkout_guards._still_its_own`). One switched onto the flat
+    branch at the pushed commit, clean, passes both of the others, and it is
+    held without a park, as every checkout found no longer the issue's own is,
+    with the claim below recorded for the tick that finds it restored. The
+    push is a request and the worktree is writable while it runs: a descendant
+    an agent or a cleanup left, or an unstaged edit beside it, is enough. What
+    went out is exactly the commit that was named, so the branch and its pull
+    request are right; what is wrong is the CHECKOUT, and the checkout is what
+    every stage behind this gate works from -- the reviewer reads a head ahead
+    of the pushed branch as unpushed work, the squash rewrites what is on it,
+    the docs pass commits on top.
 
     So the publication stands and the HANDOFF stops: the caller is told the
     tick is finished, and it relabels nothing, announces nothing, and spends
@@ -267,22 +289,36 @@ def _unproven_checkout(gate: _late_gate_models._Gate, published: str) -> bool:
     back to an issue whose stage reads a dirty worktree as no stranded work
     and hands a reviewer a checkout nobody read.
 
-    Asked only where the push had a commit to be about. A checkout that could
-    not name its own head sent whatever the branch was when git ran, so there
-    is nothing this proof could compare it to -- and compared against nothing
-    it reads every checkout as moved, parking an issue whose head is exactly
-    where it was left and holding the handoff its push just earned.
+    The two readings of the commit are asked only where the push had a commit
+    to be about. A checkout that could not name its own head sent whatever the
+    branch was when git ran, so there is nothing those proofs could compare it
+    to -- and compared against nothing they read every checkout as moved,
+    parking an issue whose head is exactly where it was left and holding the
+    handoff its push just earned. Whose checkout it is needs no commit, so it
+    is asked either way: a push nobody could name that a switched tree went
+    out under holds its handoff all the same, with no claim recorded, since a
+    claim is about one object id. Where the two readings of the commit run,
+    it is asked again behind them, since a tree switched at the same commit
+    while they read passes both -- and that answer is what makes the write
+    behind this record the claim even where nothing else was left to settle.
+    A tree switched while they read onto a branch carrying a commit or edits
+    of its own passes neither: the reading that sees it parks it as a moved
+    or dirty checkout, comment and all, before ownership can be asked again.
+    That is the one refusal past the push that parks, and the handoff it
+    refuses is held as every other is, the claim recorded beside the receipt.
     """
+    if not _checkout._still_its_own(gate.spec, gate.issue.number, gate.worktree):
+        return True
     if not published:
         return False
     moved = _checkout._moved_after_the_push(
         gate.gh, gate.issue, gate.state, published, gate.worktree,
     )
-    if moved:
-        return True
-    return _checkout._dirtied_after_the_push(
+    if moved or _checkout._dirtied_after_the_push(
         gate.gh, gate.issue, gate.state, published, gate.worktree,
-    )
+    ):
+        return True
+    return not _checkout._still_its_own(gate.spec, gate.issue.number, gate.worktree)
 
 
 def _pushed(
@@ -303,12 +339,23 @@ def _pushed(
     base-sync publications each read the remote for themselves -- because the
     entry froze what they established rather than what this owner would have
     re-read. Where the gate froze nothing at all the push reads the remote
-    itself, which is the behavior an install with the switch off keeps.
+    for itself, which is the behavior an install with the switch off keeps --
+    read HERE rather than inside the transport, and the checkout proven the
+    issue's own behind that reading: left to the transport, the read would
+    run after every proof this owner takes, and a tree switched onto the flat
+    branch while it ran would be published from. A remote that would not say
+    is the failed push it always was.
     """
+    lease = published.lease
+    if not lease:
+        lease = _branch_transport._remote_branch_read(gate.spec, gate.worktree, branch).sha
+        if lease is None:
+            return False
+        _worktree_creation._proven_checkout(gate.spec, gate.issue.number, gate.worktree, rebasing=True)
     return _branch_transport._push_branch(
         gate.spec, gate.worktree, branch,
         revision=published.revision or None,
-        force_with_lease=published.lease or None,
+        force_with_lease=lease,
     )
 
 
@@ -316,8 +363,8 @@ def _publication_paid(
     gate: _late_gate_models._Gate,
     published: _publication_gate._PublishedCandidate,
     unproven: bool,
-) -> None:
-    """Settle what a push that landed paid, and what it still owes.
+) -> bool:
+    """Settle what a push that landed paid, and what it still owes; whether the handoff is held.
 
     The approval a small candidate earns says one commit is still owed a
     publication, and it is written before the push precisely so a tick that
@@ -402,14 +449,22 @@ A process that died in that window would leave a paid debt standing,
     receipt already names this commit still owes the move if the write that
     should have carried it was lost, and a settlement that skipped it there
     would never come back for it.
+
+    The write is a request, and the proof ahead of it answered for the tree as
+    it stood before it. So where that proof passed, the checkout is asked once
+    more behind the write (`checkout_guards._still_its_own`): a tree switched
+    onto the flat branch while it ran holds the handoff, and the claim the
+    refusal ahead of the write would have carried goes down in a write of its
+    own, on the grounds read before the settlement dropped them, with the
+    receipt standing beside it.
     """
     if not published.revision:
-        return
+        return unproven
     landed = published.revision
     rotation = _rotation._rotates_the_exemption(gate, published)
     settling = _owes_a_settlement(gate.state, landed)
     if not (settling or unproven or rotation.staged):
-        return
+        return False
     # Read before the drop below takes them: the accepted road keeps the head
     # this push replaced on the approval's own lease, and the claim an
     # unproven landing puts back rests on whatever granted the debt this one
@@ -431,6 +486,11 @@ A process that died in that window would leave a paid debt standing,
         _late_approval_state._approve(gate.state, landed, landed, standing)
     gate.gh.write_pinned_state(gate.issue, gate.state)
     _transfer_telemetry._reports_the_transfer(gate, rotation)
+    if unproven or _checkout._still_its_own(gate.spec, gate.issue.number, gate.worktree):
+        return unproven
+    _late_approval_state._approve(gate.state, landed, landed, standing)
+    gate.gh.write_pinned_state(gate.issue, gate.state)
+    return True
 
 
 def _owes_a_settlement(state: PinnedState, published: str) -> bool:
