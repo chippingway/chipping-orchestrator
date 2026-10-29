@@ -14,6 +14,12 @@ A fixture is marked in the two places an operator chooses from: a tagged,
 dimmed table row and a prefixed label. The tell itself is the record's own, so
 what is decided here is only how it reads.
 
+A table row also says what the run used and cost, read off the run summary
+alone: the non-overlapping token total, or ``unknown`` where the record's
+evidence cannot settle it, and the run's own cost worded by ``cost_text`` with
+its basis and any completeness qualifier, so a row never shows a bare amount
+an operator could take for complete spend on an unnamed basis.
+
 Every value that reaches the markup is escaped first: a page writes these with
 ``unsafe_allow_html=True``, and a repository name, a tool name, and a skill
 name are all record text this viewer does not own.
@@ -24,6 +30,7 @@ from __future__ import annotations
 import html
 from collections.abc import Sequence
 
+from orchestrator.observability.trajectory_viewer import cost_text
 from orchestrator.observability.trajectory_viewer.runs import TrajectoryRun
 
 REPO_LABEL = "Repo"
@@ -77,6 +84,7 @@ def labeled_chips_html(
 def run_table_row_html(run: TrajectoryRun) -> str:
     """Render one overview row, flagged where the run is a fixture."""
     round_cell = "" if run.review_round is None else str(run.review_round)
+    tokens_cell = "unknown" if run.total_tokens is None else f"{run.total_tokens:,}"
     row_class = ' class="fixture"' if run.is_fixture else ""
     fixture_tag = (
         '<span class="orch-traj-fixture-tag">fixture</span>'
@@ -93,6 +101,8 @@ def run_table_row_html(run: TrajectoryRun) -> str:
         f'<td class="num">{html.escape(round_cell)}</td>'
         f'<td class="num">{html.escape(str(run.step_count))}</td>'
         f'<td class="num">{html.escape(str(run.tool_calls))}</td>'
+        f'<td class="num">{html.escape(tokens_cell)}</td>'
+        f"<td>{html.escape(cost_text.cost_text(run.cost_evidence))}</td>"
         f"<td>{html.escape(run.ts)}</td></tr>"
     )
 
@@ -108,6 +118,8 @@ def runs_table_html(runs: Sequence[TrajectoryRun]) -> str:
         "Round",
         "Steps",
         "Tool calls",
+        "Tokens",
+        "Cost",
         "Recorded",
     )
     head = "".join(f"<th>{html.escape(header)}</th>" for header in headers)

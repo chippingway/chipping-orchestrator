@@ -6,8 +6,8 @@ Everything stored here is what the sink wrote: the identity of the run, the
 text on both sides of it, the normalized steps, and the usage the provider
 reported. Everything computed off it is a projection the two sibling owners
 define, bound on as properties so a caller reads ``run.timeline`` or
-``run.cost_usd`` rather than calling a helper with the run in hand -- the shape
-the page and the filters were written against.
+``run.cost_evidence`` rather than calling a helper with the run in hand -- the
+shape the page and the filters were written against.
 
 Binding them here rather than defining them here is what keeps the record a
 data class: the run is frozen, so a view that reads several fields cannot leave
@@ -56,8 +56,7 @@ class TrajectoryRun:
     tool_calls = property(usage_views.tool_calls)
     step_count = property(usage_views.step_count)
     model = property(usage_views.model)
-    cost_usd = property(usage_views.cost_usd)
-    cost_source = property(usage_views.cost_source)
+    cost_evidence = property(usage_views.cost_evidence)
     total_tokens = property(usage_views.total_tokens)
     usage_for_turn = usage_views.usage_for_turn
     timeline = property(timeline_views.timeline)

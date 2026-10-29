@@ -5,12 +5,15 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.observability.trajectory_viewer import constants, run_html
+from orchestrator.observability.trajectory_viewer import constants, models, run_html
+from orchestrator.observability.usage import cost_evidence as usage_cost
 from tests.observability.trajectory_viewer.trajectory_viewer_test_support import (
+    CODEX_TOKENS,
     REPO,
     TOOL_BASH,
     TOOL_CALL,
     TOOL_RESULT,
+    cost,
     run,
     step,
 )
@@ -20,6 +23,21 @@ _UNSAFE_REPO = "o/<r&>"
 _ESCAPED_REPO = "o/&lt;r&amp;&gt;"
 
 _REVIEW_ROUND = 2
+
+_INPUT_TOKENS = 12000
+
+_OUTPUT_TOKENS = 340
+
+_CACHED_TOKENS = 9000
+
+_REPORTED_COST = 0.83
+
+_ESTIMATED_COST = 0.4
+
+_BLENDED_CELL = (
+    "<td>$1.23 (blended: CLI-reported $0.83 + Gemini API token estimate "
+    "$0.40)</td>"
+)
 
 
 class MetaHtmlTest(unittest.TestCase):
@@ -86,8 +104,8 @@ class RunsTableHtmlTest(unittest.TestCase):
             ),
         ])
         for header in (
-            "Issue", "Repo", "Stage", "Role",
-            "Backend", "Round", "Steps", "Tool calls", "Recorded",
+            "Issue", "Repo", "Stage", "Role", "Backend", "Round",
+            "Steps", "Tool calls", "Tokens", "Cost", "Recorded",
         ):
             with self.subTest(header=header):
                 self.assertIn(f">{header}</th>", rendered)
@@ -96,6 +114,54 @@ class RunsTableHtmlTest(unittest.TestCase):
         # Two steps, one of which is a tool call.
         self.assertIn(">2</td>", rendered)
         self.assertIn(">1</td>", rendered)
+
+    def test_a_row_counts_cached_input_once(self) -> None:
+        # The token total leaves Codex's cached input out of its input, and
+        # the cost is the run's own amount on its named basis.
+        codex = run_html.run_table_row_html(run(run_usage=models.RunUsageView(
+            input_tokens=_INPUT_TOKENS,
+            output_tokens=_OUTPUT_TOKENS,
+            cached_tokens=_CACHED_TOKENS,
+            cost_evidence=cost(
+                usage_cost.COMPLETE, (usage_cost.OPENAI_API_ESTIMATE, _ESTIMATED_COST),
+            ),
+            token_evidence=CODEX_TOKENS,
+        )))
+        self.assertIn('<td class="num">12,340</td>', codex)
+        self.assertIn("<td>$0.40 (OpenAI API token estimate)</td>", codex)
+
+    def test_a_row_names_its_cost_basis(self) -> None:
+        for name, run_usage, cells in (
+            (
+                "mixed",
+                models.RunUsageView(cost_evidence=cost(
+                    usage_cost.COMPLETE,
+                    (usage_cost.CLI_REPORTED, _REPORTED_COST),
+                    (usage_cost.GEMINI_API_ESTIMATE, _ESTIMATED_COST),
+                )),
+                (_BLENDED_CELL,),
+            ),
+            (
+                "absent basis",
+                models.RunUsageView(
+                    input_tokens=_INPUT_TOKENS,
+                    cached_tokens=_CACHED_TOKENS,
+                    cost_evidence=cost(
+                        usage_cost.UNKNOWN,
+                        (usage_cost.UNKNOWN_BASIS, _REPORTED_COST),
+                    ),
+                ),
+                (
+                    '<td class="num">unknown</td>',
+                    "<td>$0.83 (basis unknown, completeness unknown)</td>",
+                ),
+            ),
+            ("no summary", None, ("<td>cost unknown</td>",)),
+        ):
+            row = run_html.run_table_row_html(run(run_usage=run_usage))
+            for cell in cells:
+                with self.subTest(name, cell=cell):
+                    self.assertIn(cell, row)
 
     def test_repo_escaped(self) -> None:
         rendered = run_html.runs_table_html([run(repo=_UNSAFE_REPO)])

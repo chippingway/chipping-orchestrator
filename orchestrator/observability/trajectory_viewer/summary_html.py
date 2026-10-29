@@ -13,11 +13,12 @@ markup, because a page writes these with ``unsafe_allow_html=True`` and a
 repository name, a stage, or a KPI label is record text this viewer does not
 own.
 
-The money is formatted here rather than through the shared compact formatters:
-those trade digits for a suffix at a fixed threshold, so the total-cost tile
-would read ``$12`` where the authoritative figure is ``$12.50``. The same
-function renders the four-decimal per-turn estimate the timeline strip carries,
-which is why the precision is a keyword rather than two spellings.
+The money tile is worded by ``cost_text``, the one owner every cost on the page
+is spelled through, and it is named for what the total is: ``Total cost`` only
+where every run's spend is covered, and ``Cost subtotal`` wherever a run's
+usage went unpriced or its cost states no basis, with the foot naming the basis
+-- each part's amount beside a blended one -- and how many runs the subtotal is
+missing.
 """
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ import html
 from dataclasses import dataclass
 
 from orchestrator.observability.dashboard import formatting
+from orchestrator.observability.trajectory_viewer import cost_text
 from orchestrator.observability.trajectory_viewer.summaries import TrajectorySummary
 
 
@@ -60,10 +62,22 @@ def topbar_html(total_runs: int, shown_runs: int) -> str:
     )
 
 
-def fmt_cost_usd(amount: float, *, decimals: int = 2) -> str:
-    """Render an exact dollar figure with the requested precision."""
-    number_format = f",.{decimals}f"
-    return f"${format(amount, number_format)}"
+def cost_kpi(summary: TrajectorySummary) -> _TrajectoryKpi:
+    """Build the money tile, named a subtotal wherever spend is not covered."""
+    notes = [cost_text.basis_text(summary.total_cost)]
+    for count, missing in (
+        (summary.incomplete_cost_runs, "unpriced"),
+        (summary.unknown_cost_runs, "without a cost basis"),
+    ):
+        if count:
+            noun = "run" if count == 1 else "runs"
+            notes.append(f"{formatting.fmt_num(count)} {noun} {missing}")
+    complete = not cost_text.completeness_text(summary.total_cost)
+    return _TrajectoryKpi(
+        "Total cost" if complete else "Cost subtotal",
+        cost_text.cost_figure(summary.total_cost),
+        " · ".join(note for note in notes if note),
+    )
 
 
 def trajectory_kpis(summary: TrajectorySummary) -> tuple[_TrajectoryKpi, ...]:
@@ -77,11 +91,7 @@ def trajectory_kpis(summary: TrajectorySummary) -> tuple[_TrajectoryKpi, ...]:
         _TrajectoryKpi("Issues", formatting.fmt_num(summary.distinct_issues)),
         _TrajectoryKpi("Repos", formatting.fmt_num(summary.distinct_repos)),
         _TrajectoryKpi("Tool calls", formatting.fmt_num(summary.total_tool_calls)),
-        _TrajectoryKpi(
-            "Total cost",
-            fmt_cost_usd(summary.total_cost_usd),
-            "reported + est.",
-        ),
+        cost_kpi(summary),
     )
 
 

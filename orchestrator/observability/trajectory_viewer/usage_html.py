@@ -3,40 +3,92 @@
 """What a run cost, tallied once for the whole run and once per turn.
 
 Two readings of the same spend, and the note between them is why there are two.
-The run-level row is the figure the provider reported for the whole run, which
-is the authoritative one; the strip drawn at an assistant-turn boundary is a
-claude-only estimate this orchestrator priced itself. The two need not sum, so
-the row says so in the copy rather than leaving an operator to reconcile them
--- and it says it differently for a backend that recorded no turns at all,
-where there are no strips to reconcile against and the run summary is the only
-usage surface the page has.
+The run-level row is the amount the record stored for the whole run, on the
+basis it names -- a CLI-reported figure stays CLI-reported, and is never
+replaced by the turns' estimates summed or a historical record repriced
+against today's rates; the strip drawn at an assistant-turn boundary is a
+claude-only estimate on that turn's own basis. The two need not sum, so the row
+says so in the copy rather than leaving an operator to reconcile them -- and it
+says it differently for a backend that recorded no turns at all, where there
+are no strips to reconcile against and the run summary is the only usage
+surface the page has.
 
-A chip is drawn for a fact the record actually carried. The cached-token chip
-is dropped where a backend reports none rather than always reading zero, and
-the cache-hit pill is drawn only where a turn read from cache. The cost chip is
-the exception: it names its source whether or not a figure resolved, so a run
-the pricing tables could not resolve reads as its source alone rather than as
-free work.
-
-Money is the exact-cents formatter the KPI strip is rendered with, asked for
-four decimals on a turn: a per-turn estimate is routinely sub-cent, and two
-decimals would floor a real charge to ``$0.00``.
+A chip is drawn for a fact the record actually carried. A token counter is
+drawn only where the record's evidence observed it, because a counter no usage
+payload reported is missing rather than zero, and one observed with no count
+on the line reads as unknown for the same reason; the total beside them is the
+non-overlapping one, and it reads as unknown, with the note saying why, where
+nothing the record states settles whether its cache counts sit inside its
+input. The cache-hit pill is drawn only where a turn read from cache. The cost
+chip is the exception: it is drawn whether or not an amount resolved, worded by
+``cost_text`` with its basis and any completeness qualifier, so an unpriced run
+reads as unpriced rather than as free work, and an amount short of all the
+usage never reads as complete spend.
 
 Every caller-supplied string goes through ``html.escape`` before it reaches the
 markup, because a page writes these with ``unsafe_allow_html=True`` and a model
-name and a cost source are both record text this viewer does not own.
+name is record text this viewer does not own.
 """
 
 from __future__ import annotations
 
 import html
+from types import MappingProxyType
 
 from orchestrator.observability.dashboard import formatting
-from orchestrator.observability.trajectory_viewer.models import TurnUsageView
+from orchestrator.observability.trajectory_viewer import cost_text
+from orchestrator.observability.trajectory_viewer.models import (
+    RunUsageView,
+    TurnUsageView,
+)
 from orchestrator.observability.trajectory_viewer.runs import TrajectoryRun
-from orchestrator.observability.trajectory_viewer.summary_html import fmt_cost_usd
+from orchestrator.observability.usage import (
+    protocol,
+    token_evidence as usage_tokens,
+)
 
 USAGE_SEPARATOR = '<span class="orch-traj-usage-sep">·</span>'
+
+_COUNTER_LABELS = MappingProxyType({
+    protocol.INPUT_TOKENS: "in",
+    protocol.OUTPUT_TOKENS: "out",
+    protocol.CACHED_TOKENS: "cached",
+    protocol.CACHE_READ_TOKENS: "cache-read",
+    protocol.CACHE_WRITE_TOKENS: "cache-write",
+})
+
+_RUN_COST_NOTE = (
+    "Run cost is the amount this record stored, on the basis it names, and is "
+    "never repriced. A CLI-reported amount is what the agent CLI printed, not "
+    "a verified bill, and an API token estimate is a Standard list-price "
+    "equivalent, not a charge."
+)
+
+_TURNS_NOTE = (
+    "The per-turn strips in the timeline are claude-only estimates on their "
+    "own basis; they need not sum to it and never replace it. Entries with no "
+    "strip (tool results, user turns) are turn inputs, billed on the next "
+    "assistant turn."
+)
+
+_NO_TURNS_NOTE = (
+    "Per-turn usage is not available for this backend, so the run-level "
+    "summary is its only usage surface."
+)
+
+_UNKNOWN_TOTAL_NOTE = (
+    "The token total is unknown: nothing this record states says whether its "
+    "cache counts sit inside its input."
+)
+
+_MISSING_COUNT_NOTE = (
+    "The token total is unknown: this record names a counter it carries no "
+    "count for."
+)
+
+_WITHIN_INPUT_NOTE = (
+    "Cached tokens are part of the input count, so the total counts them once."
+)
 
 
 def usage_chip(text: str, css_class: str = "") -> str:
@@ -45,49 +97,52 @@ def usage_chip(text: str, css_class: str = "") -> str:
     return f'<span class="{classes}">{html.escape(text)}</span>'
 
 
+def counter_texts(usage: RunUsageView | TurnUsageView) -> tuple[str, ...]:
+    """Spell each counter the record observed, in counter order."""
+    observed = usage.token_evidence.observed
+    return tuple(
+        _counter_text(counter, count)
+        for counter, count in usage.token_counts.items()
+        if counter in observed
+    )
+
+
 def run_usage_chips(run: TrajectoryRun) -> list[str]:
     """Build the pills a run's own usage summary is read as."""
     usage = run.run_usage
     if usage is None:
         return []
     chips = [usage_chip(model) for model in usage.models]
-    chips.extend(
-        (
-            usage_chip(f"total {formatting.fmt_num(usage.total_tokens)} tok"),
-            usage_chip(f"in {formatting.fmt_num(usage.input_tokens)}"),
-            usage_chip(f"out {formatting.fmt_num(usage.output_tokens)}"),
-            usage_chip(f"cache-read {formatting.fmt_num(usage.cache_read_tokens)}"),
-            usage_chip(f"cache-write {formatting.fmt_num(usage.cache_write_tokens)}"),
-        )
-    )
-    if usage.cached_tokens:
-        chips.append(usage_chip(f"cached {formatting.fmt_num(usage.cached_tokens)}"))
+    total = usage.total_tokens
+    chips.append(usage_chip(
+        "total unknown" if total is None
+        else f"total {formatting.fmt_num(total)} tok",
+    ))
+    chips.extend(usage_chip(counted) for counted in counter_texts(usage))
     if usage.turns is not None:
         chips.append(usage_chip(f"{usage.turns} turns"))
-    source = run.cost_source or "unknown"
-    cost_label = (
-        source
-        if run.cost_usd is None
-        else f"{source} {fmt_cost_usd(run.cost_usd)}"
-    )
-    chips.append(usage_chip(cost_label, "cost"))
+    chips.append(usage_chip(cost_text.cost_text(usage.cost_evidence), "cost"))
+    rates = cost_text.rates_text(usage.cost_evidence)
+    if rates:
+        chips.append(usage_chip(rates))
     return chips
 
 
 def run_usage_note(run: TrajectoryRun) -> str:
-    """Say how the row below relates to the strips, for this backend."""
-    if run.turns:
-        return (
-            "Run cost is authoritative when reported. The per-turn strips in "
-            "the timeline are claude-only estimates and need not sum to it; "
-            "entries with no strip (tool results, user turns) are turn inputs, "
-            "billed on the next assistant turn."
+    """Say how the row relates to the strips, and why a total is unknown."""
+    sentences = [_RUN_COST_NOTE, _TURNS_NOTE if run.turns else _NO_TURNS_NOTE]
+    usage = run.run_usage
+    if usage is not None and usage.total_tokens is None:
+        missing = any(
+            usage.token_counts.get(counter) is None
+            for counter in usage.token_evidence.observed
         )
-    return (
-        "Run cost is authoritative when reported. Per-turn usage is not "
-        "available for this backend, so the run-level summary is its only "
-        "usage surface."
-    )
+        sentences.append(_MISSING_COUNT_NOTE if missing else _UNKNOWN_TOTAL_NOTE)
+    elif usage is not None and (
+        usage.token_evidence.cache_overlap == usage_tokens.WITHIN_INPUT
+    ):
+        sentences.append(_WITHIN_INPUT_NOTE)
+    return " ".join(sentences)
 
 
 def run_usage_html(run: TrajectoryRun) -> str:
@@ -106,31 +161,31 @@ def run_usage_html(run: TrajectoryRun) -> str:
 
 
 def turn_usage_html(usage: TurnUsageView) -> str:
-    """Render compact usage for one assistant turn."""
+    """Render compact usage for one assistant turn, its estimate's basis too."""
     segments = []
     if usage.model:
         segments.append(
             f'<span class="orch-traj-turn-model">{html.escape(usage.model)}</span>',
         )
-    estimated_cost = (
-        "est. n/a"
-        if usage.cost_usd is None
-        else f"est. {fmt_cost_usd(usage.cost_usd, decimals=4)}"
+    segments.extend(
+        f"<span>{html.escape(counted)}</span>"
+        for counted in counter_texts(usage)
     )
-    usage_labels = (
-        f"in {formatting.fmt_num(usage.input_tokens)} tok",
-        f"out {formatting.fmt_num(usage.output_tokens)} tok",
-        f"cache-read {formatting.fmt_num(usage.cache_read_tokens)}",
-        f"cache-write {formatting.fmt_num(usage.cache_write_tokens)}",
-        estimated_cost,
-    )
-    segments.extend(f"<span>{usage_label}</span>" for usage_label in usage_labels)
+    rates = cost_text.rates_text(usage.cost_evidence)
+    rates_title = f' title="{html.escape(rates)}"' if rates else ""
+    estimate = cost_text.cost_text(usage.cost_evidence, decimals=4)
+    segments.append(f"<span{rates_title}>{html.escape(estimate)}</span>")
     cache_hit = (
         '<span class="orch-traj-cache-hit">cache hit</span>'
-        if usage.cache_read_tokens > 0
+        if (usage.cache_read_tokens or 0) > 0
         else ""
     )
     return (
         '<div class="orch-traj-turn">'
         f"{USAGE_SEPARATOR.join(segments)}{cache_hit}</div>"
     )
+
+
+def _counter_text(counter: str, count: int | None) -> str:
+    spelled = "unknown" if count is None else formatting.fmt_num(count)
+    return f"{_COUNTER_LABELS[counter]} {spelled}"

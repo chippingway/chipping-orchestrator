@@ -3,9 +3,14 @@
 """The written lines and the owner-built objects the tests are written against."""
 from __future__ import annotations
 
+from datetime import date
 from typing import Any
 
 from orchestrator.observability.trajectory_viewer import constants, models, runs
+from orchestrator.observability.usage import (
+    cost_evidence as usage_cost,
+    token_evidence as usage_tokens,
+)
 
 TOOL_CALL = "tool_call"
 
@@ -31,6 +36,26 @@ AGENT_ROLE = "developer"
 
 BACKEND_CLAUDE = "claude"
 
+# The date every active catalogue row was checked on, so an estimate a test
+# states is dated the way a producer would date it.
+RATES_VERIFIED_ON = date.fromisoformat("2026-10-29")
+
+# What a producer states each backend's counters mean.
+CLAUDE_TOKENS = usage_tokens.TokenEvidence(
+    ("input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens"),
+    usage_tokens.DISJOINT,
+)
+
+CODEX_TOKENS = usage_tokens.TokenEvidence(
+    ("input_tokens", "output_tokens", "cached_tokens"),
+    usage_tokens.WITHIN_INPUT,
+)
+
+AGY_TOKENS = usage_tokens.TokenEvidence(
+    ("input_tokens", "output_tokens", "cache_read_tokens"),
+    usage_tokens.UNKNOWN,
+)
+
 
 def record(**overrides: Any) -> dict[str, Any]:
     """One decoded line, carrying the identity the sink writes on every run.
@@ -50,6 +75,23 @@ def record(**overrides: Any) -> dict[str, Any]:
     }
     written.update(overrides)
     return written
+
+
+def cost(completeness: str, *parts: tuple[str, float]) -> usage_cost.CostEvidence:
+    """Evidence stating each `(basis, amount)` part at `completeness`.
+
+    An estimate is dated with the rates it was priced at; a CLI-reported
+    amount and an amount on no basis carry no rates at all.
+    """
+    undated = (usage_cost.CLI_REPORTED, usage_cost.UNKNOWN_BASIS)
+    return usage_cost.CostEvidence(completeness, tuple(
+        usage_cost.CostContribution(
+            basis,
+            amount,
+            () if basis in undated else (RATES_VERIFIED_ON,),
+        )
+        for basis, amount in parts
+    ))
 
 
 def step(kind: str, **fields: Any) -> models.TrajectoryStepView:

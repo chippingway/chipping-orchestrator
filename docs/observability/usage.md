@@ -185,8 +185,10 @@ step reported one; nothing established yet says whether its cache reads are part
 `non_overlapping_total(record)` is the shared way to add the counters up: every observed counter once, a cache counter
 left out only where it sits `within-input` of an input count that was itself observed — a cache count with no
 observed input to hold it is counted on its own. Beside an observed input, a nonzero cache counter of `unknown` overlap
-leaves the total `None`, never guessed either way. A record without `token_evidence` is read with the counters it holds
-and an unknown overlap, so it totals only when none of its cache counters is nonzero.
+leaves the total `None`, never guessed either way. `recorded_tokens(record)` is the evidence a record is read with: the
+`token_evidence` it states, or, for a record without it, the counters it holds and an unknown overlap, so such a record
+totals only when none of its cache counters is nonzero. The trajectory viewer reads each `run_usage` and turn through
+`recorded_cost` and `recorded_tokens` alike.
 
 **Price catalogue.** `prices.py` holds one table of rows per provider — Anthropic, OpenAI, and Gemini — at Standard
 first-party API list rates in USD per million tokens, each row recording the date it was last checked against its

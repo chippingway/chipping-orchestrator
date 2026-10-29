@@ -17,18 +17,13 @@ class ScalarCoercionTest(unittest.TestCase):
         for raw_value, expected in ((7, 7), ("12", 12), ("  9 ", 9)):
             with self.subTest(raw_value=raw_value):
                 self.assertEqual(coercion.coerce_int(raw_value), expected)
-        for raw_float, expected_float in ((1, 1.0), (0.25, 0.25), (" 0.5 ", 0.5)):
-            with self.subTest(raw_value=raw_float):
-                self.assertEqual(coercion.coerce_float(raw_float), expected_float)
 
     def test_an_unreadable_number_is_absent(self) -> None:
-        # Absent rather than zero: a cost the reader cannot parse is unpriced,
-        # and a 0 would be summed into the page's total as if the run had been
-        # free.
+        # Absent rather than zero: a turn index or a review round the reader
+        # cannot parse is no index, never the first one.
         for raw_value in ("free", None, [], "1.2.3"):
             with self.subTest(raw_value=raw_value):
                 self.assertIsNone(coercion.coerce_int(raw_value))
-                self.assertIsNone(coercion.coerce_float(raw_value))
 
     def test_a_bool_is_not_a_number(self) -> None:
         # `True` is an `int` in Python, so a corrupt record carrying one where
@@ -36,7 +31,6 @@ class ScalarCoercionTest(unittest.TestCase):
         for raw_value in (True, False):
             with self.subTest(raw_value=raw_value):
                 self.assertIsNone(coercion.coerce_int(raw_value))
-                self.assertIsNone(coercion.coerce_float(raw_value))
 
     def test_an_absent_text_field_is_empty(self) -> None:
         # The page never has to guard a body or a name against `None`.

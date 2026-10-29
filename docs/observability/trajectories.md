@@ -402,12 +402,25 @@ kind needs no viewer change. `is_fixture` flags the synthetic test-suite records
 carry (the sentinel prompt `ignored`, a `sess-*` session id, or a `Skill`-only run), which
 `filter_runs(exclude_fixtures=True)` drops. Each run also exposes the record's usage: a `run_usage` (`RunUsageView`) run
 summary and a claude-only per-turn `turns` tuple (`TurnUsageView`), with convenience accessors `model` (first of
-`run_usage.models`), `cost_usd` / `cost_source` (the authoritative run figure), `total_tokens`, and an O(1)
+`run_usage.models`), `cost_evidence` (the run's own cost), `total_tokens`, and an O(1)
 `usage_for_turn(idx)` lookup so a `TimelineEntry` (which now carries the producing step's `turn` index) can find its
-turn's usage while walking the timeline; `summarize` adds `total_cost_usd`, the summed run cost over runs that recorded
-one. The sink writes `run_usage` on every record, so one whose summary is missing or not an object is a hand-edited
-or damaged line: it parses with `run_usage=None` and renders without the run-level usage row rather than failing, while
-its per-turn `turns` still read as usual. The codex per-item accounting (`source_items` with its `source_item_counts`
+turn's usage while walking the timeline. Both usage views keep the raw counters beside the `cost_evidence` and
+`token_evidence` the record states, read through the usage owner's `recorded_cost` and `recorded_tokens` — the same
+readers every serialized usage record goes through — so the basis, the `rates_verified_on` dates, each basis's amount,
+the completeness, and the cache overlap all survive the parse, and a record an earlier build wrote reads with an
+`unknown` basis, completeness, and overlap: nothing is inferred from its `cost_source`, backend, or models, and nothing
+reprices it against today's catalogue. A token counter is read with that owner's `is_count`, so one the line carries
+no count for — absent, null, negative, or spelled as a string — is `None` rather than zero. `total_tokens` is the
+non-overlapping total those readers define, `None` where the evidence cannot settle it (a nonzero cache count beside an
+input of unknown overlap, or an observed counter with no count), never input plus every cache counter. The run's cost
+is its own stored amount — a CLI-reported figure stays CLI-reported and is never replaced by its turns' estimates
+summed — while each turn keeps its own API-estimate evidence. `summarize` folds the runs' costs
+with `reduce_costs` into `total_cost` (each basis summed apart, the weakest completeness kept) and counts the runs
+whose cost is `incomplete` (`incomplete_cost_runs`) or states no evidence (`unknown_cost_runs`), so an unpriced or
+unattributed run leaves the total a subtotal rather than a priced zero. The sink writes `run_usage` on every record, so
+one whose summary is missing or not an object is a hand-edited or damaged line: it parses with `run_usage=None`, its
+cost reads as unknown, and it renders without the run-level usage row rather than failing, while its per-turn `turns`
+still read as usual. The codex per-item accounting (`source_items` with its `source_item_counts`
 and `source_items_truncated`) is deliberately **not** projected onto `TrajectoryRun`: the viewer renders what a run
 *did*, while an id-by-id `item_N` coverage audit is a question for the JSONL file itself, so those three keys ride past
 the read model untouched. The
@@ -435,25 +448,50 @@ polling tick) therefore never needs the `dashboard` group — `tests/apps/` guar
 script-launch `sys.path` shape on the viewer's launch path. The layout is intentionally minimal-but-useful: a
 sidebar of filters (plus a *Hide synthetic fixtures*
 toggle that drives the reader's `exclude_fixtures`, off by default), a topbar + five-tile KPI strip (runs / issues /
-repos / tool calls / total cost, the last summed from `summarize`'s `total_cost_usd`), a foldable *Recorded runs*
-overview table (capped at the 200 most recent; collapse the expander to focus on a single run), three cascading run
+repos / tool calls / cost), a foldable *Recorded runs*
+overview table (capped at the 200 most recent, each row carrying the run's non-overlapping token total and its cost;
+collapse the expander to focus on a single run), three cascading run
 pickers (repo → issue → the run's `detail_label` cohort — stage/role · backend · round · timestamp) that
 together still reach every match, and a per-run detail card that lists the offered tools and triggered / available
 skills — the triggered-skills row always renders, marked `none` when no skill fired so a run that used no skill is
 distinguishable from an omitted row, while the offered-tools and available-skills rows are dropped when empty — a
-run-level usage / cost row (model(s), token buckets, turn count, and the authoritative run cost tagged with
-its `cost_source` — the codex surface too), then walks the run's normalised `timeline` as one ordered sequence — the
+run-level usage / cost row (model(s), the non-overlapping token total, a chip for each counter the record observed,
+turn count, the run's own cost with its basis, and the verification date of any estimate's rates — the codex surface
+too), then walks the run's normalised `timeline` as one ordered sequence — the
 redacted prompt, then the interleaved assistant / user text turns, tool calls / results, and any
 `unsupported_item` placeholder (each rendered by its `kind`), then the final output (rendered as markdown; every
 other entry is shown verbatim in a code block). For a claude
-run, a compact per-turn usage strip (model · in / out tokens · cache-read / cache-write · estimated cost, with a
-*cache hit* chip when the turn read from cache) is drawn at each assistant-turn boundary in the timeline; the copy
-states that per-turn figures are claude-only estimates that need not sum to the authoritative run total, and that
-entries without a strip (tool results, user turns) are turn inputs billed on the next turn. A turn no step names — a
+run, a compact per-turn usage strip (model · each counter the turn observed · the turn's own cost on its basis, the
+rates' verification date on hover, with a *cache hit* chip when the turn read from cache) is drawn at each
+assistant-turn boundary in the timeline; the copy states that the run cost is the amount the record stored, never
+repriced, that a CLI-reported amount is not a verified bill and an API token estimate not a charge, that per-turn
+figures are claude-only estimates that need not sum to the run total and never replace it, and that entries without
+a strip (tool results, user turns) are turn inputs billed on the next turn; it also says when the token total is
+unknown, and why, and that Codex's cached tokens are counted once inside its input. An observed counter the line
+carries no count for is drawn as `unknown`, never as a zero. A turn no step names — a
 subagent's closing message, known only from its hand-back — has no boundary to draw a strip at, so its output count
 shows in the run-level row alone. The sink writes the `run_usage` summary on every record, so one whose summary is
 missing or not an object is a hand-edited or damaged line: it renders without the run-level row rather than failing,
 and any per-turn strips its `turns` carry are still drawn.
+
+**How a cost reads on the page.** The cost tile, every table row, the run-level cost chip, and each turn strip spell a
+cost through `observability/trajectory_viewer/cost_text.py`, so a basis reads alike everywhere and an amount never
+appears without it:
+
+| Cost the evidence states | Reads as |
+| --- | --- |
+| `cli-reported`, complete | `$0.83 (CLI-reported)` — what the CLI printed, never a verified bill |
+| one provider's estimate, complete | `$0.40 (Anthropic API token estimate)`, `OpenAI …`, or `Gemini …` |
+| several bases | `$1.23 (blended: CLI-reported $0.83 + Gemini API token estimate $0.40)` |
+| an amount, `incomplete` | `$0.40 (… , incomplete subtotal)` |
+| an amount, `unknown` completeness | `$0.83 (basis unknown, completeness unknown)` for an earlier build's record |
+| no amount | `unpriced` (`incomplete`), `cost unknown` (`unknown`), or `no usage` |
+
+An AGY-only total therefore reads as a Gemini API token estimate — an API comparison basis, never an Antigravity
+charge — and a mixed one as `blended` with each basis's amount beside it. The tile is labelled *Total cost* only where
+the folded cost is complete (or states no amount at all); wherever a run's usage went unpriced or its cost states no
+basis, it is labelled *Cost subtotal* and its foot names the basis and how many runs are `unpriced` or `without a cost
+basis`. Run amounts are formatted to the cent and turn estimates to four decimals.
 The fixtures `is_fixture` flags are tagged in the overview table and the run-level picker (the `[fixture]` prefix rides
 the run option; and the detail card carries
 a notice) so the operator can tell the inherited test-suite records from real runs even with the toggle off. When the

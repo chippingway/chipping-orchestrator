@@ -6,20 +6,19 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.observability.trajectory_viewer import models
+from orchestrator.observability.usage import cost_evidence as usage_cost
 from tests.observability.trajectory_viewer.trajectory_viewer_test_support import (
     ASSISTANT_MESSAGE,
+    CLAUDE_TOKENS,
     TOOL_BASH,
     TOOL_CALL,
     TOOL_RESULT,
+    cost,
     run,
     step,
 )
 
 _MODEL_CLAUDE = "claude-opus-4-8"
-
-_REPORTED = "reported"
-
-_UNKNOWN_PRICE = "unknown-price"
 
 _RUN_COST = 0.83
 
@@ -29,16 +28,27 @@ _INPUT_TOKENS = 12
 
 _OUTPUT_TOKENS = 340
 
+_CACHE_READ_TOKENS = 900
+
+_REPORTED_RUN = cost(usage_cost.COMPLETE, (usage_cost.CLI_REPORTED, _RUN_COST))
+
+_TURN_ESTIMATE = cost(
+    usage_cost.COMPLETE, (usage_cost.ANTHROPIC_API_ESTIMATE, _TURN_COST),
+)
+
+_UNPRICED = cost(usage_cost.INCOMPLETE)
+
 
 def _priced_run_usage() -> models.RunUsageView:
-    """The run summary a claude record carries."""
+    """The run summary a claude record whose CLI reported its cost carries."""
     return models.RunUsageView(
         models=(_MODEL_CLAUDE,),
         turns=2,
         input_tokens=_INPUT_TOKENS,
         output_tokens=_OUTPUT_TOKENS,
-        cost_usd=_RUN_COST,
-        cost_source=_REPORTED,
+        cache_read_tokens=_CACHE_READ_TOKENS,
+        cost_evidence=_REPORTED_RUN,
+        token_evidence=CLAUDE_TOKENS,
     )
 
 
@@ -66,36 +76,36 @@ class RunUsageProjectionTest(unittest.TestCase):
 
     def test_the_summary_is_what_a_run_reports(self) -> None:
         # The first model named is the one the run is attributed to, and the
-        # cost is the provider's own figure rather than a re-add of the turns.
+        # cost is the run's own CLI-reported amount rather than the turns'
+        # estimates re-added.
         metered = run(
             run_usage=_priced_run_usage(),
-            turns=(models.TurnUsageView(turn=0, cost_usd=_TURN_COST),),
+            turns=(models.TurnUsageView(turn=0, cost_evidence=_TURN_ESTIMATE),),
         )
         self.assertEqual(
-            (metered.model, metered.cost_usd, metered.cost_source),
-            (_MODEL_CLAUDE, _RUN_COST, _REPORTED),
+            (metered.model, metered.cost_evidence),
+            (_MODEL_CLAUDE, _REPORTED_RUN),
         )
-        self.assertEqual(metered.total_tokens, _INPUT_TOKENS + _OUTPUT_TOKENS)
+        self.assertEqual(
+            metered.total_tokens,
+            _INPUT_TOKENS + _OUTPUT_TOKENS + _CACHE_READ_TOKENS,
+        )
 
     def test_a_pre_usage_record_degrades_cleanly(self) -> None:
-        # No summary at all: each projection answers with the empty value for
-        # its own type so the page renders a row rather than raising.
+        # No summary at all: nothing states what the run used or cost, so each
+        # projection answers unknown for its own type rather than raising or
+        # reading as free work.
         unmetered = run()
         self.assertEqual(unmetered.model, "")
-        self.assertIsNone(unmetered.cost_usd)
-        self.assertEqual(unmetered.cost_source, "")
-        self.assertEqual(unmetered.total_tokens, 0)
+        self.assertEqual(unmetered.cost_evidence, cost(usage_cost.UNKNOWN))
+        self.assertIsNone(unmetered.total_tokens)
 
     def test_an_unnamed_model_and_unpriced_cost(self) -> None:
         # A summary is present but says less than usual: no model list, and a
-        # cost the pricing tables could not resolve.
-        partial = run(run_usage=models.RunUsageView(
-            cost_usd=None,
-            cost_source=_UNKNOWN_PRICE,
-        ))
+        # cost the price catalogue could not resolve.
+        partial = run(run_usage=models.RunUsageView(cost_evidence=_UNPRICED))
         self.assertEqual(partial.model, "")
-        self.assertIsNone(partial.cost_usd)
-        self.assertEqual(partial.cost_source, _UNKNOWN_PRICE)
+        self.assertEqual(partial.cost_evidence, _UNPRICED)
 
 
 class TurnLookupTest(unittest.TestCase):
@@ -103,11 +113,11 @@ class TurnLookupTest(unittest.TestCase):
 
     def test_a_recorded_turn_is_found_by_index(self) -> None:
         metered = run(turns=(
-            models.TurnUsageView(turn=0, cost_usd=_TURN_COST),
-            models.TurnUsageView(turn=1, cost_source=_UNKNOWN_PRICE),
+            models.TurnUsageView(turn=0, cost_evidence=_TURN_ESTIMATE),
+            models.TurnUsageView(turn=1, cost_evidence=_UNPRICED),
         ))
-        self.assertEqual(metered.usage_for_turn(0).cost_usd, _TURN_COST)
-        self.assertEqual(metered.usage_for_turn(1).cost_source, _UNKNOWN_PRICE)
+        self.assertEqual(metered.usage_for_turn(0).cost_evidence, _TURN_ESTIMATE)
+        self.assertEqual(metered.usage_for_turn(1).cost_evidence, _UNPRICED)
 
     def test_an_unbilled_entry_has_no_turn_usage(self) -> None:
         # A bracket and a tool result carry no turn index, and a codex record
@@ -120,7 +130,9 @@ class TurnLookupTest(unittest.TestCase):
     def test_an_unindexed_turn_is_unreachable(self) -> None:
         # A malformed record whose turn index would not coerce is kept in the
         # tuple the detail card lists, but is not addressable by index.
-        metered = run(turns=(models.TurnUsageView(turn=None, cost_usd=_TURN_COST),))
+        metered = run(turns=(
+            models.TurnUsageView(turn=None, cost_evidence=_TURN_ESTIMATE),
+        ))
         self.assertIsNone(metered.usage_for_turn(0))
         self.assertEqual(len(metered.turns), 1)
 

@@ -14,6 +14,17 @@ which is the spelling the sink writes a step's body under and the one every
 reader here names. Binding the call against that signature is what keeps
 positional construction, keyword construction, and ``inspect.signature`` all
 reporting the one public shape.
+
+The two usage summaries keep the raw counters as the sink wrote them and,
+beside them, what the record states they mean: the ``cost_evidence`` its money
+is stated on and the ``token_evidence`` its counters are read with. A view
+built without either reads the way a record an earlier build wrote does: an
+unknown cost with no amount, and every counter it holds observed with a cache
+overlap nothing establishes. A counter the record carries no count for is
+None rather than zero. The token total is the non-overlapping one the usage
+owner defines, so a cache count is never added on top of an input that already
+holds it, and a total the evidence cannot settle -- an observed counter with no
+count included -- is None rather than a guess either way.
 """
 
 from __future__ import annotations
@@ -23,6 +34,11 @@ from dataclasses import dataclass
 from typing import Any
 
 from orchestrator.observability.trajectory_viewer import constants
+from orchestrator.observability.usage import (
+    cost_evidence as usage_cost,
+    protocol,
+    token_evidence as usage_tokens,
+)
 
 KIND_FIELD = "kind"
 NAME_FIELD = "name"
@@ -47,6 +63,17 @@ TIMELINE_ENTRY_SIGNATURE = inspect.Signature(
         inspect.Parameter(TURN_FIELD, inspect.Parameter.POSITIONAL_OR_KEYWORD, default=None),
     )
 )
+
+# What a view built without evidence reads as: a record that stated none.
+_UNSTATED_COST = usage_cost.CostEvidence(usage_cost.UNKNOWN)
+_TURN_COUNTERS = (
+    protocol.INPUT_TOKENS,
+    protocol.OUTPUT_TOKENS,
+    protocol.CACHE_READ_TOKENS,
+    protocol.CACHE_WRITE_TOKENS,
+)
+_UNSTATED_TURN_TOKENS = usage_tokens.TokenEvidence(_TURN_COUNTERS, usage_tokens.UNKNOWN)
+_UNSTATED_RUN_TOKENS = usage_tokens.TokenEvidence(usage_tokens.COUNTERS, usage_tokens.UNKNOWN)
 
 
 def public_step_content(step: TrajectoryStepView) -> str:
@@ -117,39 +144,58 @@ class TimelineEntry:
 
 @dataclass(frozen=True)
 class TurnUsageView:
-    """Per-turn token usage for one Claude assistant turn."""
+    """Per-turn token usage for one Claude assistant turn, and the turn's own estimate."""
 
     turn: int | None = None
     model: str = ""
-    input_tokens: int = 0
-    output_tokens: int = 0
-    cache_read_tokens: int = 0
-    cache_write_tokens: int = 0
-    cost_usd: float | None = None
-    cost_source: str = ""
+    input_tokens: int | None = 0
+    output_tokens: int | None = 0
+    cache_read_tokens: int | None = 0
+    cache_write_tokens: int | None = 0
+    cost_evidence: usage_cost.CostEvidence = _UNSTATED_COST
+    token_evidence: usage_tokens.TokenEvidence = _UNSTATED_TURN_TOKENS
 
     @property
-    def total_tokens(self) -> int:
-        return self.input_tokens + self.output_tokens + self.cache_read_tokens + self.cache_write_tokens
+    def token_counts(self) -> dict[str, int | None]:
+        return {
+            protocol.INPUT_TOKENS: self.input_tokens,
+            protocol.OUTPUT_TOKENS: self.output_tokens,
+            protocol.CACHE_READ_TOKENS: self.cache_read_tokens,
+            protocol.CACHE_WRITE_TOKENS: self.cache_write_tokens,
+        }
+
+    @property
+    def total_tokens(self) -> int | None:
+        return self.token_evidence.total(self.token_counts)
 
 
 @dataclass(frozen=True)
 class RunUsageView:
-    """Run-level usage summary stored on a trajectory record."""
+    """Run-level usage summary stored on a trajectory record, and the run's own cost."""
 
     models: tuple[str, ...] = ()
     turns: int | None = None
-    input_tokens: int = 0
-    output_tokens: int = 0
-    cached_tokens: int = 0
-    cache_read_tokens: int = 0
-    cache_write_tokens: int = 0
-    cost_usd: float | None = None
-    cost_source: str = ""
+    input_tokens: int | None = 0
+    output_tokens: int | None = 0
+    cached_tokens: int | None = 0
+    cache_read_tokens: int | None = 0
+    cache_write_tokens: int | None = 0
+    cost_evidence: usage_cost.CostEvidence = _UNSTATED_COST
+    token_evidence: usage_tokens.TokenEvidence = _UNSTATED_RUN_TOKENS
 
     @property
-    def total_tokens(self) -> int:
-        return self.input_tokens + self.output_tokens + self.cache_read_tokens + self.cache_write_tokens
+    def token_counts(self) -> dict[str, int | None]:
+        return {
+            protocol.INPUT_TOKENS: self.input_tokens,
+            protocol.OUTPUT_TOKENS: self.output_tokens,
+            protocol.CACHED_TOKENS: self.cached_tokens,
+            protocol.CACHE_READ_TOKENS: self.cache_read_tokens,
+            protocol.CACHE_WRITE_TOKENS: self.cache_write_tokens,
+        }
+
+    @property
+    def total_tokens(self) -> int | None:
+        return self.token_evidence.total(self.token_counts)
 
 
 setattr(TrajectoryStepView, CONTENT_FIELD, property(public_step_content))
