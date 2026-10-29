@@ -473,6 +473,14 @@ subagent's closing message, known only from its hand-back — has no boundary to
 shows in the run-level row alone. The sink writes the `run_usage` summary on every record, so one whose summary is
 missing or not an object is a hand-edited or damaged line: it renders without the run-level row rather than failing,
 and any per-turn strips its `turns` carry are still drawn.
+The fixtures `is_fixture` flags are tagged in the overview table and the run-level picker (the `[fixture]` prefix rides
+the run option; and the detail card carries
+a notice) so the operator can tell the inherited test-suite records from real runs even with the toggle off. When the
+sink is off it renders the opt-in banner and stops; an empty file or an empty filter set renders an explanatory notice
+rather than a blank page. That app file is the only launch path the viewer has. The page
+owners beneath it take Streamlit in as an argument rather than importing it, so none of them puts the `dashboard`
+group behind an import, and the one that reads the trajectory knob reads it off the analytics settings holder the app
+hands down — a caller's world is bound for the page the same way it is for the read.
 
 **How a cost reads on the page.** The cost tile, every table row, the run-level cost chip, and each turn strip spell a
 cost through `observability/trajectory_viewer/cost_text.py`, so a basis reads alike everywhere and an amount never
@@ -483,7 +491,7 @@ appears without it:
 | `cli-reported`, complete | `$0.83 (CLI-reported)` — what the CLI printed, never a verified bill |
 | one provider's estimate, complete | `$0.40 (Anthropic API token estimate)`, `OpenAI …`, or `Gemini …` |
 | several bases | `$1.23 (blended: CLI-reported $0.83 + Gemini API token estimate $0.40)` |
-| an amount, `incomplete` | `$0.40 (… , incomplete subtotal)` |
+| an amount, `incomplete` | `$0.40 (Anthropic API token estimate, incomplete subtotal)` |
 | an amount, `unknown` completeness | `$0.83 (basis unknown, completeness unknown)` for an earlier build's record |
 | no amount | `unpriced` (`incomplete`), `cost unknown` (`unknown`), or `no usage` |
 
@@ -492,11 +500,3 @@ charge — and a mixed one as `blended` with each basis's amount beside it. The 
 the folded cost is complete (or states no amount at all); wherever a run's usage went unpriced or its cost states no
 basis, it is labelled *Cost subtotal* and its foot names the basis and how many runs are `unpriced` or `without a cost
 basis`. Run amounts are formatted to the cent and turn estimates to four decimals.
-The fixtures `is_fixture` flags are tagged in the overview table and the run-level picker (the `[fixture]` prefix rides
-the run option; and the detail card carries
-a notice) so the operator can tell the inherited test-suite records from real runs even with the toggle off. When the
-sink is off it renders the opt-in banner and stops; an empty file or an empty filter set renders an explanatory notice
-rather than a blank page. That app file is the only launch path the viewer has. The page
-owners beneath it take Streamlit in as an argument rather than importing it, so none of them puts the `dashboard`
-group behind an import, and the one that reads the trajectory knob reads it off the analytics settings holder the app
-hands down — a caller's world is bound for the page the same way it is for the read.
