@@ -186,9 +186,10 @@ batch a parked resume delivers, the drift resume, and the fresh spawn a pre-sess
   input. The `documenting` resume, which re-quotes the whole thread under the same bound, records what that prompt
   quoted and nothing its excerpt cut;
 - the record is settled only once the run is back, and only for an outcome that counts the input as delivered: a
-  shutdown kill, a live pause, and a launch the run circuit refused leave it entirely unread, while a timeout, an
-  empty reply, an `ACK:`, and a question park all consume it. Delivery is not resolution — what an agent was handed
-  is a separate question from whether it answered;
+  shutdown kill, a live pause, and a launch the run circuit refused leave it entirely unread -- an implementing report
+  a live hold kept is settled later, from its capture, by its recovery -- while a timeout, an empty reply, an `ACK:`,
+  and a question park all consume it. Delivery is not resolution — what an agent was handed is a separate question
+  from whether it answered;
 - a settlement writes only a cursor ONE reading can vouch for. A cursor spanning two surfaces read a moment apart is
   derived by a merged re-read instead, never by the record;
 - a route that invokes NO developer at all — the `documenting` drift unwind, which changes a label and resets a

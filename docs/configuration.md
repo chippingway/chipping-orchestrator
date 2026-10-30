@@ -1314,6 +1314,10 @@ pinned into an in-flight session — are in
   `discussion` round is running suppresses every disposition below it, so nothing is posted, parked, or written to
   pinned state. The one write a paused run still leaves, in every stage, is its own usage accounting: the exit is
   counted on the per-issue usage counters once as it returns, before the pause is read, and buys the run no replay.
+  An implementing run that finished on its report -- the first implementation, a human-reply resume, or an
+  `/orchestrator continue` retry -- also leaves that report captured (`developer_completion`): once the label comes
+  off, the dispatcher publishes it with no second developer run, settling only what that run was handed
+  ([captured-completion recovery](state-machine/delivery-stages.md#the-captured-completion-recovery-every-dispatch)).
   A discussion round that had just committed the confirmed plan keeps that commit on its branch and has it published
   by the tick after the label comes off, classified against the round anchor the stage wrote before the spawn.
 - `workflow:community_contribution` — Applied automatically (not by an operator) by the per-tick open-PR sweep: any
