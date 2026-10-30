@@ -130,6 +130,11 @@ orchestrator/
   names a usage view pays for the `usage/` package, which is standard-library code and needs no optional group. A cost
   on the page is worded by the dashboard's `cost_text`, the one owner both pages word a basis and its completeness
   through.
+- That owner is also the one reach into `dashboard/` from outside these packages: the workflow's terminal usage
+  receipt (`workflow/engine/issue_usage.py`) words an issue's pinned cost evidence through `cost_text` too, so an
+  amount reads with the same basis and qualifier on the issue thread as on either page. `cost_text` names nothing but
+  `usage/`, so the reach charges the workflow neither Streamlit nor the optional `dashboard` group, and the direction
+  still runs one way: nothing under `dashboard/` reads the workflow back.
 - The two `streamlit run` targets are the one launch path each page has and own nothing the page decides:
   everything they compose is imported inside the pass that reaches it, Streamlit and pandas included, so importing
   an app costs the `sys.path` shim and nothing else.

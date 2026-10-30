@@ -455,7 +455,8 @@ whole window — together with the throughput pair reported beside them, and
 `kpi_strip.py` the strip itself — what one is built from, the window and the one before it it pairs, and the four
 display entries a page opens with: each money tile with a note naming its basis and shortfall, the token tile
 labelled a subtotal where some run's total is unknown, and every move annotated with what it has to be read with.
-Those words are `spend_text.py`'s: on top of `cost_text.py` — the wording both pages share for one cost, a basis
+Those words are `spend_text.py`'s: on top of `cost_text.py` — the wording both pages, and the terminal usage
+receipt the workflow posts on an issue, share for one cost, a basis
 named on every amount, an AGY-only total read as a Gemini API token estimate and never an Antigravity charge, a blended
 one listing each basis's amount, and an incomplete or unknown one qualified as such — it says what only a cohort can:
 that a window held no run (`—`, `no agent runs`) rather than a zero, how many runs left the amount unpriced or partly
