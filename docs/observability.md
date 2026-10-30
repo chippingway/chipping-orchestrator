@@ -178,8 +178,15 @@ complete spend, keep those qualifications on every move against the window befor
 costliest-issues table words each issue's cost the same way and is drawn in the order SQL ranked it, ahead of its cap,
 on every amount the issue's runs state — a subtotal at its known part, an issue stating none last and worded unpriced
 rather than free — and the recent-runs listing and per-issue drill-down word each run's stored cost, an estimate's
-rate dates beside it, never repriced from its tokens. That page carries the module layout, the caching and fan-out
-contracts, the body layout top to bottom, the chart builders and theme owners, and the empty / error banner inventory.
+rate dates beside it, never repriced from its tokens. The stage, review-round, and repository bars and the backend
+cards word each group's spend the same way: its basis and any shortfall under a bar's label or beneath a card's spend,
+a blended amount's parts on hover, in the note closing each chart panel, and on the card, and a group stating no
+amount worded unpriced, no usage, or cost unknown rather than drawn as a zero. The cache and non-cache segments of a
+stage or review-round bar split its stated amount by the runs' declared token share — an allocation, never a measured
+cache charge — leaving the amount of a run whose token total is unknown unsplit, and a backend's cost per token, cost
+per run, and cache share are qualified, or shown as unavailable, wherever the cost or token total behind them falls
+short. That page carries the module layout, the caching and fan-out contracts, the body layout top to bottom, the
+chart builders and theme owners, and the empty / error banner inventory.
 
 ## Usage parser (`orchestrator/observability/usage/`)
 
