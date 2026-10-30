@@ -25,6 +25,7 @@ from orchestrator.observability.dashboard import (
     page_pipeline,
     page_states,
 )
+from tests.observability.analytics import analytics_cohorts as cohort_cases, analytics_usage_cases as cases
 from tests.observability.dashboard.page_render_test_support import (
     LAST_COVERED_DATE,
     THEME,
@@ -42,7 +43,11 @@ _AGENT_RUNS = 57
 
 _DISTINCT_REPOS = 3
 
-_SPEND = 12.5
+# An AGY-only window, whose spend the banner names as a Gemini API token
+# estimate rather than as an Antigravity charge.
+_SPEND = cohort_cases.cohort(cases.GEMINI_ESTIMATE, cases.LATER_GEMINI_ESTIMATE)
+
+_SPEND_TEXT = '<span class="value">$0.32</span><span class="note">Gemini API token estimate</span>'
 
 _WINDOW_DAYS = 7
 
@@ -51,7 +56,7 @@ _WINDOW_DAYS = 7
 _SUMMARY = Summary(
     total_events=_TOTAL_EVENTS,
     distinct_repos=_DISTINCT_REPOS,
-    total_cost_usd=_SPEND,
+    cost=_SPEND,
     total_agent_runs=_AGENT_RUNS,
 )
 
@@ -119,7 +124,7 @@ class RenderTopbarAndMetaTest(unittest.TestCase):
 
         self.assertIn(f"{_DISTINCT_REPOS} repos", banner)
         self.assertIn(f"<{_TOTAL_EVENTS}> events", banner)
-        self.assertIn(f"[[{_SPEND}]]", banner)
+        self.assertIn(_SPEND_TEXT, banner)
 
     def _assert_the_line_names_the_covered_days(self) -> None:
         # The reads below are issued under `ts < end`, so restating `end`
@@ -165,7 +170,7 @@ class RenderDashboardInsightsTest(unittest.TestCase):
         with patch.object(
             insights, _INSIGHTS_ATTRIBUTE, return_value=banners,
         ) as computed:
-            page_pipeline.render_dashboard_insights(modules(st), _SUMMARY, ())
+            page_pipeline.render_dashboard_insights(modules(st), _SUMMARY)
             self.assertEqual(computed.call_args.args, (_SUMMARY,))
         return markup_in(st)
 

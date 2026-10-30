@@ -9,9 +9,11 @@ panels side by side would make that a comparison across two axes rather than a
 reading of one.
 
 Assembly is the whole of what this owner decides. The window is shaped first,
-the stack is added in the mode the page asked for, the cost line is overlaid
-on the secondary axis, and the layout is merged last -- after the traces,
-because the token axis is scaled to the stack that was actually drawn. A
+the stack is added in the mode the page asked for, the days that stack leaves a
+run of unknown token total out of are marked on top of it, the days whose cost
+states no amount are marked on the cost axis' baseline, the cost line is
+overlaid on the secondary axis, and the layout is merged last -- after the
+traces, because the token axis is scaled to the stack that was actually drawn. A
 window with nothing behind it never becomes a figure at all: the shared
 placeholder answers it instead, at the same pinned height, so an empty hero
 panel keeps the slot the drawn one would have taken.
@@ -42,10 +44,14 @@ from orchestrator.observability.dashboard.charts.usage_axis import (
     usage_layout,
 )
 from orchestrator.observability.dashboard.charts.usage_bands import (
-    DailyTokenValues,
+    BackendDailyTokens,
+)
+from orchestrator.observability.dashboard.charts.usage_overlays import (
+    add_unknown_totals_trace,
+    add_unstated_cost_trace,
+    add_usage_cost_trace,
 )
 from orchestrator.observability.dashboard.charts.usage_traces import (
-    add_usage_cost_trace,
     add_usage_stack_traces,
     prepare_usage_data,
 )
@@ -57,7 +63,7 @@ if TYPE_CHECKING:
 def usage_over_time(
     points: Sequence[TimeSeriesPoint],
     *,
-    backend_rows_by_day: DailyTokenValues | None = None,
+    backend_rows_by_day: BackendDailyTokens | None = None,
     mode: str = "type",
     title: str | None = "Spend & token usage over time",
 ) -> go.Figure:
@@ -72,6 +78,8 @@ def usage_over_time(
         )
     figure = go.Figure()
     add_usage_stack_traces(figure, usage, backend_rows_by_day, mode)
+    add_unknown_totals_trace(figure, usage, backend_rows_by_day, mode)
+    add_unstated_cost_trace(figure, usage)
     add_usage_cost_trace(figure, usage)
     figure.update_layout(
         **usage_layout(usage, backend_rows_by_day, mode, title)

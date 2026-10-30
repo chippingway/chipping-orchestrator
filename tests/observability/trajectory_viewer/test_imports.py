@@ -21,8 +21,6 @@ _CONSTANTS_OWNER = "constants"
 
 _CONTROLS_OWNER = "controls"
 
-_COST_TEXT_OWNER = "cost_text"
-
 _CSS_OWNER = "css"
 
 _FILTER_MODELS_OWNER = "filter_models"
@@ -72,7 +70,6 @@ _OWNERS = (
     _COERCION_OWNER,
     _CONSTANTS_OWNER,
     _CONTROLS_OWNER,
-    _COST_TEXT_OWNER,
     _CSS_OWNER,
     _FILTER_MODELS_OWNER,
     _FILTER_VALUES_OWNER,
@@ -119,14 +116,6 @@ _SURFACES = MappingProxyType({
         "render_categorical_filters",
         "render_text_filters",
         "render_trajectory_sidebar",
-    ),
-    _COST_TEXT_OWNER: (
-        "basis_text",
-        "completeness_text",
-        "cost_figure",
-        "cost_text",
-        "fmt_cost_usd",
-        "rates_text",
     ),
     _CSS_OWNER: (),
     _FILTER_MODELS_OWNER: (
@@ -268,11 +257,7 @@ _SURFACES = MappingProxyType({
 # of the same direction: each names what it draws -- the record for `run_html`,
 # `timeline_html`, and `usage_html`, the summary for `summary_html` -- and
 # nothing names them back, while `css` names nothing in the package at all.
-# Each of the three that shows money -- the tile on `summary_html`, the table
-# row on `run_html`, and the run row and turn strip on `usage_html` -- names
-# `cost_text` for its wording rather than spelling a second, and `cost_text`
-# names nothing in the package, so a cost reads alike on every surface without
-# one renderer reaching another. The
+# The
 # page owners close the same direction off at the top: they name the read, the
 # filter, and the markup owners under them and nothing here names them back,
 # with `page_render` the widest chain because it is the composition the rest are
@@ -284,8 +269,7 @@ _PLANTED = MappingProxyType({
     _CONSTANTS_OWNER: (),
     _CONTROLS_OWNER: (
         _CONSTANTS_OWNER,
-        _COST_TEXT_OWNER,
-        _FILTER_MODELS_OWNER,
+            _FILTER_MODELS_OWNER,
         _FILTER_VALUES_OWNER,
         _FILTERING_OWNER,
         _MODELS_OWNER,
@@ -295,7 +279,6 @@ _PLANTED = MappingProxyType({
         _TIMELINE_OWNER,
         _USAGE_OWNER,
     ),
-    _COST_TEXT_OWNER: (),
     _CSS_OWNER: (),
     _FILTER_MODELS_OWNER: (),
     _FILTER_VALUES_OWNER: (
@@ -328,8 +311,7 @@ _PLANTED = MappingProxyType({
     _PAGE_RENDER_OWNER: (
         _COERCION_OWNER,
         _CONSTANTS_OWNER,
-        _COST_TEXT_OWNER,
-        _CSS_OWNER,
+            _CSS_OWNER,
         _FILTER_MODELS_OWNER,
         _FILTER_VALUES_OWNER,
         _LOG_PATHS_OWNER,
@@ -352,8 +334,7 @@ _PLANTED = MappingProxyType({
     _PAGE_SETUP_OWNER: (
         _COERCION_OWNER,
         _CONSTANTS_OWNER,
-        _COST_TEXT_OWNER,
-        _CSS_OWNER,
+            _CSS_OWNER,
         _FILTER_MODELS_OWNER,
         _FILTER_VALUES_OWNER,
         _LOG_PATHS_OWNER,
@@ -378,8 +359,7 @@ _PLANTED = MappingProxyType({
     _PICKER_OWNER: (
         _COERCION_OWNER,
         _CONSTANTS_OWNER,
-        _COST_TEXT_OWNER,
-        _CSS_OWNER,
+            _CSS_OWNER,
         _FILTER_MODELS_OWNER,
         _FILTER_VALUES_OWNER,
         _LOG_PATHS_OWNER,
@@ -409,16 +389,14 @@ _PLANTED = MappingProxyType({
     ),
     _RUN_HTML_OWNER: (
         _CONSTANTS_OWNER,
-        _COST_TEXT_OWNER,
-        _MODELS_OWNER,
+            _MODELS_OWNER,
         _RUNS_OWNER,
         _TIMELINE_OWNER,
         _USAGE_OWNER,
     ),
     _RUN_RENDER_OWNER: (
         _CONSTANTS_OWNER,
-        _COST_TEXT_OWNER,
-        _MODELS_OWNER,
+            _MODELS_OWNER,
         _RUN_HTML_OWNER,
         _RUNS_OWNER,
         _SUMMARIES_OWNER,
@@ -443,8 +421,7 @@ _PLANTED = MappingProxyType({
     ),
     _SUMMARY_HTML_OWNER: (
         _CONSTANTS_OWNER,
-        _COST_TEXT_OWNER,
-        _MODELS_OWNER,
+            _MODELS_OWNER,
         _RUNS_OWNER,
         _SUMMARIES_OWNER,
         _TIMELINE_OWNER,
@@ -460,8 +437,7 @@ _PLANTED = MappingProxyType({
     _TIMELINE_OWNER: (_CONSTANTS_OWNER, _MODELS_OWNER),
     _USAGE_HTML_OWNER: (
         _CONSTANTS_OWNER,
-        _COST_TEXT_OWNER,
-        _MODELS_OWNER,
+            _MODELS_OWNER,
         _RUNS_OWNER,
         _TIMELINE_OWNER,
         _USAGE_OWNER,
@@ -482,8 +458,9 @@ _ALWAYS_PLANTED = frozenset((
 # and what that package plants is its own tests' to declare; what is declared
 # here is which owners reach it at all. Every owner that names the models pays
 # for it, since a usage summary carries its evidence typed by those owners, and
-# so does `cost_text`, which words that evidence; the five below are the ones
-# that name no usage record and stay free of it.
+# so does every owner reaching the dashboard's `cost_text`, which words that
+# evidence; the five below are the ones that name no usage record and stay free
+# of it.
 _USAGE_TREE = "orchestrator.observability.usage"
 
 _USAGE_FREE = frozenset((
@@ -504,8 +481,15 @@ _ANALYTICS_CONFIG = f"{_ANALYTICS_TREE}.config"
 
 _DASHBOARD_FORMATTING = f"{_DASHBOARD_TREE}.formatting"
 
-# What a rendering owner that spells a count or a money figure reaches.
-_FORMATTING_CHAIN = (_DASHBOARD_TREE, _DASHBOARD_FORMATTING)
+_DASHBOARD_COST_TEXT = f"{_DASHBOARD_TREE}.cost_text"
+
+# What a rendering owner that words a cost reaches: the shared owner a cost is
+# worded by on both pages, so a basis reads alike on every surface without one
+# renderer reaching another.
+_COST_TEXT_CHAIN = (_DASHBOARD_TREE, _DASHBOARD_COST_TEXT)
+
+# What a rendering owner that spells a count beside a money figure reaches.
+_FORMATTING_CHAIN = (_DASHBOARD_TREE, _DASHBOARD_COST_TEXT, _DASHBOARD_FORMATTING)
 
 # What a page owner that names both the sink's knob and the shared stylesheet
 # reaches: the configuration owner behind `log_paths`, and the analytics page's
@@ -516,6 +500,7 @@ _PAGE_CHROME_CHAIN = (
     _ANALYTICS_TREE,
     _ANALYTICS_CONFIG,
     _DASHBOARD_TREE,
+    _DASHBOARD_COST_TEXT,
     f"{_DASHBOARD_TREE}.css",
     _DASHBOARD_FORMATTING,
     f"{_DASHBOARD_TREE}.palette",
@@ -529,22 +514,28 @@ _PAGE_CHROME_CHAIN = (
 # the same variable -- and what it names is the settings *view*, not the
 # `settings` holder those values are bound on, which is the distinction the
 # check below turns on: the holder is handed in by the caller, so naming it
-# here would decide for one. Three rendering owners name the theme both
+# here would decide for one. The rendering owners name the theme both
 # Streamlit pages are drawn in: the geometry owner for the font stacks a
-# stylesheet cannot read out of a CSS variable, and the formatting owner for
-# the thousands separators a count is rendered with. Both are plain data, so
-# neither costs the optional dashboard dependency group.
+# stylesheet cannot read out of a CSS variable, the formatting owner for the
+# thousands separators a count is rendered with, and the cost wording every
+# owner showing money reads -- the tile on `summary_html`, the table row on
+# `run_html`, and the run row and turn strip on `usage_html` -- so a basis reads
+# alike on both pages. All three are plain code, so none costs the optional
+# dashboard dependency group.
 # `controls` names that theme's filter-state owner for one thing: the parse
 # that reads `#123` and `123` as the same issue, so both pages accept the
 # spelling an operator types. That owner is typed by the window it also holds,
-# which is what puts one result model from the analytics read behind it -- a
-# dataclass module, so the chain is a shape and not a database driver.
+# which is what puts one result model from the analytics read behind it, and
+# the cost cohort that model's totals are typed by -- dataclass modules, so the
+# chain is a shape and not a database driver.
 _EXTERNAL_CHAINS = MappingProxyType({
     _CONTROLS_OWNER: (
         _ANALYTICS_TREE,
         f"{_ANALYTICS_TREE}.query",
+        f"{_ANALYTICS_TREE}.query.cost_cohorts",
         f"{_ANALYTICS_TREE}.query.overview_models",
         _DASHBOARD_TREE,
+        _DASHBOARD_COST_TEXT,
         f"{_DASHBOARD_TREE}.filters",
         f"{_DASHBOARD_TREE}.windows",
     ),
@@ -553,6 +544,7 @@ _EXTERNAL_CHAINS = MappingProxyType({
     _PAGE_RENDER_OWNER: _PAGE_CHROME_CHAIN,
     _PAGE_SETUP_OWNER: _PAGE_CHROME_CHAIN,
     _PICKER_OWNER: _PAGE_CHROME_CHAIN,
+    _RUN_HTML_OWNER: _COST_TEXT_CHAIN,
     _RUN_RENDER_OWNER: _FORMATTING_CHAIN,
     _SUMMARY_HTML_OWNER: _FORMATTING_CHAIN,
     _USAGE_HTML_OWNER: _FORMATTING_CHAIN,

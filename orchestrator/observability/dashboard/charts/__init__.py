@@ -29,15 +29,20 @@ repository list are the same size card. The fourth runs from ``cost_review``
 into ``cost_stage`` for the shading a cache half is tinted by, so a cache
 segment reads the same on both splits.
 
-The usage family arrives as five owners rather than one, split by what a value
-answers for: ``usage_bands`` for the four bands a day is counted into and the
-roll-up of the series into one bucket per day, ``usage_series`` above it for
-the day span a figure is drawn along, the shapes that span travels in, and the
-height each stack over it reaches, then ``usage_axis`` for the maxima those
-heights are rounded up to and the layout the token and cost scales are
-assembled in, ``usage_traces`` for the window a figure is shaped from and the
-bands and cost line stacked over it, and ``usage`` over all of them for the
-hero figure they are assembled into.
+The usage family arrives as six owners rather than one, split by what a value
+answers for: ``usage_bands`` for the non-overlapping bands a day's known token
+total is counted into, the roll-up of the series into one bucket per day, the
+per-backend totals the second stack is drawn from with that read's own runs of
+unknown total, and the fold of a day's cost cohorts, ``usage_series`` above it for the day span a
+figure is drawn along, the shapes that span travels in, and the height each
+stack over it reaches, then ``usage_axis`` for the maxima those heights are
+rounded up to and the layout the token and cost scales are assembled in,
+``usage_traces`` for the window a figure is shaped from and the bands stacked
+over it, ``usage_overlays`` for what is drawn over that stack -- the marker on
+a day it leaves a run of unknown token total out of, the cost line worded by
+the dashboard's spend wording, and the baseline marker keeping a day whose cost
+states no amount hoverable where the line leaves a gap -- and ``usage`` over all
+of them for the hero figure they are assembled into.
 
 The shared owners sit under the families rather than beside them so the
 dependency runs one way -- a family names them, and they name no family --

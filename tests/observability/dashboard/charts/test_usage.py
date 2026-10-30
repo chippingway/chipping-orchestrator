@@ -10,7 +10,8 @@ from importlib.util import find_spec
 from orchestrator.observability.analytics.query.overview_models import (
     TimeSeriesPoint,
 )
-from orchestrator.observability.dashboard.charts import usage
+from orchestrator.observability.dashboard.charts import usage, usage_bands
+from tests.observability.analytics import analytics_cohorts as cohort_cases, analytics_usage_cases as cases
 
 _SKIP_REASON = "plotly not installed -- run `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with dashboard`"
 
@@ -24,26 +25,30 @@ _AGENT_EXIT = "agent_exit"
 
 _COST_TRACE = "Cost"
 
+_UNKNOWN_TRACE = "Token total unknown"
+
+_CLAUDE = "claude"
+
 # What the hero panel is pinned to (px): the slot above the KPI strip is laid
 # out around it, as opposed to Plotly's own much taller default.
 _HERO_HEIGHT = 330
 
-_COST_USD = 1.2
-
-_INPUT_TOKENS = 1_000
+_KNOWN_TOKENS = 1_500
 
 _OUTPUT_TOKENS = 500
 
+# Two reported days, the second holding a run whose token total is unknown.
 _POINTS = tuple(
     TimeSeriesPoint(
         day=day,
         event=_AGENT_EXIT,
-        count=1,
-        cost_usd=_COST_USD,
-        input_tokens=_INPUT_TOKENS,
+        count=2,
+        cost=cohort_cases.cohort(cases.REPORTED, cases.REPORTED),
+        total_tokens=_KNOWN_TOKENS,
         output_tokens=_OUTPUT_TOKENS,
+        unknown_token_runs=unknown,
     )
-    for day in (_DAY, _NEXT_DAY)
+    for day, unknown in ((_DAY, 0), (_NEXT_DAY, 1))
 )
 
 
@@ -55,15 +60,48 @@ class UsageOverTimeTest(unittest.TestCase):
         # The cost line is added after the bands and rides the axis the layout
         # gave it, so a day's spend is read off the dollar scale over the same
         # x-axis its tokens are stacked on rather than a panel away.
+        # The marker naming a day's stack a subtotal sits between them, on top
+        # of the stack it qualifies.
         figure = usage.usage_over_time(_POINTS)
         names = [trace.name for trace in figure.data]
-        self.assertEqual(names[-1], _COST_TRACE)
-        self.assertGreater(len(names), 1)
+        self.assertEqual(names, ["Uncached input", "Output", "Cache", _UNKNOWN_TRACE, _COST_TRACE])
         cost = next(
             trace for trace in figure.data if trace.name == _COST_TRACE
         )
         self.assertEqual(cost.yaxis, "y2")
         self.assertIsNotNone(figure.layout.yaxis2.range)
+
+    def test_a_backend_subtotal_is_marked(self) -> None:
+        # The per-backend read lands a wave after the series, so a run of
+        # unknown total the series never counted still marks the backend stack
+        # drawn from that read, at the stack's own height.
+        day_tokens = {_DAY: {_CLAUDE: float(_KNOWN_TOKENS)}}
+        backend_rows = usage_bands.BackendDailyTokens(day_tokens, {_DAY: 1})
+        figure = usage.usage_over_time(
+            _POINTS[:1],
+            backend_rows_by_day=backend_rows,
+            mode=usage_bands.BACKEND_MODE,
+        )
+        names = [trace.name for trace in figure.data]
+        self.assertEqual(names, [_CLAUDE, _UNKNOWN_TRACE, _COST_TRACE])
+        self.assertEqual(figure.data[1].y[0], _KNOWN_TOKENS)
+
+    def test_an_unpriced_day_is_marked_apart(self) -> None:
+        # The cost line leaves the unpriced day as a gap, and the marker that
+        # keeps its reading hoverable is drawn beneath the line rather than
+        # joined into it.
+        unpriced = TimeSeriesPoint(
+            day=_NEXT_DAY,
+            event=_AGENT_EXIT,
+            count=1,
+            cost=cohort_cases.cohort(cases.UNPRICED),
+            total_tokens=_KNOWN_TOKENS,
+        )
+        figure = usage.usage_over_time((_POINTS[0], unpriced))
+        names = [trace.name for trace in figure.data]
+        self.assertEqual(names, ["Uncached input", "Output", "Cache", "Cost not stated", _COST_TRACE])
+        cost = figure.data[-1]
+        self.assertIsNone(cost.y[-1])
 
     def test_a_window_with_no_rows_is_the_placeholder(self) -> None:
         figure = usage.usage_over_time(())

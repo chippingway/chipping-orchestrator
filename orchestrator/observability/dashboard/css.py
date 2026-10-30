@@ -129,6 +129,12 @@ PAGE_CSS = f"""
     letter-spacing: -0.01em;
     font-family: {MONO_FONT_FAMILY};
   }}
+  /* What the spend figure is stated on and why it falls short of
+     complete spend, set under it so neither is read without the other. */
+  .orch-spend .note {{
+    color: var(--orch-muted); font-size: 11px; text-align: right;
+    max-width: 420px; font-family: {MONO_FONT_FAMILY};
+  }}
   /* Filter bar ("Date range" card): the white fill / border / radius
      now come from the shared `.orch-cardmark` card rule below -- the
      dashboard renders a hidden `.orch-cardmark` as this container's
@@ -209,6 +215,10 @@ PAGE_CSS = f"""
     letter-spacing: -0.02em; margin: 8px 0 4px;
     font-variant-numeric: tabular-nums;
     font-family: {MONO_FONT_FAMILY}; line-height: 1.1;
+  }}
+  .orch-kpi .kpi-note {{
+    color: var(--orch-muted); font-size: 11px; margin: 0 0 4px;
+    font-family: {MONO_FONT_FAMILY};
   }}
   .orch-kpi .kpi-foot {{
     display: flex; align-items: flex-end; justify-content: space-between;

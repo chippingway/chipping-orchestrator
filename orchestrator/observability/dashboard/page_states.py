@@ -10,8 +10,9 @@ above it were measured over.
 
 The two states are dead ends of different kinds. A database holding nothing at
 all has no extent to pick a window from, so there is no filter bar to offer:
-the banner is drawn with its counts zeroed and the script is stopped where it
-stands. A window that merely matched nothing still has a page around it, so
+the banner is drawn with its counts zeroed, its spend the empty cohort that
+reads as no agent runs rather than as a spend of zero, and the script is
+stopped where it stands. A window that merely matched nothing still has a page around it, so
 that one keeps the chrome already rendered above it and hands the page on to
 the trace at the foot of it -- an operator narrowing to one issue is exactly
 who lands on an empty window, and that trace is scoped by the issue rather than
@@ -35,6 +36,7 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Any
 
+from orchestrator.observability.analytics.query.cost_cohorts import EMPTY_COST_COHORT
 from orchestrator.observability.analytics.query.overview_models import (
     DataExtent,
     Summary,
@@ -81,8 +83,7 @@ def render_no_data(*, st: Any, extent: DataExtent, theme: Any) -> None:
             extent=extent,
             distinct_repos=0,
             total_events=0,
-            spend_in_range=float(0),
-            fmt_money_exact=theme.fmt_money_exact,
+            spend_in_range=EMPTY_COST_COHORT,
             fmt_num=theme.fmt_num,
         ),
         unsafe_allow_html=True,

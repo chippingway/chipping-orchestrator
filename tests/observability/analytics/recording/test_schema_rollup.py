@@ -62,6 +62,7 @@ _EVIDENCE_AGGREGATES = (
     *_RATE_DATE_ARRAYS,
     "total_tokens",
     "cache_tokens_in_total",
+    "output_tokens_in_total",
     "total_tokens_unknown_runs",
 )
 
@@ -257,11 +258,13 @@ class AnalyticsDailyRollupAggregationTest(unittest.TestCase):
     def test_tokens_keep_the_unknown_beside_the_known(self) -> None:
         # A sum of the known totals is a subtotal wherever a run's total is
         # unknown, so the count of those runs rides beside it, and the cache
-        # tokens a share of the total divides are those inside known totals.
+        # and output tokens a split of the total stacks are those inside known
+        # totals.
         body = _rollup_view_body()
         for pattern in (
             r"SUM\(total_tokens\)\s+AS\s+total_tokens",
             r"WHEN total_tokens IS NOT NULL THEN COALESCE\(cached_tokens, 0\)",
+            r"WHEN total_tokens IS NOT NULL THEN COALESCE\(output_tokens, 0\) END\)\s+AS\s+output_tokens_in_total",
             _UNKNOWN_TOTAL_RUNS_PATTERN,
         ):
             with self.subTest(pattern=pattern):

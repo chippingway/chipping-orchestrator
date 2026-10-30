@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.observability.trajectory_viewer import cost_text
+from orchestrator.observability.dashboard import cost_text
 from orchestrator.observability.usage import cost_evidence as usage_cost
 from tests.observability.trajectory_viewer.trajectory_viewer_test_support import (
     cost,

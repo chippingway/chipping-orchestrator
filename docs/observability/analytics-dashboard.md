@@ -143,19 +143,29 @@ viewer's wording or any other reader of a `CostEvidence` words a cohort as it wo
 summed amount would merge stay apart: an empty cohort (`is_empty`, no run at all), a complete zero (a `complete` cost
 summing to `0`), an incomplete subtotal (`incomplete`, its known amounts beside runs that stated none, `complete_usd`
 `None`), and an amount with no stated basis (under the `unknown` basis, completeness `unknown`). A row narrower than
-the cells raises. `token_totals.py` spells the token reduction for the same three targets: each fragment selects the
+the cells raises. `fold_cohorts` regroups cohorts read apart — a window's days, or one day's events — the way their
+runs fold: counts added, evidence reduced by `reduce_costs`, so the fold answers what one cell over all their runs
+would; `EMPTY_COST_COHORT` is the fold of none, the empty cohort a window with no run reads as.
+`token_totals.py` spells the token reduction for the same three targets: each fragment selects the
 summed known non-overlapping totals and the runs whose total is unknown, so a known subtotal never reads as the whole;
 on the events table only an `agent_exit` row counts as a run. Neither reprices anything: amounts are the recorded ones.
 
-- `get_summary` (rollup) — date-bounded totals + per-event / per-stage breakdowns + token / cost sums, plus
-  `total_agent_runs` / `failed_agent_runs` / `timed_out_agent_runs` scoped to `event='agent_exit'`. `distinct_issues` is
-  `COUNT(DISTINCT (repo, issue))`. Single round-trip via `WITH win AS (...)` CTE with three `UNION ALL` branches tagged
-  by a `kind` discriminator.
-- `get_kpi_prev` (rollup) — stripped variant of `get_summary` returning only the cost / token / agent-run scalars the
-  dashboard reads off `prev_summary` for KPI deltas. Skips the `COUNT(DISTINCT)`s and `GROUP BY` follow-ups; ~one
-  aggregate scan instead of three.
-- `get_time_series` (rollup) — daily `(day, event, count)` rollups with per-cell cost / input / output / cache_read /
-  cache_write token aggregates.
+- `get_summary` (rollup) — date-bounded totals + per-event / per-stage breakdowns, plus `total_agent_runs` /
+  `failed_agent_runs` / `timed_out_agent_runs` scoped to `event='agent_exit'`. `distinct_issues` is
+  `COUNT(DISTINCT (repo, issue))`. Spend is the window's `cost` cohort (`ROLLUP_COST_COHORT_SQL`) and tokens the runs'
+  summed non-overlapping `total_tokens` with `unknown_token_runs` beside them (`ROLLUP_TOKEN_TOTAL_SQL`) — never
+  `SUM(total_cost_usd)` or a sum of the raw token columns, which would merge bases and completeness and count a Codex
+  run's cached input twice. Single round-trip via `WITH win AS (...)` CTE with three `UNION ALL` branches tagged by a
+  `kind` discriminator, the breakdown branches padding every cohort and token cell with a NULL.
+- `get_kpi_prev` (rollup) — stripped variant of `get_summary` returning only the agent-run count, the `cost` cohort, and
+  the token total with its unknown runs the dashboard reads off `prev_summary` for KPI deltas, through the same two
+  reductions, so a comparison can say what both windows state. Skips the `COUNT(DISTINCT)`s and `GROUP BY` follow-ups;
+  ~one aggregate scan instead of three.
+- `get_time_series` (rollup) — daily `(day, event, count)` rollups with each cell's `cost` cohort, its known
+  non-overlapping `total_tokens` and `unknown_token_runs`, and the `cache_tokens` and `output_tokens` inside that known
+  total (the rollup's `cache_tokens_in_total` and `output_tokens_in_total`), from which `uncached_input_tokens` is the
+  rest: the three bands a token stack draws add up to the known total, so cache-inclusive input is never stacked with
+  the same cache tokens again.
 - `get_stage_breakdown` (rollup) — per-stage counts + weighted `AVG(duration_s)` recovered as `SUM(duration_s_sum) /
   NULLIF(SUM(duration_s_count), 0)`, rolled-up cost / token totals, and a `runs` agent-exit subset count. The total cost
   is further split into cache vs no-cache (`cache_cost_usd` + `no_cache_cost_usd`); each rollup row's `total_cost_usd`
@@ -399,27 +409,38 @@ lives beside them: `scoped_reads.py` for the thread's analytics connection it is
 for the filters its cache key is read back as, and `static_metadata.py` for the extent and filter vocabulary a page
 opens on, the TTL both are cached for, and the banner a failed one stops the run with. Above every panel that wave
 feeds, `insights.py` holds the two observations a window is worth interrupting for — runs exiting non-zero, and runs
-the parser could not price — the ratio each is raised at, and the banner line a crossing is rendered as; directly
+whose cost evidence is `incomplete`, read off the window's own cost cohort rather than the `cost_source` tags — the
+ratio each is raised at, and the banner line a crossing is rendered as; directly
 beneath those, `kpis.py` holds the four numbers the headline tiles report — the move against the window before it,
 the run-health tiles, the order and depth a spend table is cut to, and the share of spend that was a second pass.
-Beside it, `kpi_series.py` holds the per-day spend, token, and resolved lines drawn under three of those tiles,
-together with the two token totals they are counted by and the throughput pair reported beside them, and
-`kpi_strip.py` the strip itself — what one is built from, the scalars a window and the one before it are reduced to,
-and the four
-display entries a page opens with. `sparkline_points.py` and `sparkline_html.py` are how one of those lines reaches
+Beside it, `kpi_series.py` holds the per-day spend, token, and resolved lines drawn under three of those tiles —
+a day's stated amount with every basis added and its runs' known token totals, the readings the tiles report for the
+whole window — together with the throughput pair reported beside them, and
+`kpi_strip.py` the strip itself — what one is built from, the window and the one before it it pairs, and the four
+display entries a page opens with: each money tile with a note naming its basis and shortfall, the token tile
+labelled a subtotal where some run's total is unknown, and every move annotated with what it has to be read with.
+Those words are `spend_text.py`'s: on top of `cost_text.py` — the wording both pages share for one cost, a basis
+named on every amount, an AGY-only total read as a Gemini API token estimate and never an Antigravity charge, a blended
+one listing each basis's amount, and an incomplete or unknown one qualified as such — it says what only a cohort can:
+that a window held no run (`—`, `no agent runs`) rather than a zero, how many runs left the amount unpriced or partly
+priced or stated no cost evidence, the bases alone where a figure is a ratio of the total, and what a move between two
+windows keeps — `subtotal`, `completeness unknown`, `blended`, or `bases differ`. `sparkline_points.py` and
+`sparkline_html.py` are how one of those lines reaches
 the tile above it — three of the strip's four tiles carry one. The first places each day in a box too narrow for an
 axis, scaled to the window's own range, floored at an epsilon where a window has none, and left unprojected where the
 window reported nothing at all; the second writes that projection as one polyline and the same trace closed along the
 bottom edge of the box into the tint under it, holds the tile's room with an empty box where there was nothing to
 project, and binds the `values` / `color` / `w` / `h` surface a caller asks for one through.
-`summary_html.py` is the band that strip sits in — the banner naming what the database holds, the line under the
-filter bar restating what a run narrowed it to, the pill one tile's move against the window before it is annotated
-with, and the four tiles assembled around them. A rise reads red and a drop green, because these numbers are costs;
+`summary_html.py` is the band that strip sits in — the banner naming what the database holds and the window's spend
+with its note, the line under the filter bar restating what a run narrowed it to, the pill one tile's move against the
+window before it is annotated with, the note it carries inside it, and the four tiles assembled around them. A rise
+reads red and a drop green, because these numbers are costs;
 `invert` swaps the hue for the readings where up is the good direction without moving the arrow off the value's sign,
 and a window with nothing to compare against or one that did not move renders no pill at all. What reaches the markup
-as caller text is escaped — the banner's span label and spend figure, and each tile's label, value, and sub-line —
-while the counts beside them and the filter line's own dates carry nothing to escape; the pill's `value` keyword and the
-banner's six keyword-only readings are bound as explicit signatures so both still answer the call every caller spells.
+as caller text is escaped — the banner's span label, spend figure, and spend note, and each tile's label, value,
+note, sub-line, and pill note — while the counts beside them and the filter line's own dates carry nothing to escape;
+the pill's `value` keyword and the banner's five keyword-only readings are bound as explicit signatures so both still
+answer the call every caller spells.
 `card_html.py` is what the banners and the run-health tiles reach the browser as, together with the header every panel
 beneath them is titled by: the hidden mark `css.py` selects a card's container by, the banner stack whose severity
 picks a class and a glyph, and the reliability strip whose numbers the calling page's own formatter renders.
@@ -496,7 +517,10 @@ them. Streamlit reruns the whole script on every interaction, so the picked mode
 state under a key apart from the radio's own and the radio is seeded from it by index, since the widget takes an
 option's position rather than its value. The per-backend rows are totalled per day here — the same `(day, backend)`
 cell can arrive more than once, and only when the backend stack is the one being drawn, because the token-type bands
-already ride on the time-series points.
+already ride on the time-series points — into a `BackendDailyTokens`: each day's known totals per backend, with that
+read's own count of the day's runs whose total is unknown beside them. The per-backend read is issued in the second
+wave and the series in the first, so a sync landing between them can leave the two disagreeing about a day; the
+marker over the per-backend stack is therefore counted off the rows that stack was drawn from.
 Two more panels are drawn as markup rather than as a figure: `backend_card.py` for what a run on one backend
 is worth — the cost of a million tokens, the cost of a run, and the share of billable input the cache answered, each
 divided through one guard so a window a backend barely ran in reads zero rather than raising — and `coverage_card.py`
@@ -542,9 +566,9 @@ family is built out of, `cost_layout.py` the frame the horizontal cost families 
 generic spend ranking, `cost_repo.py` the per-repository one drawn through it, `cost_stage.py` the per-stage cache
 split, `cost_review.py` the per-review-round one beside it, `heatmap.py` the weekday-by-hour grid,
 `throughput.py` the per-day resolved-issue strip, and
-`usage_bands.py` / `usage_series.py` / `usage_axis.py` / `usage_traces.py` / `usage.py` the bands, day span, stack
-heights, aligned axes, traces, and assembled hero figure the usage family draws its reads as (see **Chart builders**
-below).
+`usage_bands.py` / `usage_series.py` / `usage_axis.py` / `usage_traces.py` / `usage_overlays.py` / `usage.py` the
+bands, day span, stack heights, aligned axes, stack, overlays, and assembled hero figure the usage family draws its
+reads as (see **Chart builders** below).
 Nothing above these owners re-exports them: the page names each where it is defined, so a name has one home and a
 mock has one place to land. Streamlit is never imported in these
 helpers — `st`, the theme, and the pandas handle beside them are passed in as parameters, and the figures are the
@@ -553,7 +577,8 @@ chart owners' own rather than a handle threaded down.
 Setup and launch commands are in the [developer guide](../development.md#analytics-sync-and-dashboard).
 
 **Page chrome.** A sticky topbar carries the page title with the data extent / repo / event summary on the left and the
-in-range spend pill on the right. A sticky filter bar exposes `3D` / `7D` / `30D` / `All` inline presets (anchored at
+in-range spend on the right, its note naming the basis — a blended total's parts listed — and any shortfall beneath it.
+A sticky filter bar exposes `3D` / `7D` / `30D` / `All` inline presets (anchored at
 the data extent's max timestamp and clamped to its min) plus two date inputs for arbitrary windows within the extent.
 The sidebar surfaces a `Custom` preset fallback, a repo selector, event / stage multi-selects, and a `#123` / `123`
 issue-number input.
@@ -569,7 +594,8 @@ ingests new events.
 **Two-wave loading.** The 16 widget reads are staged into two waves by `dashboard/read_plan.py`:
 
 - **First wave (6 reads).** `summary`, `prev_summary`, `ts_points`, `review_round_rows`, `throughput_rows`,
-  `cost_coverage_rows` — feeds the topbar, filter meta, insight banners, and KPI strip.
+  `cost_coverage_rows` — feeds the topbar, filter meta, insight banners, and KPI strip, with `cost_coverage_rows`
+  riding in this wave for the coverage bar drawn below, since the unpriced banner reads the summary's cost cohort.
 - **Second wave (10 reads).** `stage_rows`, `agent_exits`, `issues_rows`, `backend_rows`, `repo_rows`, `heatmap_rows`,
   `backend_daily_rows`, `skill_adoption_rows`, `skill_rows`, `skill_matrix_rows` — feeds the rest of the body.
 
@@ -580,10 +606,18 @@ either wave surfaces as one `st.error` + `st.stop`.
 
 **Body layout, top to bottom:**
 
-1. Computed insight banners (failure rate ≥ 10 %, unpriced cost coverage ≥ 10 %).
-2. Four-tile KPI strip — total spend, total tokens (`input + output + cache_read + cache_write`), cost / resolved
-   issue, rework share — each with an inline-SVG sparkline and previous-window delta where applicable.
-3. Hero `usage_over_time` stacked-area + cost-line chart with a "By token type / By backend" toggle.
+1. Computed insight banners (failure rate ≥ 10 %, runs unpriced or only partly priced ≥ 10 %).
+2. Four-tile KPI strip — total spend, total tokens (the runs' known non-overlapping totals), cost / resolved issue,
+   rework share — each with an inline-SVG sparkline and previous-window delta where applicable. The money tiles carry
+   their basis and shortfall beneath the figure, the token tile says `subtotal` where a run's total is unknown, and a
+   delta between subtotals, blended totals, or windows on different bases is annotated rather than bare.
+3. Hero `usage_over_time` stacked-area + cost-line chart with a "By token type / By backend" toggle. The token-type
+   stack is uncached input, output, and cache inside each day's known total; a day leaving a run of unknown total out
+   is marked on top of its stack, counted by the read that stack was drawn from, and the cost line's hover words each
+   day as the headline does, a day short of complete spend drawn open, an unpriced one left as a gap, and a day only
+   the per-backend read saw left as a gap rather than as a day with no run. Since Plotly neither draws nor hovers a
+   gap, each day whose cost states no amount is marked with a cross on the cost axis' baseline, legended "Cost not
+   stated", whose hover says why — unpriced, cost unknown, or "no cost reading for this day".
 4. Side-by-side `cost_by_stage` and `cost_by_review_round` cards; the stage card stacks each stage bar into no-cache +
    cache cost, and the review-round card groups development and review cost bars per round with each role's bar further
    stacked into no-cache + cache cost — so the operator can see how much per-stage and per-round spend still bypasses
@@ -727,23 +761,36 @@ and an adapter like `charts/cost_repo.py`, which only shapes rows and hands them
 at all -- `from __future__ import annotations` leaves its `go.Figure` return annotation unevaluated. Either way every
 owner there stays importable without the optional `dashboard` dependency group. The usage family's own shaping sits
 beside those primitives:
-`orchestrator/observability/dashboard/charts/usage_bands.py` holds the four bands a day is counted into, the mode its
-stack is switched with, the `DailyTokenValues` table they are accumulated in, and the roll-up of a `TimeSeriesPoint`
-series into one bucket per day, while `orchestrator/observability/dashboard/charts/usage_series.py` holds the day span
-that roll-up produced, the `UsageChartData` / `UsageAxisRanges` shapes it travels in, the completion that gives a day
+`orchestrator/observability/dashboard/charts/usage_bands.py` holds the bands a day is counted into — the uncached
+input, output, and cache inside each point's known non-overlapping total, the stated cost, and the runs whose token
+total is unknown — the mode its stack is switched with, the `DailyTokenValues` table they are accumulated in, the
+`BackendDailyTokens` mapping the per-backend stack is drawn from together with that read's own unknown-total runs per
+day, the roll-up of a `TimeSeriesPoint` series into one bucket per day and the series' own unknown-total runs per day,
+the fold of a day's cost cohorts, and where a day's cost line point sits (its stated amount, zero where there was
+nothing to price, a gap where its usage went unpriced), while
+`orchestrator/observability/dashboard/charts/usage_series.py` holds the day span
+that roll-up produced, the `UsageChartData` / `UsageAxisRanges` shapes it travels in with each day's cost cohort and
+the unknown-total runs of the read the drawn stack came from, the completion that gives a day
 only the per-backend read saw a bucket of its own, and the height each mode measures a stack by. Above that pair,
 `orchestrator/observability/dashboard/charts/usage_axis.py` holds the step count and pinned height the hero panel is
 drawn at, the rounding that raises each maximum to a number the axis divides into equal steps, and the layout the
 token and cost scales are assembled in -- both from zero and both cut into the same steps, so one horizontal rule
 means something on either scale, with only the token axis drawing the rules -- and
-`orchestrator/observability/dashboard/charts/usage_traces.py` holds what is drawn against them: the shaping that
-answers a window holding nothing with no chart at all, the band a stack is added one of at a time, the two modes it is
-stacked in, and the cost line overlaid on the secondary axis. Over all four,
+`orchestrator/observability/dashboard/charts/usage_traces.py` holds the stack drawn against them: the shaping that
+answers a window holding nothing with no chart at all, the band a stack is added one of at a time, and the two modes it
+is stacked in, while `orchestrator/observability/dashboard/charts/usage_overlays.py` holds what is drawn over the
+stack rather than in it: the open marker on top of each day whose stack leaves out a run of unknown token total, and
+the cost line on the secondary axis, whose hover words each day through `spend_text` and whose marker is drawn open
+for a day short of complete spend — and for a day the series never reached, which has no cost reading and is a gap
+rather than the zero an empty cohort plots at — together with the cross on the cost axis' baseline that keeps every
+gap's reading hoverable, since Plotly drops a gap from the hover. Over all five,
 `orchestrator/observability/dashboard/charts/usage.py` is the assembly `usage_over_time` returns -- the window shaped,
-the stack added in the mode the page asked for, the cost line overlaid, and the layout merged last so the token axis
+the stack added in the mode the page asked for, the subtotal marker, the unstated-cost marker, and the cost line
+overlaid, and the layout merged
+last so the token axis
 is scaled to the stack that was actually drawn, or the shared placeholder at the same pinned height when the shaping
 came back with nothing to draw -- with the `backend_per_day` stub published beside it. The hero card names that one
-owner and the four beneath it are reached through it. No module on that path names
+owner and the five beneath it are reached through it. No module on that path names
 Plotly at module scope, so the whole usage family imports in the default install -- and so
 does every other chart family.
 The compact table the most-expensive-issues and skill-trigger-rates panels — and the two sortable skill panels named
@@ -762,7 +809,8 @@ the box, the empty box a window with nothing to draw still holds, and the histor
 `values` / `color` / `w` / `h` surface a caller asks for one through. The chrome around that strip — the topbar, the
 filter-meta line, the delta pill one tile is annotated
 with, and the strip itself — is `observability/dashboard/summary_html.py`, which reaches the sparkline owner directly
-for the line a tile carries. The bar the filter line sits under is `observability/dashboard/date_controls.py` for
+for the line a tile carries and `observability/dashboard/spend_text.py` for the words the topbar's spend is qualified
+by. The bar the filter line sits under is `observability/dashboard/date_controls.py` for
 the five slots it is laid
 out across, the label naming it, and the presets it offers inline, and
 `observability/dashboard/date_filter.py` for the window a preset opens its pickers on, the inclusive days they hand
@@ -859,7 +907,9 @@ as a labeled banner.
 - `Analytics query failed: …` (top-level `st.error`, app stops) — *DB schema / I/O* — A read query raised
   mid-render. Most commonly the `analytics_events` table is missing — either the volume is fresh and the init script
   has not been applied (`docker compose down && docker compose up -d`) or a manual schema reapply is needed (see
-  [Service layout](analytics-database.md#service-layout)).
+  [Service layout](analytics-database.md#service-layout)). After a package upgrade it is usually a rollup built under
+  an earlier schema, whose columns the overview reads in its first wave: rebuild it as
+  [Upgrading an existing database](analytics-database.md#upgrading-an-existing-database) describes.
 - `No analytics events have been recorded yet. …` (top-level `st.info`, app stops) — *data* — The
   `analytics_events` table holds zero rows. Confirm the JSONL sink is on (`ANALYTICS_LOG_PATH`), that recent workflow
   activity produced records, and run analytics sync to populate Postgres.

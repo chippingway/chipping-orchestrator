@@ -191,12 +191,14 @@ _OWNERS = _MODEL_OWNERS + (
 # the catalog scan and the level lookup an unclassified load is filled from,
 # and the payload coercion, cohort, and ranking all of them share. Beneath the
 # spend and token reads, the cost-cohort owner is the cohort a reduced cost is
-# read back as and the one reading that builds it. Constants -- the rollup view
+# read back as, the one reading that builds it, the fold that regroups cohorts
+# read apart, and the empty cohort that fold of none is -- reported because it is
+# an instance of the cohort class, whose `__module__` it carries. Constants -- the rollup view
 # name, the two request field names, the `result` attribute name, the
 # filter-option columns, the two sort modes, the terminal throughput stages,
 # the token-share fragments, the cost-cohort and token-total fragments, the
 # finished-run condition, the two skill row caps, the session column offsets,
-# the summary cast list, and the signatures themselves -- are not reported
+# the summary count fields, and the signatures themselves -- are not reported
 # here: the check reads `__module__`, which only a class or function carries,
 # which is why the token-share and token-total owners declare an empty
 # surface.
@@ -355,6 +357,7 @@ _SURFACES = MappingProxyType({
     _TIME_SERIES_OWNER: (
         "time_series_from_row",
         "time_series_rows",
+        "time_series_sql",
     ),
     _STAGE_BREAKDOWNS_OWNER: (
         "stage_breakdown_from_row",
@@ -442,7 +445,9 @@ _SURFACES = MappingProxyType({
     _CACHE_SHARES_OWNER: (),
     _COST_COHORTS_OWNER: (
         "CostCohort",
+        "EMPTY_COST_COHORT",
         "cost_cohort",
+        "fold_cohorts",
     ),
     _TOKEN_TOTALS_OWNER: (),
     _ROW_CELLS_OWNER: (
@@ -459,6 +464,14 @@ _REACHABLE_PREFIXES = (
     "orchestrator.observability",
     "orchestrator._package",
 )
+
+# The sibling a result family is typed by, where it has one, and the package
+# that sibling's evidence is read from.
+_MODEL_SIBLINGS = MappingProxyType({
+    _OVERVIEW_MODELS_OWNER: frozenset((f"{_PACKAGE}.{_COST_COHORTS_OWNER}",)),
+})
+
+_USAGE_TREE = "orchestrator.observability.usage"
 
 # Everything an import inside this tree plants before the owner's own module:
 # the root package and the three above the owner. A result model is what the
@@ -538,16 +551,23 @@ class ResultModelImportCostTest(unittest.TestCase):
     Not a weaker restatement of the layering check above: that one bounds
     where an owner may reach, while a page or a test that only consumes the
     rows must not pay for a connection factory, the configuration behind an
-    omitted `db_url=`, or the driver those two stand in front of.
+    omitted `db_url=`, or the driver those two stand in front of. The overview
+    models are the one family typed by a sibling: a window's spend is a cost
+    cohort, whose evidence is the usage owner's -- plain code with none of the
+    three behind it, so that family pays for the cohort owner and the usage
+    package and nothing else.
     """
 
     def test_a_model_owner_costs_its_chain_only(self) -> None:
         for owner in _MODEL_OWNERS:
+            planted = _imported_orchestrator_modules(_qualified(owner))
+            usage = {name for name in planted if name.startswith(_USAGE_TREE)}
             with self.subTest(owner=owner):
                 self.assertEqual(
-                    _imported_orchestrator_modules(_qualified(owner)),
-                    _PACKAGE_CHAIN | {_qualified(owner)},
+                    planted - usage,
+                    _PACKAGE_CHAIN | {_qualified(owner)} | _MODEL_SIBLINGS.get(owner, frozenset()),
                 )
+                self.assertEqual(bool(usage), owner in _MODEL_SIBLINGS)
 
 
 if __name__ == "__main__":

@@ -364,9 +364,11 @@ CREATE OR REPLACE AGGREGATE analytics_rate_dates(DATE[]) (
 -- across rollup rows; and the tokens -- `total_tokens` summing the
 -- runs whose non-overlapping total is known, `cache_tokens_in_total`
 -- the cache counters inside those totals (the numerator a cache share
--- of them needs), and `total_tokens_unknown_runs` counting the
--- `agent_exit` rows whose total is not, so a known subtotal never reads
--- as the whole.
+-- of them needs), `output_tokens_in_total` the output counters inside
+-- them (so the known totals split into uncached input, output, and
+-- cache without stacking a cache count already inside input again),
+-- and `total_tokens_unknown_runs` counting the `agent_exit` rows whose
+-- total is not, so a known subtotal never reads as the whole.
 --
 -- `IF NOT EXISTS` makes the create idempotent for the
 -- operator-driven `psql -f` reapply path. Postgres CREATE
@@ -448,6 +450,11 @@ SELECT
                 + COALESCE(cache_write_tokens, 0)
         END)
         AS cache_tokens_in_total,
+    SUM(CASE
+            WHEN total_tokens IS NOT NULL
+            THEN COALESCE(output_tokens, 0)
+        END)
+        AS output_tokens_in_total,
     SUM(CASE WHEN event = 'agent_exit' AND total_tokens IS NULL THEN 1 ELSE 0 END)
         AS total_tokens_unknown_runs
 FROM analytics_events

@@ -11,11 +11,14 @@ The two breakdowns are ranked here rather than in SQL: count descending with
 the label breaking ties, so redrawing the same window cannot reshuffle a table,
 and the insertion order of the returned mapping is the order a page iterates.
 
-The totals row is mapped column-by-column through a declared cast list rather
-than unpacked, so each total is cast to the type its field declares, with a
-NULL aggregate reading as zero. The list and the totals branch of the SELECT
-are the same width, and a row of any other width raises rather than leaving a
-total it never carried at its model default.
+The totals row's counts are mapped column-by-column through a declared field
+list rather than unpacked, so each lands on the field it names, with a NULL
+aggregate reading as zero. The cost cohort and the token total follow them:
+the cohort is read by `cost_cohorts.cost_cohort` from the cell after the
+counts, and the known token total and its unknown runs close the row. The list,
+the cohort, and the token pair are the width of the totals branch of the
+SELECT, and a row of any other width raises rather than leaving a total it
+never carried at its model default.
 """
 
 from __future__ import annotations
@@ -23,21 +26,25 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+from orchestrator.observability.analytics.query.cost_cohorts import COST_COHORT_WIDTH, cost_cohort
 from orchestrator.observability.analytics.query.overview_models import Summary
 
-SUMMARY_TOTAL_FIELD_CASTS = (
-    ("total_events", int),
-    ("distinct_issues", int),
-    ("distinct_repos", int),
-    ("total_cost_usd", float),
-    ("total_input_tokens", int),
-    ("total_output_tokens", int),
-    ("total_agent_runs", int),
-    ("failed_agent_runs", int),
-    ("total_cache_read_tokens", int),
-    ("total_cache_write_tokens", int),
-    ("timed_out_agent_runs", int),
+SUMMARY_COUNT_FIELDS = (
+    "total_events",
+    "distinct_issues",
+    "distinct_repos",
+    "total_agent_runs",
+    "failed_agent_runs",
+    "timed_out_agent_runs",
 )
+
+# The kind and label cells lead the row; the counts follow them, then the
+# cohort, then the known token total and the runs whose total is unknown.
+_COHORT_START = 2 + len(SUMMARY_COUNT_FIELDS)
+
+_TOKENS_START = _COHORT_START + COST_COHORT_WIDTH
+
+_TOTALS_WIDTH = _TOKENS_START + 2
 
 
 def summary_totals_row(rows: Sequence[tuple]) -> tuple | None:
@@ -70,13 +77,14 @@ def summary_count_order(pair: tuple[str, int]) -> tuple[int, str]:
 
 def summary_total_values(totals_row: tuple) -> dict[str, Any]:
     """Map the totals columns to typed Summary field values."""
+    if len(totals_row) != _TOTALS_WIDTH:
+        raise ValueError(f"a summary totals row is {_TOTALS_WIDTH} cells; this one holds {len(totals_row)}")
+    counts = zip(SUMMARY_COUNT_FIELDS, totals_row[2:_COHORT_START], strict=True)
     return {
-        field_name: field_cast(raw_value or 0)
-        for (field_name, field_cast), raw_value in zip(
-            SUMMARY_TOTAL_FIELD_CASTS,
-            totals_row[2:],
-            strict=True,
-        )
+        **{field_name: int(raw_count or 0) for field_name, raw_count in counts},
+        "cost": cost_cohort(totals_row, _COHORT_START),
+        "total_tokens": int(totals_row[_TOKENS_START] or 0),
+        "unknown_token_runs": int(totals_row[_TOKENS_START + 1] or 0),
     }
 
 

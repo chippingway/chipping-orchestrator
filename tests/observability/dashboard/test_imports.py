@@ -26,6 +26,8 @@ _CARD_HTML_OWNER = "card_html"
 
 _CHART_SECTIONS_OWNER = "chart_sections"
 
+_COST_TEXT_OWNER = "cost_text"
+
 _COVERAGE_CARD_OWNER = "coverage_card"
 
 _CSS_OWNER = "css"
@@ -118,6 +120,8 @@ _SPARKLINE_HTML_OWNER = "sparkline_html"
 
 _SPARKLINE_POINTS_OWNER = "sparkline_points"
 
+_SPEND_TEXT_OWNER = "spend_text"
+
 _STAGE_COST_PANEL_OWNER = "stage_cost_panel"
 
 _STATIC_METADATA_OWNER = "static_metadata"
@@ -143,6 +147,7 @@ _OWNERS = (
     _BREAKDOWNS_OWNER,
     _CARD_HTML_OWNER,
     _CHART_SECTIONS_OWNER,
+    _COST_TEXT_OWNER,
     _COVERAGE_CARD_OWNER,
     _CSS_OWNER,
     _DATE_CONTROLS_OWNER,
@@ -189,6 +194,7 @@ _OWNERS = (
     _SKILLS_OWNER,
     _SPARKLINE_HTML_OWNER,
     _SPARKLINE_POINTS_OWNER,
+    _SPEND_TEXT_OWNER,
     _STAGE_COST_PANEL_OWNER,
     _STATIC_METADATA_OWNER,
     _SUMMARY_HTML_OWNER,
@@ -210,6 +216,8 @@ _OWNERS = (
 # draw a headline or lifecycle section from one of the seven reads behind it, a
 # comparison panel from one of the six, or a skill panel from one of the three,
 # open a page on the extent behind its filter bar, interrupt one with a banner,
+# word a cost on either page with its basis and completeness, word a window's
+# spend and the move between two windows on top of that,
 # reduce its window to the four numbers a headline tile reports, plot the days
 # behind three of them, assemble all four into the strip a page opens with,
 # place one of those days on the line under a tile and write that line as the
@@ -268,7 +276,8 @@ _OWNERS = (
 # spinner message the dispatch owner opens a load under together with the
 # mapping a wave hands back and the logger its load line is emitted on, the cap
 # the rollup owner reads a run list under, the two bands the insight owner
-# raises a banner at and the spellings an unpriced run reaches it under, the
+# raises a banner at, the labels and qualifiers the cost wording owner names a
+# basis and a shortfall by, the figure and note a window with no run reads as, the
 # columns the issue table is headed by and the rules its bars and pills are
 # painted from, the columns and rate-bar rules the skill-trigger table beside it
 # is drawn with together with the label it reads a category the sink left empty
@@ -329,6 +338,14 @@ _SURFACES = MappingProxyType({
         "coverage_segments",
     ),
     _CHART_SECTIONS_OWNER: ("render_chart_widgets",),
+    _COST_TEXT_OWNER: (
+        "basis_text",
+        "completeness_text",
+        "cost_figure",
+        "cost_text",
+        "fmt_cost_usd",
+        "rates_text",
+    ),
     _CSS_OWNER: (),
     _DATE_CONTROLS_OWNER: (
         "DateFilterColumns",
@@ -392,9 +409,7 @@ _SURFACES = MappingProxyType({
         "DailyKpiSeries",
         "daily_kpi_series",
         "daily_point_totals",
-        "summary_total_tokens",
         "throughput_totals",
-        "time_series_total_tokens",
     ),
     _KPI_STRIP_OWNER: (
         "KpiInputs",
@@ -543,6 +558,13 @@ _SURFACES = MappingProxyType({
         "sparkline_step",
         "sparkline_y",
     ),
+    _SPEND_TEXT_OWNER: (
+        "spend_comparison_note",
+        "spend_figure",
+        "spend_line",
+        "spend_note",
+        "token_note",
+    ),
     _STAGE_COST_PANEL_OWNER: (
         "paired_bars_height",
         "render_stage_review_bars",
@@ -606,7 +628,7 @@ _RENDERED_SURFACES = (_CSS_OWNER, _LAYOUT_OWNER)
 # one of them asks for spelled by the issue-summary owner that reads it -- the
 # six a comparison panel is drawn from are the rollup and breakdown families',
 # the three a skill panel is drawn from are the skill family's, and the totals
-# and cost-source split a banner is raised over -- and the window totals a tile
+# a banner is raised over and a spend is worded from -- and the window totals a tile
 # reports, the pair of windows the strip beneath it is reduced from, the issue
 # rows a table is ranked from, the cohort rows the trigger-rate panel beneath it
 # reports, the adoption cells and the matrix cells four of each panel's five
@@ -642,10 +664,10 @@ _RENDERED_SURFACES = (_CSS_OWNER, _LAYOUT_OWNER)
 # against the shapes rather than the rows, so the page state is the only
 # vocabulary it names, while the grid beneath it is back to the rows and names
 # the activity family for the weekday-by-hour points it draws. The owner
-# drawing the chrome between the two waves names two result families without
-# issuing a read either -- the window aggregate its banner, filter line, and
-# strip are all reduced from, and the cost-source rows one of its banners is
-# raised over -- while the two that only order the panels beneath name no
+# drawing the chrome between the two waves names one result family without
+# issuing a read either -- the window aggregate its banner, filter line, strip,
+# and both of its banners are all reduced from -- while the two that only order
+# the panels beneath name no
 # result family at all, since every row they hand on arrived with the load:
 # their whole reach is the panels themselves plus the shapes those are typed
 # against, and the second of the two names the first because one call has to

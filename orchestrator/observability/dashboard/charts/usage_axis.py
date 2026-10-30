@@ -26,7 +26,7 @@ import math
 
 from orchestrator.observability.dashboard.charts.usage_bands import (
     COST_BAND,
-    DailyTokenValues,
+    BackendDailyTokens,
 )
 from orchestrator.observability.dashboard.charts.usage_series import (
     UsageAxisRanges,
@@ -68,7 +68,7 @@ def nice_axis_max(data_max: float, steps: int) -> float:
 
 def usage_axis_ranges(
     usage: UsageChartData,
-    backend_rows_by_day: DailyTokenValues | None,
+    backend_rows_by_day: BackendDailyTokens | None,
     mode: str,
 ) -> UsageAxisRanges:
     """Scale each axis to the series that is drawn against it."""
@@ -91,7 +91,7 @@ def usage_axis_ranges(
 
 def usage_layout(
     usage: UsageChartData,
-    backend_rows_by_day: DailyTokenValues | None,
+    backend_rows_by_day: BackendDailyTokens | None,
     mode: str,
     title: str | None,
 ) -> dict[str, object]:

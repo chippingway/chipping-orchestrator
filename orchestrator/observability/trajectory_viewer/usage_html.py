@@ -35,8 +35,7 @@ from __future__ import annotations
 import html
 from types import MappingProxyType
 
-from orchestrator.observability.dashboard import formatting
-from orchestrator.observability.trajectory_viewer import cost_text
+from orchestrator.observability.dashboard import cost_text, formatting
 from orchestrator.observability.trajectory_viewer.models import (
     RunUsageView,
     TurnUsageView,

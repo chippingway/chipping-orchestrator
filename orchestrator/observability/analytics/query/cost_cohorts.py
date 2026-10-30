@@ -20,11 +20,15 @@ The fragment is spelled once per scan target, because each names what it reads d
 reads a row with no derived evidence as `unknown` with its `cost_usd` under that basis; the events table needs that
 reading spelled out, and its counts kept to the `agent_exit` rows the other events are not; and the rollup carries the
 counts pre-summed. All three select `COST_COHORT_WIDTH` cells in the one order `cost_cohort` reads.
+
+A cohort folds further the way its runs do: `fold_cohorts` adds several cohorts' counts and reduces their evidence with
+`reduce_costs`, so a reader regrouping cells it read apart -- one window's days, or one day's events -- answers what
+one cell over all their runs would. `EMPTY_COST_COHORT` is the fold of none, the answer a window with no run reads as.
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import date
 from operator import attrgetter
@@ -130,6 +134,18 @@ def cost_cohort(row: Sequence[Any], start: int = 0) -> CostCohort:
     return CostCohort(*counts, evidence=evidence)
 
 
+def fold_cohorts(cohorts: Iterable[CostCohort]) -> CostCohort:
+    """The one cohort several make up together: their counts added, their evidence reduced as their runs' costs fold."""
+    folded = tuple(cohorts)
+    return CostCohort(
+        complete_runs=sum(cohort.complete_runs for cohort in folded),
+        incomplete_runs=sum(cohort.incomplete_runs for cohort in folded),
+        no_usage_runs=sum(cohort.no_usage_runs for cohort in folded),
+        unknown_runs=sum(cohort.unknown_runs for cohort in folded),
+        evidence=usage_cost.reduce_costs(cohort.evidence for cohort in folded),
+    )
+
+
 def _weakest_completeness(counts: Sequence[int]) -> str:
     """The weakest completeness any counted run states, ranked by the fold every usage surface shares.
 
@@ -158,3 +174,6 @@ def _verified_on(days: Any) -> tuple[date, ...]:
     """Every distinct date one basis's rates were verified on, in order; none where no run was priced at a dated row."""
     verified = {day for day in days or () if isinstance(day, date)}
     return tuple(sorted(verified))
+
+
+EMPTY_COST_COHORT = fold_cohorts(())

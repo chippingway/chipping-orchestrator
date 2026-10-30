@@ -50,13 +50,14 @@ _LAST_COVERED_DATE = "2026-05-07"
 
 _AGENT_RUNS = 1183
 
-_MONEY_FORMAT = "$0.00"
+# A database with nothing in it has no run, which reads as none rather than as
+# a spend of zero.
+_NO_SPEND = '<span class="value">—</span><span class="note">no agent runs</span>'
 
 # The theme the page draws through, with each formatter marking what it was
 # handed, so a case can say which readings reached the markup shortened.
 _THEME = SimpleNamespace(
     fmt_num=lambda number: f"<{number}>",
-    fmt_money_exact=lambda amount: _MONEY_FORMAT,
 )
 
 _FORMATTED_RUNS = f"<{_AGENT_RUNS}>"
@@ -158,14 +159,15 @@ class RenderNoDataTest(unittest.TestCase):
 
     def test_the_banner_reports_the_empty_database(self) -> None:
         # There is no window to narrow anything to yet, so the banner stands in
-        # for the whole chrome with every count it carries zeroed.
+        # for the whole chrome with every count it carries zeroed and its spend
+        # the empty cohort.
         body, options = self._render().markup[0]
 
         self.assertEqual(options, {"unsafe_allow_html": True})
         self.assertIn(_NO_EXTENT, body)
         self.assertIn(_NO_REPOS, body)
         self.assertIn(_NO_EVENTS, body)
-        self.assertIn(_MONEY_FORMAT, body)
+        self.assertIn(_NO_SPEND, body)
 
     def test_the_notice_names_the_sync_that_fills_it(self) -> None:
         # A page with nothing on it reads as a broken one, so the notice says

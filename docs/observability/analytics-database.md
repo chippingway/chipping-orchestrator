@@ -138,9 +138,10 @@ matching `ANALYTICS_LOG_PATH`.
   `cost_unknown_runs`), every distinct rate-verification date per estimate basis (`anthropic_rates_verified_on`,
   `openai_rates_verified_on`, `gemini_rates_verified_on`, sorted arrays the schema's `analytics_rate_dates` aggregate
   unions, NULL where nothing in the group was priced at a dated row), the summed known non-overlapping `total_tokens`,
-  the `cache_tokens_in_total` those known totals hold, and `total_tokens_unknown_runs`, the `agent_exit` rows whose
-  total is unknown. A row with no derived evidence counts as an `unknown` run with its
-  `cost_usd` summed under the `unknown` basis, as the agent-run view reads it.
+  the `cache_tokens_in_total` and `output_tokens_in_total` those known totals hold — so a reader splits them into
+  uncached input, output, and cache without stacking cache-inclusive input with the same cache tokens again — and
+  `total_tokens_unknown_runs`, the `agent_exit` rows whose total is unknown. A row with no derived evidence counts as an
+  `unknown` run with its `cost_usd` summed under the `unknown` basis, as the agent-run view reads it.
 - **`analytics_agent_runs` view.** `CREATE OR REPLACE VIEW` over `event = 'agent_exit'` rows that promotes derivations:
   `model` from `COALESCE(models->>0, 'unknown')`, `total_tokens` = the stored non-overlapping total (NULL where it is
   unknown), `total_cache_tokens` = `cached + cache_read + cache_write`, a categorical `review_round_bucket` (`0`, `1`,
@@ -202,10 +203,12 @@ docker compose exec -T analytics-db sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGR
 ```
 
 The first reapply adds the table columns and replaces the agent-run view in place; dropping the rollup loses nothing,
-since the second reapply rebuilds it from `analytics_events`. Until the first reapply, a dashboard read naming a new
-column raises its read-error banner, except that the earlier agent-run view still answers `total_tokens` as input
-plus output, so the cost-coverage bar and the by-backend token stack read that earlier total rather than failing.
-Rows already stored keep NULL evidence columns and read as described above.
+since the second reapply rebuilds it from `analytics_events`. A reapply alone never rebuilds a rollup that already
+exists, so the drop is needed whenever the rollup's column list changed — including on a database that already
+applied an earlier schema of the same release. Until the rollup is rebuilt, the dashboard's overview reads — the
+window summary, the window a delta is measured against, and the day series, all in the first wave — name columns it
+lacks, so the page stops on its read-error banner before any panel is drawn. Rows already stored keep NULL evidence
+columns and read as described above.
 
 ## Sync CLI (`orchestrator/observability/analytics/sync/cli.py`)
 
