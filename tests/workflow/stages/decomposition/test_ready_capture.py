@@ -8,7 +8,8 @@ implementation as it would without one. But the implementing tick that
 handoff runs in-tick is the stage that would read the captured commit as
 unreported work and launch the developer over it, so the capture is asked
 about first, as the dispatcher asks ahead of every handler it reaches: with
-no owner for its road it holds that tick, and an owner is handed it.
+no owner for its road -- a requirements-drift resume's, in this build -- it
+holds that tick, and an owner is handed it.
 """
 from __future__ import annotations
 
@@ -16,7 +17,7 @@ import contextlib
 import unittest
 
 from orchestrator.git.worktrees import naming as _naming, paths as _paths
-from orchestrator.workflow.engine import completion_records as _records
+from orchestrator.workflow.engine import completion_records as _records, completion_routes as _routes
 from orchestrator.workflow.stages.decomposition import blocked as _blocked
 from tests.support.fakes import FakeGitHubClient
 from tests.workflow.engine import completion_dispatch_support as _dispatch, completion_recovery_support as _captures
@@ -27,6 +28,10 @@ _SOURCE = "c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0"
 
 # Every reading of the checkout's head the tick takes: the commit the run left.
 _HEADS = (_SOURCE,) * 8
+
+# The road the capture was taken on: a requirements-drift resume of the
+# implementation, which no owner takes in this build.
+_DRIFT = _captures.road(_routes.CompletionRoute.REQUIREMENTS_DRIFT)
 
 # What the captured run ran as: in the child's own checkout, on its branch, leaving `_SOURCE`.
 _RUN = _records.CompletionRun(
@@ -51,7 +56,7 @@ class ReadyCaptureTest(unittest.TestCase, _PatchedWorkflowMixin, _support.ReadyT
             with self.subTest(owned=owner is not None):
                 gh = FakeGitHubClient()
                 child = _support.ready_child(gh)
-                captured = _captures.landed_capture(gh, child, _RUN, _captures.road())
+                captured = _captures.landed_capture(gh, child, _RUN, _DRIFT)
 
                 with contextlib.nullcontext() if owner is None else _dispatch.owned(owner):
                     self.assertEqual(self._ready(gh, child), 0)

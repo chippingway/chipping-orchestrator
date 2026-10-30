@@ -1397,11 +1397,13 @@ because there it is the claim that this stage has already rerouted rather than a
   delivered report from the captured outcome under the road's frozen route, requirements, delivered input and round,
   and rewrites the capture as handed off in the same commit, so the report has one durable owner on either side and
   the binding behind it holds the publication to the branch and commit the captured run reported on — the handed-off
-  capture is neither replaced nor retired until the transaction it becomes settles, and no binding lands beside a
-  capture nobody can read. The capture is taken only where it, and then that transfer, the binding, and the
-  settlement, still fit the comment with every terminator escaped, and the transfer, the binding, and the settlement
-  are each measured that way again over the comment they land on. Nothing captures a
-  completion yet: these are the primitives the held-return recovery builds on, and this reconciliation reads no
+  capture is neither replaced nor retired until the transaction it becomes settles, save by a later capture carrying
+  it while its delivery still stands unbound, which holds that delivery to the same commit and, invalidated rather
+  than handed on, retires still carrying it, and no binding lands beside a capture nobody can read. The capture
+  is taken only where it, and then that transfer, the binding, and the settlement, still fit the comment with every
+  terminator escaped, and the transfer, the binding, and the settlement are each measured that way again over the
+  comment they land on. The implementing stage captures and transfers its runs' reports
+  ([`_handle_implementing`](#_handle_implementing-label-workflowimplementing)), and this reconciliation reads no
   capture of its own. A pending capture is decided behind it, by the
   [captured-completion recovery](#the-captured-completion-recovery-every-dispatch), and from the transfer on the
   delivery and this transaction hold the checkout out of the base refresh the capture held it out of before.
@@ -1995,8 +1997,11 @@ and handed off -- and this is what it guarantees and what stops it.
   route makes, before that handler runs, and -- where an auto-rebase anchor stands -- ahead of that anchor's hold
   (`dispatch_guards._anchor_holds_the_tick`). An issue carrying no `developer_completion`, or a handed-off or retired
   one, passes through reading nothing, and so does one under an operator's `paused` or `backlog` on the one road a
-  held issue reaches the guards -- a close somebody observed. The capture is described under
-  [pinned state](labels-and-state.md#pinned-state); no stage captures one yet.
+  held issue reaches the guards -- a close somebody observed. The implementing handler asks it first of its preflight
+  too, for the pickup that hands an unlabeled issue there in-tick. The capture is described under
+  [pinned state](labels-and-state.md#pinned-state); the first implementation and an implementing resume take one as
+  their developer returns ([`_handle_implementing`](#_handle_implementing-label-workflowimplementing)), and no other
+  road captures one yet.
 - **Reads** (`workflow/engine/completion_admission.py`, `completion_sources.py`), the cheapest first: the capture read
   back afresh through its own checkpoint, which admits the comment and binds it to the invocation's repository, issue,
   comment, and cycle -- the only thing the capture is read from; the issue fetched again for its labels, controls, and
@@ -2023,9 +2028,21 @@ and handed off -- and this is what it guarantees and what stops it.
   binding, and settlement, with every ownership, size, lease, and exact-revision gate those keep; the owner says whether
   the tick stops. The issue, the checkout, and the pull request are each read again behind the issue's last fetch before
   the handoff (`completion_effect.py`), and the capture is handed on only where they still admit it, the pull request at
-  the head the admission read. No road names an owner in this build, so an applicable capture holds the stage, every
-  tick, rather than letting it run the paid work again. This owner publishes nothing and infers no review, verification,
-  approval, or docs pass.
+  the head the admission read. The first implementation's and an implementing resume's owner is that stage's
+  (`implementing/captured_completion.recovers`): it settles, from the capture alone, what the run's own tick would
+  have -- the command it ran under pinned; a pin the launch dropped dropped again, which the capture records as no
+  conversation left pinned when the run returned, and the conversation the run opened pinned where the record retires
+  none of it, or the one it resumed charged one resume; the park it answered taken down, and the input its road froze
+  settled, the
+  spawn's thread stretch and the reply batch or retry commands a resume consumed, with nothing later on the thread
+  read as delivered -- and disposes the run through the stage's own disposition, handed a result rebuilt from the
+  capture, so the report reaches the delivery through the transfer, the commit the size gate -- held to the commit the
+  capture reported on, so a checkout moved off it parks before anything is measured or pushed -- and the leased,
+  exact-revision publication, and a run that committed nothing parks as it would have; no developer is launched and no
+  run charged, and neither a synthetic commit nor an undeliverable-report park stands in for a return that was merely
+  held. Every other road names no owner in this build, so an applicable capture of it holds the stage, every tick,
+  rather than letting it run the paid work again. This recovery publishes nothing of its own and infers no review,
+  verification, approval, or docs pass.
 - **Retires** a capture a reading proved stale -- an auto rebase of its branch begun and not recovered, its anchor
   reading as a commit, the issue closed or labelled `done` or `rejected`, moved onto any other road than the one it
   reported on, a record its handoff froze moved to a spelling its reader takes, the pull request, debt, or adjudication
@@ -2935,6 +2952,33 @@ and handed off -- and this is what it guarantees and what stops it.
      retirement record it would owe a stop from, or where that record names no retirement a poller can land
      ([the record](../state-machine.md#_handle_implementing-label-workflowimplementing)); the attempt that leaves an
      arming unsettled is never held by it, its disposition and publication going on.
+     The first implementation, an awaiting-human resume, and an `/orchestrator continue` retry each freeze their road
+     before the launch (`implementing/completion_roads.py`): the route, the requirements the run is handed, the input
+     its prompt delivers -- the thread stretch the spawn quoted and an edit it answers, the reply batch, or the
+     commands a retry consumes -- and the checkout, branch, and head it runs from. A retry hands its conversation no
+     requirements, so its road freezes the baseline the issue records, which the run's report is stamped with
+     uncaptured too: an edit beside the command stays owed to the drift resume, its report left owed rather than
+     published as that edit's answer, and a held return beside it is retired on recovery as past the issue's
+     requirements. The coordinator asks it of every
+     attempt behind that attempt's accounting, quota retirement, and live-pause reading: one that finished on its
+     report is captured whole as the issue's pending `developer_completion`, owning that field alone, so a live hold,
+     a lost write, or a restart cannot discard it. An incomplete Antigravity exit or a poisoned conversation's failure
+     is accounted and never captured, while the continuation or fresh retry behind it is captured on the same road,
+     with its own prompt and the command that ran it. A capture sent and never confirmed, or answered over a comment
+     that moved, holds the tick as a pause does, and every developer launch is refused, uncharged, while a capture
+     nothing has decided stands -- a handed-off one whose delivery a failed push left unbound excepted, which a later
+     capture carries, superseding that delivery with its own report once handed on. The ordinary disposition hands
+     the capture on: where the run's report is recorded, it is transferred into `developer_report_delivery`, with what
+     the tick settled -- the session, the delivered input, the park it answered -- riding that very commit, so a lost
+     process leaves both or neither and nothing is settled twice (`implementing/captured_report.py`).
+     A transfer refused for the report itself withdraws the capture and records or parks the run as ever, and a park
+     that hands the report to nobody -- a run that committed nothing past where it started, a tree no push may
+     publish -- withdraws it first. While a report a capture handed off is owed, the size gate holds the head to the
+     commit that capture reported on (`captured_report.captured_source`), as a constraint beside whatever candidate
+     its caller names -- on the run's own tick, its recovery, the restart shortcut after either, and a recovery that
+     re-measures a recorded candidate alike -- so a checkout something moved off it, or a record naming another
+     commit, parks before anything is measured, pushed, or opened, rather than publishing a commit the binding would
+     then refuse the report on. Documentation passes, conflict resolutions, and every other resume freeze no road.
   6. Branch on result:
      - `interrupted` (shutdown sweep killed the run mid-flight) → ignore the partial result and return WITHOUT writing
        pinned state, so durable GitHub state stays exactly as the prior tick left it and the next process retries.
@@ -2943,13 +2987,17 @@ and handed off -- and this is what it guarantees and what stops it.
        behind it whose failure record names the exhausted quota is not one: the CLI stopped itself, so it reaches the
        branches below and parks as a session limit rather than leaving the issue unparked for another run.
      - `paused` / `backlog` applied mid-run → same short-circuit as `interrupted`: return WITHOUT writing pinned state,
-       so no PR opens, no relabel, no park, no watermark bump -- the one write already made being the retirement of a
-       conversation an account quota stopped, landed alone as the run returned; a retirement that would not land holds
-       the tick through this same branch. `_paused_during_agent_run` re-reads a
-       FRESHLY fetched issue (`gh.get_issue`) because the dispatch-time skip only saw the pre-run labels. Applies to the
-       fresh spawn, the awaiting-human resume (including the pre-disposition `_resume_dev_with_text` poisoned-session
-       retry), and the user-content-change resume. The committed work stays on the branch and republishes through step
-       3's recovered-worktree path once the label is removed. An attempt whose accounting stayed unresolved
+       so no PR opens, no relabel, no park, no watermark bump -- the writes already made being the retirement of a
+       conversation an account quota stopped, landed alone as the run returned, and the capture of a report it
+       finished on (step 5); a retirement or a capture that would not land holds the tick through this same branch.
+       `_paused_during_agent_run` re-reads a FRESHLY fetched issue (`gh.get_issue`) because the dispatch-time skip only
+       saw the pre-run labels, and that first reading is the answer whatever a later fetch sees. Applies to the fresh
+       spawn, the awaiting-human resume (including the pre-disposition `_resume_dev_with_text` poisoned-session retry),
+       the `/orchestrator continue` retry, and the user-content-change resume. The committed work stays on the branch:
+       under a captured report the dispatcher's recovery publishes it once the label is removed, with no developer run
+       ([the captured-completion recovery](#the-captured-completion-recovery-every-dispatch)), and a run that reported
+       nothing republishes through step 3's recovered-worktree path, held there for its report. An attempt whose
+       accounting stayed unresolved
        (`AgentResult.unaccounted`) takes this same branch: the coordinator answers it `paused`, with no poisoned-session
        retry or command-recovery continuation behind it, so every developer resume on a later stage holds on it as it
        does on a live pause.

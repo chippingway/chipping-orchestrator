@@ -4,8 +4,9 @@
 
 The road's owner is resolved by name, as the recovery resolves every owner
 (`completion_recovery.ROUTE_OWNERS`), so a case installs one here rather than
-patching the recovery's own call. With none installed no road has an owner,
-as in this build. What one dispatch did is read back whole (`observed`): the
+patching the recovery's own call. With none installed, every road keeps the
+owner this build gives it -- the implementing stage's for the first
+implementation and an implementing resume, none for the rest. What one dispatch did is read back whole (`observed`): the
 handlers it reached, what the owner was handed, the pinned comment before
 and after, the pinned writes sent, and what the dispatch said.
 """

@@ -21,7 +21,8 @@ its requirements over the issue read afresh, for the final-documentation
 proof, and the owner of which pinned fields keep both of two roads' moves,
 for the developer report's guarded commits. So is the owner that says whether
 a late record claims a reading it cannot produce, for the recovery that holds
-a captured late revision over one.
+a captured late revision over one, and the owner that recovery hands the
+implementing roads' captures to.
 """
 from __future__ import annotations
 
@@ -95,6 +96,12 @@ _IMPLEMENTING_STATE_OWNER = f"{_IMPLEMENTING_PACKAGE}.state"
 # The owner that tells the `discussion` stage's plan from a delivery, read
 # through rather than re-derived so what counts as a plan is decided once.
 _IMPLEMENTING_HANDLER_OWNER = f"{_IMPLEMENTING_PACKAGE}.handler"
+
+# The owner that finishes a captured completion of the first implementation
+# or of an implementing resume, which the recovery hands an admitted capture
+# of either road to (`completion_recovery.ROUTE_OWNERS`). Resolved when called
+# for the reason every owner here is: the stage imports the engine.
+_IMPLEMENTING_CAPTURE_OWNER = f"{_IMPLEMENTING_PACKAGE}.captured_completion"
 _IN_REVIEW_PACKAGE = "orchestrator.workflow.stages.in_review"
 
 # The owner that stages the fields a stale-approval hand-back writes before it

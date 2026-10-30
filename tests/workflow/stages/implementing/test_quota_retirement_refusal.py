@@ -34,6 +34,7 @@ _RECORD = quota.RECORD
 _RUNS = quota.RUNS
 _WATERMARK = quota.WATERMARK
 _EDIT = "edit_pinned_state"
+_CAPTURED = "developer_completion"
 _launch = quota.launch
 _retired = quota.retired
 
@@ -50,8 +51,10 @@ class QuotaRetirementRefusalTest(quota.QuotaTicks, unittest.TestCase):
         # tick, which wrote nothing. Nothing in the restarted process remembers
         # the stop, yet its next tick, the edit still unanswered, launches
         # nothing at all: no run is charged and the reply waits under the park.
-        # Once the edit is answered the retirement lands ahead of the plan, and
-        # the reply goes to a fresh conversation.
+        # The stopped attempt was accounted and never captured, so no recovery
+        # hands anything of it on past the withheld tick. Once the edit is
+        # answered the retirement lands ahead of the plan, and the reply goes
+        # to a fresh conversation.
         github, issue = self._issue(**_PARKED)
         quota.reply(github, issue, support.GUIDANCE_REPLY)
         github.pinned_failures.refused.add(quota.ISSUE)
@@ -63,8 +66,8 @@ class QuotaRetirementRefusalTest(quota.QuotaTicks, unittest.TestCase):
 
         self.assertEqual((held.call_count, github.posted_comments), (0, []), "no launch and nothing posted")
         self.assertEqual(
-            self._pinned(github, _PIN, _RECORD, _RUNS, *_PARK),
-            {_PIN: _PINNED_SESSION, _RECORD: None, _RUNS: 1, **_PARK},
+            self._pinned(github, _PIN, _RECORD, _RUNS, _CAPTURED, *_PARK),
+            {_PIN: _PINNED_SESSION, _RECORD: None, _RUNS: 1, _CAPTURED: None, **_PARK},
         )
 
         github.pinned_failures.refused.clear()

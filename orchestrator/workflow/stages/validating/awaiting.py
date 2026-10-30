@@ -300,7 +300,6 @@ def _resume_awaiting_dev_agent(
             context.spec,
             context.issue,
             context.batch,
-            pause_guard=True,
         )
     context.consume_comments()
     return _dev_resume._resume_dev_with_text(_dev_resume_request._DevResumeRequest(

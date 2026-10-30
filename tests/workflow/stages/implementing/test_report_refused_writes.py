@@ -29,7 +29,7 @@ from orchestrator.workflow.engine import (
 from orchestrator.workflow.state import WorkflowLabel
 from tests.support.fakes import FakePRRef
 from tests.workflow.engine import report_commit_test_support as commit_support
-from tests.workflow.fixtures import LABEL_VALIDATING, _agent, _named_description, _open_pr_for
+from tests.workflow.fixtures import _FAKE_WT, LABEL_VALIDATING, _agent, _named_description, _open_pr_for
 from tests.workflow.stages.implementing import report_test_support as support
 
 PUSH_BRANCH = "_push_branch"
@@ -53,6 +53,10 @@ _NEWER_DELIVERY = MappingProxyType({
 })
 
 _SETTLED_SINCE = MappingProxyType({_records.CURRENT_REPORT: {"revision": 9}})
+
+# Every head the tick after a held capture reads: the commit its run left, the
+# default checkout's second reading.
+_LEFT_BY_THE_RUN = (support.PUBLISHED_SHA,)
 
 # The pull request already open on the branch, and the comment on it an older
 # verification of this issue named, which nobody can find there any more.
@@ -102,11 +106,12 @@ class RefusedWritesTest(unittest.TestCase, support._ReportDeliveryMixin):
         _assert_left_as(self, github, written)
 
     def test_a_lost_answer_is_published_next_tick(self) -> None:
-        # GitHub took the record and its answer never came back, and another
-        # road settles evidence right behind the edit. The tick pushes nothing
-        # and writes nothing behind it, so the evidence stays; the next tick
-        # finds the record, spawns nothing, and publishes the commit under it
-        # -- one pull request, one report, at the run's own revision.
+        # GitHub took the run's captured report and its answer never came
+        # back, and another road settles evidence right behind the edit. The
+        # tick pushes nothing and writes nothing behind it, so the evidence
+        # stays; the next tick finds the capture over the checkout the run
+        # left, spawns nothing, and publishes the commit under it -- one pull
+        # request, one report, at the run's own revision.
         github, issue = self.seeded()
         github.seed_state(
             support.REPORT_ISSUE, **github.pinned_data(support.REPORT_ISSUE),
@@ -121,7 +126,7 @@ class RefusedWritesTest(unittest.TestCase, support._ReportDeliveryMixin):
         first[PUSH_BRANCH].assert_not_called()
         _assert_left_as(self, github, dict(_EVIDENCE))
 
-        mocks = self.republish(github, issue)
+        mocks = self.republish(github, issue, issue_checkout=_FAKE_WT, head_shas=_LEFT_BY_THE_RUN)
 
         mocks[RUN_AGENT].assert_not_called()
         _assert_left_as(self, github, dict(_EVIDENCE))

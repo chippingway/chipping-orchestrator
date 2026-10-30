@@ -83,6 +83,9 @@ LEGACY_PR = 65
 
 FOREIGN_PR = 3
 
+# The pinned field a run's captured report is kept in until it is handed on.
+_CAPTURED = "developer_completion"
+
 AWAITING_HUMAN = "awaiting_human"
 
 PARK_REASON = "park_reason"
@@ -338,7 +341,10 @@ class ReportPublicationTest(unittest.TestCase, support._ReportDeliveryMixin):
         # Every developer prompt teaches the report contract, so a run that
         # finished, committed, and handed over no report is one this stage
         # holds rather than ships: published, a reviewer would be sent an
-        # implementation nobody described, with no session left to ask.
+        # implementation nobody described, with no session left to ask. A
+        # verification of somebody else's report was captured as it returned,
+        # and is withdrawn once its transfer is refused, so no capture stands
+        # pending behind the park asking for another.
         for described, message in (
             ("no marker at all", "implemented, nothing else to say"),
             ("a block nothing closed", "REPORT: READY\nhalf a report"),
@@ -367,6 +373,7 @@ class ReportPublicationTest(unittest.TestCase, support._ReportDeliveryMixin):
                     (support.REPORT_ISSUE, LABEL_VALIDATING),
                     github.label_history,
                 )
+                self.assertNotEqual(recorded.get(_CAPTURED, {}).get("stage"), "pending")
 
 
 

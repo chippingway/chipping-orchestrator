@@ -27,6 +27,7 @@ from orchestrator.workflow.stages.implementing import (
     late_transfer as _transfer,
     late_verdict as _verdict_owner,
 )
+from orchestrator.workflow.stages.implementing.captured_report import captured_source
 from orchestrator.workflow.stages.implementing.late_gate_models import _HELD, _REFUSED, _Gate, _GateVerdict
 from orchestrator.workflow.stages.implementing.models import _AgentWork, _RecoveredWork
 
@@ -57,6 +58,7 @@ def _holds_committed_work(
     write rather than another reading of the same diff.
     """
     recovering = isinstance(work, _RecoveredWork)
+    recorded = work.candidate_sha if recovering else ""
     return _holds_candidate(_Gate(
         gh=gh, spec=spec, issue=issue, state=state, worktree=work.worktree,
         reconciling=recovering,
@@ -69,7 +71,14 @@ def _holds_committed_work(
         # before handing it over, so the head this owner reads is held to it:
         # the worktree is writable in between, and a commit landing there is
         # a candidate no reading covers.
-        candidate=work.candidate_sha if recovering else "",
+        candidate=recorded,
+        # A report a capture handed off holds the head to the commit it was
+        # captured over, beside whatever was recorded -- on a captured run's
+        # own disposition, its recovery, the restart shortcut behind either,
+        # and a recovery of a recorded candidate alike -- so a head off it,
+        # or a record naming another commit, parks before the push the
+        # binding would refuse.
+        captured=captured_source(state),
     ))
 
 

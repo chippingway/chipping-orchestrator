@@ -566,13 +566,18 @@ division of labour between the developer and the orchestrator never changes.
   on — and is the report's only owner until one commit records it as `developer_report_delivery` and rewrites the
   capture as handed off. The stations above then begin from that delivery as from a run's own recording, under the
   route, requirements, input, and round the road froze, and its binding is held to the captured source commit, which
-  the handed-off capture keeps until the report settles, and it is bound and settled only where the comment carries
+  the handed-off capture keeps until the report settles -- or a later capture carries, while that delivery still
+  waits unbound, until its own transfer supersedes it -- and it is bound and settled only where the comment carries
   it with every terminator escaped; a pending capture is retired only by a guarded
-  invalidation. No road captures a return yet: these are the
-  primitives its recovery builds on ([pinned state](../state-machine/labels-and-state.md#pinned-state)). That
-  recovery is asked ahead of every stage handler, before an unreported checkout, a drift resume, a launch, or a review
-  resume could lose or repeat the captured work, and supplies no verdict, verification, approval, or docs pass of its
-  own
+  invalidation ([pinned state](../state-machine/labels-and-state.md#pinned-state)). The first implementation and an
+  implementing resume -- a human reply's or an `/orchestrator continue` retry's -- capture every return that finished
+  on a report, an unpaused one included, and their disposition hands the capture to the delivery where it records the
+  report, with the tick's own settlement of what the run was handed riding that very commit; no other road captures
+  one yet. A return a
+  live hold kept is left captured, with nothing it was handed consumed, and its recovery is asked ahead of every stage
+  handler, before an unreported checkout, a drift resume, a launch, or a review resume could lose or repeat the
+  captured work: it settles exactly the excerpt, reply batch, or retry commands the run was handed and the session it
+  ran, launches no developer, and supplies no verdict, verification, approval, or docs pass of its own
   ([captured-completion recovery](../state-machine/delivery-stages.md#the-captured-completion-recovery-every-dispatch)).
 - **Review-subject freshness.** No reviewer spawns while a report is owed. Each is handed the report the pull request
   carries, re-read where it settled and quoted whole, and what it reviewed — pull request, head, requirements, and

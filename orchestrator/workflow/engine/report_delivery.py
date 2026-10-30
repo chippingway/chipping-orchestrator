@@ -81,7 +81,9 @@ the `fixing` label covers. The binding that exchanges a delivery for the
 transaction it becomes, once the push has reached a pull request, is
 `report_binding`'s. A captured completion's transfer records its report
 through the same write (`records_the_report`), the capture handed off in that
-very commit (`completion_handoff`).
+very commit (`completion_handoff`) -- which is how the implementing seam
+records a run whose report its coordinator captured as it returned
+(`stages/implementing/captured_report`).
 """
 from __future__ import annotations
 

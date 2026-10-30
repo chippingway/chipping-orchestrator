@@ -87,7 +87,7 @@ def _candidate_commit(
     for, and without it a commit landing between
     the caller's read and this one is published in its place.
     """
-    if _outside_the_gate(gate, recorded) and not gate.candidate:
+    if _outside_the_gate(gate, recorded) and not (gate.candidate or gate.captured):
         return None
     head = _measurement_commits._prove_candidate_commit(gate.worktree, _HEAD)
     if not recorded.candidate_sha:
@@ -371,25 +371,32 @@ def _moved_off_the_caller(
     is a commit an operator's authorization does not cover, or work no reading
     placed, published on its own count while the record names another.
 
+    A report a captured completion handed off holds the checkout the same
+    way, beside whatever the caller named (`_Gate.captured`): the binding
+    refuses that report on any commit but the one it was captured over, so
+    publishing another -- a recorded candidate a recovery names included --
+    would open a pull request the report then parks on.
+
     Silent where the caller genuinely read no commit -- a retry whose
-    publication the approval on the record already identifies -- and where the
-    two agree, which is every ordinary tick.
+    publication the approval on the record already identifies -- and where
+    every commit named agrees with the head, which is every ordinary tick.
     """
-    if not gate.candidate or gate.candidate == candidate_sha:
+    named = gate.moved_off(candidate_sha)
+    if not named:
         return False
     log.error(
         "issue=#%d was handed %s to publish and its checkout stands on %s; "
         "refusing to measure a candidate its caller never read",
-        gate.issue.number, gate.candidate, candidate_sha,
+        gate.issue.number, named, candidate_sha,
     )
     return _late_park_notices._parked(
         gate, _records._named(gate, recorded, candidate_sha),
         _MOVED_OFF_THE_CALLER.format(
-            named=gate.candidate, head=candidate_sha,
+            named=named, head=candidate_sha,
         ),
         _MOVED_OFF_THE_CALLER_PARK.format(
             mentions=config.HITL_MENTIONS,
-            named=gate.candidate,
+            named=named,
             head=candidate_sha,
         ),
     )

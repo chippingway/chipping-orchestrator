@@ -35,6 +35,11 @@ _DIGEST = hashlib.sha256(b"a frozen record").hexdigest()
 _ROUTE = "route"
 _ORIGIN = "origin"
 _FROZEN = "frozen"
+_DELIVERED = "delivered"
+_RESUMED = "resumed"
+_PINNED = "pinned"
+_SUPERSEDES = "supersedes"
+_STAGE = "stage"
 _REPORT = "report"
 _PR = "pr_number"
 _FIX = "pending_fix_at"
@@ -47,9 +52,9 @@ _LONG_SESSION = "s" * (_bounds.MAX_SESSION + 1)
 # The keys a PENDING READY capture is spelled with, beside the invocation's.
 _INVOCATION_KEYS = frozenset(("repo", "issue", "comment", "cycle", "ordinal", "nonce"))
 _PENDING_KEYS = frozenset((
-    "stage", _ROUTE, _ORIGIN, "requirements", "watermarks", "spends", _FROZEN,
-    "command", "prompt", "worktree", "branch", "before", "source", "session",
-    "outcome", _REPORT, "accounting",
+    _STAGE, _ROUTE, _ORIGIN, "requirements", "watermarks", "spends", _FROZEN, _DELIVERED,
+    "command", "prompt", "worktree", "branch", "before", "source", _RESUMED, _PINNED, "session",
+    "outcome", _REPORT, "accounting", _SUPERSEDES,
 ))
 
 # One member of an otherwise sound PENDING READY spelling, replaced; each
@@ -57,7 +62,7 @@ _PENDING_KEYS = frozenset((
 _DAMAGED = MappingProxyType({
     "a key too many": ("retired", "yes"),
     "no report": (_REPORT, None),
-    "an unknown stage": ("stage", "parked"),
+    "an unknown stage": (_STAGE, "parked"),
     "an unknown road": (_ROUTE, "documentation"),
     "an unknown outcome": ("outcome", "acknowledged"),
     "a label off its road": (_ORIGIN, str(WorkflowLabel.FIXING)),
@@ -81,6 +86,15 @@ _DAMAGED = MappingProxyType({
     "a frozen record of no digest": (_FROZEN, [[_PR, "1"]]),
     "an unknown accounting": ("accounting", "refunded"),
     "an upper-case prompt digest": ("prompt", support.RUN.prompt_revision.upper()),
+    "a stretch of one end": (_DELIVERED, [0]),
+    "a stretch upside down": (_DELIVERED, [9, 3]),
+    "a stretch below zero": (_DELIVERED, [-1, 3]),
+    "a stretch of flags": (_DELIVERED, [False, True]),
+    "no stretch at all": (_DELIVERED, None),
+    "a resumed conversation past its bound": (_RESUMED, _LONG_SESSION),
+    "a pinned conversation past its bound": (_PINNED, _LONG_SESSION),
+    "no superseded handoff spelled": (_SUPERSEDES, None),
+    "a superseded handoff of another shape": (_SUPERSEDES, "issue-2426-report-3"),
 })
 
 # What a resolved capture's own members may not be.
@@ -89,6 +103,9 @@ _DAMAGED_RESOLVED = MappingProxyType({
     "a handoff of no revision": (_records.CaptureStage.HANDED_OFF, "revision", 0),
     "a retirement for no reason": (_records.CaptureStage.RETIRED, "reason", "forgotten"),
     "a retirement keeping a receipt": (_records.CaptureStage.RETIRED, "receipt", _RECEIPT),
+    "a retirement spelling no carried handoff": (_records.CaptureStage.RETIRED, _SUPERSEDES, None),
+    "a retirement carrying no handoff": (_records.CaptureStage.RETIRED, _SUPERSEDES, {_STAGE: "retired"}),
+    "a handoff spelling a carried one": (_records.CaptureStage.HANDED_OFF, _SUPERSEDES, {_STAGE: "handed_off"}),
 })
 
 
@@ -123,16 +140,25 @@ class CompletionSpellingTest(unittest.TestCase):
         self.assertEqual(_spelling.read_record(spelled), record)
 
     def test_every_stage_round_trips(self) -> None:
-        """READY and VERIFIED pending captures, a description verification, and both resolved stages."""
+        """READY and VERIFIED captures, a description verification, a stretch, both resolved stages, and a carrier."""
         verified = self.world.completion(message=support.VERIFIED, session_id=None)
         description = dataclasses.replace(verified, outcome=dataclasses.replace(
             verified.outcome, location=dataclasses.replace(verified.outcome.location, comment_id=None),
         ))
-        resolved = (
-            _resolved(stage, self.world.invocation())
-            for stage in (support.STAGE.HANDED_OFF, support.STAGE.RETIRED)
+        stretched = dataclasses.replace(
+            self.world.completion(2),
+            handoff=dataclasses.replace(support.IMPLEMENTATION, delivered=(0, 41)),
+            run=dataclasses.replace(support.RUN, resumed=support.SESSION, pinned=support.SESSION),
+            supersedes=_resolved(_records.CaptureStage.HANDED_OFF, self.world.invocation()),
         )
-        for record in (self.world.completion(), verified, description, *resolved):
+        resolved = (
+            _resolved(support.STAGE.HANDED_OFF, self.world.invocation()),
+            _resolved(support.STAGE.RETIRED, self.world.invocation()),
+            dataclasses.replace(
+                _resolved(support.STAGE.RETIRED, self.world.invocation(2)), supersedes=stretched.supersedes,
+            ),
+        )
+        for record in (self.world.completion(), verified, description, stretched, *resolved):
             with self.subTest(stage=record.stage):
                 self.assert_round_trips(record)
 
@@ -140,10 +166,10 @@ class CompletionSpellingTest(unittest.TestCase):
         """A pending READY capture is one flat object: the invocation's keys and the stage's, and no others."""
         spelled = _spelling.spelled(self.world.completion())
         self.assertEqual(set(spelled), {*_INVOCATION_KEYS, *_PENDING_KEYS})
-        pinned = ("stage", _ROUTE, _ORIGIN, "outcome", _REPORT)
+        pinned = (_STAGE, _ROUTE, _ORIGIN, "outcome", _REPORT, _DELIVERED, _RESUMED, _PINNED, _SUPERSEDES)
         self.assertEqual(
             tuple(spelled[key] for key in pinned),
-            ("pending", "implementation", "workflow:implementing", "ready", support.REPORT),
+            ("pending", "implementation", "workflow:implementing", "ready", support.REPORT, [], None, None, None),
         )
 
 

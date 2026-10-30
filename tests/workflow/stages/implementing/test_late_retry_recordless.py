@@ -112,7 +112,12 @@ class LateGateRecordlessGuidanceTest(
         self._park_without_a_record(reply=_retry_payloads._GUIDANCE)
 
     def test_guidance_still_reaches_the_developer(self) -> None:
-        mocks = self._resumed(head_shas=(MEASURED_CANDIDATE_SHA, _retry_payloads._MOVED_SHA))
+        # The resumed run commits, and the gate proves the head it left: the
+        # commit its captured report is about.
+        mocks = self._resumed(
+            head_shas=(MEASURED_CANDIDATE_SHA, _retry_payloads._MOVED_SHA),
+            candidate_commit=_retry_payloads._MOVED_HEAD,
+        )
 
         self._assert_resumed(mocks)
         self._assert_measured(mocks)

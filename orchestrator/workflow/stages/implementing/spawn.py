@@ -48,7 +48,10 @@ developer was handed. The rationale a split recorded on the issue is quoted
 beside that thread rather than out of it, read off the issue's own pinned
 state: it is no comment, so it neither joins that record nor moves a
 watermark, and it reaches a split parent's first spawn however far back the
-split summary sits.
+split summary sits. That read is also what the first implementation's road is
+frozen over before the launch (`completion_roads.implementation_road`), so a
+report the run finishes on is captured with the requirements and the stretch
+it was handed, beside the checkout and head it ran from.
 """
 from __future__ import annotations
 
@@ -64,8 +67,7 @@ from orchestrator.git.worktrees import (
     creation as _worktree_creation,
     naming as _naming,
 )
-from orchestrator.github.client import GitHubClient
-from orchestrator.github.pinned_state import PinnedState
+from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
     decomposition_prompts as _decomposition_prompts,
     prompt_context as _prompt_context,
@@ -85,11 +87,12 @@ from orchestrator.workflow.stages.implementing import (
     session_read as _session_read,
     state as _state,
 )
+from orchestrator.workflow.stages.implementing.completion_roads import RoadCheckout, implementation_road
 
 log = logging.getLogger("orchestrator.workflow")
 
 
-def _recovered_dev_result(state: PinnedState) -> AgentResult:
+def _recovered_dev_result(state: _pinned_state.PinnedState) -> AgentResult:
     return AgentResult(
         session_id=_session_read._read_dev_session(state)[3],
         last_message="(orchestrator restart: pushing previously committed work)",
@@ -102,11 +105,11 @@ def _recovered_dev_result(state: PinnedState) -> AgentResult:
 
 
 def _spawn_implementer(
-    gh: GitHubClient,
+    gh: _client.GitHubClient,
     spec: config.RepoSpec,
     issue: Issue,
-    state: PinnedState,
-    worktree: Path,
+    state: _pinned_state.PinnedState,
+    checkout: RoadCheckout,
 ) -> _models._SpawnedRun | None:
     if not _charge_fresh_spawn(gh, issue, state):
         gh.write_pinned_state(issue, state)
@@ -119,7 +122,7 @@ def _spawn_implementer(
         _run_charge_state.AgentRunBudget(issue=issue, state=state),
         issue=issue,
         state=state,
-        worktree=worktree,
+        worktree=checkout.worktree,
         backend=session.backend,
         stage=_state._IMPLEMENTING_STAGE,
         prompt=_prompts._build_implement_prompt(
@@ -134,6 +137,7 @@ def _spawn_implementer(
         review_round=state.get("review_round", 0),
         retry_count=state.get(_state._RETRY_COUNT),
         pause_guard=True,
+        completion=implementation_road(state, delivered, checkout),
     )
     # The persistence every developer run's id goes through, so a spawn that
     # hands a retired conversation's id back -- the one its own quota stop just
@@ -145,7 +149,7 @@ def _spawn_implementer(
 
 
 def _charge_fresh_spawn(
-    gh: GitHubClient, issue: Issue, state: PinnedState,
+    gh: _client.GitHubClient, issue: Issue, state: _pinned_state.PinnedState,
 ) -> bool:
     """Gate one fresh spawn, and make it a fresh SESSION where a grant pays.
 
@@ -181,7 +185,7 @@ def _charge_fresh_spawn(
 
 
 def _recovered_work_present(
-    spec: config.RepoSpec, state: PinnedState, worktree: Path, before_sha: str,
+    spec: config.RepoSpec, state: _pinned_state.PinnedState, worktree: Path, before_sha: str,
 ) -> bool:
     """True when the commits on the branch are a previous dev run's.
 
@@ -221,7 +225,7 @@ def _recovered_work_present(
 
 
 def _ensure_dev_worktree(
-    spec: config.RepoSpec, issue: Issue, state: PinnedState,
+    spec: config.RepoSpec, issue: Issue, state: _pinned_state.PinnedState,
 ) -> Path:
     """Prepare the dev checkout, restoring a pruned one from the right ref.
 
@@ -244,7 +248,7 @@ def _ensure_dev_worktree(
 
 
 def _prepare_active_dev_run(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState,
+    gh: _client.GitHubClient, spec: config.RepoSpec, issue: Issue, state: _pinned_state.PinnedState,
 ) -> _models._PreparedDevRun | None:
     """Run or recover one unparked dev tick, once the checkout can be trusted.
 
@@ -275,17 +279,18 @@ def _prepare_active_dev_run(
             _recovered_dev_result(state), before_sha, False, worktree,
             recovered=True,
         )
-    spawned = _spawn_implementer(gh, spec, issue, state, worktree)
+    checkout = RoadCheckout(worktree, _naming._resolve_branch_name(state, spec, issue.number), before_sha)
+    spawned = _spawn_implementer(gh, spec, issue, state, checkout)
     if spawned is None:
         return None
     return _models._PreparedDevRun.from_spawn(spawned, before_sha, worktree)
 
 
 def _prepare_dev_run(
-    gh: GitHubClient,
+    gh: _client.GitHubClient,
     spec: config.RepoSpec,
     issue: Issue,
-    state: PinnedState,
+    state: _pinned_state.PinnedState,
     batch: _resume_batch._ReplyBatch | None = None,
 ) -> _models._PreparedDevRun | None:
     """Set up and run (or recover) the dev agent for one implementing tick.

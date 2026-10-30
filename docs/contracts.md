@@ -51,15 +51,16 @@ supported version-1 records authored by the orchestrator token account; malforme
 are preserved unchanged and never overwritten, duplicated, or silently upgraded. A captured developer completion
 (`developer_completion`) is the pinned record of one returned report alone: only its confirmed capture, or that
 capture read back after an unconfirmed write, carries the report and what its road froze, never a log, analytics,
-a native session, a trajectory, or a host record, and no stage captures one yet. The dispatcher's recovery reads a
-pending capture through that read-back alone.
+a native session, a trajectory, or a host record. Only the first implementation and an implementing resume capture
+one, as their developer returns. The dispatcher's recovery reads a pending capture through that read-back alone.
 
 **Specs:** [state](architecture.md#design-constraints), [restarts](configuration/operations.md#what-survives-a-restart).
 
 **Checks:** [pinned state](../tests/github/test_pinned_state.py),
 [quota recovery](../tests/workflow/stages/implementing/test_quota_retirement_host.py),
 [completion captures](../tests/workflow/engine/test_completion_checkpoint.py),
-[capture recovery](../tests/workflow/engine/test_completion_recovery.py).
+[capture recovery](../tests/workflow/engine/test_completion_recovery.py),
+[captured attempts](../tests/workflow/stages/implementing/test_captured_attempts.py).
 
 ## C-02: Workflow labels and transitions
 
@@ -189,7 +190,7 @@ over it. A run is accounted only on the pinned comment its charge was written on
 only over a `late_cycle_id` that is absent or a positive whole number: a damaged one is no absent cycle. A parsed usage
 adding what no counter's total is spelled as -- a negative count, or a negative cost or one no float holds -- is
 refused, never committed as a total the next reading refuses. A captured completion (`developer_completion`) is read
-only whole, in the one flat shape its stage writes: absent is an issue that captured nothing, and any other shape --
+only whole, in the one shape its stage writes: absent is an issue that captured nothing, and any other shape --
 `null`, a key too many or too few, a member out of its bound, a report the report records refuse, or a road its
 contract refuses -- is a damaged claim, never an absence, so nothing captures over it, retires it, or acts on it,
 and no delivery is bound beside it. Its READY text and VERIFIED reference stay two outcomes, a rewritten-head refresh
@@ -390,7 +391,10 @@ caller too, so its whole-state write never puts back a delivery, retirement, or 
 transfer records the delivered report and hands the capture off in one commit, so the report has one durable owner
 either way; a pending capture is retired only by a guarded invalidation, never behind a transfer nobody confirmed,
 and a handed-off one is neither replaced nor retired until the transaction its delivery becomes settles, the binding
-holding that delivery to the commit the capture reported on. A transfer's read-back or retry, and a capture's or
+holding that delivery to the commit the capture reported on -- save by a later capture carrying it while that
+delivery stands unbound, which holds the delivery the same way and, invalidated, retires still carrying it. A
+capture's settlement of what its tick staged rides its transfer's own commit, so neither lands without the other. A
+transfer's read-back or retry, and a capture's or
 retirement's retry finding the capture past pending, hands its caller the delivery that landed.
 A pending capture is handed on only over readings that admit it, its road's own prerequisites included, and its
 road's own reading of the recorded pull request -- a `discussion` plan the implementing road reads as one is none of
@@ -460,7 +464,10 @@ the push, the intent or receipt recording it, and any handoff it owes, and withh
 unpushed work, a current pull request's restoration from its remote head, uncertain remote reads, and exact-head
 pushes keep their protocols. A captured completion publishes nothing of its own: its recovery hands an admitted
 capture to its road's owner, whose publication keeps every gate above, and the base refresh -- an interrupted
-rebase's recovery included -- rewrites no captured source before that recovery has decided on it.
+rebase's recovery included -- rewrites no captured source before that recovery has decided on it. While a report a
+capture handed off is owed, the size gate holds the head to the commit that capture reported on, beside any candidate
+a record names, so a checkout moved off it -- or a recorded candidate naming another commit -- is neither measured,
+pushed, nor opened as a pull request.
 Credential filtering does not enforce push authority; see [C-11].
 
 **Specs:** [pushes](architecture.md#push-path-gitbranch_transport_push_branch),
@@ -490,7 +497,9 @@ Credential filtering does not enforce push authority; see [C-11].
 [switched refresh clean](../tests/git/base_sync/test_checkout_proof.py),
 [switched conflict handoff](../tests/workflow/stages/conflicts/test_handoff_checkout.py),
 [captured source](../tests/workflow/engine/test_tick_refresh.py),
-[anchored capture](../tests/workflow/engine/test_anchored_capture.py).
+[anchored capture](../tests/workflow/engine/test_anchored_capture.py),
+[captured source](../tests/workflow/stages/implementing/test_captured_source.py),
+[captured source beside a record](../tests/workflow/stages/implementing/test_captured_late_candidate.py).
 
 ## C-08: Agent reply protocols
 
@@ -518,7 +527,9 @@ pass, or ready ping over it. The ready ping announces an approval only over curr
 evidence proved at the ping, or, over a final docs pass's recorded completion, only over that completion proved whole
 at the ping. Evidence is what an artifact comment of ours carries in its hidden payload, the whole body re-rendering
 exactly in the current format; the commands a comment shows count for nothing, and one without the payload binds no
-approval and settles no transaction.
+approval and settles no transaction. A developer report, captured or not, names the requirements revision its run was
+handed -- a `/orchestrator continue` retry, which hands none, the baseline the issue records -- never an edit the run
+did not see.
 
 The final-documentation exception records a docs pass apart from the approval it followed: the approved review
 subject, the settled report and its source commit, and the evidence the approval rests on stay as they were, and the
@@ -549,6 +560,7 @@ and a docs commit the configured run does not pass on is offered to nobody.
 [final documentation](../tests/workflow/engine/test_final_docs_proof.py),
 [final-head runs](../tests/workflow/stages/documenting/test_final_verification.py),
 [final-docs completion](../tests/workflow/stages/validating/test_changed_docs_journey.py),
+[captured retry requirements](../tests/workflow/stages/implementing/test_captured_retry_edit.py),
 [artifact recovery](../tests/github/test_pull_request_verification.py).
 
 ## C-10: Pauses and parks
@@ -569,16 +581,20 @@ works past `paused`/`backlog`: a held child is not released, a held parent is ne
 release and the parent's return move only the workflow label, and the walk reads the parent's controls again in front
 of every release, so a hold applied while the poll runs is never written away or worked past. A hold a finished agent
 run meets, or an accounting checkpoint of it that neither landed nor read back, permits that run's usage accounting
-alone, beside a quota retirement it owes: the exit is counted once, as it returns, and nothing else of the run -- a
-publication, a label, a park, a consumed input, a further launch -- is written or made, nor does the count give any
-stage outcome a replay. A captured completion waits through `paused`/`backlog`, a dependency hold, the `ready`
+alone, beside a quota retirement it owes and, on the first implementation or an implementing resume, the capture of
+the report the run finished on: the exit is counted once, as it returns, and nothing else of the run -- a
+publication, a label, a park, a consumed input, a session pin, a further launch -- is written or made, nor does the
+count give any stage outcome a replay; the hold the run's return first read is the one honored, whatever a later
+fetch sees. A captured completion waits through `paused`/`backlog`, a dependency hold, the `ready`
 decision, and a spent run ledger's park, none released, re-baselined, or cleared by it -- an interrupted auto
 rebase's anchor beside it included, which the anchor's own hold answers without moving the captured checkout -- and
 its recovery charges no run and grants no invocation; one whose run's accounting checkpoint neither landed nor read
 back is handed on to no road until that run's receipt reads back, and the issue's controls, label, state, and
 requirements, its checkout, and its pull request are read again right before the capture is retired or handed on,
 so a hold applied, or a close, reopening, edit, or source moved or put back, while its readings were taken writes
-nothing; a landed retirement ends its tick, so no stage runs on the snapshot its readings outdated. Lifetime agent-run
+nothing; a landed retirement ends its tick, so no stage runs on the snapshot its readings outdated. An applicable
+capture of an implementing road is finished with no developer launched: only what that run was handed and its
+session are settled, and its report goes through the existing delivery, size gate, and publication. Lifetime agent-run
 charges and the grant that permits further runs are covered by [C-15].
 
 **Specs:** [controls](state-machine/labels-and-state.md#workflow-labels),
@@ -591,6 +607,7 @@ charges and the grant that permits further runs are covered by [C-15].
 **Checks:** [live holds](../tests/workflow/engine/test_guards_paused.py),
 [held accounting](../tests/workflow/engine/test_exit_accounting.py),
 [held developer runs](../tests/workflow/stages/implementing/test_paused.py),
+[held resumes](../tests/workflow/stages/implementing/test_captured_resumes.py),
 [ready holds](../tests/workflow/stages/decomposition/test_ready_holds.py),
 [dependency holds](../tests/workflow/stages/decomposition/test_blocked_deferral.py),
 [held releases](../tests/workflow/stages/decomposition/test_claimed_release.py),
@@ -660,8 +677,8 @@ parameters.
 
 **Limits:** Reviewers start fresh with current configuration. A plain `codex` or `claude` is a current command spec,
 kept as pinned with no arguments. Resumes, rotation, failure retirement, and a failed developer conversation's
-replacement keep the pinned command. Only `dev_agent` and `dev_session_id` lock a developer session; no other key is
-resumed, converted, or cleared as one.
+replacement keep the pinned command, and a recovered captured completion pins the command its run ran under. Only
+`dev_agent` and `dev_session_id` lock a developer session; no other key is resumed, converted, or cleared as one.
 
 **Specs:** [session commands](workflow.md#in-flight-session-lock--pinned-full-spec-until-the-session-ends).
 

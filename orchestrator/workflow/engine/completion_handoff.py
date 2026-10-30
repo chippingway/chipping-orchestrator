@@ -39,6 +39,11 @@ on is its recovery's to decide, and the capture still holds the report. Room
 reserved when the capture was taken is no promise of room now: another road
 may have filled the comment since, and the transfer is measured afresh.
 
+A capture taken beside a handoff whose delivery still waits unbound carries
+that handoff (`carried`): its transfer supersedes the delivery, so the later
+capture may replace the handoff, and the delivery stays held to the commit
+the carried one names until then.
+
 The room that transfer will need is reserved when the capture is taken
 (`admits_the_capture`), over the very comment the capture leaves: that
 comment with the capture handed off and the delivered report recorded, at the
@@ -59,8 +64,7 @@ from dataclasses import dataclass, replace
 from github.Issue import Issue
 
 from orchestrator.agents.models import AgentInvocation
-from orchestrator.github.client import GitHubClient
-from orchestrator.github.pinned_state import MAX_PINNED_BODY, PinnedState, pinned_state_body
+from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
     completion_commits as _commits,
     completion_records as _records,
@@ -79,8 +83,14 @@ from orchestrator.workflow.engine.report_record_room import (
     MeasuredWrite,
     RecordingRefusal,
 )
+from orchestrator.workflow.engine.report_record_state import carries_pending_report
 from orchestrator.workflow.engine.report_record_values import MAX_RECORDED_NUMBER
-from orchestrator.workflow.engine.report_records import CURRENT_REPORT, REPORT_HANDOFF, DeliveredReport, HandedRun
+from orchestrator.workflow.engine.report_records import (
+    CURRENT_REPORT,
+    REPORT_HANDOFF,
+    DeliveredReport,
+    HandedRun,
+)
 
 # Every field a transfer writes or the report it hands on lives in: the
 # capture, every report record, and the park and debt flags a recording
@@ -92,9 +102,9 @@ TRANSFERRED = (
 
 
 def transfer(
-    gh: GitHubClient,
+    gh: _client.GitHubClient,
     issue: Issue,
-    state: PinnedState,
+    state: _pinned_state.PinnedState,
     invocation: AgentInvocation,
     retires: tuple = (),
 ) -> _commits.CheckpointOutcome:
@@ -121,7 +131,7 @@ def transfer(
 
 
 def confirmed(
-    commit: _commits.CompletionCommit, fresh: PinnedState, stage: _records.CaptureStage | None,
+    commit: _commits.CompletionCommit, fresh: _pinned_state.PinnedState, stage: _records.CaptureStage | None,
 ) -> _commits.CheckpointOutcome:
     """A standing answer for a capture `fresh` carries at `stage`, laid back onto the caller as the comment's.
 
@@ -136,8 +146,30 @@ def confirmed(
     return commit.standing(fresh, stage)
 
 
+def carried(
+    fresh: _pinned_state.PinnedState, captured: _records.CompletionCapture | _records.ResolvedCapture | None,
+) -> _records.ResolvedCapture | None:
+    """The handoff `captured` stands for, where a later record carries it over `fresh`; else None.
+
+    That is the HANDED_OFF capture `captured` is, or the one a pending or
+    retired capture already carries, still owed only to the delivery it
+    became, standing unbound under its receipt beside no transaction at all:
+    a later capture's own transfer supersedes that delivery, so the later
+    capture may replace the record as long as it carries the handoff -- to
+    hold the delivery to the commit it is about meanwhile -- and a capture
+    invalidated before its transfer retires still carrying it
+    (`completion_checkpoint.retire`). A handoff owed to a transaction, or
+    beside a claim nobody can read, is carried by nothing.
+    """
+    handoff = getattr(captured, "standing_handoff", None)
+    if not _state.source_owed(fresh, handoff) or carries_pending_report(fresh):
+        return None
+    delivered = _delivery_state.read_delivered_report(fresh)
+    return handoff if delivered is not None and delivered.receipt == handoff.receipt else None
+
+
 def admits_the_capture(
-    candidate: PinnedState, captured: _records.CompletionCapture, issue_number: int,
+    candidate: _pinned_state.PinnedState, captured: _records.CompletionCapture, issue_number: int,
 ) -> RecordingRefusal | None:
     """Why the comment `candidate` is could not carry `captured`, or its transfer and what follows it; or None.
 
@@ -148,9 +180,11 @@ def admits_the_capture(
     too, with the publication receipt, the binding, and the settlement each
     reserves.
     """
-    rendered = len(pinned_state_body(candidate.state_data, escaped_in_full=True))
-    if rendered > MAX_PINNED_BODY:
-        return CommentOverflow(write=MeasuredWrite.RECORD, later=LaterWrites(), size=rendered, limit=MAX_PINNED_BODY)
+    rendered = len(_pinned_state.pinned_state_body(candidate.state_data, escaped_in_full=True))
+    if rendered > _pinned_state.MAX_PINNED_BODY:
+        return CommentOverflow(
+            write=MeasuredWrite.RECORD, later=LaterWrites(), size=rendered, limit=_pinned_state.MAX_PINNED_BODY,
+        )
     delivered = _minting.minted_report(
         issue_number, candidate, _minting.outcome_fields(captured.outcome), _handed_run(captured),
     )
@@ -159,7 +193,7 @@ def admits_the_capture(
         receipt=_minting.RECEIPT.format(issue=issue_number, revision=MAX_RECORDED_NUMBER),
         report_revision=MAX_RECORDED_NUMBER,
     )
-    world = PinnedState(state_data=dict(candidate.state_data))
+    world = _pinned_state.PinnedState(state_data=dict(candidate.state_data))
     world.set(_records.DEVELOPER_COMPLETION, _spelling.spelled(_handed_off(captured, widest)))
     return _delivery_state.stage_delivered_report(world, widest, escaped_in_full=True)
 
@@ -170,7 +204,7 @@ class _Transfer:
 
     commit: _commits.CompletionCommit
     captured: _records.CompletionCapture
-    fresh: PinnedState
+    fresh: _pinned_state.PinnedState
 
     def lands(self, retires: tuple) -> _commits.CheckpointOutcome:
         """Record the delivery the capture's outcome mints, the capture handed off in the same commit.
@@ -210,7 +244,9 @@ class _Transfer:
         """
         # The recording lands over a copy of the fresh reading, so what it
         # moved is told from that reading when it is laid onto the caller.
-        reading = PinnedState(comment_id=self.fresh.comment_id, state_data=dict(self.fresh.state_data))
+        reading = _pinned_state.PinnedState(
+            comment_id=self.fresh.comment_id, state_data=dict(self.fresh.state_data),
+        )
         recording = _report_commits.ReportCommit(self.commit.gh, self.commit.issue, reading)
         refusal = _delivery.records_the_report(recording, delivered, handed, escaped_in_full=True)
         if refusal is None:

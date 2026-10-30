@@ -144,7 +144,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reply boundary a park waits above: above `delivered_after_comment_id`, through
                             `delivered_through_comment_id`, and nothing on a record missing either. A prompt quoting
                             the whole thread records the stretch it quoted, from the newest comment its bounded
-                            excerpt cut, or 0, through the newest it quoted (`records_delivery`); a road moving the
+                            excerpt cut, or 0, through the newest it quoted (`records_delivery`), handed the
+                            prompt's record or that stretch kept apart from it (`DeliveredThread.quoted`), as a
+                            captured completion keeps it; a road moving the
                             boundary over replies it read carries the upper end only where the thread, read again up
                             to the new mark, holds nothing above it but replies its prompt quoted whole and nobody's
                             input (`DeliveredThread.carry`), a bounded park walk only where it already reaches the
@@ -438,7 +440,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             stale-approval hand-back an `in_review` relabel writes; the stamp a fixing
                             hand-back leaves on the comment the settlement ahead of it left
                             (`stages/fixing/round_marks.py`); and the records a reviewer round writes onto that
-                            comment (`stages/validating/review_records.py`)
+                            comment (`stages/validating/review_records.py`). So is the owner the captured-completion
+                            recovery hands the implementing roads' captures to
+                            (`stages/implementing/captured_completion.py`)
     poll_models.py          poll-time closure evidence and family/fanout/cleanup partitions, preserving deferred issues
                             absent from enumeration and the blocked/umbrella family capacity exemption; a closed
                             reading -- a family-bucket issue's included, there only when its label could not be read
@@ -1154,10 +1158,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             backend's unfinished-step and terminal-failure diagnostics, never a role, a backend, or
                             an exit code alone, and only for a return a tracked spawn identified
     completion_records.py   the immutable capture of one returned run (`developer_completion`): PENDING with its
-                            invocation, the road and the handoff frozen before the launch, what ran and where, the
+                            invocation, the road and the handoff frozen before the launch -- the thread stretch its
+                            prompt delivered among it -- what ran and where and the conversation it resumed, the
                             READY text or VERIFIED reference, the session it returned and its accounting -- no raw
                             output, prompt, or staged state -- and the resolved HANDED_OFF and RETIRED stages that
-                            keep no report
+                            keep no report, a RETIRED one still carrying the handoff it superseded where it had one
     completion_values.py    what each member of a capture may be: bounded single lines, recorded numbers, a frozen
                             handoff of at most sixteen named digests, and a report the report records' reading takes,
                             each answering a damaged member apart from one legitimately `null`
@@ -1165,14 +1170,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             too many or too few, a member out of bound, or a road its contract refuses reading as
                             no capture
     completion_frozen.py    a road's handoff frozen as one digest per pinned record its launch was decided on, and
-                            which of those records a later reading spells otherwise, `null` from missing included
+                            which of those records a later reading spells otherwise, `null` from missing included;
+                            and the thread stretch a road delivered, read back only whole (`delivered_stretch`)
     completion_state.py     the state's view of its capture: a claim asked apart from a reading, so damage is never
                             an absence; whether a handed-off capture is still owed to its report -- the one record of
                             the commit it is about until the transaction its delivery becomes settles -- or beside a
                             claim of either record nobody can read (`source_owed`); what holds a delivery's binding
-                            -- a capture nobody can read, or a handoff of another branch or commit (`binding_hold`,
-                            which `report_binding.py` asks); and which reports are bound and settled escaped in full
-                            (`escapes_in_full`, which `report_binding.py` and `report_settling.py` ask)
+                            -- a capture nobody can read, or a handoff of another branch or commit, one a pending
+                            or retired capture carries included (`binding_hold`,
+                            which `report_binding.py` asks); which reports are bound and settled escaped in full
+                            (`escapes_in_full`, which `report_binding.py` and `report_settling.py` ask); and whether
+                            a capture nothing has decided stands, which holds every developer launch
+                            (`unresolved`, which `stages/implementing/execution.py` asks)
     completion_commits.py   what every write over a capture is bound to -- the caller's comment read afresh and
                             admitted, the invocation's repository, issue, comment and cycle, and a capture or cycle
                             identity that reads -- and the four answers it comes to, what landed or was read back laid
@@ -1187,17 +1196,22 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             caller every field a transfer writes (`TRANSFERRED`), as every standing answer past
                             PENDING does (`confirmed`); and what a capture is admitted on:
                             its own comment, then that transfer, its binding and its settlement, every one measured
-                            with each terminator escaped (`admits_the_capture`)
+                            with each terminator escaped (`admits_the_capture`); and the handoff a later capture
+                            carries -- one owed only to its delivery, standing unbound beside no transaction
+                            (`carried`)
     completion_checkpoint.py the capture of one eligible return, landed owning its own field alone and decided on it,
                             the cycle and the delivered and pending reports, refused beside another invocation's
                             pending capture, a resolved one of the same or a later charge, a damaged one, or a
-                            handoff whose report has not settled, and for a report its reading or the comment's
+                            handoff whose report has not settled -- save one whose delivery still stands unbound,
+                            which it replaces by carrying as `supersedes` -- and for a report its reading or the comment's
                             escaped room refuses -- leaving the run's usage checkpoint to its own; its read-back; and
                             its retirement, a pending one only as INVALIDATED and a handoff only once its report has
-                            settled or been superseded, an INVALIDATED one decided on the whole reading its caller
+                            settled or been superseded, an INVALIDATED one still carrying a handoff whose
+                            delivery stands, so its own replay is refused -- decided on the whole reading its caller
                             holds -- refused where the comment no longer reads as it, and its commit held to that
                             reading whole (`completion_evidence.py`), a field the reading lacked included.
-                            Dormant: no stage captures a completion yet
+                            The implementing roads capture through it as their developer returns
+                            (`stages/implementing/completion_roads.py`)
     completion_recovery_models.py the five answers one reading of a pending capture gives -- applicable, invalid,
                             uncertain, damaged, and waiting -- the reason each is said with, and the immutable
                             `AdmittedCompletion` an applicable capture is handed to its road's owner as: the
@@ -1247,8 +1261,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             of the run's, merged or not
     completion_recovery.py  the dispatch guard that decides a pending capture ahead of every stage handler, its
                             effect's readings taken again behind the issue's last fetch (`completion_effect.py`): an
-                            applicable one handed to its road's owner (`ROUTE_OWNERS`, resolved when called -- none
-                            in this build, so the stage is held), a stale one retired `invalidated` by the
+                            applicable one handed to its road's owner (`ROUTE_OWNERS`, resolved when called -- the
+                            first implementation's and an implementing resume's to
+                            `stages/implementing/captured_completion.py`, every other road's to none in this build,
+                            so its stage is held), a stale one retired `invalidated` by the
                             checkpoint's guarded retirement and the tick ended behind it, so the stage runs on the
                             next over the issue as it then reads, an uncertain or damaged one held with nothing written,
                             and a hold it waits through, or an operator's hard-skip on the observed-close road,
@@ -1257,7 +1273,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             capture is retired on its own road before that anchor's recovery may reset or push, and
                             left waiting under a dependency hold; and
                             `stages/decomposition/handoff.py` and `ready_handoff.py` ask it before the implementing
-                            handler they run in-tick
+                            handler they run in-tick, as that handler's own preflight does for a pickup's
     report_refusal_notices.py what a human and the log are told about a delivery that refusal held: one notice per
                             refusal, each with its own recovery. A quoted receipt marker is described in prose
                             and never quoted back -- a notice is the orchestrator's own comment, where a receipt
@@ -4227,7 +4243,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             record this park has none of
     implementing/           `workflow:implementing`
       handler.py            the order one tick asks its questions in, opening with the retry-cap notice a stranded
-                            park still owes
+                            park still owes, and a captured completion decided ahead of its preflight
+                            (`engine/completion_recovery.py`) for a pickup that hands an unlabeled issue here in-tick
       spawn.py              awaiting-human vs active, the restorer the checkout comes back from, the
                             recovered-worktree shortcut and the certified baseline it stands down for -- which
                             an unread head cannot spend, since that comparison is what a retirement rests on --
@@ -4235,7 +4252,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             continuation is what paid for it: the grant is durable and the budget is shared, so the
                             tick that spends one is not always the tick -- or even the stage -- that granted it.
                             The spawn routes through `execution.py`'s bounded developer run coordinator to resume
-                            premature AGY command exits before disposition. The spawn's prompt and the record of the
+                            premature AGY command exits before disposition, the first implementation's road frozen
+                            beside it (`completion_roads.py`). The spawn's prompt and the record of the
                             thread it quoted come off one read; an invoked run records the stretch it quoted, above
                             the newest comment that bounded excerpt cut (`engine/thread_delivery.py`), and the record
                             travels on the prepared run, for the pre-session edit that is settled by nothing
@@ -4291,7 +4309,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             process memory only while the record still shows its arming, and a record naming no
                             retirement -- one that will not read, or an arming nothing resolved -- never landed
       resume.py             the two resume entry points: the generic one every stage owning a dev session hands one
-                            typed request (`resume_request.py`), and the human-reply one, handed its caller's
+                            typed request (`resume_request.py`), and the human-reply one, always reading a live
+                            pause, handed the road its implementing caller froze, and handed its caller's
                             frozen batch rather than reading the
                             thread itself, hands that batch's frozen conversation down for the re-grounding
                             a retired session's fresh spawn needs, and settles the consumed issue watermark
@@ -4324,8 +4343,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             pinned state, and the text, the stage its records are attributed to, whether the text
                             already lists the tracked repositories, the live-pause guard, the frozen conversation a
                             fresh spawn is re-grounded from where the caller holds one, and the launch a resume owed
-                            once is -- the run count it is charged against and the hold it is made behind -- as
-                            named fields, so a mistyped option fails where the request is built; beside them, the
+                            once is -- the run count it is charged against and the hold it is made behind -- and the
+                            road a report-producing implementing caller froze for its completion's capture
+                            (`completion_roads.py`), as named fields, so a mistyped option fails where the request
+                            is built; beside them, the
                             split rationale a fresh spawn is re-grounded with, read off the resumed issue's pinned
                             state and never a caller's
       execution.py          one resume, the command its plan locked pinned to `dev_agent` before its first attempt,
@@ -4338,8 +4359,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             included -- lands as it returns (`quota_retirement.py`), ahead of its pause check, a
                             retirement that will not land holding the tick and refusing each launch until it does,
                             an attempt whose accounting stayed unresolved answering held with no retry or
-                            continuation behind it, and a resume naming a conversation the tick's state records as
-                            retired never launched;
+                            continuation behind it, a resume naming a conversation the tick's state records as
+                            retired never launched, and no launch made at all while a capture nothing has decided
+                            stands; each attempt, behind its accounting, quota retirement, and live-pause reading,
+                            asked of the road its caller froze, which captures a return that finished on its report
+                            and holds the tick where that capture did not settle;
                             and the identity an attempt is charged under, spelled once
                             (`_launch_identity`), so the fingerprint a resume's first attempt would be charged under is
                             read without resuming (`_first_launch_fingerprint`) -- how a handed change request's
@@ -4365,11 +4389,39 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             instead of it -- as does a quota stop's commit over a tree not provably clean, which
                             publishes only over a clean one. The quiet recovery of a timeout park admits the branch
                             and the checkout before it reads the tree or clears the park, since the size gate ahead
-                            of its publication can record a foreign commit as the candidate and hand it on
+                            of its publication can record a foreign commit as the candidate and hand it on. A run
+                            that committed nothing past its start parks on its question only once its own capture is
+                            withdrawn (`captured_report.py`)
+      completion_roads.py   what a report-producing implementing road freezes before its launch -- the route, the
+                            requirements its run is handed (for a retry, which hands none, the baseline the issue
+                            records, so an edit beside the command never stamps its report), the input its prompt
+                            delivers (the first implementation's thread stretch and an edit it answers, a reply
+                            batch's consumed pairs, a retry's consumed commands), and the checkout, branch, and head
+                            it launches from -- and
+                            the capture an attempt on it earns: asked by `execution.py` of every attempt, it captures
+                            only a return the road's contract takes, at the head it left, with the command, prompt
+                            digest, and conversation it ran as and still pinned, and answers held where that capture
+                            left the state withheld
+      captured_report.py    the run's own pending capture handed to the report delivery where the disposition records
+                            a report -- what the tick settled around the run riding the transfer's own commit, so the
+                            two land together or not at all; one refused for the report itself withdrawn and the run
+                            recorded or parked
+                            as ever -- and withdrawn by a guarded invalidation ahead of a park that hands the report
+                            to nobody; a run with no capture of its own recorded by the delivery's own recording; and
+                            the commit an owed captured report is about, which the size gate is held to
+                            (`captured_source`)
+      captured_completion.py the owner the dispatcher's recovery hands an applicable capture of the first implementation
+                            or an implementing resume to: the command pinned, the session settled as the run's tick
+                            would have -- a pin dropped only where the capture records the launch dropped it -- the
+                            park it answered taken down, the delivered input its road froze settled,
+                            and the run disposed through `disposition.py` on a result rebuilt from the capture, with
+                            no developer launched
       candidate_recovery.py exact-commit recovery for approved and frozen work, timeout-commit evidence, and publication
                             through a proved clean tree and the size gate; a recovery hands on the candidate it proved.
                             The report the run wrote is recorded between the tree and the gate, the last moment it is
-                            certainly recoverable; a report this build cannot record, and a completed run that handed
+                            certainly recoverable -- handed over from the run's own capture where it took one
+                            (`captured_report.py`), which a tree no push may publish withdraws before its park; a
+                            report this build cannot record, and a completed run that handed
                             over none, stop the call there with nothing measured, pushed or opened. Every synthesis a
                             recovery hands the seam carries `invoked=False`, so it records nothing -- and a candidate
                             a gate record named is held there instead, through `unreported_recovery.py`, where
@@ -4390,7 +4442,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             Also the `invoked=False` result those recoveries hand the seam, and the attribution check
                             proving a failed run's commit for an intentional continue retry
       late_gate.py          prove the caller's committed candidate, ask receipts and existing permissions, and then
-                            take a fresh or resumed measurement; the verdict carries the basis admitting publication
+                            take a fresh or resumed measurement; the verdict carries the basis admitting publication.
+                            A report a capture handed off holds the head to the commit that capture reported on,
+                            beside any recorded candidate (`captured_report.captured_source`, `_Gate.captured`)
       late_gate_permission.py
                             read the authorized exemption, frozen remote tip, unspent approval, and proved receipt;
                             an unknown candidate reaches the switch only after those records have answered
@@ -4843,7 +4897,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       late_gate_models.py   frozen gate calls, publication provenance, caller-owned route spending, and gate verdicts;
                             publication ids distinguish absence from damaged claims, and the close latch stays shared;
                             a squash recovery's gate can be bound to the one commit it may publish as a no-op
-                            (`_Gate.no_op_of`, `bound_to`)
+                            (`_Gate.no_op_of`, `bound_to`), and every gate held to an owed captured report's source
+                            beside its caller's commit (`_Gate.captured`, `moved_off`)
       late_identity_reading.py
                             retained measurement misses, inherited root/depth, and generation identity validation;
                             unreadable or foreign records cannot supply a reportable identity
@@ -4852,7 +4907,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       late_freeze_guards.py reject missing measurement fields and foreign identities before a retained pair is used;
                             an unfinished base permits only that field to remain absent, preserving its original ceiling
       late_freeze.py        prove the candidate, freeze or recover its exact base, and account for failed base reads;
-                            refuse a head differing from the caller's commit or a reconciling tick's record, and
+                            refuse a head differing from the caller's commit, a captured report's source, or a
+                            reconciling tick's record, and
                             recover retained bases by object identity; a permit-only caller is never kept out
                             of the gate by the switch
       late_evidence.py      what a recovery proves before it acts: the checkout, both recorded objects, a
@@ -5093,7 +5149,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             durably instead, so the tick after it recognizes that park, says nothing again and
                             stands down to the resume the reply it asked for belongs to, the quiet
                             timeout recovery, held off by that reason and by a reply the
-                            tick's frozen batch would deliver, and the awaiting-human resume on that batch; the
+                            tick's frozen batch would deliver, and the awaiting-human resume on that batch, its
+                            reply road frozen for the capture of its completion (`completion_roads.py`); the
                             pre-session edit admits the branch and a standing checkout before it reads or announces
       continue_command.py   `/orchestrator continue` on a parked issue for retryable session failures (`agent_silent`,
                             `agent_timeout`, `agent_execution_failed`), opening with the one park below that the
@@ -5107,7 +5164,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             resume) -- the replies the resume would DELIVER -- so a notice of ours or a forged
                             marker above a bare command cannot turn an explicit retry into a generic resume over
                             prose. The retry is re-grounded, wherever its session is missing or retired, off that
-                            freeze's conversation less the commands it consumes
+                            freeze's conversation less the commands it consumes, its road frozen for the capture of
+                            its completion (`completion_roads.py`), so a held retry consumes the commands only once
+                            its recovery settles them
       retry_cap.py          the same standing park on this stage's road, held against the three that would read it
                             as an ordinary one -- the continue classifier, the drift check, and the resume -- so the
                             tick ends having written, spawned, and said nothing, and the pinned session, the pull

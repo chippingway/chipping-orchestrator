@@ -257,10 +257,11 @@ class ApplicableCaptureTest(unittest.TestCase):
                 self.assertEqual([admitted.capture.invocation for admitted in seen.handed], [captured.invocation])
 
     def test_a_road_no_owner_takes_holds_it(self) -> None:
-        # As in this build: nothing finishes the capture, so nothing may run
-        # the work again over it -- every tick holds, and none writes.
+        # A requirements-drift resume's road has no owner in this build:
+        # nothing finishes the capture, so nothing may run the work again over
+        # it -- every tick holds, and none writes.
         world = _support.CapturedWorld()
-        world.captured()
+        world.captured(_support.road(_routes.CompletionRoute.REQUIREMENTS_DRIFT))
         for tick in ("first", "second"):
             with self.subTest(tick=tick):
                 seen = _dispatch.observed(world)

@@ -138,6 +138,21 @@ class DeliveredThread:
         """The ids this record names, each a comment that existed when it was written."""
         return (self.after, self.through)
 
+    @classmethod
+    def quoted(cls, delivered: _prompt_delivery.PromptDeliverySnapshot) -> DeliveredThread:
+        """The stretch `delivered`, a prompt over the WHOLE issue thread, quoted of it, before it joins a recorded one.
+
+        The excerpt drops the oldest comments first, so what it left out is
+        the run up to the newest comment it omitted, one cut part-way
+        included, and everything after that reached the prompt or is nobody's
+        input -- a post of ours, an outsider's comment the excerpt filtered.
+        The stretch runs to the newest of those.
+        """
+        read = delivered.delivered_inputs(_THREAD) + delivered.filtering_decisions(_THREAD)
+        omitted = [entry.id for entry in delivered.bounded_excerpt_omissions(_THREAD)]
+        floor = max(omitted, default=_FROM_THE_BEGINNING)
+        return cls(floor, max([floor, *(entry.id for entry in read)]))
+
     def reaches(
         self, boundary: int, gh: GitHubClient | None, issue: Issue | None, state: PinnedState,
         quoted: frozenset = _NOTHING_QUOTED,
@@ -180,26 +195,23 @@ class DeliveredThread:
 
 
 def records_delivery(
-    state: PinnedState, delivered: _prompt_delivery.PromptDeliverySnapshot,
+    state: PinnedState, delivered: _prompt_delivery.PromptDeliverySnapshot | DeliveredThread,
 ) -> None:
     """Record what `delivered`, a prompt over the WHOLE issue thread, quoted of it.
 
-    The excerpt drops the oldest comments first, so what it left out is the
-    run up to the newest comment it omitted, one cut part-way included, and
-    everything after that reached the prompt or is nobody's input -- a post of
-    ours, an outsider's comment the excerpt filtered. The stretch runs to the
-    newest of those, so a pickup above the thread it quoted is inside it and a
-    settlement after the boundary standing there can carry it. A thread with
-    no human comment on it is recorded all the same, as the stretch over our
-    own posts: a stretch left unrecorded there would count no reply a later
-    resume hands over as delivered. That stretch joins the one recorded where
-    the two meet, and otherwise replaces it: a gap between them is comments no
-    prompt quoted, and one stretch cannot leave them out.
+    `delivered` is the prompt's record, or the stretch it quoted
+    (`DeliveredThread.quoted`) where that was kept apart from the prompt --
+    a captured completion keeps it, for the road that records it once the
+    report is handed on. A pickup above the thread it quoted is inside the
+    stretch, so a settlement after the boundary standing there can carry it.
+    A thread with no human comment on it is recorded all the same, as the
+    stretch over our own posts: a stretch left unrecorded there would count
+    no reply a later resume hands over as delivered. That stretch joins the
+    one recorded where the two meet, and otherwise replaces it: a gap between
+    them is comments no prompt quoted, and one stretch cannot leave them out.
     """
-    read = delivered.delivered_inputs(_THREAD) + delivered.filtering_decisions(_THREAD)
-    omitted = [entry.id for entry in delivered.bounded_excerpt_omissions(_THREAD)]
-    floor = max(omitted, default=_FROM_THE_BEGINNING)
-    through = max([floor, *(entry.id for entry in read)])
+    quoted = delivered if isinstance(delivered, DeliveredThread) else DeliveredThread.quoted(delivered)
+    floor, through = quoted.recorded()
     prior = DeliveredThread.read(state)
     if prior.joins(floor, through):
         floor = min(floor, prior.after)

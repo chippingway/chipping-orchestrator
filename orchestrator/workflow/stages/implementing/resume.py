@@ -17,7 +17,10 @@ cannot disagree.
 
 What it settles, it settles AFTER the run and only for an outcome that counts
 the batch as delivered: a never-invoked, shutdown-killed, or live-paused run
-consumes nothing, since the developer never read the batch. Nothing is lost by
+consumes nothing, since the developer never read the batch. The implementing
+caller freezes its reply road on the request, so a report the run finished on
+is captured with that batch beside it, and a held one is settled once its
+recovery finishes it. Nothing is lost by
 waiting, because every caller that returns on a pause or an interruption
 returns without writing pinned state, so a bump taken ahead of the run would
 be dropped by that return anyway.
@@ -32,6 +35,7 @@ from orchestrator.agents.models import AgentResult
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.workflow.stages.implementing import (
+    completion_roads as _completion_roads,
     execution as _execution,
     resume_batch as _resume_batch,
     resume_request as _resume_request,
@@ -92,9 +96,10 @@ def _resume_dev_with_text(
     live pause -- True when `request.pause_guard` is set AND a hard-skip control label
     (`paused` / `backlog`) was applied to a freshly fetched issue while an agent
     run was in flight -- or, whatever `pause_guard` says, a quota retirement
-    the pinned comment would not take (`quota_retirement`) or an accounting
-    left unresolved (`AgentResult.unaccounted`), either of which leaves the
-    state withheld and the tick held exactly as a pause does. `pause_guard` is
+    the pinned comment would not take (`quota_retirement`), an accounting
+    left unresolved (`AgentResult.unaccounted`), or a capture of the return on
+    the road `request.completion` froze that did not settle, each of which
+    leaves the state withheld and the tick held exactly as a pause does. `pause_guard` is
     opt-in (default False): every
     developer-resume caller -- implementing, validating, documenting, in_review,
     fixing, and resolving_conflict -- passes it True and honors the flag. The
@@ -114,17 +119,20 @@ def _resume_developer_on_human_reply(
     gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue,
     batch: _resume_batch._ReplyBatch,
     *,
-    pause_guard: bool = False,
+    completion: _completion_roads.CompletionRoad | None = None,
 ) -> tuple[Path, AgentResult, bool] | None:
     """Resume the developer's agent session with new issue-level comments.
 
     Returns (worktree, agent_result, paused) on resume, or None when there is
     nothing this road may resume on -- no fresh reply, or a batch a command
     road owns -- in which case the caller returns without writing state.
-    `paused` is forwarded from `_resume_dev_with_text`: True for a live pause
-    only when `pause_guard` is set, and for a quota retirement the pinned
-    comment would not take whether or not it is; both callers (implementing
-    and validating) pass it True and honor the flag.
+    `paused` is forwarded from `_resume_dev_with_text`, which this resume
+    always asks to read a live pause: True for one, for a quota retirement
+    the pinned comment would not take, and for a capture of its return that
+    did not settle; both callers (implementing and validating) honor the
+    flag. `completion` is the road the implementing caller froze for this
+    resume (`completion_roads.reply_road`), so an eligible return is
+    captured on it; validating's resume freezes none.
 
     Used by `implementing` and `validating` -- both deliberately watch only
     the issue's comment thread, not the PR's. The `in_review` handler watches
@@ -156,8 +164,9 @@ def _resume_developer_on_human_reply(
         issue,
         batch.state,
         batch.followup,
-        pause_guard=pause_guard,
+        pause_guard=True,
         thread_text=batch.thread_text,
+        completion=completion,
     ))
     if _resume_batch._counts_as_delivered(resumed[1], resumed[2]):
         batch.settle()
