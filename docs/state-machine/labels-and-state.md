@@ -2026,24 +2026,25 @@ The keys that matter for the state machine fall into a few groups:
   capture into the fresh cycle.
 
   A pending capture is decided ahead of every stage handler, behind the reconciliations, by the
-  [captured-completion recovery](delivery-stages.md#the-captured-completion-recovery-every-dispatch), from its
-  read-back alone and never from a log, analytics, a native session, a trajectory, or a host record: applicable, it is
-  handed, admitted, to the owner of its road, which no road has in this build, so the stage is held; stale -- its
+  [captured-completion recovery](delivery-stages.md#the-captured-completion-recovery-every-dispatch), from its read-back
+  alone and never from a log, analytics, a native session, a trajectory, or a host record: applicable, it is handed,
+  admitted, to the owner of its road -- the implementing stage's for the first implementation and its resumes, which
+  finishes it with no developer run, and none for any other road in this build, so that stage is held; stale -- its
   road's pull request, report debt, or adjudication gone among the proofs -- it is retired `invalidated` by a guarded
   commit owning the capture alone, its invocation kept, and held to the whole reading the proof was taken over, so a
-  comment that moved since -- a field it lacked restored included -- refuses it, and the tick ends behind it, the
-  stage running on the next one over the issue and comment as they then read. The issue is fetched once more right
-  before that retirement or a handoff, for its controls and label, and what the effect stands on is read again behind
-  it -- the issue's state and requirements, the checkout, and the pull request (`completion_effect.py`); uncertain or
-  damaged, or held by a control, a relabel, a close, a reopening, an edit, or a checkout or pull request moved or put
-  back meanwhile, the stage is held with nothing written, and so is a capture whose run's usage was captured
-  `unresolved` until that run's receipt reads back on the ledger beside readable counters. On the implementing road a
-  recorded pull request that road reads as the `discussion` stage's plan, merged or not, is none of the run's. Beside
-  an auto-rebase anchor it is decided ahead of the anchor's hold and, on its own road, retired, since no road hands a
-  report on over a rewrite no recovery finished -- or held, where the anchor reads as no commit; under a dependency
-  hold it waits, and the anchor's hold answers the anchor; a late revision is held beside a late record whose
-  measurement nobody can read. Until it is resolved it keeps the issue's checkout out of the base refresh, beside an
-  anchor too ([Base refresh](#base-refresh)), and none of it charges a run, clears a park, or grants an invocation.
+  comment that moved since -- a field it lacked restored included -- refuses it, and the tick ends behind it, the stage
+  running on the next one over the issue and comment as they then read. The issue is fetched once more right before that
+  retirement or a handoff, for its controls and label, and what the effect stands on is read again behind it -- the
+  issue's state and requirements, the checkout, and the pull request (`completion_effect.py`); uncertain or damaged, or
+  held by a control, a relabel, a close, a reopening, an edit, or a checkout or pull request moved or put back
+  meanwhile, the stage is held with nothing written, and so is a capture whose run's usage was captured `unresolved`
+  until that run's receipt reads back on the ledger beside readable counters. On the implementing road a recorded pull
+  request that road reads as the `discussion` stage's plan, merged or not, is none of the run's. Beside an auto-rebase
+  anchor it is decided ahead of the anchor's hold and, on its own road, retired, since no road hands a report on over a
+  rewrite no recovery finished -- or held, where the anchor reads as no commit; under a dependency hold it waits, and
+  the anchor's hold answers the anchor; a late revision is held beside a late record whose measurement nobody can read.
+  Until it is resolved it keeps the issue's checkout out of the base refresh, beside an anchor too
+  ([Base refresh](#base-refresh)), and none of it charges a run, clears a park, or grants an invocation.
 - **Rewritten-head report debt.** `developer_report_rewrite_debt` is the report a pull request is owed because this
   orchestrator rewrote its head (`workflow/engine/report_rewrite_debt.py`): `pr`, `branch`, `previous_head` -- the head
   the rewrite replaced, the first one across a retargeting, which is the head the settled report is about -- and

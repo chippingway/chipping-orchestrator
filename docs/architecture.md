@@ -636,14 +636,15 @@ parks once on a record it may not act on
 `in_review`) while any claim stands, readable or not, and leaves `workflow:validating` to pay it
 ([`state-machine/delivery-stages.md`](state-machine/delivery-stages.md#the-rewritten-head-report-debt-every-dispatch))
 — a captured developer completion still pending, decided behind that debt and ahead of the reuse guard, from its
-read-back alone: handed, admitted and immutable, to the owner of the road it was taken on -- which no road has in this
-build, so the handler is held -- only while that road's pull request, debt, or adjudication stands and an unaccounted
-run's receipt has read back, retired as invalidated where a reading proves it stale, on that very reading, held with
-nothing written where a reading fails, the issue moves behind the readings before their effect, or the claim is
-damaged, and waited through on a dependency hold, the `ready` decision, and an unlabeled issue, an auto-rebase anchor
-beside it included; the base refresh keeps its checkout where the run left it until then, beside an auto-rebase
-anchor too, where the capture is decided ahead of the anchor's hold and, on its own road, retired before that recovery
-may reset or push -- or held, where the anchor reads as no commit
+read-back alone: handed, admitted and immutable, to the owner of the road it was taken on -- the implementing stage's
+for the first implementation and its resumes, which finishes it through the stage's own disposition with no developer
+run, and none for any other road in this build, so that handler is held -- only while that road's pull request, debt,
+or adjudication stands and an unaccounted run's receipt has read back, retired as invalidated where a reading proves
+it stale, on that very reading, held with nothing written where a reading fails, the issue moves behind the readings
+before their effect, or the claim is damaged, and waited through on a dependency hold, the `ready` decision, and an
+unlabeled issue, an auto-rebase anchor beside it included; the base refresh keeps its checkout where the run left it
+until then, beside an auto-rebase anchor too, where the capture is decided ahead of the anchor's hold and, on its own
+road, retired before that recovery may reset or push -- or held, where the anchor reads as no commit
 ([`state-machine/delivery-stages.md`](state-machine/delivery-stages.md#the-captured-completion-recovery-every-dispatch))
 — an ordinary split's child whose pinned seed is not the one the receipt in its body owes it, held under every label
 but a terminal, pickup included, directly behind the agent-run-limit hold and ahead of a live adjudication's step

@@ -997,8 +997,12 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                    discussion plan the implementing road
                                    reads as one is none of the run's.
                                    APPLICABLE is handed, admitted, to its
-                                   road's owner -- none in this build, so
-                                   the handler is HELD; a proof it is stale
+                                   road's owner -- the implementing stage
+                                   finishes the first implementation's or a
+                                   resume's through its own disposition, no
+                                   developer run; any other road has none
+                                   in this build, so its handler is HELD;
+                                   a proof it is stale
                                    (ended, relabelled, a frozen record
                                    moved to a spelling its reader takes,
                                    requirements, branch, checkout, or pull
