@@ -999,7 +999,8 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                    APPLICABLE is handed, admitted, to its
                                    road's owner -- none in this build, so
                                    the handler is HELD; a proof it is stale
-                                   (ended, relabelled, a frozen record,
+                                   (ended, relabelled, a frozen record
+                                   moved to a spelling its reader takes,
                                    requirements, branch, checkout, or pull
                                    request moved, its road's pull request,
                                    debt, or adjudication gone) RETIRES it
@@ -1012,7 +1013,8 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                    running on the next one; a close,
                                    reopening, edit, or source moved or put
                                    back meanwhile, a read nobody could
-                                   take, an unaccounted run's receipt not
+                                   take, a frozen record moved past its
+                                   reader, an unaccounted run's receipt not
                                    read back, and a damaged claim HOLD with
                                    nothing written;
                                    workflow:blocked, workflow:ready, and an
