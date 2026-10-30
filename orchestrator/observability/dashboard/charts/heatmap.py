@@ -8,7 +8,9 @@ what a cell is worth, because counting events would weigh the cheap
 `stage_enter` and `stage_evaluation` rows the same as the agent exits that
 drive spend, and the hours that looked busiest would be the ones that cost
 nothing. `HourlyHeatmapPoint.count` stays on the row for a caller that wants
-the count itself.
+the count itself. A cell's volume is the runs' known token totals, so a cell
+holding a run whose total is unknown says so on hover rather than passing its
+subtotal off as the hour's whole volume.
 
 Postgres `EXTRACT(DOW FROM ts)` numbers Sunday 0, and the rows are drawn in
 that order rather than re-mapped, so the row a point lands in is the number the
@@ -50,6 +52,10 @@ WEEKDAY_LABELS: tuple[str, ...] = (
     "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat",
 )
 
+# What a cell's hover adds after its volume when some of its runs have no known
+# token total, which leaves that volume a subtotal.
+_UNKNOWN_TOTAL_NOTE = " (subtotal; token total unknown for {runs:,} {noun})"
+
 # The grid is a fixed weekday-row x hour-column matrix. Its row count follows
 # `WEEKDAY_LABELS` so the cells and the y-axis labels cannot drift apart; the
 # column span is the hours in a day.
@@ -77,6 +83,30 @@ def heatmap_matrix(
                 getattr(point, "total_tokens", 0) or 0
             )
     return matrix
+
+
+def unknown_total_note(unknown_runs: int) -> str:
+    """What a cell's hover adds after its volume; empty where every run's total is known."""
+    if not unknown_runs:
+        return ""
+    noun = "run" if unknown_runs == 1 else "runs"
+    return _UNKNOWN_TOTAL_NOTE.format(runs=unknown_runs, noun=noun)
+
+
+def heatmap_hover_notes(
+    points: Sequence[HourlyHeatmapPoint],
+) -> list[list[str]]:
+    """The weekday x hour hover notes, empty where every run's total is known."""
+    weekdays = len(WEEKDAY_LABELS)
+    notes = [
+        ["" for _ in range(HOURS_PER_DAY)] for _ in range(weekdays)
+    ]
+    for point in points:
+        if valid_heatmap_point(point, weekdays):
+            notes[int(point.weekday)][int(point.hour)] = unknown_total_note(
+                int(point.unknown_token_runs or 0),
+            )
+    return notes
 
 
 def heatmap_layout(title: str | None) -> dict[str, object]:
@@ -109,6 +139,7 @@ def hour_weekday_heatmap(
     fig = go.Figure(
         go.Heatmap(
             z=heatmap_matrix(points),
+            customdata=heatmap_hover_notes(points),
             x=[format(hour, "02d") for hour in range(HOURS_PER_DAY)],
             y=list(WEEKDAY_LABELS),
             colorscale=[
@@ -119,7 +150,7 @@ def hour_weekday_heatmap(
             showscale=False,
             xgap=2,
             ygap=2,
-            hovertemplate="%{y} %{x}:00 -- %{z:,} tokens<extra></extra>",
+            hovertemplate="%{y} %{x}:00 -- %{z:,} tokens%{customdata}<extra></extra>",
         )
     )
     # Paint the plot background the border colour so the `xgap`/`ygap`

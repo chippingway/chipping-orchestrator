@@ -44,6 +44,29 @@ _POINTS = (
     ),
 )
 
+# A cell holding agent runs whose token totals are unknown, beside one whose
+# runs are all known.
+_UNSETTLED_POINTS = (
+    HourlyHeatmapPoint(
+        weekday=_WEDNESDAY,
+        hour=_WEDNESDAY_HOUR,
+        count=5,
+        total_tokens=_WEDNESDAY_TOKENS,
+        unknown_token_runs=2,
+    ),
+    HourlyHeatmapPoint(
+        weekday=0,
+        hour=_SUNDAY_HOUR,
+        count=1,
+        total_tokens=_SUNDAY_TOKENS,
+        unknown_token_runs=1,
+    ),
+)
+
+_TWO_UNKNOWN_NOTE = " (subtotal; token total unknown for 2 runs)"
+
+_ONE_UNKNOWN_NOTE = " (subtotal; token total unknown for 1 run)"
+
 # A weekday past the last row and an hour past the last column. Either would
 # raise on the way into the matrix if the grid indexed what it was handed.
 _OUT_OF_RANGE = (
@@ -103,6 +126,24 @@ class HeatmapMatrixTest(unittest.TestCase):
                 )
 
 
+class HeatmapHoverNotesTest(unittest.TestCase):
+    """A cell's volume is a subtotal wherever a run in it has no known token
+    total, and its hover says so rather than passing it off as the whole.
+    """
+
+    def test_a_subtotal_cell_names_the_runs_left_out(self) -> None:
+        notes = heatmap.heatmap_hover_notes(_UNSETTLED_POINTS)
+        self.assertEqual(notes[_WEDNESDAY][_WEDNESDAY_HOUR], _TWO_UNKNOWN_NOTE)
+        self.assertEqual(notes[0][_SUNDAY_HOUR], _ONE_UNKNOWN_NOTE)
+        self.assertEqual(
+            sum(bool(note) for row in notes for note in row), len(_UNSETTLED_POINTS),
+        )
+
+    def test_a_settled_cell_adds_nothing(self) -> None:
+        notes = heatmap.heatmap_hover_notes(_POINTS)
+        self.assertTrue(all(note == "" for row in notes for note in row))
+
+
 @unittest.skipUnless(find_spec("plotly"), _SKIP_REASON)
 class HeatmapFigureTest(unittest.TestCase):
     """The figure those cells are drawn as: its grid, axes, and height."""
@@ -110,6 +151,11 @@ class HeatmapFigureTest(unittest.TestCase):
     def test_the_figure_is_drawn_from_the_matrix(self) -> None:
         grid = _cell_grid(heatmap.hour_weekday_heatmap(_POINTS))
         self.assertEqual(grid, heatmap.heatmap_matrix(_POINTS))
+
+    def test_the_hover_carries_each_cells_note(self) -> None:
+        trace = heatmap.hour_weekday_heatmap(_UNSETTLED_POINTS).data[0]
+        self.assertEqual(trace.customdata[_WEDNESDAY][_WEDNESDAY_HOUR], _TWO_UNKNOWN_NOTE)
+        self.assertIn("tokens%{customdata}", trace.hovertemplate)
 
     def test_rows_are_labelled_in_the_order_given(self) -> None:
         # Postgres `EXTRACT(DOW FROM ts)` numbers Sunday 0, so a point's

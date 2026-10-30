@@ -190,7 +190,9 @@ leaves the total `None`, never guessed either way, and so does an observed count
 evidence a record is read with: the `token_evidence` it states, or, for a record without it, the counters it holds and
 an unknown overlap, so such a record totals only when none of its cache counters is nonzero. The trajectory viewer
 reads each `run_usage` and turn through `recorded_cost` and `recorded_tokens` alike, and each counter through
-`is_count`, so the totals it shows are the ones this reader gives.
+`is_count`, so the totals it shows are the ones this reader gives. The analytics sync reads each `agent_exit` record
+through the same two readers and stores what they answer — the amount per basis, the completeness, the estimate dates,
+and the non-overlapping total — as [columns the database sums](analytics-database.md#usage-evidence-columns).
 
 **Price catalogue.** `prices.py` holds one table of rows per provider — Anthropic, OpenAI, and Gemini — at Standard
 first-party API list rates in USD per million tokens, each row recording the date it was last checked against its

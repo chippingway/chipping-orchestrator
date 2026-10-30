@@ -11,6 +11,60 @@ _SCHEMA_DIR = Path(__file__).resolve().parents[4] / "analytics-db" / "init"
 
 _SCHEMA_PATH = _SCHEMA_DIR / "01-schema.sql"
 
+_BASIS_AMOUNTS = (
+    "cost_cli_reported_usd",
+    "cost_anthropic_estimate_usd",
+    "cost_openai_estimate_usd",
+    "cost_gemini_estimate_usd",
+)
+
+_UNKNOWN_RUNS_PATTERN = (
+    r"WHEN event = 'agent_exit' AND COALESCE\(cost_completeness, 'unknown'\) = 'unknown' "
+    r"THEN 1 ELSE 0 END\)\s+AS\s+cost_unknown_runs"
+)
+
+_UNKNOWN_AMOUNT_PATTERN = (
+    r"WHEN cost_completeness IS NULL THEN cost_usd ELSE cost_unknown_basis_usd END\)"
+    r"\s+AS\s+cost_unknown_basis_usd"
+)
+
+_UNKNOWN_TOTAL_RUNS_PATTERN = (
+    r"WHEN event = 'agent_exit' AND total_tokens IS NULL THEN 1 ELSE 0 END\)"
+    r"\s+AS\s+total_tokens_unknown_runs"
+)
+
+_RATE_DATE_ARRAYS = (
+    "anthropic_rates_verified_on",
+    "openai_rates_verified_on",
+    "gemini_rates_verified_on",
+)
+
+_DATE_UNION_AGGREGATE = (
+    r"CREATE OR REPLACE AGGREGATE analytics_rate_dates\(DATE\[\]\) \( SFUNC = array_cat, STYPE = DATE\[\], "
+    r"FINALFUNC = analytics_sorted_dates \)"
+)
+
+# The date union the rollup and the read model fold verification dates by, defined so a reapply replaces it.
+_DATE_UNION_DEFINITIONS = (
+    r"CREATE OR REPLACE FUNCTION analytics_sorted_dates\(days DATE\[\]\) RETURNS DATE\[\]",
+    r"SELECT array_agg\(DISTINCT day ORDER BY day\) FROM unnest\(days\) AS day",
+    _DATE_UNION_AGGREGATE,
+)
+
+# Every additive evidence column a reader regroups the rollup by.
+_EVIDENCE_AGGREGATES = (
+    "cost_complete_runs",
+    "cost_incomplete_runs",
+    "cost_no_usage_runs",
+    "cost_unknown_runs",
+    *_BASIS_AMOUNTS,
+    "cost_unknown_basis_usd",
+    *_RATE_DATE_ARRAYS,
+    "total_tokens",
+    "cache_tokens_in_total",
+    "total_tokens_unknown_runs",
+)
+
 
 def _schema_text() -> str:
     return _SCHEMA_PATH.read_text(encoding="utf-8")
@@ -113,9 +167,25 @@ class AnalyticsDailyRollupDefinitionTest(unittest.TestCase):
             "failed_count",
             "timed_out_count",
             "event_count",
+            *_EVIDENCE_AGGREGATES,
         ):
             with self.subTest(column=col):
                 self.assertRegex(body, rf"\bAS\s+{col}\b")
+
+    def test_every_verification_date_is_kept(self) -> None:
+        # A group keeps each distinct date its estimates were priced at, not
+        # only the earliest and latest: the aggregate unions the rows' sorted
+        # arrays, and folds the rollup's own arrays again for a read
+        # regrouping its rows.
+        text = _normalized_schema()
+        for pattern in _DATE_UNION_DEFINITIONS:
+            with self.subTest(pattern=pattern):
+                self.assertRegex(text, pattern)
+        body = _rollup_view_body()
+        for column in _RATE_DATE_ARRAYS:
+            with self.subTest(column=column):
+                self.assertRegex(body, rf"analytics_rate_dates\({column}\)\s+AS\s+{column}\b")
+        self.assertLess(text.index("AGGREGATE analytics_rate_dates"), text.index("MATERIALIZED VIEW IF NOT EXISTS"))
 
 
 class AnalyticsDailyRollupAggregationTest(unittest.TestCase):
@@ -166,6 +236,36 @@ class AnalyticsDailyRollupAggregationTest(unittest.TestCase):
     def test_view_event_count_is_row_count(self) -> None:
         body = _rollup_view_body()
         self.assertRegex(body, r"COUNT\(\*\)\s+AS\s+event_count")
+
+    def test_each_basis_is_summed_on_its_own(self) -> None:
+        # `cost_source` cannot say what a group cost, so every basis keeps its
+        # own sum -- named as on the events table, so one reading serves both.
+        body = _rollup_view_body()
+        for column in _BASIS_AMOUNTS:
+            with self.subTest(column=column):
+                self.assertRegex(body, rf"SUM\({column}\)\s+AS\s+{column}\b")
+
+    def test_an_underived_exit_counts_as_unknown(self) -> None:
+        # An `agent_exit` row the sync stored before it derived evidence states
+        # none: it counts as an `unknown` run and its recorded amount is summed
+        # under the `unknown` basis, while the other events count as neither.
+        body = _rollup_view_body()
+        for pattern in (_UNKNOWN_RUNS_PATTERN, _UNKNOWN_AMOUNT_PATTERN):
+            with self.subTest(pattern=pattern):
+                self.assertRegex(body, pattern)
+
+    def test_tokens_keep_the_unknown_beside_the_known(self) -> None:
+        # A sum of the known totals is a subtotal wherever a run's total is
+        # unknown, so the count of those runs rides beside it, and the cache
+        # tokens a share of the total divides are those inside known totals.
+        body = _rollup_view_body()
+        for pattern in (
+            r"SUM\(total_tokens\)\s+AS\s+total_tokens",
+            r"WHEN total_tokens IS NOT NULL THEN COALESCE\(cached_tokens, 0\)",
+            _UNKNOWN_TOTAL_RUNS_PATTERN,
+        ):
+            with self.subTest(pattern=pattern):
+                self.assertRegex(body, pattern)
 
 
 class AnalyticsDailyRollupIndexTest(unittest.TestCase):

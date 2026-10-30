@@ -73,11 +73,11 @@ _OWNERS = (
 # read off is a deliberate edit rather than a place two chart families could
 # disagree. The two bar-sizing constants, the panel margin, the empty-ranking
 # height, the pinned call signature, the cache-shading factor and its hex base,
-# the review-round labels, order, and row heights, the heatmap's weekday labels
-# and hour span, the strip's pinned height, the band names, the per-day table's
-# alias, and the usage grid-step and height constants are all invisible here
-# because the check reads `__module__`, which only a class or a function
-# carries.
+# the review-round labels, order, and row heights, the heatmap's weekday labels,
+# hour span, and subtotal note, the strip's pinned height, the band names, the
+# per-day table's alias, and the usage grid-step and height constants are all
+# invisible here because the check reads `__module__`, which only a class or a
+# function carries.
 _SURFACES = MappingProxyType({
     _COST_LAYOUT_OWNER: (
         "CostBarTrace",
@@ -116,9 +116,11 @@ _SURFACES = MappingProxyType({
         "stage_no_cache_cost",
     ),
     _HEATMAP_OWNER: (
+        "heatmap_hover_notes",
         "heatmap_layout",
         "heatmap_matrix",
         "hour_weekday_heatmap",
+        "unknown_total_note",
         "valid_heatmap_point",
     ),
     _PRIMITIVES_OWNER: (

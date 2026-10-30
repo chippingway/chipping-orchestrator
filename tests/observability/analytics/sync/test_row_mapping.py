@@ -198,7 +198,8 @@ class InsertRowTest(unittest.TestCase):
 
     def test_row_follows_the_column_order(self) -> None:
         cells = self._cells(_record(backend="claude"))
-        order = columns.PROMOTED_COLUMNS
+        order = columns.TABLE_COLUMNS
+        self.assertEqual(order[:len(columns.PROMOTED_COLUMNS)], columns.PROMOTED_COLUMNS)
         self.assertEqual(cells[order.index(_REPO_FIELD)], _SAMPLE_REPO)
         self.assertEqual(cells[order.index("backend")], "claude")
         self.assertIsNone(cells[order.index("turns")])
@@ -206,17 +207,17 @@ class InsertRowTest(unittest.TestCase):
 
     def test_provenance_trails_the_row(self) -> None:
         cells = self._cells(_record(future_key=_FUTURE_VALUE))
-        tail = cells[len(columns.PROMOTED_COLUMNS):]
+        tail = cells[len(columns.TABLE_COLUMNS):]
         self.assertEqual(tail[0], json.dumps({_FUTURE_FIELD: _FUTURE_VALUE}))
         self.assertEqual(tail[1:], (_SAMPLE_PATH, _SAMPLE_LINE, _SAMPLE_HASH))
 
     def test_json_cells_pass_the_adapter(self) -> None:
         cells = self._cells(_record(models=["claude-opus"]))
-        models_cell = cells[columns.PROMOTED_COLUMNS.index(_MODELS_FIELD)]
+        models_cell = cells[columns.TABLE_COLUMNS.index(_MODELS_FIELD)]
         self.assertEqual(models_cell, json.dumps(["claude-opus"]))
         # An empty extras blob is a NULL rather than an adapted `{}`, so a
         # record carrying nothing unknown reads back as having no extras.
-        self.assertIsNone(cells[len(columns.PROMOTED_COLUMNS)])
+        self.assertIsNone(cells[len(columns.TABLE_COLUMNS)])
 
     def _cells(self, record: dict) -> tuple:
         promoted, extras = rows.split_row(record)

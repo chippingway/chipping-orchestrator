@@ -6,10 +6,33 @@ import re
 import unittest
 from pathlib import Path
 
+from orchestrator.observability.analytics.sync import columns
+
 _SCHEMA_DIR = Path(__file__).resolve().parents[4] / "analytics-db" / "init"
 
 
 _SCHEMA_PATH = _SCHEMA_DIR / "01-schema.sql"
+
+# How the view reads a row the sync stored before it derived evidence.
+_UNDERIVED_READINGS = (
+    r"COALESCE\(cost_completeness, 'unknown'\) AS cost_completeness",
+    r"CASE WHEN cost_completeness IS NULL THEN cost_usd ELSE cost_unknown_basis_usd END AS cost_unknown_basis_usd",
+    r"COALESCE\(token_cache_overlap, 'unknown'\) AS token_cache_overlap",
+)
+
+# What the agent-run view adds after `cost_source`, in its select-list order.
+_VIEW_EVIDENCE_COLUMNS = (
+    "cost_completeness",
+    "cost_cli_reported_usd",
+    "cost_anthropic_estimate_usd",
+    "cost_openai_estimate_usd",
+    "cost_gemini_estimate_usd",
+    "cost_unknown_basis_usd",
+    "anthropic_rates_verified_on",
+    "openai_rates_verified_on",
+    "gemini_rates_verified_on",
+    "token_cache_overlap",
+)
 
 
 def _schema_text() -> str:
@@ -24,6 +47,15 @@ def _normalize(sql: str) -> str:
 def _normalized_schema() -> str:
     """Whitespace-collapsed schema DDL, shared across the contract tests."""
     return _normalize(_schema_text())
+
+
+def _agent_runs_view_body() -> str:
+    match = re.search(
+        r"CREATE OR REPLACE VIEW analytics_agent_runs AS\s+(.*?);",
+        _normalized_schema(),
+    )
+    assert match is not None, "analytics_agent_runs view missing"
+    return match.group(1)
 
 
 class SchemaIndexesTest(unittest.TestCase):
@@ -142,6 +174,7 @@ class AnalyticsAgentRunsViewTest(unittest.TestCase):
             "cost_usd",
             "has_cost",
             "cost_source",
+            *_VIEW_EVIDENCE_COLUMNS,
         )
         for col in expected_columns:
             # AS-aliased derived columns end in ` AS <col>`; plain
@@ -168,14 +201,6 @@ class AnalyticsAgentRunsViewTest(unittest.TestCase):
             r"\(cost_usd IS NOT NULL\)\s+AS\s+has_cost",
         )
 
-    def test_view_total_tokens_derivation(self) -> None:
-        text = _normalized_schema()
-        self.assertRegex(
-            text,
-            r"COALESCE\(input_tokens,\s*0\)\s*\+\s*COALESCE\(output_tokens,\s*0\)"
-            r"\s+AS\s+total_tokens",
-        )
-
     def test_view_total_cache_tokens_sums_all_three(self) -> None:
         # cache totals roll up cached + cache_read + cache_write so a
         # dashboard can plot one number; missing one of the three
@@ -188,3 +213,45 @@ class AnalyticsAgentRunsViewTest(unittest.TestCase):
             r"\+\s*COALESCE\(cache_write_tokens,\s*0\)\s+"
             r"AS\s+total_cache_tokens",
         )
+
+
+class UsageEvidenceSchemaTest(unittest.TestCase):
+    """The columns the sync derives from a record's usage evidence, and what
+    the agent-run view says a run cost and spent in tokens off them.
+    """
+
+    def test_each_derived_column_is_created_and_added(self) -> None:
+        # Every derived column exists on a fresh table and is added to an
+        # existing one, so the INSERT naming it never meets a table without it
+        # after a reapply.
+        text = _normalized_schema()
+        table = re.search(r"CREATE TABLE IF NOT EXISTS analytics_events \((.*?)\);", text)
+        assert table is not None, "analytics_events table missing"
+        for column in columns.DERIVED_COLUMNS:
+            with self.subTest(column=column):
+                self.assertRegex(table.group(1), rf"\b{column} [A-Z]")
+                self.assertRegex(text, rf"ADD COLUMN IF NOT EXISTS {column} [A-Z]")
+
+    def test_total_tokens_is_the_stored_total(self) -> None:
+        # The view's total is the non-overlapping one the sync stored, never
+        # the raw counters added up again, so a cache counter already inside
+        # input is not counted twice and an unknown total stays NULL.
+        body = _agent_runs_view_body()
+        self.assertRegex(body, r"cache_write_tokens, total_tokens, COALESCE\(cached_tokens")
+        self.assertNotRegex(body, r"\bAS total_tokens\b")
+
+    def test_evidence_trails_cost_source(self) -> None:
+        # `CREATE OR REPLACE VIEW` only appends, so the evidence trails every
+        # column an earlier view already had, in the order the columns stand.
+        body = _agent_runs_view_body()
+        positions = [body.index(f"{column}") for column in ("cost_source", *_VIEW_EVIDENCE_COLUMNS)]
+        self.assertEqual(positions, sorted(positions))
+
+    def test_an_underived_row_reads_unknown(self) -> None:
+        # A row the sync stored before it derived evidence states none: it
+        # reads `unknown`, its recorded amount kept under the `unknown` basis
+        # rather than dropped or attributed to any provider.
+        body = _agent_runs_view_body()
+        for pattern in _UNDERIVED_READINGS:
+            with self.subTest(pattern=pattern):
+                self.assertRegex(body, pattern)

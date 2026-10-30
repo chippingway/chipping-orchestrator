@@ -112,10 +112,10 @@ matching `ANALYTICS_LOG_PATH`.
   promoted, while its `reason`, `route`, pull request, commit, and the rest of its correlation ride in `extras`, and
   `get_issue_events` reads both back
   ([`event-streams.md`](event-streams.md#analytics-sink-analytics_log_path)).
-  The `agent_exit` usage evidence is a sixth: `cost_evidence` and `token_evidence` ride in `extras` as the objects
-  the sink wrote ([`usage.md`](usage.md#usage-parser)), beside the promoted `cost_usd`, `cost_source`, and token
-  columns they qualify. No view, rollup, or read-model query reads them yet, so every figure the database derives is
-  still built from those promoted columns alone, and a row synced from an earlier build carries neither key.
+  The `agent_exit` usage evidence is a sixth: `cost_evidence` and `token_evidence` ride in `extras` verbatim, as the
+  objects the sink wrote ([`usage.md`](usage.md#usage-parser)), beside the promoted `cost_usd`, `cost_source`, and
+  token columns they qualify — and, unlike the others, the sync also files what they mean in
+  [columns of their own](#usage-evidence-columns), since SQL can neither validate nor fold the raw objects.
   `source_path` / `source_line` are
   forensic context; the authoritative dedup key is `content_hash` — SHA-256 over the canonical (`sort_keys=True`)
   JSON form of the record.
@@ -130,18 +130,82 @@ matching `ANALYTICS_LOG_PATH`.
   `AVG(duration_s)` as `sum / count`), `failed_count` (rows with non-NULL non-zero `exit_code`), `timed_out_count`
   (scoped to `event='agent_exit'` with `timed_out=TRUE`), and `event_count`. `day` is `(ts AT TIME ZONE 'UTC')::date`. A
   unique index on the full key (`NULLS NOT DISTINCT`, Postgres 15+) backs the rollup; a `(day, repo)` supporting index
-  keeps `WHERE day BETWEEN x AND y` predicates on a range scan.
+  keeps `WHERE day BETWEEN x AND y` predicates on a range scan. `cost_source` cannot say what a group cost, so the
+  [usage evidence](#usage-evidence-columns) rides beside it, every column folding across rollup rows as it folds
+  across the runs beneath: one amount per basis (`cost_cli_reported_usd`, `cost_anthropic_estimate_usd`,
+  `cost_openai_estimate_usd`, `cost_gemini_estimate_usd`, `cost_unknown_basis_usd`), the `agent_exit` rows counted by
+  the completeness each states (`cost_complete_runs`, `cost_incomplete_runs`, `cost_no_usage_runs`,
+  `cost_unknown_runs`), every distinct rate-verification date per estimate basis (`anthropic_rates_verified_on`,
+  `openai_rates_verified_on`, `gemini_rates_verified_on`, sorted arrays the schema's `analytics_rate_dates` aggregate
+  unions, NULL where nothing in the group was priced at a dated row), the summed known non-overlapping `total_tokens`,
+  the `cache_tokens_in_total` those known totals hold, and `total_tokens_unknown_runs`, the `agent_exit` rows whose
+  total is unknown. A row with no derived evidence counts as an `unknown` run with its
+  `cost_usd` summed under the `unknown` basis, as the agent-run view reads it.
 - **`analytics_agent_runs` view.** `CREATE OR REPLACE VIEW` over `event = 'agent_exit'` rows that promotes derivations:
-  `model` from `COALESCE(models->>0, 'unknown')`, `total_tokens` = `input + output`, `total_cache_tokens` = `cached +
-  cache_read + cache_write`, a categorical `review_round_bucket` (`0`, `1`, `2`, `3-5`, `6+`), `failed = exit_code <> 0`
-  (NULL preserved), and `has_cost = cost_usd IS NOT NULL` (true for `cost_source` in {`reported`, `estimated`}). Raw
-  nullable columns pass through alongside derived ones; `cost_source` passes through verbatim.
+  `model` from `COALESCE(models->>0, 'unknown')`, `total_tokens` = the stored non-overlapping total (NULL where it is
+  unknown), `total_cache_tokens` = `cached + cache_read + cache_write`, a categorical `review_round_bucket` (`0`, `1`,
+  `2`, `3-5`, `6+`), `failed = exit_code <> 0` (NULL preserved), and `has_cost = cost_usd IS NOT NULL` (true for a
+  complete cost, `cost_source` in {`reported`, `estimated`}). Raw nullable columns pass through alongside derived ones;
+  `cost_source` passes through verbatim. The [usage evidence](#usage-evidence-columns) follows it, appended because
+  `CREATE OR REPLACE VIEW` only appends: `cost_completeness`, the five per-basis amounts, the three estimate bases'
+  `*_rates_verified_on` arrays, and `token_cache_overlap`, a row with no derived evidence reading as `unknown` with its
+  `cost_usd` under the `unknown` basis.
 
 The init script runs once when the data volume is empty. `IF NOT EXISTS` guards plus trailing `ALTER TABLE ... ADD
-COLUMN IF NOT EXISTS` / `CREATE UNIQUE INDEX IF NOT EXISTS` for `content_hash` keep it idempotent for the
-operator-driven case (`psql -f` against an existing instance) and migrate a pre-`content_hash` data volume without
-dropping data. MV column changes require `DROP MATERIALIZED VIEW analytics_daily_rollup` followed by a reapply; the
-sync's refresh hook does NOT recover from a column mismatch.
+COLUMN IF NOT EXISTS` / `CREATE UNIQUE INDEX IF NOT EXISTS` for `content_hash` and the usage evidence columns keep it
+idempotent for the operator-driven case (`psql -f` against an existing instance) and add those columns to an existing
+data volume without dropping or converting data. MV column changes require `DROP MATERIALIZED VIEW
+analytics_daily_rollup` followed by a reapply; the sync's refresh hook does NOT recover from a column mismatch.
+
+### Usage evidence columns
+
+`cost_usd` holds a run's complete amount alone and `cost_source` a coarse tag, and neither can say what a sum of them
+means: a CLI-reported amount and each provider's API estimate are different things, an unpriced run states no amount
+while its neighbours do, and a record an earlier build wrote names no basis at all. So for each `agent_exit` record the
+sync (`sync/evidence.py`) reads the raw evidence through the readers every usage surface shares —
+`usage.cost_evidence.recorded_cost` and `usage.token_evidence.recorded_tokens` ([`usage.md`](usage.md#usage-parser))
+— and fills these `analytics_events` columns, NULL on every other event:
+
+- `cost_completeness` — `complete`, `incomplete`, `no-usage`, or `unknown`.
+- `cost_cli_reported_usd`, `cost_anthropic_estimate_usd`, `cost_openai_estimate_usd`, `cost_gemini_estimate_usd`,
+  `cost_unknown_basis_usd` — each contribution under its own basis, NULL where the cost states none, so a complete
+  zero (`0`) stays apart from no amount and an incomplete subtotal keeps the amounts it states while `cost_usd` stays
+  NULL.
+- `anthropic_rates_verified_on`, `openai_rates_verified_on`, `gemini_rates_verified_on` — an estimate's price-row
+  verification dates, sorted and distinct.
+- `token_cache_overlap` and `total_tokens` — how the cache counters relate to input, and the non-overlapping total:
+  every observed counter once, a cache counter already inside input (Codex's `cached_tokens`) not added again, NULL
+  where the evidence leaves it unknown (an Antigravity run's cache reads, whose overlap nothing establishes yet).
+
+A record without evidence is read as those readers read it: `unknown` completeness with its `cost_usd` under the
+`unknown` basis, never a provider's basis inferred from its `cost_source`, backend, or models, and a token total only
+where no cache counter is nonzero. Nothing reprices a stored amount or backfills a breakdown. The raw evidence stays in
+`extras`, and the record's `content_hash`, and so the replay's dedup, is unchanged by the derived cells. A row an
+earlier sync stored before these columns existed carries none of them, and the replay skips its line as already
+stored, so nothing re-derives it: the view and rollup read such a row as an `unknown` cost holding its `cost_usd` under
+the `unknown` basis, with an unknown token total. The read model's
+[cohort and token reductions](analytics-dashboard.md#read-model-orchestratorobservabilityanalyticsquery) are built over
+these columns.
+
+### Upgrading an existing database
+
+This schema adds columns to `analytics_events`, appends columns to `analytics_agent_runs`, defines the
+`analytics_rate_dates` aggregate, and changes the `analytics_daily_rollup` column list. Before the first sync of a
+release that carries it — whose INSERT names the new columns and fails, committing nothing, on a table without them —
+reapply the schema, drop the rollup, and reapply again so it is rebuilt with the new columns:
+
+```sh
+cd analytics-db
+docker compose exec -T analytics-db sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/01-schema.sql'
+docker compose exec -T analytics-db sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "DROP MATERIALIZED VIEW IF EXISTS analytics_daily_rollup"'
+docker compose exec -T analytics-db sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/01-schema.sql'
+```
+
+The first reapply adds the table columns and replaces the agent-run view in place; dropping the rollup loses nothing,
+since the second reapply rebuilds it from `analytics_events`. Until the first reapply, a dashboard read naming a new
+column raises its read-error banner, except that the earlier agent-run view still answers `total_tokens` as input
+plus output, so the cost-coverage bar and the by-backend token stack read that earlier total rather than failing.
+Rows already stored keep NULL evidence columns and read as described above.
 
 ## Sync CLI (`orchestrator/observability/analytics/sync/cli.py`)
 
@@ -187,15 +251,16 @@ the import is lazy inside the connect helper so the module load path remains dri
 `SyncResult`.
 
 **Module ownership.** Everything above is owned by `observability/analytics/sync/`, split by boundary. `columns.py`
-owns the promoted / JSONB / required column inventory; `records.py` owns canonical JSON, `content_hash`, the coercion
-each required field is narrowed by, and the routing of everything else into `extras`; `rows.py` validates one line,
-builds the INSERT, and lays out the positional tuple that fills it. Those three are driver-free, so a caller can hash a
-record or build a row with no psycopg installed. `models.py` owns `SyncResult` and the mutable tallies behind it,
-`ingest.py` the pre-check, the in-file skip set, the batched flush, and the progress and malformed records,
-`database.py` the lazily imported driver plus the quiet rollback / close and the rollup refresh, `redaction.py` the
-credential stripping, `run.py` the resolved request, the no-op gate, the transaction shape, and
-`sync_jsonl_to_postgres` itself, and `cli.py` the arguments, the UTC-pinned logging, the stdout summary, and the exit
-code. Nothing above them answers for a replay: `cli.py` is the module `python -m` names, and a caller that drives
+owns the promoted / JSONB / required column inventory and the usage evidence columns derived beside them;
+`records.py` owns canonical JSON, `content_hash`, the coercion each required field is narrowed by, and the routing of
+everything else into `extras`; `evidence.py` owns what an `agent_exit` record's usage evidence fills on its row;
+`rows.py` validates one line, builds the INSERT, and lays out the positional tuple that fills it. Those four are
+driver-free, so a caller can hash a record or build a row with no psycopg installed. `models.py` owns `SyncResult` and
+the mutable tallies behind it, `ingest.py` the pre-check, the in-file skip set, the batched flush, and the progress
+and malformed records, `database.py` the lazily imported driver plus the quiet rollback / close and the rollup
+refresh, `redaction.py` the credential stripping, `run.py` the resolved request, the no-op gate, the transaction shape,
+and `sync_jsonl_to_postgres` itself, and `cli.py` the arguments, the UTC-pinned logging, the stdout summary, and the
+exit code. Nothing above them answers for a replay: `cli.py` is the module `python -m` names, and a caller that drives
 a run itself names `run.py`.
 
 ## Operator feedback

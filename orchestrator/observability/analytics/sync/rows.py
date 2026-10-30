@@ -4,11 +4,15 @@
 
 The statement and the parameter tuple are built from the same column list in
 the same order, so the row is positional and no per-row dict-to-tuple mapping
-stands between the two. Every way a line can fail -- not JSON, JSON that is not
-an object, a required field the table would reject -- resolves to a reason
-string instead of an exception: one bad line in a rotated JSONL file must not
-abort the replay of the thousands after it. A blank line comes back with
-neither a row nor a reason, which is what keeps it out of the malformed tally.
+stands between the two. That list is the promoted fields followed by the
+columns derived from an `agent_exit` record's usage evidence, so a row carries
+what its record's cost and tokens mean beside the raw values it copied.
+
+Every way a line can fail -- not JSON, JSON that is not an object, a required
+field the table would reject -- resolves to a reason string instead of an
+exception: one bad line in a rotated JSONL file must not abort the replay of
+the thousands after it. A blank line comes back with neither a row nor a
+reason, which is what keeps it out of the malformed tally.
 """
 from __future__ import annotations
 
@@ -19,8 +23,9 @@ from typing import Any
 
 from orchestrator.observability.analytics.sync.columns import (
     JSONB_COLUMNS,
-    PROMOTED_COLUMNS,
+    TABLE_COLUMNS,
 )
+from orchestrator.observability.analytics.sync.evidence import derived_columns
 from orchestrator.observability.analytics.sync.records import (
     content_hash,
     extra_columns,
@@ -29,7 +34,7 @@ from orchestrator.observability.analytics.sync.records import (
 
 
 def split_row(record: dict) -> tuple[dict, dict] | None:
-    """Promote known columns and route the rest to `extras`.
+    """Promote known columns, derive the evidence ones, and route the rest to `extras`.
 
     Returns (columns, extras), or None if a required key is missing
     or `ts` does not parse. The caller treats None as a malformed-line
@@ -38,18 +43,20 @@ def split_row(record: dict) -> tuple[dict, dict] | None:
     columns = required_columns(record)
     if columns is None:
         return None
-    return columns, extra_columns(record, columns)
+    extras = extra_columns(record, columns)
+    columns.update(derived_columns(record))
+    return columns, extras
 
 
 def build_insert_sql() -> str:
     """Construct the parameterised INSERT once per call.
 
-    All promoted columns are emitted in a fixed order so the
-    parameter tuple in `row_values` lines up positionally without a
+    All promoted and derived columns are emitted in a fixed order so
+    the parameter tuple in `row_values` lines up positionally without a
     per-row dict-to-tuple mapping.
     """
     columns = (
-        *PROMOTED_COLUMNS,
+        *TABLE_COLUMNS,
         "extras",
         "source_path",
         "source_line",
@@ -76,7 +83,7 @@ def row_values(
     json_adapter: Callable[[Any], Any],
 ) -> tuple:
     cells: list[Any] = []
-    for col in PROMOTED_COLUMNS:
+    for col in TABLE_COLUMNS:
         cell = columns.get(col)
         if col in JSONB_COLUMNS and cell is not None:
             cell = json_adapter(cell)

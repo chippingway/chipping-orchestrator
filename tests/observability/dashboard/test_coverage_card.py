@@ -6,9 +6,10 @@ The whole point of the bar is which denominator it divides by, so the cases
 name a window where the two disagree: one source carrying most of the tokens
 out of a small minority of the runs. Token share is what an operator is exposed
 to when a pricing table has a gap, and run share only stands in for a window
-that has not reported a token yet -- a window reporting neither divides by one
-rather than raising, because a page is opened on an empty window precisely to
-find out that it is empty.
+that has not reported a token yet, or one holding a run whose token total is
+unknown -- a window reporting neither divides by one rather than raising,
+because a page is opened on an empty window precisely to find out that it is
+empty.
 
 The bar and the legend under it are read together, since a segment is built as
 both at once: the same hue and the same percentage have to appear in each, the
@@ -64,6 +65,19 @@ _RUN_ONLY_ROWS = (
     CostCoverageRow(cost_source=_UNPRICED, runs=1, total_tokens=0),
 )
 
+# The token window again, with one unpriced run whose token total nothing
+# settles: its source's known subtotal would understate it, so run share sizes
+# the bar instead of a token share that hides the run nobody could measure.
+_UNSETTLED_ROWS = (
+    _TOKEN_ROWS[0],
+    CostCoverageRow(
+        cost_source=_UNPRICED,
+        runs=_UNPRICED_RUNS,
+        total_tokens=_UNPRICED_TOKENS,
+        unknown_token_runs=1,
+    ),
+)
+
 _MAJORITY_WIDTH = "width:75.0%"
 
 _MINORITY_SHARE = "25.0%"
@@ -92,6 +106,11 @@ class CostCoverageWeightsTest(unittest.TestCase):
         weights, total = coverage_card.cost_coverage_weights(_RUN_ONLY_ROWS)
         self.assertEqual(weights, [3, 1])
         self.assertEqual(total, 4)
+
+    def test_an_unknown_total_falls_back_to_runs(self) -> None:
+        weights, total = coverage_card.cost_coverage_weights(_UNSETTLED_ROWS)
+        self.assertEqual(weights, [_PRICED_RUNS, _UNPRICED_RUNS])
+        self.assertEqual(total, _PRICED_RUNS + _UNPRICED_RUNS)
 
     def test_a_window_with_neither_divides_by_one(self) -> None:
         for rows in ((), (CostCoverageRow(cost_source=_UNPRICED, runs=0),)):

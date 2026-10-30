@@ -11,7 +11,10 @@ hours were busy.
 
 Each cell carries the token volume beside the event count so a page can render
 intensity by spend, which is what keeps the many cheap stage rows from
-outweighing the few agent runs that actually cost the money.
+outweighing the few agent runs that actually cost the money. That volume is the
+agent runs' non-overlapping totals, every other event stating none, and the
+runs whose total stays unknown are counted beside it, so a cell holding one
+reads as a subtotal rather than as the hour's whole volume.
 """
 
 from __future__ import annotations
@@ -25,6 +28,7 @@ from orchestrator.observability.analytics.query.activity_models import (
 from orchestrator.observability.analytics.query.execution import ReadQuery
 from orchestrator.observability.analytics.query.filters import WindowFilters
 from orchestrator.observability.analytics.query.predicates import build_window_where
+from orchestrator.observability.analytics.query.token_totals import EVENT_TOKEN_TOTAL_SQL
 
 
 def hourly_heatmap_from_row(row: Sequence[Any]) -> HourlyHeatmapPoint:
@@ -34,6 +38,7 @@ def hourly_heatmap_from_row(row: Sequence[Any]) -> HourlyHeatmapPoint:
         hour=int(row[1]),
         count=int(row[2] or 0),
         total_tokens=int(row[3] or 0),
+        unknown_token_runs=int(row[4] or 0),
     )
 
 
@@ -52,11 +57,7 @@ def hourly_heatmap_rows(
         "EXTRACT(HOUR FROM ((ts AT TIME ZONE 'UTC') "
         "+ %s * INTERVAL '1 hour'))::int AS hour, "
         "COUNT(*) AS c, "
-        "COALESCE(SUM("
-        "  COALESCE(input_tokens, 0) + COALESCE(output_tokens, 0) + "
-        "  COALESCE(cache_read_tokens, 0) + "
-        "  COALESCE(cache_write_tokens, 0)"
-        "), 0) AS cell_total_tokens "
+        f"{EVENT_TOKEN_TOTAL_SQL} "
         f"FROM analytics_events{heatmap_where} "
         "GROUP BY weekday, hour "
         "ORDER BY weekday ASC, hour ASC",

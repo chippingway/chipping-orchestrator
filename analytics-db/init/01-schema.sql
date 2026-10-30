@@ -60,6 +60,42 @@ CREATE TABLE IF NOT EXISTS analytics_events (
     cost_usd            NUMERIC(20, 10),
     cost_source         TEXT,
 
+    -- `agent_exit` usage evidence, derived by the sync rather than copied
+    -- off one field: the record's `cost_evidence` and `token_evidence`
+    -- (which themselves ride verbatim in `extras`) read through
+    -- `usage.cost_evidence.recorded_cost` and
+    -- `usage.token_evidence.recorded_tokens`, the readers every other
+    -- surface uses. A record without that evidence -- every one an earlier
+    -- build wrote -- is read as those readers read it: `unknown`
+    -- completeness with its `cost_usd` under the `unknown` basis, and a
+    -- token total only where no cache counter is nonzero. NULL on every
+    -- other event, and on a row an earlier sync stored before these
+    -- columns existed; the views below read such an `agent_exit` row as
+    -- `unknown` too, and nothing re-derives it.
+    --
+    -- `cost_completeness` is `complete` / `incomplete` / `no-usage` /
+    -- `unknown`. One amount column per basis holds that basis's
+    -- contribution, NULL where the cost states none, so a complete zero
+    -- (a 0 amount) stays apart from no amount at all and an incomplete
+    -- subtotal keeps the amounts it does state while `cost_usd` -- the
+    -- complete amount alone -- stays NULL. Each estimate basis carries the
+    -- sorted, distinct verification dates of the price rows it was priced
+    -- at. `total_tokens` is the non-overlapping total, each token counted
+    -- once (a cache counter already inside input is not added again),
+    -- NULL where the evidence leaves it unknown; `token_cache_overlap`
+    -- says how the cache counters relate to input.
+    cost_completeness              TEXT,
+    cost_cli_reported_usd          NUMERIC(20, 10),
+    cost_anthropic_estimate_usd    NUMERIC(20, 10),
+    cost_openai_estimate_usd       NUMERIC(20, 10),
+    cost_gemini_estimate_usd       NUMERIC(20, 10),
+    cost_unknown_basis_usd         NUMERIC(20, 10),
+    anthropic_rates_verified_on    DATE[],
+    openai_rates_verified_on       DATE[],
+    gemini_rates_verified_on       DATE[],
+    token_cache_overlap            TEXT,
+    total_tokens                   BIGINT,
+
     -- Forward-compatibility catch-all: any record field that does not
     -- have an explicit column above lands here so the ingest never drops
     -- data it doesn't recognise.
@@ -133,6 +169,22 @@ CREATE INDEX IF NOT EXISTS analytics_events_event_repo_stage_ts_idx
 ALTER TABLE analytics_events
     ADD COLUMN IF NOT EXISTS content_hash TEXT;
 
+-- The same for the derived usage-evidence columns above. Adding them
+-- converts nothing: a row already stored keeps NULL in every one of them,
+-- which the views below read as unknown.
+ALTER TABLE analytics_events
+    ADD COLUMN IF NOT EXISTS cost_completeness TEXT,
+    ADD COLUMN IF NOT EXISTS cost_cli_reported_usd NUMERIC(20, 10),
+    ADD COLUMN IF NOT EXISTS cost_anthropic_estimate_usd NUMERIC(20, 10),
+    ADD COLUMN IF NOT EXISTS cost_openai_estimate_usd NUMERIC(20, 10),
+    ADD COLUMN IF NOT EXISTS cost_gemini_estimate_usd NUMERIC(20, 10),
+    ADD COLUMN IF NOT EXISTS cost_unknown_basis_usd NUMERIC(20, 10),
+    ADD COLUMN IF NOT EXISTS anthropic_rates_verified_on DATE[],
+    ADD COLUMN IF NOT EXISTS openai_rates_verified_on DATE[],
+    ADD COLUMN IF NOT EXISTS gemini_rates_verified_on DATE[],
+    ADD COLUMN IF NOT EXISTS token_cache_overlap TEXT,
+    ADD COLUMN IF NOT EXISTS total_tokens BIGINT;
+
 -- Plain (non-partial) unique index so `INSERT ... ON CONFLICT
 -- (content_hash) DO NOTHING` can infer this index as the arbiter --
 -- Postgres requires the partial predicate to be repeated in the
@@ -156,8 +208,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS analytics_events_content_hash_idx
 -- via COALESCE so downstream group-bys never blow up on NULL keys.
 --
 -- Derived fields:
---   * `total_tokens`       = input + output (the canonical "billed"
---                            total most dashboards want to plot)
+--   * `total_tokens`       = the stored non-overlapping total: every
+--                            observed counter once, a cache counter
+--                            already inside input not added again, NULL
+--                            where the evidence leaves it unknown (a row
+--                            stored before the column existed included)
 --   * `total_cache_tokens` = cached + cache_read + cache_write
 --   * `review_round_bucket` collapses the long tail of high review
 --     rounds into a single bucket so per-bucket counts stay readable
@@ -176,7 +231,15 @@ CREATE UNIQUE INDEX IF NOT EXISTS analytics_events_content_hash_idx
 -- derived ones so callers that want the unprocessed value still have
 -- it. `cost_source` passes through verbatim -- a dashboard can group
 -- by it to surface coverage gaps (the `unknown-price` cohort is the
--- pricing-table maintenance signal).
+-- pricing-table maintenance signal) -- but it cannot rebuild what a run
+-- cost: the evidence columns after it can.
+--
+-- Those trail the list, because `CREATE OR REPLACE VIEW` only appends.
+-- A row whose evidence the sync never derived (stored before the columns
+-- existed) states none, so it reads as `unknown` completeness with its
+-- `cost_usd` under the `unknown` basis -- the amount kept, its basis never
+-- inferred from `cost_source`, the backend, or the models -- and an
+-- `unknown` cache overlap.
 CREATE OR REPLACE VIEW analytics_agent_runs AS
 SELECT
     id,
@@ -211,8 +274,7 @@ SELECT
     cached_tokens,
     cache_read_tokens,
     cache_write_tokens,
-    COALESCE(input_tokens, 0) + COALESCE(output_tokens, 0)
-        AS total_tokens,
+    total_tokens,
     COALESCE(cached_tokens, 0)
         + COALESCE(cache_read_tokens, 0)
         + COALESCE(cache_write_tokens, 0)
@@ -222,9 +284,43 @@ SELECT
     turns,
     cost_usd,
     (cost_usd IS NOT NULL) AS has_cost,
-    cost_source
+    cost_source,
+    COALESCE(cost_completeness, 'unknown') AS cost_completeness,
+    cost_cli_reported_usd,
+    cost_anthropic_estimate_usd,
+    cost_openai_estimate_usd,
+    cost_gemini_estimate_usd,
+    CASE
+        WHEN cost_completeness IS NULL THEN cost_usd
+        ELSE cost_unknown_basis_usd
+    END AS cost_unknown_basis_usd,
+    anthropic_rates_verified_on,
+    openai_rates_verified_on,
+    gemini_rates_verified_on,
+    COALESCE(token_cache_overlap, 'unknown') AS token_cache_overlap
 FROM analytics_events
 WHERE event = 'agent_exit';
+
+-- The distinct verification dates a set of rows' estimates were priced
+-- at, sorted: `analytics_rate_dates(anthropic_rates_verified_on)` over a
+-- group concatenates each row's dates and keeps every distinct one, so a
+-- reduction over any number of rows -- the rollup's groups, or a read
+-- regrouping rollup rows -- keeps each date rather than only the earliest
+-- and latest, and a group no estimate dated reads NULL. The read model's
+-- cost-cohort fragments use the same aggregate over the events table, the
+-- agent-run view, and the rollup alike. `CREATE OR REPLACE` keeps both
+-- idempotent for a `psql -f` reapply.
+CREATE OR REPLACE FUNCTION analytics_sorted_dates(days DATE[])
+    RETURNS DATE[]
+    LANGUAGE sql
+    IMMUTABLE
+    AS $$ SELECT array_agg(DISTINCT day ORDER BY day) FROM unnest(days) AS day $$;
+
+CREATE OR REPLACE AGGREGATE analytics_rate_dates(DATE[]) (
+    SFUNC = array_cat,
+    STYPE = DATE[],
+    FINALFUNC = analytics_sorted_dates
+);
 
 -- Daily rollup of `analytics_events` keyed on
 -- (day, repo, issue, event, stage, backend, cost_source). Dashboard
@@ -253,6 +349,24 @@ WHERE event = 'agent_exit';
 -- `timed_out_count` for the reliability "Timeouts" tile, and
 -- `total_cost_usd` for every spend tile. `event_count` is the raw
 -- row count per group.
+--
+-- `cost_source` cannot rebuild what a group cost, so the usage
+-- evidence rides beside it, every column folding across rollup rows the
+-- way it folds across the runs beneath, so a reader that groups several
+-- rollup rows reduces them as it would the runs: one amount column per
+-- basis (named as on the events table, summed);
+-- the runs counted by the completeness each states, which is what the
+-- weakest completeness of any grouping is read back from (an
+-- `agent_exit` row with no derived completeness counts as `unknown`,
+-- and its `cost_usd` is summed under the `unknown` basis, as the
+-- agent-run view reads it); every distinct rate-verification date per
+-- estimate basis, as an array `analytics_rate_dates` unions again
+-- across rollup rows; and the tokens -- `total_tokens` summing the
+-- runs whose non-overlapping total is known, `cache_tokens_in_total`
+-- the cache counters inside those totals (the numerator a cache share
+-- of them needs), and `total_tokens_unknown_runs` counting the
+-- `agent_exit` rows whose total is not, so a known subtotal never reads
+-- as the whole.
 --
 -- `IF NOT EXISTS` makes the create idempotent for the
 -- operator-driven `psql -f` reapply path. Postgres CREATE
@@ -298,7 +412,44 @@ SELECT
         AS failed_count,
     SUM(CASE WHEN event = 'agent_exit' AND timed_out = TRUE THEN 1 ELSE 0 END)
         AS timed_out_count,
-    COUNT(*) AS event_count
+    COUNT(*) AS event_count,
+    SUM(CASE WHEN cost_completeness = 'complete' THEN 1 ELSE 0 END)
+        AS cost_complete_runs,
+    SUM(CASE WHEN cost_completeness = 'incomplete' THEN 1 ELSE 0 END)
+        AS cost_incomplete_runs,
+    SUM(CASE WHEN cost_completeness = 'no-usage' THEN 1 ELSE 0 END)
+        AS cost_no_usage_runs,
+    SUM(CASE
+            WHEN event = 'agent_exit'
+                AND COALESCE(cost_completeness, 'unknown') = 'unknown'
+            THEN 1 ELSE 0
+        END)
+        AS cost_unknown_runs,
+    SUM(cost_cli_reported_usd)       AS cost_cli_reported_usd,
+    SUM(cost_anthropic_estimate_usd) AS cost_anthropic_estimate_usd,
+    SUM(cost_openai_estimate_usd)    AS cost_openai_estimate_usd,
+    SUM(cost_gemini_estimate_usd)    AS cost_gemini_estimate_usd,
+    SUM(CASE
+            WHEN cost_completeness IS NULL THEN cost_usd
+            ELSE cost_unknown_basis_usd
+        END)
+        AS cost_unknown_basis_usd,
+    analytics_rate_dates(anthropic_rates_verified_on)
+        AS anthropic_rates_verified_on,
+    analytics_rate_dates(openai_rates_verified_on)
+        AS openai_rates_verified_on,
+    analytics_rate_dates(gemini_rates_verified_on)
+        AS gemini_rates_verified_on,
+    SUM(total_tokens) AS total_tokens,
+    SUM(CASE
+            WHEN total_tokens IS NOT NULL
+            THEN COALESCE(cached_tokens, 0)
+                + COALESCE(cache_read_tokens, 0)
+                + COALESCE(cache_write_tokens, 0)
+        END)
+        AS cache_tokens_in_total,
+    SUM(CASE WHEN event = 'agent_exit' AND total_tokens IS NULL THEN 1 ELSE 0 END)
+        AS total_tokens_unknown_runs
 FROM analytics_events
 GROUP BY
     (ts AT TIME ZONE 'UTC')::date,

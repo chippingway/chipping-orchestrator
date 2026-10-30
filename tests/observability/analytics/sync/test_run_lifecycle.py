@@ -57,8 +57,8 @@ class InsertedRowTest(unittest.TestCase):
             fake = FakeConnection()
             run_sync(path, fake)
             _, row_values = fake.inserts[0]
-            tail = row_values[len(columns.PROMOTED_COLUMNS):]
-            self.assertEqual(row_values[columns.PROMOTED_COLUMNS.index("backend")], "claude")
+            tail = row_values[len(columns.TABLE_COLUMNS):]
+            self.assertEqual(row_values[columns.TABLE_COLUMNS.index("backend")], "claude")
             self.assertEqual(tail[0], {_FUTURE_KEY: _FUTURE_VALUE})
             self.assertEqual(tail[1:3], (str(path), _FIRST_LINE))
             self.assertEqual(len(tail[3]), _CONTENT_HASH_HEX_LEN)

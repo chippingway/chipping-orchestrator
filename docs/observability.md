@@ -125,11 +125,13 @@ libpq URL (`ANALYTICS_DB_URL`) so moving it off-host later is a one-line repoint
 `127.0.0.1` and keeps its data on a gitignored host bind; the schema is an `analytics_events` table with an `extras
 JSONB` catch-all that ingests a new record field with no DDL, a `content_hash` unique index that makes a repeated
 replay idempotent, the `analytics_daily_rollup` materialized view the window-bounded dashboard widgets read, and the
-`analytics_agent_runs` view over `agent_exit` rows. The JSONL→Postgres replay and the CLI an operator drives it
-through are owned by `orchestrator/observability/analytics/sync/` and are NOT wired into the polling tick, so
-orchestrator correctness never depends on database availability. That page carries the compose commands, the full
-column and index inventory, the batching / dedup / malformed-line contract, and the credential-stripped operator
-feedback.
+`analytics_agent_runs` view over `agent_exit` rows. Each run's cost is stored by basis beside its completeness and its
+non-overlapping token total, read through the usage parser's own readers, so the views and rollup sum each basis
+apart and keep unpriced, unattributed, and unknown-total runs visible. The JSONL→Postgres replay and the CLI an
+operator drives it through are owned by `orchestrator/observability/analytics/sync/` and are NOT wired into the
+polling tick, so orchestrator correctness never depends on database availability. That page carries the compose
+commands, the full column and index inventory, the batching / dedup / malformed-line contract, and the
+credential-stripped operator feedback.
 
 ### Operator workflow
 

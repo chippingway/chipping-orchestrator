@@ -118,7 +118,13 @@ answer; and a counter no usage payload reported is missing evidence, never a rep
 evidence -- every one an earlier build wrote -- is read with an `unknown` basis and completeness, its `cost_usd` kept
 under that basis, and with a cache overlap nothing establishes, so its tokens total only where no cache counter is
 nonzero: no provider breakdown, completeness, or overlap is inferred from its `cost_source`, backend, or models, and
-nothing backfills it. A recorded requirements fingerprint
+nothing backfills it. The analytics sync files that evidence on each `agent_exit` row as those readers read it -- an
+amount per basis, an estimate's rate-verification dates, the completeness, and the non-overlapping token total -- and
+the agent-run view, the daily rollup, and the read model's cost and token reductions sum and count those columns, never
+`cost_source` alone: a reduced cost keeps each basis apart and the weakest completeness any run states, an empty
+cohort stays apart from a complete zero, and a token sum keeps the runs whose total is unknown beside it. A row an
+earlier sync stored without those columns reads as `unknown`, its `cost_usd` under that basis and its token total
+unknown, and nothing re-derives, reprices, or converts it. A recorded requirements fingerprint
 (`user_content_hash`, `observed_user_content_hash`) is compared with the current fingerprint alone, which leaves bare
 operator controls out: a value no current reading reproduces -- one an earlier producer wrote counting a bare
 `/orchestrator continue` included -- is drift for the stage's deliberate drift or hold route, and is never recognized
@@ -201,6 +207,7 @@ or lost write interrupted are current state, not historical compatibility.
 [close recovery](state-machine/delivery-stages.md#closed-owner-cleanup-sweep-no-label-of-its-own),
 [branch refusal](state-machine/labels-and-state.md#branch-refusal),
 [analytics readers](observability/analytics-dashboard.md#read-model-orchestratorobservabilityanalyticsquery),
+[analytics evidence](observability/analytics-database.md#usage-evidence-columns),
 [price catalogue](observability/usage.md),
 [usage evidence](observability/usage.md#usage-parser),
 [requirements baselines](state-machine/delivery-stages.md#user-content-drift-detection),
@@ -220,6 +227,9 @@ or lost write interrupted are current state, not historical compatibility.
 [snapshot consumers](../tests/workflow/stages/decomposition/test_claimed_reclamation.py),
 [artifact admission](../tests/git/worktrees/test_maintenance_admission.py),
 [analytics readers](../tests/observability/analytics/query/test_skill_adoption_reads.py),
+[stored evidence](../tests/observability/analytics/sync/test_usage_evidence_columns.py),
+[cohort reads](../tests/observability/analytics/query/test_cost_cohorts.py),
+[evidence in Postgres](../tests/observability/analytics/sync/test_live_usage_evidence.py),
 [price catalogue](../tests/observability/usage/test_usage_price_catalogue.py),
 [cost evidence](../tests/observability/usage/test_usage_cost_evidence.py),
 [token evidence](../tests/observability/usage/test_usage_token_evidence.py),
