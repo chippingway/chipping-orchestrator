@@ -24,6 +24,15 @@ counts pre-summed. All three select `COST_COHORT_WIDTH` cells in the one order `
 A cohort folds further the way its runs do: `fold_cohorts` adds several cohorts' counts and reduces their evidence with
 `reduce_costs`, so a reader regrouping cells it read apart -- one window's days, or one day's events -- answers what
 one cell over all their runs would. `EMPTY_COST_COHORT` is the fold of none, the answer a window with no run reads as.
+
+Two more fragments read the events table for a reader that lists runs or ranks issues rather than totalling a window.
+`EVENT_RUN_COST_SQL` selects the same cells off one row, unsummed: a cohort of that run alone, whose evidence is the
+run's own as the sync filed it -- a CLI-reported amount kept as the one the record ranked first, and an estimate's
+rate dates kept with it -- so a run is never re-priced from its tokens; any other event is the empty cohort.
+`EVENT_STATED_USD_SQL` is one row's every stated amount added across its bases, NULL where it states none; summed over
+a group it is the group's `CostEvidence.total_usd`, the measure a ranking orders on in SQL, ahead of its `LIMIT`. It
+counts a subtotal at its known part and a basis-less amount at its stated figure, and a group stating no amount at all
+sums to NULL, which a ranking places after every group that states one, a zero included.
 """
 
 from __future__ import annotations
@@ -71,24 +80,45 @@ COST_COHORT_WIDTH = _COUNT_CELLS + _AMOUNT_CELLS + len(_RATE_DATE_COLUMNS)
 
 _AMOUNT_SUMS = tuple(f"SUM({column})" for column in _STATED_AMOUNT_COLUMNS.values())
 
+_CELL_SEPARATOR = ", "
+
 # The dates fold the same way over every target, since each stores them as a sorted distinct array.
 _RATE_DATE_UNIONS = tuple(f"analytics_rate_dates({column})" for column in _RATE_DATE_COLUMNS.values())
 
+# How an events-table row's completeness and unknown-basis amount read: only an `agent_exit` row is a run, and one the
+# sync filed no evidence for is `unknown` with its `cost_usd` under the `unknown` basis.
+_EVENT_COMPLETENESS = "(CASE WHEN event = 'agent_exit' THEN COALESCE(cost_completeness, 'unknown') END)"
 
-def _run_cohort_sql(completeness: str, unknown_amount: str) -> str:
-    """The cohort cells over per-run rows, given how a row's completeness and unknown-basis amount read."""
-    counts = (f"SUM(CASE WHEN {completeness} = '{state}' THEN 1 ELSE 0 END)" for state in _COMPLETENESS_STATES)
-    return ", ".join((*counts, *_AMOUNT_SUMS, f"SUM({unknown_amount})", *_RATE_DATE_UNIONS))
+_EVENT_UNKNOWN_AMOUNT = f"CASE WHEN cost_completeness IS NULL THEN cost_usd ELSE {_UNKNOWN_AMOUNT} END"
+
+_EVENT_AMOUNTS = (*_STATED_AMOUNT_COLUMNS.values(), _EVENT_UNKNOWN_AMOUNT)
+
+
+def _run_cohort_sql(completeness: str, unknown_amount: str, *, summed: bool = True) -> str:
+    """The cohort cells over per-run rows, given how a row's completeness and unknown-basis amount read.
+
+    Unsummed, the cells are one row's own: a run's dates are already its sorted distinct array.
+    """
+    counts = (f"CASE WHEN {completeness} = '{state}' THEN 1 ELSE 0 END" for state in _COMPLETENESS_STATES)
+    cells = (*counts, *_STATED_AMOUNT_COLUMNS.values(), unknown_amount)
+    if not summed:
+        return _CELL_SEPARATOR.join((*cells, *_RATE_DATE_COLUMNS.values()))
+    return _CELL_SEPARATOR.join((*(f"SUM({cell})" for cell in cells), *_RATE_DATE_UNIONS))
 
 
 RUN_COST_COHORT_SQL = _run_cohort_sql("cost_completeness", _UNKNOWN_AMOUNT)
 
-EVENT_COST_COHORT_SQL = _run_cohort_sql(
-    "(CASE WHEN event = 'agent_exit' THEN COALESCE(cost_completeness, 'unknown') END)",
-    f"CASE WHEN cost_completeness IS NULL THEN cost_usd ELSE {_UNKNOWN_AMOUNT} END",
-)
+EVENT_COST_COHORT_SQL = _run_cohort_sql(_EVENT_COMPLETENESS, _EVENT_UNKNOWN_AMOUNT)
 
-ROLLUP_COST_COHORT_SQL = ", ".join((
+EVENT_RUN_COST_SQL = _run_cohort_sql(_EVENT_COMPLETENESS, _EVENT_UNKNOWN_AMOUNT, summed=False)
+
+_EVENT_AMOUNT_LIST = _CELL_SEPARATOR.join(_EVENT_AMOUNTS)
+
+_EVENT_AMOUNT_TERMS = " + ".join(f"COALESCE({amount}, 0)" for amount in _EVENT_AMOUNTS)
+
+EVENT_STATED_USD_SQL = f"CASE WHEN num_nonnulls({_EVENT_AMOUNT_LIST}) > 0 THEN {_EVENT_AMOUNT_TERMS} END"
+
+ROLLUP_COST_COHORT_SQL = _CELL_SEPARATOR.join((
     *(f"SUM({column})" for column in _ROLLUP_COUNT_COLUMNS),
     *_AMOUNT_SUMS,
     f"SUM({_UNKNOWN_AMOUNT})",

@@ -126,9 +126,12 @@ nothing backfills it. The analytics sync files that evidence on each `agent_exit
 amount per basis, an estimate's rate-verification dates, the completeness, and the non-overlapping token total -- and
 the agent-run view, the daily rollup, and the read model's cost and token reductions sum and count those columns, never
 `cost_source` alone: a reduced cost keeps each basis apart and the weakest completeness any run states, an empty
-cohort stays apart from a complete zero, and a token sum keeps the runs whose total is unknown beside it. A row an
-earlier sync stored without those columns reads as `unknown`, its `cost_usd` under that basis and its token total
-unknown, and nothing re-derives, reprices, or converts it. A recorded requirements fingerprint
+cohort stays apart from a complete zero, and a token sum keeps the runs whose total is unknown beside it. The issue
+cost ranking orders in SQL, ahead of its cap, on every amount an issue's runs state -- a subtotal at its known part, an
+issue stating none after every one that does -- and a listed or traced run reads its own row's evidence, never a
+figure repriced from its tokens. A row an earlier sync stored without those columns reads as `unknown`, its
+`cost_usd` under that basis and its token total unknown, and nothing re-derives, reprices, or converts it. A recorded
+requirements fingerprint
 (`user_content_hash`, `observed_user_content_hash`) is compared with the current fingerprint alone, which leaves bare
 operator controls out: a value no current reading reproduces -- one an earlier producer wrote counting a bare
 `/orchestrator continue` included -- is drift for the stage's deliberate drift or hold route, and is never recognized
@@ -238,7 +241,10 @@ or lost write interrupted are current state, not historical compatibility.
 [analytics readers](../tests/observability/analytics/query/test_skill_adoption_reads.py),
 [stored evidence](../tests/observability/analytics/sync/test_usage_evidence_columns.py),
 [cohort reads](../tests/observability/analytics/query/test_cost_cohorts.py),
+[issue rankings](../tests/observability/analytics/query/test_issue_reads.py),
+[run costs](../tests/observability/analytics/query/test_agent_exit_reads.py),
 [evidence in Postgres](../tests/observability/analytics/sync/test_live_usage_evidence.py),
+[rankings in Postgres](../tests/observability/analytics/sync/test_live_issue_reads.py),
 [price catalogue](../tests/observability/usage/test_usage_price_catalogue.py),
 [cost evidence](../tests/observability/usage/test_usage_cost_evidence.py),
 [token evidence](../tests/observability/usage/test_usage_token_evidence.py),

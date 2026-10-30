@@ -4,16 +4,17 @@
 
 The cases name what the section decides rather than what the table and the two
 card builders under it draw: the split the columns are laid out in, which
-reading lands in the wider one, the depth the ranking is cut to, and the order
-it is cut in. The coverage bar is here for where it lands rather than for what
+reading lands in the wider one, the depth the ranking is cut to, and that it is
+drawn in the order the read ranked it. The coverage bar is here for where it lands rather than for what
 it says -- it closes the backend column because it qualifies the money the
 cards above it report, and a window with no cost-source split leaves it undrawn
 rather than claiming a coverage reading nothing supports.
 
 Both empty states are driven too, because the two columns are empty for
-different reasons: an unpriced window still ran, and a window with no
-`agent_exit` row did not. Each is pinned against the whole sentence spelled out
-here rather than against the constant the render reads it from: a case that
+different reasons: the ranking lists every issue the filters leave, priced or
+not, and a window with no `agent_exit` row has no run to card. Each is pinned
+against the whole sentence spelled out here rather than against the constant the
+render reads it from: a case that
 compares a notice to its own source passes whatever that source is reworded to,
 which is the one thing an empty-state assertion exists to catch. The published
 constant is held to the same literal separately, because the page imports it
@@ -35,6 +36,8 @@ from orchestrator.observability.analytics.query.run_models import (
 )
 from orchestrator.observability.dashboard import issue_cost_panel
 from orchestrator.observability.dashboard.kpis import DEFAULT_EXPENSIVE_LIMIT
+from orchestrator.observability.usage import cost_evidence as usage_cost
+from tests.observability.analytics import analytics_cohorts as cohort_cases, analytics_usage_cases as cases
 from tests.observability.dashboard.card_test_support import (
     BACKEND_CLAUDE,
     BACKEND_CODEX,
@@ -59,13 +62,15 @@ _YEAR = 2026
 
 _SEEN = datetime(_YEAR, 5, 1, tzinfo=UTC)
 
-# One issue per cost, handed over out of order so the ranking has to reorder
-# them and a case can name the amount it expects on top.
-_COSTS = (1.0, 3.0, 2.0)
+# One issue per cost, handed over in the order the read ranked them, which is
+# the order the section draws them in.
+_COSTS = (3.0, 2.0, 1.0)
 
 _RANKED_TEXT = ("$3.00", "$2.00", "$1.00")
 
-_NO_PRICED_RUNS = "No agent runs with recorded cost in this window."
+_RANKING_MEASURE = "Ranked by stated cost, a subtotal at its known part"
+
+_NO_ISSUES = "No issues match the current filters."
 
 _NO_AGENT_EXITS = "No `agent_exit` rows match the current filters."
 
@@ -77,23 +82,27 @@ _HEADING_ROWS = 1
 _MARKUP_OPTION = "unsafe_allow_html"
 
 
-def issue_rows(*costs: float) -> list[IssueSummaryRow]:
+def issue_row(number: int, cost: float | None) -> IssueSummaryRow:
+    """One issue whose one run reported `cost`, or, for `None`, could not be priced."""
+    spent = cases.UNPRICED if cost is None else cases.cost(
+        usage_cost.COMPLETE, cases.contribution(usage_cost.CLI_REPORTED, cost),
+    )
+    return IssueSummaryRow(
+        repo=_REPO,
+        issue=number,
+        event_count=1,
+        first_seen=_SEEN,
+        last_seen=_SEEN,
+        latest_stage="implementing",
+        agent_exits=1,
+        cost=cohort_cases.cohort(spent),
+        stated_cost_usd=cost,
+    )
+
+
+def issue_rows(*costs: float | None) -> list[IssueSummaryRow]:
     """One issue per cost, numbered in the order they are handed over."""
-    return [
-        IssueSummaryRow(
-            repo=_REPO,
-            issue=number,
-            event_count=1,
-            first_seen=_SEEN,
-            last_seen=_SEEN,
-            latest_stage="implementing",
-            agent_exits=1,
-            total_cost_usd=cost,
-            total_input_tokens=1,
-            total_output_tokens=1,
-        )
-        for number, cost in enumerate(costs, start=1)
-    ]
+    return [issue_row(number, cost) for number, cost in enumerate(costs, start=1)]
 
 
 def backend_rows(*backends: str) -> list[BackendEfficiencyRow]:
@@ -110,7 +119,7 @@ def backend_rows(*backends: str) -> list[BackendEfficiencyRow]:
 
 def render_panel(
     *,
-    costs: tuple[float, ...] = _COSTS,
+    costs: tuple[float | None, ...] = _COSTS,
     backends: tuple[str, ...] = (BACKEND_CLAUDE, BACKEND_CODEX),
     coverage: tuple[str, ...] = (COST_SOURCE_REPORTED,),
 ) -> CostPanelStreamlit:
@@ -136,19 +145,28 @@ class IssueCostLayoutTest(unittest.TestCase):
         page = render_panel()
         self.assertEqual(page.column_request, COLUMN_RATIO)
         self.assertIn("Most expensive issues", markup_in(page, LEFT))
+        self.assertIn(_RANKING_MEASURE, markup_in(page, LEFT))
         self.assertIn("Backend efficiency", markup_in(page, RIGHT))
 
-    def test_the_window_is_ranked_by_spend(self) -> None:
+    def test_the_reads_ranking_is_drawn_in_order(self) -> None:
         drawn = markup_in(render_panel(), LEFT)
         placements = [drawn.index(amount) for amount in _RANKED_TEXT]
         self.assertEqual(placements, sorted(placements))
+
+    def test_an_unpriced_issue_is_listed_unpriced(self) -> None:
+        # An issue nobody could price ran all the same, so the read ranks it
+        # after every priced one rather than dropping it, and it is worded
+        # unpriced rather than as a free issue.
+        drawn = markup_in(render_panel(costs=(1.0, None)), LEFT)
+        self.assertLess(drawn.index("$1.00"), drawn.index(">unpriced<"))
+        self.assertNotIn("$0.00", drawn)
 
     def test_the_ranking_stops_at_the_owners_cap(self) -> None:
         # The depth is the KPI owner's decision, so the section must not list
         # every issue a wide window carries.
         deep = tuple(
             float(rank)
-            for rank in range(1, DEFAULT_EXPENSIVE_LIMIT + 4)
+            for rank in range(DEFAULT_EXPENSIVE_LIMIT + 3, 0, -1)
         )
         drawn = markup_in(render_panel(costs=deep), LEFT)
         self.assertEqual(
@@ -192,9 +210,9 @@ class IssueCostRenderOptionTest(unittest.TestCase):
 class IssueCostEmptyStateTest(unittest.TestCase):
     """Each column says why it is empty in its own terms."""
 
-    def test_an_unpriced_window_says_so(self) -> None:
+    def test_a_window_with_no_issue_says_so(self) -> None:
         page = render_panel(costs=())
-        self.assertEqual(notices_in(page, LEFT), [_NO_PRICED_RUNS])
+        self.assertEqual(notices_in(page, LEFT), [_NO_ISSUES])
         self.assertEqual(notices_in(page, RIGHT), [])
 
     def test_a_window_with_no_runs_says_so(self) -> None:

@@ -2,12 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 """What a window's spend and tokens read as on the overview, and what a comparison keeps.
 
-The overview's money is a cohort of runs rather than one run, so on top of the
-wording ``cost_text`` gives any cost this owner says the three things only a
-cohort can: that a window held no run at all, which is neither a zero nor no
-usage; how many of its runs left the amount short -- unpriced or partly priced,
-or stating no cost evidence whatever amount they carry; and what a move
-between two windows has to be read with.
+The overview's money is a cohort of runs rather than one run -- as is one
+issue's on the cost ranking, which words its rows through here too -- so on top
+of the wording ``cost_text`` gives any cost this owner says the three things
+only a cohort can: that a window or an issue held no run at all, which is
+neither a zero nor no usage; how many of its runs left the amount short --
+unpriced or partly priced, or stating no cost evidence whatever amount they
+carry; and what a move between two windows has to be read with.
 
 An amount is never shown without its basis. A Gemini estimate, the basis
 Antigravity usage is priced on, reads as a Gemini API token estimate; a window

@@ -1,18 +1,26 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The newest agent runs a window holds, and who has none to ask for."""
+"""The newest agent runs a window holds, what each stored as its cost, and who has none to ask for.
+
+A run's cost is the evidence the sync filed on its row, read back as it was filed: a CLI-reported amount stays the one
+its record ranked ahead of any estimate, an estimate keeps the dates its rates were verified on, and a row an earlier
+build stored with no evidence reads `unknown`, its amount under that basis -- none of it repriced from the tokens beside
+it.
+"""
 from __future__ import annotations
 
 import unittest
 from datetime import UTC, datetime
 
 from orchestrator.observability.analytics.query.raw_reads import get_recent_agent_exits
+from tests.observability.analytics import analytics_usage_cases as cases
 from tests.observability.analytics.analytics_assertions import assert_row_fields
 from tests.observability.analytics.query.query_fake_driver import (
     FakeConnect,
     FakeConnection,
 )
 from tests.observability.analytics.query.query_test_support import configured_db_url
+from tests.observability.analytics.query.run_rows_test_support import run_cost_cells
 
 _AGENT_EXIT = "agent_exit"
 
@@ -32,19 +40,17 @@ _BACKEND_CLAUDE = "claude"
 
 _AGENT_ROLE_DEV = "dev"
 
-_COST_SOURCE_CLI = "cli"
-
 _LIMIT = 10
 
 _DURATION_S = 33.0
-
-_COST_USD = 0.12
 
 _REVIEW_ROUND = 1
 
 _INPUT_TOKENS = 100
 
 _OUTPUT_TOKENS = 200
+
+_TOTAL_TOKENS = 300
 
 _YEAR = 2026
 
@@ -60,9 +66,9 @@ _WINDOW_START = datetime(_YEAR, 5, 1, tzinfo=UTC)
 
 _WINDOW_END = datetime(_YEAR, 5, _WINDOW_END_DAY, tzinfo=UTC)
 
-# One row of the fifteen-column SELECT list, in the order the projection
-# unpacks it.
-_EXIT_ROW = (
+# The columns of one row of the SELECT list ahead of its cost cells, in the
+# order the projection unpacks them.
+_EXIT_COLUMNS = (
     _EXIT_TS,
     _REPO,
     _ISSUE,
@@ -76,8 +82,27 @@ _EXIT_ROW = (
     0,
     _INPUT_TOKENS,
     _OUTPUT_TOKENS,
-    _COST_USD,
-    _COST_SOURCE_CLI,
+    _TOTAL_TOKENS,
+)
+
+_EXIT_ROW = _EXIT_COLUMNS + run_cost_cells(cases.REPORTED)
+
+# The same columns for a run whose token total its evidence left unknown.
+_UNTOTALLED_COLUMNS = (*_EXIT_COLUMNS[:-1], None)
+
+# The costs a run's row can store, each read back as that run's own evidence:
+# a reported amount, a reported zero, each provider's dated estimate, a run
+# blending the two, a subtotal, an unpriced run, and a basis-less amount.
+_RUN_COSTS = (
+    ("reported", cases.REPORTED),
+    ("reported zero", cases.COMPLETE_ZERO),
+    ("anthropic estimate", cases.ANTHROPIC_ESTIMATE),
+    ("openai estimate", cases.OPENAI_ESTIMATE),
+    ("antigravity estimate", cases.GEMINI_ESTIMATE),
+    ("blended", cases.BLENDED),
+    ("subtotal", cases.INCOMPLETE_SUBTOTAL),
+    ("unpriced", cases.UNPRICED),
+    ("missing basis", cases.ABSENT_BASIS),
 )
 
 
@@ -127,8 +152,8 @@ class RecentAgentExitsTest(unittest.TestCase):
                 "review_round": _REVIEW_ROUND,
                 "input_tokens": _INPUT_TOKENS,
                 "output_tokens": _OUTPUT_TOKENS,
-                "cost_usd": _COST_USD,
-                "cost_source": _COST_SOURCE_CLI,
+                "total_tokens": _TOTAL_TOKENS,
+                "cost": cases.REPORTED,
             },
         )
         scan_sql, bindings = conn.executed[0]
@@ -174,6 +199,32 @@ class RecentAgentExitsTest(unittest.TestCase):
                     get_recent_agent_exits(connect=FakeConnect(), **selection),
                     [],
                 )
+
+
+class RecentRunCostTest(unittest.TestCase):
+    """Each run carries the cost its own row stored, never a sum or a reprice."""
+
+    def test_a_run_reads_back_its_stored_cost(self) -> None:
+        # The run's own cells, unsummed, are its evidence as filed -- the
+        # basis its record ranked first, and an estimate's rate dates -- and
+        # an unknown token total stays unknown rather than reading as zero.
+        for name, spent in _RUN_COSTS:
+            with self.subTest(cost=name):
+                conn = FakeConnection(rows=(_UNTOTALLED_COLUMNS + run_cost_cells(spent),))
+                with configured_db_url():
+                    run = get_recent_agent_exits(connect=conn.as_connect)[0]
+                self.assertEqual((run.cost, run.total_tokens), (spent, None))
+                scan_sql, _ = conn.executed[0]
+                self.assertIn("total_tokens, ", scan_sql)
+                self.assertIn("anthropic_rates_verified_on", scan_sql)
+                self.assertNotIn("SUM(", scan_sql)
+
+    def test_a_row_of_another_width_raises(self) -> None:
+        # The cost cells close the SELECT list, so a row short of one is a
+        # broken query, never a run whose cost reads as NULL.
+        conn = FakeConnection(rows=(_EXIT_ROW[:-1],))
+        with configured_db_url(), self.assertRaises(TypeError):
+            get_recent_agent_exits(connect=conn.as_connect)
 
 
 if __name__ == "__main__":

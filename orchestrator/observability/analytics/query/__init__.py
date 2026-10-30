@@ -88,7 +88,9 @@ field -- alongside ``raw_values``, whose NULL-preserving coercions every family
 projects through. ``cost_cohorts`` owns the reduction a cost display builds on:
 the fragment that sums a cohort's stored evidence by basis and counts its runs
 by completeness, once per scan target, the cohort those cells are read back
-as, and the fold that regroups cohorts read apart. ``token_totals`` owns the
+as, and the fold that regroups cohorts read apart -- with the same cells off
+one run's own row, and the stated amount an issue ranking orders on.
+``token_totals`` owns the
 fragment a token volume is summed by, each run's non-overlapping total once
 and the runs whose total is unknown beside it.
 

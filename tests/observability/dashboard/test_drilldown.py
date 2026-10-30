@@ -7,7 +7,9 @@ install: the heading, the notices, the banner, and what is handed to
 `st.dataframe` are what an operator sees, and the fake frame is the row list it
 was built from, so the columns and their order can be read straight off it. The
 scope entry is faked the same way, which is what lets a case say whose read was
-issued inside it and under which filters without standing a database up.
+issued inside it and under which filters without standing a database up. A
+run's cost reads as the recent-runs listing words it, and an event that is no
+run leaves both cost cells empty rather than reading as a zero.
 """
 
 from __future__ import annotations
@@ -30,6 +32,7 @@ from orchestrator.observability.dashboard import (
     scoped_reads,
     windows,
 )
+from tests.observability.analytics import analytics_usage_cases as cases
 
 _REPO = "owner/repo"
 
@@ -57,6 +60,10 @@ _STAGES = ("implementing",)
 
 _EVENT_COLUMN = "event"
 
+_COST_COLUMN = "cost"
+
+_RATES_COLUMN = "rates"
+
 _FIRST_EVENT = "stage_entered"
 
 _SECOND_EVENT = "agent_exit"
@@ -73,7 +80,8 @@ _COLUMNS = (
     "agent",
     "backend",
     "exit",
-    "cost (USD)",
+    _COST_COLUMN,
+    _RATES_COLUMN,
 )
 
 
@@ -140,7 +148,7 @@ def _issue_event(**overrides: Any) -> IssueEventRow:
         "agent_role": "developer",
         "backend": "claude",
         "exit_code": 0,
-        "cost_usd": 0.25,
+        "cost": cases.ANTHROPIC_ESTIMATE,
     }
     readings.update(overrides)
     return IssueEventRow(**readings)
@@ -230,9 +238,20 @@ class DrilldownEventRowTest(unittest.TestCase):
                 event.agent_role,
                 event.backend,
                 event.exit_code,
-                event.cost_usd,
+                "$0.30 (Anthropic API token estimate)",
+                "rates verified 2026-10-29",
             ),
         )
+
+    def test_a_non_run_event_states_no_cost(self) -> None:
+        row = drilldown.drilldown_event_row(_issue_event(cost=None))
+        self.assertEqual((row[_COST_COLUMN], row[_RATES_COLUMN]), (None, None))
+
+    def test_a_basis_less_amount_says_so(self) -> None:
+        # A run an earlier build recorded with no cost evidence keeps its
+        # amount, and its row says nothing is known of its basis.
+        row = drilldown.drilldown_event_row(_issue_event(cost=cases.ABSENT_BASIS))
+        self.assertEqual(row[_COST_COLUMN], "$0.07 (basis unknown, completeness unknown)")
 
 
 class RenderDrilldownViewTest(unittest.TestCase):

@@ -23,6 +23,7 @@ from orchestrator.observability.analytics.sync import (
     rows as sync_rows,
 )
 from tests.observability.analytics.query.query_fake_driver import FakeConnection
+from tests.observability.analytics.query.run_rows_test_support import run_cost_cells
 
 _REPO = "owner/r"
 
@@ -81,7 +82,9 @@ def _stored_trace_row(line: str, json_adapter) -> tuple:
 
     The ingest's own INSERT is what decides which column a field lands in, so
     its statement is read for the column order the prepared cells follow, and
-    the trace's named row for the order they are selected back in.
+    the trace's named row for the order they are selected back in. A park is
+    no run, so the sync files none of the evidence columns the row's closing
+    cost cells are computed from, and those cells are the ones no run selects.
     """
     prepared, _ = sync_rows.prepare_record(line)
     provenance = sync_rows.RowProvenance(
@@ -97,7 +100,17 @@ def _stored_trace_row(line: str, json_adapter) -> tuple:
         ),
         strict=True,
     ))
-    return tuple(stored[column] for column in IssueEventQueryRow._fields)
+    return _selected_cells(stored)
+
+
+def _selected_cells(stored: dict) -> tuple:
+    """The trace's columns off one stored row, then the cost cells a row with no usage evidence selects."""
+    evidence = {stored[column] for column in sync_columns.DERIVED_COLUMNS}
+    if evidence != {None}:
+        raise AssertionError("a park stored usage evidence")
+    columns = IssueEventQueryRow._fields[:-1]
+    named = tuple(stored[column] for column in columns)
+    return named + run_cost_cells(None)
 
 
 def _read_back(json_adapter):
@@ -131,8 +144,8 @@ class ParkReadbackTest(unittest.TestCase):
             with self.subTest(adapter=adapter.__name__):
                 park = _read_back(adapter)
                 self.assertEqual(
-                    (park.event, park.stage),
-                    ("park_awaiting_human", _STAGE),
+                    (park.event, park.stage, park.cost),
+                    ("park_awaiting_human", _STAGE, None),
                 )
                 self.assertEqual(
                     {name: getattr(park, name) for name in _PROMOTED},

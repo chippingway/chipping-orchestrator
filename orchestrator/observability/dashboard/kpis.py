@@ -17,11 +17,17 @@ decides which runs are a second pass by naming the review-round buckets rather
 than comparing a round number, because the breakdown that produces them keeps
 rounds 3, 4, and 5 apart and groups only 6 and above.
 
-Ordering is the third, and it is total down to the row: issues that tie on cost
-fall back to run count and then to the repository and issue number that name
-them, and an issue with no recorded cost sorts below every priced one rather
-than beside the cheapest. A table redrawn on the same window is the same table,
-which is what makes the ranking readable at all.
+Ordering is the third, and it is the cost read's alone, total down to the row:
+issues rank by the amount their runs state (`stated_cost_usd`, a subtotal at
+its known part), an issue stating none sorts below every one that states an
+amount -- a zero included -- rather than beside the cheapest, and ties fall back
+to the newest activity and then to the repository and issue number that name
+them. The rows are cut to the ranking depth in that order and never re-sorted
+here: Python compares repository names by code point, while the database
+orders them under its own collation -- which can skip punctuation the code
+point order counts -- so a second sort could reverse two issues SQL tied. A
+table redrawn on the same window is the same table, which is what makes the
+ranking readable at all.
 """
 from __future__ import annotations
 
@@ -104,19 +110,10 @@ def top_expensive_issues(
     *,
     limit: int = DEFAULT_EXPENSIVE_LIMIT,
 ) -> list[IssueSummaryRow]:
-    """Issues sorted by total cost desc for the "where did spend go" table."""
+    """The "where did spend go" rows, in the order the cost read ranked them, cut to `limit`."""
     if limit <= 0:
         return []
-    return sorted(rows, key=_expensive_issue_key)[:limit]
-
-
-def _expensive_issue_key(row: IssueSummaryRow) -> tuple:
-    cost = row.total_cost_usd
-    if cost is None:
-        cost = -1.0
-    event_count = -int(row.event_count)
-    issue_number = int(row.issue)
-    return (-cost, event_count, row.repo, issue_number)
+    return list(rows[:limit])
 
 
 def rework_totals(

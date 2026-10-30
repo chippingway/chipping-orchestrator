@@ -469,6 +469,7 @@ _REACHABLE_PREFIXES = (
 # that sibling's evidence is read from.
 _MODEL_SIBLINGS = MappingProxyType({
     _OVERVIEW_MODELS_OWNER: frozenset((f"{_PACKAGE}.{_COST_COHORTS_OWNER}",)),
+    _RUN_MODELS_OWNER: frozenset((f"{_PACKAGE}.{_COST_COHORTS_OWNER}",)),
 })
 
 _USAGE_TREE = "orchestrator.observability.usage"
@@ -552,10 +553,11 @@ class ResultModelImportCostTest(unittest.TestCase):
     where an owner may reach, while a page or a test that only consumes the
     rows must not pay for a connection factory, the configuration behind an
     omitted `db_url=`, or the driver those two stand in front of. The overview
-    models are the one family typed by a sibling: a window's spend is a cost
-    cohort, whose evidence is the usage owner's -- plain code with none of the
-    three behind it, so that family pays for the cohort owner and the usage
-    package and nothing else.
+    and run models are the two families typed by a sibling: a window's or an
+    issue's spend is a cost cohort and a run's is that cohort's evidence, which
+    is the usage owner's -- plain code with none of the three behind it, so
+    those families pay for the cohort owner and the usage package and nothing
+    else.
     """
 
     def test_a_model_owner_costs_its_chain_only(self) -> None:

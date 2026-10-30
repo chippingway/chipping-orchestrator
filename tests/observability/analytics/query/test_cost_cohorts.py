@@ -74,6 +74,16 @@ class CostCohortReadingTest(unittest.TestCase):
         )
         self.assertIsNone(subtotal.evidence.complete_usd)
 
+    def test_a_run_alone_reads_as_its_own_cost(self) -> None:
+        # A run's own cells are a cohort of that run, so a listing reads back
+        # the evidence the sync filed -- a reported amount as the one its record
+        # ranked first, an estimate with its rate dates -- rather than any
+        # figure re-derived from the run's tokens.
+        for spent in dict.fromkeys(cost for _name, costs in _COHORTS for cost in costs):
+            with self.subTest(cost=spent):
+                run = cost_cohorts.cost_cohort(cohort_cases.cohort_cells((spent,)))
+                self.assertEqual((run.runs, run.evidence), (1, spent))
+
     def test_cells_read_from_offset_and_whole(self) -> None:
         cells = cohort_cases.cohort_cells((cases.REPORTED,))
         leading = ("day", "backend")
@@ -119,6 +129,7 @@ class CohortFragmentTest(unittest.TestCase):
         for fragment in (
             cost_cohorts.RUN_COST_COHORT_SQL,
             cost_cohorts.EVENT_COST_COHORT_SQL,
+            cost_cohorts.EVENT_RUN_COST_SQL,
             cost_cohorts.ROLLUP_COST_COHORT_SQL,
         ):
             with self.subTest(fragment=fragment):
@@ -141,6 +152,30 @@ class CohortFragmentTest(unittest.TestCase):
         self.assertEqual(run_cells[dated], rollup_cells[dated])
         self.assertEqual(event_cells[dated], rollup_cells[dated])
         self.assertEqual(rollup_cells[-1], "analytics_rate_dates(gemini_rates_verified_on)")
+
+    def test_one_run_reads_its_own_cells(self) -> None:
+        # A run's cells are the events-table cells left unsummed: counted only
+        # as an `agent_exit`, an underived row's `cost_usd` under the `unknown`
+        # basis, and its own sorted dates rather than a union over others.
+        run_cells = _top_level_cells(cost_cohorts.EVENT_RUN_COST_SQL)
+        event_cells = _top_level_cells(cost_cohorts.EVENT_COST_COHORT_SQL)
+        summed = [f"SUM({cell})" for cell in run_cells[:9]]
+        self.assertEqual(summed, event_cells[:9])
+        self.assertEqual(
+            run_cells[9:],
+            ["anthropic_rates_verified_on", "openai_rates_verified_on", "gemini_rates_verified_on"],
+        )
+
+    def test_the_stated_amount_adds_every_basis(self) -> None:
+        # The measure a ranking orders on adds the five amounts a run's cells
+        # carry, NULL only where none of them is stated.
+        amounts = _top_level_cells(cost_cohorts.EVENT_RUN_COST_SQL)[4:9]
+        listed = ", ".join(amounts)
+        terms = " + ".join(f"COALESCE({amount}, 0)" for amount in amounts)
+        self.assertEqual(
+            cost_cohorts.EVENT_STATED_USD_SQL,
+            f"CASE WHEN num_nonnulls({listed}) > 0 THEN {terms} END",
+        )
 
     def test_token_fragments_pair_known_unknown(self) -> None:
         for fragment, unknown in (

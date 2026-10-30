@@ -69,14 +69,17 @@ caller-owned `conn=`, a non-positive `limit`, and a cleared multiselect each ret
 while an unknown `sort_by` raises before the connect. Each read hands its filtered window to a projection owner:
 `filter_options.py` (the tagged union behind the five dropdowns, plus the in-Python bucketing and sort it is read back
 through), `event_breakdowns.py` (the per-event count), `agent_exits.py` (the pinned `event = 'agent_exit'` spliced
-ahead of the generated predicate, so its operand binds first and the `LIMIT` last), `issue_summaries.py` (the
-per-`(repo, issue)` aggregate scan, `SORT_BY_LAST_SEEN` / `SORT_BY_COST`, and the SQL ordering each becomes), and
-`issue_events.py` (one issue's trace, `ORDER BY ts ASC, id ASC`). Beneath them, `query_rows.py` names the columns of
-the four SELECT lists read back by field rather than by index — recent exits, issue summaries, one issue's trace,
-review-round buckets — and the trace's named row is its SELECT list, so the two cannot disagree about where a column
-sits. Each unpacks strictly, so a row of any other width than its SELECT list raises rather than reading a column it
-never carried as NULL. `raw_values.py` owns the NULL-preserving scalar coercions, the decode of a JSONB cell a driver
-hands back either adapted or as text, plus the probe for a cleared multiselect.
+ahead of the generated predicate, so its operand binds first and the `LIMIT` last, and each run's stored cost read off
+its own row), `issue_summaries.py` (the per-`(repo, issue)` aggregate scan with each issue's cost cohort and token
+total, `SORT_BY_LAST_SEEN` / `SORT_BY_COST`, and the SQL ordering each becomes, the cost one on the stated amount), and
+`issue_events.py` (one issue's trace, `ORDER BY ts ASC, id ASC`, each run's stored cost beside it). Beneath them,
+`query_rows.py` names the columns of the four SELECT lists read back by field rather than by index — recent exits,
+issue summaries, one issue's trace, review-round buckets — and the trace's named row is its SELECT list, so the two
+cannot disagree about where a column sits. The three run and issue rows close on a `cost` field holding the cells a
+cost-cohort fragment selects, which the trace's SELECT list names that fragment for. Each unpacks strictly, so a row
+of any other width than its SELECT list raises rather than reading a column it never carried as NULL.
+`raw_values.py` owns the NULL-preserving scalar coercions, the decode of a JSONB cell a driver hands back either
+adapted or as text, plus the probe for a cleared multiselect.
 
 **Rollup-read owners.** `rollup_reads.py` owns the seven reads that scan `analytics_daily_rollup` instead —
 `get_summary`, `get_kpi_prev`, `get_time_series`, `get_stage_breakdown`, `get_backend_efficiency`,
@@ -145,7 +148,12 @@ summing to `0`), an incomplete subtotal (`incomplete`, its known amounts beside 
 `None`), and an amount with no stated basis (under the `unknown` basis, completeness `unknown`). A row narrower than
 the cells raises. `fold_cohorts` regroups cohorts read apart — a window's days, or one day's events — the way their
 runs fold: counts added, evidence reduced by `reduce_costs`, so the fold answers what one cell over all their runs
-would; `EMPTY_COST_COHORT` is the fold of none, the empty cohort a window with no run reads as.
+would; `EMPTY_COST_COHORT` is the fold of none, the empty cohort a window with no run reads as. Two more fragments read
+the events table for a reader that lists runs or ranks issues rather than totalling a window. `EVENT_RUN_COST_SQL`
+selects the same cells off one row, unsummed: a cohort of that run alone, whose evidence is the run's own as the sync
+filed it, and the empty cohort for any other event. `EVENT_STATED_USD_SQL` adds one row's every stated amount across
+its bases, NULL where it states none, so summed over an issue it is the issue's `total_usd`, the measure the cost
+ranking orders on in SQL.
 `token_totals.py` spells the token reduction for the same three targets: each fragment selects the
 summed known non-overlapping totals and the runs whose total is unknown, so a known subtotal never reads as the whole;
 on the events table only an `agent_exit` row counts as a run. Neither reprices anything: amounts are the recorded ones.
@@ -185,7 +193,11 @@ on the events table only an `agent_exit` row counts as a run. Neither reprices a
 - `get_data_extent` (base table) — min / max `ts` so the sidebar date picker defaults to a window that contains rows.
 - `get_event_breakdown` (base table) — per-event counts (the rollup pre-aggregates more finely than `event` alone, so
   the base-table read is cheaper here).
-- `get_recent_agent_exits` (base table) — newest rows filtered to `event='agent_exit'`.
+- `get_recent_agent_exits` (base table) — newest rows filtered to `event='agent_exit'`, each carrying its
+  non-overlapping `total_tokens` (`None` where its evidence leaves it unknown) and its stored `cost` as a
+  `CostEvidence` (`EVENT_RUN_COST_SQL`): a CLI-reported amount as its record ranked it ahead of any estimate, an
+  estimate with the dates its rates were verified on, and a row stored with no evidence `unknown`, its `cost_usd`
+  under that basis — never repriced from its tokens or read off `cost_source`.
 - `get_skill_trigger_rates` (base table) — per-`(agent_role, backend)` skill-trigger aggregate: `runs`, `skill_runs`
   (rows whose `extras` carries a `skills_triggered` key), and `total_triggers` (`SUM` of `skills_triggered_count`), with
   a derived `rate` property. Reads the base table because the skill fields live in `extras JSONB`, which the rollup does
@@ -254,10 +266,23 @@ on the events table only an `agent_exit` row counts as a run. Neither reprices a
   short-circuit (no scans at all, the catalog one included), NULL `"unknown"` bucketing, and `extras JSONB` / no-DDL /
   `TRACK_SKILL_TRIGGERS`-off caveats match `get_skill_trigger_matrix`.
 - `get_issues` (base table) — date / repo-bounded one-row-per-`(repo, issue)` overview: event count, first / last
-  activity, latest non-null stage, agent-exit count, cost / token totals, `max_review_round`, `failed_agent_runs`,
-  `max_retry_count`. Bounded by `limit` and ordered by `sort_by` (`"last_seen"` default, `"cost"` orders by
-  `SUM(cost_usd) DESC NULLS LAST`; unknown `sort_by` raises `ValueError`).
-- `get_issue_events` (base table) — full event trace for a single `(repo, issue)` pair, oldest first. Beyond the nine
+  activity, latest non-null stage, agent-exit count, the issue's `cost` cohort (`EVENT_COST_COHORT_SQL`) beside its
+  `stated_cost_usd`, its runs' known non-overlapping `total_tokens` with `unknown_token_runs` beside them
+  (`EVENT_TOKEN_TOTAL_SQL`), `max_review_round`, `failed_agent_runs`, `max_retry_count`. Bounded by `limit` and
+  ordered by `sort_by` in SQL ahead of the `LIMIT` (`"last_seen"` default, `ORDER BY last_seen DESC, repo ASC, issue
+  ASC`; `"cost"`, `ORDER BY stated_cost_usd DESC NULLS LAST, last_seen DESC, repo ASC, issue ASC`; an unknown
+  `sort_by` raises `ValueError`). The cost ranking's measure, `stated_cost_usd`, is every amount the issue's runs
+  state, added across bases whatever their completeness (`EVENT_STATED_USD_SQL`): a blended issue ranks at its whole
+  stated total, an issue holding unpriced usage at its known subtotal — a lower bound on what it spent — and an amount
+  stored with no basis at its stated figure. An issue whose runs state no amount is NULL there and sorts after every
+  issue stating one, a complete zero included, since its spend cannot be placed. Equal amounts are exact `NUMERIC`
+  sums, so a blend can tie one basis's amount; they fall back to the newest activity and then to the pair, the
+  repository compared under the database's collation. The dashboard (`kpis.top_expensive_issues`) cuts the rows to
+  its depth in that order and never re-sorts them, since Python's code-point string order can disagree with a
+  collation that skips punctuation and would reverse such a tie.
+- `get_issue_events` (base table) — full event trace for a single `(repo, issue)` pair, oldest first. Each
+  `agent_exit` row carries its stored `cost`, read as `get_recent_agent_exits` reads it, and every other event `None`,
+  since it states no usage. Beyond the nine
   columns the drill-down tabulates, each `IssueEventRow` carries the promoted run columns a human-wait record is
   correlated by (`agent_spec`, `session_id`, `resume_session_id`, `review_round`, `retry_count`, `timed_out`) and the
   row's decoded `extras` blob, where a park's `reason`, `route`, `pr_number`, and `sha` ride — see
@@ -446,13 +471,18 @@ beneath them is titled by: the hidden mark `css.py` selects a card's container b
 picks a class and a glyph, and the reliability strip whose numbers the calling page's own formatter renders.
 `tables.py` is the markup beside it —
 the compact table the four hand-rolled panels are listed in: the stylesheet each scopes to its own class, the header
-and body they are assembled from, and the bar width, short repository name, missing count, and unpriced amount a cell
-reports. `issue_table.py` is the first of those four: the six columns a window's costliest issues are ranked into,
-the rules their in-row bars and status pills are painted by, and the readings one issue is reduced to and rendered
-as — its bar a share of the widest row in that table, its review round toned from the third one on, and its run
-health a `clean` pill wherever nothing failed. `skill_trigger_table.py` is the second: the six columns a
-`(role, backend)` cohort's skill use is reported in, its rate bar a share of the busiest cohort in that table, and
-`unknown` the label a category the sink left empty is read under. The last two are the panels an operator can reorder,
+and body they are assembled from, and the bar width, short repository name, and missing count a cell reports.
+`issue_table.py` is the first of those four: the six columns a window's costliest issues are ranked into, the rules
+their in-row bars and status pills are painted by, and the readings one issue is reduced to and rendered as — its cost
+the issue's cohort worded as the overview words a window's (`spend_text`): the figure, then its basis (CLI-reported,
+one provider's API token estimate, or blended with each basis's amount beside it) and any shortfall, the runs left
+unpriced or partly priced and those stating no cost evidence counted; its bar a share of the widest row in that table,
+sized by the amount the read ranked it on and drawn open where that amount falls short of complete spend; an issue
+stating no amount worded unpriced, unknown, or no usage, and one with no run as having none, never as a zero; its
+review round toned from the third one on; and its run health a `clean` pill wherever nothing failed.
+`skill_trigger_table.py` is the second: the six columns a `(role, backend)` cohort's skill use is reported in, its
+rate bar a share of the busiest cohort in that table, and `unknown` the label a category the sink left empty is read
+under. The last two are the panels an operator can reorder,
 so each arrives across five owners. The third is the per-session adoption table, the page's primary skill metric:
 `skill_adoption_columns.py` for the ten columns it is read across, the key each is ordered by, and the `adopt_sort` /
 `adopt_dir` pair a heading writes — with the two invocation diagnostics among those columns counted apart from the
@@ -484,12 +514,15 @@ on accordingly. The second is the card the section led with before adoption did;
 draws it now, and its prompt is unconditional, since trigger rates alone carry no per-session evidence to tell those
 two windows apart.
 `recent_runs.py` is the listing under those four panels rather than a fifth among them — the runs behind the readings
-above it, projected into the columns one is scanned by and the offset the sidebar picked, drawn as `st.dataframe`
+above it, projected into the columns one is scanned by and the offset the sidebar picked — each run's cost worded from
+its stored evidence as the trajectory viewer words a run, the dates an estimate's rates were verified on beside it,
+and its non-overlapping token total beside the raw input and output counters — drawn as `st.dataframe`
 because a raw listing carries no bar, pill, or sortable heading Streamlit's own table cannot already handle. It opens
 collapsed so a window's worth of rows does not push the per-issue drill-down off the screen the page ends on, and a
 window with no `agent_exit` row renders the notice rather than an empty frame.
 `drilldown.py` is that drill-down — one issue's events in the order they happened, which is where an operator lands
-once a run in the listing raised a question the row cannot answer. It is the one page read issued outside the cached
+once a run in the listing raised a question the row cannot answer, each run's cost worded as the listing words it and
+every other event's left empty. It is the one page read issued outside the cached
 wrappers, because it is scoped by an issue on top of the window and filters those keys are hashed from, and it still
 goes through the scope owner so it runs on the socket the waves above it opened. A repository has to be picked before
 a number narrows anything, since GitHub issue numbers repeat across repositories, and the section names the control
@@ -622,9 +655,11 @@ either wave surfaces as one `st.error` + `st.stop`.
    cache cost, and the review-round card groups development and review cost bars per round with each role's bar further
    stacked into no-cache + cache cost — so the operator can see how much per-stage and per-round spend still bypasses
    prompt caching.
-5. 7/5 split: top-cost issues table (Issue with in-row cost bar, Cost, Runs, Review rds, Retries, status pill) +
-   backend-efficiency cards (`$ / 1M tok`, `% cache hit`, `$ / run`) above the cost-source coverage bar (sized by token
-   share, or by run share once a run's token total is unknown).
+5. 7/5 split: top-cost issues table ranked by stated cost (Issue with in-row cost bar, open where the amount is a
+   subtotal or of unknown completeness; Cost, its basis and shortfall noted beneath the figure, a blended total with
+   each basis's amount; Runs, Review rds, Retries, status pill) + backend-efficiency cards (`$ / 1M tok`,
+   `% cache hit`, `$ / run`) above the cost-source coverage bar (sized by token share, or by run share once a run's
+   token total is unknown).
 6. Another 7/5 split: `cost_by_repo` bars + six-tile reliability panel (agent runs / success rate / resolved / rejected
    / failures / timeouts — all sourced from the same `Summary` window-wide aggregate) above the
    issues-resolved-per-day bar chart with explicit zero days backfilled.
@@ -687,8 +722,9 @@ either wave surfaces as one `st.error` + `st.stop`.
    rather than inside each of them, and the matrix shows its own fallback notice when no catalog-backed matrix can be
    built (no catalog records matched and no run fired a skill).
 9. Recent agent-runs table as a collapsible expander; the `ts` column is shifted to the wall-clock of the selected UTC
-   offset via `shift_ts`.
-10. Per-issue drill-down when a number is entered.
+   offset via `shift_ts`, each run's cost reads with its basis and any shortfall and an estimate's rate dates beside
+   it, and its token total is the non-overlapping one, empty where unknown.
+10. Per-issue drill-down when a number is entered, each run's cost worded as in the listing.
 
 **Filter contract.** `build_window_where` distinguishes three cases for the event / stage selections: `None` is "no
 filter on this column", a non-empty sequence emits a parameterised `IN (...)`, and an empty sequence emits a
@@ -796,9 +832,10 @@ does every other chart family.
 The compact table the most-expensive-issues and skill-trigger-rates panels — and the two sortable skill panels named
 below — are drawn as lives at `observability/dashboard/tables.py`: the stylesheet each panel scopes to
 itself under its own class, the header and body they are assembled from, and the bar width, short repository name,
-missing count, and unpriced amount a cell reports. The most-expensive-issues panel drawn in that table is
+and missing count a cell reports. The most-expensive-issues panel drawn in that table is
 `observability/dashboard/issue_table.py` — its six columns, the rules its in-row bars and status pills are painted
-by, and the readings one issue is reduced to and rendered as. The skill-trigger-rates panel beside it is
+by, and the readings one issue is reduced to and rendered as, its cost worded through
+`observability/dashboard/spend_text.py`. The skill-trigger-rates panel beside it is
 `observability/dashboard/skill_trigger_table.py` — its own six columns, the busiest cohort its rate bars are sized
 against, and the `unknown` a category the sink left empty reads as, which the adoption table's and the trigger
 matrix's row projections both read off that owner directly. The sparkline drawn inside a KPI
@@ -923,8 +960,9 @@ as a labeled banner.
 - `` No `agent_exit` rows match the current filters. `` — *data* — The window contains `stage_enter` /
   `stage_evaluation` rows but no agent invocations — surfaces in the review-round chart, backend cards, cost coverage
   bar, and recent-runs expander.
-- `No agent runs with recorded cost in this window.` — *data* — The top-cost issues table fell back to its empty
-  state — no `(repo, issue)` pair in the window has any priced agent runs.
+- `No issues match the current filters.` — *data* — The top-cost issues table fell back to its empty state — no
+  `(repo, issue)` pair matched the filters. An issue whose runs state no amount is still ranked, below every issue
+  stating one, and worded unpriced, unknown, or no usage rather than dropped.
 - `No repos match the current filters.` — *data* — The per-repo activity chart is empty for this filter combination.
 - `Pick a specific repo in the sidebar before drilling into an issue number …` — *UI guard* — The issue-number
   input is inert with the repo filter on `All` because GitHub issue numbers are not unique across repos.
