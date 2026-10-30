@@ -46,6 +46,7 @@ from orchestrator.observability.analytics.query.skill_models import (
     SkillTriggerRateRow,
 )
 from orchestrator.observability.dashboard import page_models
+from tests.observability.analytics import analytics_usage_cases as usage_cases
 from tests.observability.dashboard.page_render_test_support import (
     WINDOW,
     WINDOW_START,
@@ -99,8 +100,6 @@ _INPUT_TOKENS = 900
 
 _OUTPUT_TOKENS = 100
 
-_RUN_COST = 0.25
-
 # The calls a panel puts a bare line on screen with, all of which land in the
 # one stream the page is read back off.
 _TEXT_CALLS = frozenset(("caption", "info", "subheader"))
@@ -119,8 +118,8 @@ _LISTED_RUN = AgentExitRow(
     retry_count=0,
     input_tokens=_INPUT_TOKENS,
     output_tokens=_OUTPUT_TOKENS,
-    cost_usd=_RUN_COST,
-    cost_source="parsed",
+    total_tokens=_INPUT_TOKENS + _OUTPUT_TOKENS,
+    cost=usage_cases.REPORTED,
 )
 
 _TRIGGER_COHORT = SkillTriggerRateRow(
@@ -171,7 +170,7 @@ _TRACED_EVENT = IssueEventRow(
     agent_role=_ROLE,
     backend=_BACKEND,
     exit_code=0,
-    cost_usd=_RUN_COST,
+    cost=usage_cases.REPORTED,
 )
 
 

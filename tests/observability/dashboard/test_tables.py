@@ -40,13 +40,6 @@ _HALF_WIDTH = 50.0
 
 _NO_BAR = float(0)
 
-_DASH = "—"
-
-# An amount past the thousands separator the cell renders it with.
-_AMOUNT = 1234.5
-
-_AMOUNT_TEXT = "$1,234.50"
-
 
 class TableMarkupTest(unittest.TestCase):
     """Four panels are inline HTML rather than `st.dataframe`, so what they
@@ -125,13 +118,6 @@ class CellReadingsTest(unittest.TestCase):
         # than a zero, and the column it lands in is right-aligned numerals.
         self.assertEqual(tables.int_or_zero(None), 0)
         self.assertEqual(tables.int_or_zero("4"), 4)
-
-    def test_an_unpriced_amount_reads_as_a_dash(self) -> None:
-        # A run nobody priced and a run that cost nothing are different
-        # answers, so the table spells them differently.
-        self.assertEqual(tables.money_or_dash(None), _DASH)
-        self.assertEqual(tables.money_or_dash(0), "$0.00")
-        self.assertEqual(tables.money_or_dash(_AMOUNT), _AMOUNT_TEXT)
 
 
 if __name__ == "__main__":

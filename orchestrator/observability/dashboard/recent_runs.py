@@ -25,6 +25,15 @@ asking which run this was is reading against their own day. The columns are
 ordered the way that question is asked: when and where, then what ran, then how
 it went, then what it cost.
 
+What it cost is the run's stored evidence worded as the trajectory viewer words
+a run: the amount with its basis -- CLI-reported, which is what the CLI printed
+and never a verified bill, one provider's API token estimate, or a blended
+amount with each part -- and why it falls short of complete spend, or unpriced,
+no usage, or unknown where it states no amount. The dates the estimate's rates
+were verified on sit beside it, and nothing is re-priced from the tokens. The
+token total is the run's non-overlapping one, left empty where its evidence
+cannot settle it, beside the raw input and output counters.
+
 Streamlit and pandas are the caller's, handed in as parameters, so this owner
 imports neither and the row projection stays readable without either installed.
 """
@@ -35,7 +44,7 @@ from datetime import timedelta
 from typing import Any
 
 from orchestrator.observability.analytics.query.run_models import AgentExitRow
-from orchestrator.observability.dashboard import filters
+from orchestrator.observability.dashboard import cost_text, filters
 
 NO_AGENT_EXITS_MESSAGE = "No `agent_exit` rows match the current filters."
 RECENT_RUNS_LABEL = "Recent agent runs"
@@ -60,8 +69,9 @@ def recent_run_row(
         "retry": exit_row.retry_count,
         "input tokens": exit_row.input_tokens,
         "output tokens": exit_row.output_tokens,
-        "cost (USD)": exit_row.cost_usd,
-        "cost source": exit_row.cost_source,
+        "total tokens": exit_row.total_tokens,
+        "cost": cost_text.cost_text(exit_row.cost),
+        "rates": cost_text.rates_text(exit_row.cost),
     }
 
 

@@ -10,11 +10,16 @@ expensive per run or merely busy. The columns are split 7:5 the way the bars
 above them are, because a ranked table of repositories and issue numbers needs
 the room a stack of single-backend cards does not.
 
+The ranking's header names the measure it is ordered by -- the cost an
+issue's runs state, a subtotal at its known part -- because the rows beneath it
+can hold a subtotal beside a complete amount, and each row's own note says
+which it is.
+
 The two columns render different empty states, because they are empty for
-different reasons. A window can carry runs the parser could not price, so the
-ranking says that no run in it had a recorded cost rather than that nothing
-ran; the cards beside it are drawn from `agent_exit` rows directly, so their
-absence is the window having no run to report at all.
+different reasons. The ranking lists every issue the filters leave, priced or
+not, so it is empty only where no issue matched at all; the cards beside it are
+drawn from `agent_exit` rows directly, so their absence is the window having no
+run to report.
 
 The coverage bar closes the right column rather than standing on its own,
 because it is the qualification on the money the cards above it report: what
@@ -50,6 +55,8 @@ from orchestrator.observability.dashboard.kpis import top_expensive_issues
 
 NO_AGENT_EXITS_MESSAGE = "No `agent_exit` rows match the current filters."
 
+NO_ISSUES_MESSAGE = "No issues match the current filters."
+
 
 def render_issues_and_backends(
     *,
@@ -65,7 +72,7 @@ def render_issues_and_backends(
         st.markdown(
             card_header_html(
                 "Most expensive issues",
-                "Cost, run count, review rounds, and failure count",
+                "Ranked by stated cost, a subtotal at its known part",
             ),
             unsafe_allow_html=True,
         )
@@ -73,7 +80,7 @@ def render_issues_and_backends(
         if expensive:
             st.markdown(issues_table_html(expensive), unsafe_allow_html=True)
         else:
-            st.info("No agent runs with recorded cost in this window.")
+            st.info(NO_ISSUES_MESSAGE)
     with backend_column, st.container(border=True):
         st.markdown(
             card_header_html(

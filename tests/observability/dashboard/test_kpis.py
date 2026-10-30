@@ -4,17 +4,18 @@
 
 Each of the four reductions is read where it can go wrong rather than on a
 typical window: a delta with nothing to divide by, a window with no runs to
-take a success rate over, a table of issues that tie on cost or carry none at
-all, and a breakdown whose buckets sit on both sides of the initial pass. The
+take a success rate over, a ranking whose ties the database broke under a
+collation Python does not share, and a breakdown whose buckets sit on both
+sides of the initial pass. The
 plain window is pinned beside each, because an edge answer only means something
 while the ordinary one is still right.
 
 The tile cases read the tones as well as the counts, since the tone is what
 paints the tile: a failure count that arrived correct under a neutral tone is a
 panel reading as healthy while reporting failures. The ranking cases read whole
-`(repo, issue)` pairs rather than a first row, because the order is a total one
--- ties fall back to run count and then to the pair that names the issue -- and
-a check on the head alone would pass while the tail reshuffled between reruns.
+rows rather than a first one, because the order is the cost read's own, total
+down to the pair that names an issue, and a check on the head alone would pass
+while the tail was re-sorted under it.
 """
 
 from __future__ import annotations
@@ -82,22 +83,19 @@ _REPO_A = "acme/a"
 
 _REPO_B = "acme/b"
 
-_REPO_C = "acme/c"
+# Two repositories PostgreSQL's default `en_US.utf8` collation orders by their
+# letters, skipping the dot, so `acme/ab` comes first; Python's code-point order
+# counts the dot, which sorts below every letter, and puts `acme/a.c` first.
+_COLLATED_FIRST = "acme/ab"
+
+_COLLATED_SECOND = "acme/a.c"
 
 _STAGE = "implementing"
 
-# Three issues whose spend orders them C, B, A -- read back through the two
-# ranked above the cheapest.
+# The amounts the read ranked its rows by, costliest first.
 _HIGH_COST = 1.0
 
 _MID_COST = 0.5
-
-_LOW_COST = 0.1
-
-# The runs one issue is credited with against the two its ties are broken over.
-_BUSY_RUNS = 10
-
-_QUIET_RUNS = 2
 
 # One initial-pass round and one review round beside it.
 _INITIAL_COST = 50.0
@@ -129,21 +127,17 @@ def _tiles(summary: Summary, **throughput: int) -> dict:
     }
 
 
-def _issue(
-    repo: str, number: int, cost: float | None, runs: int = 1,
-) -> IssueSummaryRow:
+def _issue(repo: str, number: int, cost: float | None) -> IssueSummaryRow:
     """An issue row carrying only the columns the ranking orders on."""
     return IssueSummaryRow(
         repo=repo,
         issue=number,
-        event_count=runs,
+        event_count=1,
         first_seen=utc_midnight(MAY01),
         last_seen=utc_midnight(MAY02),
         latest_stage=_STAGE,
         agent_exits=1,
-        total_cost_usd=cost,
-        total_input_tokens=0,
-        total_output_tokens=0,
+        stated_cost_usd=cost,
     )
 
 
@@ -204,42 +198,31 @@ class ReliabilityTileTest(unittest.TestCase):
 
 
 class TopExpensiveIssuesTest(unittest.TestCase):
-    """The order the "where did spend go" table is drawn in."""
+    """The rows the "where did spend go" table is drawn from: the read's, in its order."""
 
-    def test_the_costliest_issues_come_first(self) -> None:
+    def test_the_reads_order_is_kept(self) -> None:
+        # The read ranks in SQL and breaks a tie on the repository under the
+        # database's collation. Sorting the rows again by code point would put
+        # `acme/a.c` ahead of `acme/ab`, which tie on amount and activity, so
+        # nothing here sorts them: the tie -- and an issue stating no amount,
+        # below them -- is drawn as the database ranked it.
         rows = (
-            _issue(_REPO_A, 1, _LOW_COST),
             _issue(_REPO_B, 2, _HIGH_COST),
-            _issue(_REPO_C, 3, _MID_COST),
+            _issue(_COLLATED_FIRST, 1, _MID_COST),
+            _issue(_COLLATED_SECOND, 1, _MID_COST),
+            _issue(_REPO_A, 3, None),
         )
-        top = kpis.top_expensive_issues(rows, limit=2)
-        self.assertEqual(
-            [(row.repo, row.issue) for row in top],
-            [(_REPO_B, 2), (_REPO_C, 3)],
-        )
+        self.assertEqual(kpis.top_expensive_issues(rows), list(rows))
 
-    def test_an_unpriced_issue_sorts_last(self) -> None:
-        # A missing cost is not a cheap one: the issue still belongs in the
-        # table, below every issue whose spend was recorded.
-        rows = (_issue(_REPO_A, 1, None), _issue(_REPO_B, 2, _LOW_COST))
-        top = kpis.top_expensive_issues(rows)
-        self.assertEqual([row.issue for row in top], [2, 1])
-
-    def test_asking_for_no_rows_returns_none(self) -> None:
-        rows = (_issue(_REPO_A, 1, _LOW_COST),)
-        self.assertEqual(kpis.top_expensive_issues(rows, limit=0), [])
-
-    def test_ties_fall_back_to_runs_then_name(self) -> None:
+    def test_the_ranking_is_cut_to_its_depth(self) -> None:
         rows = (
-            _issue(_REPO_A, 1, _HIGH_COST, runs=_QUIET_RUNS),
-            _issue(_REPO_A, 2, _HIGH_COST, runs=_BUSY_RUNS),
-            _issue(_REPO_B, 1, _HIGH_COST, runs=_QUIET_RUNS),
+            _issue(_REPO_B, 2, _HIGH_COST),
+            _issue(_REPO_A, 1, _MID_COST),
+            _issue(_REPO_A, 3, None),
         )
-        top = kpis.top_expensive_issues(rows)
-        self.assertEqual(
-            [(row.repo, row.issue) for row in top],
-            [(_REPO_A, 2), (_REPO_A, 1), (_REPO_B, 1)],
-        )
+        ranked_head = list(rows[:2])
+        self.assertEqual(kpis.top_expensive_issues(rows, limit=2), ranked_head)
+        self.assertEqual(kpis.top_expensive_issues(rows, limit=0), [])
 
 
 class ReworkTotalsTest(unittest.TestCase):

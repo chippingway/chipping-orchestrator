@@ -16,11 +16,11 @@ what it asked for.
 
 Beside the markup are the readings a cell is built from: the share of the
 widest bar a row is drawn at, the repository name without the owner hosting it,
-the zero a missing count reports as, and the dash an amount nobody priced is
-rendered with. That last one is the reason they sit here rather than beside the
-compact formatters -- a run that cost nothing and a run the parser could not
-price are different answers, and a table spelling both `$0.00` would hide the
-gap the coverage banner is raised for.
+and the zero a missing count reports as. Money is not among them: an amount is
+worded with its basis and completeness by the cost owners, since a run that
+cost nothing and a run the parser could not price are different answers, and a
+table spelling both `$0.00` would hide the gap the coverage banner is raised
+for.
 
 Producing a table costs neither Streamlit nor Plotly, so an importer that never
 renders one still loads cleanly.
@@ -96,10 +96,3 @@ def int_or_zero(raw: object) -> int:
     if raw is None:
         return 0
     return int(raw)
-
-
-def money_or_dash(raw: object) -> str:
-    """The amount a cell reports, with an unpriced one drawn as a dash."""
-    if raw is None:
-        return "—"
-    return "${}".format(format(raw, ",.2f"))

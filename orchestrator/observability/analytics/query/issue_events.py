@@ -18,7 +18,10 @@ before the table knows it. So the read selects those columns and the blob
 beside them, and a park read back here says why it waited without a join, a
 migration, or a second query. The columns it reads are the fields of the named
 trace row, which is what keeps the SELECT list and the projection from
-disagreeing about where any one of them sits.
+disagreeing about where any one of them sits; the row's last field, its cost,
+is the cells `EVENT_RUN_COST_SQL` selects, which read an `agent_exit` row's
+stored evidence as the recent-runs read does and every other event as stating
+no usage, so the trace carries no cost for it rather than a zero.
 
 Most events fill few of those columns -- a `stage_enter` carries no run, a
 park no exit code -- so a NULL column stays `None` rather than reading as a
@@ -33,6 +36,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from orchestrator.observability.analytics.query.conditions import prepend_where_condition
+from orchestrator.observability.analytics.query.cost_cohorts import EVENT_RUN_COST_SQL, cost_cohort
 from orchestrator.observability.analytics.query.execution import ReadQuery
 from orchestrator.observability.analytics.query.filters import WindowFilters
 from orchestrator.observability.analytics.query.predicates import build_window_where
@@ -44,8 +48,9 @@ from orchestrator.observability.analytics.query.raw_values import (
     json_object,
 )
 from orchestrator.observability.analytics.query.run_models import IssueEventRow
+from orchestrator.observability.usage.cost_evidence import CostEvidence
 
-_SELECTED_COLUMNS = ", ".join(IssueEventQueryRow._fields)
+_SELECTED_COLUMNS = ", ".join((*IssueEventQueryRow._fields[:-1], EVENT_RUN_COST_SQL))
 
 
 def issue_event_from_row(row: Sequence[Any]) -> IssueEventRow:
@@ -60,7 +65,7 @@ def issue_event_from_row(row: Sequence[Any]) -> IssueEventRow:
         agent_role=query_row.agent_role,
         backend=query_row.backend,
         exit_code=int_or_none(query_row.exit_code),
-        cost_usd=float_or_none(query_row.cost_usd),
+        cost=_run_cost(query_row.cost),
         agent_spec=query_row.agent_spec,
         session_id=query_row.session_id,
         resume_session_id=query_row.resume_session_id,
@@ -69,6 +74,12 @@ def issue_event_from_row(row: Sequence[Any]) -> IssueEventRow:
         timed_out=bool_or_none(query_row.timed_out),
         extras=json_object(query_row.extras),
     )
+
+
+def _run_cost(cells: Sequence[Any]) -> CostEvidence | None:
+    """A run's stored cost; none for an event that is not a run."""
+    run = cost_cohort(cells)
+    return None if run.is_empty else run.evidence
 
 
 def issue_event_rows(

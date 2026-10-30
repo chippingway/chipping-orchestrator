@@ -22,6 +22,11 @@ the section names the control that answers it rather than drawing a trace
 nobody can read. The subheading is written before that check, so a number typed
 too early still tells the operator which issue the notice is about.
 
+An `agent_exit` row's cost is worded the way the run listing words it -- its
+stored amount with its basis and any shortfall, and the dates an estimate's
+rates were verified on -- and every other event leaves both cells empty, since
+it states no usage rather than a zero.
+
 Streamlit and pandas are the caller's, handed in as parameters, so this owner
 imports neither and the row projection stays readable without either installed.
 """
@@ -32,6 +37,7 @@ from typing import Any
 from orchestrator.observability.analytics.query import connections, raw_reads
 from orchestrator.observability.analytics.query.run_models import IssueEventRow
 from orchestrator.observability.dashboard import (
+    cost_text,
     filter_binding,
     page_models,
     scoped_reads,
@@ -45,6 +51,7 @@ MISSING_REPO_MESSAGE = (
 
 def drilldown_event_row(event: IssueEventRow) -> dict[str, Any]:
     """The readings one traced event is listed under, in column order."""
+    cost = event.cost
     return {
         "ts": event.ts,
         "event": event.event,
@@ -54,7 +61,8 @@ def drilldown_event_row(event: IssueEventRow) -> dict[str, Any]:
         "agent": event.agent_role,
         "backend": event.backend,
         "exit": event.exit_code,
-        "cost (USD)": event.cost_usd,
+        "cost": None if cost is None else cost_text.cost_text(cost),
+        "rates": None if cost is None else cost_text.rates_text(cost),
     }
 
 

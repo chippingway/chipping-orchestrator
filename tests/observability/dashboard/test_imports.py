@@ -393,6 +393,7 @@ _SURFACES = MappingProxyType({
     _ISSUE_COST_PANEL_OWNER: ("render_issues_and_backends",),
     _ISSUE_TABLE_OWNER: (
         "IssueRowView",
+        "issue_cost_html",
         "issue_row_view",
         "issue_status_pill",
         "issue_table_row_html",
@@ -585,7 +586,6 @@ _SURFACES = MappingProxyType({
     ),
     _TABLES_OWNER: (
         "int_or_zero",
-        "money_or_dash",
         "relative_width_pct",
         "short_repo_name",
         "table_css",

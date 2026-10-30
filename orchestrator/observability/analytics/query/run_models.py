@@ -10,6 +10,15 @@ the column and the record field it was recorded under: the field is stored
 under `event_result` because a bare `result` is a name the style guide rejects,
 and the public name is installed as a property so the two can never hold
 different values.
+
+Money is carried as the evidence the sync filed rather than as one amount. A
+run's cost is its own `CostEvidence` -- each basis's amount, an estimate's rate
+dates, and the completeness its record stated -- and an issue's is the
+`CostCohort` its runs fold to, so a reader can word a CLI-reported amount, a
+provider's estimate, a blended total with its parts, an unpriced run, and an
+amount with no basis apart, and never mistake a subtotal for the whole. Tokens
+are the runs' non-overlapping totals, an unknown one left out of a sum and
+counted beside it.
 """
 
 from __future__ import annotations
@@ -17,6 +26,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
+
+from orchestrator.observability.analytics.query.cost_cohorts import EMPTY_COST_COHORT, CostCohort
+from orchestrator.observability.usage.cost_evidence import CostEvidence
 
 RESULT_FIELD = "result"
 
@@ -80,6 +92,12 @@ class AgentExitRow:
     subset of the table, not every column. Adding a column should
     happen in lockstep with the SELECT list in `get_recent_agent_exits`
     so the positional unpack stays aligned.
+
+    `total_tokens` is the run's non-overlapping total, `None` where its
+    evidence leaves it unknown. `cost` is the run's evidence as stored: a
+    CLI-reported amount stays the amount its record ranked first, an
+    estimate keeps the dates its rates were verified on, and a row stored
+    with no evidence reads `unknown` with its `cost_usd` under that basis.
     """
 
     ts: datetime
@@ -95,8 +113,8 @@ class AgentExitRow:
     retry_count: int | None
     input_tokens: int | None
     output_tokens: int | None
-    cost_usd: float | None
-    cost_source: str | None
+    total_tokens: int | None
+    cost: CostEvidence
 
 
 @dataclass(frozen=True)
@@ -118,6 +136,15 @@ class IssueSummaryRow:
     the SELECT list, the dataclass, and the positional unpack in
     `get_issues` keeps the schema obvious when a future column is
     added.
+
+    `cost` is the cohort the issue's runs fold to -- an empty one where
+    it has none. `stated_cost_usd` is the measure the cost ranking orders
+    on, read back as SQL ranked it: every amount the runs state, added
+    across bases whatever their completeness, `None` where they state
+    none. It equals `cost.evidence.total_usd` and is never shown without
+    that cohort's wording. `total_tokens` sums the runs' known
+    non-overlapping totals and `unknown_token_runs` counts the runs
+    whose total is unknown.
     """
 
     repo: str
@@ -127,9 +154,10 @@ class IssueSummaryRow:
     last_seen: datetime
     latest_stage: str | None
     agent_exits: int
-    total_cost_usd: float | None
-    total_input_tokens: int
-    total_output_tokens: int
+    cost: CostCohort = EMPTY_COST_COHORT
+    stated_cost_usd: float | None = None
+    total_tokens: int = 0
+    unknown_token_runs: int = 0
     max_review_round: int | None = None
     failed_agent_runs: int = 0
     max_retry_count: int | None = None
@@ -139,7 +167,9 @@ class IssueSummaryRow:
 class IssueEventRow:
     """One row of the per-issue event trace.
 
-    The first nine fields are what the drill-down tabulates. The rest are
+    The first nine fields are what the drill-down tabulates. `cost` is an
+    `agent_exit` row's stored evidence, read as `AgentExitRow.cost` is,
+    and `None` on every other event, which states no usage. The rest are
     what a `park_awaiting_human` record is correlated by: the promoted run
     columns it may carry (`agent_spec`, `session_id`, `resume_session_id`,
     `review_round`, `retry_count`, `timed_out`) and `extras`, the decoded
@@ -165,7 +195,7 @@ class IssueEventRow:
     agent_role: str | None
     backend: str | None
     exit_code: int | None
-    cost_usd: float | None
+    cost: CostEvidence | None
     agent_spec: str | None = None
     session_id: str | None = None
     resume_session_id: str | None = None

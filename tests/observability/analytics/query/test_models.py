@@ -183,7 +183,7 @@ _TRACE_ROW = IssueEventRow(
     agent_role=_ROLE,
     backend=_BACKEND_CLAUDE,
     exit_code=0,
-    cost_usd=None,
+    cost=None,
 )
 
 

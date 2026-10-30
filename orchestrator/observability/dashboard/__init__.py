@@ -58,9 +58,9 @@ window's own aggregate, the one before it, and three of its first-wave reads
 are assembled into. ``cost_text`` and ``spend_text`` are the words their money
 is qualified by: the first how one cost reads on either page -- its amount, the
 basis it is stated on, and why it falls short of complete spend -- and the
-second what only a window's cohort of runs can say on top of that: that it held
-no run, how many runs left its amount short, and what a move between two
-windows is read with. ``sparkline_points`` and ``sparkline_html`` are how one of
+second what only a cohort of runs, a window's or an issue's, can say on top of
+that: that it held no run, how many runs left its amount short, and what a move
+between two windows is read with. ``sparkline_points`` and ``sparkline_html`` are how one of
 those lines reaches a tile: where each day sits in a box too narrow for an axis
 -- scaled to the window's own range, floored where a window has none, and left
 undrawn where it reported nothing at all -- and the polyline and closed fill
@@ -76,10 +76,11 @@ panel below them is titled by and the hidden mark ``css`` selects a card's
 container by, and ``tables`` is the markup beside it: the compact table the
 four hand-rolled panels are listed in, with the stylesheet each scopes to its
 own class, the header and body they are assembled from, and the bar width,
-short repository name, missing count, and unpriced amount a cell reports.
-``issue_table`` is the first of those four panels: the six columns a window's
-costliest issues are ranked into, the rules their in-row bars and status pills
-are painted by, and the row each issue is reduced to and rendered as.
+short repository name, and missing count a cell reports. ``issue_table`` is the
+first of those four panels: the six columns a window's costliest issues are
+ranked into, the rules their in-row bars and status pills are painted by, and
+the row each issue is reduced to and rendered as, its cost worded by basis and
+shortfall and its bar drawn open where that cost is short of complete spend.
 ``skill_trigger_table`` is the second: the six columns a cohort's skill use is
 reported in, the busiest rate in the table its bar is drawn as a share of, and
 the label a cohort the sink named no role or backend for is read under.
@@ -115,7 +116,8 @@ own notice, its unconditional prompt to enable tracking, and its own fold-out
 matrix.
 ``recent_runs`` is the listing under those four panels rather than a fifth in
 that table: the rows behind the readings above it, projected into the columns
-one run is scanned by and the offset the sidebar picked, drawn in the collapsed
+one run is scanned by -- its stored cost worded by basis, with an estimate's
+rate dates -- and the offset the sidebar picked, drawn in the collapsed
 expander the page ends on, and the notice a window with no `agent_exit` row
 renders in place of an empty frame.
 ``drilldown`` is the last narrowing under that listing: one issue's events in

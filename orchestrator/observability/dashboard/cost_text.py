@@ -4,9 +4,10 @@
 
 Both pages spell money through here: on the trajectory viewer the total-cost
 tile, a row of the recorded-runs table, a run's usage row, and an assistant
-turn's strip, and on the analytics dashboard the overview's totals, through
-``spend_text``, which words a cohort of runs on top of this. A basis is
-therefore worded one way across both pages. An amount is
+turn's strip, and on the analytics dashboard a row of the recent-runs listing
+and of an issue's trace, and -- through ``spend_text``, which words a cohort of
+runs on top of this -- the overview's totals and each issue on the cost
+ranking. A basis is therefore worded one way across both pages. An amount is
 never shown without its basis beside it, because the bases are different
 things: a CLI-reported amount is what the agent CLI printed, never a verified
 bill, and an estimate is a token-only Standard API list-price equivalent on its
