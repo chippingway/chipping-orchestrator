@@ -3960,14 +3960,30 @@ The keys that matter for the state machine fall into a few groups:
   reaches `DEV_SESSION_MAX_RESUMES` the session is retired and respawned fresh from durable state, reset to 0 on every
   fresh spawn), `merged_at` / `closed_without_merge_at` terminal stamps, and the per-round stamps `last_question_at` /
   `last_discussion_at` the two operator-applied conversation stages set on every run they settle.
-- **Usage meter.** `issue_agent_runs` + `issue_total_tokens` + `issue_total_cost_usd` + `issue_cost_sources` are
-  per-issue cumulative counters, counted on every invoked run of every role -- developer, reviewer, the initial and
-  late decomposer, question, discussion, documentation, and conflict runs -- from the `UsageMetrics` that
-  `_run_agent_tracked` parses. `issue_total_tokens` sums input +
-  output + cache-read + cache-write (codex `cached_tokens` is excluded — it is already part of `input_tokens`, so
-  summing it would double-count); `issue_total_cost_usd` sums each run's `cost_usd` (`None` costs from `no-usage` /
-  `unknown-price` runs add nothing); `issue_cost_sources` is the sorted distinct `cost_source` set a terminal verdict
-  reads to mark `(est.)` (any `estimated`) or unpriced `unknown` (any `unknown-price`). The increment is landed by the
+- **Usage meter.** `issue_agent_runs`, `issue_total_tokens`, `issue_total_tokens_unknown_runs`,
+  `issue_total_cost_usd`, `issue_cost_sources`, `issue_cost_evidence`, and `issue_unevidenced_runs` are per-issue
+  cumulative totals, counted on every invoked run of every role -- developer, reviewer, the initial and late
+  decomposer, question, discussion, documentation, and conflict runs -- from the `UsageMetrics` that
+  `_run_agent_tracked` parses, each run read as its usage record serializes it (`usage.cost_evidence`,
+  `usage.token_evidence`), so metrics built with no evidence state an unknown cost and cache overlap.
+  `issue_total_tokens` adds each run's non-overlapping total -- every observed counter once, a cache counter inside an
+  observed input (codex `cached_tokens`) not again -- and a run whose evidence leaves that total unknown, such as an
+  Antigravity run reading cache beside its input, adds nothing to it and one to `issue_total_tokens_unknown_runs`, so
+  the sum is a known subtotal with the runs it lacks counted beside it. `issue_cost_evidence` is every run's cost
+  reduced as `usage.cost_evidence.reduce_costs` reduces many, spelled as a usage record spells its `cost_evidence` --
+  `{"completeness": <completeness>, "contributions": [{"basis": <basis>, "amount_usd": <amount>,
+  "rates_verified_on": [<ISO date>, ...]}, ...]}` -- one summed amount per basis, with every date an estimate's rates
+  were verified on, and the weakest completeness any run states: a CLI-reported amount, each provider's API estimate,
+  and an amount of `unknown` basis stay apart, unpriced usage leaves the known amount an `incomplete` subtotal, and a
+  `no-usage` run weakens nothing. `issue_total_cost_usd` sums each complete `cost_usd` and `issue_cost_sources` keeps
+  the sorted distinct `cost_source` tags; no receipt reads either where the evidence stands. Totals an earlier build
+  counted keep no evidence, and none is inferred for them -- not from their tags, a backend, or a model: they read as
+  one usage record without evidence, their `issue_total_cost_usd` under the `unknown` basis with an `unknown`
+  completeness and their tokens as that build summed them, with a cache overlap nothing establishes. The first run
+  counted over them folds that reading into `issue_cost_evidence` once and keeps their number in
+  `issue_unevidenced_runs`, which nothing moves after, so no later run makes their basis, completeness, or overlap
+  known. Neither unsettled count is ever written without the evidence it was counted beside. The increment is landed
+  by the
   accounting checkpoint described below, which `_run_agent_tracked` asks of every result a process returns, before any
   pause, interruption, timeout, wrapper, or stage disposition can discard it -- so a held, killed, timed-out, failed,
   or incomplete run is counted as it returned, each attempt of a poisoned session's retry and of an Antigravity
@@ -3992,19 +4008,25 @@ The keys that matter for the state machine fall into a few groups:
   under it, so a retired receipt's replay still adds nothing; what retirement costs is that a run never accounted
   while the floor passed it is not counted later, an undercount and never a second count. A ledger in any other
   shape is damaged, never read as empty or written over. Its one writer is `engine/usage_checkpoint.py`, which lands
-  one invoked run's increment and receipt in one guarded commit owning the four counters and the ledger and nothing
+  one invoked run's increment and receipt in one guarded commit owning the usage totals and the ledger and nothing
   else. It is bound to the repository and issue the invocation names, to the pinned comment its charge was written
   on, which the caller has to hold and which is read afresh and admitted -- a comment replacing it is refused, even
   one copying its record and receipts -- and to the workflow cycle it ran in: `late_cycle_id`, 0 only where the field
   is absent, since the late writer leaves an unset identity out, so a present one that is no positive whole number is
-  damage that refuses accounting rather than the absent cycle. Every counter is held to its spelling on the read-back
+  damage that refuses accounting rather than the absent cycle. Where the comment keeps no `issue_cost_evidence`, the
+  commit is held as well to that absence, `issue_agent_runs`, and `issue_total_cost_usd` -- what the evidence is
+  started from -- so a count another road moves before it lands refuses the run, and the next reading starts it
+  afresh, rather than folding in a start nobody decided on. Every counter is held to its spelling on the read-back
   and in the commit alike, the cost total too where the run adds no cost to it, so a receipt read back beside a damaged
   counter settles nothing and lays nothing onto the caller; a run whose parsed usage adds what no total is spelled as
-  -- a negative count, or a negative cost or one no float holds, a negative reported cost included -- is refused before
-  anything is read, and no transformation lands a total past that spelling (`engine/usage_counters.py`): a count is a
-  whole number of any size, never converted, and a cost total one a float holds. It reads the receipt back before
-  anything it sends, so a retry after an unconfirmed edit, a lost response, a restart, or a later settlement adds
-  nothing, and it owes nothing for an unparsed usage or a result no process produced.
+  -- a negative count, a negative cost or one no float holds, a negative reported cost included, or cost evidence no
+  usage record carries -- is refused before anything is read, and no transformation lands a total past that spelling
+  (`engine/usage_counters.py`): a count is a whole number of any size, never converted, a cost total one a float
+  holds, and the cost evidence one `CostEvidence.from_dict` reads back whose amounts on every basis also add up to a
+  total a float holds (`issue_usage.carried_cost`), since a receipt states that sum: a run whose cost would carry
+  the issue's past it is refused rather than committed. It reads the receipt back before anything it sends, so a
+  retry after an unconfirmed edit, a lost response, a restart, or a later settlement adds nothing, and it owes
+  nothing for an unparsed usage or a result no process produced.
 - **Agent-run ledger.** `agent_run_allowance` + `agent_runs_used` + `agent_run_reservation` are read by
   [`run_ledger_values.py`](../../orchestrator/workflow/engine/run_ledger_values.py) and mutated by
   [`run_ledger.py`](../../orchestrator/workflow/engine/run_ledger.py). The
@@ -4111,10 +4133,18 @@ The keys that matter for the state machine fall into a few groups:
   [the drift hash](delivery-stages.md#user-content-drift-detection)), since the tick that answers it is the tick the
   stage handler runs on, and out of the guidance a late adjudication resumes its developer on (`late_content_replies`),
   since a number is no requirement to revise against. Nothing here returns a spent run.
-- **Terminal usage verdict.** `_format_issue_usage_verdict` renders those counters into one visible receipt line
-  (`:receipt: this issue: N agent runs · T tokens · $X.XX`, `(est.)` appended when any `estimated` contributed,
-  `unknown` in place of the figure when an `unknown-price` run leaves the total incomplete). It returns nothing when
-  no run was counted, so a terminal with an empty meter posts no receipt. Every terminal surface renders it before its
+- **Terminal usage verdict.** `_format_issue_usage_verdict` renders those totals into one visible receipt line,
+  `:receipt: this issue: N agent runs · T tokens · <cost>`. The cost is worded off `issue_cost_evidence` by the
+  `cost_text` owner every other surface words a cost through: an amount always beside its basis -- `$0.42 (Gemini API
+  token estimate)` for Antigravity usage priced on Gemini rates, `$0.87 (CLI-reported)`, and `blended` with each
+  basis's own amount listed for a total spanning several, as in `$1.29 (blended: CLI-reported $0.87 + Gemini API
+  token estimate $0.42)` -- qualified `incomplete subtotal` where some usage carries no amount and `completeness
+  unknown` where nothing states how much it covers, and `unpriced`, `no usage`, or `cost unknown` where no amount is
+  stated. The tokens say what they settle no non-overlapping total for: `(subtotal: token total unknown for 1 run)`,
+  and `(2 runs counted without usage evidence)` for an earlier build's runs. Totals keeping no evidence at all read
+  as those runs, so their cost is `basis unknown, completeness unknown`, or `cost unknown` where they summed none,
+  whatever `issue_cost_sources` tags them; a receipt already posted is never rewritten. It returns nothing when no
+  run was counted, so a terminal with an empty meter posts no receipt. Every terminal surface renders it before its
   single `write_pinned_state`: the PR merged / rejected finalizers (`_finalize_if_pr_merged` and the
   `_pr_terminal_stops_the_tick` that decides both endings off one reading,
   `_drain_review_pr_terminals` — all three arcs, including the open-PR/manually-closed-issue rejection — and
@@ -5827,8 +5857,10 @@ rather than preserving.
   The retirement's own write is the **projection**, and it is a whitelist rather than a list of deletions: every
   stage shares this comment and each adds keys of its own, so naming what to drop would carry whatever the naming
   was not written for. What survives is the pinned comment's own identity (the payload is rewritten in place rather
-  than a second comment minted), `orchestrator_comment_ids`, the four cumulative `issue_*` usage counters with the
-  `issue_usage_receipts` ledger saying which invocations they cover, the two
+  than a second comment minted), `orchestrator_comment_ids`, every cumulative `issue_*` usage total the
+  `issue_usage.py` owner names -- the cost evidence and the runs it leaves unsettled with the counts, so a fresh cycle
+  never reads the ended one's runs as an earlier build's -- with the `issue_usage_receipts` ledger saying which
+  invocations they cover, the two
   agent-run ledger fields the `run_ledger.py` owner names as its projected group (`agent_run_allowance` and
   `agent_runs_used` — a lifetime ceiling a restart handed back would be no lifetime ceiling at all, and the allowance
   travels beside the count so a fresh cycle is not parked on its first run by a ceiling the projection dropped),

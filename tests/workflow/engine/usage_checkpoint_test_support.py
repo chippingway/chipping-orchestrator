@@ -18,7 +18,11 @@ from unittest.mock import patch
 
 from orchestrator.agents.models import AgentInvocation, AgentResult
 from orchestrator.github.pinned_state import SCHEMA_VERSION_KEY, AdmissionStatus, PinnedState
-from orchestrator.observability.usage.metrics import UsageMetrics
+from orchestrator.observability.usage import (
+    cost_evidence as _usage_cost,
+    metrics as _usage_metrics,
+    token_evidence as _usage_tokens,
+)
 from orchestrator.workflow.engine import (
     issue_usage as _issue_usage,
     usage_checkpoint as _usage_checkpoint,
@@ -33,6 +37,9 @@ RUNS = _issue_usage.AGENT_RUNS
 TOKENS = _issue_usage.TOTAL_TOKENS
 COST = _issue_usage.TOTAL_COST
 SOURCES = _issue_usage.COST_SOURCES
+EVIDENCE = _issue_usage.COST_EVIDENCE
+UNTOTALED = _issue_usage.TOKENS_UNKNOWN_RUNS
+EARLIER = _issue_usage.UNEVIDENCED_RUNS
 RECEIPTS = _usage_receipts.RECEIPTS
 FLOOR = "floor"
 RECENT = "recent"
@@ -51,8 +58,21 @@ RUN_COST = 0.5
 # What one run lands on an issue that had counted nothing.
 ONE_RUN = (1, RUN_TOKENS, RUN_COST, [REPORTED])
 
+# The cost evidence that run states, and the record's once it is the only run counted.
+REPORTED_COST = _usage_cost.CostEvidence(
+    _usage_cost.COMPLETE, (_usage_cost.CostContribution(_usage_cost.CLI_REPORTED, RUN_COST),),
+)
+
 # A run whose usage parsed with no price, which adds nothing to the cost total.
-UNPRICED = UsageMetrics(backend="claude", cost_source="no-usage")
+UNPRICED = _usage_metrics.UsageMetrics(
+    backend="claude",
+    cost_source="no-usage",
+    cost_evidence=_usage_cost.CostEvidence(_usage_cost.NO_USAGE),
+    token_evidence=_usage_tokens.TokenEvidence((), _usage_tokens.DISJOINT),
+)
+
+# The counters that run's stream reported, each beside the others as Claude's are.
+_REPORTED_TOKENS = _usage_tokens.TokenEvidence(("input_tokens", "output_tokens"), _usage_tokens.DISJOINT)
 
 # The fields an identity carries, as `AccountingWorld.ran` tells them from a result's.
 _IDENTITY = frozenset(identity_field.name for identity_field in dataclasses.fields(AgentInvocation))
@@ -87,12 +107,14 @@ def invoked(ran_as: AgentInvocation | None, **overrides) -> AgentResult:
         "timed_out": False,
         "stdout": "",
         "stderr": "",
-        "usage": UsageMetrics(
+        "usage": _usage_metrics.UsageMetrics(
             backend="claude",
             input_tokens=INPUT_TOKENS,
             output_tokens=OUTPUT_TOKENS,
             cost_usd=RUN_COST,
             cost_source=REPORTED,
+            cost_evidence=REPORTED_COST,
+            token_evidence=_REPORTED_TOKENS,
         ),
         "invocation": ran_as,
     }

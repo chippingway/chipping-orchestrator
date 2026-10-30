@@ -29,13 +29,17 @@ AGENT_RUN_ACCOUNTING_WRITES = 1
 # What one invoked run leaves durable however its stage disposes of it.
 AGENT_RUN_WRITES = AGENT_RUN_CHARGE_WRITES + AGENT_RUN_ACCOUNTING_WRITES
 
-# The fields that accounting write is about: the usage counters and the
-# receipts saying which runs they cover.
+# The fields that accounting write is about: the usage totals, the cost
+# evidence and the runs those totals leave unsettled, and the receipts saying
+# which runs they cover.
 AGENT_RUN_ACCOUNTING_KEYS = frozenset((
     "issue_agent_runs",
     "issue_total_tokens",
+    "issue_total_tokens_unknown_runs",
     "issue_total_cost_usd",
     "issue_cost_sources",
+    "issue_cost_evidence",
+    "issue_unevidenced_runs",
     "issue_usage_receipts",
 ))
 

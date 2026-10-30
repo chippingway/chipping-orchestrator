@@ -37,7 +37,9 @@ class FinalizeIfIssueClosedUsageVerdictTest(unittest.TestCase, _PatchedWorkflowM
         gh.add_issue(issue)
         # No linked PR: the closed issue flips straight to `rejected`; the
         # receipt still surfaces the cumulative verdict, tracked before the
-        # single write.
+        # single write. The totals are an earlier build's, keeping no
+        # evidence, so their cost reads unknown in basis and completeness
+        # however they are tagged.
         seed = {
             "issue_agent_runs": 2,
             "issue_total_tokens": USAGE_TOKEN_COUNT,
@@ -67,7 +69,8 @@ class FinalizeIfIssueClosedUsageVerdictTest(unittest.TestCase, _PatchedWorkflowM
         ]
         self.assertEqual(len(self._receipts), 1)
         self.assertIn(
-            "this issue: 2 agent runs · 3,400 tokens · $0.31",
+            "this issue: 2 agent runs · 3,400 tokens (2 runs counted without usage evidence) · "
+            "$0.31 (basis unknown, completeness unknown)",
             self._receipts[0],
         )
         self._receipt_comments = [comment for comment in issue.comments if comment.body.startswith(":receipt:")]

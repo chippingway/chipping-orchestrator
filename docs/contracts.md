@@ -135,7 +135,15 @@ where either side falls short, and the cache and non-cache split of its amount i
 runs' declared token share, never a measured cache charge, the amount of a run whose total is unknown left unsplit.
 A row an earlier sync stored without those columns reads as
 `unknown`, its `cost_usd` under that basis and its token total unknown, and nothing re-derives, reprices, or converts
-it. A recorded requirements fingerprint
+it. An issue's pinned usage totals keep what its runs' evidence states: `issue_cost_evidence` is their costs reduced
+alike, in the shape a usage record's `cost_evidence` takes, and `issue_total_tokens` adds only non-overlapping totals,
+`issue_total_tokens_unknown_runs` counting the runs it lacks; the terminal receipt words that cost as every other
+surface does -- an Antigravity-only total a Gemini API token estimate, a mixed one blended with each basis's amount
+beside it, and a short one a subtotal -- never a merged figure. Totals an earlier build counted keep no evidence and
+read as one record without it, their cost under the `unknown` basis and completeness and their overlap unknown,
+nothing inferred from `issue_cost_sources`; the first run counted over them folds that reading in once and keeps
+their number in `issue_unevidenced_runs`, so no later run makes them known, and no posted receipt is rewritten.
+A recorded requirements fingerprint
 (`user_content_hash`, `observed_user_content_hash`) is compared with the current fingerprint alone, which leaves bare
 operator controls out: a value no current reading reproduces -- one an earlier producer wrote counting a bare
 `/orchestrator continue` included -- is drift for the stage's deliberate drift or hold route, and is never recognized
@@ -255,6 +263,7 @@ or lost write interrupted are current state, not historical compatibility.
 [cost evidence](../tests/observability/usage/test_usage_cost_evidence.py),
 [token evidence](../tests/observability/usage/test_usage_token_evidence.py),
 [recorded evidence](../tests/workflow/engine/test_usage_metrics.py),
+[issue totals](../tests/workflow/engine/test_usage_accumulator.py),
 [trajectory evidence](../tests/observability/analytics/trajectories/test_record.py),
 [viewer evidence](../tests/observability/trajectory_viewer/test_usage_parsing.py),
 [verification artifacts](../tests/github/test_verification_artifacts.py),

@@ -19,8 +19,13 @@ import unittest
 from types import MappingProxyType
 
 from orchestrator.github.pinned_state import MAX_PINNED_BODY, SCHEMA_VERSION_KEY, pinned_state_body
+from orchestrator.observability.usage import cost_evidence as _usage_cost
 from orchestrator.observability.usage.metrics import UsageMetrics, parse_agent_usage
-from orchestrator.workflow.engine import pinned_commit_models as _commit_models, usage_receipts as _usage_receipts
+from orchestrator.workflow.engine import (
+    issue_usage as _issue_usage,
+    pinned_commit_models as _commit_models,
+    usage_receipts as _usage_receipts,
+)
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.decomposition import late_restart_state as _late_restart_state
 from tests.workflow.engine import usage_checkpoint_test_support as support
@@ -80,6 +85,9 @@ _KEPT_AFTER_RESTART = MappingProxyType({
     _RECENT: [[_FIRST, _FIRST_NONCE], [_THIRD, support.invocation(_THIRD).nonce]],
 })
 
+# The cost two reported runs state together.
+_TWICE_REPORTED = _usage_cost.reduce_costs((support.REPORTED_COST, support.REPORTED_COST))
+
 # Cycle identities no build writes, each read as damage rather than as the
 # absent cycle 0: only a field left out is no cycle.
 _DAMAGED_CYCLES = ("damaged", 0, -1, True, None, 1.5)
@@ -112,6 +120,30 @@ _FLOAT_DIGITS_PAST = 400
 _PAST_ANY_FLOAT = 10 ** _FLOAT_DIGITS_PAST
 _NOTHING_COUNTED = (None, None, None, None)
 
+# Two amounts each a float holds and their sum none does: evidence stating
+# them on two bases, and a run stating the second unpriced beside the rest of
+# its usage, as an Antigravity estimate partly priced would.
+_HALF_PAST_ANY_FLOAT = 1e308
+_REPORTED_PART = _usage_cost.CostContribution(_usage_cost.CLI_REPORTED, _HALF_PAST_ANY_FLOAT)
+_GEMINI_PART = _usage_cost.CostContribution(_usage_cost.GEMINI_API_ESTIMATE, _HALF_PAST_ANY_FLOAT)
+_PAST_ANY_FLOAT_TOGETHER = _usage_cost.CostEvidence(_usage_cost.COMPLETE, (_REPORTED_PART, _GEMINI_PART))
+_HALF_PAST_ANY_FLOAT_UNPRICED = UsageMetrics(
+    backend="agy",
+    cost_source="unknown-price",
+    cost_evidence=_usage_cost.CostEvidence(_usage_cost.INCOMPLETE, (_GEMINI_PART,)),
+)
+
+# Totals the run above cannot be added to without a cost total no float holds:
+# an earlier build's cost, and this build's reported one.
+_HALF_PAST_ANY_FLOAT_TOTALS = (
+    MappingProxyType({support.RUNS: 1, support.TOKENS: 100, support.COST: _HALF_PAST_ANY_FLOAT}),
+    MappingProxyType({
+        support.RUNS: 1,
+        support.COST: _HALF_PAST_ANY_FLOAT,
+        support.EVIDENCE: _usage_cost.CostEvidence(_usage_cost.COMPLETE, (_REPORTED_PART,)).to_dict(),
+    }),
+)
+
 # Counters spelled as nothing their writers write, each refusing the increment,
 # and the run accounted over it: a priced one, or one that adds nothing to the
 # cost total it is still held to.
@@ -132,6 +164,16 @@ _DAMAGED_COUNTERS = (
     (support.COST, _PAST_ANY_FLOAT, _UNPRICED),
     (support.SOURCES, support.REPORTED, _PRICED),
     (support.SOURCES, [1], _UNPRICED),
+    (support.EVIDENCE, _BROKEN, _PRICED),
+    (support.EVIDENCE, _usage_cost.CostEvidence(_usage_cost.COMPLETE).to_dict(), _UNPRICED),
+    (support.EVIDENCE, None, _UNPRICED),
+    (support.EVIDENCE, _PAST_ANY_FLOAT_TOGETHER.to_dict(), _UNPRICED),
+    (support.UNTOTALED, -1, _PRICED),
+    (support.EARLIER, True, _UNPRICED),
+    # The runs a total leaves unsettled are never written without the
+    # evidence they were counted beside.
+    (support.UNTOTALED, 1, _PRICED),
+    (support.EARLIER, _SECOND, _UNPRICED),
 )
 
 # Identities of another record, and what each is refused as.
@@ -168,24 +210,67 @@ _BESIDE = MappingProxyType({
     "agent_run_reservation": "started",
 })
 
-# A meter another road folds into while the checkpoint decides, and what both
-# folds leave.
+# A meter this build counted that another road folds into while the
+# checkpoint decides -- a run of its own, priced on OpenAI's rates, and then
+# one nobody priced -- and what both folds leave: every run once, and each
+# basis's amount beside the reported run's, a subtotal since one run is
+# unpriced.
 _ESTIMATED = "estimated"
+_OPENAI_COST = 0.25
+_OPENAI_ESTIMATE = _usage_cost.CostContribution(_usage_cost.OPENAI_API_ESTIMATE, _OPENAI_COST)
 _FOLDED_BEFORE = MappingProxyType({
     support.RUNS: 2,
     support.TOKENS: 10,
     support.SOURCES: [_ESTIMATED],
+    support.EVIDENCE: _usage_cost.CostEvidence(_usage_cost.COMPLETE, (_OPENAI_ESTIMATE,)).to_dict(),
 })
 _TOKENS_MEANWHILE = 40
-_FOLDED_MEANWHILE = MappingProxyType({support.RUNS: 3, support.TOKENS: _TOKENS_MEANWHILE})
+_FOLDED_MEANWHILE = MappingProxyType({
+    support.RUNS: 3,
+    support.TOKENS: _TOKENS_MEANWHILE,
+    support.UNTOTALED: 1,
+    support.EVIDENCE: _usage_cost.CostEvidence(_usage_cost.INCOMPLETE, (_OPENAI_ESTIMATE,)).to_dict(),
+})
 _FOLDED_BOTH = (4, _TOKENS_MEANWHILE + support.RUN_TOKENS, support.RUN_COST, [_ESTIMATED, support.REPORTED])
+_FOLDED_EVIDENCE = (
+    _usage_cost.CostEvidence(
+        _usage_cost.INCOMPLETE, (*support.REPORTED_COST.contributions, _OPENAI_ESTIMATE),
+    ).to_dict(),
+    1,
+    None,
+)
+
+# What a run that printed no usage states, and a record this build counted one such run on.
+_NO_USAGE = _usage_cost.CostEvidence(_usage_cost.NO_USAGE).to_dict()
+_COUNTED_ONCE = MappingProxyType({
+    support.RUNS: 1,
+    support.TOKENS: 0,
+    support.SOURCES: ["no-usage"],
+    support.EVIDENCE: _NO_USAGE,
+})
 
 # What another road moves between the read-back and the commit, and what the
-# commit refuses it as: the fields it is held to, and a counter it adds to.
+# commit refuses it as: the fields it is held to, and totals it adds to.
 _MEANWHILE_MOVES = (
     (support.RECEIPTS, {_FLOOR: 0, _RECENT: [[_SECOND, _SECOND_NONCE]]}, _COMMIT_REFUSAL.PREREQUISITE_CHANGED),
     (support.CYCLE, _LATE_CYCLE, _COMMIT_REFUSAL.PREREQUISITE_CHANGED),
     (support.COST, _BROKEN, _COMMIT_REFUSAL.OWNED_CONFLICT),
+    (support.EVIDENCE, _BROKEN, _COMMIT_REFUSAL.OWNED_CONFLICT),
+    (support.UNTOTALED, -1, _COMMIT_REFUSAL.OWNED_CONFLICT),
+)
+
+# Totals keeping no evidence -- an earlier build's runs, and an issue that
+# counted nothing -- and a move another road lands on what the evidence is
+# started from between the read-back and the commit: no run is folded over a
+# start nobody decided it on.
+# Each case is the record, the move, and the earlier runs kept once the run
+# is asked again: every run the comment then counts without evidence.
+_EARLIER_RUNS = MappingProxyType({support.RUNS: _SECOND, support.TOKENS: 9, support.COST: 1.0})
+_START_MOVES = (
+    (_EARLIER_RUNS, {support.RUNS: _THIRD}, _THIRD),
+    (_EARLIER_RUNS, {support.COST: 2.0}, _SECOND),
+    (MappingProxyType({}), {support.RUNS: _FIRST}, _FIRST),
+    (MappingProxyType({}), {support.EVIDENCE: _NO_USAGE}, None),
 )
 
 
@@ -210,6 +295,17 @@ _UNCOUNTABLE_USAGE = MappingProxyType({
     "a non-finite cost": UsageMetrics(backend=_CLAUDE, cost_usd=float("nan"), cost_source=support.REPORTED),
     "a negative token count": UsageMetrics(backend=_CLAUDE, output_tokens=-1),
     "a flag for a token count": UsageMetrics(backend=_CLAUDE, input_tokens=True),
+    "a negative cached count": UsageMetrics(backend=_CLAUDE, cached_tokens=-1),
+    "cost evidence summing past any float": UsageMetrics(
+        backend=_CLAUDE, cost_source="unknown-price", cost_evidence=_PAST_ANY_FLOAT_TOGETHER,
+    ),
+    "cost evidence no record carries": UsageMetrics(
+        backend=_CLAUDE,
+        cost_source="unknown-price",
+        cost_evidence=_usage_cost.CostEvidence(
+            "incomplete", (_usage_cost.CostContribution("anthropic-api-estimate", -0.5),),
+        ),
+    ),
 })
 
 
@@ -273,6 +369,11 @@ class ReceiptLifecycleTest(unittest.TestCase):
         self.assertEqual(tuple(answered), _ANSWERED_AFTER_RESTART)
         self.assertEqual(world.record()[support.RUNS], _SECOND)
         self.assertEqual(world.record()[support.RECEIPTS], dict(_KEPT_AFTER_RESTART))
+        # The evidence the ended cycle's run was counted with is kept beside
+        # its count, so the fresh cycle's run reduces into it rather than
+        # reading it as an earlier build's run of unknown basis.
+        self.assertEqual(world.record()[support.EVIDENCE], _TWICE_REPORTED.to_dict())
+        self.assertNotIn(support.EARLIER, world.record())
 
     def test_shared_or_late_ordinals_each_count(self) -> None:
         # A hand-edited count can hand two processes one ordinal, and a
@@ -440,6 +541,20 @@ class GuardedFieldsTest(unittest.TestCase):
                 self.assertEqual(world.refused_quietly(usage=parsed), refused)
                 self.assertEqual(world.refused_quietly(usage=parsed), refused, "nothing was receipted for it")
 
+    def test_a_cost_no_float_holds_is_never_committed(self) -> None:
+        # Each basis's amount fits, but the issue's amounts together would
+        # not: the commit refuses the evidence it would make, so nothing is
+        # counted or receipted, and the receipt the totals read as still
+        # renders, never failing on a sum it cannot state.
+        for totals in _HALF_PAST_ANY_FLOAT_TOTALS:
+            with self.subTest(evidenced=support.EVIDENCE in totals):
+                world = support.seeded(**totals)
+
+                refused = world.refused_quietly(_SECOND, usage=_HALF_PAST_ANY_FLOAT_UNPRICED)
+
+                self.assertEqual(refused, (_REFUSED, _COMMIT_REFUSAL.OWNED_CONFLICT, (support.EVIDENCE,), True))
+                self.assertIsNotNone(_issue_usage._format_issue_usage_verdict(world.restarted().state))
+
     def test_only_the_accounting_fields_change(self) -> None:
         # A park, a watermark, and the lifetime ledger beside the meter stay
         # as the comment carried them, and the watermark move the caller
@@ -461,28 +576,56 @@ class GuardedFieldsTest(unittest.TestCase):
         self.assertEqual(synced[_WATERMARK], _BESIDE[_WATERMARK])
 
     def test_another_roads_fold_is_kept(self) -> None:
+        # Over totals this build counted, every total is added over the value
+        # the commit finds: the other road's run, tokens, unknown token total,
+        # and unpriced cost all stand beside this run's, each once.
         world = support.seeded(**_FOLDED_BEFORE)
 
         with world.interfering(**_FOLDED_MEANWHILE):
             outcome = world.ran()
 
+        landed = world.record()
         self.assertIs(outcome.status, _ACCOUNTED)
-        self.assertEqual(support.counted(world.record()), _FOLDED_BOTH)
+        self.assertEqual(support.counted(landed), _FOLDED_BOTH)
+        self.assertEqual(
+            (landed[support.EVIDENCE], landed[support.UNTOTALED], landed.get(support.EARLIER)),
+            _FOLDED_EVIDENCE,
+        )
 
     def test_a_move_meanwhile_refuses(self) -> None:
-        # The ledger or cycle the commit was decided on moved, or a counter it
+        # The ledger or cycle the commit was decided on moved, or a total it
         # adds to was damaged, between the read-back and the commit's own
         # reading: nothing lands.
         for moved_field, moved, refusal in _MEANWHILE_MOVES:
             with self.subTest(moved_field=moved_field):
-                world = support.seeded()
+                world = support.seeded(**_COUNTED_ONCE)
 
                 with world.interfering(**{moved_field: moved}):
                     outcome = world.ran()
 
                 self.assertEqual((outcome.status, outcome.refusal), (_REFUSED, refusal))
                 self.assertEqual(outcome.fields, (moved_field,))
-                self.assertNotIn(support.RUNS, world.record())
+                self.assertEqual(world.record()[support.RUNS], 1)
+
+    def test_a_moved_start_refuses_until_read_again(self) -> None:
+        # Where the totals keep no evidence, it is started from the runs and
+        # cost the read-back found. Another road moving either, or landing
+        # evidence of its own, before the commit reads refuses the run with
+        # nothing landed; asked again, it starts from what the comment then
+        # carries, a run counted without evidence kept as an earlier one.
+        for record, move, earlier in _START_MOVES:
+            with self.subTest(earlier=bool(record), moved=tuple(move)):
+                world = support.seeded(**record)
+
+                with world.interfering(**move):
+                    refused = world.ran()
+
+                self.assertEqual(
+                    (refused.status, refused.refusal, refused.fields),
+                    (_REFUSED, _COMMIT_REFUSAL.PREREQUISITE_CHANGED, tuple(move)),
+                )
+                self.assertIs(world.restarted().ran().status, _ACCOUNTED)
+                self.assertEqual(world.record().get(support.EARLIER), earlier)
 
 
 if __name__ == "__main__":

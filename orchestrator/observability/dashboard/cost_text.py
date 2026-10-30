@@ -7,7 +7,9 @@ tile, a row of the recorded-runs table, a run's usage row, and an assistant
 turn's strip, and on the analytics dashboard a row of the recent-runs listing
 and of an issue's trace, and -- through ``spend_text``, which words a cohort of
 runs on top of this -- the overview's totals and each issue on the cost
-ranking. A basis is therefore worded one way across both pages. An amount is
+ranking. So does the receipt the workflow posts on an issue it finishes
+(``workflow.engine.issue_usage``), for the cost the issue's pinned totals
+state. A basis is therefore worded one way on every surface. An amount is
 never shown without its basis beside it, because the bases are different
 things: a CLI-reported amount is what the agent CLI printed, never a verified
 bill, and an estimate is a token-only Standard API list-price equivalent on its

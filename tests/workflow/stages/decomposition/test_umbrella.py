@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+from types import MappingProxyType
 from unittest.mock import patch
 
 from orchestrator.workflow.engine import issue_processing as _issue_processing
@@ -32,6 +33,11 @@ IN_PROGRESS_PARENT_NUMBER = 62
 USAGE_PARENT_NUMBER = 63
 USAGE_TOTAL_TOKENS = 12000
 USAGE_TOTAL_COST_USD = 0.42
+# What the decomposer runs' cost states: Antigravity usage priced on Gemini's API rates.
+USAGE_COST_EVIDENCE = MappingProxyType({
+    "completeness": "complete",
+    "contributions": [{"basis": "gemini-api-estimate", "amount_usd": USAGE_TOTAL_COST_USD, "rates_verified_on": []}],
+})
 NO_USAGE_PARENT_NUMBER = 64
 REJECTED_CHILD_PARENT_NUMBER = 63
 MANUALLY_CLOSED_PARENT_NUMBER = 64
@@ -179,6 +185,7 @@ class HandleUmbrellaResolutionTest(unittest.TestCase, _PatchedWorkflowMixin):
             issue_total_tokens=USAGE_TOTAL_TOKENS,
             issue_total_cost_usd=USAGE_TOTAL_COST_USD,
             issue_cost_sources=["estimated"],
+            issue_cost_evidence=dict(USAGE_COST_EVIDENCE),
         )
 
         _run_umbrella(self, gh, parent)
@@ -188,7 +195,7 @@ class HandleUmbrellaResolutionTest(unittest.TestCase, _PatchedWorkflowMixin):
         body = close_comments[0]
         self.assertIn("all children resolved", body)
         self.assertIn(
-            ":receipt: this issue: 2 agent runs · 12,000 tokens · $0.42 (est.)",
+            ":receipt: this issue: 2 agent runs · 12,000 tokens · $0.42 (Gemini API token estimate)",
             body,
         )
 

@@ -241,29 +241,49 @@ bad line never invalidates the rest of the stream. `_run_agent_tracked` (in `wor
 parser exception is caught and downgraded to a `log.exception`.
 
 **Terminal verdict surface.** Beyond the analytics sink, every invoked run's parsed `UsageMetrics` is counted on
-per-issue counters on the pinned state (`issue_agent_runs` / `issue_total_tokens` / `issue_total_cost_usd` /
-`issue_cost_sources`; see [state-machine/labels-and-state.md][pinned-state]). When an
-issue reaches a terminal, `_format_issue_usage_verdict` renders those counters into one visible receipt line
-posted on the issue thread — `:receipt: this issue: N agent runs · T tokens · $X.XX`, with `(est.)` appended when any
-run's cost was `estimated` and the figure collapsed to `unknown` when an `unknown-price` run leaves the total
-incomplete. The PR merged / rejected finalizers and the closed-`question` terminal post it as a standalone tracked
-comment; the `umbrella` close comment appends it. It is a read-only summary — nothing gates on the figure — and it is
-skipped when no run was ever counted.
+per-issue totals on the pinned state (`issue_agent_runs` / `issue_total_tokens` /
+`issue_total_tokens_unknown_runs` / `issue_total_cost_usd` / `issue_cost_sources` / `issue_cost_evidence` /
+`issue_unevidenced_runs`; see [state-machine/labels-and-state.md][pinned-state]). Each run is read as its usage
+record serializes it: its non-overlapping token total is added where its token evidence settles one, and the run is
+counted among those whose total is unknown where it does not; its cost evidence is reduced into the issue's with
+`reduce_costs`, one summed amount per basis beside the weakest completeness any run states. When an issue reaches a
+terminal, `_format_issue_usage_verdict` renders those totals into one visible receipt line posted on the issue
+thread, `:receipt: this issue: N agent runs · T tokens · <cost>`, its cost worded by the same `cost_text` owner the
+dashboard and trajectory viewer use:
+
+| Totals state | Receipt cost |
+| --- | --- |
+| A CLI-reported amount alone | `$0.87 (CLI-reported)` |
+| Antigravity usage priced on Gemini's API rates alone | `$0.42 (Gemini API token estimate)` |
+| Amounts on several bases | `$1.29 (blended: CLI-reported $0.87 + Gemini API token estimate $0.42)` |
+| A known amount beside unpriced usage | `$0.87 (CLI-reported, incomplete subtotal)` |
+| Unpriced usage alone | `unpriced` |
+| Runs that printed no usage | `no usage` |
+| An earlier build's totals, which keep no evidence | `$0.87 (basis unknown, completeness unknown)` |
+| Runs counted after those | `$1.37 (blended: CLI-reported $0.50 + basis unknown $0.87, completeness unknown)` |
+
+The token figure says which runs it settles no total for — `T tokens (subtotal: token total unknown for 1 run)` for
+a run whose cache overlap nothing establishes, and `(2 runs counted without usage evidence)` for an earlier build's
+runs, which stay unknown in basis, completeness, and overlap however many runs follow them. Nothing is inferred from
+`issue_cost_sources`, and no receipt already posted is rewritten. The PR merged / rejected finalizers and the
+closed-`question` terminal post it as a standalone tracked comment; the `umbrella` close comment appends it. It is a
+read-only summary — nothing gates on the figure — and it is skipped when no run was ever counted.
 
 **Accounting checkpoint.** The counters have one writer: the accounting checkpoint
 (`workflow/engine/usage_checkpoint.py`), which `_run_agent_tracked` asks of every result a process returns, right
 after the usage is parsed and before any pause, interruption, timeout, wrapper, or stage disposition can discard the
-result. It lands one invoked run's increment on the four counters exactly once, keyed by the identity
+result. It lands one invoked run's increment on the usage totals exactly once, keyed by the identity
 `_run_agent_tracked` stamps on each process's result (`AgentResult.invocation`) rather than by a request fingerprint
 or a CLI session id, together with a bounded `issue_usage_receipts` ledger in one guarded commit, and refuses parsed
-usage no counter can take — a negative count, or a negative cost or one no float holds. Every role is counted there —
-developer, reviewer, the initial and late decomposer, question, discussion, documentation, and conflict runs — and so
+usage no total can take — a negative count, a negative cost or one no float holds, or cost evidence no usage record
+carries. Every role is counted there — developer, reviewer, the initial and late decomposer, question, discussion,
+documentation, and conflict runs — and so
 is each attempt of a wrapper that hands its caller only the last: a poisoned session's fresh retry and an Antigravity
 command-recovery continuation are two exits, each counted. An exit whose decision is withheld is counted all the same:
 a live pause, a shutdown kill, a timeout, a failure, an incomplete run, a reviewer subject that moved, a refused
 report, or a verdict with no room. The count buys none of those decisions a replay. The parser's meanings are
 unchanged by it: a `None` usage adds nothing, a `no-usage` run counts one exit with no cost, and an unpriced run
-leaves the cost total as it stands.
+leaves the cost total as it stands and the cost evidence an `incomplete` subtotal.
 
 What the checkpoint landed is laid back onto the caller's state as the comment's, so the stage's own write behind it
 neither counts the run again nor puts the totals back as the handler read them, and no other field the handler staged

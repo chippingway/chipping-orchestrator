@@ -48,6 +48,11 @@ _CLEANUP_MOCK_KEY = "_cleanup_terminal_branch"
 _EVENT_KEY = "event"
 _STAGE_KEY = "stage"
 _CONFLICT_ROUND_KEY = "conflict_round"
+# What a drained issue's runs state they cost: one CLI-reported amount.
+_REPORTED_EVIDENCE = (
+    ("completeness", "complete"),
+    ("contributions", [{"basis": "cli-reported", "amount_usd": 0.5, "rates_verified_on": []}]),
+)
 _NO_PR_ISSUE_NUMBER = 310
 _NO_PR_NUMBER = 31000
 _OPEN_PR_ISSUE_NUMBER = 311
@@ -193,6 +198,7 @@ class _DrainTestMixin(_PatchedWorkflowMixin):
             issue_total_tokens=1000,
             issue_total_cost_usd=0.5,
             issue_cost_sources=["reported"],
+            issue_cost_evidence=dict(_REPORTED_EVIDENCE),
         )
         self._drain(context)
         receipts = [
@@ -202,7 +208,7 @@ class _DrainTestMixin(_PatchedWorkflowMixin):
         ]
         self.assertEqual(len(receipts), 1)
         self.assertIn(
-            "this issue: 2 agent runs · 1,000 tokens · $0.50",
+            "this issue: 2 agent runs · 1,000 tokens · $0.50 (CLI-reported)",
             receipts[0],
         )
         receipt_comment = next(

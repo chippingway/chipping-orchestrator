@@ -281,6 +281,12 @@ class HandleQuestionClosedIssueTerminalTest(
             issue_total_tokens=CLOSED_USAGE_TOKENS,
             issue_total_cost_usd=CLOSED_USAGE_COST_USD,
             issue_cost_sources=["reported"],
+            issue_cost_evidence={
+                "completeness": "complete",
+                "contributions": [
+                    {"basis": "cli-reported", "amount_usd": CLOSED_USAGE_COST_USD, "rates_verified_on": []},
+                ],
+            },
         )
         mocks = self._run_question(
             gh,
@@ -292,7 +298,7 @@ class HandleQuestionClosedIssueTerminalTest(
         receipts, receipt_comment = _receipt_projection(gh, issue)
         self.assertEqual(len(receipts), 1)
         self.assertIn(
-            "this issue: 4 agent runs · 8,800 tokens · $0.19",
+            "this issue: 4 agent runs · 8,800 tokens · $0.19 (CLI-reported)",
             receipts[0],
         )
         self.assertIn(

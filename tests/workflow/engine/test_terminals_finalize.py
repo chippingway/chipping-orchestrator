@@ -15,6 +15,7 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.github.pinned_state import PinnedState
+from orchestrator.observability.usage import cost_evidence as _usage_cost
 from orchestrator.workflow.engine import terminals
 from tests.support.fakes import (
     FakeGitHubClient,
@@ -50,6 +51,17 @@ _USAGE_ISSUE_NUMBER = 205
 _USAGE_PR_NUMBER = 20500
 _USAGE_TOTAL_TOKENS = 45200
 _USAGE_TOTAL_COST = 0.87
+# What those runs' cost states: the CLI-reported amount of one and an OpenAI
+# API estimate of the others, each basis's amount kept apart.
+_USAGE_REPORTED_COST = 0.5
+_USAGE_ESTIMATED_COST = 0.37
+_USAGE_COST_EVIDENCE = _usage_cost.CostEvidence(
+    _usage_cost.COMPLETE,
+    (
+        _usage_cost.CostContribution(_usage_cost.CLI_REPORTED, _USAGE_REPORTED_COST),
+        _usage_cost.CostContribution(_usage_cost.OPENAI_API_ESTIMATE, _USAGE_ESTIMATED_COST),
+    ),
+)
 _NO_USAGE_ISSUE_NUMBER = 206
 _NO_USAGE_PR_NUMBER = 20600
 _ONE_READING_ISSUE_NUMBER = 207
@@ -317,7 +329,8 @@ class FinalizeMergedPrTest(unittest.TestCase, _PatchedWorkflowMixin):
             issue_agent_runs=3,
             issue_total_tokens=_USAGE_TOTAL_TOKENS,
             issue_total_cost_usd=_USAGE_TOTAL_COST,
-            issue_cost_sources=["estimated"],
+            issue_cost_sources=["estimated", "reported"],
+            issue_cost_evidence=_USAGE_COST_EVIDENCE.to_dict(),
         )
 
         self._run(
@@ -330,7 +343,8 @@ class FinalizeMergedPrTest(unittest.TestCase, _PatchedWorkflowMixin):
         receipts = _receipt_bodies(gh, _USAGE_ISSUE_NUMBER)
         self.assertEqual(len(receipts), 1)
         self.assertIn(
-            "this issue: 3 agent runs · 45,200 tokens · $0.87 (est.)",
+            "this issue: 3 agent runs · 45,200 tokens · "
+            "$0.87 (blended: CLI-reported $0.50 + OpenAI API token estimate $0.37)",
             receipts[0],
         )
         # Posted before the write, so its id rode the same persisted state.

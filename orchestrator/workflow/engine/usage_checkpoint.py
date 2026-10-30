@@ -5,7 +5,7 @@
 The increment and its receipt (`usage_receipts`) land together through the
 guarded pinned-state commit (`pinned_commit.commit`) or not at all, so no
 reading shows a run counted with nothing saying which, or receipted with
-nothing counted. The commit owns the four usage counters and the ledger alone:
+nothing counted. The commit owns the usage totals and the ledger alone:
 every other field -- the lifetime launch ledger, its allowance and parks, a
 session, a watermark the caller staged -- is the fresh reading's, so this
 writes nothing a held return withholds and refunds no charge. The counters are
@@ -26,10 +26,10 @@ since the ledger survives a restart and the counters with it.
 Parser meanings hold: a result no process produced owes nothing even with
 metrics beside it, a `None` usage owes no exit and no metric, and a parsed
 `no-usage` run is one exit with no tokens and no cost. Nothing is read or
-written for either kind that owes nothing, nor for a parsed usage no counter
-can take -- a negative count, or a negative cost or one no float holds -- which
-is refused rather than committed as a total the next reading would refuse
-(`usage_counters.countable`).
+written for either kind that owes nothing, nor for a parsed usage no total
+can take -- a negative count, a negative cost or one no float holds, or cost
+evidence no usage record carries -- which is refused rather than committed as a
+total the next reading would refuse (`usage_counters.countable`).
 
 Only SETTLED answers (`AccountingOutcome.settled`) let work that depends on
 the accounting follow. A refusal wrote nothing; an UNCONFIRMED write may read
@@ -98,8 +98,9 @@ class AccountingRefusal(enum.Enum):
     FOREIGN = "foreign"
     # The identity names a workflow cycle the record is no longer on.
     OTHER_CYCLE = "other_cycle"
-    # The run's parsed usage adds what no counter's total is spelled as: a
-    # negative count, or a negative cost or one no float holds.
+    # The run's parsed usage adds what no total is spelled as: a negative
+    # count, a negative cost or one no float holds, or cost evidence no usage
+    # record carries.
     UNCOUNTABLE = "uncountable"
     # The receipt ledger, the workflow cycle, or a usage counter reads as
     # nothing this build writes.
@@ -193,15 +194,25 @@ class _Checkpoint:
         return AccountingRefusal.OTHER_CYCLE
 
     def committed(self, fresh: PinnedState, receipts: _usage_receipts.UsageReceipts) -> AccountingOutcome:
-        """Commit the increment and its receipt over `fresh`, held to the ledger and the cycle it was decided on."""
+        """Commit the increment and its receipt over `fresh`, held to the ledger and the cycle it was decided on.
+
+        And, where `fresh` keeps no cost evidence, to the totals the evidence
+        was started from (`EarlierUsage.decided_on`): an earlier build's runs
+        are folded in once, as `fresh` counted them, and a count another road
+        moved since is no reading that decision was taken over.
+        """
         guard = _commit_models.PinnedCommit.capture(
             fresh,
-            prerequisites=(_usage_receipts.RECEIPTS, _late_keys.CYCLE_ID),
+            prerequisites=(
+                _usage_receipts.RECEIPTS,
+                _late_keys.CYCLE_ID,
+                *_issue_usage.EarlierUsage.decided_on(fresh.state_data),
+            ),
             owned=ACCOUNTING,
         )
         staged = dict(fresh.state_data)
         staged[_usage_receipts.RECEIPTS] = receipts.taking(self.invocation).spelled()
-        folds = _usage_counters.usage_folds(self.usage)
+        folds = _usage_counters.usage_folds(self.usage, fresh.state_data)
         landed = _pinned_commit.commit(self.gh, self.issue, guard, staged, folds)
         if landed.status is _commit_models.CommitStatus.COMMITTED:
             self.laid_back(landed.reading)
