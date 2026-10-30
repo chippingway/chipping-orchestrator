@@ -51,6 +51,20 @@ CLAUDE_TOTAL = 470
 
 CODEX_TOTAL = 1_100
 
+# What each total holds: Claude's input, output, and the cache reads and writes beside them; Codex's output, its cached
+# input, and the input no cache answered.
+CLAUDE_INPUT = _CLAUDE_COUNTERS[_INPUT]
+
+CLAUDE_OUTPUT = _CLAUDE_COUNTERS[_OUTPUT]
+
+CLAUDE_CACHE = _CLAUDE_COUNTERS[_CACHE_READ] + _CLAUDE_COUNTERS[_CACHE_WRITE]
+
+CODEX_OUTPUT = _CODEX_COUNTERS[_OUTPUT]
+
+CODEX_CACHED = _CODEX_COUNTERS[_CACHED]
+
+CODEX_UNCACHED_INPUT = _CODEX_COUNTERS[_INPUT] - CODEX_CACHED
+
 DISJOINT = usage_tokens.TokenEvidence.reporting(_CLAUDE_COUNTERS, usage_tokens.DISJOINT)
 
 WITHIN_INPUT = usage_tokens.TokenEvidence.reporting(_CODEX_COUNTERS, usage_tokens.WITHIN_INPUT)
@@ -180,3 +194,8 @@ THREE_DATED_ESTIMATES = tuple(
     cost(usage_cost.COMPLETE, contribution(usage_cost.OPENAI_API_ESTIMATE, OPENAI_USD, verified_on))
     for verified_on in map(date.fromisoformat, ("2026-08-01", "2026-09-01", "2026-10-01"))
 )
+
+# A record an earlier build wrote, read the way every surface reads one: `unknown`, its amount under that basis.
+LEGACY_USD = 0.07
+
+ABSENT_BASIS = usage_cost.recorded_cost(unevidenced_record(1, cost_usd=LEGACY_USD))

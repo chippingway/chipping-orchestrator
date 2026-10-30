@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The window a usage figure is shaped from and the traces stacked over it."""
+"""The window a usage figure is shaped from and the bands stacked over it."""
 from __future__ import annotations
 
 import unittest
@@ -13,6 +13,7 @@ from orchestrator.observability.analytics.query.overview_models import (
 )
 from orchestrator.observability.dashboard import palette
 from orchestrator.observability.dashboard.charts import usage_bands, usage_traces
+from tests.observability.analytics import analytics_cohorts as cohort_cases, analytics_usage_cases as cases
 
 _SKIP_REASON = "plotly not installed -- run `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with dashboard`"
 
@@ -28,57 +29,56 @@ _CODEX = "codex"
 
 _TOKEN_TYPE_MODE = "type"
 
-_COST_TRACE = "Cost"
-
 _CACHE_TRACE = "Cache"
 
 # The three token bands, in the order they stack from the bottom of a day's
-# column up.
-_TOKEN_TRACES = ("Input", "Output", _CACHE_TRACE)
+# column up, and the hue each is painted in: the input band holds the input no
+# cache answered, and is named for it.
+_TOKEN_HUES = MappingProxyType({
+    "Uncached input": "Input",
+    "Output": "Output",
+    _CACHE_TRACE: "Cache",
+})
+
+_TOKEN_TRACES = tuple(_TOKEN_HUES)
 
 _AGENT_EXIT = "agent_exit"
 
-_INPUT_TOKENS = 1_000
+# A Codex day: 400 of its 1,000 input tokens were cached, so the cache band
+# holds them and the input band only the 600 left.
+_CACHE_TOKENS = cases.CODEX_CACHED
 
-_OUTPUT_TOKENS = 500
-
-_CACHE_READ_TOKENS = 400
-
-_CACHE_WRITE_TOKENS = 200
-
-_COST_USD = 1.5
-
-_LATER_COST_USD = 2.5
+_OUTPUT_TOKENS = cases.CODEX_OUTPUT
 
 _CLAUDE_TOKENS = 1_200.0
 
 _CODEX_TOKENS = 600.0
 
-_BACKEND_ROWS = MappingProxyType(
-    {_DAY: {_CODEX: _CODEX_TOKENS, _CLAUDE: _CLAUDE_TOKENS}},
+_BACKEND_ROWS = usage_bands.BackendDailyTokens(
+    MappingProxyType({_DAY: {_CODEX: _CODEX_TOKENS, _CLAUDE: _CLAUDE_TOKENS}}),
+    MappingProxyType({_DAY: 0}),
 )
 
+_NO_BACKEND_ROWS = usage_bands.BackendDailyTokens({}, {})
+
 # One row per `(day, event)`, which is how the overview read hands a window
-# over, with the cache counters arriving as the two columns of the single band
-# the stack draws.
+# over, with the known total split into the cache and output inside it.
 _POINTS = (
     TimeSeriesPoint(
         day=_DAY,
         event=_AGENT_EXIT,
         count=1,
-        cost_usd=_COST_USD,
-        input_tokens=_INPUT_TOKENS,
+        cost=cohort_cases.cohort(cases.OPENAI_ESTIMATE),
+        total_tokens=cases.CODEX_TOTAL,
+        cache_tokens=_CACHE_TOKENS,
         output_tokens=_OUTPUT_TOKENS,
-        cache_read_tokens=_CACHE_READ_TOKENS,
-        cache_write_tokens=_CACHE_WRITE_TOKENS,
     ),
     TimeSeriesPoint(
         day=_NEXT_DAY,
         event=_AGENT_EXIT,
         count=2,
-        cost_usd=_LATER_COST_USD,
-        input_tokens=_INPUT_TOKENS,
-        output_tokens=_OUTPUT_TOKENS,
+        cost=cohort_cases.cohort(cases.REPORTED, cases.REPORTED),
+        total_tokens=cases.CLAUDE_TOTAL,
     ),
 )
 
@@ -116,7 +116,7 @@ class WindowShapingTest(unittest.TestCase):
         # axes are labelled for data that is not behind them never appears.
         empty_windows = (
             ((), None, _TOKEN_TYPE_MODE),
-            ((), {}, usage_bands.BACKEND_MODE),
+            ((), _NO_BACKEND_ROWS, usage_bands.BACKEND_MODE),
             ((), _BACKEND_ROWS, _TOKEN_TYPE_MODE),
         )
         for points, backend_rows, mode in empty_windows:
@@ -128,28 +128,32 @@ class WindowShapingTest(unittest.TestCase):
                 )
 
     def test_the_series_is_rolled_up_into_days(self) -> None:
+        # Each day carries its bands and the cost cohort its events fold to.
         usage = usage_traces.prepare_usage_data(
             _POINTS, None, _TOKEN_TYPE_MODE,
         )
         self.assertEqual(usage.days, [_DAY, _NEXT_DAY])
-        self.assertEqual(
-            usage.daily[_DAY][usage_bands.CACHE_BAND],
-            _CACHE_READ_TOKENS + _CACHE_WRITE_TOKENS,
-        )
+        self.assertEqual(usage.daily[_DAY][usage_bands.CACHE_BAND], _CACHE_TOKENS)
+        self.assertEqual(usage.costs[_NEXT_DAY], _POINTS[1].cost)
 
     def test_the_backend_view_completes_its_day_span(self) -> None:
         # The two reads are windowed alike but grouped differently, so a day
         # only the per-backend one saw has to join the axis -- and a window
         # that is nothing but per-backend rows is still a chart.
+        later_rows = usage_bands.BackendDailyTokens({_NEXT_DAY: {_CLAUDE: _CLAUDE_TOKENS}}, {_NEXT_DAY: 1})
         usage = usage_traces.prepare_usage_data(
             _POINTS[:1],
-            {_NEXT_DAY: {_CLAUDE: _CLAUDE_TOKENS}},
+            later_rows,
             usage_bands.BACKEND_MODE,
         )
         self.assertEqual(usage.days, [_DAY, _NEXT_DAY])
         self.assertEqual(
             usage.daily[_NEXT_DAY], usage_bands.empty_token_bucket(),
         )
+        # The per-backend stack is the one drawn, so the runs it leaves out are
+        # that read's own count, and the day it alone saw has no cost cohort.
+        self.assertEqual(usage.unknown_runs, later_rows.unknown_runs)
+        self.assertNotIn(_NEXT_DAY, usage.costs)
         backend_only = usage_traces.prepare_usage_data(
             (), _BACKEND_ROWS, usage_bands.BACKEND_MODE,
         )
@@ -172,13 +176,16 @@ class TokenStackTest(unittest.TestCase):
         for trace in figure.data:
             with self.subTest(band=trace.name):
                 self.assertEqual(
-                    trace.fillcolor, palette.TOKEN_TYPE_COLORS[trace.name],
+                    trace.fillcolor, palette.TOKEN_TYPE_COLORS[_TOKEN_HUES[trace.name]],
                 )
                 self.assertEqual(trace.stackgroup, "tokens")
+        # The Codex day's cached input is drawn once, in the cache band, so the
+        # day's column is as tall as its known total.
+        first_day = {band.name: band.y[0] for band in figure.data}
         cache = _named(figure)[_CACHE_TRACE]
-        self.assertEqual(
-            tuple(cache.y), (_CACHE_READ_TOKENS + _CACHE_WRITE_TOKENS, 0),
-        )
+        self.assertEqual(tuple(cache.y), (_CACHE_TOKENS, 0))
+        self.assertEqual(first_day["Uncached input"], cases.CODEX_UNCACHED_INPUT)
+        self.assertEqual(sum(first_day.values()), cases.CODEX_TOTAL)
 
     def test_backend_bands_stack_in_legend_order(self) -> None:
         # The color each backend is drawn in is picked off its position among
@@ -204,7 +211,7 @@ class TokenStackTest(unittest.TestCase):
         # hero chart with no bands on it at all.
         stacks = (
             (_BACKEND_ROWS, usage_bands.BACKEND_MODE, {_CLAUDE, _CODEX}),
-            ({}, usage_bands.BACKEND_MODE, set(_TOKEN_TRACES)),
+            (_NO_BACKEND_ROWS, usage_bands.BACKEND_MODE, set(_TOKEN_TRACES)),
             (None, _TOKEN_TYPE_MODE, set(_TOKEN_TRACES)),
         )
         for backend_rows, mode, expected in stacks:
@@ -212,25 +219,6 @@ class TokenStackTest(unittest.TestCase):
                 self.assertEqual(
                     set(_named(_stacked(backend_rows, mode))), expected,
                 )
-
-
-@unittest.skipUnless(find_spec("plotly"), _SKIP_REASON)
-class CostOverlayTest(unittest.TestCase):
-    """The one trace that leaves the token axis."""
-
-    def test_the_cost_line_rides_the_secondary_axis(self) -> None:
-        figure = _figure()
-        usage = usage_traces.prepare_usage_data(
-            _POINTS, None, _TOKEN_TYPE_MODE,
-        )
-        usage_traces.add_usage_cost_trace(figure, usage)
-        cost = _named(figure)[_COST_TRACE]
-        self.assertEqual(cost.yaxis, "y2")
-        self.assertEqual(tuple(cost.y), (_COST_USD, _LATER_COST_USD))
-        self.assertEqual(tuple(cost.x), (_DAY, _NEXT_DAY))
-        # A line over the stack rather than another layer of it: joining the
-        # cost group would fold dollars into the token axis' height.
-        self.assertIsNone(cost.stackgroup)
 
 
 if __name__ == "__main__":

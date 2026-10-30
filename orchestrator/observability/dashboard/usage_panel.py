@@ -20,10 +20,15 @@ takes the option's position rather than its value.
 
 The per-backend rows are totalled here rather than read that way, because the
 same `(day, backend)` cell can arrive more than once and a stack drawn off the
-raw rows would show only the last of them. They are totalled only when the
-backend stack is the one being drawn: the token-type stack is already carried
-by the time-series points, so accumulating a window's backend rows for it would
-be work no trace uses.
+raw rows would show only the last of them. What is totalled is each row's known
+non-overlapping total, the volume the token-type stack and the token tile count
+too, and beside it each day's runs whose total is unknown -- this read's own
+count, since it is issued in a later wave than the series and a sync between
+the two can leave them disagreeing about a day, so the marker over the
+per-backend stack is counted off the rows that stack was drawn from. They are
+totalled only when the backend stack is the one being drawn: the token-type
+stack is already carried by the time-series points, so accumulating a window's
+backend rows for it would be work no trace uses.
 
 The header, the figure, and the Plotly defaults all come off their owners
 directly, so what this card is titled by, drawn as, and configured with are the
@@ -45,6 +50,7 @@ from orchestrator.observability.analytics.query.overview_models import (
 )
 from orchestrator.observability.dashboard.card_html import card_header_html
 from orchestrator.observability.dashboard.charts.usage import usage_over_time
+from orchestrator.observability.dashboard.charts.usage_bands import BackendDailyTokens
 from orchestrator.observability.dashboard.render_config import PLOTLY_CONFIG
 
 TOKEN_TYPE_MODE = "type"
@@ -68,15 +74,18 @@ CARD_SUBTITLE = "Daily token consumption with cost trend overlaid"
 
 def backend_tokens_by_day(
     backend_daily_rows: Sequence[BackendDailyTokensRow],
-) -> dict[date, dict[str, float]]:
-    """Total a window's tokens per day and backend, summing repeated cells."""
+) -> BackendDailyTokens:
+    """Total a window's known tokens per day and backend, and its runs of unknown total per day, over repeated cells."""
     backend_by_day: dict[date, dict[str, float]] = {}
+    unknown_runs: dict[date, int] = {}
     for row in backend_daily_rows:
         by_backend = backend_by_day.setdefault(row.day, {})
         by_backend[row.backend] = (
             by_backend.get(row.backend, 0) + float(row.total_tokens or 0)
         )
-    return backend_by_day
+        day_unknown = unknown_runs.get(row.day, 0)
+        unknown_runs[row.day] = day_unknown + int(row.unknown_token_runs or 0)
+    return BackendDailyTokens(backend_by_day, unknown_runs)
 
 
 def stack_mode_label(mode: str) -> str:

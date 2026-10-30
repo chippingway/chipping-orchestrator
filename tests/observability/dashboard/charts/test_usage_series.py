@@ -55,7 +55,7 @@ class DayAxisTest(unittest.TestCase):
         # past the end of the axis rather than at its own date.
         daily = _rolled_up_day()
         usage_series.ensure_backend_days(
-            daily, {_NEXT_DAY: {_CLAUDE: _CLAUDE_TOKENS}},
+            daily, usage_bands.BackendDailyTokens({_NEXT_DAY: {_CLAUDE: _CLAUDE_TOKENS}}, {_NEXT_DAY: 0}),
         )
         self.assertEqual(sorted(daily), [_DAY, _NEXT_DAY])
         self.assertEqual(daily[_NEXT_DAY], usage_bands.empty_token_bucket())
@@ -63,7 +63,7 @@ class DayAxisTest(unittest.TestCase):
     def test_a_day_already_rolled_up_keeps_its_bands(self) -> None:
         daily = _rolled_up_day()
         usage_series.ensure_backend_days(
-            daily, {_DAY: {_CLAUDE: _CLAUDE_TOKENS}},
+            daily, usage_bands.BackendDailyTokens({_DAY: {_CLAUDE: _CLAUDE_TOKENS}}, {_DAY: 0}),
         )
         self.assertEqual(daily, _rolled_up_day())
 
@@ -71,10 +71,13 @@ class DayAxisTest(unittest.TestCase):
         # The order is the legend's order and the color each backend is drawn
         # in is picked off its position, so the same window has to come back
         # the same way however the days it spans are keyed.
-        names = usage_series.backend_names({
-            _NEXT_DAY: {_CODEX: _CODEX_TOKENS},
-            _DAY: {_CLAUDE: _CLAUDE_TOKENS, _CODEX: _CODEX_TOKENS},
-        })
+        names = usage_series.backend_names(usage_bands.BackendDailyTokens(
+            {
+                _NEXT_DAY: {_CODEX: _CODEX_TOKENS},
+                _DAY: {_CLAUDE: _CLAUDE_TOKENS, _CODEX: _CODEX_TOKENS},
+            },
+            {},
+        ))
         self.assertEqual(names, [_CLAUDE, _CODEX])
 
 
@@ -85,9 +88,10 @@ class StackTotalTest(unittest.TestCase):
         totals = usage_series.usage_stack_totals(
             (_DAY,),
             _rolled_up_day(),
-            backend_rows_by_day={
-                _DAY: {_CLAUDE: _CLAUDE_TOKENS, _CODEX: _CODEX_TOKENS},
-            },
+            backend_rows_by_day=usage_bands.BackendDailyTokens(
+                {_DAY: {_CLAUDE: _CLAUDE_TOKENS, _CODEX: _CODEX_TOKENS}},
+                {_DAY: 0},
+            ),
             mode=usage_bands.BACKEND_MODE,
         )
         self.assertEqual(totals, [_CLAUDE_TOKENS + _CODEX_TOKENS])
@@ -109,7 +113,7 @@ class StackTotalTest(unittest.TestCase):
         totals = usage_series.usage_stack_totals(
             (_DAY,),
             _rolled_up_day(),
-            backend_rows_by_day={},
+            backend_rows_by_day=usage_bands.BackendDailyTokens({}, {}),
             mode=usage_bands.BACKEND_MODE,
         )
         self.assertEqual(

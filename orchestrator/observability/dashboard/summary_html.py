@@ -10,28 +10,37 @@ pill, and every class name across the band is one `css.py` writes rules for. A
 pill spelled in one module and the tile that carries it in another are two
 places the strip can stop agreeing with the stylesheet painting it.
 
+The banner's spend is the window's cost cohort, worded by ``spend_text``: the
+amount the runs state beside the basis it is stated on -- each part of a
+blended amount listed by its own -- and why it falls short of complete spend,
+so the figure an operator reads first never passes an incomplete subtotal, an
+amount of unknown basis, or a window with no run off as the window's spend. A
+tile carries the same kind of note under its value where the entry names one.
+
 What reaches the markup as caller text is handed to ``html.escape`` first: the
-banner's span label and spend figure, and each tile's label, value, and
-sub-line. A page writes this with ``unsafe_allow_html=True``, and a KPI label
-or an already-formatted amount is text the dashboard was given rather than text
-it owns. The readings beside them -- the repository, event, day, and run counts
--- are integers and ISO dates a formatter rendered, so there is nothing in them
-to escape.
+banner's span label, spend figure, and spend note, and each tile's label,
+value, note, sub-line, and the note its pill is qualified by. A page writes
+this with ``unsafe_allow_html=True``, and a KPI label or an already-formatted
+amount is text the dashboard was given rather than text it owns. The readings
+beside them -- the repository, event, day, and run counts -- are integers and
+ISO dates a formatter rendered, so there is nothing in them to escape.
 
 A rise is painted red and a drop green, because the numbers a window is
 summarized by are costs. ``invert`` is for the readings where up is the good
 direction -- issues resolved, success rate -- and it swaps the color only: the
 arrow keeps following the value's sign, so which way a tile moved is never read
-off the hue alone. A window with no prior to compare against, or one that did
-not move, renders no pill at all, because a placeholder in that slot reads as a
-control that does nothing.
+off the hue alone. A pill's ``note`` is what the move has to be read with -- a
+subtotal on either side, two windows on different bases -- and it rides inside
+the pill, so the qualification cannot be dropped from the percentage it
+qualifies. A window with no prior to compare against, or one that did not move,
+renders no pill at all, because a placeholder in that slot reads as a control
+that does nothing.
 
 The keyword surfaces the pill and the banner are reached through are bound as
 explicit signatures rather than spelled as parameters. The pill's is `value`,
-which a parameter here may not be named, and the banner's is six readings,
-which is more than one call is given to name -- so the banner takes one request
-object underneath while both keep answering a call spelled the way every caller
-spells it.
+which a parameter here may not be named, and the banner's is five keyword-only
+readings -- so the banner takes one request object underneath while both keep
+answering a call spelled the way every caller spells it.
 """
 from __future__ import annotations
 
@@ -42,18 +51,18 @@ from datetime import date
 from inspect import Parameter, Signature
 from typing import Any
 
-from orchestrator.observability.dashboard import sparkline_html
+from orchestrator.observability.analytics.query.cost_cohorts import CostCohort
+from orchestrator.observability.dashboard import sparkline_html, spend_text
 
 
 @dataclass(frozen=True)
 class TopbarRequest:
-    """One banner as the caller asked for it: its span, counts, and formats."""
+    """One banner as the caller asked for it: its span, counts, spend, and format."""
 
     extent: Any
     distinct_repos: int
     total_events: int
-    spend_in_range: float
-    fmt_money_exact: Any
+    spend_in_range: CostCohort
     fmt_num: Any
 
     def range_label(self) -> str:
@@ -63,6 +72,13 @@ class TopbarRequest:
         first_day = self.extent.min_ts.date().isoformat()
         last_day = self.extent.max_ts.date().isoformat()
         return f"{first_day} → {last_day} available"
+
+    def spend_html(self) -> str:
+        """The window's spend figure, and the note qualifying it wherever there is one."""
+        figure = html.escape(spend_text.spend_figure(self.spend_in_range))
+        note = spend_text.spend_note(self.spend_in_range)
+        note_html = f'<span class="note">{html.escape(note)}</span>' if note else ""
+        return f'<span class="value">{figure}</span>{note_html}'
 
 
 def plural_s(count: int) -> str:
@@ -82,11 +98,14 @@ def delta_pill(*args: Any, **kwargs: Any) -> str:
     bound = DELTA_SIGNATURE.bind(*args, **kwargs)
     bound.apply_defaults()
     delta_value = bound.arguments["value"]
-    if delta_value is None or delta_value == 0:
+    if not delta_value:
         return ""
-    percentage = abs(delta_value) * 100
     css_class, arrow = delta_style(delta_value, bound.arguments["invert"])
-    return f'<span class="orch-delta {css_class}">{arrow} {percentage:.1f}%</span>'
+    reading = " · ".join(filter(None, (
+        format(abs(delta_value), ".1%"),
+        html.escape(bound.arguments["note"]),
+    )))
+    return f'<span class="orch-delta {css_class}">{arrow} {reading}</span>'
 
 
 def topbar_html(*args: Any, **kwargs: Any) -> str:
@@ -98,14 +117,14 @@ def topbar_html(*args: Any, **kwargs: Any) -> str:
         f"{request.distinct_repos} repo{plural_s(request.distinct_repos)} · "
         f"{request.fmt_num(request.total_events)} events"
     )
-    spend = html.escape(request.fmt_money_exact(request.spend_in_range))
+    spend = request.spend_html()
     return (
         '<div class="orch-topbar"><div class="orch-brand">'
         '<span class="orch-brand-mark">OA</span><div>'
         f'<h1>Orchestrator Analytics</h1><p class="orch-sub">{subtitle}</p>'
         '</div></div><div class="orch-spend">'
         '<span class="label">Spend in range</span>'
-        f'<span class="value">{spend}</span></div></div>'
+        f"{spend}</div></div>"
     )
 
 
@@ -132,6 +151,11 @@ def kpi_strip_html(kpis: Sequence[dict]) -> str:
         delta_html = delta_pill(
             kpi.get("delta"),
             invert=kpi.get("invert", False),
+            note=kpi.get("delta_note", ""),
+        )
+        note_html = (
+            f'<div class="kpi-note">{html.escape(kpi["note"])}</div>'
+            if kpi.get("note") else ""
         )
         spark_html = ""
         if kpi.get("spark") is not None:
@@ -144,6 +168,7 @@ def kpi_strip_html(kpis: Sequence[dict]) -> str:
             f'<span class="kpi-label">{html.escape(kpi["label"])}</span>'
             f"{delta_html}</div>"
             f'<div class="kpi-value">{html.escape(str(kpi["value"]))}</div>'
+            f"{note_html}"
             '<div class="kpi-foot">'
             f'<span>{html.escape(str(kpi.get("sub", "")))}</span>'
             f"{spark_html}</div></div>"
@@ -155,6 +180,7 @@ DELTA_SIGNATURE = Signature(
     (
         Parameter("value", Parameter.POSITIONAL_OR_KEYWORD),
         Parameter("invert", Parameter.KEYWORD_ONLY, default=False),
+        Parameter("note", Parameter.KEYWORD_ONLY, default=""),
     ),
 )
 TOPBAR_SIGNATURE = Signature(
@@ -165,7 +191,6 @@ TOPBAR_SIGNATURE = Signature(
             "distinct_repos",
             "total_events",
             "spend_in_range",
-            "fmt_money_exact",
             "fmt_num",
         )
     ),

@@ -40,6 +40,8 @@ _USAGE_AXIS_OWNER = "usage_axis"
 
 _USAGE_BANDS_OWNER = "usage_bands"
 
+_USAGE_OVERLAYS_OWNER = "usage_overlays"
+
 _USAGE_SERIES_OWNER = "usage_series"
 
 _USAGE_TRACES_OWNER = "usage_traces"
@@ -59,6 +61,7 @@ _OWNERS = (
     _USAGE_OWNER,
     _USAGE_AXIS_OWNER,
     _USAGE_BANDS_OWNER,
+    _USAGE_OVERLAYS_OWNER,
     _USAGE_SERIES_OWNER,
     _USAGE_TRACES_OWNER,
 )
@@ -68,16 +71,19 @@ _OWNERS = (
 # it sits in, rank a window's spend, name the repository one of those bars
 # stands for, split a stage's spend into the half the cache paid for, split a
 # review round's the same way across its two roles, bucket a token volume into
-# a weekday cell, lay a window's rows over its calendar, count a day of usage,
-# scale the axis it is drawn against, stack it, or assemble the figure it is
-# read off is a deliberate edit rather than a place two chart families could
-# disagree. The two bar-sizing constants, the panel margin, the empty-ranking
-# height, the pinned call signature, the cache-shading factor and its hex base,
-# the review-round labels, order, and row heights, the heatmap's weekday labels,
+# a weekday cell, lay a window's rows over its calendar, count a day of usage
+# or the per-backend read of it, fold its cost, scale the axis it is drawn
+# against, stack it, mark it a
+# subtotal or overlay its spend, or assemble the figure it is read off is a
+# deliberate edit rather than a place two chart families could disagree. The
+# two bar-sizing constants, the panel margin, the empty-ranking height, the
+# pinned call signature, the cache-shading factor and its hex base, the
+# review-round labels, order, and row heights, the heatmap's weekday labels,
 # hour span, and subtotal note, the strip's pinned height, the band names, the
-# per-day table's alias, and the usage grid-step and height constants are all
-# invisible here because the check reads `__module__`, which only a class or a
-# function carries.
+# per-day table's alias, the overlay's filled-marker completeness and the words
+# an unread day's cost reads as, and the usage grid-step and height constants
+# are all invisible here because the check
+# reads `__module__`, which only a class or a function carries.
 _SURFACES = MappingProxyType({
     _COST_LAYOUT_OWNER: (
         "CostBarTrace",
@@ -148,9 +154,18 @@ _SURFACES = MappingProxyType({
         "usage_layout",
     ),
     _USAGE_BANDS_OWNER: (
+        "BackendDailyTokens",
+        "daily_cost_cohorts",
         "daily_token_total",
         "empty_token_bucket",
+        "plotted_spend",
         "roll_up_time_series",
+        "series_unknown_runs",
+    ),
+    _USAGE_OVERLAYS_OWNER: (
+        "add_unknown_totals_trace",
+        "add_unstated_cost_trace",
+        "add_usage_cost_trace",
     ),
     _USAGE_SERIES_OWNER: (
         "UsageAxisRanges",
@@ -164,7 +179,6 @@ _SURFACES = MappingProxyType({
         "add_backend_usage_traces",
         "add_token_stack_trace",
         "add_token_type_usage_traces",
-        "add_usage_cost_trace",
         "add_usage_stack_traces",
         "prepare_usage_data",
     ),

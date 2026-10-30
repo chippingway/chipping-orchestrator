@@ -212,9 +212,13 @@ class EmptyReadShapeTest(unittest.TestCase):
     """
 
     def test_an_unset_database_zero_values_totals(self) -> None:
+        # Its spend is the empty cohort -- no run at all -- rather than a
+        # complete zero, so a page cannot read "not wired up" as free work.
         summary = Summary()
         self.assertEqual(summary.total_events, 0)
-        self.assertEqual(summary.total_cost_usd, float(0))
+        self.assertTrue(summary.cost.is_empty)
+        self.assertIsNone(summary.cost.evidence.total_usd)
+        self.assertEqual((summary.total_tokens, summary.unknown_token_runs), (0, 0))
         self.assertEqual(summary.timed_out_agent_runs, 0)
         self.assertEqual(summary.by_event, {})
         self.assertEqual(summary.by_stage, {})

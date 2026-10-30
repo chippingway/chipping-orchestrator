@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
 
-from orchestrator.observability.analytics.query import breakdown_reads, cost_cohorts, token_totals
+from orchestrator.observability.analytics.query import breakdown_reads, cost_cohorts, rollup_reads, token_totals
 from orchestrator.observability.analytics.sync import run
 from orchestrator.observability.usage import cost_evidence as usage_cost, token_evidence as usage_tokens
 from tests.observability.analytics import analytics_usage_cases as cases
@@ -100,6 +100,16 @@ _PROVIDER_RUNS = (
     cases.usage_record(_PROVIDER_ISSUE, cases.REPORTED, cases.DISJOINT, backend=_CLAUDE),
     cases.usage_record(_PROVIDER_ISSUE, cases.OPENAI_ESTIMATE, cases.WITHIN_INPUT, backend=_CODEX),
     cases.usage_record(_PROVIDER_ISSUE, cases.GEMINI_ESTIMATE, cases.UNSETTLED, backend=_AGY),
+)
+
+# The bands the overview's series splits those runs' known total into -- the total, its unknown runs, the cache and
+# output inside it, and the uncached input left -- so Codex's cached input is stacked once.
+PROVIDER_BANDS = (
+    cases.CLAUDE_TOTAL + cases.CODEX_TOTAL,
+    1,
+    cases.CLAUDE_CACHE + cases.CODEX_CACHED,
+    cases.CLAUDE_OUTPUT + cases.CODEX_OUTPUT,
+    cases.CLAUDE_INPUT + cases.CODEX_UNCACHED_INPUT,
 )
 
 # What the three token reads answer over those runs: each backend's known total and unknown runs, the one hour they
@@ -212,6 +222,35 @@ def folded_answer(records: tuple[dict, ...]) -> tuple:
     totals = [usage_tokens.non_overlapping_total(record) for record in records]
     known = sum(total for total in totals if total is not None)
     return len(records), _rounded(folded), (known, totals.count(None))
+
+
+def overview_answers(database: LiveDatabase, issue: int) -> tuple:
+    """What the overview's three rollup reads answer for one issue, each in the shape `folded_answer` is read in.
+
+    The window's summary, the window a delta is measured against, and the day series folded back into one cohort.
+    """
+    summary = rollup_reads.get_summary(db_url=database.db_url, issue=issue)
+    previous = rollup_reads.get_kpi_prev(db_url=database.db_url, issue=issue)
+    points = rollup_reads.get_time_series(db_url=database.db_url, issue=issue)
+    day = cost_cohorts.fold_cohorts(point.cost for point in points)
+    day_tokens = (
+        sum(point.total_tokens for point in points),
+        sum(point.unknown_token_runs for point in points),
+    )
+    return (
+        (summary.cost.runs, _rounded(summary.cost.evidence), (summary.total_tokens, summary.unknown_token_runs)),
+        (previous.cost.runs, _rounded(previous.cost.evidence), (previous.total_tokens, previous.unknown_token_runs)),
+        (day.runs, _rounded(day.evidence), day_tokens),
+    )
+
+
+def overview_bands(database: LiveDatabase) -> tuple:
+    """The provider runs' series, after `provider_token_answers` replayed them, as the bands a stack draws."""
+    points = rollup_reads.get_time_series(db_url=database.db_url, issue=_PROVIDER_ISSUE)
+    return tuple(
+        sum(getattr(point, field) for point in points)
+        for field in ("total_tokens", "unknown_token_runs", "cache_tokens", "output_tokens", "uncached_input_tokens")
+    )
 
 
 def underived_answer() -> tuple:

@@ -24,8 +24,10 @@ from orchestrator.observability.analytics.query.overview_models import (
 from orchestrator.observability.dashboard import (
     formatting,
     sparkline_html,
+    spend_text,
     summary_html,
 )
+from tests.observability.analytics import analytics_cohorts as cohort_cases, analytics_usage_cases as cases
 from tests.observability.dashboard.dashboard_test_support import (
     MAY01,
     MAY07,
@@ -56,9 +58,14 @@ _EVENTS = 12345
 
 _EVENTS_TEXT = "12,345"
 
-_SPEND = 1234.56
+# A blended window: its figure, and the parts its note lists beside it.
+_SPEND = cohort_cases.cohort(cases.REPORTED, cases.GEMINI_ESTIMATE)
 
-_SPEND_TEXT = "$1,235"
+_SPEND_TEXT = '<span class="value">$0.54</span>'
+
+_SPEND_NOTE = (
+    '<span class="note">blended: CLI-reported $0.42 + Gemini API token estimate $0.12</span>'
+)
 
 _DAYS = 7
 
@@ -66,15 +73,20 @@ _RUNS = 4200
 
 _RUNS_TEXT = "4,200"
 
-# The six readings the banner has always been called with.
+# The five readings the banner is called with.
 _TOPBAR_KEYWORDS = (
     "extent",
     "distinct_repos",
     "total_events",
     "spend_in_range",
-    "fmt_money_exact",
     "fmt_num",
 )
+
+# What a move and a tile are qualified by, carrying markup so the escape is
+# read off the same string.
+_UNSAFE_NOTE = "subtotal <i>here</i>"
+
+_ESCAPED_NOTE = "subtotal &lt;i&gt;here&lt;/i&gt;"
 
 # A KPI label carrying markup, so what a browser is asked to interpret is read
 # off the same string the class names are.
@@ -111,13 +123,12 @@ _SUB_KEY = "sub"
 _DELTA_KEY = "delta"
 
 
-def _topbar(extent: DataExtent, distinct_repos: int) -> str:
+def _topbar(extent: DataExtent, distinct_repos: int, spend=_SPEND) -> str:
     return summary_html.topbar_html(
         extent=extent,
         distinct_repos=distinct_repos,
         total_events=_EVENTS,
-        spend_in_range=_SPEND,
-        fmt_money_exact=formatting.fmt_money_exact,
+        spend_in_range=spend,
         fmt_num=formatting.fmt_num,
     )
 
@@ -166,6 +177,14 @@ class DeltaPillTest(unittest.TestCase):
             summary_html.delta_pill(_MOVE),
         )
 
+    def test_a_qualified_move_carries_its_note(self) -> None:
+        # The note rides inside the pill, so the percentage cannot be read
+        # without what it has to be read with.
+        pill = summary_html.delta_pill(_MOVE, note=_UNSAFE_NOTE)
+        self.assertIn(f"{_RISING_ARROW} {_MOVE_TEXT} · {_ESCAPED_NOTE}</span>", pill)
+        self.assertNotIn(_UNSAFE_NOTE, pill)
+        self.assertEqual(summary_html.delta_pill(None, note=_UNSAFE_NOTE), "")
+
 
 class TopbarTest(unittest.TestCase):
     """The banner names the span the database holds, and says so plainly on
@@ -179,7 +198,21 @@ class TopbarTest(unittest.TestCase):
         )
         self.assertIn(f"{_REPOS} repos ·", banner)
         self.assertIn(f"{_EVENTS_TEXT} events", banner)
-        self.assertIn(_SPEND_TEXT, banner)
+        self.assertIn(_SPEND_TEXT + _SPEND_NOTE, banner)
+
+    def test_the_spend_is_never_bare(self) -> None:
+        # An incomplete subtotal says so beside its figure, a complete amount
+        # names its basis, and a window with no run reads as none rather than
+        # as a spend of zero.
+        for name, costs, figure, note in (
+            ("incomplete", (cases.ANTHROPIC_ESTIMATE, cases.UNPRICED), "$0.30", "incomplete subtotal"),
+            ("agy only", (cases.GEMINI_ESTIMATE,), "$0.12", "Gemini API token estimate"),
+            ("empty", (), spend_text.NO_RUNS_FIGURE, spend_text.NO_RUNS_NOTE),
+        ):
+            banner = _topbar(data_extent(MAY01, MAY07), _REPOS, cohort_cases.cohort(*costs))
+            with self.subTest(cohort=name):
+                self.assertIn(f'<span class="value">{figure}</span><span class="note">', banner)
+                self.assertIn(note, banner)
 
     def test_an_empty_extent_says_there_is_none(self) -> None:
         self.assertIn(
@@ -191,7 +224,7 @@ class TopbarTest(unittest.TestCase):
             f"{_ONE} repo ·", _topbar(data_extent(MAY01, MAY07), _ONE),
         )
 
-    def test_the_six_keywords_still_bind_by_name(self) -> None:
+    def test_the_five_keywords_still_bind_by_name(self) -> None:
         self.assertEqual(
             tuple(inspect.signature(summary_html.topbar_html).parameters),
             _TOPBAR_KEYWORDS,
@@ -236,6 +269,13 @@ class KpiStripTest(unittest.TestCase):
         self.assertIn(_FIGURE, strip)
         self.assertIn(_SUB, strip)
         self.assertIn(_UP, strip)
+
+    def test_a_note_sits_under_the_value_escaped(self) -> None:
+        strip = summary_html.kpi_strip_html((_tile(note=_UNSAFE_NOTE, delta_note=_UNSAFE_NOTE),))
+        self.assertIn(f'</div><div class="kpi-note">{_ESCAPED_NOTE}</div><div class="kpi-foot">', strip)
+        self.assertIn(f"{_MOVE_TEXT} · {_ESCAPED_NOTE}</span>", strip)
+        self.assertNotIn(_UNSAFE_NOTE, strip)
+        self.assertNotIn("kpi-note", summary_html.kpi_strip_html((_tile(),)))
 
     def test_a_line_takes_the_hue_the_entry_named(self) -> None:
         # The SVG is the sparkline owner's own, so a tile and the line under

@@ -87,9 +87,10 @@ readings a cell from any of the four passes through before it lands in a result
 field -- alongside ``raw_values``, whose NULL-preserving coercions every family
 projects through. ``cost_cohorts`` owns the reduction a cost display builds on:
 the fragment that sums a cohort's stored evidence by basis and counts its runs
-by completeness, once per scan target, and the cohort those cells are read back
-as. ``token_totals`` owns the fragment a token volume is summed by, each run's
-non-overlapping total once and the runs whose total is unknown beside it.
+by completeness, once per scan target, the cohort those cells are read back
+as, and the fold that regroups cohorts read apart. ``token_totals`` owns the
+fragment a token volume is summed by, each run's non-overlapping total once
+and the runs whose total is unknown beside it.
 
 Callers import the owner they need, so this initializer binds nothing, and the
 connection stays under the owner that opens it -- a read model is a plain

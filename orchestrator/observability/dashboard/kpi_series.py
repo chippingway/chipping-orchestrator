@@ -7,12 +7,15 @@ that number arrived. Both are reduced from the reads the window already issued
 rather than from a second query cut a different way, which is what keeps a line
 that disagrees with the number above it from being possible at all.
 
-A token count is the four columns added together -- input, output, cache read,
-and cache write -- wherever it is taken, because a window totalling all four
-under a sparkline counting fewer would be a line sitting below its own headline.
-The two shapes those columns arrive on are read separately only because they
-spell them differently: a window's aggregate names them `total_*`, and a point
-in the day series does not.
+A day's spend is the amount its runs state -- every basis's contribution
+added, the amount the headline figure states for the whole window -- and a
+day's tokens are its runs' known non-overlapping totals, the count the token
+tile reports. A day short of complete spend, or holding a run whose token total
+is unknown, makes the window short too, so the tile above the line is where
+that is said: the line itself is a shape too small to carry a qualifier, and
+plotting a day's subtotal as zero would draw a dip that never happened. A day
+whose runs stated no amount at all -- unpriced, or written before cost evidence
+existed with none -- adds nothing to either.
 
 The days a line is plotted over are the days the time series holds, not a
 calendar over the window. Resolved counts are looked up against those days and
@@ -28,28 +31,6 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
-from orchestrator.observability.analytics.query.overview_models import Summary
-
-
-def summary_total_tokens(summary: Summary) -> int:
-    """Every token column a window's own aggregate carries, added together."""
-    return int(
-        (summary.total_input_tokens or 0)
-        + (summary.total_output_tokens or 0)
-        + (summary.total_cache_read_tokens or 0)
-        + (summary.total_cache_write_tokens or 0)
-    )
-
-
-def time_series_total_tokens(point: Any) -> float:
-    """The same four columns on one point of the day series."""
-    return float(
-        (point.input_tokens or 0)
-        + (point.output_tokens or 0)
-        + (point.cache_read_tokens or 0)
-        + (point.cache_write_tokens or 0)
-    )
-
 
 def throughput_totals(throughput_rows: Sequence[Any]) -> tuple[int, int]:
     """`(resolved, rejected)` across every day the throughput read returned."""
@@ -59,7 +40,7 @@ def throughput_totals(throughput_rows: Sequence[Any]) -> tuple[int, int]:
 
 
 def daily_point_totals(ts_points: Sequence[Any]) -> dict[date, list[float]]:
-    """Spend and tokens per day, accumulated over the points on each.
+    """Spend and known tokens per day, accumulated over the points on each.
 
     The series carries one point per day *and event*, so a day is several rows
     and the pair it maps to is filled in over all of them.
@@ -67,8 +48,8 @@ def daily_point_totals(ts_points: Sequence[Any]) -> dict[date, list[float]]:
     totals: dict[date, list[float]] = {}
     for point in ts_points:
         daily = totals.setdefault(point.day, [float(0), float(0)])
-        daily[0] += float(point.cost_usd or 0)
-        daily[1] += time_series_total_tokens(point)
+        daily[0] += point.cost.evidence.total_usd or 0
+        daily[1] += float(point.total_tokens or 0)
     return totals
 
 

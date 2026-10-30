@@ -1,11 +1,11 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Which rows a sparkline is plotted over, and which columns it counts.
+"""Which rows a sparkline is plotted over, and what it counts on each.
 
-The two token reductions are read against a row carrying all four columns and
-one whose cache halves arrived as NULL, because that is the shape a run
-recorded before those columns existed reaches a tile as -- and a total that
-refused it would take the strip down with it.
+A day's spend is the amount its runs state, every basis added, and a day's
+tokens its runs' known non-overlapping totals -- the readings the tiles above
+the lines report for the whole window, so a line can never sit below or above
+its own headline.
 
 The series cases are about the day axis rather than the arithmetic: a day the
 activity series recorded twice is one point, a day it recorded with no
@@ -15,6 +15,7 @@ outside those days is not a fourth point on three-point lines.
 
 from __future__ import annotations
 
+import math
 import unittest
 from datetime import date
 
@@ -22,10 +23,10 @@ from orchestrator.observability.analytics.query.activity_models import (
     ThroughputDayRow,
 )
 from orchestrator.observability.analytics.query.overview_models import (
-    Summary,
     TimeSeriesPoint,
 )
 from orchestrator.observability.dashboard import kpi_series
+from tests.observability.analytics import analytics_cohorts as cohort_cases, analytics_usage_cases as cases
 from tests.observability.dashboard.dashboard_test_support import (
     MAY01,
     MAY02,
@@ -34,88 +35,52 @@ from tests.observability.dashboard.dashboard_test_support import (
 
 _EVENT = "agent_exit"
 
-# One order of magnitude per token column, so a reduction dropping any single
-# one of the four is off by a distinguishable amount.
-_INPUT = 1
+_FIRST_TOKENS = 1_000
 
-_OUTPUT = 20
-
-_CACHE_READ = 300
-
-_CACHE_WRITE = 4_000
-
-_ALL_COLUMNS = _INPUT + _OUTPUT + _CACHE_READ + _CACHE_WRITE
-
-_UNCACHED_COLUMNS = _INPUT + _OUTPUT
-
-_FIRST_DAY_COST = 1.5
-
-_SECOND_DAY_COST = 0.25
+_SECOND_TOKENS = 20
 
 _RESOLVED = 2
 
 _REJECTED = 3
 
 
-def _point(day: date, cost: float, **tokens) -> TimeSeriesPoint:
-    """One activity cell, carrying only the token columns it is given."""
+def _point(day: date, *costs, total_tokens: int = 0, unknown_token_runs: int = 0) -> TimeSeriesPoint:
+    """One activity cell whose runs state `costs`, carrying the known tokens it is given."""
     return TimeSeriesPoint(
-        day=day, event=_EVENT, count=1, cost_usd=cost, **tokens,
+        day=day,
+        event=_EVENT,
+        count=len(costs),
+        cost=cohort_cases.cohort(*costs),
+        total_tokens=total_tokens,
+        unknown_token_runs=unknown_token_runs,
     )
 
 
-class TokenTotalTest(unittest.TestCase):
-    """Every token column a tile and its sparkline are counted over."""
+class DailyPointTotalsTest(unittest.TestCase):
+    """What one day of the line counts."""
 
-    def test_a_window_totals_all_four_columns(self) -> None:
-        window = Summary(
-            total_input_tokens=_INPUT,
-            total_output_tokens=_OUTPUT,
-            total_cache_read_tokens=_CACHE_READ,
-            total_cache_write_tokens=_CACHE_WRITE,
-        )
-        self.assertEqual(kpi_series.summary_total_tokens(window), _ALL_COLUMNS)
+    def test_a_day_sums_its_event_rows(self) -> None:
+        # The series carries a row per day and event, so the spend and tokens a
+        # day is drawn at are filled in over all of them: every basis's amount
+        # added, a subtotal's included, and the known tokens alone.
+        totals = kpi_series.daily_point_totals((
+            _point(MAY01, cases.REPORTED, cases.GEMINI_ESTIMATE, total_tokens=_FIRST_TOKENS),
+            _point(MAY01, cases.INCOMPLETE_SUBTOTAL, total_tokens=_SECOND_TOKENS, unknown_token_runs=3),
+        ))
+        day_cost, day_tokens = totals[MAY01]
+        stated = cases.REPORTED_USD + cases.GEMINI_USD + cases.SUBTOTAL_USD
+        self.assertTrue(math.isclose(day_cost, stated))
+        self.assertEqual(day_tokens, float(_FIRST_TOKENS + _SECOND_TOKENS))
 
-    def test_a_point_totals_all_four_columns(self) -> None:
-        point = _point(
-            MAY01,
-            _FIRST_DAY_COST,
-            input_tokens=_INPUT,
-            output_tokens=_OUTPUT,
-            cache_read_tokens=_CACHE_READ,
-            cache_write_tokens=_CACHE_WRITE,
-        )
-        self.assertEqual(
-            kpi_series.time_series_total_tokens(point), float(_ALL_COLUMNS),
-        )
-
-    def test_an_unrecorded_column_counts_as_zero(self) -> None:
-        # A run recorded before the cache columns existed reaches both
-        # reductions with them NULL, and the tile it feeds is the window's
-        # headline: refusing the row would take the whole strip down.
-        point = _point(
-            MAY01,
-            _FIRST_DAY_COST,
-            input_tokens=_INPUT,
-            output_tokens=_OUTPUT,
-            cache_read_tokens=None,
-            cache_write_tokens=None,
-        )
-        self.assertEqual(
-            kpi_series.time_series_total_tokens(point),
-            float(_UNCACHED_COLUMNS),
-        )
-        self.assertEqual(
-            kpi_series.summary_total_tokens(
-                Summary(
-                    total_input_tokens=_INPUT,
-                    total_output_tokens=_OUTPUT,
-                    total_cache_read_tokens=None,
-                    total_cache_write_tokens=None,
-                ),
-            ),
-            _UNCACHED_COLUMNS,
-        )
+    def test_a_day_stating_no_amount_adds_nothing(self) -> None:
+        # An unpriced run, one with no usage, and a day of stage events state no
+        # amount, so they add nothing rather than an amount nobody stated.
+        totals = kpi_series.daily_point_totals((
+            _point(MAY01, cases.UNPRICED),
+            _point(MAY01, cases.NO_USAGE),
+            _point(MAY01),
+        ))
+        self.assertEqual(totals, {MAY01: [float(0), float(0)]})
 
 
 class ThroughputTotalsTest(unittest.TestCase):
@@ -137,34 +102,22 @@ class ThroughputTotalsTest(unittest.TestCase):
 class DailyKpiSeriesTest(unittest.TestCase):
     """The three lines, and the days they are plotted over."""
 
-    def test_a_day_sums_its_event_rows(self) -> None:
-        # The series carries a row per day and event, so the spend and tokens a
-        # day is drawn at are filled in over all of them.
-        totals = kpi_series.daily_point_totals((
-            _point(MAY01, _FIRST_DAY_COST, input_tokens=_INPUT),
-            _point(MAY01, _SECOND_DAY_COST, output_tokens=_OUTPUT),
-        ))
-        day_cost = _FIRST_DAY_COST + _SECOND_DAY_COST
-        self.assertEqual(
-            totals, {MAY01: [day_cost, float(_UNCACHED_COLUMNS)]},
-        )
-
     def test_the_days_come_off_the_series(self) -> None:
         # A day with runs but no resolutions keeps its place in all three
         # lines, and a resolution dated outside those days is not a fourth
         # point on three-point lines.
         series = kpi_series.daily_kpi_series(
             ts_points=(
-                _point(MAY02, _SECOND_DAY_COST, input_tokens=_INPUT),
-                _point(MAY01, _FIRST_DAY_COST, output_tokens=_OUTPUT),
+                _point(MAY02, cases.GEMINI_ESTIMATE, total_tokens=_SECOND_TOKENS),
+                _point(MAY01, cases.REPORTED, total_tokens=_FIRST_TOKENS),
             ),
             throughput_rows=(
                 ThroughputDayRow(day=MAY01, resolved=_RESOLVED, rejected=0),
                 ThroughputDayRow(day=MAY03, resolved=_RESOLVED, rejected=0),
             ),
         )
-        self.assertEqual(series.cost, [_FIRST_DAY_COST, _SECOND_DAY_COST])
-        self.assertEqual(series.tokens, [float(_OUTPUT), float(_INPUT)])
+        self.assertEqual(series.cost, [cases.REPORTED_USD, cases.GEMINI_USD])
+        self.assertEqual(series.tokens, [float(_FIRST_TOKENS), float(_SECOND_TOKENS)])
         self.assertEqual(series.done, [_RESOLVED, 0])
 
     def test_a_window_with_no_activity_is_empty(self) -> None:

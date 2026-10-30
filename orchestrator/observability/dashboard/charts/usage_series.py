@@ -18,15 +18,24 @@ figure is not drawing.
 Backends are sorted because their order is the legend's order and the color
 each is drawn in is picked off its position among them, so an unordered set
 would repaint the chart between two loads of the same window.
+
+The cost cohort of each day rides beside the buckets rather than in them,
+because a bucket holds numbers a band or an axis adds and a cohort is what the
+cost line's hover words. A day only the per-backend read saw has none: the
+series that cost is read off never reached it, which is no reading at all
+rather than a day with no agent run. The runs each day's stack leaves out ride
+beside the buckets too, counted by whichever read the drawn stack came from.
 """
 from __future__ import annotations
 
-from collections.abc import Sequence
-from dataclasses import dataclass
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
 from datetime import date
 
+from orchestrator.observability.analytics.query.cost_cohorts import CostCohort
 from orchestrator.observability.dashboard.charts.usage_bands import (
     BACKEND_MODE,
+    BackendDailyTokens,
     DailyTokenValues,
     daily_token_total,
     empty_token_bucket,
@@ -35,10 +44,16 @@ from orchestrator.observability.dashboard.charts.usage_bands import (
 
 @dataclass(frozen=True)
 class UsageChartData:
-    """A window's per-day buckets and the days they are drawn along."""
+    """A window's per-day buckets and the days they are drawn along.
+
+    `costs` holds each day the series read a cost cohort for, and `unknown_runs` each day's runs of unknown token
+    total the drawn stack leaves out.
+    """
 
     daily: DailyTokenValues
     days: Sequence[date]
+    costs: Mapping[date, CostCohort] = field(default_factory=dict)
+    unknown_runs: Mapping[date, int] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -56,7 +71,7 @@ def date_axis(days: Sequence[date]) -> list:
 
 def ensure_backend_days(
     daily: DailyTokenValues,
-    backend_rows_by_day: DailyTokenValues,
+    backend_rows_by_day: BackendDailyTokens,
 ) -> None:
     """Give every day the per-backend read saw a bucket on the axis."""
     for day in backend_rows_by_day:
@@ -64,7 +79,7 @@ def ensure_backend_days(
 
 
 def backend_names(
-    backend_rows_by_day: DailyTokenValues,
+    backend_rows_by_day: BackendDailyTokens,
 ) -> list[str]:
     """Return every backend the window holds, in a stable draw order."""
     return sorted(
@@ -80,7 +95,7 @@ def usage_stack_totals(
     days: Sequence[date],
     daily: DailyTokenValues,
     *,
-    backend_rows_by_day: DailyTokenValues | None,
+    backend_rows_by_day: BackendDailyTokens | None,
     mode: str,
 ) -> list[float]:
     """Return each day's stack height, measured in the drawn mode."""

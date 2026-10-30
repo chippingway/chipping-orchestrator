@@ -9,30 +9,14 @@ the way it words one run -- and the four answers a single summed amount would me
 """
 from __future__ import annotations
 
-import math
 import re
 import unittest
-from collections.abc import Sequence
-from decimal import Decimal
 
 from orchestrator.observability.analytics.query import cost_cohorts, token_totals
 from orchestrator.observability.usage import cost_evidence as usage_cost
-from tests.observability.analytics import analytics_usage_cases as cases
-
-_COMPLETENESS_ORDER = (usage_cost.COMPLETE, usage_cost.INCOMPLETE, usage_cost.NO_USAGE, usage_cost.UNKNOWN)
-
-_DATED_BASES = (
-    usage_cost.ANTHROPIC_API_ESTIMATE,
-    usage_cost.OPENAI_API_ESTIMATE,
-    usage_cost.GEMINI_API_ESTIMATE,
-)
+from tests.observability.analytics import analytics_cohorts as cohort_cases, analytics_usage_cases as cases
 
 _EMPTY_CELLS = (None,) * cost_cohorts.COST_COHORT_WIDTH
-
-_LEGACY_COST = 0.07
-
-# A record an earlier build wrote, read the way every surface reads one: `unknown`, its amount under that basis.
-_ABSENT_BASIS = usage_cost.recorded_cost(cases.unevidenced_record(1, cost_usd=_LEGACY_COST))
 
 _COHORTS = (
     ("reported", (cases.REPORTED, cases.COMPLETE_ZERO)),
@@ -40,36 +24,11 @@ _COHORTS = (
     ("antigravity only", (cases.GEMINI_ESTIMATE, cases.LATER_GEMINI_ESTIMATE)),
     ("mixed providers", (cases.REPORTED, cases.OPENAI_ESTIMATE, cases.BLENDED)),
     ("incomplete", (cases.ANTHROPIC_ESTIMATE, cases.INCOMPLETE_SUBTOTAL, cases.UNPRICED)),
-    ("absent basis", (cases.REPORTED, _ABSENT_BASIS)),
+    ("absent basis", (cases.REPORTED, cases.ABSENT_BASIS)),
     ("complete zero", (cases.COMPLETE_ZERO,)),
     ("no usage", (cases.NO_USAGE, cases.NO_USAGE)),
     ("three verification dates", cases.THREE_DATED_ESTIMATES),
 )
-
-
-def _parts(costs: Sequence[usage_cost.CostEvidence], basis: str) -> list[usage_cost.CostContribution]:
-    return [part for spent in costs for part in spent.contributions if part.basis == basis]
-
-
-def _basis_amount(costs: Sequence[usage_cost.CostEvidence], basis: str) -> Decimal | None:
-    """One basis's SQL sum: NULL where no run states an amount on it, a zero included."""
-    amounts = [part.amount_usd for part in _parts(costs, basis)]
-    return Decimal(str(math.fsum(amounts))) if amounts else None
-
-
-def _basis_dates(costs: Sequence[usage_cost.CostEvidence], basis: str) -> list | None:
-    """One estimate basis's distinct verification dates, sorted, as the date-union aggregate returns them: NULL where
-    no run was priced at a dated row."""
-    days = {day for part in _parts(costs, basis) for day in part.rates_verified_on}
-    return sorted(days) or None
-
-
-def _cohort_cells(costs: Sequence[usage_cost.CostEvidence]) -> tuple:
-    """The cells a cohort fragment selects over runs stating `costs`, in the order it selects them."""
-    counts = [sum(spent.completeness == state for spent in costs) for state in _COMPLETENESS_ORDER]
-    amounts = [_basis_amount(costs, basis) for basis in usage_cost.BASES]
-    dates = [_basis_dates(costs, basis) for basis in _DATED_BASES]
-    return (*counts, *amounts, *dates)
 
 
 def _top_level_cells(fragment: str) -> list[str]:
@@ -87,7 +46,7 @@ class CostCohortReadingTest(unittest.TestCase):
     def test_a_cohort_reads_as_its_runs_fold(self) -> None:
         for name, costs in _COHORTS:
             with self.subTest(cohort=name):
-                cohort = cost_cohorts.cost_cohort(_cohort_cells(costs))
+                cohort = cost_cohorts.cost_cohort(cohort_cases.cohort_cells(costs))
                 folded = usage_cost.reduce_costs(costs)
                 self.assertEqual(cohort.runs, len(costs))
                 self.assertEqual(self._rounded(cohort.evidence), self._rounded(folded))
@@ -97,9 +56,9 @@ class CostCohortReadingTest(unittest.TestCase):
         # nothing states the basis of: one summed amount would read the first
         # two as $0 and the last two as spend, each as complete.
         empty = cost_cohorts.cost_cohort(_EMPTY_CELLS)
-        zero = cost_cohorts.cost_cohort(_cohort_cells((cases.COMPLETE_ZERO,)))
-        subtotal = cost_cohorts.cost_cohort(_cohort_cells((cases.INCOMPLETE_SUBTOTAL,)))
-        unattributed = cost_cohorts.cost_cohort(_cohort_cells((_ABSENT_BASIS,)))
+        zero = cost_cohorts.cost_cohort(cohort_cases.cohort_cells((cases.COMPLETE_ZERO,)))
+        subtotal = cost_cohorts.cost_cohort(cohort_cases.cohort_cells((cases.INCOMPLETE_SUBTOTAL,)))
+        unattributed = cost_cohorts.cost_cohort(cohort_cases.cohort_cells((cases.ABSENT_BASIS,)))
         answers = [
             (cohort.is_empty, cohort.evidence.completeness, cohort.evidence.total_usd, cohort.evidence.basis)
             for cohort in (empty, zero, subtotal, unattributed)
@@ -110,13 +69,13 @@ class CostCohortReadingTest(unittest.TestCase):
                 (True, usage_cost.NO_USAGE, None, None),
                 (False, usage_cost.COMPLETE, 0, usage_cost.CLI_REPORTED),
                 (False, usage_cost.INCOMPLETE, cases.SUBTOTAL_USD, usage_cost.ANTHROPIC_API_ESTIMATE),
-                (False, usage_cost.UNKNOWN, _LEGACY_COST, usage_cost.UNKNOWN_BASIS),
+                (False, usage_cost.UNKNOWN, cases.LEGACY_USD, usage_cost.UNKNOWN_BASIS),
             ],
         )
         self.assertIsNone(subtotal.evidence.complete_usd)
 
     def test_cells_read_from_offset_and_whole(self) -> None:
-        cells = _cohort_cells((cases.REPORTED,))
+        cells = cohort_cases.cohort_cells((cases.REPORTED,))
         leading = ("day", "backend")
         self.assertEqual(
             cost_cohorts.cost_cohort((*leading, *cells), start=len(leading)),
@@ -126,6 +85,24 @@ class CostCohortReadingTest(unittest.TestCase):
         # whose missing cells read as NULL.
         with self.assertRaises(ValueError):
             cost_cohorts.cost_cohort(cells[:-1])
+
+    def test_cohorts_read_apart_fold_as_one(self) -> None:
+        # A reader regrouping cells it read apart -- a window's days, or a day's
+        # events -- answers what one cell over all their runs would, and the
+        # fold of none is the empty cohort a window with no run reads as.
+        for name, costs in _COHORTS:
+            with self.subTest(cohort=name):
+                apart = [cohort_cases.cohort(spent) for spent in costs]
+                folded = cost_cohorts.fold_cohorts(apart)
+                whole = cohort_cases.cohort(*costs)
+                self.assertEqual(folded.runs, whole.runs)
+                self.assertEqual(
+                    (folded.complete_runs, folded.incomplete_runs, folded.no_usage_runs, folded.unknown_runs),
+                    (whole.complete_runs, whole.incomplete_runs, whole.no_usage_runs, whole.unknown_runs),
+                )
+                self.assertEqual(self._rounded(folded.evidence), self._rounded(whole.evidence))
+        self.assertEqual(cost_cohorts.EMPTY_COST_COHORT, cost_cohorts.cost_cohort(_EMPTY_CELLS))
+        self.assertTrue(cost_cohorts.EMPTY_COST_COHORT.is_empty)
 
     def _rounded(self, evidence: usage_cost.CostEvidence) -> tuple:
         """The evidence with each amount rounded past the float noise a SQL sum and a Python sum differ by."""
@@ -160,7 +137,7 @@ class CohortFragmentTest(unittest.TestCase):
         self.assertEqual(run_cells[8], "SUM(cost_unknown_basis_usd)")
         self.assertIn("WHEN cost_completeness IS NULL THEN cost_usd", event_cells[8])
         # Every target stores the dates as a sorted distinct array, so all three fold them alike, every date kept.
-        dated = slice(-len(_DATED_BASES), None)
+        dated = slice(-len(cohort_cases.DATED_BASES), None)
         self.assertEqual(run_cells[dated], rollup_cells[dated])
         self.assertEqual(event_cells[dated], rollup_cells[dated])
         self.assertEqual(rollup_cells[-1], "analytics_rate_dates(gemini_rates_verified_on)")

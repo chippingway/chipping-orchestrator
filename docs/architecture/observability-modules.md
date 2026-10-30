@@ -120,13 +120,16 @@ orchestrator/
   formatter; the sections drawn from a figure or a hand-rolled table take none, since the chart family reads its
   hues off the palette owner directly and the table markup is painted by the stylesheet the page injects. Under
   `charts/`, a family names only the style owners, its own siblings, and the `query/` result model its rows arrive
-  as.
+  as — and, where it words a cost, the dashboard's cost wording, the same owner the tiles above it read, so a chart's
+  hover and the headline qualify an amount alike.
 - `trajectory_viewer/` runs the same way: the parse sits above the record and the views bound onto it, the file read
   above the parse, and the filter, summary, and markup owners open nothing. Which file a read opens comes off the
   settings holder the page hands down rather than one an owner captured, and nothing here imports Streamlit — the
   owners that draw take it in as an argument. Its usage views read a record's cost and token evidence through
   `usage/`'s own readers and fold costs with its reduction rather than a second copy of either, so every owner that
-  names a usage view pays for the `usage/` package, which is standard-library code and needs no optional group.
+  names a usage view pays for the `usage/` package, which is standard-library code and needs no optional group. A cost
+  on the page is worded by the dashboard's `cost_text`, the one owner both pages word a basis and its completeness
+  through.
 - The two `streamlit run` targets are the one launch path each page has and own nothing the page decides:
   everything they compose is imported inside the pass that reaches it, Streamlit and pandas included, so importing
   an app costs the `sys.path` shim and nothing else.

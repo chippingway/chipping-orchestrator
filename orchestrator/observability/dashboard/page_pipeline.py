@@ -16,6 +16,11 @@ so the chrome is drawn, the empty-window notice takes over, and reporting
 nothing back is what ends the load before the second wave is paid for -- which
 makes the return value a short circuit rather than only a result.
 
+The banner's spend, the strip's money, and the unpriced-coverage banner are all
+read off the window's one cost cohort, so the topbar, the tiles, and the notice
+above them cannot disagree about a window's basis or about which of its runs
+left the amount short.
+
 Every sibling a pass here calls is named directly, so a test intercepting a
 render patches the module that holds it and a page and a fix land on the same
 object.
@@ -25,14 +30,10 @@ owner imports neither and what it assembles stays testable without them.
 """
 from __future__ import annotations
 
-from collections.abc import Sequence
 from datetime import timedelta
 from functools import partial
 from typing import Any
 
-from orchestrator.observability.analytics.query.cost_models import (
-    CostCoverageRow,
-)
 from orchestrator.observability.analytics.query.overview_models import Summary
 from orchestrator.observability.dashboard import (
     card_html,
@@ -56,8 +57,7 @@ def render_topbar_and_meta(
             extent=page.extent,
             distinct_repos=summary.distinct_repos,
             total_events=summary.total_events,
-            spend_in_range=summary.total_cost_usd,
-            fmt_money_exact=modules.theme.fmt_money_exact,
+            spend_in_range=summary.cost,
             fmt_num=modules.theme.fmt_num,
         ),
         unsafe_allow_html=True,
@@ -78,13 +78,9 @@ def render_topbar_and_meta(
 def render_dashboard_insights(
     modules: page_models.DashboardModules,
     summary: Summary,
-    cost_coverage_rows: Sequence[CostCoverageRow],
 ) -> None:
     """Raise the banners a window is worth interrupting the page for."""
-    banners = insights.compute_insights(
-        summary,
-        cost_coverage_rows=cost_coverage_rows,
-    )
+    banners = insights.compute_insights(summary)
     if banners:
         modules.st.markdown(
             card_html.insights_html(banners),
@@ -103,11 +99,7 @@ def render_first_wave(
     if summary.total_events == 0:
         page_states.render_empty_window(modules, page)
         return None
-    render_dashboard_insights(
-        modules,
-        summary,
-        read_results["cost_coverage_rows"],
-    )
+    render_dashboard_insights(modules, summary)
     kpi_values = kpi_strip.build_kpi_strip_data(
         kpi_strip.KpiInputs(
             theme=modules.theme,

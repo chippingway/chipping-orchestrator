@@ -26,8 +26,7 @@ from __future__ import annotations
 import html
 from dataclasses import dataclass
 
-from orchestrator.observability.dashboard import formatting
-from orchestrator.observability.trajectory_viewer import cost_text
+from orchestrator.observability.dashboard import cost_text, formatting
 from orchestrator.observability.trajectory_viewer.summaries import TrajectorySummary
 
 

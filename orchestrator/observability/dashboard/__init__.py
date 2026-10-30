@@ -55,14 +55,20 @@ the four numbers that window is summarized by beneath them. ``kpi_series`` and
 ``kpi_strip`` are how those numbers reach the page: the per-day spend, token,
 and resolved lines a sparkline is drawn from, and the four display entries a
 window's own aggregate, the one before it, and three of its first-wave reads
-are assembled into. ``sparkline_points`` and ``sparkline_html`` are how one of
+are assembled into. ``cost_text`` and ``spend_text`` are the words their money
+is qualified by: the first how one cost reads on either page -- its amount, the
+basis it is stated on, and why it falls short of complete spend -- and the
+second what only a window's cohort of runs can say on top of that: that it held
+no run, how many runs left its amount short, and what a move between two
+windows is read with. ``sparkline_points`` and ``sparkline_html`` are how one of
 those lines reaches a tile: where each day sits in a box too narrow for an axis
 -- scaled to the window's own range, floored where a window has none, and left
 undrawn where it reported nothing at all -- and the polyline and closed fill
 that projection is written as. ``summary_html`` is the band that strip sits in:
-the banner naming what the database holds, the line restating what a run's
-filters narrowed it to, the pill one tile's move against the window before it
-is annotated with, and the four tiles assembled around them.
+the banner naming what the database holds and the window's qualified spend, the
+line restating what a run's filters narrowed it to, the pill one tile's move
+against the window before it is annotated with, and the four tiles assembled
+around them.
 ``card_html`` is the markup the banners and the
 run-health
 tiles among those numbers reach the browser as, together with the header every
@@ -130,7 +136,8 @@ the header it is titled by, the two-value toggle deciding whether a day's
 tokens are stacked by what they were spent on or by who spent them, the
 session-state key that mode survives a rerun in, and the per-day per-backend
 totals the second stack is drawn from, summed so a `(day, backend)` cell read
-back twice is one band rather than the last of two.
+back twice is one band rather than the last of two, with that read's own runs
+of unknown token total per day beside them.
 Two panels are markup of their own rather than a figure: ``backend_card``
 for what a run on one backend is worth and the card the three readings behind
 it are laid out on, and ``coverage_card`` for the share of a window's spend the

@@ -171,7 +171,10 @@ are in the [developer guide](development.md#analytics-sync-and-dashboard).
 The page is composed entirely from owners under `observability/dashboard/`, stages its 16 widget reads into two cached
 waves around the chrome it draws between them, and never raises at the operator — every missing-data or
 misconfiguration case surfaces as a labeled banner. The dashboard process is independent of the polling tick: it opens
-no GitHub session, writes no Postgres row, and can be deployed off-host by repointing `ANALYTICS_DB_URL`. That page
+no GitHub session, writes no Postgres row, and can be deployed off-host by repointing `ANALYTICS_DB_URL`. Its topbar,
+headline tiles, sparklines, and usage chart name every amount's basis — an AGY-only one a Gemini API token estimate, a
+mixed one blended with its parts beside it — never pass an incomplete subtotal or an amount of unknown basis off as
+complete spend, keep those qualifications on every move against the window before, and count each token once. That page
 carries the module layout, the caching and fan-out contracts, the body layout top to bottom, the chart builders and
 theme owners, and the empty / error banner inventory.
 

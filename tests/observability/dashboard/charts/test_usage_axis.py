@@ -41,7 +41,10 @@ _COST_USD = 1.5
 # The two stacks the same day can be drawn as. The per-backend one is an order
 # of magnitude taller than the bands beside it, so an axis scaled to the series
 # that is not on the plot cannot round to the same maximum by chance.
-_BACKEND_ROWS = MappingProxyType({_DAY: {_CLAUDE: 12_000.0, _CODEX: 6_000.0}})
+_BACKEND_ROWS = usage_bands.BackendDailyTokens(
+    MappingProxyType({_DAY: {_CLAUDE: 12_000.0, _CODEX: 6_000.0}}),
+    MappingProxyType({_DAY: 0}),
+)
 
 _BACKEND_TOKEN_TOP = 25_000.0
 

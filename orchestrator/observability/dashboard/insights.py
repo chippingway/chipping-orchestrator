@@ -6,17 +6,19 @@ A banner here is something an operator should act on rather than a number to
 read off a chart, so the whole owner is the two questions worth stopping a page
 for and the ratio each is raised at. A window whose agent runs exit non-zero
 more than a tenth of the time is describing a broken workload rather than the
-one the panels below it plot; a window whose runs arrive unpriced that often is
-one whose spend is an undercount, because the rate tables in
-`observability/usage/prices.py` are missing SKUs the parser is seeing in the
-wild.
+one the panels below it plot; a window whose runs arrive unpriced or only
+partly priced that often is one whose spend is an incomplete subtotal, because
+the price catalogue in `observability/usage/prices.py` has no active row for
+models the parser is seeing in the wild.
 
 Each threshold sits beside the arithmetic that crosses it: what is worth
 interrupting for is one decision, and a page carrying its own copy of either
 number is where the banner raised and the banner documented would drift apart.
-Which rows answer them follows the same rule -- the failure ratio is read off
-the window's own totals, and the coverage ratio off the cost-source split a
-comparison panel is drawn from, so neither is re-derived per page.
+Both ratios are read off the window's own totals. The unpriced one counts the
+runs whose cost evidence states it `incomplete` -- the evidence, not the
+`cost_source` tag beside it -- so a run an earlier build recorded with no
+evidence is not counted as unpriced: nothing states whether it was, and the
+headline totals already say that their completeness is unknown.
 
 Crossing nothing is the ordinary answer, and it is an empty list rather than a
 banner saying so, because the caller branches on it for a section header that
@@ -24,19 +26,12 @@ would otherwise sit above nothing.
 """
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass
 
-from orchestrator.observability.analytics.query.cost_models import CostCoverageRow
 from orchestrator.observability.analytics.query.overview_models import Summary
 
 FAILURE_RATE_BANNER_THRESHOLD = 0.1
 UNPRICED_COVERAGE_THRESHOLD = 0.1
-# The two spellings a run the parser could not price arrives under: what it
-# writes when no rate table covered the SKU, and what a NULL column is bucketed
-# as. Both are the same gap from the operator's side, so the ratio counts them
-# together even though the coverage bar keeps them apart.
-UNPRICED_COST_SOURCES: frozenset[str] = frozenset(("unknown-price", "unknown"))
 
 
 @dataclass(frozen=True)
@@ -54,20 +49,18 @@ class InsightBanner:
     message: str
 
 
-def compute_insights(
-    summary: Summary,
-    *,
-    cost_coverage_rows: Sequence[CostCoverageRow] = (),
-) -> list[InsightBanner]:
+def compute_insights(summary: Summary) -> list[InsightBanner]:
     """Banner lines surfaced at the top of the redesigned page.
 
     Each banner is a single observation the operator should act on:
 
     - Failure rate exceeds `FAILURE_RATE_BANNER_THRESHOLD`: agent
       runs are exiting non-zero more than 10 % of the time.
-    - Unpriced cost coverage exceeds `UNPRICED_COVERAGE_THRESHOLD`:
-      the price tables in `observability/usage/prices.py` are
-      missing SKUs the parser is seeing in the wild.
+    - Unpriced coverage exceeds `UNPRICED_COVERAGE_THRESHOLD`: runs
+      whose cost evidence is `incomplete` leave the window's spend a
+      subtotal, and the price catalogue in
+      `observability/usage/prices.py` has no active row for the models
+      they ran.
 
     The helper returns an empty list when nothing crosses a
     threshold, so the caller can branch on `if banners:` for the
@@ -88,27 +81,22 @@ def compute_insights(
                     ),
                 )
             )
-    if cost_coverage_rows:
-        total_runs = sum(row.runs for row in cost_coverage_rows)
-        unpriced = sum(
-            row.runs
-            for row in cost_coverage_rows
-            if row.cost_source in UNPRICED_COST_SOURCES
-        )
-        if total_runs > 0:
-            ratio = unpriced / total_runs
-            if ratio >= UNPRICED_COVERAGE_THRESHOLD:
-                ratio *= 100
-                banners.append(
-                    InsightBanner(
-                        severity="warning",
-                        message=(
-                            f"{unpriced} of {total_runs} agent runs lack "
-                            f"a priced cost ({ratio:.0f}%) -- check "
-                            "the price tables in "
-                            "`observability/usage/prices.py` "
-                            "for missing SKUs."
-                        ),
-                    )
+    cost = summary.cost
+    if cost.runs > 0:
+        ratio = cost.incomplete_runs / cost.runs
+        if ratio >= UNPRICED_COVERAGE_THRESHOLD:
+            ratio *= 100
+            banners.append(
+                InsightBanner(
+                    severity="warning",
+                    message=(
+                        f"{cost.incomplete_runs} of {cost.runs} agent runs "
+                        f"are unpriced or only partly priced ({ratio:.0f}%), "
+                        "so the window's spend is an incomplete subtotal -- "
+                        "check the price catalogue in "
+                        "`observability/usage/prices.py` for the models "
+                        "they ran."
+                    ),
                 )
+            )
     return banners

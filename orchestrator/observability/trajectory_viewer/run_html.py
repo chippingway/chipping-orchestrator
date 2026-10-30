@@ -30,7 +30,7 @@ from __future__ import annotations
 import html
 from collections.abc import Sequence
 
-from orchestrator.observability.trajectory_viewer import cost_text
+from orchestrator.observability.dashboard import cost_text
 from orchestrator.observability.trajectory_viewer.runs import TrajectoryRun
 
 REPO_LABEL = "Repo"

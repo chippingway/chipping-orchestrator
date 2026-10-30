@@ -76,8 +76,12 @@ def backend_row(
     day: date = MAY01,
     backend: str = CLAUDE,
     total_tokens: int = 0,
+    unknown_token_runs: int = 0,
 ) -> BackendDailyTokensRow:
-    """One `(day, backend, total_tokens)` cell of the per-backend series."""
+    """One `(day, backend)` cell of the per-backend series: its known total and its runs of unknown total."""
     return BackendDailyTokensRow(
-        day=day, backend=backend, total_tokens=total_tokens,
+        day=day,
+        backend=backend,
+        total_tokens=total_tokens,
+        unknown_token_runs=unknown_token_runs,
     )

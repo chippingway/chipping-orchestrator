@@ -5,8 +5,8 @@ from __future__ import annotations
 
 import unittest
 
+from orchestrator.observability.dashboard import cost_text
 from orchestrator.observability.trajectory_viewer import (
-    cost_text,
     summaries,
     summary_html,
 )

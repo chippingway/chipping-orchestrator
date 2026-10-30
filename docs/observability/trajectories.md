@@ -483,8 +483,8 @@ group behind an import, and the one that reads the trajectory knob reads it off 
 hands down — a caller's world is bound for the page the same way it is for the read.
 
 **How a cost reads on the page.** The cost tile, every table row, the run-level cost chip, and each turn strip spell a
-cost through `observability/trajectory_viewer/cost_text.py`, so a basis reads alike everywhere and an amount never
-appears without it:
+cost through `observability/dashboard/cost_text.py`, the wording the analytics dashboard's headline totals share, so a
+basis reads alike everywhere and an amount never appears without it:
 
 | Cost the evidence states | Reads as |
 | --- | --- |

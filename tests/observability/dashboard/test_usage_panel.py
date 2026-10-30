@@ -34,6 +34,8 @@ _CODEX_TOKENS = 3
 
 _LATER_DAY_TOKENS = 8
 
+_UNKNOWN_RUNS = 2
+
 _CHART_BUILDER = "usage_over_time"
 
 
@@ -62,15 +64,17 @@ class BackendTokensByDayTest(unittest.TestCase):
 
     def test_repeated_cells_are_summed(self) -> None:
         # The same `(day, backend)` pair can arrive more than once, so a band
-        # drawn off the raw rows would report the last cell, not the day.
+        # drawn off the raw rows would report the last cell, not the day. The
+        # runs of unknown total are summed per day beside the tokens, since
+        # they are this read's own count of what its stack leaves out.
         totals = usage_panel.backend_tokens_by_day([
-            backend_row(total_tokens=_FIRST_HALF),
-            backend_row(total_tokens=_SECOND_HALF),
+            backend_row(total_tokens=_FIRST_HALF, unknown_token_runs=1),
+            backend_row(total_tokens=_SECOND_HALF, unknown_token_runs=_UNKNOWN_RUNS),
             backend_row(backend=CODEX, total_tokens=_CODEX_TOKENS),
             backend_row(day=MAY07, total_tokens=_LATER_DAY_TOKENS),
         ])
         self.assertEqual(
-            totals,
+            totals.tokens,
             {
                 MAY01: {
                     CLAUDE: float(_FIRST_HALF + _SECOND_HALF),
@@ -79,12 +83,16 @@ class BackendTokensByDayTest(unittest.TestCase):
                 MAY07: {CLAUDE: float(_LATER_DAY_TOKENS)},
             },
         )
+        self.assertEqual(totals.unknown_runs, {MAY01: 1 + _UNKNOWN_RUNS, MAY07: 0})
+        # The stack walks the totals as a mapping of day to backend tokens.
+        self.assertEqual(dict(totals), totals.tokens)
 
     def test_a_missing_total_counts_as_nothing(self) -> None:
         totals = usage_panel.backend_tokens_by_day([
-            backend_row(total_tokens=None),
+            backend_row(total_tokens=None, unknown_token_runs=None),
         ])
-        self.assertEqual(totals, {MAY01: {CLAUDE: float(0)}})
+        self.assertEqual(totals.tokens, {MAY01: {CLAUDE: float(0)}})
+        self.assertEqual(totals.unknown_runs, {MAY01: 0})
 
 
 class StackModeOptionTest(unittest.TestCase):
@@ -187,10 +195,10 @@ class RenderHeroUsageTest(unittest.TestCase):
                 backend_row(total_tokens=_SECOND_HALF),
             ],
         )
-        self.assertEqual(
-            request.kwargs["backend_rows_by_day"],
-            {MAY01: {CLAUDE: float(_FIRST_HALF + _SECOND_HALF)}},
-        )
+        backend_rows = request.kwargs["backend_rows_by_day"]
+        day_tokens = float(_FIRST_HALF + _SECOND_HALF)
+        self.assertEqual(backend_rows.tokens, {MAY01: {CLAUDE: day_tokens}})
+        self.assertEqual(backend_rows.unknown_runs, {MAY01: 0})
         self.assertEqual(request.kwargs["mode"], usage_panel.BACKEND_MODE)
 
     def test_the_figure_carries_no_title_of_its_own(self) -> None:

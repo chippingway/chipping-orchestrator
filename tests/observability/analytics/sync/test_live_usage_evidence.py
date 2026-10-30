@@ -6,7 +6,9 @@ The hermetic tests hold the sync's cells and the reader's arithmetic to the Pyth
 say whether the schema's view and rollup, and the read model's fragments over them, compute what those tests assume.
 Each cohort here is read three ways -- off the agent-run view, off the events table, and off the daily rollup -- and
 all three have to agree with what `usage.cost_evidence.reduce_costs` folds the same records' costs to, through a
-replay, its replay, and a row an earlier sync stored before the evidence columns existed.
+replay, its replay, and a row an earlier sync stored before the evidence columns existed. The overview's own rollup
+reads -- the summary, the window a delta is measured against, and the day series -- are held to the same fold, and the
+series' token bands to a stack that counts Codex's cached input once.
 """
 from __future__ import annotations
 
@@ -47,6 +49,18 @@ class LiveUsageEvidenceTest(unittest.TestCase):
 
     def test_token_reads_count_each_token_once(self) -> None:
         self.assertEqual(self.database.provider_token_answers(), live.PROVIDER_TOKEN_ANSWERS)
+        self.assertEqual(live.overview_bands(self.database), live.PROVIDER_BANDS)
+
+    def test_the_overview_reads_agree_with_the_fold(self) -> None:
+        # The summary, the window a delta is measured against, and the day
+        # series each carry a cohort's spend and tokens as the runs fold them.
+        self.database.replay_twice()
+        for issue, cohort in live.COHORTS:
+            with self.subTest(issue=issue):
+                self.assertEqual(
+                    live.overview_answers(self.database, issue),
+                    (live.folded_answer(cohort),) * 3,
+                )
 
 
 if __name__ == "__main__":
