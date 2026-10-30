@@ -2,12 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 """The generic cost ranking, largest bar on top.
 
-Rows of `(label, subtitle, cost, color)` become one bar each. They are ordered
-by spend unless the caller has already ranked them, and the whole series is
-flipped on the way out because a Plotly bar axis draws the first row at the
-bottom -- every column together, or a label would part company with the amount
-beside it. A row that names no color falls back to the caller's accent and then
-to the page's, so a ranking is one hue rather than a striped chart.
+Rows of `(label, subtitle, cost, color)` become one bar each, a row optionally
+carrying the figure drawn past its bar and the line its hover adds, for a
+caller that words its own amounts. They are ordered by spend unless the caller
+has already ranked them, a row whose cost is `None` -- one stating no amount --
+below every row that states one, a zero included. The whole series is then
+flipped on the way out, because a Plotly bar axis draws the first row at the
+bottom, and every column together, or a label would part company with the
+amount beside it. A row that names no color falls back to the caller's accent
+and then to the page's, so a ranking is one hue rather than a striped chart,
+and a row that words no figure is labelled by its amount on the shared money
+label.
 
 The builder takes `*args` / `**kwargs` and binds them through a pinned
 `Signature`, so `items` stays the name the rows may be passed by, the four
@@ -23,7 +28,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 from inspect import Parameter, Signature
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from orchestrator.observability.dashboard.charts.cost_layout import (
     HorizontalCostLayout,
@@ -31,11 +36,10 @@ from orchestrator.observability.dashboard.charts.cost_layout import (
 )
 from orchestrator.observability.dashboard.charts.primitives import (
     empty_figure,
-    money_text,
     monospace_textfont,
-    reverse_lists,
     two_line_y_ticks,
 )
+from orchestrator.observability.dashboard.formatting import fmt_money
 from orchestrator.observability.dashboard.palette import ACCENT
 
 if TYPE_CHECKING:
@@ -47,60 +51,68 @@ if TYPE_CHECKING:
 DEFAULT_CHART_HEIGHT = 120
 
 
+class RankedCost(NamedTuple):
+    """One row of a ranking; a plain `(label, subtitle, cost, color)` tuple reads as one with nothing worded."""
+
+    label: str
+    sub: str
+    cost: float | None
+    color: str | None = None
+    figure: str | None = None
+    note: str | None = None
+
+
 @dataclass(frozen=True)
 class HorizontalBars:
-    """The four columns of a ranking, each already in render order."""
+    """The columns of a ranking, each already in render order."""
 
     labels: Sequence[str]
     subs: Sequence[str]
     costs: Sequence[float]
     colors: Sequence[str]
+    figures: Sequence[str]
+    notes: Sequence[str]
 
 
 @dataclass(frozen=True)
 class HorizontalBarRequest:
     """One call to the builder, after its pinned signature is bound."""
 
-    rows: Sequence[tuple[str, str, float, str]]
+    rows: Sequence[tuple]
     title: str | None
     accent: str | None
     preserve_order: bool
     height: int | None
 
 
-def reverse_horizontal_bars(bars: HorizontalBars) -> HorizontalBars:
-    """Flip a ranking so its largest bar is drawn at the top."""
-    reversed_values = reverse_lists(
-        bars.labels,
-        bars.subs,
-        bars.costs,
-        bars.colors,
-    )
-    return HorizontalBars(*reversed_values)
-
-
 def horizontal_bars_data(
-    rows: Sequence[tuple[str, str, float, str]],
+    rows: Sequence[tuple],
     accent: str | None,
     preserve_order: bool,
 ) -> HorizontalBars:
     """Rank the rows, unless the caller ordered them, and flip them."""
-    ordered = list(rows)
+    ranked = [RankedCost(*row) for row in rows]
     if not preserve_order:
-        ordered.sort(key=cost_item_sort_key)
-    return reverse_horizontal_bars(
-        HorizontalBars(
-            labels=[row[0] for row in ordered],
-            subs=[row[1] for row in ordered],
-            costs=[float(row[2] or 0) for row in ordered],
-            colors=[row[3] or accent or ACCENT for row in ordered],
-        )
+        ranked.sort(key=cost_item_sort_key)
+    ordered = list(reversed(ranked))
+    costs = [float(row.cost or 0) for row in ordered]
+    return HorizontalBars(
+        labels=[row.label for row in ordered],
+        subs=[row.sub for row in ordered],
+        costs=costs,
+        colors=[row.color or accent or ACCENT for row in ordered],
+        figures=[
+            fmt_money(cost) if row.figure is None else row.figure
+            for row, cost in zip(ordered, costs, strict=True)
+        ],
+        notes=[row.note or "" for row in ordered],
     )
 
 
-def cost_item_sort_key(row: tuple[str, str, float, str]) -> float:
-    """Rank a row by spend descending, counting an unpriced one as zero."""
-    return -float(row[2] or 0)
+def cost_item_sort_key(row: tuple) -> tuple[bool, float]:
+    """Rank a row by spend descending, one stating no amount below every one that states any."""
+    cost = RankedCost(*row).cost
+    return cost is None, -(cost or 0)
 
 
 def cost_horizontal_bars(*args: Any, **kwargs: Any) -> go.Figure:
@@ -126,17 +138,19 @@ def cost_horizontal_bars(*args: Any, **kwargs: Any) -> go.Figure:
         request.accent,
         request.preserve_order,
     )
+    worded = any(bars.notes)
     figure = go.Figure(
         go.Bar(
             x=bars.costs,
             y=two_line_y_ticks(bars.labels, bars.subs),
             orientation="h",
             marker_color=bars.colors,
-            text=money_text(bars.costs),
+            text=list(bars.figures),
             textposition="outside",
             textfont=monospace_textfont(),
             cliponaxis=False,
-            hovertemplate="%{y}: $%{x:,.2f}<extra></extra>",
+            customdata=list(bars.notes) if worded else None,
+            hovertemplate="%{y}: %{customdata}<extra></extra>" if worded else "%{y}: $%{x:,.2f}<extra></extra>",
         )
     )
     apply_horizontal_cost_layout(

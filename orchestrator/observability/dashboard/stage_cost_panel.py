@@ -9,11 +9,21 @@ operator reads them as one comparison. The columns are split 7:5 rather than
 evenly because the stage axis carries the wider vocabulary: a full stage name
 needs the room that a round bucket, which is a digit or `6+`, does not.
 
-Both figures are pinned to one height, computed off whichever of the two reads
-came back with more rows. A horizontal bar family sizes itself by its own row
-count, so two panels left to size themselves would stand at different heights
-the moment one axis had more buckets than the other -- and a reader comparing
-spend across the gutter would be comparing bars of two different thicknesses.
+Each figure is closed by a note beneath it rather than left to its hover alone:
+what its bars add up to, worded the way the overview words a window -- the
+basis, each part of a blended amount by its own amount, and the runs that leave
+it short of complete spend -- and that the cache and non-cache segments are an
+allocation by token share rather than a measured cache charge, with the amount
+of runs whose token total is unknown left unsplit. A panel with no bar to sum
+notes nothing.
+
+Both figures are pinned to one height: whichever of the two needs more, as
+each chart owner measures its own -- a full row per bucket beneath the band its
+legend lines take, a review row tall enough for two bars. A horizontal bar
+family sizes itself by its own row count, so two panels left to size themselves
+would stand at different heights the moment one axis had more buckets than the
+other, and a height counted off the rows alone would hand the legend band out
+of the rows' share, which is how a column's two-line labels come to overlap.
 
 Streamlit is the caller's, handed in as a parameter, so this owner does not
 name it. Both figures come off the chart owners directly, the way the header
@@ -34,28 +44,36 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+from orchestrator.observability.analytics.query.cost_cohorts import CostCohort
 from orchestrator.observability.analytics.query.cost_models import (
     ReviewRoundBucketRow,
 )
 from orchestrator.observability.analytics.query.run_models import StageBreakdown
 from orchestrator.observability.dashboard import render_config
-from orchestrator.observability.dashboard.card_html import card_header_html
+from orchestrator.observability.dashboard.breakdown_text import TOKEN_SHARE_NOTE, breakdown_note
+from orchestrator.observability.dashboard.card_html import card_header_html, card_note_html
 from orchestrator.observability.dashboard.charts.cost_review import (
     cost_by_review_round,
+    review_panel_height,
 )
-from orchestrator.observability.dashboard.charts.cost_stage import cost_by_stage
+from orchestrator.observability.dashboard.charts.cost_stage import cost_by_stage, stage_panel_height
 
-TABLE_ROW_HEIGHT = 40
-TABLE_BASE_HEIGHT = 80
+
+def render_split_note(st: Any, cohorts: Sequence[CostCohort]) -> None:
+    """Close a split's card on what its bars add up to and what its segments are; a split with no bar notes nothing."""
+    if cohorts:
+        st.markdown(
+            card_note_html(breakdown_note(cohorts), TOKEN_SHARE_NOTE),
+            unsafe_allow_html=True,
+        )
 
 
 def paired_bars_height(
     stage_rows: Sequence[StageBreakdown],
     review_rows: Sequence[ReviewRoundBucketRow],
 ) -> int:
-    """The height both bar panels are pinned to, off the longer of the two."""
-    row_count = max(len(stage_rows), len(review_rows), 1)
-    return TABLE_ROW_HEIGHT * row_count + TABLE_BASE_HEIGHT
+    """The height both bar panels are pinned to: whichever needs more for its rows beneath its legend."""
+    return max(stage_panel_height(stage_rows), review_panel_height(review_rows))
 
 
 def render_stage_review_bars(
@@ -80,6 +98,7 @@ def render_stage_review_bars(
             use_container_width=True,
             config=dict(render_config.PLOTLY_CONFIG),
         )
+        render_split_note(st, [row.cost for row in stage_rows])
     with round_column, st.container(border=True):
         st.markdown(
             card_header_html(
@@ -96,3 +115,4 @@ def render_stage_review_bars(
             use_container_width=True,
             config=dict(render_config.PLOTLY_CONFIG),
         )
+        render_split_note(st, [row.cost for row in review_round_rows])

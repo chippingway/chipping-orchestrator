@@ -13,12 +13,13 @@ different values.
 
 Money is carried as the evidence the sync filed rather than as one amount. A
 run's cost is its own `CostEvidence` -- each basis's amount, an estimate's rate
-dates, and the completeness its record stated -- and an issue's is the
-`CostCohort` its runs fold to, so a reader can word a CLI-reported amount, a
+dates, and the completeness its record stated -- and an issue's or a stage's is
+the `CostCohort` its runs fold to, so a reader can word a CLI-reported amount, a
 provider's estimate, a blended total with its parts, an unpriced run, and an
 amount with no basis apart, and never mistake a subtotal for the whole. Tokens
 are the runs' non-overlapping totals, an unknown one left out of a sum and
-counted beside it.
+counted beside it. A stage's stated amount is also split into `TokenShareBands`,
+an allocation by token share that a chart stacks and never a cache charge.
 """
 
 from __future__ import annotations
@@ -27,6 +28,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from orchestrator.observability.analytics.query.cache_shares import NO_TOKEN_SHARE, TokenShareBands
 from orchestrator.observability.analytics.query.cost_cohorts import EMPTY_COST_COHORT, CostCohort
 from orchestrator.observability.usage.cost_evidence import CostEvidence
 
@@ -53,27 +55,25 @@ class StageBreakdown:
     `avg_duration_s` is None when no row in the window had a
     non-null `duration_s` for that stage; the SQL `AVG(...)` returns
     NULL in that case rather than 0 so the dashboard can hide the
-    column instead of showing a misleading zero. `total_cost_usd` /
-    `total_input_tokens` / `total_output_tokens` roll up the cost /
-    token figures across the stage so the breakdown table can plot
-    "where the spend went". `cache_cost_usd` and `no_cache_cost_usd`
-    split `total_cost_usd` into the portion attributable to cached /
-    cache-read / cache-write tokens vs the portion attributable to
-    input + output tokens. The split is prorated per rollup row by
-    token share so cache + no-cache sums back to the stage's total
-    cost, letting the dashboard chart stack cache vs no-cache spend
-    per stage.
+    column instead of showing a misleading zero. `cost` is the cohort
+    the stage's runs fold to, `total_tokens` their declared
+    non-overlapping totals with `unknown_token_runs` the runs whose
+    total is unknown. `bands` allocates the stated amount by token
+    share -- the cache tokens' share, the rest, and the amount whose
+    runs declared no total to share it by -- prorated per rollup row,
+    so the three add back up to what the stage's runs state and the
+    dashboard chart can stack them per stage without presenting an
+    allocation as a cache charge.
     """
 
     stage: str
     count: int
     avg_duration_s: float | None = None
-    total_cost_usd: float = field(default_factory=float)
-    total_input_tokens: int = 0
-    total_output_tokens: int = 0
+    cost: CostCohort = EMPTY_COST_COHORT
+    total_tokens: int = 0
+    unknown_token_runs: int = 0
     runs: int = 0
-    cache_cost_usd: float = field(default_factory=float)
-    no_cache_cost_usd: float = field(default_factory=float)
+    bands: TokenShareBands = NO_TOKEN_SHARE
 
 
 @dataclass(frozen=True)

@@ -81,15 +81,18 @@ logical session and how far back the evidence for one reaches. Beneath them,
 cohort a row is filed under, and the ranking a matrix cell is sorted by.
 
 Beneath the rollup and breakdown families, ``cache_shares`` owns the token
-share one row's cost is split into cache and no-cache bands by, once per set of
-column names the two scan targets spell it with. ``row_cells`` owns the
-readings a cell from any of the four passes through before it lands in a result
-field -- alongside ``raw_values``, whose NULL-preserving coercions every family
+share a group's stated amount is allocated into cache, non-cache, and unsplit
+bands by -- an allocation over the declared token totals, never a measured
+cache charge -- once per set of column names the two scan targets spell it
+with, and the bands those cells are read back as. ``row_cells`` owns the
+reading a rollup's `day` cell passes through before it lands in a result field
+-- alongside ``raw_values``, whose NULL-preserving coercions every family
 projects through. ``cost_cohorts`` owns the reduction a cost display builds on:
 the fragment that sums a cohort's stored evidence by basis and counts its runs
 by completeness, once per scan target, the cohort those cells are read back
 as, and the fold that regroups cohorts read apart -- with the same cells off
-one run's own row, and the stated amount an issue ranking orders on.
+one run's own row, and the stated amount an issue ranking orders on and a
+token-share split divides.
 ``token_totals`` owns the
 fragment a token volume is summed by, each run's non-overlapping total once
 and the runs whose total is unknown beside it.

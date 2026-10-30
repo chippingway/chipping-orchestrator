@@ -14,10 +14,11 @@ zero-valued -- and read back the figure, the note naming its basis and
 shortfall, and the note its move is qualified by. Tokens are the runs' known
 non-overlapping totals, and a window leaving some run's total out says so.
 
-The two readings that are not a division sit beside them: a window that
-resolved nothing reports an em dash rather than a cost no issue was charged,
-and a window whose review rounds recorded no spend at all reports no rework
-rather than failing to draw the tile.
+Two readings with nothing to divide sit beside them: a window that resolved
+nothing reports an em dash rather than a cost no issue was charged, and a
+window whose review rounds state no amount -- none ran, or none was priced --
+reports no rework share rather than a zero it never measured. A share that is
+taken carries the review rounds' basis and shortfall in its note.
 
 The theme handed in carries the formatting and palette owners' own callables,
 because the page hands its own module in and a stand-in rendering would leave
@@ -156,20 +157,26 @@ _RESOLVED = 2
 
 _REJECTED = 2
 
-# Three of the eight review-round dollars were a second pass over work already
-# done, which the tile rounds to a whole percent.
-_INITIAL_ROUND_COST = 5.0
+# The first pass is a CLI-reported development run beside an AGY review, and
+# the one rework round a subtotal: $0.20 of the $0.74 the rounds state, which
+# the tile rounds to a whole percent.
+_INITIAL_DEVELOPMENT = cohort_cases.cohort(cases.REPORTED)
 
-_REWORK_COST = 3.0
+_INITIAL_REVIEW = cohort_cases.cohort(cases.GEMINI_ESTIMATE)
+
+_REWORK_RUNS = (cases.INCOMPLETE_SUBTOTAL, cases.UNPRICED)
+
+_REWORK = cohort_cases.cohort(*_REWORK_RUNS)
+
+# Every round folded, the first pass included.
+_REVIEWED = cohort_cases.cohort(cases.REPORTED, cases.GEMINI_ESTIMATE, *_REWORK_RUNS)
 
 _REVIEW_ROWS = (
     ReviewRoundBucketRow(
-        bucket="0", runs=2, total_cost_usd=_INITIAL_ROUND_COST,
+        bucket="0", runs=2, developer_cost=_INITIAL_DEVELOPMENT, reviewer_cost=_INITIAL_REVIEW,
     ),
-    ReviewRoundBucketRow(bucket="1", runs=1, total_cost_usd=_REWORK_COST),
+    ReviewRoundBucketRow(bucket="1", runs=2, developer_cost=_REWORK),
 )
-
-_REVIEW_COST = 8.0
 
 _DAYS_IN_WINDOW = 2
 
@@ -225,8 +232,8 @@ class KpiTotalsTest(unittest.TestCase):
         self.assertAlmostEqual(totals.spend, 4 * cases.REPORTED_USD)
         self.assertAlmostEqual(totals.spend_delta, _DOUBLED)
         self.assertEqual((totals.resolved, totals.rejected), (_RESOLVED, _REJECTED))
-        self.assertAlmostEqual(totals.review_cost, _REVIEW_COST)
-        self.assertAlmostEqual(totals.rework_cost, _REWORK_COST)
+        self.assertEqual(totals.review_cost, _REVIEWED)
+        self.assertEqual(totals.rework_cost, _REWORK)
 
     def test_no_stated_amount_has_no_move(self) -> None:
         # A window whose runs stated no amount -- or a window before it that
@@ -318,9 +325,17 @@ class KpiStripDataTest(unittest.TestCase):
         self.assertEqual(
             entries[_COST_PER_RESOLVED][_SUB_KEY], "2 resolved · 2 rejected",
         )
-        self.assertEqual(entries[_REWORK_SHARE][_VALUE_KEY], "38%")
+        rework = entries[_REWORK_SHARE]
         self.assertEqual(
-            entries[_REWORK_SHARE][_SUB_KEY], "$3 in review rounds >= 1",
+            (rework[_VALUE_KEY], rework[_SUB_KEY]),
+            ("27%", "$0.20 in review rounds >= 1"),
+        )
+        # A share of a blended subtotal says both, the bases without amounts
+        # since the figure is a ratio of them.
+        self.assertEqual(
+            rework[_NOTE_KEY],
+            "blended: Anthropic API token estimate + CLI-reported + Gemini API token estimate"
+            " · incomplete subtotal: 2 of 4 runs unpriced or partly priced",
         )
 
     def test_a_known_subtotal_and_its_move_say_so(self) -> None:
@@ -352,11 +367,18 @@ class KpiStripDataTest(unittest.TestCase):
         _, resolved, rejected = kpi_strip.build_kpi_strip_data(_inputs())
         self.assertEqual((resolved, rejected), (_RESOLVED, _REJECTED))
 
-    def test_an_unreviewed_window_has_no_rework(self) -> None:
-        # No review round recorded any spend, so there is nothing to take a
-        # share of and the tile reports none rather than failing to divide.
-        entries = _by_label(_inputs(review_rows=()))
-        self.assertEqual(entries[_REWORK_SHARE][_VALUE_KEY], "0%")
+    def test_no_stated_review_spend_has_no_rework(self) -> None:
+        # No review round ran, or none stated an amount, so there is nothing
+        # to take a share of and the tile reports none rather than a zero.
+        unpriced_cost = cohort_cases.cohort(cases.UNPRICED)
+        unpriced = (ReviewRoundBucketRow(bucket="1", runs=1, developer_cost=unpriced_cost),)
+        for review_rows, subtitle in (
+            ((), "no runs in review rounds >= 1"),
+            (unpriced, "unpriced in review rounds >= 1"),
+        ):
+            with self.subTest(subtitle=subtitle):
+                rework = _by_label(_inputs(review_rows=review_rows))[_REWORK_SHARE]
+                self.assertEqual((rework[_VALUE_KEY], rework[_SUB_KEY]), ("—", subtitle))
 
 
 if __name__ == "__main__":

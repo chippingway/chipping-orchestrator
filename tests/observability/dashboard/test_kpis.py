@@ -28,6 +28,7 @@ from orchestrator.observability.analytics.query.cost_models import (
 from orchestrator.observability.analytics.query.overview_models import Summary
 from orchestrator.observability.analytics.query.run_models import IssueSummaryRow
 from orchestrator.observability.dashboard import kpis
+from tests.observability.analytics import analytics_cohorts as cohort_cases
 from tests.observability.dashboard.dashboard_test_support import (
     MAY01,
     MAY02,
@@ -97,13 +98,11 @@ _HIGH_COST = 1.0
 
 _MID_COST = 0.5
 
-# One initial-pass round and one review round beside it.
-_INITIAL_COST = 50.0
+# One initial-pass round, mixed across providers, and an incomplete review
+# round beside it: each keeps its bases and the runs it leaves unpriced.
+_INITIAL_COSTS = cohort_cases.NAMED_COSTS["mixed providers"]
 
-_REWORK_COST = 20.0
-
-# What both halves of the split report when no round was recorded.
-_NO_SPEND = float(0)
+_REWORK_COSTS = cohort_cases.NAMED_COSTS["incomplete"]
 
 _ROUND_ONE = "1"
 
@@ -230,23 +229,27 @@ class ReworkTotalsTest(unittest.TestCase):
 
     def test_only_a_later_round_counts_as_rework(self) -> None:
         # The initial round and the unrecorded one are both spend the window
-        # holds and neither is a second pass, so each lands in the total alone.
+        # holds and neither is a second pass, so each lands in the total alone;
+        # both halves are cohorts, so a share taken of them can say what its
+        # amounts are short of.
         for bucket in _NOT_REWORK_BUCKETS:
             with self.subTest(bucket=bucket):
                 total, rework = kpis.rework_totals((
                     ReviewRoundBucketRow(
-                        bucket=bucket, runs=3, total_cost_usd=_INITIAL_COST,
+                        bucket=bucket, runs=3, developer_cost=cohort_cases.cohort(*_INITIAL_COSTS),
                     ),
                     ReviewRoundBucketRow(
-                        bucket=_ROUND_ONE, runs=2, total_cost_usd=_REWORK_COST,
+                        bucket=_ROUND_ONE, runs=3, reviewer_cost=cohort_cases.cohort(*_REWORK_COSTS),
                     ),
                 ))
-                self.assertAlmostEqual(total, _INITIAL_COST + _REWORK_COST)
-                self.assertAlmostEqual(rework, _REWORK_COST)
+                self.assertEqual(total, cohort_cases.cohort(*_INITIAL_COSTS, *_REWORK_COSTS))
+                self.assertEqual(rework, cohort_cases.cohort(*_REWORK_COSTS))
 
-    def test_an_empty_breakdown_is_zero(self) -> None:
-        self.assertEqual(kpis.rework_totals(()), (_NO_SPEND, _NO_SPEND))
-
+    def test_an_empty_breakdown_holds_no_run(self) -> None:
+        # No round means no run rather than a zero of spend.
+        total, rework = kpis.rework_totals(())
+        self.assertTrue(total.is_empty)
+        self.assertTrue(rework.is_empty)
 
 if __name__ == "__main__":
     unittest.main()

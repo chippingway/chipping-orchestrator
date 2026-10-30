@@ -64,11 +64,7 @@ _UNKNOWN_TOKEN_RUNS = 2
 
 # The cohorts a window's spend has to keep apart, each the costs its runs state.
 _COHORTS = MappingProxyType({
-    "reported only": (cases.REPORTED, cases.REPORTED),
-    "agy only": (cases.GEMINI_ESTIMATE, cases.LATER_GEMINI_ESTIMATE),
-    "mixed providers": (cases.REPORTED, cases.GEMINI_ESTIMATE, cases.BLENDED),
-    "incomplete": (cases.ANTHROPIC_ESTIMATE, cases.INCOMPLETE_SUBTOTAL, cases.UNPRICED),
-    "missing basis": (cases.REPORTED, cases.ABSENT_BASIS),
+    **cohort_cases.NAMED_COSTS,
     "empty": (),
     "zero": (cases.COMPLETE_ZERO,),
 })

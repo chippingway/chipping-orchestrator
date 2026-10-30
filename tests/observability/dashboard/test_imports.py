@@ -20,6 +20,8 @@ _ACTIVITY_PANEL_OWNER = "activity_panel"
 
 _BACKEND_CARD_OWNER = "backend_card"
 
+_BREAKDOWN_TEXT_OWNER = "breakdown_text"
+
 _BREAKDOWNS_OWNER = "breakdowns"
 
 _CARD_HTML_OWNER = "card_html"
@@ -144,6 +146,7 @@ _WINDOWS_OWNER = "windows"
 _OWNERS = (
     _ACTIVITY_PANEL_OWNER,
     _BACKEND_CARD_OWNER,
+    _BREAKDOWN_TEXT_OWNER,
     _BREAKDOWNS_OWNER,
     _CARD_HTML_OWNER,
     _CHART_SECTIONS_OWNER,
@@ -217,7 +220,8 @@ _OWNERS = (
 # comparison panel from one of the six, or a skill panel from one of the three,
 # open a page on the extent behind its filter bar, interrupt one with a banner,
 # word a cost on either page with its basis and completeness, word a window's
-# spend and the move between two windows on top of that,
+# spend and the move between two windows on top of that, word one group of a
+# spend breakdown on its bar and note what a panel of them adds up to,
 # reduce its window to the four numbers a headline tile reports, plot the days
 # behind three of them, assemble all four into the strip a page opens with,
 # place one of those days on the line under a tile and write that line as the
@@ -278,6 +282,7 @@ _OWNERS = (
 # the rollup owner reads a run list under, the two bands the insight owner
 # raises a banner at, the labels and qualifiers the cost wording owner names a
 # basis and a shortfall by, the figure and note a window with no run reads as, the
+# note a token-share split is qualified by, the
 # columns the issue table is headed by and the rules its bars and pills are
 # painted from, the columns and rate-bar rules the skill-trigger table beside it
 # is drawn with together with the label it reads a category the sink left empty
@@ -314,7 +319,14 @@ _SURFACES = MappingProxyType({
         "BackendEfficiencyMetrics",
         "backend_efficiency_card_html",
         "backend_efficiency_metrics",
+        "backend_ratio_texts",
         "safe_ratio",
+    ),
+    _BREAKDOWN_TEXT_OWNER: (
+        "bar_figure",
+        "basis_label",
+        "breakdown_note",
+        "sub_line",
     ),
     _BREAKDOWNS_OWNER: (
         "read_backend_daily_tokens",
@@ -326,6 +338,7 @@ _SURFACES = MappingProxyType({
     ),
     _CARD_HTML_OWNER: (
         "card_header_html",
+        "card_note_html",
         "insights_html",
         "reliability_tiles_html",
     ),
@@ -419,6 +432,7 @@ _SURFACES = MappingProxyType({
         "cost_per_resolved",
         "kpi_strip_entries",
         "kpi_totals",
+        "rework_subtitle",
     ),
     _LAYOUT_OWNER: ("base_layout",),
     _PAGE_CONTROLS_OWNER: (
@@ -568,6 +582,7 @@ _SURFACES = MappingProxyType({
     ),
     _STAGE_COST_PANEL_OWNER: (
         "paired_bars_height",
+        "render_split_note",
         "render_stage_review_bars",
     ),
     _STATIC_METADATA_OWNER: (

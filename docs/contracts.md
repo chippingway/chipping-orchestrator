@@ -129,9 +129,13 @@ the agent-run view, the daily rollup, and the read model's cost and token reduct
 cohort stays apart from a complete zero, and a token sum keeps the runs whose total is unknown beside it. The issue
 cost ranking orders in SQL, ahead of its cap, on every amount an issue's runs state -- a subtotal at its known part, an
 issue stating none after every one that does -- and a listed or traced run reads its own row's evidence, never a
-figure repriced from its tokens. A row an earlier sync stored without those columns reads as `unknown`, its
-`cost_usd` under that basis and its token total unknown, and nothing re-derives, reprices, or converts it. A recorded
-requirements fingerprint
+figure repriced from its tokens. Each grouped breakdown -- by stage, backend, repository, and review round and role --
+reduces its group's runs through those same reductions, a ratio of its cost or tokens is qualified or unavailable
+where either side falls short, and the cache and non-cache split of its amount is that stated amount allocated by its
+runs' declared token share, never a measured cache charge, the amount of a run whose total is unknown left unsplit.
+A row an earlier sync stored without those columns reads as
+`unknown`, its `cost_usd` under that basis and its token total unknown, and nothing re-derives, reprices, or converts
+it. A recorded requirements fingerprint
 (`user_content_hash`, `observed_user_content_hash`) is compared with the current fingerprint alone, which leaves bare
 operator controls out: a value no current reading reproduces -- one an earlier producer wrote counting a bare
 `/orchestrator continue` included -- is drift for the stage's deliberate drift or hold route, and is never recognized
@@ -245,6 +249,8 @@ or lost write interrupted are current state, not historical compatibility.
 [run costs](../tests/observability/analytics/query/test_agent_exit_reads.py),
 [evidence in Postgres](../tests/observability/analytics/sync/test_live_usage_evidence.py),
 [rankings in Postgres](../tests/observability/analytics/sync/test_live_issue_reads.py),
+[grouped reads](../tests/observability/analytics/query/test_rollup_breakdown_reads.py),
+[groups in Postgres](../tests/observability/analytics/sync/test_live_grouped_reads.py),
 [price catalogue](../tests/observability/usage/test_usage_price_catalogue.py),
 [cost evidence](../tests/observability/usage/test_usage_cost_evidence.py),
 [token evidence](../tests/observability/usage/test_usage_token_evidence.py),

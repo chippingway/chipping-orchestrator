@@ -25,9 +25,11 @@ Two spellings carry a decision. Cost per resolved issue is an em dash rather
 than a zero or a division when nothing was resolved, because a window that
 resolved nothing has no such cost and printing one would be a number an
 operator could act on; where the window's runs stated no amount it reads as
-their spend does -- unpriced, or cost unknown. The rework share falls back to
-zero the same way when no review round recorded any spend at all, so an
-unpriced window reports no rework instead of failing to draw the tile.
+their spend does -- unpriced, or cost unknown. The rework share is an em dash
+the same way where the review rounds state no positive amount to take a share
+of, so an unpriced or unreviewed window reports no share rather than a zero it
+never measured, and a share taken of a subtotal or of a blended amount carries
+the rounds' basis and shortfall in its note.
 
 The strip is handed the theme rather than importing it, because the module a
 page renders through is the one whose formatters and hues a tile has to match
@@ -40,6 +42,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
+from orchestrator.observability.analytics.query.cost_cohorts import CostCohort
 from orchestrator.observability.analytics.query.overview_models import Summary
 from orchestrator.observability.dashboard import cost_text, spend_text
 from orchestrator.observability.dashboard.kpi_series import (
@@ -82,8 +85,8 @@ class KpiTotals:
     previous: Summary
     resolved: int
     rejected: int
-    review_cost: float
-    rework_cost: float
+    review_cost: CostCohort
+    rework_cost: CostCohort
 
     @property
     def spend(self) -> float | None:
@@ -106,11 +109,12 @@ class KpiTotals:
         return ""
 
     @property
-    def rework_share(self) -> float:
-        """The share of review-round spend a second pass took; zero where no round recorded spend."""
-        if self.review_cost <= 0:
-            return float(0)
-        return self.rework_cost / self.review_cost
+    def rework_share(self) -> float | None:
+        """The share of the review rounds' stated spend a second pass took; None where they state no positive amount."""
+        review = self.review_cost.evidence.total_usd
+        if review is None or review <= 0:
+            return None
+        return (self.rework_cost.evidence.total_usd or 0) / review
 
 
 def kpi_totals(inputs: KpiInputs) -> KpiTotals:
@@ -136,6 +140,13 @@ def cost_per_resolved(totals: KpiTotals) -> str:
     return cost_text.fmt_cost_usd(totals.spend / totals.resolved)
 
 
+def rework_subtitle(rework: CostCohort) -> str:
+    """What the rounds after the first stated, or that none of them ran."""
+    if rework.is_empty:
+        return "no runs in review rounds >= 1"
+    return f"{spend_text.spend_figure(rework)} in review rounds >= 1"
+
+
 def kpi_strip_entries(
     inputs: KpiInputs,
     totals: KpiTotals,
@@ -148,8 +159,8 @@ def kpi_strip_entries(
         else inputs.theme.fmt_money(totals.spend / inputs.days_in_window)
     )
     daily_tokens = inputs.theme.fmt_tokens(totals.current.total_tokens / inputs.days_in_window)
-    rework_pct = totals.rework_share * 100
-    rework_cost = inputs.theme.fmt_money_exact(totals.rework_cost)
+    rework_share = totals.rework_share
+    rework_value = "—" if rework_share is None else format(rework_share, ".0%")
     return [
         {
             _LABEL_KEY: "Total spend",
@@ -184,9 +195,10 @@ def kpi_strip_entries(
         },
         {
             _LABEL_KEY: "Rework share",
-            _VALUE_KEY: f"{rework_pct:.0f}%",
+            _VALUE_KEY: rework_value,
+            _NOTE_KEY: spend_text.spend_note(totals.review_cost, amounts=False),
             _DELTA_KEY: None,
-            _SUBTITLE_KEY: f"{rework_cost} in review rounds >= 1",
+            _SUBTITLE_KEY: rework_subtitle(totals.rework_cost),
             _SPARK_KEY: None,
         },
     ]

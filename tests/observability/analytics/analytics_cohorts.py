@@ -14,9 +14,11 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 from decimal import Decimal
+from types import MappingProxyType
 
 from orchestrator.observability.analytics.query import cost_cohorts
 from orchestrator.observability.usage import cost_evidence as usage_cost
+from tests.observability.analytics import analytics_usage_cases as cases
 
 _COMPLETENESS_ORDER = (usage_cost.COMPLETE, usage_cost.INCOMPLETE, usage_cost.NO_USAGE, usage_cost.UNKNOWN)
 
@@ -25,6 +27,17 @@ DATED_BASES = (
     usage_cost.OPENAI_API_ESTIMATE,
     usage_cost.GEMINI_API_ESTIMATE,
 )
+
+# The cohorts any reduced cost has to keep apart, each the costs its runs state: a CLI-reported amount alone, an
+# Antigravity group's Gemini API token estimates, a blend across providers and bases, a subtotal beside an unpriced
+# run, and an amount an earlier build stored with no basis.
+NAMED_COSTS = MappingProxyType({
+    "reported only": (cases.REPORTED, cases.REPORTED),
+    "agy only": (cases.GEMINI_ESTIMATE, cases.LATER_GEMINI_ESTIMATE),
+    "mixed providers": (cases.REPORTED, cases.GEMINI_ESTIMATE, cases.BLENDED),
+    "incomplete": (cases.ANTHROPIC_ESTIMATE, cases.INCOMPLETE_SUBTOTAL, cases.UNPRICED),
+    "missing basis": (cases.REPORTED, cases.ABSENT_BASIS),
+})
 
 
 def _parts(costs: Sequence[usage_cost.CostEvidence], basis: str) -> list[usage_cost.CostContribution]:

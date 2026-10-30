@@ -4,18 +4,19 @@
 
 Destination for the Plotly figures the page's panels are drawn as, one owner
 per chart family. ``primitives`` is the one every family reaches: the
-placeholder a window with no rows is answered with, the money, monospace, and
+placeholder a window with no rows is answered with, the monospace and
 two-line-tick labels a bar is annotated by, and the height and legend a
 horizontal-bar panel is laid out with. ``cost_layout`` is shared the same way
 by a narrower set: the frame the three horizontal cost families are drawn in --
-the gutter, the ``USD`` axis, and the request one series of bars is described
-by. The families that have arrived above the two sit beside each other:
-``cost_horizontal``, the generic spend ranking, and ``cost_repo`` above it,
-which labels a window's repositories and hands them over as rows to be ranked;
-``cost_stage``, the per-stage split of that spend into what the cache paid for
-and what it did not, which is also where the shading a cache half is tinted
-with lives; ``cost_review``, the same split drawn per review round and across
-the two roles a round is worked by; ``heatmap``, the 7x24 weekday-by-hour grid
+the gutter, the ``USD`` axis, the request one series of bars is described by,
+and the three segments a token-share split is stacked into. The families that
+have arrived above the two sit beside each other: ``cost_horizontal``, the
+generic spend ranking, and ``cost_repo`` above it, which words a window's
+repositories and hands them over as rows to be ranked; ``cost_stage``, the
+per-stage split of each stage's stated spend by token share -- an allocation,
+not what any cache was charged -- which is also where the shading a cache share
+is tinted with lives; ``cost_review``, the same split drawn per review round
+and across the two roles a round is worked by; ``heatmap``, the 7x24 weekday-by-hour grid
 a window's token volume is read off, with the cells, labels, and squared-off
 layout it is built from; and ``throughput``, the per-day strip a window's
 resolved issues are counted on, with the calendar its quiet days are filled in
@@ -26,7 +27,7 @@ Four edges run between families here. Three go into ``cost_horizontal``:
 ``cost_review`` take one value from it -- the height a cost panel with nothing
 to draw comes to -- so an empty split, an empty ranking, and an empty
 repository list are the same size card. The fourth runs from ``cost_review``
-into ``cost_stage`` for the shading a cache half is tinted by, so a cache
+into ``cost_stage`` for the shading a cache share is tinted by, so a cache
 segment reads the same on both splits.
 
 The usage family arrives as six owners rather than one, split by what a value
