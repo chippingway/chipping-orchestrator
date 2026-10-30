@@ -1391,6 +1391,18 @@ because there it is the claim that this stage has already rerouted rather than a
   twice and swallows no comment posted since.
 - **Output**: no label change, ever. This owner publishes a report and settles a record; which stage runs next is
   the handler's.
+- **A captured completion's way in**: a developer return a report-producing road captured whole
+  (`developer_completion`, [pinned state](labels-and-state.md#pinned-state)) enters this transaction through the
+  delivery's own recording, never beside it: its transfer (`workflow/engine/completion_handoff.py`) mints the
+  delivered report from the captured outcome under the road's frozen route, requirements, delivered input and round,
+  and rewrites the capture as handed off in the same commit, so the report has one durable owner on either side and
+  the binding behind it holds the publication to the branch and commit the captured run reported on — the handed-off
+  capture is neither replaced nor retired until the transaction it becomes settles, and no binding lands beside a
+  capture nobody can read. The capture is taken only where it, and then that transfer, the binding, and the
+  settlement, still fit the comment with every terminator escaped, and the transfer, the binding, and the settlement
+  are each measured that way again over the comment they land on. Nothing captures a
+  completion yet: these are the primitives the held-return recovery builds on, and this reconciliation reads no
+  capture of its own.
 
 ## The verification-evidence transaction (every dispatch)
 - **Trigger**: `_record_stops_the_tick` on any issue whose pinned comment carries `verification_evidence_pending`,

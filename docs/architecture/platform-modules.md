@@ -551,7 +551,9 @@ orchestrator/
                         and leave the rest of the record as visible issue text, and with that escape stood down for a
                         payload it would put past the limit, since the record is what a later tick reads while the
                         escape only decides how the comment LOOKS, and a write refused for a rendering takes whatever
-                        park, notice or outcome it was carrying with it -- and the length GitHub takes, its parser and
+                        park, notice or outcome it was carrying with it, though a caller deciding whether to accept a
+                        record at all asks for it escaped in full (`escaped_in_full`) -- and the length GitHub takes,
+                        its parser and
                         schema-admission contract (`admit_pinned_comment`) -- which authenticates the bot author and
                         that the whole body is the state marker before admitting anything, the ordinary comment marker
                         `comments.py` defines bounding where a payload may run: whatever the payload is, closed or cut

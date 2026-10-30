@@ -69,6 +69,12 @@ from orchestrator.workflow.engine import (
     report_record_state as _record_state,
     report_records as _records,
 )
+from orchestrator.workflow.engine.completion_state import (
+    DECIDED_ON as _CAPTURED,
+    SourceHold,
+    binding_hold,
+    escapes_in_full,
+)
 from orchestrator.workflow.engine.pinned_commit_models import CommitOutcome, CommitRefusal, CommitStatus
 from orchestrator.workflow.engine.report_record_room import CommentOverflow
 from orchestrator.workflow.engine.report_replay_guards import refuses_the_record
@@ -93,10 +99,25 @@ _NEEDED_DESCRIPTION = (
 # What a binding writes: the delivery it drops and the transaction it records
 # in its place, decided on every report record -- the delivery it exchanges,
 # the transaction it replaces, and the settled pair whose room it is measured
-# beside -- and on the pinned fields the publication it is bound to is resolved
+# beside -- on the captured completion a delivery may have been handed off
+# from, and on the pinned fields the publication it is bound to is resolved
 # from (`ReportWrite.on_the_publication`).
 _BINDING = _commits.ReportWrite(
     owned=frozenset((_records.DELIVERED_REPORT, _records.PENDING_REPORT)),
+).deciding_on(*_CAPTURED)
+
+# Why a report handed off from a captured completion cannot be bound to a
+# publication of anything but the commit it was captured over, and why none
+# is bound beside a captured completion nobody can read, which may be the one
+# a report was handed off from.
+_ANOTHER_SOURCE = (
+    "it was captured from a run that reported on another commit or branch "
+    "than the one this publication carries"
+)
+
+_UNREADABLE_CAPTURE = (
+    "the captured completion recorded beside it cannot be read, so whether "
+    "the report was captured over this commit cannot be told"
 )
 
 _UNBINDABLE_PARK = (
@@ -206,8 +227,14 @@ def binds_the_delivery(
     binding again. Whether this comment has room for the transaction is
     asked of the candidate the commit sends, never of `state`: room another
     road gave back since the tick read the comment is room. Every park here
-    is decided on the publication as well, so a refusal judged against a
-    publication another road has since repointed posts and parks nothing.
+    is decided on the publication and the captured completion as well, so a
+    refusal judged against a publication another road has since repointed, or
+    a capture a human has since repaired, posts and parks nothing.
+
+    A delivery a captured completion was handed off as is bound only to the
+    branch and commit that capture reported on (`completion_state`): any other
+    publication parks the same way, since the report describes a commit this
+    one is not, and so does every binding beside a capture nobody can read.
 
     Public for the caller that publishes through the reconciliation instead of
     through the post below: which commit it binds to is its to prove first,
@@ -222,16 +249,9 @@ def binds_the_delivery(
         )
         _parks_the_debt(commit, published, _UNREADABLE_DELIVERY)
         return False
-    if _locations.costs_the_description(
-        delivered, published.number, published.describes_the_issue,
-    ):
-        log.error(
-            "issue=#%d verified its developer report on the description of PR "
-            "#%s, which this implementation needs for its closing reference "
-            "and attribution; holding for a human",
-            issue.number, published.number,
-        )
-        _parks_the_debt(commit, published, _NEEDED_DESCRIPTION)
+    held = _held_whatever_the_room(issue, state, delivered, published)
+    if held:
+        _parks_the_debt(commit, published, held)
         return False
     # What no comment's room changes is asked here, of the delivery alone: that
     # it is the report the comment carries, bound to the requirements it froze,
@@ -267,6 +287,40 @@ def binds_the_delivery(
     return refusal == ""
 
 
+def _held_whatever_the_room(
+    issue: Issue,
+    state: _pinned_state.PinnedState,
+    delivered: _records.DeliveredReport,
+    published: ReportPublication,
+) -> str:
+    """Why `delivered` may never be bound to `published`, in the words the park quotes; "" where nothing holds it.
+
+    A verification on the very description this publication needs, a report
+    handed off from a captured completion of another branch or commit than
+    the one `published` carries, and a captured completion beside it nobody
+    can read are refusals no later tick answers differently.
+    """
+    if _locations.costs_the_description(
+        delivered, published.number, published.describes_the_issue,
+    ):
+        log.error(
+            "issue=#%d verified its developer report on the description of PR "
+            "#%s, which this implementation needs for its closing reference "
+            "and attribution; holding for a human",
+            issue.number, published.number,
+        )
+        return _NEEDED_DESCRIPTION
+    hold = binding_hold(state, delivered.receipt, published.branch, published.commit)
+    if hold is not None:
+        log.error(
+            "issue=#%d cannot hold developer report revision %d to the commit a captured run "
+            "reported on (%s) for PR #%s; holding for a human",
+            issue.number, delivered.report_revision, hold.value, published.number,
+        )
+        return _UNREADABLE_CAPTURE if hold is SourceHold.DAMAGED else _ANOTHER_SOURCE
+    return ""
+
+
 def _lands_the_binding(
     commit: _commits.ReportCommit,
     bound: _pinned_state.PinnedState,
@@ -277,7 +331,10 @@ def _lands_the_binding(
     The transaction is asked of the room of the very candidate the commit
     sends, by its own writer, so a comment another road filled since the tick
     read it is the crowded comment, and one it gave room back to is not; a
-    candidate the comment cannot hold at all is crowded too. None is the
+    candidate the comment cannot hold at all is crowded too. A report a
+    captured completion was handed off as is measured with every terminator
+    escaped, as its capture and transfer were (`completion_state.escapes_in_full`),
+    so it is never bound only because its terminators would go out unescaped. None is the
     commit's own answer -- logged here, and nothing for a human: the next tick
     binds over whatever the comment then carries. Any other answer is what
     stopped it.
@@ -287,7 +344,9 @@ def _lands_the_binding(
     _delivery_state.clear_delivered_report(staged)
     staged.set(_records.PENDING_REPORT, bound.get(_records.PENDING_REPORT))
     landed = commit.lands(staged, _BINDING.on_the_publication().admitting(
-        lambda fresh: _record_state.stage_pending_report(fresh, pending),
+        lambda fresh: _record_state.stage_pending_report(
+            fresh, pending, escaped_in_full=escapes_in_full(fresh, pending.receipt),
+        ),
     ))
     if isinstance(landed, CommentOverflow) or (
         isinstance(landed, CommitOutcome) and landed.refusal is CommitRefusal.OVERFLOW
@@ -319,7 +378,10 @@ def _parks_the_debt(
     wrote since the tick read the comment -- and decided on the publication as
     well as on the report records, since every refusal it announces was judged
     against `published`: a comment another road has since pointed at another
-    pull request or receipt gets no notice and no park.
+    pull request or receipt gets no notice and no park. It is decided on the
+    captured completion beside the delivery too, which a refusal of the
+    capture's own was judged against: one a human has repaired or rewritten
+    since the tick read it gets no notice and no park either.
     """
     _delivery.parks_the_debt(
         commit, commit.staging(), _UNBINDABLE_PARK.format(
@@ -327,7 +389,7 @@ def _parks_the_debt(
             pr=published.number,
             detail=detail,
         ),
-        parking=_delivery.PARKING.on_the_publication(),
+        parking=_delivery.PARKING.on_the_publication().deciding_on(*_CAPTURED),
     )
 
 

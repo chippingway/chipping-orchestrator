@@ -305,6 +305,8 @@ the pull request carries, and the receipt one finished transaction leaves. Its o
 fail-closed; the initial implementation delivery produces and settles one on the tick it publishes, and the
 dispatcher reconciles an outstanding transaction ahead of every handler
 ([the developer-report transaction](state-machine/delivery-stages.md#the-developer-report-transaction-every-dispatch)).
+Beside them sits `developer_completion`, the bounded capture of one finished developer return, handed into that
+delivery by one guarded commit; no stage captures one yet.
 Beside it sits the additive `verification_evidence_*` group -- the pending evidence transaction, the evidence the
 pull request carries now, a bounded history of retired evidence, the receipt of the last one settled, and the highest
 revision spent -- which the dispatcher reconciles directly behind the report, publishing an artifact only once the

@@ -106,18 +106,19 @@ class CommentOverflow:
 
     @classmethod
     def of(
-        cls, staged: dict, write: MeasuredWrite, later: LaterWrites,
+        cls, staged: dict, write: MeasuredWrite, later: LaterWrites, *, escaped_in_full: bool = False,
     ) -> CommentOverflow:
         """The overflow one staged payload is, once the fit test refused it.
 
         Built only after `report_record_state.fits_the_comment` has said no,
         so the refusal and the size it reports are one rendering's: the
-        ceiling is decided there, and this names what was measured against it.
+        ceiling is decided there, and this names what was measured against it
+        -- escaped in full where that test was asked so.
         """
         return cls(
             write=write,
             later=later,
-            size=len(_pinned_state.pinned_state_body(staged)),
+            size=len(_pinned_state.pinned_state_body(staged, escaped_in_full=escaped_in_full)),
             limit=_pinned_state.MAX_PINNED_BODY,
         )
 

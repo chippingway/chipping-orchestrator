@@ -154,7 +154,7 @@ def read_delivered_report(
 
 
 def stage_delivered_report(
-    state: _pinned_state.PinnedState, delivered: _records.DeliveredReport,
+    state: _pinned_state.PinnedState, delivered: _records.DeliveredReport, *, escaped_in_full: bool = False,
 ) -> _room.RecordingRefusal | None:
     """Stage one completed run's report onto the pinned state, or say why not.
 
@@ -181,6 +181,11 @@ def stage_delivered_report(
     `report_delivery` lands it through the report domain's guarded commit
     (`report_commits`), and asks this again of the candidate the fresh comment
     makes, so the room it reserves is measured on the comment it lands on.
+
+    `escaped_in_full` measures every one of those comments with each
+    terminator escaped, never as the writer falls back to rendering one past
+    the ceiling: what a captured completion's reservation of its transfer asks
+    (`completion_handoff`), since that record is not written yet.
     """
     # Every group but the subject, spelled by the owner the transaction shares
     # them with, so a field added to one record is a field on both. A
@@ -198,7 +203,7 @@ def stage_delivered_report(
     read = _reading.delivered_or_refusal(recorded)
     if read != delivered:
         return read if isinstance(read, _record_values.RecordRefusal) else _INVALID
-    refused = _room_refusal(state, delivered, recorded)
+    refused = _room_refusal(state, delivered, recorded, escaped_in_full)
     if refused is None:
         state.set(_records.DELIVERED_REPORT, recorded)
     return refused
@@ -294,6 +299,7 @@ def _room_refusal(
     state: _pinned_state.PinnedState,
     delivered: _records.DeliveredReport,
     recorded: dict,
+    escaped_in_full: bool,
 ) -> _room.RecordingRefusal | None:
     """Why the comment cannot carry this record or what it becomes, or None.
 
@@ -356,6 +362,7 @@ def _room_refusal(
     The first comment past the ceiling is the answer, in that order: this
     record's own write, then the transaction it is reserved against, whose
     refusal is its own writer's carried through as the BINDING it is from here.
+    Each is measured escaped in full where the caller asked so.
     """
     handed = _room.LaterWrites(
         hand_back=delivered.route == WorkflowLabel.IN_REVIEW,
@@ -368,9 +375,9 @@ def _room_refusal(
     ):
         carried = later.over(state)
         carried.set(_records.DELIVERED_REPORT, recorded)
-        if not _record_state.fits_the_comment(carried.state_data):
+        if not _record_state.fits_the_comment(carried.state_data, escaped_in_full=escaped_in_full):
             return _room.CommentOverflow.of(
-                carried.state_data, _room.MeasuredWrite.RECORD, later,
+                carried.state_data, _room.MeasuredWrite.RECORD, later, escaped_in_full=escaped_in_full,
             )
     reserved = _WIDEST_SUBJECT
     if delivered.location is not None:
@@ -381,7 +388,7 @@ def _room_refusal(
     clear_delivered_report(exchanged)
     return _room.through_the_binding(
         _record_state.stage_pending_report(
-            exchanged, delivered.bound_to(reserved),
+            exchanged, delivered.bound_to(reserved), escaped_in_full=escaped_in_full,
         ),
         handed,
     )

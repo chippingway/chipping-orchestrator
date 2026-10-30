@@ -132,7 +132,7 @@ def read_pending_report(
 
 
 def stage_pending_report(
-    state: _pinned_state.PinnedState, pending: _records.PendingReport,
+    state: _pinned_state.PinnedState, pending: _records.PendingReport, *, escaped_in_full: bool = False,
 ) -> _room.RecordingRefusal | None:
     """Stage one transaction onto the pinned state, or say why it is refused.
 
@@ -205,6 +205,10 @@ def stage_pending_report(
     guarded commit (`report_commits`), and asks this again of the candidate
     that commit sends, so the room it measures is the room of the comment it
     lands on; the record rides whatever else the tick staged there.
+
+    `escaped_in_full` measures every comment as it renders with each
+    terminator escaped (`fits_the_comment`), for a caller reserving this
+    transaction's room ahead of a record that is not written yet.
     """
     recorded = _fields.pending_object(pending)
     read = _INVALID if recorded is None else _reading.pending_or_refusal(recorded)
@@ -216,10 +220,14 @@ def stage_pending_report(
         if settled is None:
             return _INVALID
         carried.set(_records.PENDING_REPORT, recorded)
-        if not fits_the_comment(carried.state_data):
-            return _room.CommentOverflow.of(carried.state_data, _room.MeasuredWrite.RECORD, later)
-        if not fits_the_comment(settled):
-            return _room.CommentOverflow.of(settled, _room.MeasuredWrite.SETTLEMENT, later)
+        if not fits_the_comment(carried.state_data, escaped_in_full=escaped_in_full):
+            return _room.CommentOverflow.of(
+                carried.state_data, _room.MeasuredWrite.RECORD, later, escaped_in_full=escaped_in_full,
+            )
+        if not fits_the_comment(settled, escaped_in_full=escaped_in_full):
+            return _room.CommentOverflow.of(
+                settled, _room.MeasuredWrite.SETTLEMENT, later, escaped_in_full=escaped_in_full,
+            )
     state.set(_records.PENDING_REPORT, recorded)
     return None
 
@@ -235,16 +243,18 @@ def record_pending_report(
     return stage_pending_report(state, pending) is None
 
 
-def fits_the_comment(staged: dict) -> bool:
+def fits_the_comment(staged: dict, *, escaped_in_full: bool = False) -> bool:
     """Whether the comment one staged payload writes is one GitHub accepts.
 
     Public because the settlement's preparation asks it of `settled_payload`
     below on the tick it would settle (`report_settling`), not only here on the
     tick the record was accepted.
     It is also the one test an overflow is built behind, so a refusal never
-    reports a comment this would have accepted.
+    reports a comment this would have accepted. `escaped_in_full` measures the
+    comment with every terminator escaped, never the unescaped rendering the
+    writer falls back to past the ceiling (`pinned_state_body`).
     """
-    written = len(_pinned_state.pinned_state_body(staged))
+    written = len(_pinned_state.pinned_state_body(staged, escaped_in_full=escaped_in_full))
     return written <= _pinned_state.MAX_PINNED_BODY
 
 

@@ -86,8 +86,10 @@ back before its relabel (`stages/decomposition/ready.py`,
 `ready_handoff.py`), with the `decomposing` tick's retirement of that
 reroute's marker (`stages/decomposition/drift.py`). So does an agent
 invocation's usage, its increment and receipt landed together as the tracked
-spawn returns (`usage_checkpoint`). Every other road still rewrites the whole
-record.
+spawn returns (`usage_checkpoint`), and a developer completion's capture and
+retirement, each owning that capture alone (`completion_checkpoint`), with its
+transfer landing through the developer report's recording above
+(`completion_handoff`). Every other road still rewrites the whole record.
 
 The report's commits are captured over the reading a tick last synced with the
 comment (`PinnedState.synced`), so what the tick staged since is told from what

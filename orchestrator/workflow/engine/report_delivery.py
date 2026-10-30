@@ -79,7 +79,9 @@ request's fix loop runs: the requirements-drift one its review stages share,
 which names the revision its resume was handed, and the reviewer-requested one
 the `fixing` label covers. The binding that exchanges a delivery for the
 transaction it becomes, once the push has reached a pull request, is
-`report_binding`'s.
+`report_binding`'s. A captured completion's transfer records its report
+through the same write (`records_the_report`), the capture handed off in that
+very commit (`completion_handoff`).
 """
 from __future__ import annotations
 
@@ -354,7 +356,7 @@ def recording_stops_the_tick(
     delivered = _minting.delivered_report(gh, issue, state, agent_result, handed)
     if delivered is None:
         return _unreported_run_holds(commit, agent_result, handed)
-    refusal = _records_the_report(commit, delivered, handed)
+    refusal = records_the_report(commit, delivered, handed)
     if refusal is None:
         return False
     if isinstance(refusal, RecordingRefusal):
@@ -368,12 +370,22 @@ def recording_stops_the_tick(
     return True
 
 
-def _records_the_report(
+def records_the_report(
     commit: _commits.ReportCommit,
     delivered: _records.DeliveredReport,
     handed: _records.HandedRun,
+    *,
+    escaped_in_full: bool = False,
 ) -> RecordingRefusal | CommitOutcome | None:
     """Land one run's record over the fresh comment: None where it landed, or what stopped it.
+
+    Public for the transfer of a captured completion (`completion_handoff`),
+    whose report is recorded through this very write, with the capture's own
+    handoff among what its road retires, and which answers the refusal rather
+    than parking on it. That transfer asks `escaped_in_full`: the record, the
+    candidate the commit sends, and the binding and settlement reserved
+    behind it are each measured with every terminator escaped, never as the
+    writer falls back to rendering a payload past the ceiling unescaped.
 
     A `RecordingRefusal` is the record's own -- refused by its reading, or by
     the room it and every write after it would need, measured over the
@@ -395,9 +407,11 @@ def _records_the_report(
     # lands on -- space another road gave back since the tick read the comment
     # is room, and space it took is not.
     alone = _pinned_state.PinnedState()
-    refusal = _delivery_state.stage_delivered_report(alone, delivered)
+    refusal = _delivery_state.stage_delivered_report(alone, delivered, escaped_in_full=escaped_in_full)
     if isinstance(refusal, CommentOverflow):
-        refusal = _delivery_state.stage_delivered_report(commit.staging(), delivered) or refusal
+        refusal = _delivery_state.stage_delivered_report(
+            commit.staging(), delivered, escaped_in_full=escaped_in_full,
+        ) or refusal
     if refusal is not None:
         return refusal
     staged = commit.staging()
@@ -409,7 +423,7 @@ def _records_the_report(
         if staged.get(owing):
             staged.set(owing, None)
     landed = commit.lands(staged, _RECORDING.behind(handed).admitting(
-        lambda fresh: _delivery_state.stage_delivered_report(fresh, delivered),
+        lambda fresh: _delivery_state.stage_delivered_report(fresh, delivered, escaped_in_full=escaped_in_full),
     ))
     if not isinstance(landed, CommitOutcome):
         return landed
