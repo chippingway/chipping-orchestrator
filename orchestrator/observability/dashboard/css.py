@@ -331,6 +331,10 @@ PAGE_CSS = f"""
     color: var(--orch-muted-soft); font-size: 12px;
     margin: 3px 0 14px;
   }}
+  .orch-card-note {{
+    color: var(--orch-muted); font-size: 11px; line-height: 1.4;
+    margin: 4px 0 0;
+  }}
   /* Reliability tiles ------------------------------------------- */
   .orch-rel-tiles {{
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px;

@@ -11,17 +11,21 @@ with the message because a placeholder falling back to Plotly's own default
 would stand half again as tall as the cards beside it.
 
 The label helpers are what keeps those panels one page rather than several. A
-dollar amount printed on a bar comes off the same formatter a KPI tile is
-rendered by; a bar's text is set in the mono stack so the amounts down a column
-line up on the decimal point; and a tick is the label with its subtitle beneath
-it in the muted tint, built here rather than per family because a subtitle
-spelled a second way is a different chart.
+bar's text is set in the mono stack so the amounts down a column line up on the
+decimal point, and a tick is the label with its subtitle beneath it in the muted
+tint, built here rather than per family because a subtitle spelled a second way
+is a different chart.
 
 The horizontal-bar helpers settle the shape those families share: a panel is
 one row height per bar over the fixed margin and axis base underneath, unless
-the caller pinned a height, and its legend sits above the plot at the left
-edge. A family sizing itself would drift from the ones beside it the first time
-a row was added.
+the caller pinned a height, and its legend is listed one entry per line in the
+figure's top-left corner, in a band of its own above the plot. A legend Plotly
+lets wrap across the plot area takes more lines the narrower the column it is
+drawn in, and every line comes out of a pinned panel's rows until their two-line
+labels overlap; anchored to the figure and held to one entry a line, the band is
+as tall as its entry count says at any width, so it is reserved as the top
+margin and counted into the panel's height. A family sizing itself would drift
+from the ones beside it the first time a row was added.
 
 Plotly lives in the optional `dashboard` dependency group, so the one helper
 here that builds a figure imports it at call time: importing this owner has to
@@ -32,7 +36,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from orchestrator.observability.dashboard.formatting import fmt_money
 from orchestrator.observability.dashboard.layout import base_layout
 from orchestrator.observability.dashboard.palette import MUTED_TEXT, TEXT
 from orchestrator.observability.dashboard.tokens import (
@@ -47,6 +50,11 @@ if TYPE_CHECKING:
 # margin / axis base every horizontal cost bar adds on top.
 HORIZONTAL_BAR_ROW_HEIGHT = 40
 HORIZONTAL_BAR_EXTRA_HEIGHT = 80
+
+# A stacked legend's line at the page font, and the room the band it sits in
+# keeps above its first line and below its last.
+LEGEND_ENTRY_HEIGHT = 20
+LEGEND_BAND_PAD = 24
 
 
 def empty_figure(message: str, *, height: int) -> go.Figure:
@@ -73,11 +81,6 @@ def empty_figure(message: str, *, height: int) -> go.Figure:
     fig.update_xaxes(visible=False)
     fig.update_yaxes(visible=False)
     return fig
-
-
-def money_text(amounts: Sequence[float]) -> list[str]:
-    """Render a bar's amounts as the labels drawn on it."""
-    return [fmt_money(amount) for amount in amounts]
 
 
 def monospace_textfont() -> dict[str, object]:
@@ -107,11 +110,6 @@ def two_line_y_ticks(
     return ticks
 
 
-def reverse_lists(*sequences: Sequence) -> tuple[list, ...]:
-    """Flip each sequence, so a ranking reads top-down on a bar axis."""
-    return tuple(list(reversed(sequence)) for sequence in sequences)
-
-
 def horizontal_panel_height(
     row_count: int,
     *,
@@ -125,15 +123,24 @@ def horizontal_panel_height(
     return row_height * max(row_count, 1) + extra_height
 
 
-def horizontal_legend(*, traceorder: str | None = None) -> dict[str, object]:
-    """Return the legend a horizontal-bar panel carries above its plot."""
+def stacked_legend(*, traceorder: str | None = None) -> dict[str, object]:
+    """Return the legend a horizontal-bar panel lists one entry per line in its top-left corner, above the plot."""
     legend: dict[str, object] = {
         "orientation": "h",
+        "xref": "container",
+        "yref": "container",
         "x": 0,
-        "y": 1.12,
+        "y": 1,
         "xanchor": "left",
-        "yanchor": "bottom",
+        "yanchor": "top",
+        "entrywidth": 1,
+        "entrywidthmode": "fraction",
     }
     if traceorder is not None:
         legend["traceorder"] = traceorder
     return legend
+
+
+def legend_band_height(entries: int) -> int:
+    """The band a stacked legend of `entries` lines is given above the plot, as the panel's top margin."""
+    return LEGEND_ENTRY_HEIGHT * entries + LEGEND_BAND_PAD

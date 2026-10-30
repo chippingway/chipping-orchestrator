@@ -32,7 +32,10 @@ rate dates kept with it -- so a run is never re-priced from its tokens; any othe
 `EVENT_STATED_USD_SQL` is one row's every stated amount added across its bases, NULL where it states none; summed over
 a group it is the group's `CostEvidence.total_usd`, the measure a ranking orders on in SQL, ahead of its `LIMIT`. It
 counts a subtotal at its known part and a basis-less amount at its stated figure, and a group stating no amount at all
-sums to NULL, which a ranking places after every group that states one, a zero included.
+sums to NULL, which a ranking places after every group that states one, a zero included. `STATED_USD_SQL` is the
+same measure off one row of the agent-run view or the rollup, which name the `unknown` basis's amount as already read:
+the amount `cache_shares` splits by a row's token share, so the bands it is cut into add back up to what the row
+states.
 """
 
 from __future__ import annotations
@@ -112,11 +115,21 @@ EVENT_COST_COHORT_SQL = _run_cohort_sql(_EVENT_COMPLETENESS, _EVENT_UNKNOWN_AMOU
 
 EVENT_RUN_COST_SQL = _run_cohort_sql(_EVENT_COMPLETENESS, _EVENT_UNKNOWN_AMOUNT, summed=False)
 
-_EVENT_AMOUNT_LIST = _CELL_SEPARATOR.join(_EVENT_AMOUNTS)
+# One row's every stated amount added, NULL where it states none.
+_STATED_USD_TEMPLATE = "CASE WHEN num_nonnulls({amounts}) > 0 THEN {terms} END"
 
-_EVENT_AMOUNT_TERMS = " + ".join(f"COALESCE({amount}, 0)" for amount in _EVENT_AMOUNTS)
+EVENT_STATED_USD_SQL = _STATED_USD_TEMPLATE.format(
+    amounts=_CELL_SEPARATOR.join(_EVENT_AMOUNTS),
+    terms=" + ".join(f"COALESCE({amount}, 0)" for amount in _EVENT_AMOUNTS),
+)
 
-EVENT_STATED_USD_SQL = f"CASE WHEN num_nonnulls({_EVENT_AMOUNT_LIST}) > 0 THEN {_EVENT_AMOUNT_TERMS} END"
+# The agent-run view and the rollup already read a row with no derived evidence under the `unknown` basis.
+_ROW_AMOUNTS = (*_STATED_AMOUNT_COLUMNS.values(), _UNKNOWN_AMOUNT)
+
+STATED_USD_SQL = _STATED_USD_TEMPLATE.format(
+    amounts=_CELL_SEPARATOR.join(_ROW_AMOUNTS),
+    terms=" + ".join(f"COALESCE({amount}, 0)" for amount in _ROW_AMOUNTS),
+)
 
 ROLLUP_COST_COHORT_SQL = _CELL_SEPARATOR.join((
     *(f"SUM({column})" for column in _ROLLUP_COUNT_COLUMNS),

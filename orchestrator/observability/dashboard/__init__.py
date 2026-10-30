@@ -60,7 +60,11 @@ is qualified by: the first how one cost reads on either page -- its amount, the
 basis it is stated on, and why it falls short of complete spend -- and the
 second what only a cohort of runs, a window's or an issue's, can say on top of
 that: that it held no run, how many runs left its amount short, and what a move
-between two windows is read with. ``sparkline_points`` and ``sparkline_html`` are how one of
+between two windows is read with. ``breakdown_text`` is what a grouped
+breakdown's bar fits of that wording -- the figure drawn past it, the basis and
+shortfall under its label -- with the note a panel of such bars closes on and
+the one saying a token-share split is an allocation rather than a measured
+cache charge. ``sparkline_points`` and ``sparkline_html`` are how one of
 those lines reaches a tile: where each day sits in a box too narrow for an axis
 -- scaled to the window's own range, floored where a window has none, and left
 undrawn where it reported nothing at all -- and the polyline and closed fill
@@ -72,8 +76,8 @@ around them.
 ``card_html`` is the markup the banners and the
 run-health
 tiles among those numbers reach the browser as, together with the header every
-panel below them is titled by and the hidden mark ``css`` selects a card's
-container by, and ``tables`` is the markup beside it: the compact table the
+panel below them is titled by, the muted notes one closes on, and the hidden
+mark ``css`` selects a card's container by, and ``tables`` is the markup beside it: the compact table the
 four hand-rolled panels are listed in, with the stylesheet each scopes to its
 own class, the header and body they are assembled from, and the bar width,
 short repository name, and missing count a cell reports. ``issue_table`` is the

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import unittest
 from importlib.util import find_spec
+from types import MappingProxyType
 
 from orchestrator.observability.dashboard import palette, tokens
 from orchestrator.observability.dashboard.charts import primitives
@@ -62,12 +63,7 @@ class EmptyFigureTest(unittest.TestCase):
 
 
 class BarLabelTest(unittest.TestCase):
-    """How a bar is annotated: its amount, its font, and its tick."""
-
-    def test_amounts_render_through_the_formatter(self) -> None:
-        self.assertEqual(
-            primitives.money_text((12_345.0, 9.5)), ["$12.3K", "$9.50"],
-        )
+    """How a bar is annotated: its font and its tick."""
 
     def test_value_labels_are_set_in_the_mono_stack(self) -> None:
         # A column of amounts only lines up when every digit is the same
@@ -88,18 +84,22 @@ class BarLabelTest(unittest.TestCase):
         self.assertEqual(ticks[1], "<b>other</b>")
 
 
+# Where a stacked legend is placed and how wide each entry is: the figure's
+# top-left corner, one entry to a line.
+_STACKED_PLACEMENT = MappingProxyType({
+    "xref": "container",
+    "yref": "container",
+    "x": 0,
+    "y": 1,
+    "xanchor": "left",
+    "yanchor": "top",
+    "entrywidth": 1,
+    "entrywidthmode": "fraction",
+})
+
+
 class PanelShapeTest(unittest.TestCase):
     """How a horizontal-bar panel is sized and where its legend sits."""
-
-    def test_rows_flip_so_a_ranking_reads_top_down(self) -> None:
-        # A Plotly bar axis draws the first row at the bottom, so a ranked
-        # series has to arrive reversed for the largest bar to sit on top --
-        # every column of that series together, or a label would part company
-        # with the amount beside it.
-        self.assertEqual(
-            primitives.reverse_lists(("a", "b"), (1, 2)),
-            (["b", "a"], [2, 1]),
-        )
 
     def test_height_grows_with_the_rows_unless_pinned(self) -> None:
         for row_count, height, expected in _PANEL_HEIGHTS:
@@ -111,15 +111,24 @@ class PanelShapeTest(unittest.TestCase):
                     expected,
                 )
 
-    def test_the_legend_sits_above_the_plot(self) -> None:
-        legend = primitives.horizontal_legend()
-        self.assertEqual(legend["orientation"], "h")
-        self.assertEqual((legend["x"], legend["xanchor"]), (0, "left"))
+    def test_the_legend_is_one_entry_a_line_on_top(self) -> None:
+        # Anchored to the figure's top-left corner rather than the plot area,
+        # and each entry as wide as the line, the legend takes as many lines
+        # as it has entries at any panel width -- which is what lets a panel
+        # reserve its band rather than lose rows to however far it wraps.
+        legend = primitives.stacked_legend()
+        placed = {key: legend[key] for key in _STACKED_PLACEMENT}
+        self.assertEqual(placed, dict(_STACKED_PLACEMENT))
         self.assertNotIn("traceorder", legend)
         self.assertEqual(
-            primitives.horizontal_legend(traceorder="reversed")["traceorder"],
+            primitives.stacked_legend(traceorder="reversed")["traceorder"],
             "reversed",
         )
+
+    def test_the_band_grows_by_one_line_per_entry(self) -> None:
+        line = primitives.LEGEND_ENTRY_HEIGHT
+        self.assertEqual(primitives.legend_band_height(3) - primitives.legend_band_height(2), line)
+        self.assertEqual(primitives.legend_band_height(2), 2 * line + primitives.LEGEND_BAND_PAD)
 
 
 if __name__ == "__main__":

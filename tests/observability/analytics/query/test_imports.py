@@ -193,14 +193,16 @@ _OWNERS = _MODEL_OWNERS + (
 # spend and token reads, the cost-cohort owner is the cohort a reduced cost is
 # read back as, the one reading that builds it, the fold that regroups cohorts
 # read apart, and the empty cohort that fold of none is -- reported because it is
-# an instance of the cohort class, whose `__module__` it carries. Constants -- the rollup view
+# an instance of the cohort class, whose `__module__` it carries. The
+# token-share owner is the same shape: the bands a stated amount is allocated
+# into, the reading that builds them, and the empty split. Constants -- the rollup view
 # name, the two request field names, the `result` attribute name, the
 # filter-option columns, the two sort modes, the terminal throughput stages,
-# the token-share fragments, the cost-cohort and token-total fragments, the
-# finished-run condition, the two skill row caps, the session column offsets,
-# the summary count fields, and the signatures themselves -- are not reported
-# here: the check reads `__module__`, which only a class or function carries,
-# which is why the token-share and token-total owners declare an empty
+# the token-share fragments and width, the cost-cohort and token-total
+# fragments, the finished-run condition, the two skill row caps, the session
+# column offsets, the summary count fields, and the signatures themselves --
+# are not reported here: the check reads `__module__`, which only a class or
+# function carries, which is why the token-total owner declares an empty
 # surface.
 _SURFACES = MappingProxyType({
     _CONNECTIONS_OWNER: (
@@ -384,7 +386,7 @@ _SURFACES = MappingProxyType({
         "get_review_round_breakdown",
     ),
     _REVIEW_ROUNDS_OWNER: (
-        "review_round_from_row",
+        "review_round_buckets",
         "review_round_rows",
         "review_round_sql",
     ),
@@ -442,7 +444,11 @@ _SURFACES = MappingProxyType({
         "leveled_skills",
         "skill_cohort",
     ),
-    _CACHE_SHARES_OWNER: (),
+    _CACHE_SHARES_OWNER: (
+        "NO_TOKEN_SHARE",
+        "TokenShareBands",
+        "token_share_bands",
+    ),
     _COST_COHORTS_OWNER: (
         "CostCohort",
         "EMPTY_COST_COHORT",
@@ -451,7 +457,6 @@ _SURFACES = MappingProxyType({
     ),
     _TOKEN_TOTALS_OWNER: (),
     _ROW_CELLS_OWNER: (
-        "cost_cell",
         "day_value",
     ),
 })
@@ -467,9 +472,14 @@ _REACHABLE_PREFIXES = (
 
 # The sibling a result family is typed by, where it has one, and the package
 # that sibling's evidence is read from.
+_COSTED_SIBLINGS = frozenset((f"{_PACKAGE}.{_COST_COHORTS_OWNER}",))
+
+_SPLIT_SIBLINGS = _COSTED_SIBLINGS | {f"{_PACKAGE}.{_CACHE_SHARES_OWNER}"}
+
 _MODEL_SIBLINGS = MappingProxyType({
-    _OVERVIEW_MODELS_OWNER: frozenset((f"{_PACKAGE}.{_COST_COHORTS_OWNER}",)),
-    _RUN_MODELS_OWNER: frozenset((f"{_PACKAGE}.{_COST_COHORTS_OWNER}",)),
+    _COST_MODELS_OWNER: _SPLIT_SIBLINGS,
+    _OVERVIEW_MODELS_OWNER: _COSTED_SIBLINGS,
+    _RUN_MODELS_OWNER: _SPLIT_SIBLINGS,
 })
 
 _USAGE_TREE = "orchestrator.observability.usage"
@@ -552,12 +562,14 @@ class ResultModelImportCostTest(unittest.TestCase):
     Not a weaker restatement of the layering check above: that one bounds
     where an owner may reach, while a page or a test that only consumes the
     rows must not pay for a connection factory, the configuration behind an
-    omitted `db_url=`, or the driver those two stand in front of. The overview
-    and run models are the two families typed by a sibling: a window's or an
-    issue's spend is a cost cohort and a run's is that cohort's evidence, which
-    is the usage owner's -- plain code with none of the three behind it, so
-    those families pay for the cohort owner and the usage package and nothing
-    else.
+    omitted `db_url=`, or the driver those two stand in front of. The cost,
+    overview, and run models are the three families typed by a sibling: a
+    window's, an issue's, or a group's spend is a cost cohort and a run's is
+    that cohort's evidence, which is the usage owner's -- plain code with none
+    of the three behind it -- and a stage's or a review round's split by token
+    share is the token-share owner's bands, so those families pay for the
+    cohort owner, the token-share owner where they split, and the usage package
+    and nothing else.
     """
 
     def test_a_model_owner_costs_its_chain_only(self) -> None:

@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""What a card, a banner, and a tile look like by the time a browser reads them.
+"""What a card, its notes, a banner, and a tile look like by the time a browser reads them.
 
 Every case here reads the rendered string the way the stylesheet does: a class
 name is what paints a severity or a tone, an icon is what a severity says
@@ -83,6 +83,20 @@ class CardHeaderTest(unittest.TestCase):
             f'<p class="{_SUBTITLE_CLASS}">{_SUBTITLE}</p>', with_subtitle,
         )
         self.assertNotIn(_SUBTITLE_CLASS, titled_only)
+
+
+class CardNoteTest(unittest.TestCase):
+    """The muted lines a card closes on are each a paragraph the stylesheet
+    paints, escaped, and a note with nothing to say draws no empty line.
+    """
+
+    def test_each_given_note_is_one_escaped_line(self) -> None:
+        rendered = card_html.card_note_html(_MESSAGE, "", _UNSAFE_TITLE)
+        self.assertEqual(
+            rendered,
+            f'<p class="orch-card-note">{_ESCAPED_MESSAGE}</p><p class="orch-card-note">{_ESCAPED_TITLE}</p>',
+        )
+        self.assertEqual(card_html.card_note_html(""), "")
 
 
 class InsightsHtmlTest(unittest.TestCase):

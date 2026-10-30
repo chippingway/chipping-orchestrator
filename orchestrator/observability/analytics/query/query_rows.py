@@ -13,7 +13,9 @@ The three run and issue rows end in the cells a cost-cohort fragment selects,
 which `cost_cohorts.cost_cohort` reads as one unit, so their last field is
 `cost`, holding every one of those cells, rather than a dozen names the reader
 would only have to gather back up; the trace's SELECT list names that fragment
-where its row names `cost`.
+where its row names `cost`. A review round's row is read per role, and the
+three cells `cache_shares` splits its stated amount into are gathered as
+`token_share` ahead of its `cost` the same way.
 
 Each constructor takes exactly the columns its SELECT list names, so a row of
 any other width raises rather than reading a column it never carried as NULL.
@@ -23,7 +25,11 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any, NamedTuple
 
+from orchestrator.observability.analytics.query.cache_shares import TOKEN_SHARE_WIDTH
 from orchestrator.observability.analytics.query.cost_cohorts import COST_COHORT_WIDTH
+
+# The field every costed row ends in, holding the cells a cost-cohort fragment selects.
+_COST_FIELD = "cost"
 
 AgentExitQueryRow = NamedTuple("AgentExitQueryRow", (
     ("ts", Any),
@@ -40,7 +46,7 @@ AgentExitQueryRow = NamedTuple("AgentExitQueryRow", (
     ("input_tokens", Any),
     ("output_tokens", Any),
     ("total_tokens", Any),
-    ("cost", tuple),
+    (_COST_FIELD, tuple),
 ))
 IssueSummaryQueryRow = NamedTuple("IssueSummaryQueryRow", (
     ("repo", Any),
@@ -56,7 +62,7 @@ IssueSummaryQueryRow = NamedTuple("IssueSummaryQueryRow", (
     ("max_review_round", Any),
     ("failed_agent_runs", Any),
     ("max_retry_count", Any),
-    ("cost", tuple),
+    (_COST_FIELD, tuple),
 ))
 IssueEventQueryRow = NamedTuple("IssueEventQueryRow", (
     ("ts", Any),
@@ -74,21 +80,15 @@ IssueEventQueryRow = NamedTuple("IssueEventQueryRow", (
     ("retry_count", Any),
     ("timed_out", Any),
     ("extras", Any),
-    ("cost", tuple),
+    (_COST_FIELD, tuple),
 ))
 ReviewRoundQueryRow = NamedTuple("ReviewRoundQueryRow", (
     ("bucket", Any),
+    ("agent_role", Any),
     ("runs", Any),
     ("failed", Any),
-    ("total_cost_usd", Any),
-    ("developer_runs", Any),
-    ("reviewer_runs", Any),
-    ("developer_cost_usd", Any),
-    ("reviewer_cost_usd", Any),
-    ("developer_cache_cost_usd", Any),
-    ("developer_no_cache_cost_usd", Any),
-    ("reviewer_cache_cost_usd", Any),
-    ("reviewer_no_cache_cost_usd", Any),
+    ("token_share", tuple),
+    (_COST_FIELD, tuple),
 ))
 
 
@@ -108,8 +108,15 @@ def issue_event_row(row: Sequence[Any]) -> IssueEventQueryRow:
 
 
 def review_round_row(row: Sequence[Any]) -> ReviewRoundQueryRow:
-    """Name the columns of one review-round bucket row."""
-    return ReviewRoundQueryRow(*row)
+    """Name the columns of one `(round, role)` row, its token-share cells and its cost cells each gathered as one."""
+    columns = len(ReviewRoundQueryRow._fields) - 2
+    shared = columns + TOKEN_SHARE_WIDTH
+    width = shared + COST_COHORT_WIDTH
+    if len(row) != width:
+        raise TypeError(f"a review-round row is {width} cells; it holds {len(row)}")
+    token_share = tuple(row[columns:shared])
+    cost = tuple(row[shared:])
+    return ReviewRoundQueryRow(*row[:columns], token_share, cost)
 
 
 def _costed_cells(row: Sequence[Any], fields: Sequence[str]) -> tuple:

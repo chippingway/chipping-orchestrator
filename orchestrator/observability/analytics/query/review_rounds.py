@@ -9,32 +9,51 @@ reads as `unknown` rather than being folded into a round it never named. And
 everything from the sixth round up collapses into one `6+` bucket, so a rare
 twelve-round issue cannot stretch the axis for the rest.
 
-Each bucket reports its runs and cost three ways -- the total, and the
-developer and reviewer halves -- with each half split into the cache and
-no-cache bands `cache_shares` weights it by, so a panel can stack the two roles
-or the two bands and have either pair sum back to the total. The scan narrows
-to those two roles, because a decomposer or question run has no review round to
-file under and would land in a bucket the chart has no bar for.
+The scan groups by round and role together, so each role's runs are reduced by
+the same fragments every other cost read uses -- the cost cohort
+(`cost_cohorts.RUN_COST_COHORT_SQL`), keeping each basis, its rate dates, and
+the runs it leaves unpriced or states no evidence for apart, and the three
+`cache_shares` bands its stated amount is allocated into by each run's token
+share. The rows are then folded into one per round here, the developer and
+reviewer halves side by side, so a panel can stack the two roles or the bands
+inside one and have them add back up to what the round's runs state. The scan
+narrows to those two roles, because a decomposer or question run has no review
+round to file under and would land in a bucket the chart has no bar for.
+Rounds come back busiest first, ties in bucket order.
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
+from operator import attrgetter
 from typing import Any
 
 from orchestrator.observability.analytics.query.cache_shares import (
-    AGENT_CACHE_FRACTION_SQL,
+    NO_TOKEN_SHARE,
+    RUN_TOKEN_SHARE_SQL,
+    TokenShareBands,
+    token_share_bands,
 )
 from orchestrator.observability.analytics.query.conditions import append_where_condition
+from orchestrator.observability.analytics.query.cost_cohorts import (
+    EMPTY_COST_COHORT,
+    RUN_COST_COHORT_SQL,
+    CostCohort,
+    cost_cohort,
+)
 from orchestrator.observability.analytics.query.cost_models import ReviewRoundBucketRow
 from orchestrator.observability.analytics.query.execution import ReadQuery
 from orchestrator.observability.analytics.query.filters import WindowFilters
 from orchestrator.observability.analytics.query.predicates import build_view_window_where
-from orchestrator.observability.analytics.query.query_rows import review_round_row
+from orchestrator.observability.analytics.query.query_rows import ReviewRoundQueryRow, review_round_row
+
+_DEVELOPER = "developer"
+
+_REVIEWER = "reviewer"
 
 
 def review_round_sql(where: str) -> str:
-    """Build the per-round run, cost, role, and cache-split scan."""
+    """Build the per-round-and-role run, cost, and token-share scan."""
     return (
         "SELECT "
         "CASE "
@@ -43,60 +62,24 @@ def review_round_sql(where: str) -> str:
         "WHEN review_round >= 6 THEN '6+' "
         "ELSE review_round::text "
         "END AS bucket, "
+        "agent_role, "
         "COUNT(*) AS runs, "
         "SUM(CASE WHEN failed THEN 1 ELSE 0 END) AS failed_runs, "
-        "COALESCE(SUM(cost_usd), 0) AS bucket_cost_usd, "
-        "SUM(CASE WHEN agent_role = 'developer' THEN 1 ELSE 0 END) "
-        "AS developer_runs, "
-        "SUM(CASE WHEN agent_role = 'reviewer' THEN 1 ELSE 0 END) "
-        "AS reviewer_runs, "
-        "COALESCE(SUM(CASE WHEN agent_role = 'developer' "
-        "THEN cost_usd ELSE 0 END), 0) AS developer_cost_usd, "
-        "COALESCE(SUM(CASE WHEN agent_role = 'reviewer' "
-        "THEN cost_usd ELSE 0 END), 0) AS reviewer_cost_usd, "
-        "COALESCE(SUM(CASE WHEN agent_role = 'developer' "
-        f"THEN COALESCE(cost_usd, 0) * ({AGENT_CACHE_FRACTION_SQL}) "
-        "ELSE 0 END), 0) AS developer_cache_cost_usd, "
-        "COALESCE(SUM(CASE WHEN agent_role = 'developer' "
-        f"THEN COALESCE(cost_usd, 0) * (1 - ({AGENT_CACHE_FRACTION_SQL})) "
-        "ELSE 0 END), 0) AS developer_no_cache_cost_usd, "
-        "COALESCE(SUM(CASE WHEN agent_role = 'reviewer' "
-        f"THEN COALESCE(cost_usd, 0) * ({AGENT_CACHE_FRACTION_SQL}) "
-        "ELSE 0 END), 0) AS reviewer_cache_cost_usd, "
-        "COALESCE(SUM(CASE WHEN agent_role = 'reviewer' "
-        f"THEN COALESCE(cost_usd, 0) * (1 - ({AGENT_CACHE_FRACTION_SQL})) "
-        "ELSE 0 END), 0) AS reviewer_no_cache_cost_usd "
+        f"{RUN_TOKEN_SHARE_SQL}, "
+        f"{RUN_COST_COHORT_SQL} "
         f"FROM analytics_agent_runs{where} "
-        "GROUP BY bucket "
-        "ORDER BY runs DESC, bucket ASC"
+        "GROUP BY bucket, agent_role "
+        "ORDER BY bucket ASC, agent_role ASC"
     )
 
 
-def review_round_from_row(row: Sequence[Any]) -> ReviewRoundBucketRow:
-    """Project one per-round aggregate row onto its result model."""
-    query_row = review_round_row(row)
-    return ReviewRoundBucketRow(
-        bucket=str(query_row.bucket),
-        runs=int(query_row.runs or 0),
-        failed=int(query_row.failed or 0),
-        total_cost_usd=float(query_row.total_cost_usd or 0),
-        developer_runs=int(query_row.developer_runs or 0),
-        reviewer_runs=int(query_row.reviewer_runs or 0),
-        developer_cost_usd=float(query_row.developer_cost_usd or 0),
-        reviewer_cost_usd=float(query_row.reviewer_cost_usd or 0),
-        developer_cache_cost_usd=float(
-            query_row.developer_cache_cost_usd or 0,
-        ),
-        developer_no_cache_cost_usd=float(
-            query_row.developer_no_cache_cost_usd or 0,
-        ),
-        reviewer_cache_cost_usd=float(
-            query_row.reviewer_cache_cost_usd or 0,
-        ),
-        reviewer_no_cache_cost_usd=float(
-            query_row.reviewer_no_cache_cost_usd or 0,
-        ),
-    )
+def review_round_buckets(rows: Iterable[Sequence[Any]]) -> list[ReviewRoundBucketRow]:
+    """Fold the per-role rows into one per round, busiest first and ties in the order the scan returned them."""
+    by_bucket: dict[str, list[ReviewRoundQueryRow]] = {}
+    for named in map(review_round_row, rows):
+        by_bucket.setdefault(str(named.bucket), []).append(named)
+    folded = (_bucket_row(*grouped) for grouped in by_bucket.items())
+    return sorted(folded, key=attrgetter("runs"), reverse=True)
 
 
 def review_round_rows(
@@ -107,7 +90,28 @@ def review_round_rows(
     view_where, view_bindings = build_view_window_where(filters)
     view_where = append_where_condition(
         view_where,
-        "agent_role IN ('developer', 'reviewer')",
+        f"agent_role IN ('{_DEVELOPER}', '{_REVIEWER}')",
     )
-    rows = query.select(review_round_sql(view_where), view_bindings)
-    return [review_round_from_row(row) for row in rows]
+    return review_round_buckets(query.select(review_round_sql(view_where), view_bindings))
+
+
+def _bucket_row(bucket: str, roles: Sequence[ReviewRoundQueryRow]) -> ReviewRoundBucketRow:
+    by_role = {str(role.agent_role): role for role in roles}
+    developer_cost, developer_bands = _role_reading(by_role.get(_DEVELOPER))
+    reviewer_cost, reviewer_bands = _role_reading(by_role.get(_REVIEWER))
+    return ReviewRoundBucketRow(
+        bucket=bucket,
+        runs=sum(int(role.runs or 0) for role in roles),
+        failed=sum(int(role.failed or 0) for role in roles),
+        developer_cost=developer_cost,
+        reviewer_cost=reviewer_cost,
+        developer_bands=developer_bands,
+        reviewer_bands=reviewer_bands,
+    )
+
+
+def _role_reading(role: ReviewRoundQueryRow | None) -> tuple[CostCohort, TokenShareBands]:
+    """One role's cohort and bands in a round; a role with no run there is the empty cohort and no bands."""
+    if role is None:
+        return EMPTY_COST_COHORT, NO_TOKEN_SHARE
+    return cost_cohort(role.cost), token_share_bands(role.token_share)

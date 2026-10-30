@@ -6,13 +6,16 @@ A bare `COUNT(DISTINCT issue)` is safe here only because the grouping is by
 repository: issue numbers repeat across repositories, so the count is
 per-repository already and cannot collapse two issues that merely share a
 number. Agent runs are counted as the `event = 'agent_exit'` subset of the same
-buckets, so the run column and the cost column beside it describe the same
-rows. Ties on event volume break on the repository name, so redrawing the same
-window returns the same order.
+buckets, so the run column and the cost beside it describe the same rows. The
+cost is the repository's cost cohort (`cost_cohorts.ROLLUP_COST_COHORT_SQL`),
+so its bases and the runs it leaves unpriced or states no evidence for stay
+apart rather than summing `total_cost_usd`. Ties on event volume break on the
+repository name, so redrawing the same window returns the same order.
 """
 
 from __future__ import annotations
 
+from orchestrator.observability.analytics.query.cost_cohorts import ROLLUP_COST_COHORT_SQL, cost_cohort
 from orchestrator.observability.analytics.query.cost_models import RepoBreakdownRow
 from orchestrator.observability.analytics.query.execution import ReadQuery
 from orchestrator.observability.analytics.query.filters import WindowFilters
@@ -20,7 +23,9 @@ from orchestrator.observability.analytics.query.predicates import (
     DAILY_ROLLUP_VIEW,
     build_rollup_window_where,
 )
-from orchestrator.observability.analytics.query.row_cells import cost_cell
+
+# The repository and its three counts lead a row, and the cohort closes it.
+_COHORT_START = 4
 
 
 def repo_breakdown_rows(
@@ -36,7 +41,7 @@ def repo_breakdown_rows(
         "COALESCE(SUM(CASE WHEN event = 'agent_exit' "
         "                  THEN event_count ELSE 0 END), 0) "
         "  AS repo_agent_exits, "
-        "COALESCE(SUM(total_cost_usd), 0) AS repo_cost_usd "
+        f"{ROLLUP_COST_COHORT_SQL} "
         f"FROM {DAILY_ROLLUP_VIEW}{where} "
         "GROUP BY repo "
         "ORDER BY repo_events DESC, repo ASC",
@@ -48,7 +53,7 @@ def repo_breakdown_rows(
             issues=int(row[1] or 0),
             events=int(row[2] or 0),
             agent_exits=int(row[3] or 0),
-            total_cost_usd=cost_cell(row, 4),
+            cost=cost_cohort(row, _COHORT_START),
         )
         for row in rows
     ]

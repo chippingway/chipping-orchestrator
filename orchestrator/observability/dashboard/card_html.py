@@ -4,9 +4,10 @@
 
 Every panel on the page is a card, and what makes one is written here rather
 than by anything Streamlit draws: the hidden mark the stylesheet selects a
-card's container by, together with the title and optional subtitle above it,
-the stack of banners the page opens with, and the strip of tiles a window's
-run health is read off. The three sit in one owner because each is a string
+card's container by, together with the title and optional subtitle above it
+and the muted notes a card can close on beneath its figure, the stack of
+banners the page opens with, and the strip of tiles a window's run health is
+read off. The three sit in one owner because each is a string
 handed to `st.markdown(unsafe_allow_html=True)` whose class names are the ones
 `css.py` writes rules for -- a header spelled in one module and a tile in
 another are two places the chrome can stop agreeing with the stylesheet it is
@@ -44,6 +45,13 @@ def card_header_html(title: str, subtitle: str = "") -> str:
     return (
         '<span class="orch-cardmark"></span>'
         f'<p class="orch-card-title">{html.escape(title)}</p>{subtitle_html}'
+    )
+
+
+def card_note_html(*notes: str) -> str:
+    """Build the muted lines a card closes on beneath its figure, leaving out an empty one."""
+    return "".join(
+        f'<p class="orch-card-note">{html.escape(note)}</p>' for note in notes if note
     )
 
 

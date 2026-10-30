@@ -56,7 +56,7 @@ _REPO_ROW = ("repo", "10 runs", 12_345.0, _ROW_COLOR)
 
 
 class RankingTest(unittest.TestCase):
-    """The order and tint the four columns of a ranking come back in."""
+    """The order, tint, and words the columns of a ranking come back in."""
 
     def test_spend_ranks_it_largest_bar_last(self) -> None:
         # A Plotly bar axis draws the first row at the bottom, so the ranking
@@ -75,13 +75,26 @@ class RankingTest(unittest.TestCase):
         bars = cost_horizontal.horizontal_bars_data(_ROWS, None, True)
         self.assertEqual(tuple(bars.labels), _GIVEN_LABELS)
 
-    def test_an_unpriced_row_ranks_below_a_priced(self) -> None:
-        self.assertEqual(
-            cost_horizontal.cost_item_sort_key(_ROWS[1]), -_DEAREST_COST,
+    def test_no_amount_ranks_below_a_zero(self) -> None:
+        # A cost of `None` is a row that stated no amount, which is not the
+        # same answer as a zero and ranks after every row that states one.
+        unstated = ("delta", "", None, "")
+        zero = ("epsilon", "", float(0), "")
+        bars = cost_horizontal.horizontal_bars_data((unstated, zero, _ROWS[0]), None, False)
+        self.assertEqual(tuple(bars.labels), ("delta", "epsilon", _CHEAPEST))
+        self.assertLess(
+            cost_horizontal.cost_item_sort_key(zero),
+            cost_horizontal.cost_item_sort_key(unstated),
         )
-        self.assertEqual(
-            cost_horizontal.cost_item_sort_key(("delta", "", None, "")), 0,
-        )
+
+    def test_a_worded_row_keeps_its_figure_and_note(self) -> None:
+        # A family that words its own amounts hands the figure past the bar and
+        # the hover line beside it; a row wording none is labelled by its
+        # amount on the shared money label.
+        worded = cost_horizontal.RankedCost("delta", "", None, "", "unpriced", "unpriced (1 of 1 runs)")
+        bars = cost_horizontal.horizontal_bars_data((worded, _ROWS[0]), None, False)
+        self.assertEqual(tuple(bars.figures), ("unpriced", "$5.00"))
+        self.assertEqual(tuple(bars.notes), ("unpriced (1 of 1 runs)", ""))
 
     def test_a_colorless_row_falls_back_to_accent(self) -> None:
         # A ranking is one hue unless a family tints its rows, so a row with no
@@ -123,6 +136,14 @@ class RankingFigureTest(unittest.TestCase):
         self.assertEqual(tuple(trace.text), ("$12.3K",))
         self.assertIn(f"<b>{_REPO_ROW[0]}</b>", trace.y[0])
         self.assertIn(_REPO_ROW[1], trace.y[0])
+        self.assertIsNone(trace.customdata)
+        self.assertIn("$%{x:,.2f}", trace.hovertemplate)
+
+    def test_a_worded_ranking_hovers_its_notes(self) -> None:
+        worded = cost_horizontal.RankedCost(*_REPO_ROW, "$12.3K", "$12,345.00 (CLI-reported)")
+        trace = cost_horizontal.cost_horizontal_bars((worded,)).data[0]
+        self.assertEqual(tuple(trace.customdata), ("$12,345.00 (CLI-reported)",))
+        self.assertIn("%{customdata}", trace.hovertemplate)
 
     def test_height_grows_with_the_rows_ranked(self) -> None:
         figure = cost_horizontal.cost_horizontal_bars(_ROWS)

@@ -7,12 +7,14 @@ import unittest
 from datetime import date
 from itertools import product
 
+from orchestrator.observability.analytics.query import cache_shares, cost_cohorts
 from orchestrator.observability.analytics.query.breakdown_reads import (
     get_backend_daily_tokens,
     get_cost_coverage,
     get_review_round_breakdown,
 )
 from orchestrator.observability.analytics.query.token_totals import RUN_TOKEN_TOTAL_SQL
+from tests.observability.analytics import analytics_cohorts as cohort_cases
 from tests.observability.analytics.analytics_assertions import (
     assert_column_values,
     assert_sql_fragments,
@@ -68,21 +70,39 @@ _TOKEN_TOTAL_FRAGMENTS = (
 # The raw counters, none of which a token volume may add up again.
 _RAW_COUNTERS = ("input_tokens", "output_tokens", "cached_tokens", "cache_read_tokens", "cache_write_tokens")
 
-# One review-round bucket at its full width, a group per line: the bucket and
-# its totals, the two roles' run counts, their costs, and the cache band of
-# each role's cost followed by its no-cache complement.
-_ROUND_ROW = (
-    _ROUND_ZERO, 12, 1, 40,
-    7, 5,
-    28, 12,
-    20, 8, 9, 3,
-)
+# One round-and-role row at its full width: the bucket and role, their runs
+# and failures, the role's three token-share bands -- the cache share, the
+# rest, and the amount nothing split -- and the cells its cost cohort is read
+# from.
+_DEVELOPER = "developer"
 
+_REVIEWER = "reviewer"
+
+_INITIAL_DEV_COSTS = cohort_cases.NAMED_COSTS["mixed providers"]
+
+_INITIAL_REV_COSTS = cohort_cases.NAMED_COSTS["agy only"]
+
+_FIRST_DEV_COSTS = cohort_cases.NAMED_COSTS["incomplete"]
+
+_UNROUNDED_COSTS = cohort_cases.NAMED_COSTS["missing basis"]
+
+_INITIAL_DEV_BANDS = (0.3, 0.2, 0)
+
+_INITIAL_REV_BANDS = (0, 0, 0.32)
+
+_FIRST_DEV_BANDS = (0.1, 0.1, 0)
+
+_UNROUNDED_BANDS = (0, 0, 0.07)
+
+_ROUND_ROW = (_ROUND_ZERO, _DEVELOPER, 3, 1, *_INITIAL_DEV_BANDS) + cohort_cases.cohort_cells(_INITIAL_DEV_COSTS)
+
+# Each role's rows arrive apart, in the bucket-then-role order the scan returns
+# them, and the first round has no review run at all.
 _ROUND_ROWS = (
     _ROUND_ROW,
-    ("1", 8, 2, 25, 4, 4, 10, 15, 7, 3, 11, 4),
-    ("3-5", 4, 4, 18, 1, 3, 5, 13, 5, 0, 13, 0),
-    (_UNKNOWN, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0),
+    (_ROUND_ZERO, _REVIEWER, 2, 0, *_INITIAL_REV_BANDS) + cohort_cases.cohort_cells(_INITIAL_REV_COSTS),
+    ("1", _DEVELOPER, 3, 2, *_FIRST_DEV_BANDS) + cohort_cases.cohort_cells(_FIRST_DEV_COSTS),
+    (_UNKNOWN, _DEVELOPER, 2, 0, *_UNROUNDED_BANDS) + cohort_cases.cohort_cells(_UNROUNDED_COSTS),
 )
 
 _COVERAGE_ROW = (_REPORTED, 20, _REPORTED_TOKENS, 0)
@@ -140,61 +160,81 @@ class ViewReadShortCircuitTest(unittest.TestCase):
 
 
 class ReviewRoundReadTest(unittest.TestCase):
-    """How one window's spend divides across the rounds it took."""
+    """How one window's spend divides across the rounds it took and the two roles that worked them."""
 
-    def test_each_bucket_carries_roles_and_bands(self) -> None:
+    def test_each_round_folds_its_two_roles(self) -> None:
+        # A role's cohort is read whole off its own row -- an AGY review's
+        # Gemini estimate, a mixed development's parts, a subtotal, an amount
+        # with no basis -- and a round folds its two roles into one cohort,
+        # busiest round first; a role with no run in a round is the empty
+        # cohort with no bands, not a zero.
         conn = FakeConnection(rows=_ROUND_ROWS)
         with configured_db_url():
             rows = get_review_round_breakdown(connect=conn.as_connect)
+        empty = cost_cohorts.EMPTY_COST_COHORT
         assert_column_values(
             self,
             rows,
             {
-                "bucket": [_ROUND_ZERO, "1", "3-5", _UNKNOWN],
-                "runs": [12, 8, 4, 1],
-                "failed": [1, 2, 4, 0],
-                "total_cost_usd": [40, 25, 18, 0],
-                "developer_runs": [7, 4, 1, 1],
-                "reviewer_runs": [5, 4, 3, 0],
-                "developer_cost_usd": [28, 10, 5, 0],
-                "reviewer_cost_usd": [12, 15, 13, 0],
-                "developer_cache_cost_usd": [20, 7, 5, 0],
-                "developer_no_cache_cost_usd": [8, 3, 0, 0],
-                "reviewer_cache_cost_usd": [9, 11, 13, 0],
-                "reviewer_no_cache_cost_usd": [3, 4, 0, 0],
+                "bucket": [_ROUND_ZERO, "1", _UNKNOWN],
+                "runs": [5, 3, 2],
+                "failed": [1, 2, 0],
+                "developer_runs": [3, 3, 2],
+                "reviewer_runs": [2, 0, 0],
+                "developer_cost": [
+                    cohort_cases.cohort(*_INITIAL_DEV_COSTS),
+                    cohort_cases.cohort(*_FIRST_DEV_COSTS),
+                    cohort_cases.cohort(*_UNROUNDED_COSTS),
+                ],
+                "reviewer_cost": [cohort_cases.cohort(*_INITIAL_REV_COSTS), empty, empty],
+                "developer_bands": [
+                    cache_shares.TokenShareBands(*_INITIAL_DEV_BANDS),
+                    cache_shares.TokenShareBands(*_FIRST_DEV_BANDS),
+                    cache_shares.TokenShareBands(*_UNROUNDED_BANDS),
+                ],
+                "reviewer_bands": [
+                    cache_shares.TokenShareBands(*_INITIAL_REV_BANDS),
+                    cache_shares.NO_TOKEN_SHARE,
+                    cache_shares.NO_TOKEN_SHARE,
+                ],
             },
         )
+        initial = cohort_cases.cohort(*_INITIAL_DEV_COSTS, *_INITIAL_REV_COSTS)
+        self.assertEqual(rows[0].cost, initial)
 
-    def test_the_scan_labels_and_splits_rounds(self) -> None:
+    def test_the_scan_groups_rounds_and_roles(self) -> None:
         # A run that recorded no round reads as `unknown` whatever its role or
         # stage -- every current run records one, a fresh implementation as
-        # round zero -- the scan narrows to the two reviewed roles, and each
-        # role's cost is prorated by its cache-token share, with the Codex
-        # `cached_tokens` subset in the numerator only, so the two bands sum
-        # back to the role's total.
+        # round zero -- the scan narrows to the two reviewed roles and groups
+        # them apart, and each role's spend is the run view's cohort and
+        # token-share split rather than a sum of `cost_usd`.
         conn = FakeConnection(rows=(_ROUND_ROW,))
         with configured_db_url():
             get_review_round_breakdown(connect=conn.as_connect)
         scan_sql, _ = conn.executed[0]
         self.assertNotIn("stage = 'implementing'", scan_sql)
+        self.assertNotIn("cost_usd)", scan_sql)
         assert_sql_fragments(
             self,
             scan_sql,
             (
                 _VIEW_SCAN,
-                "SUM(cost_usd)",
                 "agent_role IN ('developer', 'reviewer')",
-                "agent_role = 'developer'",
-                "agent_role = 'reviewer'",
+                "GROUP BY bucket, agent_role",
                 "WHEN review_round IS NULL THEN 'unknown'",
                 "THEN '6+'",
-                "cached_tokens",
-                "developer_cache_cost_usd",
-                "developer_no_cache_cost_usd",
-                "reviewer_cache_cost_usd",
-                "reviewer_no_cache_cost_usd",
+                cost_cohorts.RUN_COST_COHORT_SQL,
+                cache_shares.RUN_TOKEN_SHARE_SQL,
             ),
         )
+
+    def test_a_row_of_another_width_raises(self) -> None:
+        # A row narrower or wider than its SELECT list is a broken query, never
+        # a role whose cost or bands read as NULL.
+        for row in (_ROUND_ROW[:-1], (*_ROUND_ROW, None)):
+            conn = FakeConnection(rows=(row,))
+            with self.subTest(width=len(row)), configured_db_url(), self.assertRaises(TypeError):
+                get_review_round_breakdown(connect=conn.as_connect)
 
 
 class CostCoverageReadTest(unittest.TestCase):

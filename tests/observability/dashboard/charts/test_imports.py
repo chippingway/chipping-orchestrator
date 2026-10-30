@@ -68,16 +68,19 @@ _OWNERS = (
 
 # What each owner answers for, declared rather than discovered so a second way
 # to say "nothing matches this window", label a bar, frame and size the panel
-# it sits in, rank a window's spend, name the repository one of those bars
-# stands for, split a stage's spend into the half the cache paid for, split a
-# review round's the same way across its two roles, bucket a token volume into
+# it sits in, describe the segments a token-share split is stacked into, rank
+# a window's spend, name the repository one of those bars stands for, split a
+# stage's stated spend by token share, split a review round's the same way
+# across its two roles, bucket a token volume into
 # a weekday cell, lay a window's rows over its calendar, count a day of usage
 # or the per-backend read of it, fold its cost, scale the axis it is drawn
 # against, stack it, mark it a
 # subtotal or overlay its spend, or assemble the figure it is read off is a
 # deliberate edit rather than a place two chart families could disagree. The
-# two bar-sizing constants, the panel margin, the empty-ranking height, the
-# pinned call signature, the cache-shading factor and its hex base, the
+# two bar-sizing constants, the legend line and band padding, the panel
+# margin, the token-share segment names,
+# the empty-ranking height, the pinned call signature, the cache-shading factor
+# and its hex base, the
 # review-round labels, order, and row heights, the heatmap's weekday labels,
 # hour span, and subtotal note, the strip's pinned height, the band names, the
 # per-day table's alias, the overlay's filled-marker completeness and the words
@@ -88,16 +91,18 @@ _SURFACES = MappingProxyType({
     _COST_LAYOUT_OWNER: (
         "CostBarTrace",
         "HorizontalCostLayout",
+        "TokenShareBars",
         "apply_horizontal_cost_layout",
         "cost_bar_trace",
+        "token_share_traces",
     ),
     _COST_RANKING_OWNER: (
         "HorizontalBarRequest",
         "HorizontalBars",
+        "RankedCost",
         "cost_horizontal_bars",
         "cost_item_sort_key",
         "horizontal_bars_data",
-        "reverse_horizontal_bars",
     ),
     _COST_REPO_OWNER: (
         "cost_by_repo",
@@ -106,20 +111,20 @@ _SURFACES = MappingProxyType({
     _COST_REVIEW_OWNER: (
         "ReviewCostBars",
         "cost_by_review_round",
-        "developer_cost_total",
-        "reverse_review_cost_bars",
         "review_cost_bars",
+        "review_cost_layout",
         "review_cost_traces",
-        "reviewer_cost_total",
+        "review_panel_height",
+        "role_cost_bars",
     ),
     _COST_STAGE_OWNER: (
         "StageCostBars",
         "cost_by_stage",
         "lighten_hex",
-        "reverse_stage_cost_bars",
         "stage_cost_bars",
+        "stage_cost_layout",
         "stage_cost_sort_key",
-        "stage_no_cache_cost",
+        "stage_panel_height",
     ),
     _HEATMAP_OWNER: (
         "heatmap_hover_notes",
@@ -131,11 +136,10 @@ _SURFACES = MappingProxyType({
     ),
     _PRIMITIVES_OWNER: (
         "empty_figure",
-        "horizontal_legend",
         "horizontal_panel_height",
-        "money_text",
+        "legend_band_height",
         "monospace_textfont",
-        "reverse_lists",
+        "stacked_legend",
         "two_line_y_ticks",
     ),
     _THROUGHPUT_OWNER: (

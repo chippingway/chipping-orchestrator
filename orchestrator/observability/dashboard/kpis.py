@@ -6,8 +6,9 @@ Each is a reduction a headline tile is drawn from rather than a series a chart
 is plotted from: how a total moved against the window before it, how that
 window's agent runs came out, where its spend went, and how much of that spend
 was a second pass over work already done. All four take read-model rows or a
-window's own aggregates and hand back plain numbers, strings, and tuples, so
-what a tile reports is decided here rather than inside a Streamlit run.
+window's own aggregates and hand back plain numbers, strings, cohorts, and
+tuples, so what a tile reports is decided here rather than inside a Streamlit
+run.
 
 Two of them carry a decision a caller cannot re-derive. The tile triples read
 every count off the window's own totals rather than off the capped recent-runs
@@ -33,6 +34,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+from orchestrator.observability.analytics.query.cost_cohorts import CostCohort, fold_cohorts
 from orchestrator.observability.analytics.query.cost_models import ReviewRoundBucketRow
 from orchestrator.observability.analytics.query.overview_models import Summary
 from orchestrator.observability.analytics.query.run_models import IssueSummaryRow
@@ -118,15 +120,15 @@ def top_expensive_issues(
 
 def rework_totals(
     rows: Sequence[ReviewRoundBucketRow],
-) -> tuple[float, float]:
-    """Return `(total_cost, rework_cost)` across review-round buckets.
+) -> tuple[CostCohort, CostCohort]:
+    """Return the `(all rounds, rework)` cohorts across review-round buckets.
 
-    `rework_cost` sums the cost of every row whose `bucket` is in
-    `REWORK_BUCKETS` (i.e. review round >= 1). `total_cost` sums
-    every row, including the initial pass.
+    The rework cohort folds every row whose `bucket` is in
+    `REWORK_BUCKETS` (i.e. review round >= 1); the other folds every
+    row, the initial pass included. Each keeps its bases and the runs
+    it leaves unpriced, so a share taken of them can say what it is
+    short of.
     """
-    total = sum(row.total_cost_usd for row in rows)
-    rework = sum(
-        row.total_cost_usd for row in rows if row.bucket in REWORK_BUCKETS
-    )
-    return float(total), float(rework)
+    total = fold_cohorts(row.cost for row in rows)
+    rework = fold_cohorts(row.cost for row in rows if row.bucket in REWORK_BUCKETS)
+    return total, rework

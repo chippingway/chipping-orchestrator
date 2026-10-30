@@ -50,6 +50,7 @@ from orchestrator.observability.dashboard import (
     windows,
 )
 from orchestrator.observability.dashboard.charts import cost_repo, throughput
+from tests.observability.analytics import analytics_cohorts as cohort_cases, analytics_usage_cases as cases
 from tests.observability.dashboard.reliability_panel_test_support import (
     COLUMN_RATIO,
     LEFT,
@@ -86,8 +87,12 @@ _RESOLVED = 5
 
 _REJECTED = 3
 
+# One repository whose runs blend a CLI-reported amount with a Gemini API
+# token estimate, so the note under the ranking lists both parts.
+_REPO_COST = cohort_cases.cohort(cases.REPORTED, cases.GEMINI_ESTIMATE)
+
 _PANEL = page_models.ReliabilityPanelData(
-    repos=(RepoBreakdownRow(repo="owner/one", issues=2, events=9),),
+    repos=(RepoBreakdownRow(repo="owner/one", issues=2, events=9, agent_exits=2, cost=_REPO_COST),),
     summary=_SUMMARY,
     throughput=(ThroughputDayRow(day=date(_YEAR, 3, 2), resolved=2),),
     window=_WINDOW,
@@ -192,6 +197,15 @@ class RepoAndReliabilityTest(unittest.TestCase):
         page, _ = render_panel()
         self.assertIn("Cost by repository", markup_in(page, LEFT))
         self.assertIn("Reliability &amp; throughput", markup_in(page, RIGHT))
+
+    def test_the_ranking_is_closed_by_its_basis(self) -> None:
+        # What the repository bars add up to is worded beneath them, a blended
+        # amount with each basis's own, rather than left to the hover alone.
+        page, _ = render_panel()
+        self.assertIn(
+            "Bars total $0.54 (blended: CLI-reported $0.42 + Gemini API token estimate $0.12)",
+            markup_in(page, LEFT),
+        )
 
     def test_the_day_strip_ends_inside_the_window(self) -> None:
         # The window is half-open, so drawing through its end would add a

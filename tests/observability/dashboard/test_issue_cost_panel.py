@@ -112,7 +112,7 @@ def backend_rows(*backends: str) -> list[BackendEfficiencyRow]:
     a row here carries only what makes the card render at all.
     """
     return [
-        BackendEfficiencyRow(backend=backend, runs=1, total_cost_usd=1.0)
+        BackendEfficiencyRow(backend=backend, runs=1, cost=cohort_cases.cohort(cases.REPORTED))
         for backend in backends
     ]
 
