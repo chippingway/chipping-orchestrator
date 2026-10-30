@@ -24,6 +24,7 @@ from orchestrator.github import (
     pinned_state as _pinned_state,
 )
 from orchestrator.workflow.engine import (
+    issue_usage as _issue_usage,
     run_ledger as _run_ledger,
     usage_receipts as _usage_receipts,
 )
@@ -59,14 +60,14 @@ _RETAINED_KEYS = (
     # validating handoff that could no longer recognize the orchestrator's own
     # comments would read them as a human's.
     "orchestrator_comment_ids",
-    # What the issue has already cost. These counters are cumulative per ISSUE
+    # What the issue has already cost. These totals are cumulative per ISSUE
     # by construction -- the receipt a terminal posts reports what the whole
     # issue spent, not what one cycle did -- so zeroing them would under-report
-    # every attempt after the first.
-    "issue_agent_runs",
-    "issue_total_tokens",
-    "issue_total_cost_usd",
-    "issue_cost_sources",
+    # every attempt after the first. Named by the usage owner rather than
+    # copied here, so the cost evidence and the runs it leaves unsettled travel
+    # with the counts: a restart that kept the counts but dropped the evidence
+    # would read every run before it as an earlier build's, of unknown basis.
+    *_issue_usage.USAGE_COUNTERS,
     # Which invocations those counters already cover, kept beside them for the
     # same reason: an invocation of the cycle that ended, settled again after
     # the restart, is one they already count, and a ledger handed back empty

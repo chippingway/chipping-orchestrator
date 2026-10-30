@@ -168,8 +168,17 @@ KEPT = MappingProxyType({
     KEY_ORCHESTRATOR_IDS: list(SEEDED_COMMENT_IDS),
     "issue_agent_runs": 4,
     "issue_total_tokens": 45200,
+    "issue_total_tokens_unknown_runs": 1,
     "issue_total_cost_usd": 0.87,
-    "issue_cost_sources": ["reported"],
+    "issue_cost_sources": ["reported", "unknown-price"],
+    "issue_cost_evidence": {
+        "completeness": "unknown",
+        "contributions": [
+            {"basis": "cli-reported", "amount_usd": 0.5, "rates_verified_on": []},
+            {"basis": "unknown", "amount_usd": 0.37, "rates_verified_on": []},
+        ],
+    },
+    "issue_unevidenced_runs": 2,
     "issue_usage_receipts": {"floor": 2, "recent": [[3, "0000000000000003"], [4, "0000000000000004"]]},
     "agent_run_allowance": 60,
     "agent_runs_used": 5,

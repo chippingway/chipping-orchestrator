@@ -79,6 +79,10 @@ COST = "issue_total_cost_usd"
 
 COST_SOURCES = "issue_cost_sources"
 
+EVIDENCE = "issue_cost_evidence"
+
+UNTOTALED = "issue_total_tokens_unknown_runs"
+
 ISSUE_THREAD_MARK = "last_action_comment_id"
 
 PR_THREAD_MARK = "pr_last_comment_id"
@@ -94,6 +98,15 @@ REPORTED = "reported"
 
 UNPRICED = "unknown-price"
 
+# What the totals' runs state they cost: a CLI-reported amount, and the same
+# amount beside a run nobody priced, which leaves it a subtotal.
+_REPORTED_SPEND = MappingProxyType({
+    "completeness": "complete",
+    "contributions": [{"basis": "cli-reported", "amount_usd": 3.0, "rates_verified_on": []}],
+})
+
+_SUBTOTAL_SPEND = MappingProxyType({**_REPORTED_SPEND, "completeness": "incomplete"})
+
 # What the comment carried when the subject was resolved over it: the report
 # handed over, the issue's usage totals and cost tags, both threads read
 # through, the ledger of the orchestrator's own comments, and the round.
@@ -103,6 +116,7 @@ _RESOLVED = MappingProxyType({
     TOKENS: 300,
     COST: 3.0,
     COST_SOURCES: [REPORTED],
+    EVIDENCE: dict(_REPORTED_SPEND),
     ISSUE_THREAD_MARK: 100,
     PR_THREAD_MARK: 200,
     LEDGER: [100],
@@ -111,8 +125,8 @@ _RESOLVED = MappingProxyType({
 
 # Each road's moves over that reading, and the comment it posted: this tick's
 # pull-request thread read furthest, and the round moved on; another road's
-# run counted on the totals with a cost nobody priced, the issue thread read
-# furthest, and a round of its own.
+# run counted on the totals with a cost nobody priced and a token total nothing
+# settles, the issue thread read furthest, and a round of its own.
 _OURS = (
     MappingProxyType({
         ISSUE_THREAD_MARK: 110,
@@ -128,6 +142,8 @@ _THEIRS = (
         TOKENS: 350,
         COST: 3.25,
         COST_SOURCES: [REPORTED, UNPRICED],
+        EVIDENCE: dict(_SUBTOTAL_SPEND),
+        UNTOTALED: 1,
         ISSUE_THREAD_MARK: 120,
         PR_THREAD_MARK: 205,
         REVIEW_ROUND: 3,
@@ -136,13 +152,16 @@ _THEIRS = (
 )
 
 # Every move both roads made that is kept whole: the usage totals the other
-# road counted, as the comment carries them, each thread read as far as either read
-# it, and both roads' comments on the ledger.
+# road counted -- its cost evidence and unsettled token total among them -- as
+# the comment carries them, each thread read as far as either read it, and both
+# roads' comments on the ledger.
 _BOTH_KEPT = MappingProxyType({
     AGENT_RUNS: 4,
     TOKENS: 350,
     COST: 3.25,
     COST_SOURCES: [REPORTED, UNPRICED],
+    EVIDENCE: dict(_SUBTOTAL_SPEND),
+    UNTOTALED: 1,
     ISSUE_THREAD_MARK: 120,
     PR_THREAD_MARK: 215,
     LEDGER: [100, 110, 120],
@@ -252,6 +271,7 @@ _THEIRS_BEFORE_THE_BINDING = (
         AGENT_RUNS: 4,
         COST: 3.25,
         COST_SOURCES: [REPORTED, UNPRICED],
+        EVIDENCE: dict(_SUBTOTAL_SPEND),
         ISSUE_THREAD_MARK: 120,
         REVIEW_ROUND: 3,
     }),
@@ -266,6 +286,7 @@ _BOUND = MappingProxyType({
     TOKENS: 300,
     COST: 3.25,
     COST_SOURCES: [REPORTED, UNPRICED],
+    EVIDENCE: dict(_SUBTOTAL_SPEND),
     ISSUE_THREAD_MARK: 120,
     PR_THREAD_MARK: 215,
     LEDGER: [100, 120],

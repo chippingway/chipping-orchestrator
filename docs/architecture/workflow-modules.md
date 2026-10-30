@@ -2457,16 +2457,23 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             second charge, and the fingerprint, shared by every attempt at a round, is no accounting key
     run_reporting.py        agent-exit audit and analytics records, configured-model fallback, and triggered-skill
                             emissions; a failure to emit those skill records cannot discard a completed agent result
-    issue_usage.py          cumulative per-issue usage counters and their terminal receipt; unknown and estimated costs
-                            remain distinct from known prices and from the separate launch allowance, whose ledger
-                            reads the run count only as a floor under its own charges; the counter names and one run's
-                            token total are shared with the accounting checkpoint's own rules below
-    usage_counters.py       the usage counters as the accounting checkpoint holds them: each a non-negative total --
-                            counts whole numbers of any size, never converted, and the cost one a float holds -- and the
-                            tags a list of words, a run's parsed usage countable only where
-                            what it adds is spelled alike, and the per-counter transformations over a fresh reading --
-                            one run, its tokens, its cost where it has one, and its tag -- answering CONFLICT where the
-                            value laid over, the increment, or the total made is spelled as nothing its writers write
+    issue_usage.py          cumulative per-issue usage totals and their terminal receipt: the cost evidence reduced by
+                            basis and completeness, the non-overlapping token total beside the runs it settles none
+                            for, and an earlier build's totals read as one record without evidence (`EarlierUsage`),
+                            unknown in basis, completeness, and overlap; the receipt words the cost through the
+                            dashboard's `cost_text`, apart from the separate launch allowance, whose ledger reads the
+                            run count only as a floor under its own charges; the field names are shared with the
+                            accounting checkpoint's own rules below
+    usage_counters.py       the usage totals as the accounting checkpoint holds them: each a non-negative total --
+                            counts whole numbers of any size, never converted, and the cost one a float holds -- the
+                            tags a list of words, and the cost evidence one a usage record carries whose amounts sum
+                            to a total a float holds (`issue_usage.carried_cost`), a run's parsed
+                            usage countable only where what it adds is spelled alike, and the per-total
+                            transformations over a fresh reading -- one run, its non-overlapping tokens or one run
+                            whose total is unknown, its cost where it has one, its tag, and its cost evidence reduced
+                            over the issue's, started from an earlier build's where none is kept -- answering CONFLICT
+                            where the value laid over, the increment, or the total made is spelled as nothing its
+                            writers write
     invocations.py          the identity of each actual agent process (`agents.models.AgentInvocation`), minted over
                             the durable reading its charge was started on: repository, issue, the pinned comment that
                             start was written on, workflow cycle (the record's `late_cycle_id`, 0 only where the field
@@ -2476,11 +2483,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             ordinal and nonce pairs above a floor, the lowest retired under it past sixteen, so a
                             retired receipt's replay is still covered; read strictly, a damaged ledger answering None
     usage_checkpoint.py     account one invoked run's usage once: its increment and receipt in one guarded commit
-                            owning only the four counters and the ledger, bound to the invocation's repository, issue,
+                            owning only the usage totals and the ledger, bound to the invocation's repository, issue,
                             the comment its charge was written on -- which the caller must hold, never a replacement --
                             and cycle, refusing a damaged ledger, cycle identity, or counter -- the cost total included
                             where the run adds no cost, and on the read-back as in the commit -- and a parsed usage no
-                            counter can take, and read back before anything is sent, so an
+                            total can take, held where no evidence is kept to the totals it is started from, and read
+                            back before anything is sent, so an
                             unconfirmed edit, a lost response, a restart, or a later settlement adds nothing; what
                             landed is laid back onto the caller's state as the comment's (`ACCOUNTING`, the fields the
                             reviewer's rereads keep as the comment's too). Only a settled answer licenses dependent

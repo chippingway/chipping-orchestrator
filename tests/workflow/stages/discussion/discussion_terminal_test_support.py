@@ -65,16 +65,21 @@ _RECEIPT_PREFIX = ":receipt:"
 # never took.
 _LOOKUP_REFUSED = "GitHub declined the plan PR lookup"
 
-# The counters a discussion that ran a few rounds reaches its terminal holding,
-# and the line the receipt renders them as.
+# The totals a discussion that ran a few rounds reaches its terminal holding --
+# one round's cost reported by its CLI, and another's unpriced -- and the line
+# the receipt renders them as: a subtotal of what was reported.
 RECEIPT_COUNTERS = MappingProxyType({
     "issue_agent_runs": 3,
     "issue_total_tokens": 4200,
     "issue_total_cost_usd": 0.42,
-    "issue_cost_sources": ["reported"],
+    "issue_cost_sources": ["reported", "unknown-price"],
+    "issue_cost_evidence": {
+        "completeness": "incomplete",
+        "contributions": [{"basis": "cli-reported", "amount_usd": 0.42, "rates_verified_on": []}],
+    },
 })
 
-RECEIPT_LINE = "this issue: 3 agent runs · 4,200 tokens · $0.42"
+RECEIPT_LINE = "this issue: 3 agent runs · 4,200 tokens · $0.42 (CLI-reported, incomplete subtotal)"
 
 
 @dataclass(frozen=True)

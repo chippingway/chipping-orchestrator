@@ -95,14 +95,21 @@ WHILE_MERGING = "while merging"
 
 # What an operator's hand edit of the pinned comment does while a reviewer runs
 # beside it: it counts a run the orchestrator never saw on the usage totals,
-# tokens and a cost nobody priced, and marks the thread read through a comment
-# it posted and recorded as the orchestrator's. It charges nothing: the
-# lifetime ledger is the run circuit's alone.
+# tokens and a cost nobody priced -- which leaves the cost evidence a subtotal
+# and one more run's token total unknown -- and marks the thread read through
+# a comment it posted and recorded as the orchestrator's. It charges nothing:
+# the lifetime ledger is the run circuit's alone.
 THEIR_TOKENS = 50
 
 UNPRICED = "unknown-price"
 
 COST_SOURCES = "issue_cost_sources"
+
+EVIDENCE = "issue_cost_evidence"
+
+UNTOTALED = "issue_total_tokens_unknown_runs"
+
+SUBTOTAL = "incomplete"
 
 THREAD_MARK = "last_action_comment_id"
 
@@ -299,9 +306,17 @@ class _ApprovedReports(world._ReviewedReports):
         for spent, by in zip(SPENT, _EDITED_SPEND, strict=True):
             state.set(spent, state.get(spent) + by)
         state.set(COST_SOURCES, sorted({*state.get(COST_SOURCES), UNPRICED}))
+        state.set(EVIDENCE, {**state.get(EVIDENCE), "completeness": SUBTOTAL})
+        state.set(UNTOTALED, 1)
         state.set(THREAD_MARK, self.theirs)
         _comments._track_orchestrator_comment(state, self.theirs)
         self.github.write_pinned_state(self.issue, state)
+
+    def _edit_marks(self, pinned: dict) -> tuple:
+        """What `_runs_beside` marks on a comment beside its counts: the cost tags, how complete the cost is, the
+        runs whose token total is unknown, and the thread read."""
+        completeness = pinned[EVIDENCE]["completeness"]
+        return pinned[COST_SOURCES], completeness, pinned[UNTOTALED], pinned[THREAD_MARK]
 
     def _raced(self, change, reviewer, seam, *, passes: int = 0):
         """One validating tick whose reviewer returns `reviewer`, with `change` made to the comment beside it.
@@ -708,10 +723,8 @@ class ReturnRaceTest(unittest.TestCase, _ApprovedReports):
             (self.github.label_history[-1], pinned[LAST_REVIEWER]), (DOCUMENTED, LATE_REVIEWER),
         )
         self.assertEqual(spent, [charged, 2, THEIR_TOKENS])
-        self.assertEqual(
-            (pinned[COST_SOURCES], pinned[THREAD_MARK]),
-            (sorted({*before[COST_SOURCES], UNPRICED}), self.theirs),
-        )
+        tags = sorted({*before[COST_SOURCES], UNPRICED})
+        self.assertEqual(self._edit_marks(pinned), (tags, SUBTOTAL, 1, self.theirs))
         ours_and_theirs = {*before[LEDGER], self.theirs}
         self.assertLessEqual(ours_and_theirs, set(pinned[LEDGER]))
 
@@ -767,12 +780,12 @@ class RoundCommitTest(unittest.TestCase, _ApprovedReports):
                     (
                         (pinned[AWAITING_HUMAN], pinned[PARK_REASON], pinned[LAST_REVIEWER]),
                         [pinned[field] - before[field] for field in SPENT],
-                        (pinned[COST_SOURCES], pinned[THREAD_MARK]),
+                        self._edit_marks(pinned),
                     ),
                     (
                         (True, reason, LATE_REVIEWER),
                         [1, 2, THEIR_TOKENS],
-                        (sorted({*before[COST_SOURCES], UNPRICED}), self.theirs),
+                        (sorted({*before[COST_SOURCES], UNPRICED}), SUBTOTAL, 1, self.theirs),
                     ),
                 )
                 self.assertLessEqual(
