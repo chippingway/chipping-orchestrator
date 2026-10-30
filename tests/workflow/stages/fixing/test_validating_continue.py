@@ -9,7 +9,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tests.workflow.agent_failure_values import WEEKLY_LIMIT_MESSAGE
+from tests.workflow.agent_failure_values import (
+    FIVE_HOUR_LIMIT_MESSAGE,
+    FIVE_HOUR_LIMIT_QUESTION,
+    WEEKLY_LIMIT_MESSAGE,
+)
 from tests.workflow.fixtures import EVENT_PARK_AWAITING_HUMAN, REVIEW_CHANGES_REQUESTED_MESSAGE
 from tests.workflow.stages.fixing import fixing_test_support as support
 from tests.workflow.stages.fixing.prompt_expectations import (
@@ -89,6 +93,15 @@ posted_comment_contains = support.posted_comment_contains
 
 _DIRTY_FILE_NAME = "orchestrator/uncommitted_work.py"
 _DIRTY_CONTENT = "# reviewer fix the quota stopped half way\n"
+# A developer command pinned with arguments the configured one lacks, so a
+# retry that ran on the configuration instead would be told apart.
+_PINNED_DEV_SPEC = "claude --model claude-opus-4-7"
+_PINNED_DEV_ARGS = ("--model", "claude-opus-4-7")
+_DEV_AGENT_KEY = "dev_agent"
+_SILENT_PARK_COUNT = "silent_park_count"
+_AGENT_RUNS_USED = "agent_runs_used"
+# The reviewer's run and the developer's the quota stopped.
+_RUNS_BEFORE_RETRY = 2
 
 
 class _ContinueCommandFixtureMixin(_PatchedWorkflowMixin):
@@ -434,60 +447,64 @@ class ValidatingContinueCommandTest(
 
 
 class ValidatingQuotaParkContinueTest(unittest.TestCase, _PatchedWorkflowMixin):
-    """#1796: the developer handed a reviewer's change request stops on its
-    account's weekly quota, leaving the fix half written in the checkout. That
-    notice is the CLI's, not a question, so the round parks retryably with
-    everything the retry needs kept -- and the bare `/orchestrator continue`
-    the park asks for, once the quota resets, replays the reviewer's request
-    on a fresh session over that same checkout instead of being refused as an
-    unanswered question.
+    """The developer handed a reviewer's change request stops on its
+    account's quota (the weekly one of #1796, the five-hour one of #2426),
+    leaving the fix half written in the checkout. That notice is the CLI's,
+    not a question, so the round parks retryably with everything the retry
+    needs kept, and a tick nobody answered launches nothing. The bare
+    `/orchestrator continue` the park asks for, once the quota resets, replays
+    the reviewer's request on a fresh session of the pinned command over that
+    same checkout instead of being refused as an unanswered question. A real
+    question that merely quotes the notice stays one the bare command cannot
+    answer.
     """
 
-    def test_weekly_limit_park_continue_replays(self) -> None:
-        github = FakeGitHubClient()
-        issue = self._seed_validating(github)
-        worktree = self._dirty_worktree()
+    def test_quota_park_continue_replays(self) -> None:
+        for notice in (WEEKLY_LIMIT_MESSAGE, FIVE_HOUR_LIMIT_MESSAGE):
+            with self.subTest(notice=notice):
+                # --- Tick 1: the reviewer asks for a change; the quota stops the dev.
+                self._stop_the_developer(notice)
+                reviewer = self._assert_retryable_quota_park(notice)
 
-        # --- Tick 1: the reviewer asks for a change; the quota stops the dev.
-        self._run_validating(
-            github,
-            issue,
-            run_agent=[
-                _agent(session_id="rev-sess", last_message=REVIEW_CHANGES_REQUESTED_MESSAGE),
-                _agent(session_id=DEV_SESSION, last_message=WEEKLY_LIMIT_MESSAGE),
-            ],
-            head_shas=[SHA_BEFORE, SHA_BEFORE],
-            dirty_files=[_DIRTY_FILE_NAME],
-            issue_checkout=worktree,
-            issue_worktree=worktree,
-        )
-        reviewer = self._assert_retryable_quota_park(github)
+                # --- Tick 2: nobody has answered, so nothing is retried or said.
+                parked = self._github.pinned_data(ISSUE)
+                said = len(self._github.posted_comments)
+                self._fixing_tick(command=False)[RUN_AGENT].assert_not_called()
+                self.assertEqual(self._github.pinned_data(ISSUE), parked)
+                self.assertEqual(len(self._github.posted_comments), said)
 
-        # --- Tick 2: the bare command after the reset retries the round.
-        issue.comments.append(
-            FakeComment(
-                id=max(comment.id for comment in issue.comments) + 1,
-                body=CONTINUE_COMMAND,
-                user=FakeUser(DAVE),
+                # --- Tick 3: the bare command after the reset retries the round.
+                self._assert_retry_taken(self._fixing_tick(command=True), reviewer)
+
+    def test_question_quote_refuses_continue(self) -> None:
+        self._stop_the_developer(FIVE_HOUR_LIMIT_QUESTION)
+        self.assertEqual(self._park_events(), [("fixing", "agent_question")])
+        self.assertIn("needs your input", self._github.posted_comments[-1][1])
+        anchor = self._github.pinned_data(ISSUE).get(PENDING_FIX_REVIEWER_COMMENT_ID)
+        self.assertIsNotNone(anchor)
+
+        self._fixing_tick(command=True)[RUN_AGENT].assert_not_called()
+        self.assertTrue(posted_comment_contains(self._github, "needs your actual guidance"))
+        pinned_data = self._github.pinned_data(ISSUE)
+        self.assertEqual(
+            (
+                pinned_data.get(AWAITING_HUMAN),
+                pinned_data.get(PARK_REASON),
+                pinned_data.get(_SILENT_PARK_COUNT),
+                pinned_data.get(PENDING_FIX_REVIEWER_COMMENT_ID),
             ),
+            (True, None, 0, anchor),
         )
-        mocks = self._run_fixing(
-            github,
-            issue,
-            run_agent=_agent(session_id=FRESH_SESSION, last_message=PUSHED_FIX_MESSAGE),
-            head_shas=(SHA_BEFORE, SHA_AFTER),
-            issue_checkout=worktree,
-            issue_worktree=worktree,
-        )
+        self.assertNotIn((ISSUE, VALIDATING), self._github.label_history)
 
-        self._assert_replayed_review(mocks, reviewer, worktree)
-        self._assert_park_cleared(github)
-
-    def _seed_validating(self, github):
-        """A `validating` issue whose pull request the reviewer is about to read."""
-        issue = make_issue(ISSUE, label=VALIDATING)
-        github.add_issue(issue)
-        github.add_pr(
+    def _stop_the_developer(self, last_message: str) -> None:
+        """Tick 1 on a `validating` issue: the reviewer requests changes, and
+        the developer's run on them ends in `last_message` with no commit,
+        its fix left half written in the checkout."""
+        self._github = FakeGitHubClient()
+        self._issue = make_issue(ISSUE, label=VALIDATING)
+        self._github.add_issue(self._issue)
+        self._github.add_pr(
             FakePR(
                 number=PR_NUMBER,
                 head_branch=BRANCH,
@@ -496,80 +513,115 @@ class ValidatingQuotaParkContinueTest(unittest.TestCase, _PatchedWorkflowMixin):
                 check_state=CHECK_SUCCESS,
             ),
         )
-        github.seed_state(
+        self._github.seed_state(
             ISSUE,
             pr_number=PR_NUMBER,
             branch=BRANCH,
-            dev_agent=DEV_AGENT,
+            dev_agent=_PINNED_DEV_SPEC,
             dev_session_id=DEV_SESSION,
             review_round=0,
         )
-        return issue
-
-    def _dirty_worktree(self) -> Path:
-        worktree = Path(tempfile.mkdtemp(prefix="fixing-quota-wt-"))
-        self.addCleanup(shutil.rmtree, worktree, ignore_errors=True)
-        dirty_file = worktree / _DIRTY_FILE_NAME
+        self._worktree = Path(tempfile.mkdtemp(prefix="fixing-quota-wt-"))
+        self.addCleanup(shutil.rmtree, self._worktree, ignore_errors=True)
+        dirty_file = self._worktree / _DIRTY_FILE_NAME
         dirty_file.parent.mkdir(parents=True)
         dirty_file.write_text(_DIRTY_CONTENT)
-        return worktree
+        self._run_validating(
+            self._github,
+            self._issue,
+            run_agent=[
+                _agent(session_id="rev-sess", last_message=REVIEW_CHANGES_REQUESTED_MESSAGE),
+                _agent(session_id=DEV_SESSION, last_message=last_message),
+            ],
+            head_shas=[SHA_BEFORE, SHA_BEFORE],
+            dirty_files=[_DIRTY_FILE_NAME],
+            issue_checkout=self._worktree,
+            issue_worktree=self._worktree,
+        )
 
-    def _assert_retryable_quota_park(self, github):
-        """The park tick 1 leaves, and the reviewer comment it is anchored on."""
-        parks = [
-            record for record in github.recorded_events
+    def _fixing_tick(self, *, command: bool):
+        """One fixing tick over the parked round, after a trusted bare
+        `/orchestrator continue` where `command` says one was posted."""
+        if command:
+            self._issue.comments.append(
+                FakeComment(
+                    id=max(comment.id for comment in self._issue.comments) + 1,
+                    body=CONTINUE_COMMAND,
+                    user=FakeUser(DAVE),
+                ),
+            )
+        return self._run_fixing(
+            self._github,
+            self._issue,
+            run_agent=_agent(session_id=FRESH_SESSION, last_message=PUSHED_FIX_MESSAGE),
+            head_shas=(SHA_BEFORE, SHA_AFTER),
+            issue_checkout=self._worktree,
+            issue_worktree=self._worktree,
+        )
+
+    def _park_events(self) -> list[tuple]:
+        return [
+            (record.get("stage"), record.get("reason"))
+            for record in self._github.recorded_events
             if record.get("event") == EVENT_PARK_AWAITING_HUMAN
         ]
-        self.assertEqual(
-            [(record.get("stage"), record.get("reason")) for record in parks],
-            [("fixing", "agent_session_limit")],
-        )
-        self.assertEqual(github.label_history, [(ISSUE, FIXING)])
-        pinned_data = github.pinned_data(ISSUE)
+
+    def _assert_retryable_quota_park(self, notice: str):
+        """The park tick 1 leaves, and the reviewer comment it is anchored on."""
+        self.assertEqual(self._park_events(), [("fixing", "agent_session_limit")])
+        self.assertEqual(self._github.label_history, [(ISSUE, FIXING)])
+        pinned_data = self._github.pinned_data(ISSUE)
         # `agent_silent` is the retryable reason the continue command keys
-        # off; the anchor, PR and branch are what the replay is rebuilt from.
+        # off, and the streak it advances is what rotates a session that
+        # keeps stopping; the anchor, PR and branch are what the replay is
+        # rebuilt from, and the pinned command what it runs on. Both runs
+        # the round spent stay charged.
         self.assertEqual(
             (
                 pinned_data.get(AWAITING_HUMAN),
                 pinned_data.get(PARK_REASON),
+                pinned_data.get(_SILENT_PARK_COUNT),
                 pinned_data.get("pr_number"),
                 pinned_data.get("branch"),
+                pinned_data.get(_DEV_AGENT_KEY),
+                pinned_data.get(_AGENT_RUNS_USED),
             ),
-            (True, PARK_AGENT_SILENT, PR_NUMBER, BRANCH),
+            (True, PARK_AGENT_SILENT, 1, PR_NUMBER, BRANCH, _PINNED_DEV_SPEC, _RUNS_BEFORE_RETRY),
         )
-        notice = github.posted_comments[-1][1]
-        for expected in (SESSION_LIMIT_PHRASE, CONTINUE_COMMAND, WEEKLY_LIMIT_MESSAGE):
-            self.assertIn(expected, notice)
-        self.assertNotIn("needs your input", notice)
+        notice_comment = self._github.posted_comments[-1][1]
+        for expected in (SESSION_LIMIT_PHRASE, CONTINUE_COMMAND, f"> {notice}"):
+            self.assertIn(expected, notice_comment)
+        self.assertNotIn("needs your input", notice_comment)
         return next(
-            posted for posted in github.get_pr(PR_NUMBER).issue_comments
+            posted for posted in self._github.get_pr(PR_NUMBER).issue_comments
             if posted.id == pinned_data.get(PENDING_FIX_REVIEWER_COMMENT_ID)
         )
 
-    def _assert_replayed_review(self, mocks, reviewer, worktree: Path) -> None:
+    def _assert_retry_taken(self, mocks, reviewer) -> None:
         """Exactly the reviewer's request, on a fresh spawn of the developer's
-        own backend, in the checkout still holding the unfinished fix."""
+        pinned command in the checkout still holding the unfinished fix,
+        charged as one more run, and the fix back in review."""
         self.assertEqual(
             replayed_task(only_prompt(mocks)), pr_feedback_prompt([reviewer]),
         )
         agent_call = mocks[RUN_AGENT].call_args
+        options = agent_call.kwargs["options"]
         self.assertEqual(
-            (agent_call.args[0], agent_call.args[2], agent_call.kwargs["options"].resume_session_id),
-            (DEV_AGENT, worktree, None),
+            (agent_call.args[0], options.extra_args, agent_call.args[2], options.resume_session_id),
+            (DEV_AGENT, _PINNED_DEV_ARGS, self._worktree, None),
         )
-        self.assertEqual((worktree / _DIRTY_FILE_NAME).read_text(), _DIRTY_CONTENT)
-
-    def _assert_park_cleared(self, github) -> None:
-        """The retry was taken, not refused, and the fix went back to review."""
-        self.assertFalse(posted_comment_contains(github, "needs your actual guidance"))
-        pinned_data = github.pinned_data(ISSUE)
+        self.assertEqual((self._worktree / _DIRTY_FILE_NAME).read_text(), _DIRTY_CONTENT)
+        self.assertFalse(posted_comment_contains(self._github, "needs your actual guidance"))
+        pinned_data = self._github.pinned_data(ISSUE)
         self.assertEqual(
             (
                 pinned_data.get(AWAITING_HUMAN),
                 pinned_data.get(PARK_REASON),
                 pinned_data.get(DEV_SESSION_ID),
                 pinned_data.get(PENDING_FIX_REVIEWER_COMMENT_ID),
+                pinned_data.get(_DEV_AGENT_KEY),
+                pinned_data.get(_AGENT_RUNS_USED),
             ),
-            (False, None, FRESH_SESSION, None),
+            (False, None, FRESH_SESSION, None, _PINNED_DEV_SPEC, _RUNS_BEFORE_RETRY + 1),
         )
-        self.assertIn((ISSUE, VALIDATING), github.label_history)
+        self.assertIn((ISSUE, VALIDATING), self._github.label_history)

@@ -3141,8 +3141,8 @@ and handed off -- and this is what it guarantees and what stops it.
        quota stop (`_is_session_limit`) is classified first, from either channel it arrives on: the account-quota
        verdict of the failure record Antigravity attaches to a failed run (`AgentResult.terminal_failure`), read
        without the final message, which such a run leaves empty, and ahead of any unfinished tool step beside it;
-       or a Claude session-, usage-, or weekly-limit notice matched as a prefix of the final message. It parks
-       retryably as `agent_silent` and reports `agent_session_limit`. The Claude notice is quoted as it is; the
+       or a Claude session-, usage-, weekly-, or five-hour-limit notice matched as a prefix of the final message. It
+       parks retryably as `agent_silent` and reports `agent_session_limit`. The Claude notice is quoted as it is; the
        Antigravity notice explains that the account quota is exhausted, names the reset interval the failure gave
        as a countdown from when the run stopped (or that it named none), and quotes the redacted 1KB stderr tail,
        which carries the CLI's diagnostics and the terminal error, under a line that tells the subprocess's own exit
@@ -6004,10 +6004,10 @@ of those recoverable without telling a human twice
      park (`agent_silent` / `agent_timeout` / `agent_execution_failed`) is never resumed on the bare command text.
      Unfinished command executions are parked `agent_execution_failed` by `_on_question`, and two kinds of stop are
      parked `agent_silent` rather than as a real `park_reason=None` question, because neither is the agent's own
-     words: a quota stop (`_is_session_limit`) — a recognized Claude session-, usage-, or weekly-limit notice, matched
-     as a prefix of the final message so an answer that merely mentions a limit stays an answer, or the account-quota
-     verdict of an Antigravity failure record, which only failure diagnostics settle, so a successful answer about a
-     quota stays an answer too — and a transient provider refusal such as `API Error: 529 Overloaded`
+     words: a quota stop (`_is_session_limit`) — a recognized Claude session-, usage-, weekly-, or five-hour-limit
+     notice, matched as a prefix of the final message so an answer that merely mentions a limit stays an answer, or the
+     account-quota verdict of an Antigravity failure record, which only failure diagnostics settle, so a successful
+     answer about a quota stays an answer too — and a transient provider refusal such as `API Error: 529 Overloaded`
      (`agents/provider_failures.py`'s `is_transient_provider_failure`,
      which prefers the terminal result event's `is_error` flag and otherwise requires a non-zero exit beside the prefix,
      so a successful answer that merely quotes the error stays an answer). A quota reset, a provider that came back,

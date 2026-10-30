@@ -142,12 +142,13 @@ def _is_session_limit(agent_result: AgentResult) -> bool:
     its terminal error and stderr diagnostics with the final message left
     empty, so no reading of `last_message` could find it, and the record is
     trusted whatever the run left beside it -- an unfinished tool step
-    included. Otherwise the stop is a Claude session/usage/weekly-quota notice
-    ("You've hit your session limit ...", "You've hit your weekly limit ...")
-    returned as the final message, matched as a PREFIX of the normalized
-    message so a dev reply that merely mentions a limit mid-answer is not
-    caught -- backend-agnostic on purpose, since the phrasings are distinctive
-    enough that a non-Claude backend echoing them would still be a quota stop.
+    included. Otherwise the stop is a Claude session-, usage-, weekly-, or
+    five-hour-quota notice ("You've hit your session limit ...", "You've hit
+    your 5-hour limit ...") returned as the final message, matched as a PREFIX
+    of the normalized message so a dev reply that merely mentions a limit
+    mid-answer is not caught -- backend-agnostic on purpose, since the
+    phrasings are distinctive enough that a non-Claude backend echoing them
+    would still be a quota stop.
 
     Neither is a real agent question: the only recovery is to wait for the
     reset and retry, however far away that reset is.

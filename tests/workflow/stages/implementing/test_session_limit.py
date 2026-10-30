@@ -12,7 +12,12 @@ from orchestrator.agents import models as _agent_models
 from orchestrator.agents.backends import agy as _agy
 from orchestrator.workflow.stages.implementing import session_read as _session_read
 from tests.support import agy_stream as stream
-from tests.workflow.agent_failure_values import WEEKLY_LIMIT_MESSAGE, agy_quota_stop
+from tests.workflow.agent_failure_values import (
+    FIVE_HOUR_LIMIT_MESSAGE,
+    FIVE_HOUR_LIMIT_QUESTION,
+    WEEKLY_LIMIT_MESSAGE,
+    agy_quota_stop,
+)
 from tests.workflow.fixtures import EVENT_PARK_AWAITING_HUMAN
 from tests.workflow.stages.implementing import retry_test_support as support
 
@@ -109,12 +114,12 @@ def _normalized(stdout: str, stderr: str = "", exit_code: int = 0) -> _agent_mod
 
 
 class SessionLimitMessageClassifierTest(unittest.TestCase):
-    """A session/usage/weekly-quota notice returned as the CLI's FINAL message
-    is a retryable session-failure, not a real agent question. `_on_question`
-    keys the retryable `agent_silent` park off `_is_session_limit`, so
-    the classifier must accept the known phrasings (including a curly
-    apostrophe) as a prefix while ignoring a plain question or a mid-answer
-    mention.
+    """A session/usage/weekly/five-hour-quota notice returned as the CLI's
+    FINAL message is a retryable session-failure, not a real agent question.
+    `_on_question` keys the retryable `agent_silent` park off
+    `_is_session_limit`, so the classifier must accept the known phrasings
+    (including a curly apostrophe) as a prefix while ignoring a plain question
+    or a mid-answer mention.
     """
 
     def test_matches_known_session_limit_phrasings(self) -> None:
@@ -131,6 +136,11 @@ class SessionLimitMessageClassifierTest(unittest.TestCase):
             "Claude AI usage limit reached|1712345678",
             # Mixed casing / leading whitespace still trip the prefix match.
             "  CLAUDE USAGE LIMIT REACHED",
+            # The #2426 five-hour notice, verbatim and normalized.
+            FIVE_HOUR_LIMIT_MESSAGE,
+            "You’ve hit your 5-hour limit · resets 12:40pm",
+            "You've reached your 5-hour limit",
+            "\n  YOU’VE REACHED YOUR 5-HOUR LIMIT · resets 5am (UTC)",
         ):
             with self.subTest(last_message=last_message):
                 agent_result = _agent(session_id=DEFAULT_SESSION, last_message=last_message)
@@ -148,6 +158,9 @@ class SessionLimitMessageClassifierTest(unittest.TestCase):
             "I added a note about the session limit handling in fixing.py.",
             # Quoting the weekly notice whole, mid-answer, is still an answer.
             "Done: the classifier now parks \"You've hit your weekly limit\" retryably.",
+            "Done: a \"You've reached your 5-hour limit\" notice now parks retryably.",
+            # So is a real question that quotes the five-hour notice.
+            FIVE_HOUR_LIMIT_QUESTION,
         ):
             with self.subTest(last_message=last_message):
                 agent_result = _agent(session_id=DEFAULT_SESSION, last_message=last_message)
