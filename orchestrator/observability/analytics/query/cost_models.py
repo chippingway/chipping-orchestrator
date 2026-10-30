@@ -117,8 +117,13 @@ class CostCoverageRow:
     they remain visible (this is distinct from the `unknown-price`
     string the parser writes -- a NULL is "field absent", not
     "field present with the value 'unknown-price'").
+    `total_tokens` sums the runs' non-overlapping totals and
+    `unknown_token_runs` counts the runs whose total the evidence
+    leaves unknown, so a bucket whose totals nothing settles is not
+    mistaken for one that spent no tokens.
     """
 
     cost_source: str
     runs: int
     total_tokens: int = 0
+    unknown_token_runs: int = 0

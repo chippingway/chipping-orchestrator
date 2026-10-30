@@ -6,6 +6,7 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.observability.analytics.query.breakdown_reads import get_hourly_heatmap
+from orchestrator.observability.analytics.query.token_totals import EVENT_TOKEN_TOTAL_SQL
 from tests.observability.analytics.analytics_assertions import assert_column_values, assert_sql_fragments
 from tests.observability.analytics.query.query_fake_driver import (
     FakeConnect,
@@ -19,10 +20,15 @@ _BASE_SCAN = "FROM analytics_events"
 
 _ROLLUP_SCAN = "FROM analytics_daily_rollup"
 
-# One cell at its full width: weekday / hour / event count / cell tokens.
-_CELL = (1, 9, 5, 25_000)
+# One cell at its full width: weekday / hour / event count / the known token
+# total / the agent runs whose total is unknown.
+_CELL = (1, 9, 5, 25_000, 0)
 
-_CELLS = (_CELL, (1, 14, 7, 40_000), (3, 22, 2, 4_500))
+_CELLS = (
+    _CELL,
+    (1, 14, 7, 40_000, 2),
+    (3, 22, 2, 4_500, 0),
+)
 
 # The offsets an operator can pick: none, an eastern zone, and a western one --
 # which binds a negative integer Postgres reduces to a backwards shift.
@@ -48,6 +54,7 @@ class HourlyHeatmapReadTest(unittest.TestCase):
                 "hour": [9, 14, 22],
                 "count": [5, 7, 2],
                 "total_tokens": [25_000, 40_000, 4_500],
+                "unknown_token_runs": [0, 2, 0],
             },
         )
 
@@ -55,7 +62,9 @@ class HourlyHeatmapReadTest(unittest.TestCase):
         # The rollup buckets by day, so an hour of day is not recoverable from
         # it -- this read has to keep scanning the events table. Token volume
         # rides beside the count so a page can render intensity by spend rather
-        # than by the many cheap rows that dwarf the agent runs.
+        # than by the many cheap rows that dwarf the agent runs: the runs'
+        # stored non-overlapping totals, with an unknown total counted only on
+        # an `agent_exit` row, since every other event states none.
         conn = FakeConnection(rows=(_CELL,))
         with configured_db_url():
             get_hourly_heatmap(connect=conn.as_connect)
@@ -67,13 +76,13 @@ class HourlyHeatmapReadTest(unittest.TestCase):
                 _BASE_SCAN,
                 "EXTRACT(DOW FROM",
                 "EXTRACT(HOUR FROM",
-                "input_tokens",
-                "output_tokens",
-                "cache_read_tokens",
-                "cache_write_tokens",
+                EVENT_TOKEN_TOTAL_SQL,
+                "SUM(total_tokens)",
+                "WHEN event = 'agent_exit' AND total_tokens IS NULL THEN 1",
             ),
         )
         self.assertNotIn(_ROLLUP_SCAN, scan_sql)
+        self.assertNotIn("input_tokens", scan_sql)
 
     def test_the_event_selection_binds(self) -> None:
         # Unlike the view-backed breakdowns beside it, this scan has an `event`

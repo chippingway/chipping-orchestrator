@@ -77,7 +77,7 @@ _DEDUP_DURATION_S_SECONDARY = 1.5
 
 class _AgentRunProjection(NamedTuple):
     model: str
-    total_tokens: int
+    total_tokens: int | None
     total_cache: int
     bucket: str
     failed: bool
@@ -219,7 +219,10 @@ class LiveSchemaTest(unittest.TestCase):
             _AgentRunProjection(*row),
             {
                 "model": agent_run["models"][0],
-                "total_tokens": agent_run["input_tokens"] + agent_run["output_tokens"],
+                # The record states no token evidence and carries nonzero
+                # cache counters, so nothing settles whether they overlap its
+                # input: the total is unknown rather than either guess.
+                "total_tokens": None,
                 "total_cache": (
                     agent_run["cached_tokens"]
                     + agent_run["cache_read_tokens"]

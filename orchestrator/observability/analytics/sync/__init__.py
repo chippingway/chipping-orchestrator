@@ -9,14 +9,19 @@ lifecycle around it, and the command an operator starts the whole thing with.
 
 The owners split by what each half is answerable to. ``columns`` owns the
 inventory the record shape and the table shape meet on -- what a record must
-carry, what has a column of its own, and which of those columns hold JSON.
+carry, what has a column of its own, which of those columns hold JSON, and
+which are derived from its usage evidence instead.
 ``records`` owns what one record hashes to, pinned to the encoding the sink
 wrote its line with because that hash is the key the insert deduplicates on,
 plus the coercion each required field is either narrowed by or refused for.
+``evidence`` owns what an `agent_exit` record's usage evidence fills on its
+row beside the fields copied off it -- each cost basis's amount, an estimate's
+rate dates, the completeness, and the non-overlapping token total -- read
+through the usage parser's own readers rather than re-derived.
 ``rows`` owns the line itself: the statement a batch is sent under, the
 positional tuple built from the same column list in the same order so no
 per-row mapping stands between them, and the reason a line that cannot become a
-row is skipped for rather than raised on. None of the three names a driver, so
+row is skipped for rather than raised on. None of the four names a driver, so
 a caller can build or hash a row without Postgres installed.
 
 Above them, ``models`` owns what a replay is counted by and the state its loop

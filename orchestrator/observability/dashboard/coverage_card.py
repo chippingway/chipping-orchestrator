@@ -5,11 +5,14 @@
 The bar answers whether the money everywhere else on the page can be trusted:
 each segment is one `cost_source` -- what the parser could price, and what it
 could not -- and its width is that source's share of the window. Share is read
-in tokens whenever the window carries any, because a handful of high-token runs
-can dominate spend while looking like a thin slice of the run count; only a
-window with no token volume at all falls back to run share, and a window with
-neither falls back to a denominator of one so an empty bar renders flat rather
-than raising on a page opened to find out why it is empty.
+in tokens whenever the window carries any and every run in it has a known token
+total, because a handful of high-token runs can dominate spend while looking
+like a thin slice of the run count. A window holding a run whose total the
+evidence leaves unknown falls back to run share instead: its source's known
+subtotal would otherwise shrink that segment toward nothing, hiding exactly the
+runs nobody could measure. So does a window with no token volume at all, and a
+window with neither falls back to a denominator of one so an empty bar renders
+flat rather than raising on a page opened to find out why it is empty.
 
 A segment carries both of the strings it appears in -- the slice of the bar and
 the entry in the legend beneath it -- because the two share a color and a
@@ -43,7 +46,8 @@ def cost_coverage_weights(
     rows: Sequence[CostCoverageRow],
 ) -> tuple[list[int], int]:
     total_tokens = sum(int(row.total_tokens or 0) for row in rows)
-    if total_tokens > 0:
+    tokens_known = not any(row.unknown_token_runs for row in rows)
+    if total_tokens > 0 and tokens_known:
         return [int(row.total_tokens or 0) for row in rows], total_tokens
     weights = [int(row.runs or 0) for row in rows]
     return weights, sum(weights) or 1

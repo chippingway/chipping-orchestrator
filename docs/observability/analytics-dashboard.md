@@ -131,6 +131,22 @@ a group with no priced run sums to reading as zero, and a driver-widened `day` n
 NULL-preserving float coercion the stage and backend projections share is `raw_values.py`'s, so both sides
 of the read path narrow a nullable duration the same way.
 
+Two owners there are the reduction a cost or token display builds on, over the
+[usage evidence columns](analytics-database.md#usage-evidence-columns) the sync stores. `cost_cohorts.py` reduces a
+cohort of runs in SQL the way `usage.cost_evidence.reduce_costs` folds costs: `RUN_COST_COHORT_SQL` over the agent-run
+view, `EVENT_COST_COHORT_SQL` over the events table, and `ROLLUP_COST_COHORT_SQL` over the rollup each select the same
+`COST_COHORT_WIDTH` cells — the runs counted by the completeness each states, one sum per basis, and every distinct
+rate-verification date per estimate basis, unioned by the schema's `analytics_rate_dates` aggregate on every target
+alike — and `cost_cohort(row, start)` reads them back as a `CostCohort`:
+the four counts beside a `CostEvidence` whose completeness is the weakest any counted run states, so the trajectory
+viewer's wording or any other reader of a `CostEvidence` words a cohort as it words one run. Four answers a single
+summed amount would merge stay apart: an empty cohort (`is_empty`, no run at all), a complete zero (a `complete` cost
+summing to `0`), an incomplete subtotal (`incomplete`, its known amounts beside runs that stated none, `complete_usd`
+`None`), and an amount with no stated basis (under the `unknown` basis, completeness `unknown`). A row narrower than
+the cells raises. `token_totals.py` spells the token reduction for the same three targets: each fragment selects the
+summed known non-overlapping totals and the runs whose total is unknown, so a known subtotal never reads as the whole;
+on the events table only an `agent_exit` row counts as a run. Neither reprices anything: amounts are the recorded ones.
+
 - `get_summary` (rollup) — date-bounded totals + per-event / per-stage breakdowns + token / cost sums, plus
   `total_agent_runs` / `failed_agent_runs` / `timed_out_agent_runs` scoped to `event='agent_exit'`. `distinct_issues` is
   `COUNT(DISTINCT (repo, issue))`. Single round-trip via `WITH win AS (...)` CTE with three `UNION ALL` branches tagged
@@ -240,7 +256,8 @@ of the read path narrow a nullable duration the same way.
   read as an empty mapping, so one malformed row never takes the trace down. The page renders none of them.
 - `get_hourly_heatmap` (base table) — 7×24 weekday/hour activity cells from `EXTRACT(DOW)` / `EXTRACT(HOUR)` over
   `(ts AT TIME ZONE 'UTC') + tz_offset_hours * INTERVAL '1 hour'` (normalizing first guards against a non-UTC session
-  timezone re-shifting the buckets) with per-cell event count + `input + output + cache_read + cache_write` token total.
+  timezone re-shifting the buckets) with per-cell event count, the agent runs' summed non-overlapping `total_tokens`
+  (`token_totals.EVENT_TOKEN_TOTAL_SQL`), and `unknown_token_runs`, the cell's `agent_exit` rows whose total is unknown.
   `tz_offset_hours` (default `0`, parameter binding only — never spliced) lets the dashboard bucket in a non-UTC zone.
 - `get_review_round_breakdown` (agent-run view) — per `review_round_bucket` runs / failed counts + `total_cost_usd`,
   plus per-role (`developer_*` / `reviewer_*`) run counts and cost, each role's cost further split into cache vs
@@ -251,8 +268,11 @@ of the read path narrow a nullable duration the same way.
   double-counting. Token-less rows attribute their full cost to no-cache. Every development and review run records its
   round, a fresh implementation as `0`, so a NULL `review_round` surfaces as `"unknown"` whatever the run's stage.
 - `get_backend_daily_tokens` (agent-run view) — per `(day, backend)` token totals feeding the hero chart's "By
-  backend" stacked-area toggle.
-- `get_cost_coverage` (agent-run view) — per `cost_source` rollups carrying both runs and `total_tokens`. The
+  backend" stacked-area toggle: the runs' summed non-overlapping `total_tokens`, so a Codex run's cached input is not
+  added again beside the input holding it, and `unknown_token_runs`, the runs whose total is unknown (an Antigravity
+  run's cache reads, whose overlap nothing establishes yet, among them).
+- `get_cost_coverage` (agent-run view) — per `cost_source` rollups carrying runs, the summed non-overlapping
+  `total_tokens`, and `unknown_token_runs`, the runs whose total is unknown. The
   `unknown-price` cohort is exposed verbatim (never collapsed into a generic "unknown") because it is the maintenance
   signal for the price catalogue in `observability/usage/prices.py`: a model with no row there, or with a row still
   dormant until its provider's accounting activates it. NULL `cost_source` buckets under `"unknown"`.
@@ -480,8 +500,9 @@ already ride on the time-series points.
 Two more panels are drawn as markup rather than as a figure: `backend_card.py` for what a run on one backend
 is worth — the cost of a million tokens, the cost of a run, and the share of billable input the cache answered, each
 divided through one guard so a window a backend barely ran in reads zero rather than raising — and `coverage_card.py`
-for how much of a window's spend the parser could price, sized by token share whenever the window carries any and by
-run share only when it does not, drawn as one bar and the legend beneath it.
+for how much of a window's spend the parser could price, sized by token share whenever the window carries any and
+every run in it has a known token total, and by run share otherwise — a source of runs no evidence totals would
+otherwise shrink toward nothing — drawn as one bar and the legend beneath it.
 `stage_cost_panel.py`, `issue_cost_panel.py`, and `reliability_panel.py` are the three sections that spend is compared
 across, each a pair of
 7:5 columns rather than a single panel. The first pairs the two lifecycle axes — spend by workflow stage beside spend
@@ -569,11 +590,12 @@ either wave surfaces as one `st.error` + `st.stop`.
    prompt caching.
 5. 7/5 split: top-cost issues table (Issue with in-row cost bar, Cost, Runs, Review rds, Retries, status pill) +
    backend-efficiency cards (`$ / 1M tok`, `% cache hit`, `$ / run`) above the cost-source coverage bar (sized by token
-   share).
+   share, or by run share once a run's token total is unknown).
 6. Another 7/5 split: `cost_by_repo` bars + six-tile reliability panel (agent runs / success rate / resolved / rejected
    / failures / timeouts — all sourced from the same `Summary` window-wide aggregate) above the
    issues-resolved-per-day bar chart with explicit zero days backfilled.
-7. 7 × 24 weekday × hour activity heatmap rendering token volume, with an in-card `UTC` offset selectbox (range `-12
+7. 7 × 24 weekday × hour activity heatmap rendering token volume — the runs' known totals, a cell holding a run whose
+   total is unknown saying so on hover — with an in-card `UTC` offset selectbox (range `-12
    … +14`, default `UTC+7`) that controls both the heatmap bucketing and the wall-clock conversion of the `ts` column
    in the recent agent-runs table below. The widget binds to `st.session_state["tz_offset_hours"]`; the offset is read
    before the second-wave fan-out so the heatmap query buckets in the chosen zone, and the card subtitle / x-axis title

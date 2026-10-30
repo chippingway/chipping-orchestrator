@@ -22,6 +22,8 @@ _COLUMNS_OWNER = "columns"
 
 _DATABASE_OWNER = "database"
 
+_EVIDENCE_OWNER = "evidence"
+
 _INGEST_OWNER = "ingest"
 
 _MODELS_OWNER = "models"
@@ -41,6 +43,7 @@ _OWNERS = (
     _CLI_OWNER,
     _COLUMNS_OWNER,
     _DATABASE_OWNER,
+    _EVIDENCE_OWNER,
     _INGEST_OWNER,
     _MODELS_OWNER,
     _RECORDS_OWNER,
@@ -56,9 +59,10 @@ _OWNERS = (
 # the table is written through, and a second way to start one is a second place
 # the arguments an operator passes and the code they read back could. The
 # inventory owner reports nothing because the check reads `__module__`, which
-# only a class or a function carries -- its whole surface is the four column
-# names, the promoted list, the JSONB pair, and the required keys. `database`
-# is likewise short one name: the view the refresh names is a string.
+# only a class or a function carries -- its whole surface is the column names,
+# the promoted list, the JSONB pair, the required keys, the per-basis maps, and
+# the derived and table-wide lists. `database` is likewise short one name: the
+# view the refresh names is a string, as is the event `evidence` derives for.
 _SURFACES = MappingProxyType({
     _CLI_OWNER: (
         "cli_parser",
@@ -75,6 +79,11 @@ _SURFACES = MappingProxyType({
         "execute_rollup_refresh",
         "refresh_daily_rollup",
         "rollback_quietly",
+    ),
+    _EVIDENCE_OWNER: (
+        "cost_amount_cells",
+        "derived_columns",
+        "rate_date_cells",
     ),
     _INGEST_OWNER: (
         "RecordIngester",

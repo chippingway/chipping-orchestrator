@@ -12,6 +12,7 @@ from orchestrator.observability.analytics.query.breakdown_reads import (
     get_cost_coverage,
     get_review_round_breakdown,
 )
+from orchestrator.observability.analytics.query.token_totals import RUN_TOKEN_TOTAL_SQL
 from tests.observability.analytics.analytics_assertions import (
     assert_column_values,
     assert_sql_fragments,
@@ -54,14 +55,18 @@ _UNPRICED_TOKENS = 60_000
 
 _CLAUDE_DAY_ONE_TOKENS = 12_000
 
-# The four token columns each of these three sums, so a volume read off any of
-# them is measured against the same billable bands.
-_TOKEN_COLUMNS = (
-    "input_tokens",
-    "output_tokens",
-    "cache_read_tokens",
-    "cache_write_tokens",
+# What a token volume read off the view is: the runs' stored non-overlapping
+# totals, never the raw counters added up, beside the runs whose total is
+# unknown -- so a Codex run's cached input is not counted twice, and a run no
+# evidence totals is counted rather than summed as zero.
+_TOKEN_TOTAL_FRAGMENTS = (
+    RUN_TOKEN_TOTAL_SQL,
+    "SUM(total_tokens)",
+    "WHEN total_tokens IS NULL THEN 1",
 )
+
+# The raw counters, none of which a token volume may add up again.
+_RAW_COUNTERS = ("input_tokens", "output_tokens", "cached_tokens", "cache_read_tokens", "cache_write_tokens")
 
 # One review-round bucket at its full width, a group per line: the bucket and
 # its totals, the two roles' run counts, their costs, and the cache band of
@@ -80,9 +85,9 @@ _ROUND_ROWS = (
     (_UNKNOWN, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0),
 )
 
-_COVERAGE_ROW = (_REPORTED, 20, _REPORTED_TOKENS)
+_COVERAGE_ROW = (_REPORTED, 20, _REPORTED_TOKENS, 0)
 
-_BACKEND_ROW = (_DAY_ONE, _CLAUDE, _CLAUDE_DAY_ONE_TOKENS)
+_BACKEND_ROW = (_DAY_ONE, _CLAUDE, _CLAUDE_DAY_ONE_TOKENS, 0)
 
 # The three reads and one row wide enough for each, so what they share -- the
 # scan target and both short circuits -- is pinned once per read rather than
@@ -199,27 +204,29 @@ class CostCoverageReadTest(unittest.TestCase):
         # `unknown-price` is the signal that a model is missing from the price
         # tables, so it never folds into the `unknown` bucket a run with no
         # recorded source falls to: the two ask for different fixes.
+        # A source's runs whose token totals nothing settles are counted
+        # beside its known subtotal: the `unknown` bucket here totals none of
+        # its tokens, which is not the same as spending none.
         conn = FakeConnection(rows=(
             _COVERAGE_ROW,
-            ("estimated", 5, 100_000),
-            (_UNKNOWN_PRICE, 3, _UNPRICED_TOKENS),
-            ("no-usage", 2, 20_000),
-            (_UNKNOWN, 1, 5_000),
+            ("estimated", 5, 100_000, 0),
+            (_UNKNOWN_PRICE, 3, _UNPRICED_TOKENS, 1),
+            ("no-usage", 2, 20_000, 0),
+            (_UNKNOWN, 1, 0, 1),
         ))
         with configured_db_url():
             rows = get_cost_coverage(connect=conn.as_connect)
-        self.assertEqual(
-            [row.cost_source for row in rows],
-            [_REPORTED, "estimated", _UNKNOWN_PRICE, "no-usage", _UNKNOWN],
-        )
-        by_source = {row.cost_source: row for row in rows}
-        self.assertEqual(by_source[_REPORTED].total_tokens, _REPORTED_TOKENS)
-        self.assertEqual(
-            by_source[_UNKNOWN_PRICE].total_tokens,
-            _UNPRICED_TOKENS,
+        assert_column_values(
+            self,
+            rows,
+            {
+                "cost_source": [_REPORTED, "estimated", _UNKNOWN_PRICE, "no-usage", _UNKNOWN],
+                "total_tokens": [_REPORTED_TOKENS, 100_000, _UNPRICED_TOKENS, 20_000, 0],
+                "unknown_token_runs": [0, 0, 1, 0, 1],
+            },
         )
 
-    def test_the_scan_names_nulls_and_sums_bands(self) -> None:
+    def test_the_scan_names_nulls_and_sums_totals(self) -> None:
         conn = FakeConnection(rows=(_COVERAGE_ROW,))
         with configured_db_url():
             get_cost_coverage(connect=conn.as_connect)
@@ -227,8 +234,10 @@ class CostCoverageReadTest(unittest.TestCase):
         assert_sql_fragments(
             self,
             scan_sql,
-            ("COALESCE(cost_source, 'unknown')", *_TOKEN_COLUMNS),
+            ("COALESCE(cost_source, 'unknown')", *_TOKEN_TOTAL_FRAGMENTS),
         )
+        for counter in _RAW_COUNTERS:
+            self.assertNotIn(counter, scan_sql)
 
 
 class BackendDailyTokensReadTest(unittest.TestCase):
@@ -237,8 +246,8 @@ class BackendDailyTokensReadTest(unittest.TestCase):
     def test_each_cell_pairs_a_day_and_backend(self) -> None:
         conn = FakeConnection(rows=(
             _BACKEND_ROW,
-            (_DAY_ONE, _CODEX, 4_500),
-            (_DAY_TWO, _CLAUDE, 8_000),
+            (_DAY_ONE, "agy", 0, 2),
+            (_DAY_TWO, _CLAUDE, 8_000, 0),
         ))
         with configured_db_url():
             rows = get_backend_daily_tokens(connect=conn.as_connect)
@@ -247,15 +256,17 @@ class BackendDailyTokensReadTest(unittest.TestCase):
             rows,
             {
                 "day": [_DAY_ONE, _DAY_ONE, _DAY_TWO],
-                "backend": [_CLAUDE, _CODEX, _CLAUDE],
-                "total_tokens": [_CLAUDE_DAY_ONE_TOKENS, 4_500, 8_000],
+                "backend": [_CLAUDE, "agy", _CLAUDE],
+                "total_tokens": [_CLAUDE_DAY_ONE_TOKENS, 0, 8_000],
+                "unknown_token_runs": [0, 2, 0],
             },
         )
 
     def test_the_scan_groups_and_names_nulls(self) -> None:
         # Grouping by day and backend together is what lets a chart stack the
-        # bands without a second pass, and the token sum covers the cache bands
-        # so the stack reconciles with the cost line beside it.
+        # bands without a second pass, and the volume is the runs' stored
+        # totals, so cached input already inside a run's input is not stacked
+        # on top of it again.
         conn = FakeConnection(rows=(_BACKEND_ROW,))
         with configured_db_url():
             get_backend_daily_tokens(connect=conn.as_connect)
@@ -266,9 +277,11 @@ class BackendDailyTokensReadTest(unittest.TestCase):
             (
                 "GROUP BY day, backend_label",
                 "COALESCE(backend, 'unknown')",
-                *_TOKEN_COLUMNS,
+                *_TOKEN_TOTAL_FRAGMENTS,
             ),
         )
+        for counter in _RAW_COUNTERS:
+            self.assertNotIn(counter, scan_sql)
 
 
 if __name__ == "__main__":

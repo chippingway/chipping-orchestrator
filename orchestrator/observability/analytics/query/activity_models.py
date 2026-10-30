@@ -24,12 +24,16 @@ class BackendDailyTokensRow:
     view over `event = 'agent_exit'` rows) means the chart never
     silently caps at the `get_recent_agent_exits` `LIMIT` -- every
     backend's tokens get counted across the full window, in lockstep
-    with the cost line and KPI aggregates.
+    with the cost line and KPI aggregates. `total_tokens` sums the
+    runs' non-overlapping totals; `unknown_token_runs` counts the runs
+    whose total the evidence leaves unknown, so where it is nonzero
+    `total_tokens` is a subtotal of the others.
     """
 
     day: date
     backend: str
     total_tokens: int
+    unknown_token_runs: int = 0
 
 
 @dataclass(frozen=True)
@@ -43,18 +47,21 @@ class HourlyHeatmapPoint:
     owns the presentation choice). `hour` is the hour of day in
     the same timezone the database stores `ts` in (the orchestrator
     writes UTC). `count` is the per-cell event count; `total_tokens`
-    is the matching `input + output + cache_read + cache_write`
-    token volume so the redesigned dashboard's "When agents run"
+    is the matching token volume -- the agent runs' non-overlapping
+    totals -- so the redesigned dashboard's "When agents run"
     heatmap can render token intensity (matching the standalone
     mock) rather than event intensity, which would over-weight the
     cheap `stage_enter` / `stage_evaluation` cells against the
-    `agent_exit` rows that actually drive spend.
+    `agent_exit` rows that actually drive spend. `unknown_token_runs`
+    counts the cell's agent runs whose total the evidence leaves
+    unknown; where it is nonzero `total_tokens` is a subtotal.
     """
 
     weekday: int
     hour: int
     count: int
     total_tokens: int = 0
+    unknown_token_runs: int = 0
 
 
 @dataclass(frozen=True)

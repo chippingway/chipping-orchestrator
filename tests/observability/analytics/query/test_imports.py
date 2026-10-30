@@ -65,6 +65,8 @@ _BREAKDOWN_READS_OWNER = "breakdown_reads"
 
 _CACHE_SHARES_OWNER = "cache_shares"
 
+_COST_COHORTS_OWNER = "cost_cohorts"
+
 _COST_COVERAGE_OWNER = "cost_coverage"
 
 _HOURLY_HEATMAPS_OWNER = "hourly_heatmaps"
@@ -103,6 +105,8 @@ _THROUGHPUT_DAYS_OWNER = "throughput_days"
 
 _TIME_SERIES_OWNER = "time_series"
 
+_TOKEN_TOTALS_OWNER = "token_totals"
+
 # The result families, kept as their own group because what they must not do is
 # checked separately from what they answer for.
 _MODEL_OWNERS = (
@@ -125,6 +129,7 @@ _OWNERS = _MODEL_OWNERS + (
     _CONDITIONS_OWNER,
     _CONNECTION_CACHE_OWNER,
     _CONNECTIONS_OWNER,
+    _COST_COHORTS_OWNER,
     _COST_COVERAGE_OWNER,
     _EVENT_BREAKDOWNS_OWNER,
     _EXECUTION_OWNER,
@@ -156,6 +161,7 @@ _OWNERS = _MODEL_OWNERS + (
     _SUMMARY_RESULTS_OWNER,
     _THROUGHPUT_DAYS_OWNER,
     _TIME_SERIES_OWNER,
+    _TOKEN_TOTALS_OWNER,
 )
 
 # What each owner answers for, declared rather than discovered so a new public
@@ -183,14 +189,17 @@ _OWNERS = _MODEL_OWNERS + (
 # by. The skill reads are the three under skill_reads, the aggregate owner
 # behind each, the session identity and evidence the adoption one is built on,
 # the catalog scan and the level lookup an unclassified load is filled from,
-# and the payload coercion, cohort, and ranking all of them share. Constants --
-# the rollup view name, the two request field names, the `result` attribute
-# name, the filter-option columns, the two sort modes, the terminal throughput
-# stages, the token-share fragments, the finished-run condition, the two skill
-# row caps, the session column offsets, the summary cast list, and the
-# signatures themselves -- are not reported here: the check reads `__module__`,
-# which only a class or function carries, which is why the token-share owner
-# declares an empty surface.
+# and the payload coercion, cohort, and ranking all of them share. Beneath the
+# spend and token reads, the cost-cohort owner is the cohort a reduced cost is
+# read back as and the one reading that builds it. Constants -- the rollup view
+# name, the two request field names, the `result` attribute name, the
+# filter-option columns, the two sort modes, the terminal throughput stages,
+# the token-share fragments, the cost-cohort and token-total fragments, the
+# finished-run condition, the two skill row caps, the session column offsets,
+# the summary cast list, and the signatures themselves -- are not reported
+# here: the check reads `__module__`, which only a class or function carries,
+# which is why the token-share and token-total owners declare an empty
+# surface.
 _SURFACES = MappingProxyType({
     _CONNECTIONS_OWNER: (
         "AnalyticsReadError",
@@ -431,6 +440,11 @@ _SURFACES = MappingProxyType({
         "skill_cohort",
     ),
     _CACHE_SHARES_OWNER: (),
+    _COST_COHORTS_OWNER: (
+        "CostCohort",
+        "cost_cohort",
+    ),
+    _TOKEN_TOTALS_OWNER: (),
     _ROW_CELLS_OWNER: (
         "cost_cell",
         "day_value",
