@@ -17,7 +17,10 @@ settled, dropped by the binding and settlement that publish it, an
 Antigravity docs launch, dropped by the write that records its outcome, a
 docs pass's receipt, dropped by the completion that hands the pass on, and
 that completion's run of its final head, spent by the settlement that makes it
-current. Three do not, and they are the reason this is an owner rather than a tuple. An exemption and
+current, and a developer completion a run captured and nothing has taken over
+yet, spent by the transfer that hands its report to the delivery -- whose own
+records hold the branch from that commit on -- or by the guarded invalidation
+that retires it. Three do not, and they are the reason this is an owner rather than a tuple. An exemption and
 a publication record are invalidated by the head moving off them rather than
 by any write, so what answers for those is the checkout itself -- and, since
 neither is ever dropped, how long the STAGE that reads them keeps the issue,
@@ -209,6 +212,35 @@ _PENDING_EVIDENCE = "verification_evidence_pending"
 _RECEIPT = "receipt"
 
 
+# A developer completion a run captured before its return could be discarded
+# -- by a live pause, a lost tick -- and that no transaction owns yet. Its
+# report is about one commit, the one the checkout stood on when the run
+# returned, and the recovery the dispatcher asks ahead of every handler
+# hands it on only while the checkout still stands there. The refresh runs
+# before that recovery on every tick, the first unpaused one above all, so a
+# rebase here would move the checkout off that commit before anything had
+# decided about it, and the paid report could only be discarded as stale.
+#
+# It ends by being SPENT, like the report records above, and it is those
+# records that pick the freeze up: the transfer that hands the report to the
+# delivery rewrites the capture as handed off in the very commit that records
+# the delivery, which holds the branch until its binding and settlement have
+# run. A capture a guarded invalidation retired holds nothing either. So a
+# capture holds unless its own reader reads it as one of those two resolved
+# stages: `null`, a stage nobody writes, a key too many or too few, and a
+# member out of its bound are each a capture nobody can read, whose recovery
+# may still need the commit, and its damage is no release. The usage
+# receipts beside it are accounting alone and hold nothing.
+#
+# The field is spelled here the way every pinned key this package reads is,
+# but the capture is read by the workflow's own reader rather than spelled a
+# second time: a second spelling is how this refresh would come to release a
+# capture every other reader in the tree refuses.
+_COMPLETION = "developer_completion"
+
+_PENDING = "pending"
+
+
 # The terms a squash-on-approval records before it destroys the evidence of
 # itself: the head it is collapsing, the base it is collapsing over, and how
 # many commits go in. They are the sharpest freeze here, because what they
@@ -363,17 +395,35 @@ def _held_records(state: _pinned_state.PinnedState) -> tuple[str, ...]:
     whether one is outstanding, so a record they cannot read still holds; so
     is a docs launch whose outcome nothing has recorded yet, and a docs pass's
     receipt no completion has consumed. A completion whose run is still owed
-    holds too (`_docs_verification_owed`).
+    holds too (`_docs_verification_owed`), and so does a captured developer
+    completion nothing has resolved (`_completion_unresolved`).
     """
     held = tuple(key for key in _FROZEN_BY_KEYS if state.get(key))
     held += _late_claims(state)
     held += tuple(
         key for key in _REPORT_IN_FLIGHT_KEYS + _LAUNCH_IN_FLIGHT_KEYS if state.get(key) is not None
     )
-    held += _docs_verification_owed(state)
+    held += _docs_verification_owed(state) + _completion_unresolved(state)
     return held + tuple(
         key for key in _LATE_COLLAPSE_KEYS if key in state.state_data
     )
+
+
+def _completion_unresolved(state: _pinned_state.PinnedState) -> tuple[str, ...]:
+    """The captured completion, where the comment carries one its own reader does not read as resolved; else nothing.
+
+    Read for the key being there at all, as the capture's own state reader
+    tells a claim from an absence, and released only by a handed-off or
+    retired capture that reader takes whole.
+    """
+    if _COMPLETION not in state.state_data:
+        return ()
+    # Lazy for the reason every upward reach in this package is: what a
+    # capture is, read whole, is the workflow's, and the workflow imports this
+    # package back.
+    from orchestrator.workflow.engine import completion_state as _completion_state
+    captured = _completion_state.read(state)
+    return () if captured is not None and captured.stage != _PENDING else (_COMPLETION,)
 
 
 def _docs_verification_owed(state: _pinned_state.PinnedState) -> tuple[str, ...]:

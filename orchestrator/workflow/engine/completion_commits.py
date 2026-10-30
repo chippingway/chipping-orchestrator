@@ -101,6 +101,8 @@ class CheckpointRefusal(enum.Enum):
     UNBOUND = "unbound"
     # A record the road's handoff was frozen over has moved since.
     HANDOFF_MOVED = "handoff_moved"
+    # The comment no longer reads as the reading an invalidation was decided on.
+    EVIDENCE_MOVED = "evidence_moved"
     # The report outcome earns no delivered report.
     UNRECORDABLE = "unrecordable"
 

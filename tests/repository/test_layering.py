@@ -152,6 +152,9 @@ _PUBLICATION = f"{PACKAGE}.git.publication"
 # The record one attempt leaves of its own replay reaches the late domain for
 # one thing only: the shape a recorded commit is held to. Spelled twice, a
 # comment would come to accept what every other reader in the tree refuses.
+# The refresh's freeze reaches the captured completion's own reader for the
+# same reason: a capture it released on a second spelling would be one every
+# other reader refuses, and so one whose recovery may still need the commit.
 #
 # Every auto-rebase park, and a recovery's clear, abandonment, or record of a
 # gate's hold, lands as the attempt's checkpoint through the tick-state guarded
@@ -180,6 +183,7 @@ _CALL_TIME_HOPS = MappingProxyType({
         f"{PACKAGE}.workflow.engine.verification_records",
     ),
     f"{_BASE_SYNC}.conflicts": (_COMMENTS,),
+    f"{_BASE_SYNC}.frozen": (f"{PACKAGE}.workflow.engine.completion_state",),
     f"{_BASE_SYNC}.terminal_handoff": (
         f"{PACKAGE}.workflow.stages.implementing.late_approval_state",
         f"{PACKAGE}.workflow.stages.implementing.late_publication_state",

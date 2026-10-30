@@ -19,7 +19,9 @@ review subject to that same reading, the owners that hold an approval's
 evidence to what an approval needs of it, read the claim naming it, and hold
 its requirements over the issue read afresh, for the final-documentation
 proof, and the owner of which pinned fields keep both of two roads' moves,
-for the developer report's guarded commits.
+for the developer report's guarded commits. So is the owner that says whether
+a late record claims a reading it cannot produce, for the recovery that holds
+a captured late revision over one.
 """
 from __future__ import annotations
 
@@ -58,6 +60,15 @@ _FIXING_PACKAGE = "orchestrator.workflow.stages.fixing"
 _FIXING_ROUND_MARKS_OWNER = f"{_FIXING_PACKAGE}.round_marks"
 _IMPLEMENTING_PACKAGE = "orchestrator.workflow.stages.implementing"
 _LATE_RECONCILE_OWNER = f"{_IMPLEMENTING_PACKAGE}.late_reconcile"
+
+# The owner that says whether a late record claims a reading the pinned
+# comment cannot produce, and, field by field, whether one a handoff froze
+# still reads. Named here and resolved when called for the reason the receipt
+# owners below are: a captured late revision is held, rather than retired,
+# over a record whose measurement nobody can read, and a capture over a
+# frozen late field that no longer reads; and asking the stage directly would
+# make the engine's own import pull the handlers that import it back.
+_LATE_CLAIMS_OWNER = f"{_IMPLEMENTING_PACKAGE}.late_claims"
 
 # The owner that reads and writes the code-publication receipt group. Named
 # here, and resolved when called, for the reason every other stage owner on this
@@ -105,10 +116,12 @@ _VALIDATING_PACKAGE = "orchestrator.workflow.stages.validating"
 _VALIDATING_APPROVED_EVIDENCE_OWNER = f"{_VALIDATING_PACKAGE}.approved_evidence"
 
 # The owner that reads the evidence claim an approval is recorded beside,
-# whole or not at all. Named here and resolved when called for the same
-# reason: the final-documentation proof holds a completion to the claim of
-# the approval it followed, and asking the stage directly would make the
-# engine's own import pull the handlers that import it back.
+# whole or not at all, and the returned verdict a change request is handed
+# over. Named here and resolved when called for the same reason: the
+# final-documentation proof holds a completion to the claim of the approval
+# it followed, the recovery holds a captured fix over a returned verdict this
+# reader refuses, and asking the stage directly would make the engine's own
+# import pull the handlers that import it back.
 _VALIDATING_REVIEW_VERDICTS_OWNER = f"{_VALIDATING_PACKAGE}.review_verdicts"
 
 # The owner that holds an approval to the subject standing when it is acted

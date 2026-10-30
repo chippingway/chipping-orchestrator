@@ -746,8 +746,19 @@ completed on is rewritten before anything verified it, and the completion then r
 has left. The completion that hands the pass on to `in_review` drops it in the write that records the completion. So
 does that completion's own run of its final head, while `docs_final_provenance` names as its evidence the transaction
 `verification_evidence_pending` still holds: rebased first, the run tests a head the pull request has left and never
-settles, and the settlement that makes it current, or the abandonment of it, ends the hold. Two PARKS freeze the
-branch as well, and by
+settles, and the settlement that makes it current, or the abandonment of it, ends the hold. So does a captured
+developer completion nothing has resolved — `developer_completion` on the comment and not read by the capture's own
+reader (`completion_state.read`) as a `handed_off` or `retired` capture, so a pending one and every shape nobody can
+read hold, `null` and a resolved stage with a member out of its bound included (`frozen._completion_unresolved`).
+Its report is about the commit the checkout stood on when the run returned, and
+the dispatcher's
+[captured-completion recovery](delivery-stages.md#the-captured-completion-recovery-every-dispatch) hands it on
+only while the checkout still stands there; this refresh runs ahead of that recovery on every tick, the first one an
+operator's `paused` or `backlog` comes off above all, so a rebase there would leave the paid report nothing to be but
+stale. The transfer that hands the report to the delivery rewrites the capture `handed_off` in the
+commit that records `developer_report_delivery`, which holds the branch from then on as above, and a guarded
+invalidation retires it; either ends the capture's own hold. The usage receipts beside it are accounting alone and
+hold nothing. Two PARKS freeze the branch as well, and by
 the park rather than by a record, because neither can leave one. A standing `late_measurement_failed` is the first: the
 sharpest of those refusals is taken before any commit could be named, so there is nothing on the pinned comment to
 freeze by — and rebased under it, the exact-pair retry has lost its commit and the refusal that substitutes nothing
@@ -773,12 +784,21 @@ fails the test and keeps the freeze. The reading group is never set aside: a gen
 answer is a question no push settles.
 
 Beside a pinned anchor the rest of those freezes are set aside as well, and only the late claims — the reading
-group, and an approval not leased to the anchor — keep the refresh away. The anchor is this refresh's own interrupted
-work, and while it stands the dispatcher holds every stage handler back (`recovery_holds._recovery_holds_dispatch`,
-see [Pinned state](#pinned-state)): a `question_*` / `discussion_*` park, the two discussion records,
-`read_only_baseline_sha`, the `late_collapse_*` group, a developer report recorded and not yet settled,
-`late_measurement_failed`, and `agent_timeout` are each ended by a handler, or the report reconciliation, that hold
-keeps back, so a freeze on any of them as well would leave neither side able to move. None of
+group, and an approval not leased to the anchor — and a captured developer completion nothing has resolved keep the
+refresh away. The anchor is this refresh's own interrupted work, and while it stands the dispatcher holds every stage
+handler back (`recovery_holds._recovery_holds_dispatch`, see [Pinned state](#pinned-state)): a `question_*` /
+`discussion_*` park, the two discussion records, `read_only_baseline_sha`, the `late_collapse_*` group, a developer
+report recorded and not yet settled, `late_measurement_failed`, and `agent_timeout` are each ended by a handler, or
+the report reconciliation, that hold keeps back, so a freeze on any of them as well would leave neither side able to
+move. A capture is answered ahead of that hold instead: the anchor's recovery resets the checkout onto the anchor, or
+pushes a replay, whenever it cannot prove the attempt — an unreadable remote is enough — which would take the commit
+the captured report is about off the branch before anything decided on it, so the dispatcher decides the capture
+first and, on its own road, retires it `invalidated` (no road hands a report on over a rewrite no recovery
+finished), and the next refresh answers the anchor as it always would. A capture waiting through a dependency hold,
+the `ready` decision, or an unlabeled issue is left captured: none of those labels is one this refresh drives, so
+the dispatcher's hold answers the anchor itself, by a clear or a stranded park that leaves the checkout where it
+stands. A capture nobody can read, an anchor that reads as no commit, or a retirement that did not land, keeps both
+sides where they stand for a human or a later tick. None of
 them is holding a branch still against a rebase any more — the anchor says one already ran — so the recovery reaches
 the checkout, pushes the replay its record names or puts the branch back on the anchor and asks a human, and leaves
 each record for its owner. A recovery that takes the anchor down and lets the tick go on — the landed clear of an
@@ -1992,6 +2012,26 @@ The keys that matter for the state machine fall into a few groups:
   caller does not hold, a later report's delivery, a field a transfer retired, or a claim damaged since, its
   whole-state write would put back as it read it, so it writes nothing. A late restart's projection carries no
   capture into the fresh cycle.
+
+  A pending capture is decided ahead of every stage handler, behind the reconciliations, by the
+  [captured-completion recovery](delivery-stages.md#the-captured-completion-recovery-every-dispatch), from its
+  read-back alone and never from a log, analytics, a native session, a trajectory, or a host record: applicable, it is
+  handed, admitted, to the owner of its road, which no road has in this build, so the stage is held; stale -- its
+  road's pull request, report debt, or adjudication gone among the proofs -- it is retired `invalidated` by a guarded
+  commit owning the capture alone, its invocation kept, and held to the whole reading the proof was taken over, so a
+  comment that moved since -- a field it lacked restored included -- refuses it, and the tick ends behind it, the
+  stage running on the next one over the issue and comment as they then read. The issue is fetched once more right
+  before that retirement or a handoff, for its controls and label, and what the effect stands on is read again behind
+  it -- the issue's state and requirements, the checkout, and the pull request (`completion_effect.py`); uncertain or
+  damaged, or held by a control, a relabel, a close, a reopening, an edit, or a checkout or pull request moved or put
+  back meanwhile, the stage is held with nothing written, and so is a capture whose run's usage was captured
+  `unresolved` until that run's receipt reads back on the ledger beside readable counters. On the implementing road a
+  recorded pull request that road reads as the `discussion` stage's plan, merged or not, is none of the run's. Beside
+  an auto-rebase anchor it is decided ahead of the anchor's hold and, on its own road, retired, since no road hands a
+  report on over a rewrite no recovery finished -- or held, where the anchor reads as no commit; under a dependency
+  hold it waits, and the anchor's hold answers the anchor; a late revision is held beside a late record whose
+  measurement nobody can read. Until it is resolved it keeps the issue's checkout out of the base refresh, beside an
+  anchor too ([Base refresh](#base-refresh)), and none of it charges a run, clears a park, or grants an invocation.
 - **Rewritten-head report debt.** `developer_report_rewrite_debt` is the report a pull request is owed because this
   orchestrator rewrote its head (`workflow/engine/report_rewrite_debt.py`): `pr`, `branch`, `previous_head` -- the head
   the rewrite replaced, the first one across a retargeting, which is the head the settled report is about -- and

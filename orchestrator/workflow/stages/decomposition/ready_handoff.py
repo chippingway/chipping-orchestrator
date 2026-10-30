@@ -58,7 +58,10 @@ launch, and a `paused` or `backlog` an operator applied meanwhile -- or a
 relabel back to `workflow:blocked` -- stops the handoff there. Behind the
 relabel the issue is the implementing stage's, so the fetch ahead of the launch
 asks for a hold alone: that stage's own drift check reads an edit made from
-there on.
+there on. A captured developer completion the record carries is asked about
+behind that fetch too, as the dispatcher asks ahead of every handler it
+reaches (`completion_recovery`), so a capture a dependency hold kept waiting
+is decided before the implementer could run its work again.
 
 A pickup is posted at most once. A handoff whose write landed with its answer
 lost reads its own anchor back on the next tick and posts nothing; one whose
@@ -85,6 +88,7 @@ from orchestrator.workflow.engine import (
     report_record_values as _record_values,
     usage as _usage,
 )
+from orchestrator.workflow.engine.completion_recovery import capture_holds_the_tick
 from orchestrator.workflow.stages.decomposition import ready_readings as _readings, state as _state
 from orchestrator.workflow.stages.implementing import handler as _implementing
 from orchestrator.workflow.state import WorkflowLabel
@@ -285,7 +289,7 @@ def _starts(
         return moved
     gh.set_workflow_label(current, WorkflowLabel.IMPLEMENTING)
     current = _readings.fresh(gh, issue)
-    if current is not None:
+    if current is not None and not capture_holds_the_tick(gh, spec, current, WorkflowLabel.IMPLEMENTING, state):
         _implementing._handle_implementing(gh, spec, current)
     return None
 

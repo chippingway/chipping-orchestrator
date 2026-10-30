@@ -17,7 +17,10 @@ spawned over a report nobody published. Every one of those failures leaves every
 other assertion in this file passing, so the order itself is what is asserted.
 The verification-evidence transaction is pinned in the same sequence, directly
 behind this one, since the evidence it settles answers for the report this one
-publishes, and so is the report debt a rewritten head leaves, behind both.
+publishes, and so is the report debt a rewritten head leaves, behind both. A
+captured developer completion is decided behind all three and ahead of the
+reuse guard and the handler, so the report and evidence an issue already owes
+settle first, and nothing past it can lose or repeat the captured work.
 
 A PAUSED issue never reaches the guard at all: the hard-skip screen is one
 level up, in `_process_issue`, and returns before the routing that runs the
@@ -104,7 +107,7 @@ _RECOVERY = "recovery"
 # is left to observe.
 _REQUIRED_ORDER = (
     "adjudication", _RECOVERY, "squash", "publication", _RECOVERY, "report", "evidence",
-    "rewrite", "reuse", "handler",
+    "rewrite", "capture", "reuse", "handler",
 )
 
 # The head a rebase of this orchestrator's published over the one the settled
@@ -165,6 +168,10 @@ def _stood_aside(called: list[str]):
         chain.enter_context(patch.object(
             _dispatch_guards, "_rewrite_debt_holds_the_tick",
             _Recorder(called, "rewrite"),
+        ))
+        chain.enter_context(patch.object(
+            _dispatch_guards, "capture_holds_the_tick",
+            _Recorder(called, "capture"),
         ))
         chain.enter_context(patch.object(
             _stage_targets, _DISPATCH_SEAM, _Recorder(called, "handler", None),

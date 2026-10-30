@@ -55,7 +55,9 @@ refused, so the only copy of a report is never dropped on the strength of a
 handoff nobody confirmed. Retirement keeps the invocation, which is what
 refuses a later capture of it.
 
-These are dormant primitives: no stage captures a completion yet.
+These are dormant primitives: no stage captures a completion yet. The
+dispatcher's recovery (`completion_recovery`) reads a pending capture through
+`read_back` alone and ends one its readings proved stale through `retire`.
 """
 from __future__ import annotations
 
@@ -76,6 +78,7 @@ from orchestrator.workflow.engine import (
     pinned_commit as _pinned_commit,
     pinned_commit_models as _commit_models,
 )
+from orchestrator.workflow.engine.completion_evidence import DecidedOn
 from orchestrator.workflow.engine.report_outcome_models import _ReadyReport, _ReportRefusal, _VerifiedReport
 from orchestrator.workflow.engine.report_record_values import RecordRefusal, report_text_refusal
 from orchestrator.workflow.engine.report_records import DELIVERED_REPORT, PENDING_REPORT
@@ -179,6 +182,15 @@ def retire(
     A pending capture is retired only as INVALIDATED; a handed-off one
     either way, once the report it was handed off as has settled or been
     superseded. One already retired is STANDING.
+
+    An invalidation is a decision taken over the reading `state` is, so it
+    is decided on all of that reading: refused (EVIDENCE_MOVED) where the
+    comment read afresh no longer reads as it -- a human's repair of the very
+    record that proved the capture stale among them -- and landed only where
+    the candidate its commit sends still spells that whole reading beside the
+    capture (`completion_evidence.DecidedOn`), a field it lacked and somebody
+    restored or added since included, so the caller decides again on a fresh
+    reading rather than discarding a capture on evidence that is gone.
     """
     commit = _commits.CompletionCommit(gh, issue, state, invocation)
     fresh = commit.fresh()
@@ -189,11 +201,17 @@ def retire(
         return commit.refused(_commits.CheckpointRefusal.ABSENT)
     if standing.stage is _records.CaptureStage.RETIRED:
         return _handoff.confirmed(commit, fresh, standing.stage)
-    refused = _refusal(fresh, standing, invocation, reason)
+    refused = _refusal(fresh, standing, invocation, reason, state)
     if refused is not None:
         return commit.refused(refused)
-    retired = _records.ResolvedCapture(invocation=invocation, stage=_records.CaptureStage.RETIRED, reason=reason)
-    return _lands(commit, fresh, retired)
+    invalidated = reason is _records.RetirementReason.INVALIDATED
+    return _lands(
+        commit,
+        fresh,
+        _records.ResolvedCapture(invocation=invocation, stage=_records.CaptureStage.RETIRED, reason=reason),
+        DecidedOn.over(fresh) if invalidated else None,
+        decided_on=tuple(fresh.state_data) if invalidated else (),
+    )
 
 
 def _lands(
@@ -201,9 +219,11 @@ def _lands(
     fresh: PinnedState,
     record: _records.CompletionCapture | _records.ResolvedCapture,
     admits: _commit_models.Admits | None = None,
+    decided_on: tuple[str, ...] = (),
 ) -> _commits.CheckpointOutcome:
-    """Commit `record` as the capture over `fresh`, owning that field alone and decided on `_DECIDED_ON`."""
-    guard = _commit_models.PinnedCommit.capture(fresh, prerequisites=_DECIDED_ON, owned=_OWNED, admits=admits)
+    """Commit `record` as the capture over `fresh`, owning that field alone, decided on `_DECIDED_ON` and more."""
+    prerequisites = (*_DECIDED_ON, *decided_on)
+    guard = _commit_models.PinnedCommit.capture(fresh, prerequisites=prerequisites, owned=_OWNED, admits=admits)
     staged = {**fresh.state_data, _records.DEVELOPER_COMPLETION: _spelling.spelled(record)}
     landed = _pinned_commit.commit(commit.gh, commit.issue, guard, staged)
     return commit.landed(landed, record.stage, fresh)
@@ -214,6 +234,7 @@ def _refusal(
     standing: _records.CompletionCapture | _records.ResolvedCapture | None,
     invocation: AgentInvocation,
     reason: _records.RetirementReason | None = None,
+    caller: PinnedState | None = None,
 ) -> _commits.CheckpointRefusal | None:
     """Why the capture `standing` is may not give way, over `fresh`; None where it may.
 
@@ -223,12 +244,15 @@ def _refusal(
     than this return. A retirement for `reason` takes a pending capture only
     as INVALIDATED. Neither replaces nor retires a handed-off capture whose
     report has not settled (`completion_state.source_owed`): it is the one
-    record of the commit that report is about.
+    record of the commit that report is about. An invalidation is refused
+    where `fresh` no longer reads as the `caller`'s reading it was decided on.
     """
     if standing is None:
         return None
     pending = standing.stage is _records.CaptureStage.PENDING
+    invalidated = reason is _records.RetirementReason.INVALIDATED and caller is not None
     refusals = (
+        (invalidated and _commits._stale(fresh, caller), _commits.CheckpointRefusal.EVIDENCE_MOVED),
         (reason is None and pending, _commits.CheckpointRefusal.UNRESOLVED),
         (reason is None and standing.invocation.ordinal >= invocation.ordinal, _commits.CheckpointRefusal.SUPERSEDED),
         (reason is _records.RetirementReason.SETTLED and pending, _commits.CheckpointRefusal.NOT_HANDED_OFF),

@@ -844,8 +844,9 @@ than a second source of truth: where the two disagree, the handler pages are aut
        answer; the agent-run-limit hold sits between them and the reuse
        guard, the seed hold directly behind it, then the developer-report
        reconciliation, the verification-evidence reconciliation behind it,
-       and the rewrite-debt hold behind both sit between that hold and the
-       reuse guard, and the greeting refusal is asked behind it):
+       the rewrite-debt hold behind both, and the captured-completion
+       recovery behind that sit between that hold and the reuse guard, and
+       the greeting refusal is asked behind it):
      late cycle a close ended, ─► the closed-owner ending below, run from
        cleanup unfinished          wherever the owner was left: reaches no
                                    handler, and writes that cycle's rejected
@@ -985,6 +986,49 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                    its auto rebase, for the push it makes.
                                    A final-docs pass records none, so every
                                    claim on workflow:documenting is held
+     developer_completion      ─► the CAPTURED-COMPLETION recovery, directly
+       pending on the pinned       behind the rewrite-debt hold, from the
+       comment                     capture's read-back alone: re-read the
+                                   issue, its controls, the road and the
+                                   pull request, debt, or adjudication it
+                                   stands on, the requirements, the branch,
+                                   the checkout, an unaccounted run's
+                                   receipt, and the pull request -- a
+                                   discussion plan the implementing road
+                                   reads as one is none of the run's.
+                                   APPLICABLE is handed, admitted, to its
+                                   road's owner -- none in this build, so
+                                   the handler is HELD; a proof it is stale
+                                   (ended, relabelled, a frozen record,
+                                   requirements, branch, checkout, or pull
+                                   request moved, its road's pull request,
+                                   debt, or adjudication gone) RETIRES it
+                                   invalidated, owning the capture alone and
+                                   held to the whole reading that proved it,
+                                   the issue's controls, label, state, and
+                                   requirements, the checkout, and the pull
+                                   request read again before the write or a
+                                   handoff, and the tick ENDS, the handler
+                                   running on the next one; a close,
+                                   reopening, edit, or source moved or put
+                                   back meanwhile, a read nobody could
+                                   take, an unaccounted run's receipt not
+                                   read back, and a damaged claim HOLD with
+                                   nothing written;
+                                   workflow:blocked, workflow:ready, and an
+                                   unlabeled issue run as they would, the
+                                   capture kept. Nothing is charged, parked,
+                                   or granted. The in-tick handoff ready makes
+                                   into workflow:implementing asks it too.
+                                   Beside an auto-rebase anchor it is asked
+                                   AHEAD of the anchor's hold and, on its own
+                                   road, RETIRED -- HELD where the anchor
+                                   reads as no commit, KEPT under blocked,
+                                   ready, or no label, where that hold clears
+                                   or parks the anchor and resets nothing --
+                                   the refresh having held the branch for it,
+                                   so the anchor's recovery resets or pushes
+                                   nothing the capture is about first
      no workflow label, a      ─► nothing, logged once a tick. Pickup GREETS
        pinned comment already      an issue and mints its pinned comment, so a
        on the issue, and no        second greeting writes a second one every

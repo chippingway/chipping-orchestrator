@@ -569,7 +569,11 @@ division of labour between the developer and the orchestrator never changes.
   the handed-off capture keeps until the report settles, and it is bound and settled only where the comment carries
   it with every terminator escaped; a pending capture is retired only by a guarded
   invalidation. No road captures a return yet: these are the
-  primitives its recovery builds on ([pinned state](../state-machine/labels-and-state.md#pinned-state)).
+  primitives its recovery builds on ([pinned state](../state-machine/labels-and-state.md#pinned-state)). That
+  recovery is asked ahead of every stage handler, before an unreported checkout, a drift resume, a launch, or a review
+  resume could lose or repeat the captured work, and supplies no verdict, verification, approval, or docs pass of its
+  own
+  ([captured-completion recovery](../state-machine/delivery-stages.md#the-captured-completion-recovery-every-dispatch)).
 - **Review-subject freshness.** No reviewer spawns while a report is owed. Each is handed the report the pull request
   carries, re-read where it settled and quoted whole, and what it reviewed — pull request, head, requirements, and
   the report's revision and digest — is recorded as `review_subject` at the launch and as `review_returned_subject`
