@@ -54,9 +54,11 @@ _CLAUDE_SESSION_LIMIT_MESSAGE_MARKERS: tuple[str, ...] = (
     "you've hit your session limit",
     "you've hit your usage limit",
     "you've hit your weekly limit",
+    "you've hit your 5-hour limit",
     "you've reached your session limit",
     "you've reached your usage limit",
     "you've reached your weekly limit",
+    "you've reached your 5-hour limit",
     "claude usage limit reached",
     "claude ai usage limit reached",
 )

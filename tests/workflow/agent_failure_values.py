@@ -47,6 +47,17 @@ SESSION_LIMIT_MESSAGE = "You've hit your session limit · resets 7pm (Asia/Novos
 # field, and resets days rather than hours away.
 WEEKLY_LIMIT_MESSAGE = "You've hit your weekly limit · resets Sep 25, 12pm (Asia/Novosibirsk)"
 
+# The #2426 shape, verbatim: the five-hour quota arrives on that field too.
+FIVE_HOUR_LIMIT_MESSAGE = "You've hit your 5-hour limit · resets 12:40pm (Asia/Novosibirsk)"
+
+# A real question that quotes that notice mid-message. The marker is matched as
+# a prefix, so this stays the agent's own words, which a bare continue cannot
+# answer.
+FIVE_HOUR_LIMIT_QUESTION = (
+    f'The last CI log ends with "{FIVE_HOUR_LIMIT_MESSAGE}". Should I split the '
+    "slow integration tests into their own job?"
+)
+
 SESSION_LIMIT_PHRASE = "session/usage limit"
 
 
