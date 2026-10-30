@@ -486,7 +486,8 @@ every tracked agent run, distinct from (and in addition to) the audit `agent_spa
   `cli-reported` or a provider's `*-api-estimate`, with the verification dates of the rates an estimate used — and
   their completeness) and `token_evidence` (the counters the stream observed and whether its cache counters sit inside
   its input). Both are the objects `UsageMetrics.to_dict()` serializes, described in
-  [`usage.md`](usage.md#usage-parser); the database keeps them in `extras` until a column promotes them. A record
+  [`usage.md`](usage.md#usage-parser); the database keeps them verbatim in `extras` and files what they mean in
+  [columns of their own](analytics-database.md#usage-evidence-columns). A record
   without them — every one an earlier build wrote — states no basis: `recorded_cost` reads its `cost_usd` under the
   `unknown` basis and `non_overlapping_total` totals it only when no cache counter is nonzero, inferring no provider
   breakdown and backfilling nothing.
