@@ -174,9 +174,12 @@ misconfiguration case surfaces as a labeled banner. The dashboard process is ind
 no GitHub session, writes no Postgres row, and can be deployed off-host by repointing `ANALYTICS_DB_URL`. Its topbar,
 headline tiles, sparklines, and usage chart name every amount's basis — an AGY-only one a Gemini API token estimate, a
 mixed one blended with its parts beside it — never pass an incomplete subtotal or an amount of unknown basis off as
-complete spend, keep those qualifications on every move against the window before, and count each token once. That page
-carries the module layout, the caching and fan-out contracts, the body layout top to bottom, the chart builders and
-theme owners, and the empty / error banner inventory.
+complete spend, keep those qualifications on every move against the window before, and count each token once. The
+costliest-issues table words each issue's cost the same way and is drawn in the order SQL ranked it, ahead of its cap,
+on every amount the issue's runs state — a subtotal at its known part, an issue stating none last and worded unpriced
+rather than free — and the recent-runs listing and per-issue drill-down word each run's stored cost, an estimate's
+rate dates beside it, never repriced from its tokens. That page carries the module layout, the caching and fan-out
+contracts, the body layout top to bottom, the chart builders and theme owners, and the empty / error banner inventory.
 
 ## Usage parser (`orchestrator/observability/usage/`)
 
