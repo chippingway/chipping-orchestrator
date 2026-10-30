@@ -1220,34 +1220,31 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     completion_evidence.py  what an invalidation is decided on: the whole reading its proof was taken over, asked of
                             the candidate the retirement's commit derives (`DecidedOn`), so a field moved, restored,
                             or added since refuses it as EVIDENCE_MOVED
-    completion_prerequisites.py what a pending capture's road still has to stand on -- the pull request a report under
-                            a pull-request stage is owed to, a pinned number nobody reads holding it, the
-                            rewritten-head debt a report refresh answers, owed on the pinned pull request and the
-                            run's branch and naming as its rewritten head the commit its run reported on, the live
-                            adjudication a late revision
-                            answers (`stages/decomposition/late_relabel.py`, resolved when called, a late record
-                            `stages/implementing/late_claims.py` finds claiming a reading it cannot produce
-                            holding it), and the records its handoff froze, a move proving it stale only where the
-                            moved record's own reader -- the debt's, the pinned number's, the returned reviewer
-                            verdict's (`stages/validating/review_verdicts.py`, resolved when called), and for a late
-                            record the late domain's check of that very field (`late_claims._FIELD_READS`) --
-                            takes the new spelling, a moved record no reader is registered for holding it, a late
-                            one none of those checks judges included -- gone proving the capture stale and
-                            unreadable holding it; an auto-rebase
-                            anchor beside it, retiring it where it reads as a commit and holding it where it does
-                            not; and, for a run captured with its usage
-                            unaccounted, the receipt of it read back beside counters its writers would write,
-                            without which the capture is held
-    completion_sources.py   whether the branch the live resolver names, the issue's own checkout at its own path and
-                            the commit it stands on, and the recorded pull request -- open, on the run's branch in
-                            this repository, at the head the run started on or reported on, a report refresh's at
-                            the one it reported on alone -- are still the ones a
-                            pending capture reported on; a reading that fails or misses its head's branch, commit,
-                            or repository, a checkout nothing proves the issue's own, and a checkout head naming no
-                            commit the store holds each hold the capture rather than proving it stale. On the
-                            implementing road a pull request that road reads as the
-                            `discussion` stage's plan (`stages/implementing/handler.py`, resolved when called) is
-                            none of the run's, merged or not
+    completion_prerequisites.py what a pending capture's road still has to stand on -- the pull request a report under a
+                            pull-request stage is owed to, a pinned number nobody reads holding it, the rewritten-head
+                            debt a report refresh answers, owed on the pinned pull request and the run's branch and
+                            naming as its rewritten head the commit its run reported on, the live adjudication a late
+                            revision answers (`stages/decomposition/late_relabel.py`, resolved when called, a late
+                            record `stages/implementing/late_claims.py` finds claiming a reading it cannot produce
+                            holding it), and the records its handoff froze, a move proving it stale only where the moved
+                            record's own reader -- the debt's, the pinned number's, the returned reviewer verdict's
+                            (`stages/validating/review_verdicts.py`, resolved when called), and for a late record the
+                            late domain's check of that very field (`late_claims._FIELD_READS`) -- takes the new
+                            spelling, a moved record no reader is registered for holding it, a late one none of those
+                            checks judges included -- gone proving the capture stale and unreadable holding it; an
+                            auto-rebase anchor beside it, retiring it where it reads as a commit and holding it where it
+                            does not -- a null one being none, and `false` or an empty string no absence; and, for a run
+                            captured with its usage unaccounted, the receipt of it read back beside counters its writers
+                            would write, without which the capture is held
+    completion_sources.py   whether the branch the live resolver names, the issue's own checkout at its own path and the
+                            commit it stands on, and the recorded pull request -- open, on the run's branch in this
+                            repository, at the head the run started on or reported on, a report refresh's at the one it
+                            reported on alone -- are still the ones a pending capture reported on; a reading that fails
+                            or misses its head's branch, commit, or repository, a checkout nothing proves the issue's
+                            own, and a checkout head naming no commit the store holds each hold the capture rather than
+                            proving it stale. On the implementing road a pull request that road reads as the
+                            `discussion` stage's plan (`stages/implementing/handler.py`, resolved when called) is none
+                            of the run's, merged or not
     completion_recovery.py  the dispatch guard that decides a pending capture ahead of every stage handler, its
                             effect's readings taken again behind the issue's last fetch (`completion_effect.py`): an
                             applicable one handed to its road's owner (`ROUTE_OWNERS`, resolved when called -- none
