@@ -407,14 +407,18 @@ class PinnedState:
     auto-rebase attempt's checkpoint -- a park, or a recovery's clear or
     record of a gate's hold -- or a final-docs pass's completion, or the
     invalidation or hold that withholds a no-change one, or an in_review ready
-    ping's arming or settlement --
+    ping's arming or settlement, or a developer completion's transfer --
     one refused over a comment that moved, or one sent and never confirmed --
     on one whose report post or re-read left its transaction owed over a
     comment another road wrote meanwhile, and on an approval tail's whose records the comment moved: the
     comment is not, or may not be, what the state
     was decided on, so the whole-state writer writes nothing for it rather
     than put back everything another road wrote since. Any such commit that
-    lands clears it.
+    lands clears it. A developer completion's capture or retirement sent and
+    never confirmed withholds a state too (`workflow/engine/completion_commits.py`),
+    and so does any answer over a comment that no longer reads as the state
+    was read; one that lands clears nothing: it owns one field, and the state
+    may still be stale in every other.
     """
 
     comment_id: int | None = None
@@ -475,7 +479,7 @@ class PinnedState:
         self.state_data[key] = state_value
 
 
-def pinned_state_body(state_data: dict) -> str:
+def pinned_state_body(state_data: dict, *, escaped_in_full: bool = False) -> str:
     """Return the comment body one pinned state is written as.
 
     The one rendering of it, so a caller measuring what a write would produce
@@ -502,12 +506,17 @@ def pinned_state_body(state_data: dict) -> str:
     it was stored, which is the rendering the binary that accepted it gave it,
     and which every reader here still parses -- the object form spans the
     terminator on the way back.
+
+    `escaped_in_full` is the escaped rendering whatever its length, for a
+    caller deciding whether to accept a record at all: one it takes only
+    because its terminators would go out unescaped is a record that leaves
+    the rest of the comment as visible issue text.
     """
     payload = json.dumps(state_data, sort_keys=True)
     escaped = PINNED_STATE_TEMPLATE.format(
         payload=payload.replace(_COMMENT_CLOSE, _ESCAPED_COMMENT_CLOSE),
     )
-    if len(escaped) <= MAX_PINNED_BODY:
+    if escaped_in_full or len(escaped) <= MAX_PINNED_BODY:
         return escaped
     return PINNED_STATE_TEMPLATE.format(payload=payload)
 

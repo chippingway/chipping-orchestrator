@@ -55,6 +55,7 @@ from orchestrator.workflow.engine import (
     report_records as _records,
     report_settlement_state as _settlement,
 )
+from orchestrator.workflow.engine.completion_state import escapes_in_full
 from orchestrator.workflow.engine.pinned_commit_models import CommitOutcome, CommitStatus
 
 log = logging.getLogger("orchestrator.workflow")
@@ -193,10 +194,13 @@ def _follows(
     Measured by the one measurement the record was accepted under, over the
     candidate the commit would send, so what moves that measurement moves
     this: before the post with the settled records at their widest, and at the
-    commit with `current` and `handoff` as they land.
+    commit with `current` and `handoff` as they land. A report a captured
+    completion was handed off as was accepted escaped in full, and is settled
+    that way (`completion_state.escapes_in_full`).
     """
     settled = _record_state.settled_payload(candidate, pending, current, handoff)
-    if settled is not None and _record_state.fits_the_comment(settled):
+    escaped_in_full = escapes_in_full(candidate, pending.receipt)
+    if settled is not None and _record_state.fits_the_comment(settled, escaped_in_full=escaped_in_full):
         return None
     return _CROWDED
 

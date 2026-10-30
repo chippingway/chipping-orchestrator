@@ -948,7 +948,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             apart from the `RecordRefusal` a record's reading gives, so a report too long or quoting a
                             receipt marker is never reported as a comment too full, and it is built only once
                             `report_record_state.fits_the_comment` has refused, so it never names a comment that test
-                            would accept. The worlds those later writes make are built here too (`with_later_writes`),
+                            would accept -- measured escaped in full where that test was (`escaped_in_full`, which a
+                            captured completion's admission asks of the delivery's own measurements). The worlds those later writes make are built here too (`with_later_writes`),
                             through the owners that write them for real, since they are what an overflow names. Held
                             in memory only, like the reading's refusal: the pinned comment records a report or does
                             not, never why
@@ -1050,7 +1051,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             outstanding record owes has been written anywhere, and this record replaces it, so a
                             report minted on its own caller's pair alone settles leaving a round nobody spent,
                             bookmarks nobody cleared, and feedback a developer already answered reading as fresh.
-                            `MINTED_FROM` names the records all of that is read from, which recording it is decided on
+                            `MINTED_FROM` names the records all of that is read from, which recording it is decided on.
+                            `minted_report` is that minting alone, from what one outcome contributes, and
+                            `outcome_fields` that contribution unchecked, for a captured completion's transfer and the
+                            room its capture reserves (`completion_handoff.py`)
     report_delivery.py      the report one finished run earns, recorded before its code is published, as minted by
                             `report_minting.py`. The write is this owner's, because being durable before the size
                             gate and the push is the whole of what makes the report recoverable, and it is a
@@ -1133,7 +1137,60 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             owes onto the record as well as onto the gate, which is what covers a report reaching
                             the pull request with no code in it and so no gate behind it. A report it cannot RECORD
                             is held on the refusal `stage_delivered_report` gave rather than on a yes or no, so the
-                            notice and the log line can say which it was, worded by the owner below
+                            notice and the log line can say which it was, worded by the owner below.
+                            `records_the_report` is the recording write alone, public for a captured completion's
+                            transfer, which lands its own handoff among what the road retires, asks every comment
+                            measured escaped in full (`escaped_in_full`), and answers a refusal rather than parking
+                            on it
+    completion_routes.py    the report-producing roads a developer completion may be captured on, each with the
+                            labels its report records under, whether a VERIFIED outcome pays it -- a rewritten-head
+                            refresh is paid only READY -- and whether it answers a frozen handoff; and whether one
+                            return qualifies, read through the outcome owner's completed-run reader and the
+                            backend's unfinished-step and terminal-failure diagnostics, never a role, a backend, or
+                            an exit code alone, and only for a return a tracked spawn identified
+    completion_records.py   the immutable capture of one returned run (`developer_completion`): PENDING with its
+                            invocation, the road and the handoff frozen before the launch, what ran and where, the
+                            READY text or VERIFIED reference, the session it returned and its accounting -- no raw
+                            output, prompt, or staged state -- and the resolved HANDED_OFF and RETIRED stages that
+                            keep no report
+    completion_values.py    what each member of a capture may be: bounded single lines, recorded numbers, a frozen
+                            handoff of at most sixteen named digests, and a report the report records' reading takes,
+                            each answering a damaged member apart from one legitimately `null`
+    completion_spelling.py  the flat wire object each stage is spelled as, and the strict whole reading of one, a key
+                            too many or too few, a member out of bound, or a road its contract refuses reading as
+                            no capture
+    completion_frozen.py    a road's handoff frozen as one digest per pinned record its launch was decided on, and
+                            which of those records a later reading spells otherwise, `null` from missing included
+    completion_state.py     the state's view of its capture: a claim asked apart from a reading, so damage is never
+                            an absence; whether a handed-off capture is still owed to its report -- the one record of
+                            the commit it is about until the transaction its delivery becomes settles -- or beside a
+                            claim of either record nobody can read (`source_owed`); what holds a delivery's binding
+                            -- a capture nobody can read, or a handoff of another branch or commit (`binding_hold`,
+                            which `report_binding.py` asks); and which reports are bound and settled escaped in full
+                            (`escapes_in_full`, which `report_binding.py` and `report_settling.py` ask)
+    completion_commits.py   what every write over a capture is bound to -- the caller's comment read afresh and
+                            admitted, the invocation's repository, issue, comment and cycle, and a capture or cycle
+                            identity that reads -- and the four answers it comes to, what landed or was read back laid
+                            onto the caller as the comment's (a confirmed handoff's delivery included), and a write
+                            never confirmed, or any answer over a comment that moved since the caller read it,
+                            withholding the caller
+    completion_handoff.py   the transfer of a pending capture into the delivery: the report minted from the captured
+                            outcome under the road's frozen terms and recorded through `report_delivery.py`'s own
+                            write, the capture rewritten HANDED_OFF in that very commit and decided on every record
+                            its handoff froze and measured afresh, escaped in full, over the comment it lands on,
+                            read back first so a repeat records nothing twice and hands its
+                            caller every field a transfer writes (`TRANSFERRED`), as every standing answer past
+                            PENDING does (`confirmed`); and what a capture is admitted on:
+                            its own comment, then that transfer, its binding and its settlement, every one measured
+                            with each terminator escaped (`admits_the_capture`)
+    completion_checkpoint.py the capture of one eligible return, landed owning its own field alone and decided on it,
+                            the cycle and the delivered and pending reports, refused beside another invocation's
+                            pending capture, a resolved one of the same or a later charge, a damaged one, or a
+                            handoff whose report has not settled, and for a report its reading or the comment's
+                            escaped room refuses -- leaving the run's usage checkpoint to its own; its read-back; and
+                            its retirement, a pending one only as INVALIDATED and a handoff only once its report has
+                            settled or been superseded.
+                            Dormant: no stage captures a completion yet
     report_refusal_notices.py what a human and the log are told about a delivery that refusal held: one notice per
                             refusal, each with its own recovery. A quoted receipt marker is described in prose
                             and never quoted back -- a notice is the orchestrator's own comment, where a receipt
@@ -1292,7 +1349,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reviewer round and fixing hand-back that follow; `lands` commits it behind the post and
                             the re-reads, its final candidate held to the same measurement with the two records as
                             they land, so a comment another road filled during the post refuses it with the pending
-                            record kept rather than leaving the reviewer round or the hand-back no room. The mark is
+                            record kept rather than leaving the reviewer round or the hand-back no room -- measured
+                            escaped in full for a report a captured completion was handed off as
+                            (`completion_state.escapes_in_full`). The mark is
                             REPLACED by the same write, never merely left: retired first
                             and put back up only where this record's own frozen spends carry it, so a mark an
                             earlier settlement raised elsewhere cannot outlive the handoff it was about. And it
@@ -1349,7 +1408,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             through
                             `stages/implementing/report_handoff.py`, once its push has reached a pull request; the
                             drift roads' `stages/validating/report_settlement.py` calls the binding step alone,
-                            `binds_the_delivery`, and leaves the post to the reconciliation's full evidence
+                            `binds_the_delivery`, and leaves the post to the reconciliation's full evidence. A
+                            delivery a captured completion was handed off as binds only to the branch and commit that
+                            capture reported on, and parks the same way otherwise -- and beside a capture nobody can
+                            read -- the exchange and every park it takes decided on the capture too, and the
+                            exchange measured escaped in full for such a report (`completion_state.py`)
     report_transaction.py   the reconciliation the dispatcher runs ahead of every handler, behind the pause,
                             terminal, outstanding-publication and adjudication guards and ahead of the reuse guard
                             and the stage: it hands work that has ENDED straight back -- a closed issue, or one

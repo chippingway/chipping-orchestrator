@@ -1154,10 +1154,11 @@ every write of an approval's tail commit through, and which the finish of a base
 itself, every auto-rebase park and a recovery's clear and record of a gate's hold, a final-docs pass's completion
 and the evidence invalidation or hold that withholds a no-change one, the retirement of a failed developer
 conversation, the in_review ready ping's arming and its settlement and the unmergeable park behind its notice, and the
-`workflow:ready` decision's reroute and handoff and the retirement of that reroute's marker land through) is never
-written from its caller's state. It is captured from the reading the caller decided on —
-the comment's id, every field as the comment's JSON spells it, the prerequisite fields the decision rests on, an absent
-one included, and the fields the caller owns — and derived over a fresh reading: each field the caller's staged state
+`workflow:ready` decision's reroute and handoff and the retirement of that reroute's marker land through, as do a
+developer completion's capture, transfer, and retirement) is never written from its caller's state. It is captured
+from the reading the caller decided on — the comment's id, every field as the comment's JSON spells it, the
+prerequisite fields the decision rests on, an absent one included, and the fields the caller owns — and derived over a
+fresh reading: each field the caller's staged state
 changed, every one of which it has to own, is laid over that reading; a transformation the caller's domain supplies
 decides its own owned field over the fresh value, so a total, a ledger, or a watermark both roads moved keeps both moves
 — or answers that the two will not join, which is refused as an owned conflict; and every other field, unknown ones
@@ -1929,6 +1930,68 @@ The keys that matter for the state machine fall into a few groups:
   reader had never heard of makes one member unreadable, which refuses the whole group, which holds a transaction
   whose report is written and whose feedback is already answered. What each field may HOLD is still bounded here,
   because a key names a shape this domain has to prove.
+- **A captured developer completion.** `developer_completion` is one nested object holding at most one developer
+  return a report-producing road finished, so a later tick can hand its report to the transaction above instead of
+  asking an agent to write it again. The primitives are dormant: no stage captures a completion yet, so no issue
+  carries the field. Only a return the outcome owner's completed-run reader answers READY or VERIFIED for, whose
+  backend recorded no unfinished tool steps or terminal failure, that a tracked spawn identified, and that its road's
+  contract takes qualifies (`engine/completion_routes.py`); a role, a backend, or a clean exit alone qualifies none.
+  The roads are named by their callers — `implementation`, `resume`, `requested_changes` and `pr_feedback` (each of
+  the last two only beside a frozen handoff), `requirements_drift` on `implementing`, `validating`, `in_review`, or
+  `resolving_conflict`, `report_refresh` (READY only, as that road's own outcome owner holds it), and
+  `late_revision` — each with the labels its report records under.
+
+  One flat object per stage, every member spelled on every record of it: `stage`, then the invocation's `repo`,
+  `issue`, `comment`, `cycle`, `ordinal` and `nonce` (`AgentResult.invocation`), then the stage's own. A `pending`
+  capture adds the road's `route` and `origin` label, the `requirements` revision it was handed, the delivered input
+  as `watermarks` and the round settlement as `spends` — both bounded by the report records' own vocabularies — the
+  `frozen` handoff as `[[<pinned key>, <sha256 of its spelling>], ...]` (sorted, at most sixteen), the full `command`
+  the attempt ran under, the SHA-256 `prompt` revision, the `worktree`, `branch`, `before` and `source` commits, the
+  returned `session` (`null` where the CLI named none), the `outcome` — `ready` with its complete `report`, or
+  `verified` with `location_slug`, `location_pr`, `location_comment` and `content` — and the `accounting` the
+  tracked spawn's checkpoint left (`settled`, `nothing_owed`, or `unresolved`). No raw output, prompt, or other
+  staged state is kept. A `handed_off` one adds the `receipt` and `revision` of the delivery that now owns its report
+  and the `branch` and `source` it is about; a `retired` one, its `reason` (`invalidated` or `settled`). Read only
+  whole (`engine/completion_spelling.py`): a missing field is the supported absence, and anything else — `null`, a
+  key too many or too few, a member out of its bound, a report the report records refuse, a road its contract
+  refuses — is a damaged claim that nothing captures over, reads as absent, retires, or acts on.
+
+  Every write is a guarded commit over the comment the caller holds, read afresh and admitted, bound to the
+  invocation's repository, issue, comment and cycle and decided on the field, `late_cycle_id`,
+  `developer_report_delivery`, and `developer_report_pending` (`engine/completion_checkpoint.py`,
+  `completion_commits.py`). A capture owns this field
+  alone, so it moves no session pin, baseline, watermark, park, round, approval, or publication or evidence record,
+  whatever the caller staged; it is refused while another invocation's capture is pending and for a return at or below
+  the charge of a resolved one, and read back first, so asking again sends nothing. The report is refused for its own
+  reading before anything is measured, then measured with every terminator escaped — never as the writer falls back
+  to rendering a payload past the ceiling unescaped — and taken only where its transfer, measured the same way — the
+  capture handed off and the delivery recorded at its widest revision, with the publication receipt, binding, and
+  settlement that delivery reserves — still fits that very comment (`completion_handoff.admits_the_capture`). A
+  refusal writes nothing, so the run's usage checkpoint lands or not on its own. The transfer is the delivery's own
+  recording (`report_delivery.records_the_report`), measured afresh over the candidate it sends, escaped in full, with
+  the binding and settlement it reserves, so a comment another road filled since the capture refuses it for room and
+  the capture stays pending; it is minted from the captured outcome under the road's frozen route,
+  requirements, input and round, with the capture rewritten `handed_off` in the same commit and decided on every
+  record its handoff froze: the report has one durable owner on either side, and a frozen record another road moved
+  refuses it. Asked again, it answers standing with the capture, every report record, and the debt flags a recording
+  retires laid onto the caller as the comment carries them, as a capture, read-back, or retirement finding the capture
+  past `pending` does, so a caller that read the capture before its transfer never writes the delivery away. A
+  retirement keeps the invocation; a pending capture is retired only as `invalidated`, so the only copy of a report
+  is never dropped behind a transfer nobody confirmed. A handed-off capture is the one record of the commit its
+  report is about, and of that report having come from a capture, until the transaction its delivery becomes
+  settles: while the delivery or that transaction stands — or a claim of either nobody can read — neither a later
+  capture nor a retirement takes it (`unbound`). The binding holds the publication to that capture's branch and
+  source commit (`report_binding`), parking rather than binding beside a capture nobody can read — a park decided on
+  the capture as the tick read it, so one a human repaired since gets no notice and no park — and the binding and the
+  settlement (`report_settling`) of a captured report are measured escaped in full, as its capture and transfer
+  were, so neither lands only by writing its terminators unescaped. A write sent and never confirmed
+  withholds the caller's state, and only a read-back says what landed. So does every answer — landed, standing, or
+  refused, a report's own refusal, a commit refused because the comment moved under it, and a refusal reached behind
+  a request of its own, such as a verification's repository read, which reads the comment again, included — given
+  over a comment that no longer reads as the one the caller read, or that would not read: what the
+  caller does not hold, a later report's delivery, a field a transfer retired, or a claim damaged since, its
+  whole-state write would put back as it read it, so it writes nothing. A late restart's projection carries no
+  capture into the fresh cycle.
 - **Rewritten-head report debt.** `developer_report_rewrite_debt` is the report a pull request is owed because this
   orchestrator rewrote its head (`workflow/engine/report_rewrite_debt.py`): `pr`, `branch`, `previous_head` -- the head
   the rewrite replaced, the first one across a retargeting, which is the head the settled report is about -- and

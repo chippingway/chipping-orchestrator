@@ -718,9 +718,13 @@ runner returned, as it attaches `usage`: minted over the durable reading the run
 stands at, and a random nonce), so two runs of an identical request and a run with no session id stay distinct where
 the request's fingerprint and the session id do not. It is what usage accounting is keyed by
 ([The agent-run circuit](state-machine/labels-and-state.md#the-agent-run-circuit)), and stays `None` for a result
-no charged process produced. `unaccounted` (default `False`) is set by `_run_agent_tracked` where that accounting
-neither landed nor read back covered -- refused, or sent and never confirmed: the run's disposition and any further
-invocation its wrapper would make hold on it, as on a live pause. `unfinished_steps` (default `()`)
+no charged process produced. A captured developer completion is bound to it too
+(`workflow/engine/completion_checkpoint.py`, dormant): the comment and cycle its charge was taken on, and the ordinal
+that refuses a capture of an older return once a later one resolved; a return carrying unfinished steps or a terminal
+failure is never captured as a completed report. `unaccounted` (default `False`) is set by `_run_agent_tracked`
+where that accounting neither landed nor read back covered -- refused, or sent and never confirmed: the run's
+disposition and any further invocation its wrapper would make hold on it, as on a live pause. `unfinished_steps`
+(default `()`)
 carries structured diagnostics (`ToolLifecycle`) for any tool steps left unfinished when a backend emits terminal
 output (such as Antigravity active commands); when present, the terminal response is suppressed from `last_message`
 and the result is forced non-zero so recovery can act on it. `terminal_failure` (default `None`) is the

@@ -560,6 +560,16 @@ division of labour between the developer and the orchestrator never changes.
 
   None of them reads feedback past the pairs the record froze, so a comment arriving in any of those windows is left
   for the road that ordinarily answers it.
+- **A captured return.** A finished return a live hold or a lost tick could discard is kept whole as one
+  `developer_completion` capture — its invocation, road and frozen handoff, the command and prompt revision it ran
+  under, its checkout and source commit, the session it returned, and the READY text or VERIFIED reference it ended
+  on — and is the report's only owner until one commit records it as `developer_report_delivery` and rewrites the
+  capture as handed off. The stations above then begin from that delivery as from a run's own recording, under the
+  route, requirements, input, and round the road froze, and its binding is held to the captured source commit, which
+  the handed-off capture keeps until the report settles, and it is bound and settled only where the comment carries
+  it with every terminator escaped; a pending capture is retired only by a guarded
+  invalidation. No road captures a return yet: these are the
+  primitives its recovery builds on ([pinned state](../state-machine/labels-and-state.md#pinned-state)).
 - **Review-subject freshness.** No reviewer spawns while a report is owed. Each is handed the report the pull request
   carries, re-read where it settled and quoted whole, and what it reviewed — pull request, head, requirements, and
   the report's revision and digest — is recorded as `review_subject` at the launch and as `review_returned_subject`

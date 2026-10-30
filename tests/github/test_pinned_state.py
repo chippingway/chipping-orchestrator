@@ -460,6 +460,19 @@ class CommentsAfterExcludesStateTest(unittest.TestCase):
         self.assertEqual([issue_comment.id for issue_comment in read], [3])
 
 
+class EscapedInFullTest(unittest.TestCase):
+    """The rendering a record about to be accepted is measured as."""
+
+    def test_escaped_in_full_never_falls_back(self) -> None:
+        # Asked for in full, the escaped rendering is what is measured,
+        # however far past the limit it runs, so no record is taken only
+        # because it would go out unescaped.
+        in_full = pinned_state_body({_BLOCKER_KEY: _TERMINATOR_RUN}, escaped_in_full=True)
+
+        self.assertGreater(len(in_full), MAX_PINNED_BODY)
+        self.assertNotIn(_COMMENT_CLOSE * 2, in_full)
+
+
 class PinnedStatePayloadTest(unittest.TestCase):
     """`state_data` is the one name the payload goes by, as keyword and as attribute.
 

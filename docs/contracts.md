@@ -48,12 +48,16 @@ Use this checklist when reviewing a change; each ID links to its limits, specifi
 [host records](configuration/operations.md#running-more-than-one-poller) under `WORKTREES_DIR`, and the audit-log
 read-back in [C-12]. Treat `WORKTREES_DIR` as state and follow its cleanup rules. The pinned comment admits only
 supported version-1 records authored by the orchestrator token account; malformed or unsupported pinned comments
-are preserved unchanged and never overwritten, duplicated, or silently upgraded.
+are preserved unchanged and never overwritten, duplicated, or silently upgraded. A captured developer completion
+(`developer_completion`) is the pinned record of one returned report alone: only its confirmed capture, or that
+capture read back after an unconfirmed write, carries the report and what its road froze, never a log, analytics,
+a native session, a trajectory, or a host record, and no stage captures one yet.
 
 **Specs:** [state](architecture.md#design-constraints), [restarts](configuration/operations.md#what-survives-a-restart).
 
 **Checks:** [pinned state](../tests/github/test_pinned_state.py),
-[quota recovery](../tests/workflow/stages/implementing/test_quota_retirement_host.py).
+[quota recovery](../tests/workflow/stages/implementing/test_quota_retirement_host.py),
+[completion captures](../tests/workflow/engine/test_completion_checkpoint.py).
 
 ## C-02: Workflow labels and transitions
 
@@ -167,7 +171,12 @@ that accounted nothing, and any other shape is damage, never an empty ledger, so
 over it. A run is accounted only on the pinned comment its charge was written on, never a replacement copying it, and
 only over a `late_cycle_id` that is absent or a positive whole number: a damaged one is no absent cycle. A parsed usage
 adding what no counter's total is spelled as -- a negative count, or a negative cost or one no float holds -- is
-refused, never committed as a total the next reading refuses.
+refused, never committed as a total the next reading refuses. A captured completion (`developer_completion`) is read
+only whole, in the one flat shape its stage writes: absent is an issue that captured nothing, and any other shape --
+`null`, a key too many or too few, a member out of its bound, a report the report records refuse, or a road its
+contract refuses -- is a damaged claim, never an absence, so nothing captures over it, retires it, or acts on it,
+and no delivery is bound beside it. Its READY text and VERIFIED reference stay two outcomes, a rewritten-head refresh
+is captured only READY, and a change-request or pull-request-feedback road only beside the handoff it froze.
 
 Unsupported input cannot serve as fresh work, current evidence, or authorization to publish or delete artifacts. Neither
 a format change nor a refusal grants permission to discard that input or the artifacts it names; the owning
@@ -252,6 +261,8 @@ or lost write interrupted are current state, not historical compatibility.
 [hold spellings](../tests/workflow/stages/decomposition/test_late_hold.py),
 [split recovery](../tests/workflow/stages/decomposition/test_recovery.py),
 [usage receipts](../tests/workflow/engine/test_usage_checkpoint.py),
+[completion records](../tests/workflow/engine/test_completion_records.py),
+[completion roads](../tests/workflow/engine/test_completion_eligibility.py),
 [branch resolution](../tests/git/worktrees/test_resolution.py),
 [checkout reuse](../tests/git/worktrees/test_creation.py),
 [refused drift unwind](../tests/workflow/stages/documenting/test_drift_checkout.py),
@@ -345,7 +356,19 @@ issue's record, never one a record ahead of it has displaced, and a direct write
 steps depending on it stop. A usage checkpoint reads its invocation's receipt back before anything it
 sends, so one left unconfirmed settles nothing until that read-back, and asking again adds nothing where it landed; a
 refused checkpoint, an unreadable read-back, or a receipt read back beside a damaged counter licenses nothing that
-depends on the accounting.
+depends on the accounting. A completion's capture, transfer, and retirement each read the capture back first, so
+one left unconfirmed withholds the caller's state and settles nothing until read back, and asking again records
+nothing twice; any of them answered or refused over a comment that moved since its caller read it withholds that
+caller too, so its whole-state write never puts back a delivery, retirement, or damaged claim it did not hold. The
+transfer records the delivered report and hands the capture off in one commit, so the report has one durable owner
+either way; a pending capture is retired only by a guarded invalidation, never behind a transfer nobody confirmed,
+and a handed-off one is neither replaced nor retired until the transaction its delivery becomes settles, the binding
+holding that delivery to the commit the capture reported on. A transfer's read-back or retry, and a capture's or
+retirement's retry finding the capture past pending, hands its caller the delivery that landed.
+A capture is taken only where it, and then that transfer, its binding, and its settlement, still fit the comment
+with every terminator escaped; the transfer, and the binding and settlement of a captured report, are measured that
+way again over the comment each lands on, and refused for room with the report kept. A refusal leaves the run's
+usage checkpoint to land or not on its own, and a park the binding takes over a capture is decided on that capture.
 Writer exclusion comes from [C-05].
 
 **Specs:** [transactions](state-machine/labels-and-state.md#pinned-state),
@@ -359,6 +382,10 @@ Writer exclusion comes from [C-05].
 [strict edits](../tests/github/test_pinned_state_edits.py),
 [usage checkpoints](../tests/workflow/engine/test_usage_checkpoint.py),
 [displaced records](../tests/workflow/engine/test_usage_checkpoint_thread.py),
+[completion handoffs](../tests/workflow/engine/test_completion_handoff.py),
+[refusals behind a read](../tests/workflow/engine/test_completion_refused_behind_read.py),
+[completion capacity](../tests/workflow/engine/test_completion_capacity.py),
+[captured sources](../tests/workflow/engine/test_completion_binding.py),
 [recovery checkpoints](../tests/git/base_sync/test_persistence.py),
 [captured-run abandonment](../tests/workflow/engine/test_rewrite_landing_moved.py),
 [finalization checkpoints](../tests/workflow/engine/test_rewrite_finish_writes.py),

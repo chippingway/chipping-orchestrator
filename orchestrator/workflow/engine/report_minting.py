@@ -55,7 +55,7 @@ MINTED_FROM = frozenset((
 
 # How a transaction minted here is named. The revision is what makes it
 # unique per issue, and the spelling is one the report header carries verbatim.
-_RECEIPT = "issue-{issue}-report-{revision}"
+RECEIPT = "issue-{issue}-report-{revision}"
 
 
 def delivered_report(
@@ -102,6 +102,26 @@ def delivered_report(
     otherwise it is read off the pinned baseline the drift check ahead of the
     spawn put there.
 
+    The record itself is `minted_report`'s, which a captured completion's
+    transfer mints through too (`completion_handoff`), from the outcome its
+    capture kept rather than from a run.
+    """
+    carried = carried_by_outcome(
+        gh, _outcomes._report_outcome_of_run(agent_result),
+    )
+    if carried is None:
+        return None
+    return minted_report(issue.number, state, carried, handed)
+
+
+def minted_report(
+    issue_number: int,
+    state: _pinned_state.PinnedState,
+    carried: dict,
+    handed: _records.HandedRun,
+) -> _records.DeliveredReport:
+    """The record `carried` -- what one report outcome contributes -- is minted as over `state`.
+
     The revision moves past every report this issue has already recorded: the
     settled one, any transaction still outstanding, and any delivery still
     waiting to be bound. A settlement replaces the current report, so a
@@ -116,11 +136,6 @@ def delivered_report(
     can read counts as nothing here, which is the same answer every reader in
     this domain gives it.
     """
-    carried = _carried_by_outcome(
-        gh, _outcomes._report_outcome_of_run(agent_result),
-    )
-    if carried is None:
-        return None
     # The records this one replaces, oldest first: a transaction is bound
     # before any delivery standing beside it, since the binding drops the
     # delivery it came from in the write that records it.
@@ -138,7 +153,7 @@ def delivered_report(
         _prompt_delivery.PINNED_USER_CONTENT_HASH,
     )
     return _records.DeliveredReport(
-        receipt=_RECEIPT.format(issue=issue.number, revision=revision),
+        receipt=RECEIPT.format(issue=issue_number, revision=revision),
         report_revision=revision,
         route=handed.route,
         requirements_revision=requirements if isinstance(requirements, str) else "",
@@ -172,7 +187,7 @@ def _carried_on(superseded: list, handed: tuple) -> tuple:
     return tuple(carried.items())
 
 
-def _carried_by_outcome(
+def carried_by_outcome(
     gh: _client.GitHubClient, outcome: _outcome_models._ReportOutcome,
 ) -> dict | None:
     """What one report outcome contributes to a record, or None for no report.
@@ -199,10 +214,8 @@ def _carried_by_outcome(
     named another repository: no record, and the run held for a human, which is
     the one road from here that loses nothing.
     """
-    if isinstance(outcome, _outcome_models._ReadyReport):
-        return {"mode": _records.ReportMode.PUBLISH, "report": outcome.report}
     if not isinstance(outcome, _outcome_models._VerifiedReport):
-        return None
+        return outcome_fields(outcome)
     try:
         own_repository = gh.is_own_repository(outcome.location.slug)
     except Exception:
@@ -217,6 +230,20 @@ def _carried_by_outcome(
             "against its own repository (%s); recording no report for it",
             outcome.location.slug,
         )
+        return None
+    return outcome_fields(outcome)
+
+
+def outcome_fields(outcome: _outcome_models._ReportOutcome) -> dict | None:
+    """What one report outcome's own half of a record is, or None for no report; nothing is checked.
+
+    `carried_by_outcome` is what holds a verification to this repository
+    before a record is minted from it. This alone is what a record will carry,
+    for a caller reserving the room one will take before anything is minted.
+    """
+    if isinstance(outcome, _outcome_models._ReadyReport):
+        return {"mode": _records.ReportMode.PUBLISH, "report": outcome.report}
+    if not isinstance(outcome, _outcome_models._VerifiedReport):
         return None
     return {
         "mode": _records.ReportMode.VERIFY,

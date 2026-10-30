@@ -12,7 +12,8 @@ field another road moved since the tick read it -- an evidence record, a
 verdict, a watermark -- and nothing on the comment would say so. So each write
 of this domain lands through the guarded commit (`pinned_commit`) over a fresh
 reading instead: the recording and the parks a refusal takes
-(`report_delivery`), the binding (`report_binding`), the settlement
+(`report_delivery`) -- a captured completion's transfer recording through it
+(`completion_handoff`) -- the binding (`report_binding`), the settlement
 (`report_settling`), the reconciliation's drops and the retirement of its own
 park (`report_transaction`), and the fixing recovery's release of a report no
 checkout can publish (`stages/fixing/report_recovery.py`).
