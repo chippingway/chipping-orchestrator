@@ -347,6 +347,12 @@ other apps so they do not change the package under a running poller. Before upgr
 If a release requires a different Python interpreter, follow
 [Change the Python interpreter](#change-the-python-interpreter) before installing it.
 
+If a release changes the analytics database schema, stop the analytics sync job with the poller and apply that
+release's `analytics-db/init/01-schema.sql` before the next sync, as
+[upgrading an existing database](../observability/analytics-database.md#upgrading-an-existing-database) describes: a
+sync whose INSERT names columns the table lacks fails and commits nothing, and a changed rollup is rebuilt only by
+dropping it and reapplying. Stored rows are not converted.
+
 ### Change the Python interpreter
 
 Provision a supported interpreter and stop every poller using the environment. Record the installed `Version` with
@@ -824,7 +830,8 @@ toward starting the selected build:
   with its `analytics-db/data/` volume. Nothing in them is converted, and the dashboard and the trajectory viewer read
   an earlier record only as the current producers would have written it: a field it never carried stays unknown, so a
   skill load recorded with no offered set joins no adoption denominator, an unclassified catalog name pads no cell,
-  and a run that recorded no review round reports under `unknown`.
+  a run that recorded no review round reports under `unknown`, and a run recorded with no usage evidence, or synced
+  before the database stored it, keeps its `cost_usd` under the `unknown` basis with its token total unknown.
 
 ### Install, check, and start deliberately
 
