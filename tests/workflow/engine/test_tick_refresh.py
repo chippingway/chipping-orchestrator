@@ -15,7 +15,11 @@ from orchestrator.workflow.engine import (
 from tests.git.base_sync.sync_test_support import _git_result
 from tests.support.fakes import make_issue
 from tests.support.writer_claims import held_elsewhere
-from tests.workflow.engine import refused_checkouts_support as refused, tick_parallel_test_support as support
+from tests.workflow.engine import (
+    captured_checkout_support as captured,
+    refused_checkouts_support as refused,
+    tick_parallel_test_support as support,
+)
 from tests.workflow.engine.dispatch_scheduler_workers import patch_base_refresh
 from tests.workflow.engine.refresh_checkouts_support import (
     AFTER_SHA,
@@ -32,7 +36,7 @@ from tests.workflow.engine.writer_claim_test_support import (
     StandInHandler,
     WriterClaimDispatchCase,
 )
-from tests.workflow.fixtures import LABEL_IMPLEMENTING, LABEL_IN_REVIEW, LABEL_VALIDATING
+from tests.workflow.fixtures import LABEL_BLOCKED, LABEL_IMPLEMENTING, LABEL_IN_REVIEW, LABEL_VALIDATING
 
 # A pull request the refresh publishes a rebase onto, a pre-PR neighbor whose
 # checkout it rebases locally, and a pull request another poller is writing.
@@ -61,6 +65,16 @@ _BOTH_SAID = frozenset((refused.LEFT_STANDING, refused.NOT_DISPATCHED))
 
 # What admission reads each of those comments as.
 _REFUSED_AS = "unsupported"
+
+# The operator controls a captured issue is held under.
+_PAUSED = "paused"
+_BACKLOG = "backlog"
+
+# Two ticks, so a hold is shown to hold past the first.
+_TICKS = ("first", "second")
+
+# The stages a captured issue's ticks reach a handler for.
+_CAPTURE_LABELS = (LABEL_IMPLEMENTING, LABEL_BLOCKED)
 
 
 class TickInvokesBaseRefreshTest(unittest.TestCase):
@@ -259,6 +273,122 @@ class RefusedRecordTickTest(WriterClaimDispatchCase):
         """The repository on disk, which this case ticks one issue at a time."""
         self.assertEqual(parallel_limit, self.world.disk.spec.parallel_limit)
         return self.world.disk.spec
+
+
+class CapturedCompletionTickTest(WriterClaimDispatchCase):
+    """Whole ticks over a checkout whose developer run captured its completion, the base advancing past it.
+
+    Everything under the tick is real -- the base fetch and the refresh, the
+    dispatch and the recovery ahead of every handler, the checkpoint the
+    capture was landed by and the transfer that hands it on -- but the agent
+    runner, the road's owner, which hands the capture to the delivery and
+    stops the tick there, and the stage handler behind it, which stands in for
+    one that runs and records.
+    """
+
+    def setUp(self) -> None:
+        self.fresh_repository()
+        self.agent = self.enterContext(patch.object(_usage, "_run_agent_tracked"))
+
+    def test_a_held_capture_waits_for_its_report(self) -> None:
+        # Held, the base advances and nothing touches the issue, however many
+        # ticks pass. Released, the first tick's refresh keeps the commit the
+        # report is about, and its dispatch hands the capture on -- once --
+        # ahead of the handler; the delivery it became holds the commit while
+        # the stage runs behind it, and only its settlement lets the refresh
+        # carry the checkout onto the advanced base. No agent runs for any of it.
+        for control in (_PAUSED, _BACKLOG):
+            with self.subTest(control=control):
+                self.fresh_repository()
+                self.world = captured.CapturedCheckout(self, self.github)
+                self.world.captured()
+                _held_ticks(self, control)
+                _released_ticks(self, control)
+                self.agent.assert_not_called()
+
+    def test_an_unreadable_capture_holds_its_commit(self) -> None:
+        self.world = captured.CapturedCheckout(self, self.github)
+        self.world.captured()
+        self.world.hand_edit(**captured.DAMAGED)
+        held = self.github.pinned_data(captured.NUMBER)
+
+        for ticking in _TICKS:
+            with self.subTest(tick=ticking):
+                self.assertEqual(_ticked(self), ([], (True, None)))
+                self.assertEqual(self.github.pinned_data(captured.NUMBER), held)
+        self.assertEqual(self.world.owner.handed, [])
+
+    def test_an_unread_reading_holds_until_read(self) -> None:
+        # A thread that will not read, and a branch naming an object the
+        # store does not hold, prove nothing stale: the tick keeps the
+        # capture pending, runs nothing, and writes nothing over it; the
+        # first tick that reads them hands it on.
+        for unread in (captured.unread_thread, captured.dangling_head):
+            with self.subTest(unread=unread.__name__):
+                self.fresh_repository()
+                self.world = captured.CapturedCheckout(self, self.github)
+                self.world.captured()
+                held = self.github.pinned_data(captured.NUMBER)
+                with unread(self.world):
+                    self.assertEqual(_ticked(self)[0], [])
+                self.assertEqual(self.github.pinned_data(captured.NUMBER), held)
+
+                self.assertEqual(_ticked(self), ([], captured.KEPT_HANDED_OFF))
+
+    def test_a_dependency_hold_keeps_the_capture(self) -> None:
+        # The walk runs as it would; the capture is neither handed on nor
+        # retired, and the refresh leaves the commit where the run left it.
+        self.world = captured.CapturedCheckout(self, self.github, label=LABEL_BLOCKED)
+        self.world.captured()
+
+        for ticking in _TICKS:
+            with self.subTest(tick=ticking):
+                self.assertEqual(_ticked(self), ([captured.NUMBER], captured.KEPT_PENDING))
+        self.assertEqual(self.world.owner.handed, [])
+
+    def test_accounting_alone_holds_no_checkout(self) -> None:
+        self.world = captured.CapturedCheckout(self, self.github)
+        self.world.hand_edit(**captured.ACCOUNTED)
+
+        self.assertEqual(_ticked(self)[0], [captured.NUMBER])
+        self.assertTrue(self.world.on_the_advance())
+
+    def _spec(self, parallel_limit: int = 1):
+        """The repository on disk, which this case ticks one issue at a time."""
+        self.assertEqual(parallel_limit, self.world.disk.spec.parallel_limit)
+        return self.world.disk.spec
+
+
+def _ticked(case: CapturedCompletionTickTest) -> tuple[list[int], tuple]:
+    """One whole sequential tick, the world's owner taking every road: what ran a handler, and where it stands."""
+    stand_in = StandInHandler()
+    with case.world.owned():
+        case.ticked(stand_in, limit=1, scheduled=False, labels=_CAPTURE_LABELS, refresh=captured.REAL_REFRESH)
+    return stand_in.ran, case.world.standing()
+
+
+def _held_ticks(case: CapturedCompletionTickTest, control: str) -> None:
+    """Ticks under `control`, which run nothing and touch neither the checkout nor the record."""
+    case.world.controlled(control, held=True)
+    held = case.github.pinned_data(captured.NUMBER)
+    for ticking in _TICKS:
+        with case.subTest(tick=ticking):
+            case.assertEqual(_ticked(case), ([], captured.KEPT_PENDING))
+            case.assertEqual(case.github.pinned_data(captured.NUMBER), held)
+    case.assertEqual(case.world.disk.base(), case.world.base_after, "the base fetch ran while the issue was held")
+
+
+def _released_ticks(case: CapturedCompletionTickTest, control: str) -> None:
+    """The ticks once `control` comes off: the handoff, the stage behind it, and the rebase behind the settlement."""
+    world = case.world
+    world.controlled(control, held=False)
+    case.assertEqual(_ticked(case), ([], captured.KEPT_HANDED_OFF))
+    case.assertEqual([admitted.label for admitted in world.owner.handed], [LABEL_IMPLEMENTING])
+    case.assertEqual(_ticked(case), ([captured.NUMBER], captured.KEPT_HANDED_OFF))
+    case.assertEqual(len(world.owner.handed), 1, "handed on once")
+    world.hand_edit(**captured.SETTLED)
+    _ticked(case)
+    case.assertTrue(world.on_the_advance())
 
 
 if __name__ == "__main__":

@@ -254,8 +254,9 @@ versus installed layout that picks the `.env`, which a setup asks before any con
 nothing beyond each other.
 Over every scope, the only other reaches
 left are declared one by one in `tests/repository/test_layering.py`: three base-sync owners posting a notice or a park
-through the workflow's comment and guard owners, and the attempt's checkpoint owner landing a park's record through
-the workflow's guarded commit, deferred to a call because at module scope they would be a cycle. An
+through the workflow's comment and guard owners, the attempt's checkpoint owner landing a park's record through
+the workflow's guarded commit, and the refresh's freeze reading a captured completion through that capture's own
+reader, deferred to a call because at module scope they would be a cycle. An
 undeclared hop fails wherever it is written, and a declared one fails if it is bound at module scope after all. The
 launch forms compose each other and are reached from nothing below them at any scope but those two install facts,
 and no import anywhere is relative, because a relative target names its module by position and no layer can be read
@@ -634,6 +635,16 @@ parks once on a record it may not act on
 — a report debt a rewritten pull-request head left, which holds the roads past an approval (`workflow:documenting`,
 `in_review`) while any claim stands, readable or not, and leaves `workflow:validating` to pay it
 ([`state-machine/delivery-stages.md`](state-machine/delivery-stages.md#the-rewritten-head-report-debt-every-dispatch))
+— a captured developer completion still pending, decided behind that debt and ahead of the reuse guard, from its
+read-back alone: handed, admitted and immutable, to the owner of the road it was taken on -- which no road has in this
+build, so the handler is held -- only while that road's pull request, debt, or adjudication stands and an unaccounted
+run's receipt has read back, retired as invalidated where a reading proves it stale, on that very reading, held with
+nothing written where a reading fails, the issue moves behind the readings before their effect, or the claim is
+damaged, and waited through on a dependency hold, the `ready` decision, and an unlabeled issue, an auto-rebase anchor
+beside it included; the base refresh keeps its checkout where the run left it until then, beside an auto-rebase
+anchor too, where the capture is decided ahead of the anchor's hold and, on its own road, retired before that recovery
+may reset or push -- or held, where the anchor reads as no commit
+([`state-machine/delivery-stages.md`](state-machine/delivery-stages.md#the-captured-completion-recovery-every-dispatch))
 — an ordinary split's child whose pinned seed is not the one the receipt in its body owes it, held under every label
 but a terminal, pickup included, directly behind the agent-run-limit hold and ahead of a live adjudication's step
 aside, so no stage or adjudication runs a child on a lineage nothing proved
@@ -719,7 +730,8 @@ stands at, and a random nonce), so two runs of an identical request and a run wi
 the request's fingerprint and the session id do not. It is what usage accounting is keyed by
 ([The agent-run circuit](state-machine/labels-and-state.md#the-agent-run-circuit)), and stays `None` for a result
 no charged process produced. A captured developer completion is bound to it too
-(`workflow/engine/completion_checkpoint.py`, dormant): the comment and cycle its charge was taken on, and the ordinal
+(`workflow/engine/completion_checkpoint.py`, dormant, and decided ahead of every stage handler by
+`completion_recovery.py`): the comment and cycle its charge was taken on, and the ordinal
 that refuses a capture of an older return once a later one resolved; a return carrying unfinished steps or a terminal
 failure is never captured as a completed report. `unaccounted` (default `False`) is set by `_run_agent_tracked`
 where that accounting neither landed nor read back covered -- refused, or sent and never confirmed: the run's

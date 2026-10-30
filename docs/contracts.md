@@ -51,13 +51,15 @@ supported version-1 records authored by the orchestrator token account; malforme
 are preserved unchanged and never overwritten, duplicated, or silently upgraded. A captured developer completion
 (`developer_completion`) is the pinned record of one returned report alone: only its confirmed capture, or that
 capture read back after an unconfirmed write, carries the report and what its road froze, never a log, analytics,
-a native session, a trajectory, or a host record, and no stage captures one yet.
+a native session, a trajectory, or a host record, and no stage captures one yet. The dispatcher's recovery reads a
+pending capture through that read-back alone.
 
 **Specs:** [state](architecture.md#design-constraints), [restarts](configuration/operations.md#what-survives-a-restart).
 
 **Checks:** [pinned state](../tests/github/test_pinned_state.py),
 [quota recovery](../tests/workflow/stages/implementing/test_quota_retirement_host.py),
-[completion captures](../tests/workflow/engine/test_completion_checkpoint.py).
+[completion captures](../tests/workflow/engine/test_completion_checkpoint.py),
+[capture recovery](../tests/workflow/engine/test_completion_recovery.py).
 
 ## C-02: Workflow labels and transitions
 
@@ -335,7 +337,10 @@ a release or a delete admits every child it would act on before acting on any. T
 routes a worktree on from its read under the claim it holds through that route. Artifact maintenance takes each
 candidate's issue claim before it reads the issue, admits the record it classifies on from that read, and holds the
 claim through the teardown; a candidate whose claim is refused is left untouched. The scheduler barrier, host
-exclusivity, and every other maintenance gate stay required beside it.
+exclusivity, and every other maintenance gate stay required beside it. A captured developer completion is decided
+from a read under the dispatch claim, and its checkout is held out of the base refresh under the refresh's claim
+until a transaction owns its report or a guarded invalidation retires it; it grants no checkout adoption, reset, or
+deletion, so a checkout not proven the issue's own, or whose head is no commit the store holds, holds it.
 
 **Specs:** [ownership](architecture.md#design-constraints), [claims](architecture.md#process-model),
 [artifact ownership](security.md#scheduled-artifact-reclamation),
@@ -353,7 +358,8 @@ exclusivity, and every other maintenance gate stay required beside it.
 [removal races](../tests/git/worktrees/test_maintenance_tips.py),
 [host exclusion](../tests/runtime/test_exclusion.py),
 [claimed release](../tests/workflow/stages/decomposition/test_claimed_release.py),
-[claimed finalize](../tests/workflow/stages/decomposition/test_claimed_closed_children.py).
+[claimed finalize](../tests/workflow/stages/decomposition/test_claimed_closed_children.py),
+[capture freeze](../tests/git/base_sync/test_completion_freeze.py).
 
 ## C-06: Guarded writes and recoverable effects
 
@@ -386,6 +392,14 @@ either way; a pending capture is retired only by a guarded invalidation, never b
 and a handed-off one is neither replaced nor retired until the transaction its delivery becomes settles, the binding
 holding that delivery to the commit the capture reported on. A transfer's read-back or retry, and a capture's or
 retirement's retry finding the capture past pending, hands its caller the delivery that landed.
+A pending capture is handed on only over readings that admit it, its road's own prerequisites included, and its
+road's own reading of the recorded pull request -- a `discussion` plan the implementing road reads as one is none of
+the run's, merged or not -- retired only by a guarded invalidation a reading proved, held to that very reading whole
+so a comment that moved since -- a missing field restored included -- refuses it, and held with nothing written where
+a reading fails or the claim is damaged: an unreadable prerequisite never discards it, a record its handoff froze
+moved into a spelling its own reader refuses, or moved with no reader registered for it, included, and a cancelled or
+restarted cycle never inherits it. A rewritten-head refresh is handed on only where its debt, the commit it reported
+on, and the pull request's head are one commit, as that refresh's own road requires.
 A capture is taken only where it, and then that transfer, its binding, and its settlement, still fit the comment
 with every terminator escaped; the transfer, and the binding and settlement of a captured report, are measured that
 way again over the comment each lands on, and refused for room with the report kept. A refusal leaves the run's
@@ -407,6 +421,10 @@ Writer exclusion comes from [C-05].
 [refusals behind a read](../tests/workflow/engine/test_completion_refused_behind_read.py),
 [completion capacity](../tests/workflow/engine/test_completion_capacity.py),
 [captured sources](../tests/workflow/engine/test_completion_binding.py),
+[capture recovery](../tests/workflow/engine/test_completion_recovery.py),
+[frozen handoffs](../tests/workflow/engine/test_frozen_handoff.py),
+[effect re-reads](../tests/workflow/engine/test_completion_effect.py),
+[retirement tick](../tests/workflow/engine/test_completion_retirement.py),
 [recovery checkpoints](../tests/git/base_sync/test_persistence.py),
 [captured-run abandonment](../tests/workflow/engine/test_rewrite_landing_moved.py),
 [finalization checkpoints](../tests/workflow/engine/test_rewrite_finish_writes.py),
@@ -440,7 +458,9 @@ meanwhile is neither published, rewritten, cleaned, nor handed on by them. A ref
 before the step leaves the intent, approval, anchor, or marker a crash there would leave; one after a landed push keeps
 the push, the intent or receipt recording it, and any handoff it owes, and withholds only what follows. Current
 unpushed work, a current pull request's restoration from its remote head, uncertain remote reads, and exact-head
-pushes keep their protocols.
+pushes keep their protocols. A captured completion publishes nothing of its own: its recovery hands an admitted
+capture to its road's owner, whose publication keeps every gate above, and the base refresh -- an interrupted
+rebase's recovery included -- rewrites no captured source before that recovery has decided on it.
 Credential filtering does not enforce push authority; see [C-11].
 
 **Specs:** [pushes](architecture.md#push-path-gitbranch_transport_push_branch),
@@ -468,7 +488,9 @@ Credential filtering does not enforce push authority; see [C-11].
 [switched drift unwind](../tests/workflow/stages/documenting/test_drift_checkout.py),
 [switched refresh abort](../tests/workflow/engine/test_base_refresh_abort.py),
 [switched refresh clean](../tests/git/base_sync/test_checkout_proof.py),
-[switched conflict handoff](../tests/workflow/stages/conflicts/test_handoff_checkout.py).
+[switched conflict handoff](../tests/workflow/stages/conflicts/test_handoff_checkout.py),
+[captured source](../tests/workflow/engine/test_tick_refresh.py),
+[anchored capture](../tests/workflow/engine/test_anchored_capture.py).
 
 ## C-08: Agent reply protocols
 
@@ -549,7 +571,15 @@ of every release, so a hold applied while the poll runs is never written away or
 run meets, or an accounting checkpoint of it that neither landed nor read back, permits that run's usage accounting
 alone, beside a quota retirement it owes: the exit is counted once, as it returns, and nothing else of the run -- a
 publication, a label, a park, a consumed input, a further launch -- is written or made, nor does the count give any
-stage outcome a replay. Lifetime agent-run charges and the grant that permits further runs are covered by [C-15].
+stage outcome a replay. A captured completion waits through `paused`/`backlog`, a dependency hold, the `ready`
+decision, and a spent run ledger's park, none released, re-baselined, or cleared by it -- an interrupted auto
+rebase's anchor beside it included, which the anchor's own hold answers without moving the captured checkout -- and
+its recovery charges no run and grants no invocation; one whose run's accounting checkpoint neither landed nor read
+back is handed on to no road until that run's receipt reads back, and the issue's controls, label, state, and
+requirements, its checkout, and its pull request are read again right before the capture is retired or handed on,
+so a hold applied, or a close, reopening, edit, or source moved or put back, while its readings were taken writes
+nothing; a landed retirement ends its tick, so no stage runs on the snapshot its readings outdated. Lifetime agent-run
+charges and the grant that permits further runs are covered by [C-15].
 
 **Specs:** [controls](state-machine/labels-and-state.md#workflow-labels),
 [waiting for human action](state-machine.md#per-tick-flow-workflowengineticktick),
@@ -565,7 +595,9 @@ stage outcome a replay. Lifetime agent-run charges and the grant that permits fu
 [dependency holds](../tests/workflow/stages/decomposition/test_blocked_deferral.py),
 [held releases](../tests/workflow/stages/decomposition/test_claimed_release.py),
 [review parks](../tests/workflow/stages/in_review/test_parked.py),
-[retry-cap parks](../tests/workflow/engine/test_retry_budget.py).
+[retry-cap parks](../tests/workflow/engine/test_retry_budget.py),
+[held captures](../tests/workflow/engine/test_completion_holds.py),
+[ready captures](../tests/workflow/stages/decomposition/test_ready_capture.py).
 
 ## C-11: Credentials and execution boundaries
 

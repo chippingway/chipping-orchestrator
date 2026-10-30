@@ -22,7 +22,7 @@ from github.Issue import Issue
 from orchestrator import config
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _comments
+from orchestrator.workflow.engine import comments as _comments, completion_recovery as _completion_recovery
 from orchestrator.workflow.late_split import state as _late_state
 from orchestrator.workflow.stages.decomposition import (
     late_park_state as _late_park_state,
@@ -109,12 +109,12 @@ def _route_disabled_to_implementing(
             state.set(_state._LAST_ACTION_COMMENT_ID, latest)
     gh.set_workflow_label(issue, WorkflowLabel.IMPLEMENTING)
     gh.write_pinned_state(issue, state)
-    _hand_on_to_implementing(gh, spec, issue)
+    _hand_on_to_implementing(gh, spec, issue, state)
     return True
 
 
 def _hand_on_to_implementing(
-    gh: GitHubClient, spec: config.RepoSpec, issue: Issue,
+    gh: GitHubClient, spec: config.RepoSpec, issue: Issue, state: PinnedState,
 ) -> None:
     """Run the implementing tick this relabel hands the issue to.
 
@@ -129,6 +129,11 @@ def _hand_on_to_implementing(
     The label is already durable, so the next tick dispatches this issue to
     the implementing handler on a freshly read one and nothing is lost but a
     poll.
+
+    A captured developer completion `state` carries is asked about first, as
+    the dispatcher asks ahead of every handler it reaches
+    (`completion_recovery`): the handler would read its commit as unreported
+    work or run the developer again, so one that holds ends the tick here.
     """
     try:
         handed = gh.get_issue(issue.number)
@@ -138,6 +143,8 @@ def _hand_on_to_implementing(
             "the tick for the next poll rather than publishing against a "
             "stale label", issue.number, WorkflowLabel.IMPLEMENTING,
         )
+        return
+    if _completion_recovery.capture_holds_the_tick(gh, spec, handed, WorkflowLabel.IMPLEMENTING, state):
         return
     _implementing._handle_implementing(gh, spec, handed)
 
@@ -197,5 +204,5 @@ def _settled_candidate_owns_the_tick(
     )
     _late_park_state._persist(context)
     gh.set_workflow_label(issue, WorkflowLabel.IMPLEMENTING)
-    _hand_on_to_implementing(gh, spec, issue)
+    _hand_on_to_implementing(gh, spec, issue, state)
     return True

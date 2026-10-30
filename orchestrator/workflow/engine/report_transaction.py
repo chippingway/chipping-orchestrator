@@ -24,7 +24,12 @@ and a candidate the size gate froze has to be settled before anything downstream
 of the push can be believed -- this owner's own evidence asks whether the commit
 reached the pull request, which is the very question that reconciliation answers.
 Behind them, it runs ahead of the reuse guard and the stage handler, because both
-of those are roads that would carry on over a report nobody published.
+of those are roads that would carry on over a report nobody published. A captured
+developer completion is decided behind it (`completion_recovery`), so a report the
+issue already owes settles before a capture is handed on; once a capture's transfer
+records its report, the delivery and the transaction it becomes are this owner's
+like any run's own, and they hold the checkout out of the base refresh as the
+capture did, until the settlement spends them.
 
 A record that CLAIMS a transaction and cannot produce one is refused ahead of all
 of it. Every field is read fail-closed, so a damaged record reads as no record --

@@ -164,8 +164,12 @@ candidate and its exact-candidate push or observation, and the recovery's readin
 the thing it describes stands -- a developer report recorded or bound and not yet settled among them, since a
 rebase in that window would hand the report a head it never described, and an Antigravity docs launch whose outcome
 nothing recorded (`docs_launched_sha`), which the documenting handler parks before anything that pass left is rebased
-or pushed -- and that holds for the rebase behind an interrupted attempt's recovery too, which has the selection
-asked again once the anchor is down. Each worktree
+or pushed, and a captured developer completion nothing has resolved, read or not, whose report is about the commit
+its run left until the dispatcher's recovery decides on it, the first unpaused tick included, and beside an
+interrupted attempt's anchor too, where the dispatcher retires it on its own road ahead of the anchor's hold before
+that recovery may reset or push anything, and leaves it waiting under a dependency hold, where that hold answers the
+anchor without moving the checkout -- and that holds for the rebase behind an interrupted attempt's recovery too,
+which has the selection asked again once the anchor is down. Each worktree
 is synced under its issue's writer claim — the one every dispatch path takes, on the same key — held from before the
 issue is read until its route ends, recovery and settlement included, so an issue another poller on the host is
 dispatching or refreshing is left untouched for the tick and synced on a later one. Under that claim the issue's
@@ -263,8 +267,11 @@ replay publishes only through an authorized `single`'s settlement, leased to the
 records the report debt its push leaves and puts the reviewer's spent rounds back, as the rewrite finish does; an
 unchanged contribution still carries the verdict over on the transfer permit. The `question` and `discussion` labels —
 and the parks and in-flight discussion records that outlive them — skip both paths. Beside an interrupted auto rebase's
-anchor, of the records and parks that freeze a branch only the late size-gate claims keep the refresh away, so its
-recovery answers the anchor ahead of any stage handler. The failure modes, their durable `park_reason` tokens, and the
+anchor, of the records and parks that freeze a branch only the late size-gate claims and a captured developer
+completion nothing has resolved keep the refresh away, so its recovery answers the anchor ahead of any stage handler
+once the dispatcher, ahead of the anchor's hold, has retired such a capture on its own road; a capture waiting
+through a dependency hold is left captured, and the dispatcher's hold answers the anchor there. The failure modes,
+their durable `park_reason` tokens, and the
 refresh-owned retry are in
 [`state-machine/labels-and-state.md#base-refresh`](state-machine/labels-and-state.md#base-refresh).
 
@@ -306,7 +313,12 @@ fail-closed; the initial implementation delivery produces and settles one on the
 dispatcher reconciles an outstanding transaction ahead of every handler
 ([the developer-report transaction](state-machine/delivery-stages.md#the-developer-report-transaction-every-dispatch)).
 Beside them sits `developer_completion`, the bounded capture of one finished developer return, handed into that
-delivery by one guarded commit; no stage captures one yet.
+delivery by one guarded commit; no stage captures one yet. A pending one is decided by the dispatcher ahead of every
+handler, behind the reconciliations
+([the captured-completion recovery](state-machine/delivery-stages.md#the-captured-completion-recovery-every-dispatch)):
+handed, admitted, to its road's owner, retired as invalidated where a reading proves it stale or an auto-rebase
+anchor stands beside it, or held where nothing can decide it, and it keeps its checkout out of the base refresh until
+then.
 Beside it sits the additive `verification_evidence_*` group -- the pending evidence transaction, the evidence the
 pull request carries now, a bounded history of retired evidence, the receipt of the last one settled, and the highest
 revision spent -- which the dispatcher reconciles directly behind the report, publishing an artifact only once the

@@ -32,6 +32,7 @@ poll.
 from __future__ import annotations
 
 import logging
+from types import MappingProxyType
 
 from orchestrator import config
 from orchestrator.github.pinned_state import PinnedState
@@ -390,6 +391,28 @@ _ADJUDICATION_CLAIMS = (
     (_claims_a_publication, _DAMAGED_PUBLICATION),
     (_rewrite_reading.stranded_transfer_proof, _DAMAGED_TRANSFER),
 )
+
+
+# Whether the record still reads, by each late field one of the claims above
+# judges, for a caller holding one field rather than the whole record: a
+# captured completion's handoff frozen over it
+# (`workflow/engine/completion_prerequisites.py`), which holds the capture
+# where its field no longer reads and has no reader for any field missing
+# here. The frozen evidence reads where the reading does, a publication
+# member where the reading and the group whole both do, and the bookkeeping
+# a hold left where it reads back as one group. The approved pair is not
+# here: the adjudication legitimately leaves it half written, so its claim
+# would call a move there damage.
+_FIELD_READS = MappingProxyType({
+    **dict.fromkeys(
+        (key for key, _survives in _FROZEN_EVIDENCE),
+        lambda state: not _claims_a_reading(state),
+    ),
+    **dict.fromkeys(
+        _PUBLICATION_GROUP, lambda state: not (_claims_a_reading(state) or _claims_a_publication(state)),
+    ),
+    _late_keys.SPENDS: lambda state: not _claims_a_spend(state),
+})
 
 
 def _parks_the_damage(gate: _late_gate_models._Gate, refusal: str) -> bool:

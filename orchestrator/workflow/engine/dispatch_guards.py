@@ -14,7 +14,9 @@ through `stage_targets.py`. So is the report debt a rewritten pull-request head
 leaves, which holds the roads past an approval from here and leaves the
 validating stage to settle it -- save the debt a content-changing docs pass
 recorded as it handed itself back to `validating`, whose lost relabel is
-finished here instead of held.
+finished here instead of held. A captured developer completion is decided
+behind all three and ahead of the handler (`completion_recovery`), an engine
+owner bound at module scope for the same reason.
 """
 from __future__ import annotations
 
@@ -25,9 +27,8 @@ from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
 from orchestrator.git.base_sync import recovery_holds as _recovery_holds, state as _base_sync_state
+from orchestrator.github import labels as _labels, pinned_state as _pinned_state
 from orchestrator.github.client import GitHubClient
-from orchestrator.github.labels import hard_skip_control_label
-from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     poll_models as _poll_models,
     report_rewrite_debt as _rewrite_debt,
@@ -38,6 +39,7 @@ from orchestrator.workflow.engine import (
     stage_targets as _stage_targets,
     verification_transaction as _verification_transaction,
 )
+from orchestrator.workflow.engine.completion_recovery import capture_holds_the_tick
 from orchestrator.workflow.engine.rewrite_landing_moved import abandons_unproved
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -247,11 +249,13 @@ def _pinned_state_refuses(
         return _anchor_holds_the_tick(
             gh, spec, issue, label, state,
         ) or (
-            hard_skip_control_label(issue) is None
+            _labels.hard_skip_control_label(issue) is None
             and _takeover_parks.holds_the_adjudication(gh, issue, state)
         ) or importlib.import_module(
             _stage_targets._LATE_RECONCILE_OWNER,
-        )._reconciles_published_work(gh, spec, issue, label, state)
+        )._reconciles_published_work(
+            gh, spec, issue, label, state,
+        ) or capture_holds_the_tick(gh, spec, issue, label, state)
     return _record_stops_the_tick(gh, spec, issue, label, state)
 
 
@@ -324,6 +328,15 @@ def _record_stops_the_tick(
     it holds: behind the anchor readings, since a replay no recovery has
     published is no head a debt can name yet, and ahead of the handler it
     keeps off.
+
+    A captured developer completion is decided directly behind that debt
+    (`completion_recovery.capture_holds_the_tick`): behind every
+    reconciliation, so a push, report, or evidence the issue already owes
+    settles first and the capture is decided on the world they leave, and
+    ahead of the reuse guard and the handler, whose unreported-checkout
+    recovery, drift resume, launch, or review resume would lose or repeat the
+    captured work. The adjudication's own road asks it behind its
+    reconciliation too.
     """
     late_relabel = importlib.import_module(_stage_targets._LATE_RELABEL_OWNER)
     if late_relabel._holds_the_label(gh, issue, state):
@@ -346,7 +359,9 @@ def _record_stops_the_tick(
         gh, spec, issue, label, state,
     ) or _verification_transaction._reconciles_pending_evidence(
         gh, spec, issue, label, state,
-    ) or _rewrite_debt_holds_the_tick(spec, issue, label, state):
+    ) or _rewrite_debt_holds_the_tick(
+        spec, issue, label, state,
+    ) or capture_holds_the_tick(gh, spec, issue, label, state):
         return True
     late_reuse = importlib.import_module(_stage_targets._LATE_REUSE_OWNER)
     return (
@@ -386,11 +401,28 @@ def _anchor_holds_the_tick(
     road left; one it leaves standing is somebody else's question, and the
     adjudication's road holds behind it (`rewrite_takeover_parks`) rather than
     run a verdict over it on this tick or any later one.
+
+    A captured developer completion beside the anchor is decided before any
+    of it (`completion_recovery.capture_holds_the_tick`). The base refresh
+    holds the branch for an unresolved capture, anchor or not, so the anchor's
+    recovery -- which resets the checkout onto the anchor or pushes a replay
+    whenever it cannot prove the attempt -- never takes the captured commit
+    off the branch before anything decided on it; and on its own road the
+    capture is retired here, since no road may hand a report on over an
+    unfinished rewrite, so the next refresh recovers the anchor and neither
+    waits on the other. A capture waiting through a dependency hold, the
+    `ready` decision, or an unlabeled issue is left captured, and the hold
+    below answers the anchor on those labels, none of which the refresh
+    drives, by a clear or a park that moves no checkout. A retirement that
+    did not land, a capture nobody can read, or an anchor that reads as no
+    commit stops the tick with the anchor left as it stands.
     """
+    if state.get(_ANCHOR) and capture_holds_the_tick(gh, spec, issue, label, state):
+        return True
     late_relabel = importlib.import_module(_stage_targets._LATE_RELABEL_OWNER)
     beside_an_adjudication = (
         bool(state.get(_ANCHOR))
-        and hard_skip_control_label(issue) is None
+        and _labels.hard_skip_control_label(issue) is None
         and late_relabel._adjudicating(state)
     )
     if beside_an_adjudication and _takeover.takes_over(gh, issue, state) in _UNLANDED_HANDOFFS:
@@ -420,7 +452,7 @@ def _rewrite_debt_holds_the_tick(
     spec: _config_models.RepoSpec,
     issue: Issue,
     label: str | None,
-    state: PinnedState,
+    state: _pinned_state.PinnedState,
 ) -> bool:
     """Whether a rewritten head's report debt keeps this label's handler off.
 
@@ -452,7 +484,7 @@ def _greeted_already(
     spec: _config_models.RepoSpec,
     issue: Issue,
     label: str | None,
-    state: PinnedState,
+    state: _pinned_state.PinnedState,
 ) -> bool:
     """True when an unlabeled issue is one this orchestrator has already met.
 
@@ -491,7 +523,7 @@ def _cycle_stops_the_tick(
     spec: _config_models.RepoSpec,
     issue: Issue,
     label: str | None,
-    state: PinnedState,
+    state: _pinned_state.PinnedState,
 ) -> bool:
     """Whether a late cycle's own business is the whole of this dispatch.
 
@@ -532,7 +564,7 @@ def _parked_past_the_mark(spec: _config_models.RepoSpec, issue: Issue) -> bool:
 
     Costs no request: the labels are already on the object this was handed.
     """
-    skip_label = hard_skip_control_label(issue)
+    skip_label = _labels.hard_skip_control_label(issue)
     if skip_label is None:
         return False
     log.info(

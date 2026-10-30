@@ -43,7 +43,9 @@ last is held by the loader itself rather than by a check.
   `base_sync/terminal_handoff.py` ends an attempt a closed pull request strands;
   `base_sync/attempt_records.py` reaches `workflow/late_split/formats.py`, for the
   shape a recorded commit is held to, which spelled twice would let a pinned comment accept what every other reader
-  refuses; `replay_publication_parks.py` reads `workflow/stages/decomposition/late_relabel.py`'s answer for whether
+  refuses, and `base_sync/frozen.py` reaches `workflow/engine/completion_state.py` for the same reason, reading a
+  captured completion whole before the refresh releases a checkout over it; `replay_publication_parks.py` reads
+  `workflow/stages/decomposition/late_relabel.py`'s answer for whether
   a live adjudication holds the label, so its stranded park never asks for a label back that guard restores; the
   base-sync transfer owners read the higher-layer records only inside their calls:
   `transfers.py` reads `workflow/late_split/exemption_reading.py`, `rewrite_reading.py`, and `rewrite_values.py`;
@@ -914,9 +916,12 @@ orchestrator/
                         applied. Each stage hold asks for its exact canonical label, so a recased or bare stage name
                         holds nothing. Beside an auto-rebase anchor only the late claims the reconciliation answers
                         freeze the walk and a read-only park is set aside: the dispatcher holds every handler that
-                        would end the rest, so none of them may freeze the recovery out as well -- and once a
-                        recovery takes the anchor down and lets the tick go on, the coordinator asks the whole
-                        selection again before any rebase behind it (`workflow/engine/base_rewrite.py`)
+                        would end the rest, so none of them may freeze the recovery out as well -- save a captured
+                        completion nothing has resolved, which holds beside an anchor too, since that recovery
+                        resets or replaces the checkout whenever it cannot prove its attempt and the dispatcher
+                        retires the capture ahead of the anchor's hold -- and once a recovery takes the anchor down
+                        and lets the tick go on, the coordinator asks the whole selection again before any rebase
+                        behind it (`workflow/engine/base_rewrite.py`)
       frozen.py         which records hold a checkout still and what ends each freeze: the ones that freeze a
                         branch by their presence -- the late reading, the approval, and the terms of a squash
                         mid-rewrite among them, each read as the whole GROUP its write puts down rather than as
@@ -941,7 +946,13 @@ orchestrator/
                         first would rewrite the docs commit before anything verified it; and that completion's
                         own run of its final head -- `docs_final_provenance` naming as its evidence the transaction
                         `verification_evidence_pending` still holds -- until it settles or is abandoned, since a
-                        rewrite first would leave the run testing a head the pull request left -- the two parks
+                        rewrite first would leave the run testing a head the pull request left; and a captured
+                        developer completion -- `developer_completion` on the comment and not read by the
+                        capture's own reader as a handed-off or retired one, a shape or member nobody can read
+                        included -- beside an auto-rebase anchor as well, until the transfer that
+                        hands its report to the delivery or a guarded invalidation resolves it, since the
+                        dispatcher's recovery behind the refresh hands it on only while the checkout stands on the
+                        commit it reported on; the usage receipts beside it hold nothing -- the two parks
                         that freeze one
                         with no record behind them at all
                         (a size reading nobody could take, and an implementer timeout whose watermark names a

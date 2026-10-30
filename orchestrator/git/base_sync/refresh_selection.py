@@ -14,9 +14,13 @@ behind, and last the one gate that does pay for a read, so an issue some
 cheaper answer already froze never pays for it.
 
 Which records freeze a branch, and what ends each freeze, is the `frozen`
-owner's. What is added here is where in that order each is asked and -- for
-the two no write ever ends -- whether the stage that still has to act on the
-commit holds the issue.
+owner's -- a captured developer completion nothing has resolved among them,
+which keeps the commit its report is about where the run left it until the
+dispatcher's recovery, behind this refresh on every tick, has decided about
+it, beside an interrupted attempt's anchor as everywhere else. What is added
+here is where in that order each is asked and -- for the two no write ever
+ends -- whether the stage that still has to act on the commit holds the
+issue.
 
 Every question past the hard-skip reads the pinned record, so the workflow's
 refresh admits that record before it asks any of them
@@ -259,10 +263,32 @@ def _state_holds_the_branch(
     anchor down and lets the tick go on is no rebase of that attempt's any
     more, so the coordinator asks this whole selection again, unanchored,
     before the rebase behind it (`workflow/engine/base_rewrite.py`).
+
+    A captured developer completion nothing has resolved holds it beside an
+    anchor too, like the late claims, and for their reason: an owner ahead of
+    the anchor's hold answers it. The anchor's recovery resets the checkout
+    onto the anchor, or pushes a replay over it, whenever it cannot prove the
+    attempt -- an unreadable remote is enough -- and either takes the commit
+    the captured report is about off the branch before anything decided on
+    that capture. So the dispatcher decides the capture first, ahead of the
+    anchor's hold (`workflow/engine/completion_recovery.py`), and on its own
+    road retires it there as invalidated, since no road may hand a report on
+    over a rewrite no recovery has finished; the next refresh then recovers
+    the anchor as it always would, and the two never wait on each other. A
+    capture waiting through a dependency hold, the `ready` decision, or an
+    unlabeled issue is left captured and keeps the branch here; none of those
+    labels is one this refresh drives, so the dispatcher's hold answers the
+    anchor itself there, by a clear or a park that resets nothing, and the
+    stage runs once it is down. A capture nobody can
+    read, and an anchor that reads as no commit, are held on both sides until
+    a human repairs or removes them, as damage is everywhere. A capture is
+    taken only by a handler the anchor's hold keeps back, and a capture holds
+    every walk that would pin an anchor, so the two meet only on a record
+    somebody edited.
     """
     anchored = bool(state.get(_PENDING_PUSH_SHA))
     held = (
-        _frozen._late_claims(state) if anchored
+        _frozen._late_claims(state) + _frozen._completion_unresolved(state) if anchored
         else _frozen._held_records(state)
     )
     if held:
