@@ -88,6 +88,16 @@ per-stage behavior is in
   hands it one frozen `_DevResumeRequest` (`workflow/stages/implementing/resume_request.py`) naming the state, the
   text, the stage override, and the run's options, and the resume builds its context from that request before it
   runs.
+- **A held developer return.** The first implementation, a human reply's resume, and an `/orchestrator continue`
+  retry on `workflow:implementing` freeze their road on that request -- or, for the spawn, beside its launch -- so
+  every attempt the coordinator makes that finishes on its report is captured as it returns
+  (`workflow/stages/implementing/completion_roads.py`), whatever the session it named. An operator's `paused` or
+  `backlog` landing during the run then withholds everything else that run would have written, and once the control
+  is removed the dispatcher's recovery pins the command it ran, settles the session as that run's tick would have --
+  a retired id never restored -- consumes exactly what it was handed, and publishes its commit under the captured
+  report, with no second developer run
+  ([recovery](../state-machine/delivery-stages.md#the-captured-completion-recovery-every-dispatch)). Every other
+  resume on the list above captures nothing.
 - **A docs pass that changes the pull request.** `_handle_documenting` resumes the dev session for the final-docs
   pass behind an approval, and it is the last automated delivery stage: a pass that publishes a docs commit — a fresh
   one, commits an earlier tick left unpushed, or the commit a `docs_settled_sha` receipt names — completes straight

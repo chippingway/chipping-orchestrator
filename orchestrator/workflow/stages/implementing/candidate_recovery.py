@@ -4,7 +4,10 @@
 
 An approved or frozen candidate names the exact work recovery must prove.
 A missing, moved, or unreadable candidate remains held. Every publication
-checks the tree and passes the size gate before handing approved work on.
+checks the tree and passes the size gate before handing approved work on, its
+run's report recorded between the two -- handed over from the run's own
+capture where it took one (`captured_report`), which a tree no push may
+publish withdraws before its park.
 """
 from __future__ import annotations
 
@@ -21,10 +24,7 @@ from orchestrator.git.worktrees import (
 )
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import (
-    guards as _guards,
-    report_delivery as _report_delivery,
-)
+from orchestrator.workflow.engine import guards as _guards
 from orchestrator.workflow.stages.implementing import (
     checkout_parks as _checkout_parks,
     late_approval_reading as _late_approval_reading,
@@ -35,6 +35,7 @@ from orchestrator.workflow.stages.implementing import (
     state as _state,
     unreported_recovery as _unreported_recovery,
 )
+from orchestrator.workflow.stages.implementing.captured_report import recording_stops_the_tick, withdraws_the_capture
 from orchestrator.workflow.stages.implementing.models import _AgentWork, _ApprovedWork, _RecoveredWork
 
 
@@ -120,19 +121,18 @@ def _publish_committed_work(
     state.set(_state._READ_ONLY_BASELINE_SHA, None)
     tree = _worktree_status._worktree_status(work.worktree)
     if not tree.is_clean:
-        _checkout_parks._on_unpublishable_tree(
-            gh, issue, state,
-            _guards._ParkedRun(
-                work.agent_result,
-                _guards._ROUTE_CANDIDATE_PUBLICATION,
-            ),
-            tree,
-        )
+        if withdraws_the_capture(gh, issue, state, work.agent_result):
+            _checkout_parks._on_unpublishable_tree(
+                gh, issue, state,
+                _guards._ParkedRun(
+                    work.agent_result,
+                    _guards._ROUTE_CANDIDATE_PUBLICATION,
+                ),
+                tree,
+            )
         return
     _unreported_recovery._waives_an_incomplete_run(gh, issue, state, work)
-    if _report_delivery.recording_stops_the_tick(
-        gh, issue, state, work.agent_result, _state._REPORT_ROUTE,
-    ):
+    if recording_stops_the_tick(gh, issue, state, work.agent_result):
         return
     if _unreported_recovery._holds_an_unfinished_run(gh, issue, state, work):
         return

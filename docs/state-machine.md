@@ -313,8 +313,9 @@ fail-closed; the initial implementation delivery produces and settles one on the
 dispatcher reconciles an outstanding transaction ahead of every handler
 ([the developer-report transaction](state-machine/delivery-stages.md#the-developer-report-transaction-every-dispatch)).
 Beside them sits `developer_completion`, the bounded capture of one finished developer return, handed into that
-delivery by one guarded commit; no stage captures one yet. A pending one is decided by the dispatcher ahead of every
-handler, behind the reconciliations
+delivery by one guarded commit; the implementing stage captures the first implementation's and its resumes' returns
+as they come back, a held one included, and hands an ordinary one on in its own disposition. A pending one is decided
+by the dispatcher ahead of every handler, behind the reconciliations
 ([the captured-completion recovery](state-machine/delivery-stages.md#the-captured-completion-recovery-every-dispatch)):
 handed, admitted, to its road's owner, retired as invalidated where a reading proves it stale or an auto-rebase
 anchor stands beside it, or held where nothing can decide it, and it keeps its checkout out of the base refresh until
@@ -594,7 +595,12 @@ ahead of `<remote>/<base>`, since a head that moved onto the base was written by
 the branch out of the pre-tick base refresh, and the next tick's silent recovery asks that same pair, so a base a
 rebase fast-forwarded the checkout to is never published as a late-landing commit. `interrupted`, a mid-run
 `paused`, or an accounting left unresolved returns without writing pinned state of its own; the run's accounting,
-landed as it returned, is the one write beside a quota retirement it owes. The external-merge short-circuit, the
+landed as it returned, is the one write beside a quota retirement it owes and the capture of a report the run
+finished on. Every return of the first implementation, a reply's resume, or a `/orchestrator continue` retry that
+finished on its report is captured as it comes back, and an ordinary one is handed to the report delivery where the
+disposition records it; a held one is finished by the dispatcher's recovery once the hold is gone, with what that run
+was handed settled and its commit published under its report, no developer running again. The external-merge
+short-circuit, the
 `/orchestrator continue` retry, and the plan-PR question the merge terminal is reached past are in
 [`state-machine/delivery-stages.md`][implementing].
 

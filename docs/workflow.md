@@ -164,9 +164,12 @@ transaction ahead of every stage handler — proving the world it was recorded a
 report, and settling the record in a single guarded commit (`workflow/engine/report_settling.py`) once the issue's
 requirements read unchanged after that request, on this road and the binding's alike. A finished return can also be
 kept whole as one `developer_completion` capture and handed into that same delivery by one commit, bound to the
-commit it reported on; no road captures one yet (`workflow/engine/completion_checkpoint.py`,
-`completion_handoff.py`). A pending capture is decided ahead of every stage handler, handed to its road's owner only
-while every reading still admits it, and its checkout is kept out of the base refresh until then
+commit it reported on (`workflow/engine/completion_checkpoint.py`, `completion_handoff.py`); the shared developer
+coordinator captures the first implementation's and an implementing resume's return as it comes back
+(`workflow/stages/implementing/completion_roads.py`), so a live hold or a lost write cannot discard the report. A
+pending capture is decided ahead of every stage handler, handed to its road's owner only while every reading still
+admits it -- the implementing stage finishes those two roads' with no developer run
+(`workflow/stages/implementing/captured_completion.py`) -- and its checkout is kept out of the base refresh until then
 (`workflow/engine/completion_recovery.py`). The pull-request body leaves
 the run's closing message out wherever a report is owed or settled, and a reused pull request's description is never
 rewritten. Full contract:

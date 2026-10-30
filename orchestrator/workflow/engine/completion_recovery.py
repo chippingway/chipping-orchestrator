@@ -26,7 +26,9 @@ capture is handed, admitted and immutable, to the owner of the road it was
 taken on (`ROUTE_OWNERS`), which finishes it through the existing report
 recording, code publication, binding, and settlement -- this owner publishes
 nothing, infers no review, verification, approval, or documentation pass, and
-the owner says whether the tick carries on. A road no owner takes yet holds
+the owner says whether the tick carries on. The first implementation and an
+implementing resume are the implementing stage's
+(`stages/implementing/captured_completion`); a road no owner takes yet holds
 the tick, so no handler re-runs paid work. An INVALID capture is retired by a
 guarded invalidation (`completion_checkpoint.retire`), which keeps which
 invocation it was, owns nothing but the capture, and is decided on the
@@ -68,6 +70,7 @@ from orchestrator.workflow.engine import (
     completion_recovery_models as _models,
     completion_routes as _routes,
     completion_state as _state,
+    stage_targets as _stage_targets,
 )
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -76,9 +79,15 @@ log = logging.getLogger("orchestrator.workflow")
 # The owner each road's admitted handoff is given to, as the defining module
 # and the function taking the one `AdmittedCompletion` and answering whether
 # the tick stops -- resolved when called, as every stage owner the engine
-# reaches is (`stage_targets`). No road names one: no stage captures a
-# completion yet, so an applicable capture is held rather than finished.
-ROUTE_OWNERS: Mapping[_routes.CompletionRoute, tuple[str, str]] = MappingProxyType({})
+# reaches is (`stage_targets`). The first implementation and an implementing
+# resume are the implementing stage's; a road no owner takes yet holds an
+# applicable capture rather than finishing it.
+_IMPLEMENTING_OWNER = (_stage_targets._IMPLEMENTING_CAPTURE_OWNER, "recovers")
+
+ROUTE_OWNERS: Mapping[_routes.CompletionRoute, tuple[str, str]] = MappingProxyType({
+    _routes.CompletionRoute.IMPLEMENTATION: _IMPLEMENTING_OWNER,
+    _routes.CompletionRoute.RESUME: _IMPLEMENTING_OWNER,
+})
 
 
 def capture_holds_the_tick(

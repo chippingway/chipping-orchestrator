@@ -29,7 +29,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow import state as _workflow_state
 from orchestrator.workflow.engine import decomposition_prompts as _decomposition_prompts
 from orchestrator.workflow.engine.run_charge_state import OwedLaunch
-from orchestrator.workflow.stages.implementing import state as _state
+from orchestrator.workflow.stages.implementing import completion_roads as _roads, state as _state
 
 
 @dataclass(frozen=True)
@@ -60,6 +60,11 @@ class _DevResumeRequest:
     # readings it charges and starts it from (`run_charge_state.OwedLaunch`).
     # None for every other resume.
     owed: OwedLaunch | None = None
+    # The road a report-producing caller froze before the launch -- what its
+    # run is handed and where it runs -- so the coordinator captures an
+    # eligible return on it (`completion_roads`). None for every resume whose
+    # report is no implementing road's, which captures nothing.
+    completion: _roads.CompletionRoad | None = None
 
     @property
     def resolved_stage(self) -> str:

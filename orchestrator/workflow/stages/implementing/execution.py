@@ -45,6 +45,14 @@ What an attempt is charged under is spelled once (`_launch_identity`), so a
 reader asking which launch a resume over the pinned state would charge -- a
 handed change request's recovery telling that developer's charge from another
 road's -- reads it without resuming (`_first_launch_fingerprint`).
+
+A report-producing caller freezes its road on the request (`completion`), and
+every attempt is asked of it behind that attempt's accounting, quota
+retirement, and live-pause reading (`completion_roads`): one that finished on
+its road's report is captured whole as it returns, the poisoned attempt and
+an incomplete Antigravity exit never, so the report survives the hold the
+pause reading decided, and a capture that did not settle holds the tick as a
+pause does. A capture nothing has decided yet holds every later launch.
 """
 from __future__ import annotations
 
@@ -59,6 +67,7 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.observability.usage import protocol as _protocol
 from orchestrator.workflow.engine import (
+    completion_state as _completion_state,
     guards as _guards,
     observations as _observations,
     prompt_notes as _prompt_notes,
@@ -68,6 +77,7 @@ from orchestrator.workflow.engine import (
     usage as _usage,
 )
 from orchestrator.workflow.stages.implementing import (
+    completion_roads as _roads,
     models as _models,
     quota_retirement as _quota_retirement,
     resume_request as _resume_request,
@@ -85,8 +95,11 @@ _DEVELOPER = "developer"
 
 _REVIEW_ROUND = "review_round"
 
-# The launch option naming the backend an attempt runs on.
+# The launch option naming the backend an attempt runs on, and the one naming
+# the conversation the coordinated run resumes.
 _BACKEND = "backend"
+
+_RESUMED = "resume_session_id"
 
 
 @dataclass(frozen=True)
@@ -181,6 +194,7 @@ class _DevResumeContext:
             prompt=_session._build_dev_spawn_prompt(request, self.split_rationale, fresh=fresh),
             extra_args=session.extra_args,
             pause_guard=request.pause_guard,
+            completion=request.completion,
             **_launch_identity(request.state, self.stage, session, session_id),
         )
 
@@ -221,7 +235,7 @@ def _launch_identity(
         _BACKEND: session.backend,
         "stage": stage,
         "agent_spec": session.spec,
-        "resume_session_id": session_id,
+        _RESUMED: session_id,
         _REVIEW_ROUND: state.get(_REVIEW_ROUND, 0),
         "retry_count": state.get(_state._RETRY_COUNT),
     }
@@ -288,11 +302,11 @@ class _DevRunCoordinator:
         if initial_result is None:
             agent_result, paused = self._run_agent(
                 str(self._options.get("prompt", "")),
-                self._options.get("resume_session_id"),
+                self._options.get(_RESUMED),
             )
         else:
             agent_result = initial_result
-            held = self._held_on_quota(agent_result, self._options.get("resume_session_id"))
+            held = self._held_on_quota(agent_result, self._options.get(_RESUMED))
             paused = held or agent_result.unaccounted or bool(self._options.get("initial_paused", False))
 
         backend = str(self._options[_BACKEND])
@@ -350,14 +364,29 @@ class _DevRunCoordinator:
             self._options.get("pause_guard", True)
             and _guards._paused_during_agent_run(self._gh, self._issue())
         )
+        road = self._options.get("completion")
+        if road is None:
+            return agent_result, bool(paused)
+        attempt = _roads.Attempt(
+            agent_result,
+            str(self._options.get("agent_spec") or ""),
+            prompt,
+            self._options.get(_RESUMED),
+        )
+        if road.captures(self._gh, self._issue(), self._state(), attempt):
+            paused = True
         return agent_result, bool(paused)
 
     def _launch_held(self, resume_session_id: str | None) -> bool:
-        """Whether this launch is not to be made, for a quota retirement or for the conversation it resumes.
+        """Whether this launch is not to be made: for a capture, a quota retirement, or the conversation it resumes.
 
         Answered with the run circuit's own refusal (`_refused_run`), which
         every caller already returns on without writing, and asked before the
-        circuit charges anything: no run was made. A quota retirement no
+        circuit charges anything: no run was made. A captured completion
+        nothing has decided yet -- pending, or claimed in a shape nobody can
+        read -- holds every launch (`completion_state.unresolved`): the run
+        would repeat work the capture holds, and its return could not be
+        captured beside it. A quota retirement no
         commit has confirmed, or the host still owes, holds it, and a tick
         whose state is withheld makes no launch at all, even where a later
         attempt lands the retirement (`quota_retirement._holds_the_launch`).
@@ -371,6 +400,12 @@ class _DevRunCoordinator:
         is held where the host will not take that.
         """
         state = self._state()
+        if _completion_state.unresolved(state):
+            log.warning(
+                "issue=#%d holds a captured developer completion nothing has decided; refusing a launch "
+                "that would run the developer again beside it", self._issue().number,
+            )
+            return True
         if _quota_retirement._holds_the_launch(self._gh, self._issue(), state):
             return True
         if resume_session_id in _session_retirement._held_retirement(state)[0]:
@@ -439,5 +474,13 @@ def _coordinate_developer_run(
     an Antigravity launch the host will not first record as owing the
     retirement of the conversation it runs, which the attempt's return clears
     where no quota stopped it.
+
+    A caller on a report-producing road hands the road it froze before the
+    launch (`completion`): every attempt, behind its quota retirement and
+    pause check, is asked of it, so the one that finished on the road's
+    report is captured with the command, prompt, and conversation it ran as
+    -- a continuation keeping the road it continues -- and a capture that did
+    not settle answers held. Any launch while a capture nothing has decided
+    stands is refused the same way, uncharged.
     """
     return _DevRunCoordinator(gh, budget, kwargs).coordinate()

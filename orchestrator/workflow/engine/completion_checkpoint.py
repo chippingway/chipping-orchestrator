@@ -20,10 +20,14 @@ pending capture refuses it, and so does a resolved capture of this invocation
 or of a later one, since a charge's ordinal orders an issue's invocations and
 is never reused -- a replay of an older return is never fresh work. A damaged
 capture refuses it too, and so does a handed-off capture whose report has not
-settled -- its delivery or the transaction that delivery became still stands,
-or a claim of either nobody can read: until then that capture is the one record
-of the commit the report is about, and of the report having come from a
-capture at all (`completion_state.source_owed`). A capture of this invocation
+settled -- the transaction its delivery became still stands, or a claim of
+either record nobody can read: until then that capture is the one record of
+the commit the report is about, and of the report having come from a capture
+at all (`completion_state.source_owed`). A handoff owed only to its delivery,
+standing unbound beside no transaction, gives way to a later capture that
+carries it as `supersedes` (`completion_handoff.carried`): that capture's own
+transfer supersedes the delivery, and meanwhile the delivery is held to the
+commit the carried handoff names. A capture of this invocation
 already standing is the read-back of an earlier attempt -- a lost response, a
 retry -- and nothing is sent; past PENDING, the report's owner is laid back
 onto the caller beside it (`completion_handoff.confirmed`), so a caller that
@@ -48,19 +52,27 @@ for one invocation, or None where it carries no capture of it -- for a
 handed-off one, with the delivery that owns its report laid onto the caller
 beside it (`completion_handoff.TRANSFERRED`). `retire` ends a capture by a
 guarded decision: a pending one only as INVALIDATED, since its report is held
-nowhere else, and a handed-off one either way once its delivery is bound or
-gone, its report the delivery's already. A SETTLED retirement of a capture never handed off -- a
-transfer that was sent and never confirmed, read back as not landed -- is
+nowhere else -- still carrying a handoff it carries where that handoff's
+delivery still stands, so the invocation a replay names is refused while the
+delivery stays held to its source -- and a handed-off one either way once its
+delivery is bound or gone, its report the delivery's already. A SETTLED
+retirement of a capture never handed off -- a transfer that was sent and
+never confirmed, read back as not landed -- is
 refused, so the only copy of a report is never dropped on the strength of a
 handoff nobody confirmed. Retirement keeps the invocation, which is what
 refuses a later capture of it.
 
-These are dormant primitives: no stage captures a completion yet. The
-dispatcher's recovery (`completion_recovery`) reads a pending capture through
-`read_back` alone and ends one its readings proved stale through `retire`.
+The implementing stage's shared developer coordinator captures through
+`captured` and `capture` as each attempt on a report-producing road returns
+(`stages/implementing/completion_roads`), and that stage's disposition
+withdraws a capture through `retire` ahead of a park that hands its report to
+nobody. The dispatcher's recovery (`completion_recovery`) reads a pending
+capture through `read_back` alone and ends one its readings proved stale
+through `retire`.
 """
 from __future__ import annotations
 
+from dataclasses import replace
 from functools import partial
 
 from github.Issue import Issue
@@ -89,6 +101,10 @@ from orchestrator.workflow.engine.report_records import DELIVERED_REPORT, PENDIN
 _OWNED = (_records.DEVELOPER_COMPLETION,)
 
 _DECIDED_ON = (*_commits.DECIDED_ON, DELIVERED_REPORT, PENDING_REPORT)
+
+# The stage a capture holding its report is at, and the reason no pending one is retired for.
+_PENDING = _records.CaptureStage.PENDING
+_SETTLED = _records.RetirementReason.SETTLED
 
 
 def captured(
@@ -134,17 +150,15 @@ def capture(
     fresh = commit.fresh()
     if isinstance(fresh, _commits.CheckpointOutcome):
         return fresh
-    unrecordable = _unrecordable(completion)
-    if unrecordable is not None:
-        return commit.refused(unrecordable)
     standing = _state.read(fresh)
     if standing is not None and standing.invocation == completion.invocation:
         return _handoff.confirmed(commit, fresh, standing.stage)
-    replaced = _refusal(fresh, standing, completion.invocation)
-    if replaced is not None:
-        return commit.refused(replaced)
-    return _lands(commit, fresh, completion, partial(
-        _handoff.admits_the_capture, captured=completion, issue_number=issue.number,
+    refused = _unrecordable(completion) or _refusal(fresh, standing, completion.invocation)
+    if refused is not None:
+        return commit.refused(refused)
+    carrying = replace(completion, supersedes=_handoff.carried(fresh, standing))
+    return _lands(commit, fresh, carrying, partial(
+        _handoff.admits_the_capture, captured=carrying, issue_number=issue.number,
     ))
 
 
@@ -208,7 +222,12 @@ def retire(
     return _lands(
         commit,
         fresh,
-        _records.ResolvedCapture(invocation=invocation, stage=_records.CaptureStage.RETIRED, reason=reason),
+        _records.ResolvedCapture(
+            invocation=invocation,
+            stage=_records.CaptureStage.RETIRED,
+            reason=reason,
+            supersedes=_handoff.carried(fresh, standing),
+        ),
         DecidedOn.over(fresh) if invalidated else None,
         decided_on=tuple(fresh.state_data) if invalidated else (),
     )
@@ -249,14 +268,19 @@ def _refusal(
     """
     if standing is None:
         return None
-    pending = standing.stage is _records.CaptureStage.PENDING
     invalidated = reason is _records.RetirementReason.INVALIDATED and caller is not None
+    owed = (
+        _state.source_owed(fresh, standing.standing_handoff)
+        and _handoff.carried(fresh, standing) is None
+        if reason is None
+        else _state.source_owed(fresh, standing)
+    )
     refusals = (
         (invalidated and _commits._stale(fresh, caller), _commits.CheckpointRefusal.EVIDENCE_MOVED),
-        (reason is None and pending, _commits.CheckpointRefusal.UNRESOLVED),
+        (reason is None and standing.stage is _PENDING, _commits.CheckpointRefusal.UNRESOLVED),
         (reason is None and standing.invocation.ordinal >= invocation.ordinal, _commits.CheckpointRefusal.SUPERSEDED),
-        (reason is _records.RetirementReason.SETTLED and pending, _commits.CheckpointRefusal.NOT_HANDED_OFF),
-        (_state.source_owed(fresh, standing), _commits.CheckpointRefusal.UNBOUND),
+        (reason is _SETTLED and standing.stage is _PENDING, _commits.CheckpointRefusal.NOT_HANDED_OFF),
+        (owed, _commits.CheckpointRefusal.UNBOUND),
     )
     return next((refusal for refused, refusal in refusals if refused), None)
 

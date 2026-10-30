@@ -6,9 +6,11 @@ before the run's results are published. The guard re-fetches the issue after
 the run returns (`gh.get_issue`) rather than trusting the handler's label
 snapshot, and on a hit the handler returns without opening a PR, relabeling,
 parking, consuming the action watermark, or advancing pinned state past the
-run's charge and its accounting, which lands once as the run returns -- so
-once the label is removed a later tick republishes the committed work
-normally."""
+run's charge, its accounting, which lands once as the run returns, and the
+capture of a report it finished on -- so once the label is removed the
+dispatcher's recovery publishes the committed work under that report with no
+developer running again, while a run that reported nothing is held for its
+report."""
 
 from __future__ import annotations
 
@@ -37,7 +39,10 @@ from tests.workflow.fixtures import (
     Launched,
     _agent,
     _PatchedWorkflowMixin,
+    _reported,
+    accounted,
 )
+from tests.workflow.stages.implementing import held_capture_test_support as _held
 
 GET_ISSUE = "get_issue"
 AWAITING_HUMAN = "awaiting_human"
@@ -195,7 +200,36 @@ class ImplementingLivePauseResumeTest(unittest.TestCase, _PatchedWorkflowMixin):
         )
 
 
-class ImplementingLivePauseRecoveryTest(unittest.TestCase, _PatchedWorkflowMixin):
+class ImplementingLivePauseRecoveryTest(unittest.TestCase, _held.HeldCaptureTicks):
+    def test_unpause_hands_the_captured_report_on(self) -> None:
+        # Dispatched end to end: the first implementation commits and reports
+        # while an operator pauses the issue mid-run, its CLI naming no
+        # session -- or one the record retired. Its exit is accounted and its
+        # report captured as it returns, and nothing else moves; held ticks
+        # after it write nothing. Unpaused, the dispatcher's recovery
+        # publishes the commit under the captured report with no developer
+        # run: one accounted exit, one report revision, no conversation
+        # pinned, and the thread the run's prompt quoted -- nothing past the
+        # pickup -- recorded as delivered.
+        for returned in (None, _held.RETIRED_SESSION):
+            with self.subTest(session=returned):
+                gh, issue = self.seeded(dev_session_retirement=_held.retirement())
+                finished = _agent(session_id=returned, last_message=_reported())
+                self.held_mid_run(gh, issue, finished, has_new_commits=[False])
+                self.held_ticks(gh, issue)
+                self.unpaused(gh, issue)
+                pinned = self.published(gh)
+                self.assertEqual(
+                    (
+                        accounted(pinned),
+                        pinned[_held.CAPTURED]["stage"],
+                        pinned.get(_held.SESSION_PIN),
+                        pinned.get("delivered_after_comment_id"),
+                        pinned.get("delivered_through_comment_id"),
+                    ),
+                    ((1, 1), _held.HANDED_OFF, None, 0, 0),
+                )
+
     def test_unpause_holds_an_unreported_tree(self) -> None:
         # End-to-end: tick 1 commits under a live pause and is held; tick 2,
         # after the operator removes `paused`, finds the stranded commit

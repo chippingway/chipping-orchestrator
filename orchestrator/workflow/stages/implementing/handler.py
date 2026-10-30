@@ -20,6 +20,9 @@ the resume below lifts its park on a reply that pays for nothing, and an
 operator's `/orchestrator continue` has to be recognized before drift handling
 mistakes the bare command for changed requirements. Only then is a body edit
 considered, and only if that does not own the tick does the run get prepared.
+The preflight opens on a captured developer completion, decided before
+anything here could read its commit as unreported work, read a reply again, or
+launch over it (`completion_recovery`).
 
 After the run the order matters just as much: the interruption and live-pause
 refusals both come BEFORE the disposition, and both return without writing
@@ -37,6 +40,7 @@ from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    completion_recovery as _completion_recovery,
     drift as _engine_drift,
     guards as _guards,
     record_admission as _record_admission,
@@ -65,6 +69,7 @@ from orchestrator.workflow.stages.implementing.state import (
     _EDIT_OWNS_THE_TICK,
     _PR_NUMBER,
 )
+from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -216,7 +221,16 @@ def _implementing_preflight(
     the humans did to it since the handoff decides both what the PR IS and
     where the developer starts, and reading the first against a record their
     own edit moved is what would close the issue on a design.
+
+    A captured developer completion is decided before all of it, as the
+    dispatcher decides one ahead of every handler it reaches
+    (`completion_recovery`): everything below may read the captured commit
+    as unreported work, read a reply again, or launch the developer over
+    it. The dispatcher has always asked by the time it calls in here, but a
+    pickup handing an unlabeled issue to this stage in-tick has not.
     """
+    if _completion_recovery.capture_holds_the_tick(gh, spec, issue, WorkflowLabel.IMPLEMENTING, state):
+        return True
     if _unfinished_discussion_holds_the_tick(gh, spec, issue, state):
         return True
     if _plan_handoff._reconcile_open_plan_handoff(gh, spec, issue, state):

@@ -74,9 +74,9 @@ def _published(commit: str) -> ReportPublication:
     )
 
 
-def _handed_off() -> support.CompletionWorld:
-    """An issue whose first capture was handed off as its delivery, which nothing has bound yet."""
-    world = support.seeded()
+def _handed_off(**record) -> support.CompletionWorld:
+    """An issue pinned with `record`, its first capture handed off as its delivery, which nothing has bound yet."""
+    world = support.seeded(**record)
     captured = world.completion()
     world.captures(captured)
     world.asks(_handoff.transfer, captured.invocation)
@@ -148,28 +148,76 @@ class CapturedSourceBindingTest(unittest.TestCase, transaction_support.ReportTra
 
 
 class OwedSourceTest(unittest.TestCase):
-    """A handed-off capture is kept while it is the one record of the commit its unsettled report is about."""
+    """A handed-off capture is kept while it is the one record of the commit its unsettled report is about.
+
+    Neither retirement takes it then. A later capture replaces it only while
+    the report it became is a delivery still standing unbound -- one that
+    capture's own transfer will supersede -- and only by carrying it, so the
+    delivery is held to its source meanwhile, and still is once that capture
+    is invalidated and retires carrying it.
+    """
+
+    def assert_retirements_kept(self, world: support.CompletionWorld) -> None:
+        """Both retirements of the handoff are refused as unbound, writing nothing."""
+        for reason in (_REASON.SETTLED, _REASON.INVALIDATED):
+            before = world.snapshot()
+            refusal = world.asks(_checkpoint.retire, world.invocation(), reason).refusal
+            with self.subTest(retired=reason):
+                self.assertEqual((refusal, world.snapshot()), (support.REFUSAL.UNBOUND, before))
 
     def assert_kept(self, world: support.CompletionWorld) -> None:
         """A later capture and both retirements of the handoff are refused as unbound, writing nothing."""
-        asked = (
-            (_checkpoint.capture, world.completion(2)),
-            (_checkpoint.retire, world.invocation(), _REASON.SETTLED),
-            (_checkpoint.retire, world.invocation(), _REASON.INVALIDATED),
-        )
-        for operation, *arguments in asked:
-            before = world.snapshot()
-            refusal = world.asks(operation, *arguments).refusal
-            with self.subTest(operation=operation.__name__):
-                self.assertEqual((refusal, world.snapshot()), (support.REFUSAL.UNBOUND, before))
+        self.assert_retirements_kept(world)
+        before = world.snapshot()
+        refusal = world.captures(world.completion(2)).refusal
+        self.assertEqual((refusal, world.snapshot()), (support.REFUSAL.UNBOUND, before))
 
-    def test_an_unbound_handoff_holds_its_source(self) -> None:
-        """Kept, the handoff still holds a binding of its delivery to another commit, the delivery intact."""
-        world = _handed_off()
+    def assert_carried(self, world: support.CompletionWorld, later, handoff) -> None:
+        """`later` lands carrying `handoff`, and the delivery that handoff became is still held to its source."""
         delivered = _delivery_state.read_delivered_report(world.state)
-        self.assert_kept(world)
+        landed = world.captures(later).status
+        carried = _spelling.read_record(world.record()[support.FIELD]).supersedes
         bound = binds_the_delivery(world.github, world.issue, world.state, _published(transaction_support.MOVED_SHA))
-        self.assertEqual((bound, _delivery_state.read_delivered_report(world.state)), (False, delivered))
+        kept = _delivery_state.read_delivered_report(world.state)
+        self.assertEqual(
+            (landed, carried, bound, kept),
+            (_STATUS.LANDED, handoff, False, delivered),
+        )
+
+    def test_an_unbound_handoff_is_carried(self) -> None:
+        """A later capture carries the handoff, its delivery still held to its source.
+
+        A transaction an earlier report settled leaves its record `null`,
+        which claims none, so it holds the later capture no more than an
+        issue that never published one.
+        """
+        for settled in ({}, {PENDING_REPORT: None}):
+            with self.subTest(settled=settled):
+                world = _handed_off(**settled)
+                self.assert_retirements_kept(world)
+                handoff = _spelling.read_record(world.record()[support.FIELD])
+                self.assert_carried(world, world.completion(2), handoff)
+
+    def test_an_invalidated_carrier_keeps_the_handoff(self) -> None:
+        """Invalidated, the carrier retires still carrying the handoff: its replay refused, a later one carrying it on.
+
+        The retirement keeps which invocation it was, so a replay of that
+        return answers the retirement standing rather than landing pending
+        again; the handoff it carried keeps the delivery held to its source
+        meanwhile, and the next capture carries it on.
+        """
+        world = _handed_off()
+        handoff = _spelling.read_record(world.record()[support.FIELD])
+        later = world.completion(2)
+        world.captures(later)
+        world.restarted().asks(_checkpoint.retire, later.invocation, _REASON.INVALIDATED)
+        retired = _spelling.read_record(world.record()[support.FIELD])
+        replayed = world.restarted().captures(later)
+        self.assertEqual(
+            (retired.stage, retired.invocation, retired.supersedes, replayed.status, replayed.stage),
+            (_STAGE.RETIRED, later.invocation, handoff, _STATUS.STANDING, _STAGE.RETIRED),
+        )
+        self.assert_carried(world.restarted(), world.completion(3), handoff)
 
     def test_a_damaged_delivery_holds_it_too(self) -> None:
         """A delivery claim nobody can read may be the handoff's own, so the handoff is kept beside it."""

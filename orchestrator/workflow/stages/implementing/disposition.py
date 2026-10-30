@@ -5,7 +5,11 @@
 Both ends of a run must be readable before a changed head counts as its
 work. The inherited floor remains separate from the run's starting head.
 A timeout with proved commits publishes through candidate recovery; a run
-that left no attributable commits parks or presents its question.
+that left no attributable commits parks or presents its question, withdrawing
+the capture of a report it finished on first (`captured_report`), so the reply
+that answers the park is captured afresh. A captured run the dispatcher's
+recovery finishes is disposed here too (`captured_completion`), on a result
+rebuilt from its capture.
 """
 from __future__ import annotations
 
@@ -34,6 +38,7 @@ from orchestrator.workflow.stages.implementing import (
     state as _state,
     unreported_recovery as _unreported_recovery,
 )
+from orchestrator.workflow.stages.implementing.captured_report import withdraws_the_capture
 
 
 def _park_agent_timeout(
@@ -395,7 +400,8 @@ def _dispose_agent_result(
         return
 
     if held or prepared.agent_result.unfinished_steps or not _run_left_commits(spec, state, prepared):
-        _parks._on_question(gh, issue, state, parked)
+        if withdraws_the_capture(gh, issue, state, prepared.agent_result):
+            _parks._on_question(gh, issue, state, parked)
         gh.write_pinned_state(issue, state)
         return
     if prepared.recovered and _unreported_recovery._holds_unreported_work(

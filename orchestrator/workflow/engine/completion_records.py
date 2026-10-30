@@ -25,8 +25,11 @@ that records it: it keeps the delivery's receipt and revision and the branch
 and source commit the report is about, so a binding of that delivery is held
 to the commit the run reported on. RETIRED is one a guarded decision ended --
 handed off and finished with, or found no longer to apply -- and keeps only
-which invocation it was and why. Both keep the invocation, so a later capture
-of it, or of an earlier one, is refused rather than taken for fresh work.
+which invocation it was and why, beside the handoff it still carries where an
+invalidated capture had superseded one whose delivery stands unbound, so that
+delivery stays held to the commit it is about. Both keep the invocation, so a
+later capture of it, or of an earlier one, is refused rather than taken for
+fresh work.
 
 Nothing here is read or written; `completion_spelling` is the wire shape and
 `completion_state` the reader of a state.
@@ -86,7 +89,11 @@ class CompletionHandoff:
     settlement of the report they ride. `frozen` is `((field, digest), ...)`:
     each pinned record the road's handoff was decided on, as the digest of its
     spelling at the launch, so a handoff another road moved since is told
-    apart from the one the run answered.
+    apart from the one the run answered. `delivered` is `(after, through)`:
+    the stretch of the issue thread a prompt over the whole of it quoted, as
+    the delivered stretch records one (`thread_delivery`), for a road that
+    records that stretch itself once its run is back -- empty for every road
+    whose delivered input is its watermarks alone.
     """
 
     route: _routes.CompletionRoute
@@ -95,6 +102,7 @@ class CompletionHandoff:
     watermarks: tuple = ()
     spends: tuple = ()
     frozen: tuple = ()
+    delivered: tuple = ()
 
 
 @dataclass(frozen=True)
@@ -105,7 +113,13 @@ class CompletionRun:
     arguments, as the pinned command spells them -- and `prompt_revision` the
     SHA-256 of the prompt it was handed. `worktree` and `branch` are the
     checkout, `before_sha` its head when the run started and `source_sha` the
-    head the report is about.
+    head the report is about. `resumed` is the conversation the attempt
+    resumed, None where it opened a fresh one -- which is what tells the
+    session a road pins once the report is handed on from the one it charges
+    a resume to. `pinned` is the conversation the tick's state still pinned
+    as the attempt returned -- the one it resumed, or one a fresh spawn left
+    standing -- None where the launch dropped the pin or none stood: what
+    the launch itself did to the pin, which a recovery repeats.
     """
 
     command: str
@@ -114,6 +128,8 @@ class CompletionRun:
     branch: str
     before_sha: str
     source_sha: str
+    resumed: str | None = None
+    pinned: str | None = None
 
 
 @dataclass(frozen=True)
@@ -122,7 +138,11 @@ class CompletionCapture:
 
     `outcome` is the report outcome as the outcome owner read it, a READY
     report's complete text or a VERIFIED reference. `session_id` is the
-    session the run returned, None where its CLI named none.
+    session the run returned, None where its CLI named none. `supersedes` is
+    the HANDED_OFF capture this one replaced while the delivery that one
+    became still stood unbound -- carried so the delivery stays held to the
+    commit it is about, and put back should this capture be invalidated --
+    None where it replaced none.
     """
 
     invocation: AgentInvocation
@@ -131,11 +151,17 @@ class CompletionCapture:
     outcome: _routes.CapturedOutcome
     accounting: CaptureAccounting
     session_id: str | None = None
+    supersedes: ResolvedCapture | None = None
 
     @property
     def stage(self) -> CaptureStage:
         """A capture holding its report is PENDING; only a resolved one is anything else."""
         return CaptureStage.PENDING
+
+    @property
+    def standing_handoff(self) -> ResolvedCapture | None:
+        """The HANDED_OFF capture this record stands for: the one it carries, or None."""
+        return self.supersedes
 
 
 @dataclass(frozen=True)
@@ -144,7 +170,11 @@ class ResolvedCapture:
 
     HANDED_OFF carries the delivery that owns the report -- its `receipt` and
     `report_revision` -- and the `branch` and `source_sha` the report is
-    about; RETIRED carries its `reason` alone.
+    about; RETIRED carries its `reason`, and `supersedes`: the HANDED_OFF
+    capture a pending one carried when it was invalidated, while the
+    delivery that one became still stood -- kept so that delivery stays held
+    to its commit while this record still refuses its own invocation again --
+    or None.
     """
 
     invocation: AgentInvocation
@@ -154,3 +184,9 @@ class ResolvedCapture:
     branch: str = ""
     source_sha: str = ""
     reason: RetirementReason | None = None
+    supersedes: ResolvedCapture | None = None
+
+    @property
+    def standing_handoff(self) -> ResolvedCapture | None:
+        """The HANDED_OFF capture this record stands for: itself where it is one, else the one it carries, or None."""
+        return self if self.stage is CaptureStage.HANDED_OFF else self.supersedes

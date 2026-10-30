@@ -41,6 +41,9 @@ up front so the retry cannot re-fire next tick -- safe only because every
 fresh reply being a bare continue is the retry's own precondition, so nothing
 with content is dropped. `user_content_hash` is deliberately left alone:
 masking it here would swallow a real body edit that landed in the same window.
+The mark is staged, not written: a retry a live hold keeps writes nothing, and
+the road it was frozen on (`completion_roads.retry_road`) carries the mark in
+the capture of a report it finished on, for its recovery to settle.
 """
 from __future__ import annotations
 
@@ -70,6 +73,7 @@ from orchestrator.workflow.stages.implementing import (
     state as _state,
     worktree as _worktree,
 )
+from orchestrator.workflow.stages.implementing.completion_roads import RoadCheckout, retry_road
 
 
 def _retry_parked_dev_session(
@@ -103,27 +107,31 @@ def _retry_parked_dev_session(
         _state._LAST_ACTION_COMMENT_ID,
         max(comment.id for comment in batch.comments),
     )
-    before_sha = _verification_probes._head_sha(wt)
+    checkout = RoadCheckout(
+        wt,
+        _naming._resolve_branch_name(state, spec, issue.number),
+        _verification_probes._head_sha(wt),
+    )
     wt, agent_result, paused = _resume._resume_dev_with_text(_resume_request._DevResumeRequest(
         gh, spec, issue, state, _prompt_notes._DEVELOPER_CONTINUE_RETRY_PROMPT,
         pause_guard=True,
         thread_text=batch.retry_thread_text,
+        completion=retry_road(batch, checkout),
     ))
     state.set("last_agent_action_at", _usage._now_iso())
-    state.set(
-        _state._BRANCH,
-        _naming._resolve_branch_name(state, spec, issue.number),
-    )
+    state.set(_state._BRANCH, checkout.branch)
     # A shutdown-killed or live-paused resume leaves durable state untouched so
     # the next process re-detects and re-runs the retry (mirrors the drift and
-    # fresh-spawn dispositions).
+    # fresh-spawn dispositions) -- past the charge, the accounting, and the
+    # capture of an eligible return, which the recovery finishes once nothing
+    # holds it.
     if _guards._ignore_if_interrupted(issue, agent_result):
         return
     if paused:
         return
     _disposition._dispose_agent_result(
         gh, spec, issue, state,
-        _models._PreparedDevRun(agent_result, before_sha, False, wt),
+        _models._PreparedDevRun(agent_result, checkout.before_sha, False, wt),
     )
 
 

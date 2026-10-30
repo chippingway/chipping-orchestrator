@@ -109,13 +109,17 @@ class RecordedDeliveryTest(unittest.TestCase):
     def test_a_stretch_it_meets_is_kept(self) -> None:
         # A later prompt leaving more of the thread out takes nothing back from
         # one that quoted it; one beyond a gap replaces it, since one stretch
-        # cannot leave the gap out.
+        # cannot leave the gap out. The stretch the prompt quoted, kept apart
+        # from its record -- as a captured completion keeps it -- is recorded
+        # exactly as the record itself is.
         cut = _quoted_thread(CUT_THREAD)
+        self.assertEqual(_thread_delivery.DeliveredThread.quoted(cut).recorded(), (CUT_ID, QUOTED_ID))
         for prior, kept in (MET_STRETCH, STRETCH_BEYOND_A_GAP):
-            with self.subTest(prior=prior):
-                state = _recorded(*prior)
-                _thread_delivery.records_delivery(state, cut)
-                self.assertEqual(_thread_delivery.DeliveredThread.read(state).recorded(), kept)
+            for recorded in (cut, _thread_delivery.DeliveredThread.quoted(cut)):
+                with self.subTest(prior=prior, kept_apart=recorded is not cut):
+                    state = _recorded(*prior)
+                    _thread_delivery.records_delivery(state, recorded)
+                    self.assertEqual(_thread_delivery.DeliveredThread.read(state).recorded(), kept)
 
 
 class ReadsThroughTest(unittest.TestCase):

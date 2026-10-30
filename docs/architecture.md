@@ -730,7 +730,8 @@ stands at, and a random nonce), so two runs of an identical request and a run wi
 the request's fingerprint and the session id do not. It is what usage accounting is keyed by
 ([The agent-run circuit](state-machine/labels-and-state.md#the-agent-run-circuit)), and stays `None` for a result
 no charged process produced. A captured developer completion is bound to it too
-(`workflow/engine/completion_checkpoint.py`, dormant, and decided ahead of every stage handler by
+(`workflow/engine/completion_checkpoint.py`, taken as each implementing attempt returns by
+`workflow/stages/implementing/completion_roads.py`, and decided ahead of every stage handler by
 `completion_recovery.py`): the comment and cycle its charge was taken on, and the ordinal
 that refuses a capture of an older return once a later one resolved; a return carrying unfinished steps or a terminal
 failure is never captured as a completed report. `unaccounted` (default `False`) is set by `_run_agent_tracked`

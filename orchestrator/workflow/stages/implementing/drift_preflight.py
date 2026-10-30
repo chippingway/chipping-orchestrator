@@ -40,7 +40,9 @@ comment the resume would hand nobody cannot hold the recovery off either.
 That batch is the handler's, frozen once before the parked-continue classifier
 and handed on through it and the drift check to the resume here, so the
 classification, the recovery's gate, the prompt, and the settlement all read
-one thread at one moment.
+one thread at one moment -- and so does the reply road the resume is frozen on
+(`completion_roads.reply_road`), whose capture keeps that batch's settlement
+for a return a live hold kept.
 """
 from __future__ import annotations
 
@@ -61,6 +63,7 @@ from orchestrator.workflow.engine import (
     guards as _guards,
 )
 from orchestrator.workflow.stages.implementing import (
+    completion_roads as _completion_roads,
     disposition as _disposition,
     models as _models,
     resume as _resume,
@@ -137,11 +140,15 @@ def _prepare_awaiting_dev_run(
     if _recover_quiet_implementer_timeout(gh, spec, issue, state, batch):
         return None
     worktree = _worktree._ensure_resume_worktree(spec, issue, state)
-    before_sha = _verification_probes._head_sha(worktree)
+    checkout = _completion_roads.RoadCheckout(
+        worktree,
+        _naming._resolve_branch_name(state, spec, issue.number),
+        _verification_probes._head_sha(worktree),
+    )
     resumed = _resume._resume_developer_on_human_reply(
-        gh, spec, issue, batch, pause_guard=True,
+        gh, spec, issue, batch, completion=_completion_roads.reply_road(issue, batch, checkout),
     )
     if resumed is None:
         return None
     worktree, agent_result, paused = resumed
-    return _models._PreparedDevRun(agent_result, before_sha, paused, worktree)
+    return _models._PreparedDevRun(agent_result, checkout.before_sha, paused, worktree)

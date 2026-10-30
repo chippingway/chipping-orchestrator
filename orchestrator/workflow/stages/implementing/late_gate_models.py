@@ -174,6 +174,14 @@ class _Gate:
     # approval already identifies -- and the head this owner proves is the
     # whole of the answer there.
     candidate: str = ""
+    # The commit the report this issue still owes was captured over, where a
+    # captured completion handed that report off
+    # (`captured_report.captured_source`). A second constraint beside
+    # `candidate`, never a stand-in for it: the binding refuses that report
+    # on any other commit, so a head that is not this one is refused before
+    # anything is measured or pushed, whatever else the caller named --
+    # and where the two name different commits, no head is both.
+    captured: str = ""
     # The publication this call was entered on, where there is one. It is the
     # whole of what makes this gate reusable past the initial push: nothing
     # else here changes when the work already has a pull request, and every
@@ -205,6 +213,13 @@ class _Gate:
     # checkout off it is refused before anything publishes. Empty for every
     # caller an approval stands behind.
     no_op_of: str = ""
+
+    def moved_off(self, head: str) -> str:
+        """The commit this call is held to that `head` is not -- its caller's, or a captured report's -- or ""."""
+        for named in (self.candidate, self.captured):
+            if named and named != head:
+                return named
+        return ""
 
     def bound_to(self, no_op_of: str) -> _Gate:
         """This gate, its recovery bound to publish only `no_op_of` as a no-op; itself where that is empty."""

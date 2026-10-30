@@ -4,11 +4,15 @@
 
 One flat object per stage, every member spelled on every record of that stage:
 the `stage`, the six members of the invocation it came from, and then the
-stage's own. A PENDING capture adds the road and its frozen handoff, what ran
-and where, the session it returned (`null` where none), the outcome (`ready`
-with its `report`, or `verified` with its `location_*` and `content`), and its
-accounting. A HANDED_OFF one adds the delivery's `receipt` and `revision` and
-the `branch` and `source` the report is about; a RETIRED one, its `reason`.
+stage's own. A PENDING capture adds the road and its frozen handoff, the
+thread stretch it `delivered` (`[]` where its road settles none), what ran and
+where, the conversation it `resumed`, the one it left `pinned`, and the session
+it returned (each `null` where none), the outcome (`ready` with its `report`, or
+`verified` with its `location_*` and `content`), its accounting, and the
+handed-off capture it `supersedes` (`null` where none), spelled as that stage
+is. A HANDED_OFF one adds the delivery's `receipt` and `revision` and
+the `branch` and `source` the report is about; a RETIRED one, its `reason`
+and the handed-off capture it still `supersedes` (`null` where none).
 
 Read strictly and whole. Each member has its own reader (`completion_values`),
 bounded by what the field is: a repository slug, a recorded number, a nonce of
@@ -31,6 +35,7 @@ from typing import Any
 
 from orchestrator.agents.models import AgentInvocation
 from orchestrator.workflow.engine import (
+    completion_frozen as _frozen,
     completion_records as _records,
     completion_routes as _routes,
     completion_values as _bounds,
@@ -57,6 +62,16 @@ _REASON = "reason"
 _ROUTE = "route"
 _ORIGIN = "origin"
 _FROZEN = "frozen"
+_DELIVERED = "delivered"
+_RESUMED = "resumed"
+_PINNED = "pinned"
+_SUPERSEDES = "supersedes"
+
+# The members a PENDING capture's own reader reads apart from the rest, and a
+# resolved one's by stage: a RETIRED capture's carried handoff among them.
+_PENDING_APART = (_STAGE, _OUTCOME, _SUPERSEDES)
+
+_RESOLVED_APART = MappingProxyType({_records.CaptureStage.RETIRED: (_STAGE, _SUPERSEDES)})
 _LOCATION_SLUG = "location_slug"
 _LOCATION_PR = "location_pr"
 _LOCATION_COMMENT = "location_comment"
@@ -69,6 +84,7 @@ _RECORDED = _bounds.Member(_record_values.as_recorded_number)
 _DIGEST = _bounds.Member(partial(_payloads.as_hex, lengths=_formats.DIGEST_LENGTHS))
 _COMMIT = _bounds.Member(partial(_payloads.as_hex, lengths=_formats.COMMIT_LENGTHS))
 _BRANCH_NAME = _bounds.Member(_record_values.as_branch)
+_SESSION_ID = _bounds.Member(partial(_bounds.line, limit=_bounds.MAX_SESSION), optional=True)
 
 # The invocation a record came from, spelled under the names its own fields carry.
 _INVOCATION = MappingProxyType({
@@ -87,13 +103,16 @@ _PENDING = MappingProxyType({
     "watermarks": _bounds.Member(partial(_consumed.recorded_pairs, allowed=_consumed.consumable)),
     "spends": _bounds.Member(partial(_consumed.recorded_pairs, allowed=_spends.spendable)),
     _FROZEN: _bounds.Member(_bounds.frozen),
+    _DELIVERED: _bounds.Member(_frozen.delivered_stretch),
     "command": _bounds.Member(partial(_bounds.line, limit=_bounds.MAX_COMMAND)),
     "prompt": _DIGEST,
     "worktree": _bounds.Member(partial(_bounds.line, limit=_bounds.MAX_WORKTREE)),
     _BRANCH: _BRANCH_NAME,
     "before": _COMMIT,
     _SOURCE: _COMMIT,
-    _SESSION: _bounds.Member(partial(_bounds.line, limit=_bounds.MAX_SESSION), optional=True),
+    _SESSION: _SESSION_ID,
+    _RESUMED: _SESSION_ID,
+    _PINNED: _SESSION_ID,
     _ACCOUNTING: _bounds.Member(partial(_payloads.as_member, _records.CaptureAccounting)),
 })
 
@@ -113,12 +132,12 @@ _INVOCATION_ATTRIBUTES = MappingProxyType({key: key for key in _INVOCATION})
 
 _HANDOFF_ATTRIBUTES = MappingProxyType({
     _ROUTE: _ROUTE, _ORIGIN: _ORIGIN, "requirements": "requirements_revision",
-    "watermarks": "watermarks", "spends": "spends", _FROZEN: _FROZEN,
+    "watermarks": "watermarks", "spends": "spends", _FROZEN: _FROZEN, _DELIVERED: _DELIVERED,
 })
 
 _RUN_ATTRIBUTES = MappingProxyType({
     "command": "command", "prompt": "prompt_revision", "worktree": "worktree",
-    _BRANCH: _BRANCH, "before": "before_sha", _SOURCE: "source_sha",
+    _BRANCH: _BRANCH, "before": "before_sha", _SOURCE: "source_sha", _RESUMED: _RESUMED, _PINNED: _PINNED,
 })
 
 _RESOLVED_ATTRIBUTES = MappingProxyType({
@@ -172,30 +191,44 @@ def spelled(record: _records.CompletionCapture | _records.ResolvedCapture) -> di
             (record.outcome, _OUTCOME_ATTRIBUTES[kind]),
         ))
         spelling = {_STAGE: record.stage, _OUTCOME: kind, _SESSION: record.session_id, _ACCOUNTING: record.accounting}
+    if record.stage is not _records.CaptureStage.HANDED_OFF:
+        spelling[_SUPERSEDES] = None if record.supersedes is None else spelled(record.supersedes)
     for part, attributes in parts:
         spelling.update(_attributes(part, attributes))
     return json.loads(json.dumps(spelling))
 
 
-def read_record(raw: Any) -> _records.CompletionCapture | _records.ResolvedCapture | None:
-    """The capture one pinned object is, or None where it is no capture this build writes."""
+def read_record(
+    raw: Any, *, handed_off: bool = False,
+) -> _records.CompletionCapture | _records.ResolvedCapture | None:
+    """The capture one pinned object is, or None where it is no capture this build writes.
+
+    `handed_off` reads only a HANDED_OFF capture, as a pending or retired
+    one's `supersedes` holds: any other stage is None too, and so is a
+    `supersedes` that is not `null` and no such capture.
+    """
     if not isinstance(raw, dict):
         return None
     stage = _payloads.as_member(_records.CaptureStage, raw.get(_STAGE))
-    if stage is _records.CaptureStage.PENDING:
-        return _pending(raw)
-    members = _members(raw, _RESOLVED.get(stage), (_STAGE,))
-    if members is None:
+    carried = read_record(raw.get(_SUPERSEDES), handed_off=True)
+    damaged = carried is None and raw.get(_SUPERSEDES) is not None
+    if damaged or (handed_off and stage is not _records.CaptureStage.HANDED_OFF):
         return None
-    invocation = _built(AgentInvocation, members, _INVOCATION_ATTRIBUTES)
-    return _built(_records.ResolvedCapture, members, _RESOLVED_ATTRIBUTES[stage], stage=stage, invocation=invocation)
+    if stage is _records.CaptureStage.PENDING:
+        return _pending(raw, carried)
+    apart = _RESOLVED_APART.get(stage, (_STAGE,))
+    members = _members(raw, _RESOLVED.get(stage), apart)
+    return None if members is None else _built(
+        _records.ResolvedCapture, members, _RESOLVED_ATTRIBUTES[stage], stage=stage,
+        invocation=_built(AgentInvocation, members, _INVOCATION_ATTRIBUTES), supersedes=carried,
+    )
 
 
-def _pending(raw: dict) -> _records.CompletionCapture | None:
-    """The PENDING capture one object is, held to its road's contract, or None."""
+def _pending(raw: dict, handoff: _records.ResolvedCapture | None) -> _records.CompletionCapture | None:
+    """The PENDING capture one object is, held to its road's contract, or None; `handoff` is what it supersedes."""
     outcome = raw.get(_OUTCOME)
     added = _PENDING_OUTCOMES.get(outcome) if isinstance(outcome, str) else None
-    members = _members(raw, added, (_STAGE, _OUTCOME))
+    members = _members(raw, added, _PENDING_APART)
     if members is None:
         return None
     refused = _routes.refused_by_contract(
@@ -213,6 +246,7 @@ def _pending(raw: dict) -> _records.CompletionCapture | None:
         outcome=_outcome_of(members),
         accounting=members[_ACCOUNTING],
         session_id=members[_SESSION],
+        supersedes=handoff,
     )
 
 
