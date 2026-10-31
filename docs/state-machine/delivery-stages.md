@@ -2149,11 +2149,13 @@ and handed off -- and this is what it guarantees and what stops it.
   run was handed as the baseline, and the commands a retry consumed -- then answers the run on its stage's own drift
   disposition, handed the reading reduced to that revision, so nothing later on the thread reads as delivered and
   the report carries none of that input. That disposition runs inside `implementing/captured_rereads.rereads`, which
-  hands the engine a question the transfer into the delivery and the invalidation ahead of a park each ask last,
-  behind their own read of the comment and immediately before their commit (`engine/completion_questions`): every
+  hands the engine a question the guarded commit asks last of every edit, behind its own read of the comment and
+  immediately before the edit goes out (`engine/completion_questions`, `pinned_commit.commit`), answering for the edit
+  that moves the pending capture -- its transfer into the delivery, or its invalidation ahead of a park: every
   reading a handoff's effect stands on is taken again there, behind every request the disposition and the write took
   on the way -- a pull request fetched, a watermark carry over both comment surfaces, a remote fetch proving the tip
-  a publication replaces, the write's own pinned read -- and the write is refused (`moved_behind`) where it fails, so
+  a publication replaces, the transfer's or invalidation's own read of the comment, and the guarded commit's -- and
+  the edit is refused with nothing sent (`moved_behind`) where it fails, so
   a control, relabel, close, edit, checkout move, or push landing during them holds the capture with nothing
   settled, pushed, or counted. A status read of the checkout that establishes nothing is no loose tree, and a head
   that will not read behind the admission is no proof against the commit the capture names: in either the capture is
@@ -2166,8 +2168,10 @@ and handed off -- and this is what it guarantees and what stops it.
   nothing where an `in_review` hand-back reset the budget, told apart by the round the body edit also froze -- and a
   report alone going onto the head the pull request carries and spending none (`validating/captured_drift`).
   `in_review`'s fetches the pull request and stages the move to `validating` the edit owes, then hands the issue back
-  with the round reset; its carry crosses only this orchestrator's posts and the delivered stretch, so the
-  pull-request comments its prompt quoted stay for the next scan (`in_review/captured_drift`). `resolving_conflict`'s
+  with the round reset; its carry crosses this orchestrator's posts, the delivered stretch, and the pull-request
+  comments its prompt quoted, read back over the stretch of that conversation its road froze, so a comment written
+  since the prompt was read stays for the next scan, and a conversation that will not read holds the capture
+  (`in_review/captured_drift`). `resolving_conflict`'s
   publishes through the road the body edit and the report-owed reply share, leased against the head the run's caller
   proved, which its road froze as the head the run began on -- and froze no code-publication receipt, so the capture
   is admitted only while the pull request stands on that lease or on the commit reported on -- a pushed round counted
@@ -5913,10 +5917,11 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      the watermark bump, returning WITHOUT writing pinned state so the drift stays unconsumed for the next process to
      retry. A mid-run `paused` / `backlog` (`pause_guard=True`)
      short-circuits the same way, right after the interrupted check. The resume runs on the drift road, frozen over
-     the issue thread's half of that reading, so a held return keeps its report captured: the
-     [recovery](#the-captured-completion-recovery-every-dispatch) stages the marker, settles that half, and hands the
-     issue back with `review_round` reset through this very disposition, its carry crossing only this orchestrator's
-     own posts and the delivered stretch -- the pull-request comments the prompt quoted are left for the next scan.
+     the issue thread's half of that reading and the stretch of the pull request's conversation it quoted, so a held
+     return keeps its report captured: the [recovery](#the-captured-completion-recovery-every-dispatch) stages the
+     marker, settles that half, and hands the issue back with `review_round` reset through this very disposition,
+     its carry crossing this orchestrator's own posts, the delivered stretch, and the pull-request comments the
+     prompt quoted, read back over that stretch -- a comment written since is left for the next scan.
   6. **Manual-merge HITL path** (only reached with no owed report, no fresh PR feedback, AND no drift):
      - `pr_is_mergeable` is `None` → try next tick.
      - `False` → park with `unmergeable`; HITL ping mentioning every `HITL_HANDLE`, then carry the issue-side

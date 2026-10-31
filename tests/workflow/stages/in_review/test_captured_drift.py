@@ -9,19 +9,26 @@ edit owes, and the pull request's readers all stay as the launch found them.
 Unheld, the dispatcher's recovery publishes the captured report -- beside the
 commit, or onto the head the pull request carries -- and hands the issue back
 to `validating` with the round reset, exactly once, its baseline the
-requirements the run was handed. A comment posted on the pull request while
-it waits stays unread for the next scan, and an edit, a reset checkout, or a
-push meanwhile retires the capture instead of publishing the old output.
+requirements the run was handed. The pull-request feedback the run's prompt
+quoted is read once, as its own tick reads it; a comment posted on the pull
+request while it waits stays unread for the next scan, and an edit, a reset
+checkout, or a push meanwhile retires the capture instead of publishing the
+old output.
 """
 from __future__ import annotations
 
 import unittest
 from itertools import product
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
-from orchestrator.workflow.stages.in_review import surfaces as _surfaces
+from orchestrator.workflow.stages.in_review import feedback as _feedback, surfaces as _surfaces
 from tests.support.fakes import FakeComment, FakeLabel, FakeUser
-from tests.workflow import captured_drifts as _held, captured_fixes as _fixes, drift_reports as world
+from tests.workflow import (
+    captured_drifts as _held,
+    captured_fixes as _fixes,
+    drift_reports as world,
+    fix_reports as _fix_world,
+)
 from tests.workflow.fixtures import LABEL_IN_REVIEW, LABEL_VALIDATING
 
 ISSUE = 2_432
@@ -37,6 +44,28 @@ _SPENT_ROUNDS = 2
 
 # A reviewer's comment posted on the pull request while the issue is held.
 _LATE_FEEDBACK_ID = 70_000
+
+# A reviewer's comment posted on the pull request behind the in_review scan,
+# so the drift resume's prompt quotes it rather than a fix round taking it.
+_QUOTED_FEEDBACK_ID = 60_000
+
+_QUOTED_FEEDBACK = "please keep the old flag working too"
+
+
+class _CommentedBehindTheScan:
+    """The in_review feedback scan, behind which a reviewer comments on the pull request once."""
+
+    def __init__(self, case) -> None:
+        self._case = case
+        self._scan = _feedback._scan_fresh_pr_feedback
+
+    def __call__(self, *args, **kwargs):
+        """Scan as the stage does, then post the comment the drift resume's prompt reads."""
+        scanned = self._scan(*args, **kwargs)
+        self._case.pull_request.issue_comments.append(FakeComment(
+            id=_QUOTED_FEEDBACK_ID, body=_QUOTED_FEEDBACK, user=FakeUser("bob"),
+        ))
+        return scanned
 
 
 class _HeldDuringTheCarry:
@@ -147,6 +176,43 @@ class HeldInReviewDriftTest(unittest.TestCase, _held.HeldDriftTicks):
         )
         self.assertLess(finished[_PR_READER], _LATE_FEEDBACK_ID)
 
+    def test_quoted_feedback_is_read_once(self) -> None:
+        # The drift resume's prompt quoted a reviewer's comment on the pull
+        # request, and another reviewer comments while the issue is held: the
+        # recovery's carry crosses the comment the run was handed, as its own
+        # tick's carry would, and stops below the later one for the next scan.
+        self._held_over_quoted_feedback()
+        self.pull_request.issue_comments.append(FakeComment(
+            id=_LATE_FEEDBACK_ID, body="please also cover the empty input", user=FakeUser("bob"),
+        ))
+        with _fix_world.author_policy():
+            self.unheld(**_held.COMMITTED)
+        finished = self.pinned()
+        self.assertEqual(
+            (_fixes.stage_of(finished), self.github.label_history),
+            (_fixes.HANDED_OFF, [(ISSUE, LABEL_VALIDATING)]),
+        )
+        self.assertGreaterEqual(finished[_PR_READER], _QUOTED_FEEDBACK_ID)
+        self.assertLess(finished[_PR_READER], _LATE_FEEDBACK_ID)
+
+    def test_an_unread_conversation_holds_it(self) -> None:
+        # The pull request's conversation the quoted comment is read back
+        # from will not read: the capture is kept with nothing written,
+        # settled, or published, and the dispatch whose read answers
+        # finishes it once, the quoted comment read.
+        self._held_over_quoted_feedback()
+        before = (self.pinned(), self.github.write_state_calls, [])
+        with _fix_world.author_policy(), patch.object(
+            _surfaces, "_unread_pr_conversation", side_effect=RuntimeError("conversation unavailable"),
+        ):
+            self.unheld(**_held.COMMITTED)[_fixes.PUSH_BRANCH].assert_not_called()
+        kept = (self.pinned(), self.github.write_state_calls, self.published_reports())
+        self.assertEqual(kept, before)
+        with _fix_world.author_policy():
+            self.dispatched(**_held.COMMITTED)
+        self.assertEqual(len(self.published_reports()), 1)
+        self.assertGreaterEqual(self.pinned()[_PR_READER], _QUOTED_FEEDBACK_ID)
+
     def test_moves_while_held_retire_it(self) -> None:
         # An edit of the body, the checkout reset off the commit reported on,
         # or the pull request pushed to another head: the capture is retired
@@ -174,6 +240,18 @@ class HeldInReviewDriftTest(unittest.TestCase, _held.HeldDriftTicks):
                     ),
                     (_fixes.RETIRED, [], [], launched),
                 )
+
+    def _held_over_quoted_feedback(self) -> None:
+        """Seed the issue and hold its drift resume, whose prompt quoted a reviewer's comment on the pull request."""
+        self.seeded(ISSUE, PR, LABEL_IN_REVIEW)
+        self.control = _fixes.PAUSED
+        held_under = MagicMock(side_effect=_fixes.HeldUnder(self, _fixes.PAUSED, world.reported()))
+        with _fix_world.author_policy(), patch.object(
+            _feedback, "_scan_fresh_pr_feedback", _CommentedBehindTheScan(self),
+        ):
+            self.dispatched(held_under)
+        self.assertIn(_QUOTED_FEEDBACK, held_under.call_args.args[1])
+        self.assertEqual(_fixes.stage_of(self.pinned()), _fixes.PENDING)
 
 
 if __name__ == "__main__":

@@ -116,7 +116,7 @@ from orchestrator.github.pinned_state import (
     PinnedState,
     pinned_state_body,
 )
-from orchestrator.workflow.engine import pinned_commit_models as _models
+from orchestrator.workflow.engine import completion_questions as _questions, pinned_commit_models as _models
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -172,7 +172,11 @@ def commit(
     fresh one. A candidate the comment already reads as is COMMITTED with
     nothing sent. A comment that moved between the fresh reading and the edit
     is refused as MOVED with nothing sent, and a commit asked again derives
-    over whatever it carries then.
+    over whatever it carries then. Last of all, behind that reading and
+    immediately before the edit, a recovery's question is asked of the
+    candidate (`completion_questions`): a write moving the captured
+    completion that recovery finishes, where its admission no longer stands,
+    is refused as MOVED_BEHIND with nothing sent.
     """
     change = _Change.of(guard, staged, derived)
     fresh = _fresh(gh, issue, change)
@@ -183,8 +187,11 @@ def commit(
         return prepared
     if fresh.reads_as(prepared.reading.state_data):
         return replace(prepared, status=_models.CommitStatus.COMMITTED)
-    edit = gh.edit_pinned_state(issue, prepared.reading, over=fresh.state_data)
-    refusal = _UNSENT.get(edit)
+    edit = None
+    refusal = _models.CommitRefusal.MOVED_BEHIND
+    if _questions.stands(fresh.state_data, prepared.reading.state_data):
+        edit = gh.edit_pinned_state(issue, prepared.reading, over=fresh.state_data)
+        refusal = _UNSENT.get(edit)
     if refusal is not None:
         return _refused(issue, refusal)
     return replace(prepared, status=_LANDED[edit])

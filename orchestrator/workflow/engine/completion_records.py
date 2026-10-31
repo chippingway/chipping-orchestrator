@@ -94,8 +94,11 @@ class CompletionHandoff:
     apart from the one the run answered. `delivered` is `(after, through)`:
     the stretch of the issue thread a prompt over the whole of it quoted, as
     the delivered stretch records one (`thread_delivery`), for a road that
-    records that stretch itself once its run is back -- empty for every road
-    whose delivered input is its watermarks alone.
+    records that stretch itself once its run is back -- or, on a drift resume
+    over an open pull request, the stretch of that pull request's
+    conversation its prompt quoted, which its recovery reads back for the
+    carry of the shared IssueComment cursor -- empty for every road whose
+    delivered input is its watermarks alone.
     """
 
     route: _routes.CompletionRoute

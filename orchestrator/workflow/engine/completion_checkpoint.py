@@ -210,7 +210,7 @@ def retire(
     reading rather than discarding a capture on evidence that is gone.
     """
     commit = _commits.CompletionCommit(gh, issue, state, invocation)
-    fresh = commit.fresh(asked=reason is _records.RetirementReason.INVALIDATED)
+    fresh = commit.fresh()
     if isinstance(fresh, _commits.CheckpointOutcome):
         return fresh
     standing = _state.read(fresh)

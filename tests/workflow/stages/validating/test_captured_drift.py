@@ -54,6 +54,10 @@ _ROUND_RESET = "developer_report_owed_round_reset"
 _REPLY_READS = MappingProxyType({world.HEAD_SHAS: (world.PUBLISHED_HEAD, world.PUBLISHED_HEAD, world.FIXED_HEAD)})
 
 
+# Which of a write's reads of the comment its guarded commit takes: the one
+# behind the write's own.
+_COMMIT_READ = 2
+
 # The readings a recovery cannot take, each beside whether the held run
 # committed: a checkout nobody can prove the issue's own, a head that will not
 # read, and a status that establishes nothing about the tree a report alone
@@ -65,38 +69,35 @@ _UNREAD = (
 )
 
 
-class _HeldAtTheTransfer:
-    """The capture's transfer into the delivery, as an operator applies `control` to the issue it is made on."""
+class _HeldDuringTheWrite:
+    """A write over the capture -- its transfer or its retirement -- whose guarded commit reads the comment as an
+    operator applies `control` to the issue.
 
-    def __init__(self, case, control: str) -> None:
+    The write reads the comment twice: once for itself, and once more in the
+    guarded commit that sends its edit. The control lands during that last
+    read, behind everything the write took before it.
+    """
+
+    def __init__(self, case, control: str, write) -> None:
         self._case = case
         self._control = control
-        self._transfer = _handoff.transfer
+        self._write = write
+        self._reads = 0
         self.applied = False
 
     def __call__(self, *args, **kwargs):
-        """Apply the control as the transfer begins, then make the transfer as asked."""
-        if not self.applied:
+        """Make the write as asked, the control applied during its guarded commit's read."""
+        with patch.object(self._case.github, "read_pinned_state", side_effect=self._read):
+            return self._write(*args, **kwargs)
+
+    def _read(self, issue):
+        """Read the comment as the client does, applying the control during the write's second read."""
+        reading = type(self._case.github).read_pinned_state(self._case.github, issue)
+        self._reads += 1
+        if self._reads == _COMMIT_READ:
             self._case.issue.labels.append(FakeLabel(self._control))
             self.applied = True
-        return self._transfer(*args, **kwargs)
-
-
-class _HeldAtTheRetirement:
-    """The capture's guarded retirement, as an operator applies `control` to the issue it is made on."""
-
-    def __init__(self, case, control: str) -> None:
-        self._case = case
-        self._control = control
-        self._retire = _checkpoint.retire
-        self.applied = False
-
-    def __call__(self, *args, **kwargs):
-        """Apply the control as the retirement begins, then make the retirement as asked."""
-        if not self.applied:
-            self._case.issue.labels.append(FakeLabel(self._control))
-            self.applied = True
-        return self._retire(*args, **kwargs)
+        return reading
 
 
 class _HeldDuringTheFetch:
@@ -178,18 +179,18 @@ class HeldDriftTest(unittest.TestCase, _held.HeldDriftTicks):
                 self._finished(committed=True)
 
     def test_a_control_at_the_transfer_holds_it(self) -> None:
-        # An operator holds the issue again as the transfer reads the
-        # comment it hands the capture off over, under either control: the
-        # admission read again behind that read refuses the handoff, with
-        # nothing settled, pushed, published, or counted; once that control
-        # comes off too, the next dispatch finishes it once.
+        # An operator holds the issue again as the transfer's guarded commit
+        # reads the comment it hands the capture off over, under either
+        # control: the admission read again behind that last read refuses the
+        # edit, with nothing settled, pushed, published, or counted; once that
+        # control comes off too, the next dispatch finishes it once.
         for control in (_fixes.PAUSED, _fixes.BACKLOG):
             with self.subTest(control=control):
                 self.seeded(ISSUE, PR, LABEL_VALIDATING)
                 self.held_drift(world.reported(), control)
                 self.lifts_the_control()
                 before = self.pinned()
-                transfer = _HeldAtTheTransfer(self, control)
+                transfer = _HeldDuringTheWrite(self, control, _handoff.transfer)
                 with patch.object(_handoff, "transfer", transfer):
                     recovered = self.dispatched(**_held.COMMITTED)
                 self.assertEqual(
@@ -203,16 +204,17 @@ class HeldDriftTest(unittest.TestCase, _held.HeldDriftTicks):
     def test_a_control_at_the_withdrawal_holds_it(self) -> None:
         # The recovered report alone meets loose work in the checkout, so its
         # disposition withdraws the capture ahead of the tree's park; an
-        # operator holds the issue again as that withdrawal reads the
-        # comment, under either control: the admission read again behind
-        # that read refuses it, and nothing is retired, parked, or written.
+        # operator holds the issue again as that withdrawal's guarded commit
+        # reads the comment, under either control: the admission read again
+        # behind that last read refuses it, and nothing is retired, parked,
+        # or written.
         for control in (_fixes.PAUSED, _fixes.BACKLOG):
             with self.subTest(control=control):
                 self.seeded(ISSUE, PR, LABEL_VALIDATING)
                 self.held_drift(world.reported(), control, committed=False)
                 self.lifts_the_control()
                 before = (self.pinned(), self.github.write_state_calls)
-                retire = _HeldAtTheRetirement(self, control)
+                retire = _HeldDuringTheWrite(self, control, _checkpoint.retire)
                 with patch.object(_checkpoint, "retire", retire):
                     self.dispatched(**_held.UNMOVED, dirty_files=("scratch.txt",))
                 self.assertTrue(retire.applied)

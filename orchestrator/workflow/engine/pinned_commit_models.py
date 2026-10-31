@@ -83,6 +83,9 @@ class CommitRefusal(enum.Enum):
     OVERFLOW = "overflow"
     # The caller's own domain refused the complete candidate.
     INADMISSIBLE = "inadmissible"
+    # A recovery finishing the captured completion this write moves no longer
+    # stands on readings that admit it (`completion_questions`).
+    MOVED_BEHIND = "moved_behind"
 
 
 class CommitStatus(enum.Enum):

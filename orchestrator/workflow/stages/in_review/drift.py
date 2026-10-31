@@ -191,14 +191,13 @@ def _resume_dev_for_drift(
         # tick settles, carrying a comment the settlement would leave unread.
         thread_text=answered.delivery.rendered_text,
         # Frozen over that same reading, settled as this road settles it --
-        # the issue thread's half alone -- so a held return is captured with
-        # its report.
+        # the issue thread's half, and the stretch of the pull request's
+        # conversation it quoted for the carry to vouch for -- so a held
+        # return is captured with its report.
         completion=_drift_road.road(
             WorkflowLabel.IN_REVIEW,
             ctx.state,
-            _drift_road.DriftReading.settled_by(
-                _drift_delivery._settled_half(answered.delivery), ctx.state,
-            ),
+            _drift_road.DriftReading.over_both_surfaces(answered.delivery, ctx.state),
             checkout,
         ),
     ))

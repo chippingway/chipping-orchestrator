@@ -101,8 +101,10 @@ def delivered_stretch(raw: Any) -> tuple | None:
     """A delivered stretch as a capture writes it -- none, or the two ends of one in order -- or None.
 
     Each end is a comment id as the delivered stretch records one
-    (`thread_delivery`), the lower one 0 where the prompt left nothing out,
-    neither past the recorded bound nor the upper below the lower.
+    (`thread_delivery`), or as a drift resume's pull-request stretch does
+    (`stages/implementing/drift_road.DriftReading`), the lower one 0 where
+    the prompt left nothing out, neither past the recorded bound nor the
+    upper below the lower.
     """
     if not isinstance(raw, list) or len(raw) not in {0, _ENDS}:
         return None

@@ -64,7 +64,7 @@ exact lease.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from orchestrator.config import models as _config_models
@@ -75,10 +75,13 @@ from orchestrator.workflow.engine import (
     completion_frozen as _frozen,
     completion_records as _records,
     completion_routes as _routes,
+    drift_delivery as _drift_delivery,
+    prompt_delivery as _prompt_delivery,
     report_delivery as _report_delivery,
     report_records as _report_records,
 )
 from orchestrator.workflow.engine.prompt_delivery import PromptDeliverySnapshot
+from orchestrator.workflow.late_split import payloads as _payloads
 from orchestrator.workflow.stages.implementing.completion_roads import CompletionRoad, RoadCheckout
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -118,15 +121,45 @@ LEASED = tuple(field for field in FROZEN if field not in _RECEIPT)
 
 @dataclass(frozen=True)
 class DriftReading:
-    """What one drift resume was handed: its report's requirements revision, and the watermarks its road advances."""
+    """What one drift resume was handed: its report's requirements revision, and the watermarks its road advances.
+
+    `delivered` is, on an open pull request read on two surfaces, the stretch
+    of that pull request's conversation the prompt quoted entire -- the
+    reader's mark it was read above, and the newest comment it read there --
+    which no settlement writes and the recovery's watermark carry vouches for;
+    empty on every other road.
+    """
 
     revision: str
     watermarks: tuple = ()
+    delivered: tuple = ()
 
     @classmethod
     def settled_by(cls, delivery: PromptDeliverySnapshot, state: PinnedState) -> DriftReading:
         """The frozen reading `delivery` is the record of, settled as its own pairs advance the comment `state` is."""
         return cls(delivery.requirements_revision or "", delivery.consumed_pairs(state))
+
+    @classmethod
+    def over_both_surfaces(cls, delivery: PromptDeliverySnapshot, state: PinnedState) -> DriftReading:
+        """The two-surface reading `delivery` is the record of: its issue thread's half settled, its PR half's stretch.
+
+        Every comment on the pull request's conversation newer than the mark
+        it was read above, and no newer than the newest it read, was quoted:
+        ids rise with time on both surfaces, so a comment written after the
+        read is numbered past that newest one.
+        """
+        settled = cls.settled_by(_drift_delivery._settled_half(delivery), state)
+        quoted = [entry.id for entry in delivery.surface_provenance(_prompt_delivery.SURFACE_PR_CONVERSATION)]
+        if not quoted:
+            return settled
+        floor = _read_above(state, min(quoted))
+        return replace(settled, delivered=(floor, max(quoted)))
+
+
+def _read_above(state: PinnedState, lowest: int) -> int:
+    """The mark the pull request's conversation was read above, as `state` records it; 0 with none below `lowest`."""
+    mark = _payloads.as_count(state.get(_prompt_delivery.PINNED_PR_LAST_COMMENT_ID))
+    return mark if mark is not None and mark < lowest else 0
 
 
 def launched_in(spec: _config_models.RepoSpec, number: int, state: PinnedState, worktree: Path) -> RoadCheckout:
@@ -148,4 +181,5 @@ def road(
         requirements_revision=reading.revision,
         watermarks=reading.watermarks,
         frozen=_frozen.frozen_over_the_comment(state, fields),
+        delivered=reading.delivered,
     ), checkout)

@@ -188,8 +188,9 @@ moves `pr_last_comment_id` over nothing above what its thread and pull-request r
 landing between them is left to the next scan, and a `/orchestrator continue` replay is rebuilt only from the id lists
 its route recorded, a list missing or damaged replaying nothing. A captured feedback round's recovery settles only the
 pairs its launch froze, never a rescan, so nothing posted after the scan is recorded as delivered, and a captured
-drift resume's recovery settles the frozen reading its run was handed, never a newer one, the pull-request comments an
-`in_review` prompt quoted left for the next scan rather than marked read. An approval or
+drift resume's recovery settles the frozen reading its run was handed, never a newer one: an `in_review` resume's
+carry crosses the pull-request comments its prompt quoted, read back over the stretch of that conversation its launch
+froze, and no comment written since. An approval or
 permission is read only as its current writers record it whole: no approval record, an approval beside no evidence
 claim, a `late_approved_sha` with no `late_approved_basis` this build can read, and a rewrite permission beside an
 attempt record with no declared terms are each no grounds -- never an earlier producer's default -- and authorize no
@@ -633,7 +634,8 @@ settled -- a feedback round's frozen batch, reset round, and cleared bookmarks, 
 resume's frozen reading, recorded as the baseline only by its report's handoff or its stage's own write, beside the
 round its stage's drift disposition spends, resets, or hands on, the lease a conflict round's caller proved, and no
 baseline a dependency hold defers, its handoff or withdrawal made only once its admission reads again behind every
-request that disposition and the write itself took, and a status read that establishes nothing keeping it -- and its
+request that disposition and the write itself took, the guarded commit's own read of the comment last, right before
+its edit, and a status read that establishes nothing keeping it -- and its
 report goes through
 the existing delivery, size gate, and publication --
 a change request's retired in the very commit that hands its report on, and its round spent once,

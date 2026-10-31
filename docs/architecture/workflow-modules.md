@@ -1210,10 +1210,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             identity that reads -- and the four answers it comes to, what landed or was read back laid
                             onto the caller as the comment's (a confirmed handoff's delivery included), and a write
                             never confirmed, or any answer over a comment that moved since the caller read it,
-                            withholding the caller; a handoff's and an invalidation's read asking a recovery's
-                            question behind it, refused `MOVED_BEHIND` where its admission no longer stands
-    completion_questions.py the question a recovery owner hands in for the length of its disposition, asked by a
-                            capture's transfer and its invalidation immediately before their commit -- per execution
+                            withholding the caller
+    completion_questions.py the question a recovery owner hands in for the length of its disposition, asked by the
+                            guarded commit (`pinned_commit.py`) behind its own read of the comment and immediately
+                            before each edit, answering for the edit that moves the pending capture -- its transfer
+                            or its invalidation -- and refusing it `MOVED_BEHIND` with nothing sent; per execution
                             context, so a live tick and the dispatcher's own invalidation ask nothing
     completion_handoff.py   the transfer of a pending capture into the delivery: the report minted from the captured
                             outcome under the road's frozen terms and recorded through `report_delivery.py`'s own
@@ -4510,7 +4511,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and for the replies that remain its continuation: the `requirements_drift` road over the
                             one frozen reading its prompt was cut from (`DriftReading` -- the revision its report is
                             stamped with and the watermarks its own settlement advances, beside a retry's consumed
-                            commands, none of which ride its report), the records its stage's accounting and the
+                            commands, none of which ride its report, and on `in_review` the stretch of the pull
+                            request's conversation it quoted, for the recovery's carry), the records its stage's
+                            accounting and the
                             reason it resumed are read off (`FROZEN`, a validating body edit's `STOOD_DOWN` beside
                             them, a conflict round's `LEASED` without the code-publication receipt, whose head its
                             lease names instead), and the checkout it launches in (`launched_in`), a conflict
@@ -4522,8 +4525,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             this stage's own recovery, answered on `drift_disposition.py`
       captured_rereads.py   the admission a recovery owner has read again immediately before its capture is handed
                             to the delivery or withdrawn ahead of a park (`rereads`), handed to the engine as the
-                            question both writes ask behind their own read of the comment
-                            (`engine/completion_questions.py`): a control, relabel, close, edit, checkout move, or
+                            question the guarded commit asks behind its own read of the comment, right before the
+                            edit moving the capture (`engine/completion_questions.py`): a control, relabel, close,
+                            edit, checkout move, or
                             push landing during any request before them refuses the write, the state withheld and
                             the tick held with nothing written; asked of no live tick, which honors the hold its
                             run's return read
@@ -5358,12 +5362,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             move hands on the reply they wrote. A publication still owed when either move
                             is made is recorded as belonging to the budget that reset gives it, so the road that
                             lands it on `workflow:validating` spends no round the edit has already paid for. The
-                            resume is launched on the drift road over the issue thread's half of that record
-                            (`implementing/drift_road.py`, `engine/drift_delivery._settled_half`)
+                            resume is launched on the drift road over the issue thread's half of that record and
+                            the stretch of the pull request's conversation it quoted
+                            (`implementing/drift_road.DriftReading.over_both_surfaces`,
+                            `engine/drift_delivery._settled_half`)
       captured_drift.py     the recovery of that resume's held capture: the pull request fetched, the move to
                             `workflow:validating` staged, and the run answered through `drift._dispose_drift_result`
-                            inside `implementing/captured_rereads.rereads`, on the reading reduced to its revision,
-                            so its carry crosses only this orchestrator's posts and the delivered stretch
+                            inside `implementing/captured_rereads.rereads`, on the reading reduced to its revision
+                            beside the pull-request comments its prompt quoted, read back over that stretch, so its
+                            carry crosses those, this orchestrator's posts, and the delivered stretch and no comment
+                            written since; a conversation that will not read holds the capture
       merge_gate.py         the unmergeable park -- bounded, since the scan that let the tick reach it ran several
                             round-trips ago -- and the gates in front of the one HITL ready-ping an approved, unvetoed
                             head earns per head SHA, which is no park and carries no mark; a fresh approval retires
