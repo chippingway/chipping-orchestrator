@@ -36,7 +36,16 @@ inside them are read back into the record the carry alone is handed
 (`_DriftResume.carried`), as its own tick's carry is handed the prompt's
 record. A comment written after the prompt was read is numbered past those
 stretches, so it stays above the cursor for the next scan; a surface that
-would not read holds the capture with nothing written.
+would not read -- the read-back here, or the carry's own read of both
+surfaces ahead of the report -- holds the capture with nothing written,
+since a report handed on past a carry that never ran would leave the feedback
+its prompt quoted to buy a fix round.
+
+The head the run left is the capture's own source, which the admission read
+the checkout as, rather than a second reading of the checkout: a head that
+will not read again behind the admission would recast a commit as a report
+with no code. A checkout that really moved is refused by the gate, which
+proves it again, and by the admission read again before the handoff.
 """
 from __future__ import annotations
 
@@ -77,6 +86,7 @@ def recovers(admitted: _recovery_models.AdmittedCompletion) -> bool:
             before_sha=run.before_sha,
             delivery=_captured_drift.frozen_reading(admitted),
             carried=carried,
+            after_sha=run.source_sha,
         ))
     return True
 

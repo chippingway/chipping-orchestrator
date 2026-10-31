@@ -638,7 +638,8 @@ resume's frozen reading, recorded as the baseline only by its report's handoff o
 round its stage's drift disposition spends, resets, or hands on, the lease a conflict round's caller proved, and no
 baseline a dependency hold defers, its handoff or withdrawal made only once its admission reads again behind every
 request that disposition and the write itself took, the strict edit's walk to the comment last, right before the
-edit goes out, and a status read that establishes nothing -- taken ahead of the handoff -- keeping it -- and its
+edit goes out, the head the run left taken from the capture rather than read again, and a status read that
+establishes nothing -- taken ahead of the handoff -- or an `in_review` carry that cannot read keeping it -- and its
 report goes through
 the existing delivery, size gate, and publication --
 a change request's retired in the very commit that hands its report on, and its round spent once,

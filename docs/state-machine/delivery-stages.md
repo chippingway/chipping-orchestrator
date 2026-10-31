@@ -2151,7 +2151,9 @@ and handed off -- and this is what it guarantees and what stops it.
   as above, the park flag the resume takes down, the frozen reading's watermarks, which record the requirements the
   run was handed as the baseline, and the commands a retry consumed -- then answers the run on its stage's own drift
   disposition, handed the reading reduced to that revision, so nothing later on the thread reads as delivered and
-  the report carries none of that input. That disposition runs inside `implementing/captured_rereads.rereads`, which
+  the report carries none of that input, and handed the head the capture names as the one the run left, so a
+  checkout that will not read again behind the admission never recasts a commit as a report with no code. That
+  disposition runs inside `implementing/captured_rereads.rereads`, which
   hands the GitHub client a question its strict edit asks of every edit, behind its walk to the comment and
   immediately before the edit goes out (`github/edit_questions`), answering for the edit that moves the pending
   capture -- its transfer into the delivery, or its invalidation ahead of a park: every reading a handoff's effect
@@ -2177,7 +2179,8 @@ and handed off -- and this is what it guarantees and what stops it.
   delivered stretch, and the comments its prompt quoted on either surface, read back over the two stretches its road
   froze -- the issue thread's above what the excerpt left out, and the pull request conversation's -- into a record
   the carry alone is handed, so an omission still holds the reply boundary and the cursor below it, a comment written
-  since the prompt was read stays for the next scan, and a surface that will not read holds the capture
+  since the prompt was read stays for the next scan, and a surface that will not read -- the read-back, or the
+  carry's own read of both ahead of the report -- holds the capture with nothing written
   (`in_review/captured_drift`). `resolving_conflict`'s
   publishes through the road the body edit and the report-owed reply share, leased against the head the run's caller
   proved, which its road froze as the head the run began on -- and froze no code-publication receipt, so the capture

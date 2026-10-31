@@ -377,6 +377,31 @@ class DriftParkReplyTest(unittest.TestCase, _held.HeldDriftTicks):
         }
 
 
+class CapturedSourceTest(unittest.TestCase, _held.HeldDriftTicks):
+    """A recovery answers the commit its capture names, never a reading of the checkout taken again behind it."""
+
+    def test_a_lost_head_still_publishes_the_commit(self) -> None:
+        # The checkout reads as the commit the capture names when the
+        # recovery is admitted, and will not read once behind that: the
+        # disposition still answers the commit the run left -- published
+        # once under its report, on one round -- rather than reading the run
+        # as a report with no code, handed on and parked owing it.
+        self.seeded(ISSUE, PR, LABEL_VALIDATING)
+        self.held_drift(world.reported())
+        self.unheld(**_held.LOST_ONCE)
+        finished = self.pinned()
+        self.assertEqual(
+            (
+                _fixes.stage_of(finished),
+                len(self.published_reports()),
+                finished[_held.ROUND],
+                self.pull_request.head.sha,
+                finished.get("park_reason"),
+            ),
+            (_fixes.HANDED_OFF, 1, 1, world.FIXED_HEAD, None),
+        )
+
+
 class LostHandoffTest(unittest.TestCase, _held.HeldDriftTicks):
     """A process or an answer lost at the recovery's handoff is finished by a later dispatch, nothing paid twice."""
 

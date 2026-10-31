@@ -5372,7 +5372,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             back over those stretches (`models._DriftResume.carried`,
                             `engine/drift_delivery._quoted_back`), so the carry crosses those, this orchestrator's
                             posts, and the delivered stretch, and nothing the excerpt left out or written since; a
-                            surface that will not read holds the capture
+                            surface that will not read, the carry's own read of both included, holds the capture,
+                            and the head the run left is the one the capture names
       merge_gate.py         the unmergeable park -- bounded, since the scan that let the tick reach it ran several
                             round-trips ago -- and the gates in front of the one HITL ready-ping an approved, unvetoed
                             head earns per head SHA, which is no park and carries no mark; a fresh approval retires
@@ -5847,11 +5848,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             prompt's reading and the round this stage stood down for (`implementing/drift_road.py`)
       drift_models.py       the frozen record that route's resume hands the helper that finishes it, the delivery
                             it was built from -- and the revision that read fingerprints -- included, and the round
-                            a publication lands on where a recovery decided it rather than the body edit's own
+                            a publication lands on and the head the run left where a recovery decided them rather
+                            than the body edit's own tick
       captured_drift.py     the recovery of a held drift capture on this stage, the body edit's and the drift-park
                             reply's alike, answered through `drift._finish_validating_drift` on the reading reduced to
                             its revision -- the body edit on its next round, the reply on what its park owes, told
-                            apart by the stood-down-for round the body edit alone froze
+                            apart by the stood-down-for round the body edit alone froze -- and on the head the
+                            capture names as the one the run left, never a second reading of the checkout
       drift_outcomes.py     the claim that the edit is still unanswered, written -- for a caller that named what
                             its resume was `handed`, which is the caller that reads it back, so on the two review
                             routes alone, since a `resolving_conflict` park is answered by that stage's own reply

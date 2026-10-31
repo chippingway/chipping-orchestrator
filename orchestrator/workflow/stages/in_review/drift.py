@@ -238,11 +238,17 @@ def _dispose_drift_result(
     # This pass crosses what the prompt delivered; the one below crosses the
     # notices the disposition posts, which do not exist yet. Both stop at the
     # first comment nothing vouches for, so the early one can only ever cross
-    # less.
-    _watermarks._bump_in_review_watermarks(ctx, delivered=consumed)
+    # less. A recovery's early pass that could not read holds the tick with
+    # nothing written: nothing is posted yet, and a report handed on past it
+    # would leave the feedback its prompt quoted to buy that round.
+    carried = _watermarks._bump_in_review_watermarks(ctx, delivered=consumed)
+    if not carried and resume.carried is not None:
+        ctx.state.withheld = True
+        return
     outcome = _drift_outcomes._post_user_content_change_result(
         ctx.gh, ctx.spec, ctx.issue, ctx.state,
         resume.worktree, resume.dev_result, resume.before_sha,
+        after_sha=resume.after_sha,
         handed=_records.HandedRun(
             WorkflowLabel.IN_REVIEW, resume.requirements_revision,
         ),

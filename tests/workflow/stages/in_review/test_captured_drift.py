@@ -42,6 +42,11 @@ _PR_READER = "pr_last_comment_id"
 # A review budget nearly spent under the approval the edit made stale.
 _SPENT_ROUNDS = 2
 
+# The reads a recovery of quoted feedback takes of the pull request's
+# conversation: reading the quoted comments back, and the carry's read of both
+# IssueComment surfaces behind them.
+_UNREAD_SURFACES = ("_unread_pr_conversation", "_issue_space_above")
+
 # A reviewer's comment posted on the pull request while the issue is held.
 _LATE_FEEDBACK_ID = 70_000
 
@@ -215,21 +220,24 @@ class HeldInReviewDriftTest(unittest.TestCase, _held.HeldDriftTicks):
 
     def test_an_unread_conversation_holds_it(self) -> None:
         # The pull request's conversation the quoted comment is read back
-        # from will not read: the capture is kept with nothing written,
-        # settled, or published, and the dispatch whose read answers
+        # from will not read, or the carry's own read of both surfaces will
+        # not: the capture is kept with nothing written, settled, pushed,
+        # published, or relabelled, and the dispatch whose reads answer
         # finishes it once, the quoted comment read.
-        self._held_over_quoted_feedback()
-        before = (self.pinned(), self.github.write_state_calls, [])
-        with _fix_world.author_policy(), patch.object(
-            _surfaces, "_unread_pr_conversation", side_effect=RuntimeError("conversation unavailable"),
-        ):
-            self.unheld(**_held.COMMITTED)[_fixes.PUSH_BRANCH].assert_not_called()
-        kept = (self.pinned(), self.github.write_state_calls, self.published_reports())
-        self.assertEqual(kept, before)
-        with _fix_world.author_policy():
-            self.dispatched(**_held.COMMITTED)
-        self.assertEqual(len(self.published_reports()), 1)
-        self.assertGreaterEqual(self.pinned()[_PR_READER], _QUOTED_FEEDBACK_ID)
+        for unread in _UNREAD_SURFACES:
+            with self.subTest(unread=unread):
+                self._held_over_quoted_feedback()
+                before = (self.pinned(), self.github.write_state_calls, [], [])
+                with _fix_world.author_policy(), patch.object(
+                    _surfaces, unread, side_effect=RuntimeError("conversation unavailable"),
+                ):
+                    self.unheld(**_held.COMMITTED)[_fixes.PUSH_BRANCH].assert_not_called()
+                published = (self.published_reports(), self.github.label_history)
+                self.assertEqual((self.pinned(), self.github.write_state_calls, *published), before)
+                with _fix_world.author_policy():
+                    self.dispatched(**_held.COMMITTED)
+                self.assertEqual(len(self.published_reports()), 1)
+                self.assertGreaterEqual(self.pinned()[_PR_READER], _QUOTED_FEEDBACK_ID)
 
     def test_moves_while_held_retire_it(self) -> None:
         # An edit of the body, the checkout reset off the commit reported on,
@@ -311,7 +319,28 @@ class QuotedThreadTest(unittest.TestCase, _held.HeldDriftTicks):
 
 
 class UnreadStatusTest(unittest.TestCase, _held.HeldDriftTicks):
-    """A recovery whose status read establishes nothing about the tree keeps the capture for a reading that returns."""
+    """A recovery whose readings of the checkout establish nothing keeps the capture or answers it as captured."""
+
+    def test_a_lost_head_still_publishes_the_commit(self) -> None:
+        # The checkout reads as the commit the capture names when the
+        # recovery is admitted, and will not read once behind that: the
+        # disposition still answers the commit the run left -- published
+        # once under its report and handed back to `validating` -- rather
+        # than reading the run as a report with no code and parking owing it.
+        self.seeded(ISSUE, PR, LABEL_IN_REVIEW)
+        self.held_drift(world.reported())
+        self.unheld(**_held.LOST_ONCE)
+        finished = self.pinned()
+        self.assertEqual(
+            (
+                _fixes.stage_of(finished),
+                len(self.published_reports()),
+                self.pull_request.head.sha,
+                finished.get("park_reason"),
+                self.github.label_history,
+            ),
+            (_fixes.HANDED_OFF, 1, world.FIXED_HEAD, None, [(ISSUE, LABEL_VALIDATING)]),
+        )
 
     def test_an_unread_status_keeps_it(self) -> None:
         # The status of the checkout the commit, or a report alone, would go

@@ -39,6 +39,13 @@ UNMOVED = _fixes.UNMOVED
 
 READING = _fixes.READING
 
+# A recovery whose checkout reads as the commit the held run left at its
+# admission and once behind it, will not read the time after, and reads as
+# that commit again from then on.
+LOST_ONCE = MappingProxyType({
+    **COMMITTED, world.HEAD_SHAS: (world.FIXED_HEAD, world.FIXED_HEAD, "", world.FIXED_HEAD),
+})
+
 # The head a human resets the checkout onto while the issue is held, and the
 # one somebody pushes onto the pull request meanwhile.
 MOVED_HEAD = "d" * len(world.FIXED_HEAD)

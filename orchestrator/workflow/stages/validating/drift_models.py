@@ -49,3 +49,8 @@ class _ValidatingDriftRun:
     # publication spends what that park owes. None is the body edit's own
     # next round, read as the run is finished.
     spends: _Spends | None = None
+    # The head the run left, where its caller already knows it: a recovery's
+    # captured source, which the admission read the checkout as, so a head
+    # that will not read again behind it cannot recast a commit as a report
+    # with no code. None is read off the checkout as the run is finished.
+    after_sha: str | None = None

@@ -105,6 +105,10 @@ class _DriftResume:
     its capture froze and hands the carry the comments that prompt quoted on
     either surface, read back over the stretches the capture froze. None on a
     live tick, whose carry is handed the record it settled.
+
+    `after_sha` is the head the run left, where the caller already knows it:
+    a recovery's captured source, which the admission read the checkout as.
+    None is read off the checkout as the run is disposed.
     """
     worktree: Any
     dev_result: Any
@@ -112,6 +116,7 @@ class _DriftResume:
     before_sha: Any
     delivery: _delivery.PromptDeliverySnapshot
     carried: _delivery.PromptDeliverySnapshot | None = None
+    after_sha: str | None = None
 
     @property
     def requirements_revision(self) -> str:
