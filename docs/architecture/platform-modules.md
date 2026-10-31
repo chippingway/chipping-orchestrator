@@ -497,6 +497,10 @@ orchestrator/
                         behind every read, so a rotation run under the read reads them all again rather than
                         answering an absence; a copy or a directory that would not read, or copies still moving
                         after three readings, is no answer rather than an absence
+    edit_questions.py   the question a caller hands in for the length of its work -- whether an edit it is about to
+                        make still stands on what it read elsewhere -- held per execution context and asked by the
+                        strict edit behind its walk to the comment and immediately before the edit, an answer that
+                        it no longer stands sending nothing (`PinnedEdit.HELD`)
     events.py           audit event record construction and the optional JSONL sink, and whether an event a
                         caller may already have filed is on the stream -- the client's in-memory tail, then the
                         whole sink and its rotated copies (`event_log.py`) -- with a sink that would not read
@@ -609,7 +613,10 @@ orchestrator/
                         reader takes -- the named comment, or a refused one ahead of it a stale id would reach past --
                         parses and is refused admission (MOVED where it will not parse), and EDITED only where GitHub's
                         response carries the body sent -- a lost response, a refused request, and an answer carrying
-                        another body are all UNCONFIRMED, since the record may read either way. Its two requests
+                        another body are all UNCONFIRMED, since the record may read either way. Behind that walk
+                        and immediately before the edit it asks the caller's question (`edit_questions.py`), and
+                        answers HELD, with nothing sent, where that question says the edit no longer stands. Its
+                        two requests
                         are primitives the in-memory double overrides, so the double answers through this policy.
                         A state read from the comment or written over it remembers what the comment carried then
                         (`PinnedState.synced`), spelled as its JSON is and outside the record itself, so what a

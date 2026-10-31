@@ -45,7 +45,11 @@ into the delivery (`implementing/captured_report`), minted from what the
 capture kept and handed off in the very commit that records it, and recorded
 from the run as ever where no capture of it stands. A park that hands the
 report to nobody -- the loose tree beside a report with no commit -- withdraws
-the capture first, so the reply answering it is captured afresh.
+the capture first, so the reply answering it is captured afresh. The status of
+the checkout a captured run's commit goes out from is read ahead of that
+transfer (`_proved_ahead_of_the_handoff`), so a status that establishes
+nothing keeps the capture for a reading that returns rather than parking past
+a report already handed off.
 
 Nothing is bound here. What happens to the report once it is recorded -- bound
 to the publication and settled, `report_settlement`'s, asked by the caller once
@@ -54,6 +58,8 @@ its own bookkeeping is written, or held in front of the reviewer until it is,
 stands beside a label still claiming the approval it made stale.
 """
 from __future__ import annotations
+
+from dataclasses import replace
 
 from github.Issue import Issue
 
@@ -161,6 +167,34 @@ def _records_the_run(
         _UNFINISHED_PARK.format(mentions=config.HITL_MENTIONS),
     )
     return True
+
+
+def _proved_ahead_of_the_handoff(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    run: _models._DevFixRun,
+) -> _models._DevFixRun | None:
+    """The publishable run, its checkout's status read ahead of its capture's handoff; None where that holds the tick.
+
+    The report is recorded ahead of the gate and the push, and a run whose
+    own capture stands pending records it by handing that capture on -- the
+    baseline and what its road settles riding the same commit. A status read
+    only behind that handoff that establishes nothing would then park over a
+    report already handed off, with nothing left for a reading that returns
+    to finish. So the status is read first: one that establishes nothing
+    keeps the capture and holds the tick, nothing written, for the next
+    dispatch to read again (`parks_beside_the_capture`); any other rides the
+    run, for the publication to prove the tree on that very reading. A run
+    with no capture of its own is recorded and proved as ever.
+    """
+    if not _captured_report.holds_the_capture(state, run.agent_result):
+        return run
+    tree = _worktree_status._worktree_status(run.worktree)
+    if tree.readable or tree.paths:
+        return replace(run, tree=tree)
+    _captured_report.parks_beside_the_capture(gh, issue, state, run.agent_result, unread=True)
+    return None
 
 
 def _withholds_the_stranded(state: PinnedState, run: _models._DevFixRun) -> bool:

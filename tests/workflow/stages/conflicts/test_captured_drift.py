@@ -12,7 +12,8 @@ caller proved, the head the body edit began at or the pull request's own head
 ahead of the reply -- and hands a pushed round to `validating` once, counted
 once; a report with no commit settles on the head the pull request carries and
 leaves the issue here. A push meanwhile retires the capture rather than
-adopting the moved head as the lease.
+adopting the moved head as the lease, and a head or a status that will not
+read keeps it for the dispatch whose reading returns.
 """
 from __future__ import annotations
 
@@ -41,6 +42,15 @@ _HOLDS = tuple(product((_fixes.PAUSED, _fixes.BACKLOG), (True, False)))
 _READ_THEN_LOST = (world.FIXED_HEAD, world.FIXED_HEAD, "")
 
 _UNREAD_BEHIND = MappingProxyType({**_held.COMMITTED, world.HEAD_SHAS: _READ_THEN_LOST})
+
+# The readings a recovery cannot take, each beside whether the held run
+# committed: that head, and a status that establishes nothing about the tree
+# the commit or a report alone would go out from.
+_UNREAD = (
+    ("a head lost behind the admission", True, _UNREAD_BEHIND),
+    ("a status beside a commit", True, MappingProxyType({**_held.COMMITTED, "tree_readable": False})),
+    ("a status beside a report alone", False, MappingProxyType({**_held.UNMOVED, "tree_readable": False})),
+)
 
 # A developer that committed and wrote no report, which parks the body edit's
 # resume owing one.
@@ -129,19 +139,22 @@ class HeldConflictDriftTest(unittest.TestCase, HeldConflictDriftTicks):
             (_fixes.RETIRED, launched, []),
         )
 
-    def test_an_unread_head_keeps_it(self) -> None:
+    def test_unread_readings_keep_it(self) -> None:
         # The head the recovery reads behind its admission will not read
-        # once: that is no proof against the commit the capture names, so
-        # the capture is kept with nothing settled, parked, pushed, or
-        # counted, and the dispatch whose head reads publishes it once.
-        self.seeded_on_conflict()
-        self.held_drift(world.reported())
-        before = (self.pinned(), self.github.write_state_calls)
-        unread = self.unheld(**_UNREAD_BEHIND)
-        unread[_fixes.PUSH_BRANCH].assert_not_called()
-        self.assertEqual((self.pinned(), self.github.write_state_calls), before)
-        self._leased(self.dispatched(**_held.COMMITTED), committed=True)
-        self._finished(committed=True)
+        # once, or the status of the checkout the commit or a report alone
+        # would go out from establishes nothing: neither is a proof against
+        # the capture nor a loose tree, so it is kept with nothing settled,
+        # parked, pushed, or counted, and the dispatch whose readings return
+        # publishes it once on its own lease.
+        for name, committed, unread in _UNREAD:
+            with self.subTest(name):
+                self.seeded_on_conflict()
+                self.held_drift(world.reported(), committed=committed)
+                before = (self.pinned(), self.github.write_state_calls)
+                self.unheld(**unread)[_fixes.PUSH_BRANCH].assert_not_called()
+                self.assertEqual((self.pinned(), self.github.write_state_calls), before)
+                self._leased(self.dispatched(**_held.READING[committed]), committed=committed)
+                self._finished(committed=committed)
 
     def _leased(self, recovered, *, committed: bool) -> None:
         """A recovery that `committed` pushed once, leased against the head its caller proved; else nothing."""

@@ -634,8 +634,8 @@ settled -- a feedback round's frozen batch, reset round, and cleared bookmarks, 
 resume's frozen reading, recorded as the baseline only by its report's handoff or its stage's own write, beside the
 round its stage's drift disposition spends, resets, or hands on, the lease a conflict round's caller proved, and no
 baseline a dependency hold defers, its handoff or withdrawal made only once its admission reads again behind every
-request that disposition and the write itself took, the guarded commit's own read of the comment last, right before
-its edit, and a status read that establishes nothing keeping it -- and its
+request that disposition and the write itself took, the strict edit's walk to the comment last, right before the
+edit goes out, and a status read that establishes nothing -- taken ahead of the handoff -- keeping it -- and its
 report goes through
 the existing delivery, size gate, and publication --
 a change request's retired in the very commit that hands its report on, and its round spent once,

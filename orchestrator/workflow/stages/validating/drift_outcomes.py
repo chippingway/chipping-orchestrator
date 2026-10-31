@@ -186,12 +186,20 @@ def _publishes_the_fix(
     process can die -- and the session that wrote it is already gone. Binding
     it to the publication the push left is the caller's, behind its own
     bookkeeping.
+
+    A run whose own capture stands pending has its checkout's status read
+    ahead of that capture's handoff, and the publication proves the tree on
+    that same reading; one that establishes nothing holds the tick with the
+    capture kept (`drift_reports._proved_ahead_of_the_handoff`).
     """
-    if run.handed is not None and _drift_reports._records_the_run(
-        gh, issue, state, run,
+    proved = _drift_reports._proved_ahead_of_the_handoff(gh, issue, state, run)
+    if proved is None:
+        return _state._OUTCOME_PARKED
+    if proved.handed is not None and _drift_reports._records_the_run(
+        gh, issue, state, proved,
     ):
         return _state._OUTCOME_PARKED
-    if not _dev_fix._publish_dev_fix(gh, spec, issue, state, run):
+    if not _dev_fix._publish_dev_fix(gh, spec, issue, state, proved):
         return _state._OUTCOME_PARKED
     return _state._OUTCOME_PUSHED
 

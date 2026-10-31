@@ -2149,17 +2149,19 @@ and handed off -- and this is what it guarantees and what stops it.
   run was handed as the baseline, and the commands a retry consumed -- then answers the run on its stage's own drift
   disposition, handed the reading reduced to that revision, so nothing later on the thread reads as delivered and
   the report carries none of that input. That disposition runs inside `implementing/captured_rereads.rereads`, which
-  hands the engine a question the guarded commit asks last of every edit, behind its own read of the comment and
-  immediately before the edit goes out (`engine/completion_questions`, `pinned_commit.commit`), answering for the edit
-  that moves the pending capture -- its transfer into the delivery, or its invalidation ahead of a park: every
-  reading a handoff's effect stands on is taken again there, behind every request the disposition and the write took
-  on the way -- a pull request fetched, a watermark carry over both comment surfaces, a remote fetch proving the tip
-  a publication replaces, the transfer's or invalidation's own read of the comment, and the guarded commit's -- and
-  the edit is refused with nothing sent (`moved_behind`) where it fails, so
+  hands the GitHub client a question its strict edit asks of every edit, behind its walk to the comment and
+  immediately before the edit goes out (`github/edit_questions`), answering for the edit that moves the pending
+  capture -- its transfer into the delivery, or its invalidation ahead of a park: every reading a handoff's effect
+  stands on is taken again there, behind every request the disposition and the write took on the way -- a pull
+  request fetched, a watermark carry over both comment surfaces, a remote fetch proving the tip a publication
+  replaces, the transfer's or invalidation's own read of the comment, the guarded commit's, and that walk last --
+  and the edit is held with nothing sent, refused to the guarded commit as `moved_behind`, where it fails, so
   a control, relabel, close, edit, checkout move, or push landing during them holds the capture with nothing
-  settled, pushed, or counted. A status read of the checkout that establishes nothing is no loose tree, and a head
-  that will not read behind the admission is no proof against the commit the capture names: in either the capture is
-  kept and the tick held rather than the report withdrawn or parked over. `implementing`'s publishes a commit -- or
+  settled, pushed, or counted. A status read of the checkout that establishes nothing is no loose tree -- and on the
+  drift roads' shared publication it is read ahead of the capture's handoff, the publication proving the tree on that
+  same reading (`validating/drift_reports._proved_ahead_of_the_handoff`) -- and a head that will not read behind the
+  admission is no proof against the commit the capture names: in either the capture is kept and the tick held rather
+  than the report handed on, withdrawn, or parked over. `implementing`'s publishes a commit -- or
   the commits the branch carries, for a report the issue owes -- through the stage's own publication and its handoff
   to review, and parks a report with nothing to carry it as the question it reads as, its capture withdrawn first
   (`implementing/captured_drift`).

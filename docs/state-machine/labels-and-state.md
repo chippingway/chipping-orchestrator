@@ -1156,7 +1156,9 @@ comment is not state — stops the write, so a stale id never reaches past a ref
 beside one (the strict edit answers `UNSUPPORTED`, or `MOVED` where that record will not parse; the whole-state write
 raises `RecordRefused`, from `github/pinned_refusal.py`, so its caller stops). The strict edit's walk also stops at a
 supported record ahead of the named comment — the one every reader now takes — and answers `MISSING`, editing neither,
-where the whole-state write walks on past it. Genuinely new pins are
+where the whole-state write walks on past it. Behind its walk, and immediately before the edit, the strict edit
+asks the question a caller handed in (`github/edit_questions.py`) and answers `HELD`, sending nothing, where it says
+the edit no longer stands. Genuinely new pins are
 stamped with `schema_version: 1` on their first write, and neither writer sends a state the next reading would refuse —
 another version, a value JSON cannot spell, or nesting past the recursion limit. Ordinary dispatch refuses an issue
 whose comment is refused admission before any guard or handler reads it
@@ -2069,9 +2071,9 @@ The keys that matter for the state machine fall into a few groups:
   which stages from the capture what its tick settled around the run -- the session, the park flag, the frozen
   reading's watermarks, which record the baseline -- and finishes it through that stage's own drift disposition, on
   the round it counts, resets, or hands on and, on `resolving_conflict`, the frozen lease, the capture handed on or
-  withdrawn only once its admission reads again behind every request that disposition took, the guarded commit's own
-  read of the comment last, right before its edit (`stages/implementing/captured_rereads.py`,
-  `completion_questions.py`, `pinned_commit.py`); and none for any other road
+  withdrawn only once its admission reads again behind every request that disposition took, the strict edit's walk
+  to the comment last, right before the edit goes out (`stages/implementing/captured_rereads.py`,
+  `github/edit_questions.py`); and none for any other road
   in this build, so that stage is held; stale -- its
   road's pull request, report debt, or adjudication gone among the proofs -- it is retired `invalidated` by a guarded
   commit owning the capture alone, its invocation kept, and held to the whole reading the proof was taken over, so a

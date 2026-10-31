@@ -1211,11 +1211,6 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             onto the caller as the comment's (a confirmed handoff's delivery included), and a write
                             never confirmed, or any answer over a comment that moved since the caller read it,
                             withholding the caller
-    completion_questions.py the question a recovery owner hands in for the length of its disposition, asked by the
-                            guarded commit (`pinned_commit.py`) behind its own read of the comment and immediately
-                            before each edit, answering for the edit that moves the pending capture -- its transfer
-                            or its invalidation -- and refusing it `MOVED_BEHIND` with nothing sent; per execution
-                            context, so a live tick and the dispatcher's own invalidation ask nothing
     completion_handoff.py   the transfer of a pending capture into the delivery: the report minted from the captured
                             outcome under the road's frozen terms and recorded through `report_delivery.py`'s own
                             write, the capture rewritten HANDED_OFF in that very commit, what the caller's road
@@ -4524,13 +4519,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reading reduced to its revision for the disposition behind it (`frozen_reading`); and
                             this stage's own recovery, answered on `drift_disposition.py`
       captured_rereads.py   the admission a recovery owner has read again immediately before its capture is handed
-                            to the delivery or withdrawn ahead of a park (`rereads`), handed to the engine as the
-                            question the guarded commit asks behind its own read of the comment, right before the
-                            edit moving the capture (`engine/completion_questions.py`): a control, relabel, close,
-                            edit, checkout move, or
-                            push landing during any request before them refuses the write, the state withheld and
-                            the tick held with nothing written; asked of no live tick, which honors the hold its
-                            run's return read
+                            to the delivery or withdrawn ahead of a park (`rereads`), handed to the GitHub client
+                            as the question its strict edit asks behind its walk to the comment, right before the
+                            edit moving the capture (`github/edit_questions.py`): a control, relabel, close, edit,
+                            checkout move, or push landing during any request before it -- that walk included --
+                            holds the edit with nothing sent, refused to the guarded commit as `MOVED_BEHIND`, the
+                            state withheld and the tick held; asked of no live tick, which honors the hold its run's
+                            return read
       candidate_recovery.py exact-commit recovery for approved and frozen work, timeout-commit evidence, and publication
                             through a proved clean tree and the size gate; a recovery hands on the candidate it proved.
                             The report the run wrote is recorded between the tree and the gate, the last moment it is
@@ -5763,7 +5758,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             which is then the lease and is never re-proved, so a pull request moved while the agent
                             was out is refused rather than adopted, and a rebase that reads to the proof as a remote
                             that moved still goes out; the tree proved in BOTH halves before the push, since the
-                            size gate's own proof rides the entry it freezes and `DECOMPOSE=off` freezes none,
+                            size gate's own proof rides the entry it freezes and `DECOMPOSE=off` freezes none --
+                            on the status the caller read ahead of a captured report's handoff where it read one
+                            (`models._DevFixRun.tree`) --
                             the size gate every fix route publishes through, told the
                             state the run really belongs to by the route that relabels before it spawns rather
                             than reading it off the issue object, the push and the approval it spends, the round
@@ -5878,8 +5875,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             or transaction an earlier run left describes the branch before the commits a later run
                             made, so the undescribed-work flag those commits leave is read first and the reply
                             that publishes them is the one that describes them. A run's own pending capture is
-                            what the recording hands to the delivery (`implementing/captured_report.py`), and the
-                            loose-tree park beside a report alone withdraws it first
+                            what the recording hands to the delivery (`implementing/captured_report.py`), the
+                            checkout's status read ahead of that handoff -- one that establishes nothing keeping
+                            the capture and holding the tick, any other riding the run for the publication to prove
+                            the tree on (`_proved_ahead_of_the_handoff`) -- and the loose-tree park beside a report
+                            alone withdraws it first
       fix_reports.py        that same contract for the `CHANGES_REQUESTED` run this stage spawns itself, which is
                             the half of the fix loop it owns -- every later round is `stages/fixing/reporting.py`'s,
                             holding it to the same contract and, while the report is owed, holding the readers,

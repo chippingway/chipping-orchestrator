@@ -11,9 +11,9 @@ commit, or onto the head the pull request carries -- and hands the issue back
 to `validating` with the round reset, exactly once, its baseline the
 requirements the run was handed. The pull-request feedback the run's prompt
 quoted is read once, as its own tick reads it; a comment posted on the pull
-request while it waits stays unread for the next scan, and an edit, a reset
-checkout, or a push meanwhile retires the capture instead of publishing the
-old output.
+request while it waits stays unread for the next scan, a status that
+establishes nothing keeps the capture, and an edit, a reset checkout, or a
+push meanwhile retires the capture instead of publishing the old output.
 """
 from __future__ import annotations
 
@@ -252,6 +252,30 @@ class HeldInReviewDriftTest(unittest.TestCase, _held.HeldDriftTicks):
             self.dispatched(held_under)
         self.assertIn(_QUOTED_FEEDBACK, held_under.call_args.args[1])
         self.assertEqual(_fixes.stage_of(self.pinned()), _fixes.PENDING)
+
+
+class UnreadStatusTest(unittest.TestCase, _held.HeldDriftTicks):
+    """A recovery whose status read establishes nothing about the tree keeps the capture for a reading that returns."""
+
+    def test_an_unread_status_keeps_it(self) -> None:
+        # The status of the checkout the commit, or a report alone, would go
+        # out from establishes nothing: that is no loose tree, so the capture
+        # is kept with nothing written, settled, pushed, or relabelled, and
+        # the dispatch whose status reads finishes it once.
+        for committed in (True, False):
+            with self.subTest(committed=committed):
+                self.seeded(ISSUE, PR, LABEL_IN_REVIEW)
+                self.held_drift(world.reported(), committed=committed)
+                before = (self.pinned(), self.github.write_state_calls, [])
+                unread = self.unheld(**_held.READING[committed], tree_readable=False)
+                unread[_fixes.PUSH_BRANCH].assert_not_called()
+                kept = (self.pinned(), self.github.write_state_calls, self.github.label_history)
+                self.assertEqual(kept, before)
+                self.dispatched(**_held.READING[committed])
+                self.assertEqual(
+                    (len(self.published_reports()), self.github.label_history),
+                    (1, [(ISSUE, LABEL_VALIDATING)]),
+                )
 
 
 if __name__ == "__main__":

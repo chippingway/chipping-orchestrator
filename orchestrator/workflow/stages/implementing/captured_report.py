@@ -59,10 +59,11 @@ takes neither (`parks_beside_the_capture`): the capture still holds a report
 the next tick may prove, so it is kept and the tick held with nothing written.
 
 On a recovery, both the transfer and the withdrawal ask the capture's
-admission again behind their own read of the comment and every request the
-disposition took on the way (`captured_rereads`), so a control, a relabel, an
-edit, or a push landing during those requests hands on and retires nothing:
-the write is refused as MOVED_BEHIND, the state withheld, the tick held.
+admission again behind every request the disposition and the write took on
+the way, the strict edit's walk to the comment last (`captured_rereads`), so
+a control, a relabel, an edit, or a push landing during those requests hands
+on and retires nothing: the write is refused as MOVED_BEHIND, the state
+withheld, the tick held.
 """
 from __future__ import annotations
 
@@ -187,6 +188,11 @@ def parks_beside_the_capture(
         issue.number, pending.invocation.ordinal, pending.invocation.nonce,
     )
     return False
+
+
+def holds_the_capture(state: _pinned_state.PinnedState, agent_result: AgentResult) -> bool:
+    """Whether `state` carries the pending capture of the very process `agent_result` came from."""
+    return _pending_of(state, agent_result) is not None
 
 
 def captured_source(state: _pinned_state.PinnedState) -> str:
