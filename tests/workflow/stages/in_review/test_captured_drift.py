@@ -17,8 +17,10 @@ from __future__ import annotations
 
 import unittest
 from itertools import product
+from unittest.mock import patch
 
-from tests.support.fakes import FakeComment, FakeUser
+from orchestrator.workflow.stages.in_review import surfaces as _surfaces
+from tests.support.fakes import FakeComment, FakeLabel, FakeUser
 from tests.workflow import captured_drifts as _held, captured_fixes as _fixes, drift_reports as world
 from tests.workflow.fixtures import LABEL_IN_REVIEW, LABEL_VALIDATING
 
@@ -35,6 +37,23 @@ _SPENT_ROUNDS = 2
 
 # A reviewer's comment posted on the pull request while the issue is held.
 _LATE_FEEDBACK_ID = 70_000
+
+
+class _HeldDuringTheCarry:
+    """The carry's read of both IssueComment surfaces, during which an operator applies `control` to the issue once."""
+
+    def __init__(self, case, control: str) -> None:
+        self._case = case
+        self._control = control
+        self._reads = _surfaces._issue_space_above
+        self.applied = False
+
+    def __call__(self, *args, **kwargs):
+        """Apply the control as the first read goes on, then answer as that read does."""
+        if not self.applied:
+            self._case.issue.labels.append(FakeLabel(self._control))
+            self.applied = True
+        return self._reads(*args, **kwargs)
 
 
 def _finished(case) -> dict:
@@ -84,6 +103,32 @@ class HeldInReviewDriftTest(unittest.TestCase, _held.HeldDriftTicks):
                     "requirements": world.handed_revision(self.issue),
                     "source": world.FIXED_HEAD if committed else world.PUBLISHED_HEAD,
                 })
+
+    def test_a_control_during_the_carry_holds_it(self) -> None:
+        # An operator holds the issue again while the recovery's carry reads
+        # the thread and the pull request's conversation, under either
+        # control: the issue read again behind those reads holds the capture,
+        # with nothing settled, pushed, published, or relabelled; once that
+        # control comes off too, the next dispatch finishes it once.
+        for control in (_fixes.PAUSED, _fixes.BACKLOG):
+            with self.subTest(control=control):
+                self.seeded(ISSUE, PR, LABEL_IN_REVIEW)
+                self.held_drift(world.reported(), control)
+                self.lifts_the_control()
+                before = self.pinned()
+                held = _HeldDuringTheCarry(self, control)
+                with patch.object(_surfaces, "_issue_space_above", held):
+                    self.dispatched(**_held.COMMITTED)[_fixes.PUSH_BRANCH].assert_not_called()
+                self.assertTrue(held.applied)
+                self.assertEqual(
+                    (self.pinned(), self.published_reports(), self.github.label_history),
+                    (before, [], []),
+                )
+                self.unheld(**_held.COMMITTED)
+                self.assertEqual(
+                    (len(self.published_reports()), self.github.label_history),
+                    (1, [(ISSUE, LABEL_VALIDATING)]),
+                )
 
     def test_later_feedback_stays_unread(self) -> None:
         # A reviewer comments on the pull request while the issue is held:

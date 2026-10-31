@@ -2155,9 +2155,11 @@ and handed off -- and this is what it guarantees and what stops it.
   commit spending the round that road's own tick would -- the body edit's next round, or what the reply's park owes,
   nothing where an `in_review` hand-back reset the budget, told apart by the round the body edit also froze -- and a
   report alone going onto the head the pull request carries and spending none (`validating/captured_drift`).
-  `in_review`'s fetches the pull request and reads the issue, checkout, and head again behind it, a move holding the
-  capture, then stages the move to `validating` the edit owes and hands the issue back with the round reset; its
-  carry crosses only this orchestrator's posts and the delivered stretch, so the pull-request comments its prompt
+  `in_review`'s fetches the pull request, stages the move to `validating` the edit owes, and takes the early
+  watermark carry itself -- reads of both IssueComment surfaces -- then reads the issue, checkout, and head again
+  behind all of them, a control applied or a move made during any of them holding the capture with nothing written,
+  and only then hands the issue back with the round reset, through the disposition with that carry not taken again;
+  the carry crosses only this orchestrator's posts and the delivered stretch, so the pull-request comments its prompt
   quoted stay for the next scan (`in_review/captured_drift`). `resolving_conflict`'s publishes through the road the
   body edit and the report-owed reply share, leased against the head the run's caller proved, which its road froze as
   the head the run began on, a pushed round counted once and handed to `validating`, a report alone settled on the

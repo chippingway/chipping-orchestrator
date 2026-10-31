@@ -1629,7 +1629,11 @@ The keys that matter for the state machine fall into a few groups:
   refuses to publish against requirements the run never saw, the drift resume that edit earns writes the report that
   supersedes it, and without the join that report would settle leaving `review_round` unspent,
   `pending_fix_reviewer_comment_id` still set for a `/orchestrator continue` to replay stale reviewer feedback from,
-  and the human reply the fix round already answered reading as fresh feedback.
+  and the human reply the fix round already answered reading as fresh feedback. The one pair never joined is a
+  superseded record's `user_content_hash`: it is the revision THAT report was written against, not a boundary, and the
+  report superseding it answers requirements of its own -- settled as the baseline by its own road or named in its own
+  pair -- so carried on it would be written over the newer baseline when the later report settles, and the edit that
+  report answered would read as new again (`report_minting._boundaries`).
 
   It names no pull request,
   no branch and no commit, because none of those is settled until the code is published: the write that binds the

@@ -112,11 +112,15 @@ class HeldDriftTicks(world._DriftReportMixin):
                 self.dispatched()[_fixes.RUN_AGENT].assert_not_called()
                 self.assertEqual((self.pinned(), self.github.write_state_calls), before)
 
-    def unheld(self, **run_options):
-        """Take the control off and dispatch once; no agent may run."""
+    def lifts_the_control(self) -> None:
+        """Take the control the issue is held under off it."""
         for label in tuple(self.issue.labels):
             if label.name == self.control:
                 self.issue.labels.remove(label)
+
+    def unheld(self, **run_options):
+        """Take the control off and dispatch once; no agent may run."""
+        self.lifts_the_control()
         recovered = self.dispatched(**run_options)
         recovered[_fixes.RUN_AGENT].assert_not_called()
         return recovered

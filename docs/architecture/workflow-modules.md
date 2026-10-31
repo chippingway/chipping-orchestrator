@@ -1063,6 +1063,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             outstanding record owes has been written anywhere, and this record replaces it, so a
                             report minted on its own caller's pair alone settles leaving a round nobody spent,
                             bookmarks nobody cleared, and feedback a developer already answered reading as fresh.
+                            A superseded record's requirements baseline is the one pair never joined
+                            (`_boundaries`): it names the revision that report answered, and settled with a later
+                            one it would move the issue back onto requirements that report has left.
                             `MINTED_FROM` names the records all of that is read from, which recording it is decided on.
                             `minted_report` is that minting alone, from what one outcome contributes, and
                             `outcome_fields` that contribution unchecked, for a captured completion's transfer and the
@@ -5344,10 +5347,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             lands it on `workflow:validating` spends no round the edit has already paid for. The
                             resume is launched on the drift road over the issue thread's half of that record
                             (`implementing/drift_road.py`, `engine/drift_delivery._settled_half`)
-      captured_drift.py     the recovery of that resume's held capture: the pull request fetched and the issue,
-                            checkout, and head read again behind the fetch, the move to `workflow:validating` staged,
-                            and the run answered through `drift._dispose_drift_result` on the reading reduced to its
-                            revision, so its carry crosses only this orchestrator's posts and the delivered stretch
+      captured_drift.py     the recovery of that resume's held capture: the pull request fetched, the move to
+                            `workflow:validating` staged, and the early carry taken here, the issue, checkout, and
+                            head read again behind all of those requests, and the run answered through
+                            `drift._dispose_drift_result` with that carry not repeated (`carried`), on the reading
+                            reduced to its revision, so its carry crosses only this orchestrator's posts and the
+                            delivered stretch
       merge_gate.py         the unmergeable park -- bounded, since the scan that let the tick reach it ran several
                             round-trips ago -- and the gates in front of the one HITL ready-ping an approved, unvetoed
                             head earns per head SHA, which is no park and carries no mark; a fresh approval retires

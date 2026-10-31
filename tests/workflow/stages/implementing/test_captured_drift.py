@@ -16,12 +16,14 @@ retires the capture so the next dispatch answers the edit afresh.
 """
 from __future__ import annotations
 
+import contextlib
 import unittest
 from types import MappingProxyType
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from orchestrator.workflow.engine import content_hash as _content_hash
-from tests.support.fakes import FakeLabel
+from tests.support.fakes import FakeComment, FakeLabel, FakeUser
+from tests.workflow import captured_fixes as _fixes
 from tests.workflow.fixtures import AGENT_RUN_WRITES, Launched, _agent, _reported, accounted
 from tests.workflow.stages.implementing import held_capture_test_support as _held
 
@@ -37,6 +39,14 @@ _SESSION_PIN = MappingProxyType({"dev_agent": "claude", _held.SESSION_PIN: _SESS
 
 # A capture's stage, as its record spells it.
 _STAGE = "stage"
+
+# A park a human answers above, its conversation pinned under its command,
+# and the reply that answers it.
+_PARKED_AT = 900
+
+_PARKED = MappingProxyType({**_SESSION_PIN, "awaiting_human": True, "last_action_comment_id": _PARKED_AT})
+
+_REPLY = "use the existing helper instead"
 
 # A held return's writes: its charge and accounting, and its capture.
 _HELD_WRITES = AGENT_RUN_WRITES + 1
@@ -61,6 +71,11 @@ def _behind_the_notice(github) -> tuple:
     """What a held drift leaves published, from what `github` has taken so far: the one notice its road posts."""
     opened, relabelled, posted = _published(github)
     return (opened, relabelled, posted + 1)
+
+
+def _replied() -> FakeComment:
+    """A trusted human's reply above the park."""
+    return FakeComment(id=_PARKED_AT + 1, body=_REPLY, user=FakeUser("alice"))
 
 
 def _finished():
@@ -119,6 +134,27 @@ class HeldImplementingDriftTest(unittest.TestCase, _held.HeldCaptureTicks):
         resumed = self.dispatch(github, issue, _finished(), **_LEFT_A_COMMIT)[_held.RUN_AGENT]
         resumed.assert_called_once()
         self.assertIn(_LATER_BODY, resumed.call_args.args[1])
+
+    def test_a_superseded_report_hands_on_no_baseline(self) -> None:
+        # A reply's resume handed its captured report to the delivery, and the
+        # process was lost before the push, so that delivery waits unbound
+        # beside the baseline its reply settled. The body is then edited, and
+        # the drift resume's held report supersedes that delivery: published
+        # once, its settlement records the requirements the drift run was
+        # handed, never the older baseline the superseded report carried.
+        github, issue = self.seeded(**_PARKED)
+        issue.comments.append(_replied())
+        with patch.object(
+            github, "edit_pinned_state", _fixes.LostAtTheHandoff(github, _fixes.LANDED),
+        ), contextlib.suppress(SystemExit):
+            self.dispatch(github, issue, _finished(), has_new_commits=True)
+        superseded = github.pinned_data(_held.ISSUE)[_BASELINE]
+        issue.body = _EDITED_BODY
+        captured = self._held_drift(github, issue, head_shas=_held.LEFT)
+        handed = _held.capture_of(captured).handoff.requirements_revision
+        self.unpaused(github, issue)
+        self.assertNotEqual(handed, superseded)
+        self.assertEqual(self.published(github, revision=2)[_BASELINE], handed)
 
     def _held_drift(self, github, issue, control: str = _held.PAUSED, **seams) -> dict:
         """Dispatch the drift resume over `seams`, held under `control` as it runs; the record it left.

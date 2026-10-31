@@ -16,12 +16,15 @@ an `ACK:`, and a report with no commit hand the issue back to `validating`
 with `review_round` reset, the round accounting this stage keeps, and a park
 leaves that move owed for `validating`'s reply road.
 
-The disposition needs the pull request it reads, which is a request of its
-own behind the admission's readings, so every reading a handoff's effect
-stands on is taken again behind that fetch (`completion_effect.admitted_again`):
-a control applied, a label moved, a close, an edit, a checkout moved, or a
-push meanwhile holds the capture with nothing staged or written, for the next
-dispatch to decide afresh. A pull request that would not read holds it too.
+The disposition needs the pull request it reads, and the carry of the shared
+IssueComment cursor ahead of the report re-reads both surfaces, each a request
+of its own behind the admission's readings. So this owner fetches the pull
+request and takes that early carry itself, and every reading a handoff's
+effect stands on is taken again behind both (`completion_effect.admitted_again`)
+before the disposition runs without repeating the carry: a control applied, a
+label moved, a close, an edit, a checkout moved, or a push meanwhile holds the
+capture with nothing written, for the next dispatch to decide afresh. A pull
+request that would not read holds it too.
 
 What the run's prompt delivered is settled as the capture froze it -- the
 issue thread's half of the reading, as this road settles it -- and the carry
@@ -33,11 +36,17 @@ the next scan, delivered twice rather than marked read by nothing.
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 from pathlib import Path
 
 from orchestrator.workflow.engine import completion_effect as _effect, completion_recovery_models as _recovery_models
 from orchestrator.workflow.stages.implementing import captured_drift as _captured_drift
-from orchestrator.workflow.stages.in_review import drift as _drift, models as _models, state as _state
+from orchestrator.workflow.stages.in_review import (
+    drift as _drift,
+    models as _models,
+    state as _state,
+    watermarks as _watermarks,
+)
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -51,24 +60,29 @@ def recovers(admitted: _recovery_models.AdmittedCompletion) -> bool:
         return True
     rebuilt = _captured_drift.settled_resume(admitted)
     context.state.set(_state._HANDOFF_PENDING, True)
+    reading = _captured_drift.frozen_reading(admitted)
+    _watermarks._bump_in_review_watermarks(context, delivered=reading)
+    again = _effect.admitted_again(admitted)
+    if again.admitted is None:
+        log.warning(
+            "issue=#%d moved while its captured drift resume's pull request and thread were read (%s: %s); "
+            "holding the tick with nothing written",
+            admitted.issue.number, again.standing, again.reason,
+        )
+        return True
     run = admitted.capture.run
-    _drift._dispose_drift_result(context, _models._DriftResume(
+    _drift._dispose_drift_result(replace(context, issue=again.admitted.issue), _models._DriftResume(
         worktree=Path(run.worktree),
         dev_result=rebuilt,
         paused=False,
         before_sha=run.before_sha,
-        delivery=_captured_drift.frozen_reading(admitted),
-    ))
+        delivery=reading,
+    ), carried=True)
     return True
 
 
 def _context(admitted: _recovery_models.AdmittedCompletion) -> _models._InReviewContext | None:
-    """The in_review tick's handles over the admitted reading, behind a pull request fetch it still stands behind.
-
-    None where the pull request would not read, or where the issue, its
-    checkout, or the pull request's head no longer answers as the admission
-    read them once that fetch is behind it; nothing is staged or written.
-    """
+    """The in_review tick's handles over the admitted reading, its pull request fetched; None where none read."""
     number = int(admitted.state.get(_PR_NUMBER))
     try:
         pull_request = admitted.gh.get_pr(number)
@@ -78,14 +92,4 @@ def _context(admitted: _recovery_models.AdmittedCompletion) -> _models._InReview
             admitted.issue.number,
         )
         return None
-    again = _effect.admitted_again(admitted)
-    if again.admitted is None:
-        log.warning(
-            "issue=#%d moved while its captured drift resume's pull request was fetched (%s: %s); holding the "
-            "tick with nothing written",
-            admitted.issue.number, again.standing, again.reason,
-        )
-        return None
-    return _models._InReviewContext(
-        admitted.gh, admitted.spec, again.admitted.issue, admitted.state, pull_request, number,
-    )
+    return _models._InReviewContext(admitted.gh, admitted.spec, admitted.issue, admitted.state, pull_request, number)

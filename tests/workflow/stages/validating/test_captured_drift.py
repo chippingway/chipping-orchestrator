@@ -315,9 +315,7 @@ class LostHandoffTest(unittest.TestCase, _held.HeldDriftTicks):
 
     def _lost_at_the_handoff(self, lost: str) -> None:
         """Take the control off and dispatch the recovery, losing its process or its answer at the handoff."""
-        for label in tuple(self.issue.labels):
-            if label.name == self.control:
-                self.issue.labels.remove(label)
+        self.lifts_the_control()
         with patch.object(self.github, "edit_pinned_state", _fixes.LostAtTheHandoff(self.github, lost)):
             try:
                 self.dispatched(**_held.COMMITTED)

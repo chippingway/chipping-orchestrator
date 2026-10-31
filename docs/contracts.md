@@ -219,8 +219,8 @@ contract refuses -- is a damaged claim, never an absence, so nothing captures ov
 and no delivery is bound beside it. Its READY text and VERIFIED reference stay two outcomes, a rewritten-head refresh
 is captured only READY, and a change-request or pull-request-feedback road only beside the handoff it froze. A
 requirements-drift resume settles the input it was handed for itself, so the report its capture becomes carries none
-of it, as the recording its own tick makes carries none: no requirements baseline rides a report onto one that later
-supersedes it.
+of it, as the recording its own tick makes carries none, and no report hands its requirements baseline on to one that
+supersedes it: the later report's settlement never writes an older baseline back.
 
 Unsupported input cannot serve as fresh work, current evidence, or authorization to publish or delete artifacts. Neither
 a format change nor a refusal grants permission to discard that input or the artifacts it names; the owning
