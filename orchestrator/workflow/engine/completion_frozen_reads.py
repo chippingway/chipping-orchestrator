@@ -33,9 +33,11 @@ reason it was allowed are read off, on whichever stage it ran
 the settled report pair above, the review and conflict rounds its outcome
 counts or resets, and the report debt, the fresh budget an `in_review`
 hand-back reset, the open drift claim, and the round `validating` stood down
-for, each a flag its writers set to `true` or clear to `null`. A round reads
-as a whole count or unset and a flag as `true`, `false`, or `null`; anything
-else is damage, never a round counted or a claim taken since.
+for, each a flag its writers set to `true` or clear to `null` -- the round
+stood down for also held as the reply that bought it. A round reads as a
+whole count or unset and a flag as `true`, `false`, or `null`, or that
+reply's spelling; anything else is damage, never a round counted or a claim
+taken since.
 """
 from __future__ import annotations
 
@@ -101,13 +103,19 @@ _ROUNDS = ("review_round", "conflict_round")
 # budget an `in_review` hand-back reset, as `report_delivery` spells them, the
 # drift the validating stage holds open across a park, and the round it stood
 # down for, as `stages/validating/state` does.
+_STOOD_DOWN_FOR = "validating_reviewer_owes_a_round"
+
 _DRIFT_FLAGS = (
     "developer_report_owed",
     "developer_report_unreported_work",
     "developer_report_owed_round_reset",
     "requirements_drift_open",
-    "validating_reviewer_owes_a_round",
+    _STOOD_DOWN_FOR,
 )
+
+# What else the round `validating` stood down for may hold, as that stage
+# spells it: a round a reply bought rather than an edit nobody delivered.
+_BOUGHT_BY_A_REPLY = "bought_by_a_reply"
 
 
 def settled_report_reads(state: PinnedState) -> bool:
@@ -167,15 +175,16 @@ def _drift_reads(field: str, state: PinnedState) -> bool:
     """Whether one round or claim a drift resume froze reads as its writers leave it.
 
     A round is a whole count, never a `bool`, and a claim `true`, `false`, or
-    cleared to `null`; unset reads as either's resting state. Anything else
-    is damage, never a round counted or a claim taken since.
+    cleared to `null` -- the round `validating` stood down for also the
+    spelling of one a reply bought; unset reads as either's resting state.
+    Anything else is damage, never a round counted or a claim taken since.
     """
     recorded = state.get(field)
     if recorded is None:
         return True
     if field in _ROUNDS:
         return _formats.whole_number(recorded) and recorded >= 0
-    return isinstance(recorded, bool)
+    return isinstance(recorded, bool) or (field == _STOOD_DOWN_FOR and recorded == _BOUGHT_BY_A_REPLY)
 
 
 def _reader_reads(field: str, state: PinnedState) -> bool:

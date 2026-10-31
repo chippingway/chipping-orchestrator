@@ -1210,7 +1210,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             identity that reads -- and the four answers it comes to, what landed or was read back laid
                             onto the caller as the comment's (a confirmed handoff's delivery included), and a write
                             never confirmed, or any answer over a comment that moved since the caller read it,
-                            withholding the caller
+                            withholding the caller; a handoff's and an invalidation's read asking a recovery's
+                            question behind it, refused `MOVED_BEHIND` where its admission no longer stands
+    completion_questions.py the question a recovery owner hands in for the length of its disposition, asked by a
+                            capture's transfer and its invalidation immediately before their commit -- per execution
+                            context, so a live tick and the dispatcher's own invalidation ask nothing
     completion_handoff.py   the transfer of a pending capture into the delivery: the report minted from the captured
                             outcome under the road's frozen terms and recorded through `report_delivery.py`'s own
                             write, the capture rewritten HANDED_OFF in that very commit, what the caller's road
@@ -4517,11 +4521,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reading reduced to its revision for the disposition behind it (`frozen_reading`); and
                             this stage's own recovery, answered on `drift_disposition.py`
       captured_rereads.py   the admission a recovery owner has read again immediately before its capture is handed
-                            to the delivery or withdrawn ahead of a park, behind every request its stage's
-                            disposition took first (`rereads`, asked by `captured_report.py` through `holds`): a
-                            control, relabel, close, edit, checkout move, or push landing meanwhile withholds the
-                            state and holds the tick with nothing written; per execution context, and asked of no
-                            live tick, which honors the hold its run's return read
+                            to the delivery or withdrawn ahead of a park (`rereads`), handed to the engine as the
+                            question both writes ask behind their own read of the comment
+                            (`engine/completion_questions.py`): a control, relabel, close, edit, checkout move, or
+                            push landing during any request before them refuses the write, the state withheld and
+                            the tick held with nothing written; asked of no live tick, which honors the hold its
+                            run's return read
       candidate_recovery.py exact-commit recovery for approved and frozen work, timeout-commit evidence, and publication
                             through a proved clean tree and the size gate; a recovery hands on the candidate it proved.
                             The report the run wrote is recorded between the tree and the gate, the last moment it is

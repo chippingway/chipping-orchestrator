@@ -2069,8 +2069,8 @@ The keys that matter for the state machine fall into a few groups:
   which stages from the capture what its tick settled around the run -- the session, the park flag, the frozen
   reading's watermarks, which record the baseline -- and finishes it through that stage's own drift disposition, on
   the round it counts, resets, or hands on and, on `resolving_conflict`, the frozen lease, the capture handed on or
-  withdrawn only once its admission reads again behind every request that disposition took
-  (`stages/implementing/captured_rereads.py`); and none for any other road
+  withdrawn only once its admission reads again behind every request that disposition took, the write's own read of
+  the comment last (`stages/implementing/captured_rereads.py`, `completion_questions.py`); and none for any other road
   in this build, so that stage is held; stale -- its
   road's pull request, report debt, or adjudication gone among the proofs -- it is retired `invalidated` by a guarded
   commit owning the capture alone, its invocation kept, and held to the whole reading the proof was taken over, so a

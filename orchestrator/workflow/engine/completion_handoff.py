@@ -132,7 +132,7 @@ def transfer(
     what it retires included, is laid onto `state` as the comment carries it.
     """
     commit = _commits.CompletionCommit(gh, issue, state, invocation)
-    fresh = commit.fresh()
+    fresh = commit.fresh(asked=True)
     if isinstance(fresh, _commits.CheckpointOutcome):
         return fresh
     captured = _state.read(fresh)

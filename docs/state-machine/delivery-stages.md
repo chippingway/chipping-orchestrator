@@ -2050,7 +2050,7 @@ and handed off -- and this is what it guarantees and what stops it.
   handoff its settlement wrote, and the `pending_fix_*_ids` lists and the pull request's three readers a pull request's
   feedback round froze, each a list of whole ids, a whole id, or cleared to `null`, and the review and conflict rounds
   and the report debt, round-reset, open-drift, and stood-down-for claims a drift resume froze, each a whole count or a
-  flag, or cleared to `null`), and for a late record the late
+  flag, or cleared to `null`, the stood-down-for round also as the reply that bought it), and for a late record the late
   domain's check of that very
   field: the measurement evidence, the publication group, a hold's route bookkeeping --
   takes its new spelling, and a move of one no reader is registered for holding it, a late record none of those checks
@@ -2148,10 +2148,12 @@ and handed off -- and this is what it guarantees and what stops it.
   as above, the park flag the resume takes down, the frozen reading's watermarks, which record the requirements the
   run was handed as the baseline, and the commands a retry consumed -- then answers the run on its stage's own drift
   disposition, handed the reading reduced to that revision, so nothing later on the thread reads as delivered and
-  the report carries none of that input. That disposition runs inside `implementing/captured_rereads.rereads`: the
-  capture is handed to the delivery, or withdrawn ahead of a park, only once every reading a handoff's effect stands
-  on is taken again immediately before it, behind every request the disposition took on the way -- a pull request
-  fetched, a watermark carry over both comment surfaces, a remote fetch proving the tip a publication replaces -- so
+  the report carries none of that input. That disposition runs inside `implementing/captured_rereads.rereads`, which
+  hands the engine a question the transfer into the delivery and the invalidation ahead of a park each ask last,
+  behind their own read of the comment and immediately before their commit (`engine/completion_questions`): every
+  reading a handoff's effect stands on is taken again there, behind every request the disposition and the write took
+  on the way -- a pull request fetched, a watermark carry over both comment surfaces, a remote fetch proving the tip
+  a publication replaces, the write's own pinned read -- and the write is refused (`moved_behind`) where it fails, so
   a control, relabel, close, edit, checkout move, or push landing during them holds the capture with nothing
   settled, pushed, or counted. A status read of the checkout that establishes nothing is no loose tree, and a head
   that will not read behind the admission is no proof against the commit the capture names: in either the capture is

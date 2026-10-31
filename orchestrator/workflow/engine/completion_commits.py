@@ -51,6 +51,7 @@ from orchestrator.agents.models import AgentInvocation
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import MAX_PINNED_BODY, PinnedState
 from orchestrator.workflow.engine import (
+    completion_questions as _questions,
     completion_records as _records,
     completion_state as _state,
     invocations as _invocations,
@@ -105,6 +106,9 @@ class CheckpointRefusal(enum.Enum):
     EVIDENCE_MOVED = "evidence_moved"
     # The report outcome earns no delivered report.
     UNRECORDABLE = "unrecordable"
+    # The recovery finishing the capture no longer stands on readings that
+    # admit it, asked right before the write (`completion_questions`).
+    MOVED_BEHIND = "moved_behind"
 
 
 @dataclass(frozen=True)
@@ -137,12 +141,17 @@ class CompletionCommit:
     state: PinnedState
     invocation: AgentInvocation
 
-    def fresh(self) -> PinnedState | CheckpointOutcome:
+    def fresh(self, *, asked: bool = False) -> PinnedState | CheckpointOutcome:
         """The caller's comment read afresh and admitted, bound to the invocation; or why it cannot be acted on.
 
         A comment that no longer reads as the one the caller read -- another
         road's write, a hand edit, a damaged claim, or one that would not read
         at all -- withholds the caller's state, whatever is answered over it.
+
+        `asked` is a write that hands the capture on or invalidates it, which
+        asks a recovery's question behind this very read (`completion_questions`):
+        a capture its recovery no longer stands on is refused (MOVED_BEHIND)
+        with nothing sent.
         """
         guard = _commit_models.PinnedCommit.capture(self.state)
         fresh = _pinned_commit.reread(self.gh, self.issue, guard)
@@ -151,6 +160,8 @@ class CompletionCommit:
         if isinstance(fresh, _commit_models.CommitOutcome):
             return self.refused(fresh.refusal)
         unbound = _unbound(fresh, self.invocation, self.issue.number)
+        if unbound is None and asked and not _questions.stands(self.invocation):
+            unbound = CheckpointRefusal.MOVED_BEHIND
         return fresh if unbound is None else self.refused(unbound)
 
     def standing(

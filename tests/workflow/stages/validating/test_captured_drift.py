@@ -25,6 +25,7 @@ from unittest.mock import patch
 
 from orchestrator import config
 from orchestrator.git.worktrees.models import ProbeAnswer
+from orchestrator.workflow.engine import completion_checkpoint as _checkpoint, completion_handoff as _handoff
 from orchestrator.workflow.state import WorkflowLabel
 from tests.support.fakes import FakeLabel
 from tests.workflow import captured_drifts as _held, captured_fixes as _fixes, drift_reports as world
@@ -62,6 +63,40 @@ _UNREAD = (
     ("a head that will not read", True, MappingProxyType({world.HEAD_SHAS: ("",)})),
     ("a status that will not read", False, MappingProxyType({"tree_readable": False})),
 )
+
+
+class _HeldAtTheTransfer:
+    """The capture's transfer into the delivery, as an operator applies `control` to the issue it is made on."""
+
+    def __init__(self, case, control: str) -> None:
+        self._case = case
+        self._control = control
+        self._transfer = _handoff.transfer
+        self.applied = False
+
+    def __call__(self, *args, **kwargs):
+        """Apply the control as the transfer begins, then make the transfer as asked."""
+        if not self.applied:
+            self._case.issue.labels.append(FakeLabel(self._control))
+            self.applied = True
+        return self._transfer(*args, **kwargs)
+
+
+class _HeldAtTheRetirement:
+    """The capture's guarded retirement, as an operator applies `control` to the issue it is made on."""
+
+    def __init__(self, case, control: str) -> None:
+        self._case = case
+        self._control = control
+        self._retire = _checkpoint.retire
+        self.applied = False
+
+    def __call__(self, *args, **kwargs):
+        """Apply the control as the retirement begins, then make the retirement as asked."""
+        if not self.applied:
+            self._case.issue.labels.append(FakeLabel(self._control))
+            self.applied = True
+        return self._retire(*args, **kwargs)
 
 
 class _HeldDuringTheFetch:
@@ -141,6 +176,47 @@ class HeldDriftTest(unittest.TestCase, _held.HeldDriftTicks):
                 self.assertEqual(self.pinned(), before)
                 self.unheld(**_held.COMMITTED)
                 self._finished(committed=True)
+
+    def test_a_control_at_the_transfer_holds_it(self) -> None:
+        # An operator holds the issue again as the transfer reads the
+        # comment it hands the capture off over, under either control: the
+        # admission read again behind that read refuses the handoff, with
+        # nothing settled, pushed, published, or counted; once that control
+        # comes off too, the next dispatch finishes it once.
+        for control in (_fixes.PAUSED, _fixes.BACKLOG):
+            with self.subTest(control=control):
+                self.seeded(ISSUE, PR, LABEL_VALIDATING)
+                self.held_drift(world.reported(), control)
+                self.lifts_the_control()
+                before = self.pinned()
+                transfer = _HeldAtTheTransfer(self, control)
+                with patch.object(_handoff, "transfer", transfer):
+                    recovered = self.dispatched(**_held.COMMITTED)
+                self.assertEqual(
+                    (transfer.applied, recovered[_fixes.PUSH_BRANCH].call_count, self.published_reports()),
+                    (True, 0, []),
+                )
+                self.assertEqual(self.pinned(), before)
+                self.unheld(**_held.COMMITTED)
+                self._finished(committed=True)
+
+    def test_a_control_at_the_withdrawal_holds_it(self) -> None:
+        # The recovered report alone meets loose work in the checkout, so its
+        # disposition withdraws the capture ahead of the tree's park; an
+        # operator holds the issue again as that withdrawal reads the
+        # comment, under either control: the admission read again behind
+        # that read refuses it, and nothing is retired, parked, or written.
+        for control in (_fixes.PAUSED, _fixes.BACKLOG):
+            with self.subTest(control=control):
+                self.seeded(ISSUE, PR, LABEL_VALIDATING)
+                self.held_drift(world.reported(), control, committed=False)
+                self.lifts_the_control()
+                before = (self.pinned(), self.github.write_state_calls)
+                retire = _HeldAtTheRetirement(self, control)
+                with patch.object(_checkpoint, "retire", retire):
+                    self.dispatched(**_held.UNMOVED, dirty_files=("scratch.txt",))
+                self.assertTrue(retire.applied)
+                self.assertEqual((self.pinned(), self.github.write_state_calls), before)
 
     def _finished(self, *, committed: bool) -> None:
         """One report published, of the requirements the run was handed, and the round spent by the commit alone."""
