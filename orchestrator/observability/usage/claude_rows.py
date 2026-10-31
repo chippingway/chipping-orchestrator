@@ -6,7 +6,8 @@ Every `assistant` frame repeats the usage its message's `message_start` event op
 one at the start of the message. Two other frames carry final counts: the `message_delta` stream event that closes a
 lead-thread message, naming it through its wrapper's `api_message_id`, and a subagent's hand-back, the lead thread's
 `tool_result` whose `tool_use_result.usage` is the usage of the message that closed the subagent. Which count a
-message keeps is settled on `claude_settlement`.
+message keeps is settled on `claude_settlement`; the lifetime each cache write counts under, and the scope of each row,
+are defined on `claude_requests`.
 """
 
 from __future__ import annotations
@@ -14,12 +15,11 @@ from __future__ import annotations
 from typing import Any
 
 from orchestrator.observability.usage import (
+    claude_requests,
     model_names,
     protocol,
     token_evidence,
 )
-
-ClaudeUsageRow = tuple[int, str, protocol.TokenBucket]
 
 _STREAM_EVENT = "stream_event"
 _MESSAGE_DELTA = "message_delta"
@@ -27,39 +27,34 @@ _TOOL_USE_RESULT = "tool_use_result"
 _MESSAGE_CONTENT: protocol.ModelPath = (protocol.MESSAGE, "content")
 
 
-def claude_usage_record(usage: dict[str, Any]) -> protocol.TokenBucket:
-    """The counts one usage block reports, by token class; a class it reports no count for has no key.
+def claude_usage_row(
+    ordinal: int,
+    model: str,
+    usage: dict[str, Any],
+    scope: str = claude_requests.MESSAGE,
+) -> claude_requests.ClaudeUsageRow:
+    """One usage block as a row: the counts it reports by token class -- a class it reports no count for has no key.
 
-    A missing class prices and sums as zero, while its absence is what tells it apart from a reported zero.
+    Its cache writes count under the lifetimes `claude_requests.cache_writes` reads, and a split contradicting the
+    aggregate marks the row. A missing class sums as zero and costs nothing, while its absence is what tells it apart
+    from a reported zero and, for an input or cache class, leaves the request's prompt size unestablished.
     """
-    flat_cache_write = usage.get("cache_creation_input_tokens")
-    if flat_cache_write is None:
-        cache_creation = usage.get("cache_creation")
-        cache_map = cache_creation if isinstance(cache_creation, dict) else {}
-        cache_write_five_min = token_evidence.first_count(
-            cache_map.get("ephemeral_5m_input_tokens"), usage.get("ephemeral_5m_input_tokens"),
-        )
-        cache_write_one_hour = token_evidence.first_count(
-            cache_map.get("ephemeral_1h_input_tokens"), usage.get("ephemeral_1h_input_tokens"),
-        )
-    else:
-        cache_write_five_min = token_evidence.reported_count(flat_cache_write)
-        cache_write_one_hour = None
-    return token_evidence.reported_counts({
+    writes, conflicting = claude_requests.cache_writes(usage)
+    counts = token_evidence.reported_counts({
         protocol.INPUT: token_evidence.first_count(usage.get(protocol.INPUT_TOKENS), usage.get("prompt_tokens")),
-        protocol.CACHE_WRITE_FIVE_MIN: cache_write_five_min,
-        protocol.CACHE_WRITE_ONE_HOUR: cache_write_one_hour,
+        **writes,
         protocol.CACHE_READ: token_evidence.first_count(
             usage.get("cache_read_input_tokens"), usage.get("cached_input_tokens"), usage.get("cache_read_tokens"),
         ),
         protocol.OUTPUT: token_evidence.first_count(usage.get(protocol.OUTPUT_TOKENS), usage.get("completion_tokens")),
     })
+    return claude_requests.ClaudeUsageRow(ordinal, model, counts, scope, conflicting)
 
 
 def claude_assistant_usage_row(
     index: int,
     event: dict[str, Any],
-) -> tuple[str, ClaudeUsageRow] | None:
+) -> tuple[str, claude_requests.ClaudeUsageRow] | None:
     if event.get(protocol.TYPE) != protocol.ASSISTANT:
         return None
     message = event.get(protocol.MESSAGE)
@@ -73,20 +68,21 @@ def claude_assistant_usage_row(
         message_id = str(index)
     return (
         str(message_id),
-        (index, model_names.claude_model_name(event), claude_usage_record(usage)),
+        claude_usage_row(index, model_names.claude_model_name(event), usage),
     )
 
 
 def claude_result_usage_row(
     index: int,
     event: dict[str, Any],
-) -> ClaudeUsageRow | None:
+) -> claude_requests.ClaudeUsageRow | None:
+    """The `result` frame's usage, a total over the lead thread's requests that establishes none of their sizes."""
     if event.get(protocol.TYPE) != protocol.RESULT_KEY:
         return None
     usage = event.get(protocol.USAGE)
     if not isinstance(usage, dict):
         return None
-    return index, model_names.claude_model_name(event), claude_usage_record(usage)
+    return claude_usage_row(index, model_names.claude_model_name(event), usage, claude_requests.RESULT_TOTAL)
 
 
 def claude_message_delta_output(event: dict[str, Any]) -> tuple[str, int] | None:
@@ -108,7 +104,7 @@ def claude_message_delta_output(event: dict[str, Any]) -> tuple[str, int] | None
 def claude_handback_usage_row(
     index: int,
     event: dict[str, Any],
-) -> tuple[str, ClaudeUsageRow] | None:
+) -> tuple[str, claude_requests.ClaudeUsageRow] | None:
     """The invocation a subagent hand-back answers, and the usage of the message that closed the subagent.
 
     A resumed subagent returns under the agent id it had before, so a hand-back is told apart by the call it
@@ -125,7 +121,7 @@ def claude_handback_usage_row(
         return None
     model = model_names.nonempty_string(handback.get("resolvedModel")) or protocol.UNKNOWN
     invocation = claude_tool_result_id(event) or str(index)
-    return invocation, (index, model, claude_usage_record(usage))
+    return invocation, claude_usage_row(index, model, usage)
 
 
 def claude_tool_result_id(event: dict[str, Any]) -> str | None:
@@ -145,8 +141,8 @@ def claude_tool_result_id(event: dict[str, Any]) -> str | None:
 
 def claude_result_usage_records(
     events: list[dict[str, Any]],
-) -> list[ClaudeUsageRow]:
-    usage_rows: list[ClaudeUsageRow] = []
+) -> list[claude_requests.ClaudeUsageRow]:
+    usage_rows: list[claude_requests.ClaudeUsageRow] = []
     for index, event in enumerate(events):
         usage_row = claude_result_usage_row(index, event)
         if usage_row is not None:

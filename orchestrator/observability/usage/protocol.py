@@ -20,6 +20,8 @@ CACHE_WRITE_TOKENS = "cache_write_tokens"
 CACHE_READ = "cache_read"
 CACHE_WRITE_FIVE_MIN = "cache_write_5m"
 CACHE_WRITE_ONE_HOUR = "cache_write_1h"
+# Cache writes a usage block reports no lifetime for; no rate prices them.
+CACHE_WRITE_UNKNOWN_LIFETIME = "cache_write_unknown_lifetime"
 CACHE_WRITE_THIRTY_MIN = "cache_write_30m"
 CACHE_WRITE_TWELVE_HOUR = "cache_write_12h"
 TOTAL_TOKEN_USAGE = "total_token_usage"

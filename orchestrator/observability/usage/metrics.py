@@ -74,7 +74,7 @@ def parse_claude_usage(stdout: str) -> UsageMetrics:
     metrics.apply_cost(
         event_stream.select_cost(
             event_stream.find_last_reported_cost(events),
-            claude_summary.estimate_total(aggregate.per_model),
+            claude_summary.estimate_total(records),
             bool(records),
         ),
     )

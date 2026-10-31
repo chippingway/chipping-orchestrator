@@ -21,6 +21,28 @@ from tests.observability.usage import (
 
 _ASSISTANT_FRAME = "assistant"
 _RESULT_FRAME = "result"
+# The subagent run's counts: its frames' input and cache counts, and `modelUsage`'s output total.
+_SUBAGENT_RUN_COUNTS = replace(
+    _capture.summed(
+        message.start
+        for message in (*_capture.SUBAGENT_RUN_LEAD_MESSAGES, *_capture.SUBAGENT_RUN_SUBAGENT_MESSAGES)
+    ),
+    output_tokens=_capture.SUBAGENT_RUN_MODEL_TOTALS.output_tokens,
+)
+# The prompt of the message closing the capture's subagent, at Opus 5.5's rates: it wrote five-minute entries.
+_HANDBACK_PROMPT_USD = (
+    _capture.SUBAGENT_RUN_HANDBACK.input_tokens * _usage_cases.OPUS_FIVE_FIVE_INPUT_RATE
+    + _capture.SUBAGENT_RUN_HANDBACK.cache_read_tokens * _usage_cases.OPUS_FIVE_FIVE_CACHE_READ_RATE
+    + _capture.SUBAGENT_RUN_HANDBACK.cache_write_tokens * _usage_cases.OPUS_FIVE_FIVE_FIVE_MINUTE_WRITE_RATE
+) / _usage_cases.TOKENS_PER_MILLION
+
+
+def _unreported(stdout: str) -> str:
+    """A captured run's frames, in their order, with the reported cost cut from the `result` frame."""
+    frames = [json.loads(line) for line in stdout.splitlines()]
+    for frame in frames:
+        frame.pop(_usage_cases.REPORTED_COST_FIELD, None)
+    return _jsonl.jsonl(*frames)
 
 
 class ClaudeUsageAggregationTest(unittest.TestCase):
@@ -40,6 +62,7 @@ class ClaudeUsageAggregationTest(unittest.TestCase):
                 usage=_claude.usage(
                     input=100,
                     cache_write=1000,
+                    cache_five_minute=1000,
                     cache_read=_usage_cases.TOKEN_COUNT_FIVE_THOUSAND,
                     output=_usage_cases.TOKEN_COUNT_TWO_HUNDRED,
                 ),
@@ -49,6 +72,7 @@ class ClaudeUsageAggregationTest(unittest.TestCase):
                 usage=_claude.usage(
                     input=_usage_cases.CLAUDE_FINAL_INPUT_TOKENS,
                     cache_write=_usage_cases.CLAUDE_FINAL_CACHE_WRITE_TOKENS,
+                    cache_five_minute=_usage_cases.CLAUDE_FINAL_CACHE_WRITE_TOKENS,
                     cache_read=_usage_cases.CLAUDE_FINAL_CACHE_READ_TOKENS,
                     output=_usage_cases.CLAUDE_FINAL_OUTPUT_TOKENS,
                 ),
@@ -198,15 +222,11 @@ class ClaudeCapturedUsageTest(unittest.TestCase):
         # which printed no frame, and what `modelUsage` reports beyond every
         # printed count is its first message's final output. Input and cache
         # counts stay the ones the `assistant` frames carry.
-        frames = _capture.summed(
-            message.start
-            for message in (*_capture.SUBAGENT_RUN_LEAD_MESSAGES, *_capture.SUBAGENT_RUN_SUBAGENT_MESSAGES)
-        )
         metrics = _metrics.parse_claude_usage(_capture.SUBAGENT_RUN_STDOUT)
         self.assertEqual(
             (_capture.TokenCounts.parsed(metrics), metrics.cost_usd, metrics.cost_source),
             (
-                replace(frames, output_tokens=_capture.SUBAGENT_RUN_MODEL_TOTALS.output_tokens),
+                _SUBAGENT_RUN_COUNTS,
                 _capture.SUBAGENT_RUN_COST_USD,
                 _usage_cases.REPORTED_COST_SOURCE,
             ),
@@ -229,25 +249,25 @@ class ClaudeCapturedUsageTest(unittest.TestCase):
             with self.subTest(label):
                 self.assertEqual(_capture.TokenCounts.parsed(_metrics.parse_claude_usage(unmatched_stdout)), expected)
 
-    def test_estimate_prices_the_final_output_counts(self) -> None:
-        # Repriced under a model with first-party rates, and cut of the
-        # `result` frame whose reported cost would take precedence.
-        repriced = _capture.MAIN_RUN_STDOUT.replace(_capture.MODEL, _usage_cases.OPUS_FOUR_SEVEN)
-        metrics = _metrics.parse_claude_usage(_jsonl.without_frames(repriced, _RESULT_FRAME))
-        totals = _capture.MAIN_RUN_TOTALS
-        # opus-4-7 rates: input=5, cw5m=6.25, cr=0.50, output=25 (per 1M);
-        # the flat cache-write count bills at the 5m rate.
-        expected = (
-            totals.input_tokens * 5
-            + totals.cache_write_tokens * _usage_cases.PRICE_RATE_SIX_AND_QUARTER
-            + totals.cache_read_tokens * 0.5
-            + totals.output_tokens * _usage_cases.PRICE_RATE_TWENTY_FIVE
-        ) / _usage_cases.TOKENS_PER_MILLION
-        self.assertEqual(
-            (_capture.TokenCounts.parsed(metrics), metrics.models, metrics.cost_source),
-            (totals, (_usage_cases.OPUS_FOUR_SEVEN,), _usage_cases.ESTIMATED_COST_SOURCE),
+    def test_estimates_price_each_lifetime(self) -> None:
+        # Cut of the reported cost, each message is priced at Opus 5.5's rates
+        # and each cache write at the lifetime its split reports: one hour on
+        # the lead threads, five minutes in the subagent. That is the CLI's own
+        # figure for the main run, and for the subagent run its figure less the
+        # prompt of the message closing the subagent, whose input and cache
+        # counts the run leaves out.
+        cases = (
+            (_capture.MAIN_RUN_STDOUT, _capture.MAIN_RUN_TOTALS, _capture.MAIN_RUN_COST_USD),
+            (_capture.SUBAGENT_RUN_STDOUT, _SUBAGENT_RUN_COUNTS, _capture.SUBAGENT_RUN_COST_USD - _HANDBACK_PROMPT_USD),
         )
-        _assertions.assert_cost(self, metrics, expected, places=_usage_cases.COST_ASSERT_PLACES)
+        for captured, totals, expected in cases:
+            with self.subTest(expected=expected):
+                metrics = _metrics.parse_claude_usage(_unreported(captured))
+                self.assertEqual(
+                    (_capture.TokenCounts.parsed(metrics), metrics.models, metrics.cost_source),
+                    (totals, (_capture.MODEL,), _usage_cases.ESTIMATED_COST_SOURCE),
+                )
+                _assertions.assert_cost(self, metrics, expected, places=_usage_cases.COST_ASSERT_PLACES)
 
     def test_streams_without_deltas_keep_fallbacks(self) -> None:
         # Without stream events, the start counts on a message's `assistant`

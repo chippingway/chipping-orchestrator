@@ -24,6 +24,7 @@ _METRICS_OWNER = "metrics"
 _OWNERS = (
     "agy_events",
     "agy_summary",
+    "claude_requests",
     "claude_rows",
     "claude_settlement",
     "claude_summary",

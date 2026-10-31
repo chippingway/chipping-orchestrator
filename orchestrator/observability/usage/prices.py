@@ -8,16 +8,17 @@ https://ai.google.dev/gemini-api/docs/pricing -- with each model page for the al
 to. Each rate tuple copies one row of its provider's page in that page's column order, a dash on the page being
 `None`, so a recheck compares them cell by cell.
 
-The active rows are Claude Opus 4 through 4.7, Sonnet 4 through 4.6, and Haiku 3.5 and 4.5, and OpenAI's GPT-5 through
-GPT-5.5 rows with their Codex and shut-down chat models. Every other row is dormant until its provider's accounting
-can price it: Claude Opus 4.8, 5, and 5.5, Sonnet 5 and 5.5, Fable 5 and 5.1, and Haiku 5.5; the GPT-5.6 and GPT-6
-families; and every Gemini row. The restricted Mythos and Daybreak (cyber) models carry no row: no captured stream
+Every Claude row is active -- Opus 4 through 5.5, Sonnet 4 through 5.5, Fable 5 and 5.1, and Haiku 3.5, 4.5, and
+5.5 -- since the Claude accounting (`claude_requests`) prices each API message on its own, at the lifetime each cache
+write was reported under, as each request is billed. OpenAI's GPT-5 through GPT-5.5 rows are active with their Codex
+and shut-down chat models. Every other row is dormant until its provider's accounting can price it: the GPT-5.6 and
+GPT-6 families, and every Gemini row. The restricted Mythos and Daybreak (cyber) models carry no row: no captured stream
 shows a harness emitting their IDs, and `gpt-5.6-cyber` is a moving alias for whichever cyber model is current, as is
 the bare `chat-latest`.
 
 An estimate priced from a table is a token-only list-price equivalent on that provider's API basis, carrying the
 `verified_on` date of every row it was priced at, as `cost_evidence` defines it -- never a subscription or credit
-charge.
+charge, nor a premium the rows do not list, such as a Claude request's fast-mode or data-residency multiplier.
 """
 
 from __future__ import annotations
@@ -78,11 +79,26 @@ _OPUS_FOUR_AND_FOUR_ONE = _claude((15, 18.75, 30, 1.5, 75))
 _SONNET_FOUR_TO_FOUR_SIX = _claude((3, 3.75, 6, 0.3, 15))
 
 CLAUDE_PRICES: tuple[price_catalogue.PriceRow, ...] = (
-    price_catalogue.PriceRow("claude-fable-5-1", _claude((10, 12.5, 20, 0.25, 50)), _VERIFIED_ON),
-    price_catalogue.PriceRow("claude-fable-5", _claude((10, 12.5, 20, 1, 50)), _VERIFIED_ON),
-    price_catalogue.PriceRow("claude-opus-5-5", _claude((4, 5, 8, 0.2, 20)), _VERIFIED_ON),
-    price_catalogue.PriceRow("claude-opus-5", _OPUS_FOUR_FIVE_TO_FIVE, _VERIFIED_ON),
-    price_catalogue.PriceRow("claude-opus-4-8", _OPUS_FOUR_FIVE_TO_FIVE, _VERIFIED_ON),
+    price_catalogue.PriceRow(
+        "claude-fable-5-1",
+        _claude((10, 12.5, 20, 0.25, 50)),
+        _VERIFIED_ON,
+        active=True,
+    ),
+    price_catalogue.PriceRow(
+        "claude-fable-5",
+        _claude((10, 12.5, 20, 1, 50)),
+        _VERIFIED_ON,
+        active=True,
+    ),
+    price_catalogue.PriceRow(
+        "claude-opus-5-5",
+        _claude((4, 5, 8, 0.2, 20)),
+        _VERIFIED_ON,
+        active=True,
+    ),
+    price_catalogue.PriceRow("claude-opus-5", _OPUS_FOUR_FIVE_TO_FIVE, _VERIFIED_ON, active=True),
+    price_catalogue.PriceRow("claude-opus-4-8", _OPUS_FOUR_FIVE_TO_FIVE, _VERIFIED_ON, active=True),
     price_catalogue.PriceRow("claude-opus-4-7", _OPUS_FOUR_FIVE_TO_FIVE, _VERIFIED_ON, active=True),
     price_catalogue.PriceRow("claude-opus-4-6", _OPUS_FOUR_FIVE_TO_FIVE, _VERIFIED_ON, active=True),
     price_catalogue.PriceRow(
@@ -106,8 +122,18 @@ CLAUDE_PRICES: tuple[price_catalogue.PriceRow, ...] = (
         aliases=("claude-opus-4-0",),
         active=True,
     ),
-    price_catalogue.PriceRow("claude-sonnet-5-5", _claude((2, 2.5, 4, 0.1, 10)), _VERIFIED_ON),
-    price_catalogue.PriceRow("claude-sonnet-5", _claude((2, 2.5, 4, 0.2, 10)), _VERIFIED_ON),
+    price_catalogue.PriceRow(
+        "claude-sonnet-5-5",
+        _claude((2, 2.5, 4, 0.1, 10)),
+        _VERIFIED_ON,
+        active=True,
+    ),
+    price_catalogue.PriceRow(
+        "claude-sonnet-5",
+        _claude((2, 2.5, 4, 0.2, 10)),
+        _VERIFIED_ON,
+        active=True,
+    ),
     price_catalogue.PriceRow("claude-sonnet-4-6", _SONNET_FOUR_TO_FOUR_SIX, _VERIFIED_ON, active=True),
     price_catalogue.PriceRow(
         "claude-sonnet-4-5-20250929",
@@ -128,6 +154,7 @@ CLAUDE_PRICES: tuple[price_catalogue.PriceRow, ...] = (
         _claude((0.1, 0.125, 0.2, 0.01, 0.5)),
         _VERIFIED_ON,
         tier=price_catalogue.RequestTier(_HAIKU_FIVE_FIVE_PROMPT_TIER, _claude((0.5, 0.625, 1, 0.05, 2.5))),
+        active=True,
     ),
     price_catalogue.PriceRow(
         "claude-haiku-4-5-20251001",
@@ -354,19 +381,30 @@ def claude_rates(model: str) -> protocol.RateMap | None:
 def claude_estimate(
     model: str,
     bucket: protocol.TokenBucket,
+    prompt_tokens: int | None,
 ) -> cost_evidence.CostContribution | None:
-    """The bucket priced at the model's Anthropic API list rates, or None when no active row prices the model.
+    """The bucket priced at the model's Anthropic API list rates, or None when nothing establishes its price.
 
-    Only the token classes the bucket reports a count for are priced, so a class it does not report costs nothing.
+    `prompt_tokens` is the prompt size of the one request the bucket counts, or None where it counts no request
+    whose size is known; a request-tiered model prices only a bucket with one, as `PriceRow.rates_for_request`
+    reads. Each class the bucket counts tokens of pays its own rate, so tokens of a class the rates do not
+    publish -- a cache write of unknown lifetime -- leave the estimate None rather than borrowing another class's
+    rate, while a class the bucket does not report, or reports zero of, costs nothing.
     """
     row = claude_row(model)
-    if row is None:
+    rates = None if row is None else row.rates_for_request(prompt_tokens)
+    amount = None if rates is None else _priced_amount(rates, bucket)
+    if row is None or amount is None:
         return None
-    amount = sum(
-        count * row.rates[token_class]
-        for token_class, count in bucket.items()
-    ) / protocol.TOKENS_PER_MILLION
     return cost_evidence.CostContribution(cost_evidence.ANTHROPIC_API_ESTIMATE, amount, (row.verified_on,))
+
+
+def _priced_amount(rates: protocol.RateMap, bucket: protocol.TokenBucket) -> float | None:
+    charged = {token_class: count for token_class, count in bucket.items() if count}
+    if not charged.keys() <= rates.keys():
+        return None
+    priced = (rates[token_class] * count for token_class, count in charged.items())
+    return sum(priced) / protocol.TOKENS_PER_MILLION
 
 
 def codex_row(model: str) -> price_catalogue.PriceRow | None:

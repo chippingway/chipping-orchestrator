@@ -20,6 +20,7 @@ it carries and an unknown overlap.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any
@@ -104,13 +105,20 @@ def non_overlapping_total(record: Mapping[str, Any]) -> int | None:
 
 
 def reported_count(raw: Any) -> int | None:
-    """The token count one raw usage field reports, or None when it reports none: absent, null, or not a number."""
+    """The token count one raw usage field reports, or None when it reports none: absent, null, or not a number.
+
+    An infinite or NaN value, a JSON number or a string spelling one, is no number a count can hold, so it reports
+    none rather than stopping the whole stream's parse.
+    """
+    number = raw
     if isinstance(raw, str):
         try:
-            return int(float(raw))
+            number = float(raw)
         except ValueError:
             return None
-    return int(raw) if isinstance(raw, (int, float)) else None
+    if isinstance(number, float):
+        return int(number) if math.isfinite(number) else None
+    return int(number) if isinstance(number, int) else None
 
 
 def first_count(*raw_counts: Any) -> int | None:

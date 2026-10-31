@@ -10,8 +10,9 @@ every cost surface records and reads back alike (``cost_evidence``,
 ``token_evidence``); the
 price catalogue, its dated rows and bounded model lookup, and the nested
 model-name lookup an estimate needs (``prices``, ``price_catalogue``,
-``model_names``); the per-provider frame decoding, settlement, and run summary
-the token counts come from (``claude_rows``, ``claude_settlement``,
+``model_names``); the per-provider frame decoding, settlement, request
+scoping, and run summary the token counts and estimates come from
+(``claude_rows``, ``claude_requests``, ``claude_settlement``,
 ``claude_summary``, ``codex_rows``, ``codex_summary``, ``agy_events``,
 ``agy_summary``); the shell scanning and
 command classification a codex skill reference is inferred from (``shell_segments``, ``skill_commands``,

@@ -59,17 +59,20 @@ is the denormalized `UsageMetrics` (`models`, `input_tokens`, `output_tokens`, `
 evidence objects are the ones the same run's `agent_exit` record carries. Each `turns[]` entry is one claude assistant
 turn (`turn` index, `model`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, an
 always-*estimated* `cost_usd` / `cost_source`, and that turn's own `cost_evidence` and `token_evidence`). A turn's cost
-is always an Anthropic API estimate, or `incomplete` with no amount: a run whose CLI reported its cost records that
+is always an Anthropic API estimate of its own message, each cache write at the lifetime its usage block reports, or
+`incomplete` with no amount where that message's price is unknown — an unpriced model, a cache write of no reported
+lifetime, a lifetime split contradicting its aggregate, or a Haiku 5.5 turn whose prompt the stream does not size: a
+run whose CLI reported its cost records that
 `cli-reported` amount in `run_usage` alone, so the run figure stays authoritative and the turns' estimates never
 replace it. The evidence shapes, `recorded_cost`, `reduce_costs`, and `non_overlapping_total` are described in
 [`usage.md`](usage.md#usage-parser); a record an earlier build wrote carries neither object and reads back with an
 `unknown` basis. Each billed `steps[]` entry (`assistant_message` / `tool_call`) carries
 the same `turn` index tying it to its turn, while a `tool_result` / `user_message` step is a turn *input* and omits
 `turn`. The only turns no step names are subagents' closing messages, which the stream prints only as their hand-backs'
-usage: each is numbered after every stepped turn and carries its output count alone, as
-[`usage.md`](usage.md#usage-parser) describes. `build_record` drops every empty / `None` field, so an absent prompt, an
-empty system prompt, a no-trigger skill set, codex's empty per-turn array, or a claude run's absent item accounting
-simply leaves its key off.
+usage: each is numbered after every stepped turn and carries its output count alone, priced only on a flat-rate
+model, as [`usage.md`](usage.md#usage-parser) describes. `build_record` drops every empty / `None` field, so an absent
+prompt, an empty system prompt, a no-trigger skill set, codex's empty per-turn array, or a claude run's absent item
+accounting simply leaves its key off.
 
 **Per-item accounting (`source_items`).** Beside the steps, a codex record carries the parser's [per-item
 accounting](usage.md): one `{item_id, item_type, disposition}` row per item the exec stream identified, in first-seen

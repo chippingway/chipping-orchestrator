@@ -116,7 +116,11 @@ unknown rather than inferred from another (a skill load is no evidence of its of
 query's SELECT list raises rather than reading as NULL. A current optional field's absence, an ID-less CLI run, an
 unpriced cost, and a malformed record's containment remain current answers. A usage estimate prices a model only through
 an active price-catalogue row naming its exact ID, documented alias, or published snapshot; an unknown version, an
-arbitrary suffix, or a dormant row is an unpriced cost, never another row's rates. A usage record states what its
+arbitrary suffix, or a dormant row is an unpriced cost, never another row's rates. A Claude estimate prices each usage
+row on its own, a run and its turns alike: a cache write at the lifetime its usage block reports as a whole number, a
+write it reports no lifetime for at neither lifetime's rate, a block whose lifetime split contradicts its aggregate at
+no rate at all, and a request-tiered rate only on one API message's own prompt, never on a `result` total or an
+output-only hand-back. A usage record states what its
 cost and counters mean in its `cost_evidence` and `token_evidence`, which `UsageMetrics`, each `TurnUsage`, the
 `agent_exit` record, and the trajectory `run_usage` serialize alike: a CLI-reported amount, an explicit zero included,
 outranks an estimate and is labelled CLI-reported, never a verified bill; an estimate is a token-only Standard API
@@ -263,6 +267,7 @@ or lost write interrupted are current state, not historical compatibility.
 [grouped reads](../tests/observability/analytics/query/test_rollup_breakdown_reads.py),
 [groups in Postgres](../tests/observability/analytics/sync/test_live_grouped_reads.py),
 [price catalogue](../tests/observability/usage/test_usage_price_catalogue.py),
+[Claude requests](../tests/observability/usage/test_usage_claude_requests.py),
 [cost evidence](../tests/observability/usage/test_usage_cost_evidence.py),
 [token evidence](../tests/observability/usage/test_usage_token_evidence.py),
 [recorded evidence](../tests/workflow/engine/test_usage_metrics.py),
