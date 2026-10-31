@@ -5,12 +5,22 @@
 from tests.observability.usage import usage_test_values as _usage_cases
 
 
-def usage(*, input: int = 0, cached: int = 0, output: int = 0) -> dict:
-    return {
+def usage(
+    *,
+    input: int = 0,
+    cached: int = 0,
+    output: int = 0,
+    cache_write: int | None = None,
+) -> dict:
+    """A usage block; `cache_write` adds the CLI's flat `cache_write_input_tokens`, omitted when None."""
+    block = {
         _usage_cases.INPUT_TOKENS_FIELD: input,
         "cached_input_tokens": cached,
         _usage_cases.OUTPUT_TOKENS_FIELD: output,
     }
+    if cache_write is not None:
+        block["cache_write_input_tokens"] = cache_write
+    return block
 
 
 def turn_complete(
@@ -19,11 +29,17 @@ def turn_complete(
     input: int = 0,
     cached: int = 0,
     output: int = 0,
+    cache_write: int | None = None,
 ) -> dict:
     frame = {_usage_cases.TYPE_FIELD: "turn_complete"}
     if model is not None:
         frame[_usage_cases.MODEL_FIELD] = model
-    frame[_usage_cases.USAGE_FIELD] = usage(input=input, cached=cached, output=output)
+    frame[_usage_cases.USAGE_FIELD] = usage(
+        input=input,
+        cached=cached,
+        output=output,
+        cache_write=cache_write,
+    )
     return frame
 
 

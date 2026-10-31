@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Codex cumulative usage-frame decoding and model selection."""
+"""Codex cumulative usage-frame decoding and model selection; `codex_requests` says what a frame's counts establish."""
 
 from __future__ import annotations
 
@@ -50,7 +50,12 @@ def nested_usage_field(
 
 
 def codex_usage_record(usage: dict[str, Any]) -> protocol.TokenBucket:
-    """The counts one usage block reports, by token class; a class it reports no count for has no key."""
+    """The counts one usage block reports, by token class; a class it reports no count for has no key.
+
+    The CLI prints `cache_write_input_tokens` without a lifetime, and as zero where the provider reported no write
+    count, so a zero establishes no writes and any other count is kept under the unknown lifetime: a positive one as
+    the block's writes, a negative one for the estimate to refuse rather than to read as no count at all.
+    """
     input_tokens = token_evidence.first_count(
         usage.get(protocol.INPUT_TOKENS), usage.get("prompt_tokens"), usage.get("total_input_tokens"),
     )
@@ -63,9 +68,11 @@ def codex_usage_record(usage: dict[str, Any]) -> protocol.TokenBucket:
     output_tokens = token_evidence.first_count(
         usage.get(protocol.OUTPUT_TOKENS), usage.get("completion_tokens"), usage.get("total_output_tokens"),
     )
+    cache_writes = token_evidence.reported_count(usage.get("cache_write_input_tokens"))
     return token_evidence.reported_counts({
         protocol.INPUT: input_tokens,
         protocol.CACHED: cached_tokens,
+        protocol.CACHE_WRITE_UNKNOWN_LIFETIME: cache_writes or None,
         protocol.OUTPUT: output_tokens,
     })
 
@@ -109,7 +116,7 @@ def last_stream_model(events: list[dict[str, Any]]) -> str | None:
 def last_codex_usage(
     usage_events: list[protocol.CodexUsageEvent],
 ) -> protocol.CodexUsageEvent:
-    """The last of `usage_events`, a token class it reports no count for read as zero."""
+    """The last of `usage_events`, an input, cached, or output class it reports no count for read as zero."""
     nothing_counted = {protocol.INPUT: 0, protocol.CACHED: 0, protocol.OUTPUT: 0}
     if not usage_events:
         return protocol.UNKNOWN, nothing_counted
