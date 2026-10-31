@@ -2153,10 +2153,11 @@ and handed off -- and this is what it guarantees and what stops it.
   on is taken again immediately before it, behind every request the disposition took on the way -- a pull request
   fetched, a watermark carry over both comment surfaces, a remote fetch proving the tip a publication replaces -- so
   a control, relabel, close, edit, checkout move, or push landing during them holds the capture with nothing
-  settled, pushed, or counted. A status read of the checkout that establishes nothing is no loose tree: the capture
-  is kept and the tick held rather than the report withdrawn. `implementing`'s publishes a commit -- or the commits
-  the branch carries, for a report the issue owes -- through the stage's own publication and its handoff to review,
-  and parks a report with nothing to carry it as the question it reads as, its capture withdrawn first
+  settled, pushed, or counted. A status read of the checkout that establishes nothing is no loose tree, and a head
+  that will not read behind the admission is no proof against the commit the capture names: in either the capture is
+  kept and the tick held rather than the report withdrawn or parked over. `implementing`'s publishes a commit -- or
+  the commits the branch carries, for a report the issue owes -- through the stage's own publication and its handoff
+  to review, and parks a report with nothing to carry it as the question it reads as, its capture withdrawn first
   (`implementing/captured_drift`).
   `validating`'s finishes the body edit and the reply to its drift park through the body edit's finishing helper, a
   commit spending the round that road's own tick would -- the body edit's next round, or what the reply's park owes,
@@ -6935,7 +6936,9 @@ measurement exists to prevent.
   checkout has moved off that head. A run that reports over a head nothing could read records nothing at all: no
   record could hold that report to a commit, so the issue parks `report_undeliverable` with the run's work marked
   undescribed, the recovered push refuses to carry out whatever the checkout holds by the next tick, and the reply's
-  report is the one published. A report written with a tool step still running is no finished run either: it parks
+  report is the one published -- save where the run's own capture still holds that report, which names the commit it
+  is about: the capture is kept and the tick held with nothing written or parked, for a reading that returns. A
+  report written with a tool step still running is no finished run either: it parks
   `agent_execution_failed`, as the question road parks such a run that reports nothing, and nothing is recorded,
   pushed, or published, over the head the run began on or a commit it left. An `ACK:` saves no report and leaves the
   record, and the earlier report parked. The reply's run is

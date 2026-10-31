@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import unittest
 from itertools import product
+from types import MappingProxyType
 
 from tests.workflow import (
     captured_drifts as _held,
@@ -34,6 +35,12 @@ _CONFLICT_ROUND = "conflict_round"
 _LEASE = "force_with_lease"
 
 _HOLDS = tuple(product((_fixes.PAUSED, _fixes.BACKLOG), (True, False)))
+
+# A recovery whose checkout reads as the commit the capture names at its
+# admission, and then as no head at all behind it.
+_READ_THEN_LOST = (world.FIXED_HEAD, world.FIXED_HEAD, "")
+
+_UNREAD_BEHIND = MappingProxyType({**_held.COMMITTED, world.HEAD_SHAS: _READ_THEN_LOST})
 
 # A developer that committed and wrote no report, which parks the body edit's
 # resume owing one.
@@ -121,6 +128,20 @@ class HeldConflictDriftTest(unittest.TestCase, HeldConflictDriftTicks):
             (_fixes.stage_of(retired), _held.held(retired), self.published_reports()),
             (_fixes.RETIRED, launched, []),
         )
+
+    def test_an_unread_head_keeps_it(self) -> None:
+        # The head the recovery reads behind its admission will not read
+        # once: that is no proof against the commit the capture names, so
+        # the capture is kept with nothing settled, parked, pushed, or
+        # counted, and the dispatch whose head reads publishes it once.
+        self.seeded_on_conflict()
+        self.held_drift(world.reported())
+        before = (self.pinned(), self.github.write_state_calls)
+        unread = self.unheld(**_UNREAD_BEHIND)
+        unread[_fixes.PUSH_BRANCH].assert_not_called()
+        self.assertEqual((self.pinned(), self.github.write_state_calls), before)
+        self._leased(self.dispatched(**_held.COMMITTED), committed=True)
+        self._finished(committed=True)
 
     def _leased(self, recovered, *, committed: bool) -> None:
         """A recovery that `committed` pushed once, leased against the head its caller proved; else nothing."""

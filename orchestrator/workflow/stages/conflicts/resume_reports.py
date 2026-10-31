@@ -246,7 +246,8 @@ def _refuses_the_report(
     head the pull request carries, nor one ahead of a commit the run left.
     A run whose head nobody could read is refused by the record's own owner
     (`resume_records._refuses_an_unread_head`), since no record could hold
-    its report to the commit it describes.
+    its report to the commit it describes -- or held with nothing written
+    where the run's own capture still holds that report.
     """
     if run.dev_result.unfinished_steps:
         _dev_parks._on_question(ctx.gh, ctx.issue, ctx.state, _guards._ParkedRun(
@@ -254,7 +255,7 @@ def _refuses_the_report(
         ))
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return True
-    return _resume_records._refuses_an_unread_head(ctx, after_sha)
+    return _resume_records._refuses_an_unread_head(ctx, after_sha, run.dev_result)
 
 
 def _holds_the_saved_report(ctx: _models._ConflictContext) -> bool:
