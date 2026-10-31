@@ -66,6 +66,16 @@ class PriceRow:
             return self.tier.rates
         return self.rates
 
+    def rates_for_request(self, prompt_tokens: int | None) -> protocol.RateMap | None:
+        """The rates one request pays, `prompt_tokens` being its prompt size or None where nothing establishes it.
+
+        A row with no tier charges every request alike, so its rates price usage summed over many requests too; a
+        tiered row's rates depend on the request, so usage with no established prompt size has none.
+        """
+        if self.tier is None:
+            return self.rates
+        return None if prompt_tokens is None else self.rates_for_prompt(prompt_tokens)
+
 
 def resolve(
     rows: Iterable[PriceRow],

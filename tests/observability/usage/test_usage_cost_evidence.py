@@ -60,7 +60,7 @@ class _Case:
 
 _SONNET_MILLION_INPUT = _claude.assistant(model=_usage_cases.SONNET, usage=_claude.usage(input=_MILLION_TOKENS))
 _GPT_FIVE_MINI_MILLION_INPUT = _codex.turn_complete(model=_usage_cases.GPT_FIVE_MINI, input=_MILLION_TOKENS)
-_DORMANT_MODEL_INPUT = _claude.assistant(model=_usage_cases.OPUS_FOUR_EIGHT, usage=_claude.usage(input=1))
+_UNPRICED_MODEL_INPUT = _claude.assistant(model=_usage_cases.UNKNOWN_MODEL, usage=_claude.usage(input=1))
 _INCOMPLETE = _evidence(_cost.INCOMPLETE)
 _NO_USAGE = _evidence(_cost.NO_USAGE)
 _UNPRICED = (None, _usage_cases.UNKNOWN_COST_SOURCE)
@@ -82,9 +82,9 @@ _RUN_CASES = (
         (_SONNET_MILLION_INPUT_USD, _usage_cases.ESTIMATED_COST_SOURCE),
     ),
     _Case(
-        "claude on a dormant row",
+        "claude on a model with no row",
         _usage_cases.CLAUDE,
-        _jsonl.jsonl(_DORMANT_MODEL_INPUT),
+        _jsonl.jsonl(_UNPRICED_MODEL_INPUT),
         _INCOMPLETE,
         _UNPRICED,
     ),

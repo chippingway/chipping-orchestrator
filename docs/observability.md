@@ -197,11 +197,14 @@ distinct model(s), turn count, the five token totals, `cost_usd`, and a `cost_so
 / `unknown-price` / `no-usage`. A `total_cost_usd` the CLI reported itself always wins; otherwise the parser estimates
 from an active row of the dated first-party API price catalogue, matched only by exact model ID, documented alias, or
 published snapshot, and a model with no active row — unknown, or catalogued but still dormant — yields `unknown-price`
-with `cost_usd=None` rather than a guess. Beside those fields the run records its cost evidence — monetary
-contributions by basis (`cli-reported`, or a provider's token-only API list-price estimate) and their completeness —
-and its token evidence, which counters were observed and whether the cache counters sit inside the input, with shared
-readers that fold costs per basis and total tokens without counting one twice. Malformed JSONL lines are skipped, so
-one bad line never invalidates a stream. Two siblings ride the same
+with `cost_usd=None` rather than a guess. A Claude estimate prices each API message on its own, each cache write at
+the lifetime its usage block reports and Haiku 5.5's tier on that message's own prompt, and a write of no reported
+lifetime, a block whose lifetime split contradicts its aggregate, or a tiered row of no established prompt is unpriced
+too. Beside those fields the run records its cost
+evidence — monetary contributions by basis (`cli-reported`, or a provider's token-only API list-price estimate) and
+their completeness — and its token evidence, which counters were observed and whether the cache counters sit inside
+the input, with shared readers that fold costs per basis and total tokens without counting one twice. Malformed JSONL
+lines are skipped, so one bad line never invalidates a stream. Two siblings ride the same
 stream under the same contract: the opt-in skill-trigger extractor behind `TRACK_SKILL_TRIGGERS`, and the trajectory
 classifier that reconstructs a run's timeline. That page carries the module layout, the per-backend parsers and their
 dispatcher, the cost-precedence rule, the per-issue verdict line a terminal posts, and the evidence model both

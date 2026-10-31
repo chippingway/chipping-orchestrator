@@ -15,16 +15,19 @@ A stream with no `message_delta` -- printed without partial messages -- settles 
 its last frame carries, and neither hand-backs nor `modelUsage` are read.
 
 Only output counts are settled. Input and cache counts stay the ones the `assistant` frames carry, and a hand-back's
-row carries its output count alone, so a run's input and cache counts leave out the message closing a subagent. The
-run aggregate and the per-turn builder settle through the same `ClaudeSettlement`, so the turns sum to the run.
+row carries its output count alone, so a run's input and cache counts leave out the message closing a subagent: its
+`handback-output` scope says that row establishes no request's prompt. The run aggregate and the per-turn builder
+settle through the same `ClaudeSettlement`, so the turns sum to the run.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from operator import attrgetter
 from typing import Any
 
 from orchestrator.observability.usage import (
+    claude_requests,
     claude_rows,
     claude_summary,
     model_names,
@@ -32,10 +35,10 @@ from orchestrator.observability.usage import (
     token_evidence,
 )
 
-# The token class each `modelUsage` field totals; it reports cache writes as one count, with no TTL split.
+# The token class each `modelUsage` field totals; it reports cache writes as one count, with no lifetime split.
 _MODEL_USAGE_FIELDS = (
     (protocol.INPUT, "inputTokens"),
-    (protocol.CACHE_WRITE_FIVE_MIN, "cacheCreationInputTokens"),
+    (protocol.CACHE_WRITE_UNKNOWN_LIFETIME, "cacheCreationInputTokens"),
     (protocol.CACHE_READ, "cacheReadInputTokens"),
     (protocol.OUTPUT, "outputTokens"),
 )
@@ -70,24 +73,11 @@ def model_usage_counts(event: dict[str, Any]) -> dict[str, protocol.TokenBucket]
 
 
 def input_and_cache(bucket: protocol.TokenBucket) -> tuple[int, int, int]:
-    """Input, cache-read, and cache-write counts, the cache-write TTL buckets summed as `modelUsage` reports them.
-
-    `modelUsage` reports its cache writes as one count, so a bucket of its totals holds no one-hour class.
-    """
-    return (
-        bucket[protocol.INPUT],
-        bucket[protocol.CACHE_READ],
-        bucket[protocol.CACHE_WRITE_FIVE_MIN] + bucket.get(protocol.CACHE_WRITE_ONE_HOUR, 0),
-    )
+    """Input, cache-read, and cache-write counts, the writes of every lifetime summed as `modelUsage` reports them."""
+    return bucket[protocol.INPUT], bucket[protocol.CACHE_READ], claude_requests.cache_write_total(bucket)
 
 
-def with_output(usage_row: claude_rows.ClaudeUsageRow, output: int) -> claude_rows.ClaudeUsageRow:
-    ordinal, model, record = usage_row
-    return ordinal, model, {**record, protocol.OUTPUT: output}
-
-
-def usage_row_index(usage_row: claude_rows.ClaudeUsageRow) -> int:
-    return usage_row[0]
+usage_row_index = attrgetter("ordinal")
 
 
 @dataclass
@@ -96,7 +86,7 @@ class ClaudeSettlement:
 
     final_outputs: dict[str, int] = field(default_factory=dict)
     subagent_messages: set[str] = field(default_factory=set)
-    handbacks: dict[str, claude_rows.ClaudeUsageRow] = field(default_factory=dict)
+    handbacks: dict[str, claude_requests.ClaudeUsageRow] = field(default_factory=dict)
     model_usage: dict[str, protocol.TokenBucket] = field(default_factory=dict)
 
     def add_event(self, index: int, event: dict[str, Any]) -> None:
@@ -113,19 +103,19 @@ class ClaudeSettlement:
 
     def settled_rows(
         self,
-        rows_by_id: dict[str, claude_rows.ClaudeUsageRow],
-    ) -> list[claude_rows.ClaudeUsageRow]:
+        rows_by_id: dict[str, claude_requests.ClaudeUsageRow],
+    ) -> list[claude_requests.ClaudeUsageRow]:
         """The message rows in order, each output count settled to the final one the stream shows."""
         settled = {
             message_id: self._closed(message_id, usage_row)
             for message_id, usage_row in rows_by_id.items()
         }
-        models = dict.fromkeys(usage_row[1] for usage_row in settled.values())
+        models = dict.fromkeys(usage_row.model for usage_row in settled.values())
         for model in models:
             self._reconcile(model, settled)
         return sorted(settled.values(), key=usage_row_index)
 
-    def handback_rows(self) -> list[claude_rows.ClaudeUsageRow]:
+    def handback_rows(self) -> list[claude_requests.ClaudeUsageRow]:
         """One row per subagent hand-back, holding the output count of the message that closed the subagent.
 
         A stream no `message_delta` closes a message in -- printed without partial messages -- keeps the counts its
@@ -134,25 +124,31 @@ class ClaudeSettlement:
         if not self.final_outputs:
             return []
         # A run's input and cache counts are its frames', so a hand-back's row
-        # states none of them -- no class at all, rather than a zero.
+        # states none of them -- no class at all, rather than a zero -- and so
+        # carries no cache-write evidence to conflict either.
         return [
-            (ordinal, model, token_evidence.reported_counts({protocol.OUTPUT: record.get(protocol.OUTPUT)}))
-            for ordinal, model, record in self.handbacks.values()
+            claude_requests.ClaudeUsageRow(
+                handback.ordinal,
+                handback.model,
+                token_evidence.reported_counts({protocol.OUTPUT: handback.counts.get(protocol.OUTPUT)}),
+                claude_requests.HANDBACK_OUTPUT,
+            )
+            for handback in self.handbacks.values()
         ]
 
-    def _closed(self, message_id: str, usage_row: claude_rows.ClaudeUsageRow) -> claude_rows.ClaudeUsageRow:
+    def _closed(self, message_id: str, usage_row: claude_requests.ClaudeUsageRow) -> claude_requests.ClaudeUsageRow:
         final_output = self.final_outputs.get(message_id)
-        return usage_row if final_output is None else with_output(usage_row, final_output)
+        return usage_row if final_output is None else usage_row.with_output(final_output)
 
-    def _reconcile(self, model: str, settled: dict[str, claude_rows.ClaudeUsageRow]) -> None:
+    def _reconcile(self, model: str, settled: dict[str, claude_requests.ClaudeUsageRow]) -> None:
         open_message = self._sole_open_message(model, settled)
         unprinted = None if open_message is None else self._unprinted_output(model, settled)
         if open_message is None or unprinted is None:
             return
-        start = settled[open_message][2].get(protocol.OUTPUT, 0)
-        settled[open_message] = with_output(settled[open_message], start + unprinted)
+        start = settled[open_message].counts.get(protocol.OUTPUT, 0)
+        settled[open_message] = settled[open_message].with_output(start + unprinted)
 
-    def _sole_open_message(self, model: str, settled: dict[str, claude_rows.ClaudeUsageRow]) -> str | None:
+    def _sole_open_message(self, model: str, settled: dict[str, claude_requests.ClaudeUsageRow]) -> str | None:
         # What `modelUsage` leaves over belongs to one subagent message only
         # while it is the model's one open message in a stream that closes
         # messages at all: an open lead-thread message, or a second open
@@ -160,13 +156,13 @@ class ClaudeSettlement:
         open_messages = [
             message_id
             for message_id, usage_row in settled.items()
-            if usage_row[1] == model and message_id not in self.final_outputs
+            if usage_row.model == model and message_id not in self.final_outputs
         ]
         if not self.final_outputs or len(open_messages) != 1:
             return None
         return open_messages[0] if open_messages[0] in self.subagent_messages else None
 
-    def _unprinted_output(self, model: str, settled: dict[str, claude_rows.ClaudeUsageRow]) -> int | None:
+    def _unprinted_output(self, model: str, settled: dict[str, claude_requests.ClaudeUsageRow]) -> int | None:
         """What `modelUsage` reports beyond every printed output count, if it covers exactly what was printed.
 
         A `modelUsage` that also covers usage no frame of this stream printed shows it in its input and cache
@@ -187,8 +183,8 @@ class ClaudeSettlement:
 
 def claude_usage_records(
     events: list[dict[str, Any]],
-) -> list[claude_rows.ClaudeUsageRow]:
-    by_id: dict[str, claude_rows.ClaudeUsageRow] = {}
+) -> list[claude_requests.ClaudeUsageRow]:
+    by_id: dict[str, claude_requests.ClaudeUsageRow] = {}
     settlement = ClaudeSettlement()
     for index, event in enumerate(events):
         settlement.add_event(index, event)

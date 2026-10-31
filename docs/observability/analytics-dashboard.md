@@ -320,7 +320,9 @@ on the events table only an `agent_exit` row counts as a run. Neither reprices a
   `total_tokens`, and `unknown_token_runs`, the runs whose total is unknown. The
   `unknown-price` cohort is exposed verbatim (never collapsed into a generic "unknown") because it is the maintenance
   signal for the price catalogue in `observability/usage/prices.py`: a model with no row there, or with a row still
-  dormant until its provider's accounting activates it. NULL `cost_source` buckets under `"unknown"`.
+  dormant until its provider's accounting activates it. On Claude it also counts usage the catalogue cannot price as
+  reported: a cache write of no reported lifetime, a lifetime split contradicting its aggregate, or Haiku 5.5 usage
+  whose request size no row establishes. NULL `cost_source` buckets under `"unknown"`.
 
 **Filter contract.** The agent-run view has no `event` column (its WHERE `event = 'agent_exit'` is baked in), so
 view-backed functions cannot push an `event IN (...)` clause down. They honor the dashboard's event-filter contract by

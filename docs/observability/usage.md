@@ -26,7 +26,8 @@ surface shares, `prices.py` the first-party API price
 catalogue over the dated rows and bounded lookup on `price_catalogue.py`, and `model_names.py` the nested model-name
 lookup, `claude_rows.py` / `claude_summary.py` and `codex_rows.py` /
 `codex_summary.py` the per-provider frame decoding and run summary, with `claude_settlement.py` settling each Claude
-message's final output count between the two, `shell_segments.py` / `skill_commands.py` /
+message's final output count between the two and `claude_requests.py` holding each Claude usage row's scope, the
+lifetime of each of its cache writes, and the estimate it is priced at, `shell_segments.py` / `skill_commands.py` /
 `skills_claude.py` / `skills_codex.py` the skill-evidence classification, and `trajectory_claude_blocks.py` /
 `trajectory_claude_stream.py` / `trajectory_claude_turns.py` plus `trajectory_codex.py` and the per-item-type
 `trajectory_codex_items.py` under it the timeline reconstruction. Antigravity's envelopes, tool lifecycles, and
@@ -66,6 +67,40 @@ usage as cumulative across the session: the *last* non-zero usage record is the 
 `parse_agent_usage(backend, stdout, fallback_model=None)` dispatches by backend string the same way
 `agents.runner.run_agent` does.
 
+**Claude cache lifetimes.** A Claude usage block reports its cache writes twice: `cache_creation_input_tokens` is
+their aggregate, and the `cache_creation` object splits it by lifetime into `ephemeral_5m_input_tokens` and
+`ephemeral_1h_input_tokens`, which the
+[prompt-caching contract](https://platform.claude.com/docs/en/build-with-claude/prompt-caching) documents as summing to
+the aggregate. Claude Code prints both on every `assistant`, hand-back, and `result` usage block; on the captures the
+lead thread writes one-hour entries and the subagent five-minute ones. `claude_requests.cache_writes` counts each write
+once, under the lifetime the block reports for it, and the estimate prices it at that lifetime's rate. A write the block
+gives no lifetime is counted under an unknown one, which no rate prices, so the estimate states no amount instead of a
+five-minute or one-hour guess: the whole of a nonzero aggregate printed with no split or with a split that is no object,
+and the part of an aggregate a partial split leaves over. A lifetime field holding anything but a non-negative whole
+number — a fraction, an infinite or NaN value, a string, a bool — is unreported, read before any coercion could round it
+into a count; a float such as `600.0` is the whole number it spells. A split claiming more writes than its aggregate
+holds, beside a zero aggregate too, contradicts it: the block establishes neither its write count nor its prompt, so it
+keeps the aggregate as its cache-write count, all of it under the unknown lifetime, and the row records the conflict
+apart from any token count (`conflicting_writes`) and has no price on any model. With no aggregate, a split reporting
+both lifetimes is the whole write count, and one reporting a single lifetime counts those writes alone.
+`cache_write_tokens` is the aggregate wherever a block reports one and the lifetimes summed otherwise, and an explicit
+zero is a count like any other.
+
+**Claude request pricing.** Each usage row carries a scope. A `message` row is one API message's usage block, so its
+input, cache reads, and cache writes are that request's prompt; a `handback-output` row holds only the output count
+of a subagent's closing message; a `result-total` row is the `result` frame's usage, a sum over the lead thread's
+requests. Every row is priced on its own (`ClaudeUsageRow.estimate`) and the run's estimate is those prices summed,
+one unpriced row leaving the whole estimate `unknown-price`; each turn is priced through the same call, and a
+CLI-reported cost still outranks the run's estimate, as the cost precedence below says. A request-tiered model is
+priced only on a row that establishes its prompt. Claude Haiku 5.5 charges its higher rates on every class, output
+included, to a request whose input, cache reads, and cache writes together exceed 100,000 tokens, cache hits counted,
+so each message is measured alone: a request at or under the threshold pays the base rates however far the run's
+requests add up past it. A `handback-output` or `result-total` row, or a message missing its input, cache-read, or
+whole cache-write count, establishes no prompt and leaves a Haiku 5.5 estimate `unknown-price`. A flat-rate model
+prices such rows at its one set of rates, since summing requests changes nothing it charges. With the CLI's reported
+cost cut from the captures, the main run's estimate equals that cost, and the subagent run's equals it less the
+prompt of the subagent's closing message, whose input and cache counts the run leaves out.
+
 **Claude output counts recorded before the correction.** The parser kept the last `assistant` frame's output count,
 the one at the start of each message: 31 output tokens on the main capture, where the CLI reports 358, and 92 on the
 subagent capture against 450. The correction is included in [v0.14.0](../release-timeline.md#v0140); v0.13.0 and every
@@ -79,6 +114,15 @@ lines, the analytics database rows synced from them, and the pinned `issue_total
 with `issue_total_cost_usd` where a run's cost was `estimated` from the undercount. Nothing backfills them, and an
 issue in flight across the upgrade mixes both in its counters. The correction leaves input and cache counts, and a
 CLI-reported `cost_usd`, unchanged.
+
+**Claude estimates recorded before the lifetime correction.** v0.14.0 and every earlier release price a block's
+aggregate `cache_creation_input_tokens` at the five-minute rate whenever the block carries one, as Claude Code's always
+do, so a one-hour write was priced at the five-minute rate, and they price each model's summed usage rather than each
+request. A source checkout after the v0.14.0 tag still reports `0.14.0`, so its history, not its version, decides
+which pricing it records, and records carry no orchestrator version. Records already written keep their values: an
+`estimated` `cost_usd` on `agent_exit` lines, every trajectory turn's estimate, the analytics rows synced from them,
+and the pinned issue totals those runs fed, as does an `unknown-price` an earlier build recorded for a Claude model
+it did not price. Nothing reprices them. A CLI-reported `cost_usd` is unchanged.
 
 For `agy`, token totals come from the completed `step_update` events in this invocation, deduplicated by step index.
 The terminal result's usage and turn counts include earlier conversation turns on a resume, so they are not added
@@ -99,8 +143,11 @@ and emit terminal output.
 **Cost precedence.** A `total_cost_usd` reported by the CLI itself always wins, an explicit `0` included
 (`cost_source="reported"`, on the `cli-reported` basis); otherwise the parser prices the usage from an active row of the
 price catalogue below and produces an estimate (`"estimated"`, on that provider's API basis). When usage is present but
-its model resolves to no active row, the parser returns `cost_source="unknown-price"` and `cost_usd=None` — an
-`incomplete` cost — rather than guess at zero or bill cached tokens at the input rate. An empty stream — or one with
+its model resolves to no active row — or, for Claude, a cache write carries no lifetime, a lifetime split contradicts
+its aggregate, or a request-tiered model's row establishes no prompt, as the Claude paragraphs above describe — the
+parser returns
+`cost_source="unknown-price"` and `cost_usd=None` — an `incomplete` cost — rather than guess at zero, bill cached
+tokens at the input rate, or choose a rate the usage does not establish. An empty stream — or one with
 no usage frames at all — yields `"no-usage"`. One selection, `event_stream.select_cost`, builds the run's cost
 evidence, and `UsageMetrics.apply_cost` reads `cost_usd` and `cost_source` off it, so the three never disagree.
 
@@ -136,7 +183,8 @@ contribution's basis, `blended` across several. A complete zero keeps its contri
 
 An estimate excludes everything its token rates do not price: subscriptions, included quotas, credits, negotiated or
 discounted prices, service-tier and regional adjustments outside the declared Standard basis (Batch, Flex, Priority,
-data residency), cache storage, grounding and search, and every other non-token charge. That matters most for Codex,
+data residency, and Claude's fast mode, which a usage block names in its `speed` field), cache storage, grounding and
+search, and every other non-token charge. That matters most for Codex,
 which can run on a ChatGPT plan's subscription or credits as well as on an API key:
 [Codex pricing](https://developers.openai.com/codex/pricing) states that Codex credit billing has no separate
 cache-write charge and that GPT-6.1 Sol usage drawn from a subscription has no long-context surcharge, while API-key
@@ -159,11 +207,13 @@ in the same shape.
 
 **Token-count semantics.** The raw counters keep each provider's own meaning, and `token_evidence.py` states it beside
 them as `token_evidence` on `UsageMetrics.to_dict()` and each `TurnUsage`: `observed`, the counters the stream's usage
-payloads reported a count for, and `cache_overlap`, how the cache counters relate to the input counter. A reported
-zero is observed; a counter `observed` does not name is missing evidence rather than a zero, even though its raw field
-reads `0`. The decoders keep the two apart by reading every field through `token_evidence.reported_count` /
-`first_count`, which answer `None` for a field no spelling of it reported, and keeping only the token classes a payload
-reported a count for. A missing class still sums and prices as zero, so no counter or estimate changes with it.
+payloads reported a count for, and `cache_overlap`, how the cache counters relate to the input counter. A reported zero
+is observed; a counter `observed` does not name is missing evidence rather than a zero, even though its raw field reads
+`0`. The decoders keep the two apart by reading every field through `token_evidence.reported_count` / `first_count`,
+which answer `None` for a field no spelling of it reported — an infinite or NaN value, never a count, included, so one
+never stops a stream's parse — and keeping only the token classes a payload reported a count for. A missing class still
+sums as zero and costs nothing, so no counter or flat-rate estimate changes with it; only a request-tiered Claude model
+needs every input and cache class of a message to size its prompt.
 
 | Backend | Counters a usage payload can report | `cache_overlap` |
 | --- | --- | --- |
@@ -174,11 +224,12 @@ reported a count for. A missing class still sums and prices as zero, so no count
 A Claude run observes a counter once any usage row it sums reported one, and a turn what its own row reported. Claude's
 usage blocks count ordinary input apart from cache reads and writes, and a block omitting a cache field observes none of
 it. A subagent hand-back turn observes `output_tokens` alone, since the stream prints only that count for the closing
-message, and its estimate prices that count alone; a run's own input and cache counters still leave that message out,
-as the provider parsing above describes. A Codex run observes what its authoritative record reported: the last one
-reporting any tokens, or, when every one reports only zeros, the last record reporting a count at all — those zeros
-were measured, so they are observed, while such a stream still has `no-usage` cost. Codex's `cached_tokens` is the
-part of its input served from
+message, and its estimate prices that count alone where the model's rates are flat, while on Haiku 5.5, whose rate
+depends on a request the stream does not size, it states no amount; a run's own input and cache counters still leave
+that message out, as the provider parsing above describes. A Codex run observes what its authoritative record
+reported: the last one reporting any tokens, or, when every one reports only zeros, the last record reporting a count
+at all — those zeros were measured, so they are observed, while such a stream still has `no-usage` cost. Codex's
+`cached_tokens` is the part of its input served from
 cache, and it reports no cache-read or cache-write counter. An Antigravity run observes a counter once any completed
 step reported one; nothing established yet says whether its cache reads are part of its input.
 
@@ -216,7 +267,8 @@ lists them; Gemini's input, cached input, and output including thinking tokens. 
 the pro models' cached input, has no rate, so tokens of that class leave the estimate unknown. A model-specific
 request tier carries the whole set of rates a request pays once its prompt exceeds the threshold: Claude Haiku 5.5
 above 100,000 prompt tokens, the GPT-5.4, GPT-5.5, GPT-5.6, and GPT-6 families above 272,000 input tokens, and Gemini
-3.1 Pro Preview above 200,000. The Codex estimate applies that tier to the run's cumulative input count.
+3.1 Pro Preview above 200,000. The Claude estimate applies Haiku 5.5's tier to each API message's own prompt, as
+the request pricing above describes; the Codex estimate applies its tiers to the run's cumulative input count.
 
 A provider-scheduled change is two rows over consecutive inclusive dates, and a dated row resolves only for a usage
 date inside its interval: Gemini 4 Argon is $2 / $0.10 / $10 for input, cached input, and output through 2026-11-30
@@ -224,15 +276,15 @@ and $4 / $0.20 / $20 from 2026-12-01; Gemini 3.8 Flash and 3.6 Flash are $0.75 /
 and $1.50 / $0.15 / $7.50 from 2027-01-01. GPT-5.6 Sol's promotional rates are guaranteed at least through
 2026-11-21; the row records that date as a review trigger (`review_after`), which changes no rate by itself.
 
-Only active rows price a run: Claude Opus 4 through 4.7, Sonnet 4 through 4.6, and Haiku 3.5 and 4.5, and OpenAI's GPT-5
-through GPT-5.5 rows with their Codex and chat models. Every other row is dormant — resolvable for its identity and
-rates, but priced by nothing until its provider's accounting activates it — so a run on one records `unknown-price`. The
-dormant rows are Claude Opus 4.8, 5, and 5.5, Sonnet 5 and 5.5, Fable 5 and 5.1, and Haiku 5.5; GPT-5.6 Sol (also
-`gpt-5.6`), Terra, and Luna, GPT-6 Astra, Sol, and Luna, and GPT-6.1 Sol and Terra; and every Gemini row (Gemini 4
-Argon, 3.8 Flash, 3.6 Flash, and 3.1 Pro Preview). No Gemini 3.7 row exists: the Developer API routes that deprecated ID
-to 3.8. The restricted Claude Mythos and OpenAI Daybreak (cyber) models carry no row, since no captured stream shows a
-harness emitting their IDs and `gpt-5.6-cyber` names whichever cyber model is current; nor does any `gpt-5.6-pro`, which
-OpenAI does not publish.
+Only active rows price a run: every Claude row — Opus 4 through 5.5, Sonnet 4 through 5.5, Fable 5 and 5.1, and Haiku
+3.5, 4.5, and 5.5, since the Claude accounting prices each message's cache writes and request tier as billed — and
+OpenAI's GPT-5 through GPT-5.5 rows with their Codex and chat models. Every other row is dormant — resolvable for its
+identity and rates, but priced by nothing until its provider's accounting activates it — so a run on one records
+`unknown-price`. The dormant rows are GPT-5.6 Sol (also `gpt-5.6`), Terra, and Luna, GPT-6 Astra, Sol, and Luna, and
+GPT-6.1 Sol and Terra; and every Gemini row (Gemini 4 Argon, 3.8 Flash, 3.6 Flash, and 3.1 Pro Preview). No Gemini 3.7
+row exists: the Developer API routes that deprecated ID to 3.8. The restricted Claude Mythos and OpenAI Daybreak (cyber)
+models carry no row, since no captured stream shows a harness emitting their IDs and `gpt-5.6-cyber` names whichever
+cyber model is current; nor does any `gpt-5.6-pro`, which OpenAI does not publish.
 
 **Resilience.** Malformed JSON lines (banner text, truncated frames, partial flushes) are silently skipped so a single
 bad line never invalidates the rest of the stream. `_run_agent_tracked` (in `workflow/engine/usage.py`) calls
@@ -374,19 +426,21 @@ turns and `tool_use` blocks `tool_call` steps; user `text` blocks become `user_m
 from the `result` frame's `result` string. It also groups those assistant frames by `message.id` in first-seen order to
 assign each a 0-based `turn` index — stamped onto the `assistant_message` / `tool_call` steps that frame produced (a
 `tool_result` / `user_message` step is a turn *input*, not billed output, so its `turn` stays `None`) — and emits one
-`TurnUsage` per turn: `model`, `input_tokens` / `output_tokens`, `cache_read_tokens` / `cache_write_tokens` (the 5m + 1h
-cache-creation buckets summed), and an always-*estimated* `cost_usd` / `cost_source` (`"estimated"`, or
-`"unknown-price"` with `cost_usd=None` for an unpriced SKU — a reported `total_cost_usd` is a run-level figure and
-never reaches a turn). A turn's `output_tokens` is settled exactly as in the run parser above — its message's final
-count where the stream shows one, the start count its frames carry where it does not — while its input and cache
-counts are the frames'. Where hand-backs are read, a subagent's closing message, which printed no frame and so stamped
-no step, becomes a turn of its own numbered after every turn the steps carry, holding the hand-back's output count
-alone; the turns the frames gave keep their indices. Both builders settle their rows through
-`claude_settlement.ClaudeSettlement`, and the per-turn estimate reuses the same `claude_estimate` price path on
-`observability/usage/prices.py` as the run aggregate, each turn carrying its own Anthropic-basis cost evidence and the
-token evidence above. Unless the run totals fall back to the `result` frame, the
-per-turn token counts therefore sum to `parse_claude_usage`'s run totals and the per-turn estimates to its estimated
-cost. `parse_codex_trajectory(stdout)` normalizes each
+`TurnUsage` per turn: `model`, `input_tokens` / `output_tokens`, `cache_read_tokens` / `cache_write_tokens` (every
+cache write, whatever its lifetime), and an always-*estimated* `cost_usd` / `cost_source` (`"estimated"`, or
+`"unknown-price"` with `cost_usd=None` for an unpriced SKU, a cache write of no lifetime, a lifetime split
+contradicting its aggregate, or a request-tiered model's turn whose prompt is unknown — a reported `total_cost_usd` is
+a run-level figure and never reaches a turn). A turn's
+`output_tokens` is settled exactly as in the run parser above — its message's final count where the stream shows one,
+the start count its frames carry where it does not — while its input and cache counts are the frames'. Where hand-backs
+are read, a subagent's closing message, which printed no frame and so stamped no step, becomes a turn of its own
+numbered after every turn the steps carry, holding the hand-back's output count alone; the turns the frames gave keep
+their indices. Both builders settle their rows through `claude_settlement.ClaudeSettlement`, and each turn is priced on
+the same `claude_requests.ClaudeUsageRow.estimate` call the run estimate sums its rows through, each turn carrying its
+own Anthropic-basis cost evidence and the token evidence above. Unless the run totals fall back to the `result` frame,
+the per-turn token counts therefore sum to `parse_claude_usage`'s run totals, and the per-turn estimates to its estimate
+wherever every turn is priced; a turn that is not leaves the run's estimate `unknown-price` too.
+`parse_codex_trajectory(stdout)` normalizes each
 operational item codex reports into one `tool_call` and, when the stream actually carried an outcome, one
 `tool_result` beneath it, and each `agent_message` item into one `assistant_message` turn (its `text`). Codex emits
 several frames per item — `item.started`, any `item.updated`, then `item.completed` — so every item is correlated by

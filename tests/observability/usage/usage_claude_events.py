@@ -29,11 +29,17 @@ def usage(**fields: int | None) -> dict:
         usage_block["cache_creation_input_tokens"] = payload.cache_write
     if payload.cache_read is not None:
         usage_block["cache_read_input_tokens"] = payload.cache_read
-    if payload.cache_five_minute is not None or payload.cache_one_hour is not None:
-        usage_block["cache_creation"] = {
-            "ephemeral_5m_input_tokens": payload.cache_five_minute or 0,
-            "ephemeral_1h_input_tokens": payload.cache_one_hour or 0,
-        }
+    # The lifetime split carries only the lifetimes a test names, so a partial split stays partial.
+    split = {
+        lifetime_field: count
+        for lifetime_field, count in (
+            ("ephemeral_5m_input_tokens", payload.cache_five_minute),
+            ("ephemeral_1h_input_tokens", payload.cache_one_hour),
+        )
+        if count is not None
+    }
+    if split:
+        usage_block["cache_creation"] = split
     return usage_block
 
 

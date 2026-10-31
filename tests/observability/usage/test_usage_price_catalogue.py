@@ -37,10 +37,11 @@ def _spellings(table: tuple[price_catalogue.PriceRow, ...]) -> list[str]:
     return sorted({name for row in table for name in (row.model, *row.aliases)})
 
 
-# A dormant row, an arbitrary suffix on an active row's ID, an unknown version,
-# and an invented SKU: each a model the run parsers leave unpriced.
+# A restricted model with no row, an arbitrary suffix on an active row's ID,
+# an unknown version, a dormant row, and an invented SKU: each a model the run
+# parsers leave unpriced.
 _UNPRICED_RUNS = (
-    (_claude_run, _cases.OPUS_FOUR_EIGHT),
+    (_claude_run, "claude-mythos-5-1"),
     (_claude_run, "claude-opus-4-7[1m]"),
     (_claude_run, "claude-opus-4-9"),
     (_codex_run, _cases.GPT_FIVE_SIX),
@@ -226,11 +227,13 @@ class CatalogueEstimateTest(unittest.TestCase):
         assert metrics.cost_usd is not None
         self.assertAlmostEqual(metrics.cost_usd, expected, places=_usage_cases.COST_ASSERT_PLACES)
 
-    def test_active_claude_rows_are_flat(self) -> None:
-        # The Claude run estimate prices each model's summed buckets at one
-        # set of rates, so an active row has to publish all five and no tier.
+    def test_every_claude_row_prices_every_class(self) -> None:
+        # Every Claude row is active, and each rate set a request can pay --
+        # the row's own and its tier's -- publishes all five classes, so only
+        # a write of unknown lifetime finds no rate.
         for row in prices.CLAUDE_PRICES:
-            if row.active:
-                with self.subTest(model=row.model):
-                    self.assertIsNone(row.tier)
-                    self.assertEqual(set(row.rates), set(_cases.CLAUDE_COLUMNS))
+            tiers = () if row.tier is None else (row.tier.rates,)
+            for rates in (row.rates, *tiers):
+                with self.subTest(model=row.model, rates=rates):
+                    published = set(rates)
+                    self.assertEqual((row.active, published), (True, set(_cases.CLAUDE_COLUMNS)))

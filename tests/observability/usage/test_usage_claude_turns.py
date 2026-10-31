@@ -88,6 +88,7 @@ class ClaudeTurnUsageTest(unittest.TestCase):
                 usage=_claude.usage(
                     input=_usage_cases.CLAUDE_TURN_INPUT_TOKENS,
                     cache_write=_usage_cases.CLAUDE_TURN_CACHE_WRITE_TOKENS,
+                    cache_five_minute=_usage_cases.CLAUDE_TURN_CACHE_WRITE_TOKENS,
                     cache_read=_usage_cases.CLAUDE_TURN_CACHE_READ_TOKENS,
                     output=_usage_cases.CLAUDE_TURN_OUTPUT_TOKENS,
                 ),
@@ -277,10 +278,10 @@ class ClaudeTurnUsageTest(unittest.TestCase):
         )
 
     def test_per_turn_estimates_sum_to_run_estimate(self) -> None:
-        # The per-turn builder and the run aggregate share one estimator,
-        # `claude_estimate` on the `prices` owner, and pricing is linear
-        # in token counts -- so the per-turn estimates must sum to the
-        # run-level estimated cost.
+        # The per-turn builder and the run aggregate price each message's row
+        # through one call, `ClaudeUsageRow.estimate`, and the run sums its
+        # rows' prices -- so the per-turn estimates must sum to the run-level
+        # estimated cost.
         stdout = _jsonl.jsonl(
             _claude.assistant(
                 id=_usage_cases.CLAUDE_TURN_ID,
@@ -289,6 +290,7 @@ class ClaudeTurnUsageTest(unittest.TestCase):
                 usage=_claude.usage(
                     input=100,
                     cache_write=_usage_cases.TOKEN_COUNT_TWO_HUNDRED,
+                    cache_five_minute=_usage_cases.TOKEN_COUNT_TWO_HUNDRED,
                     cache_read=_usage_cases.TOKEN_COUNT_THREE_HUNDRED,
                     output=_usage_cases.TOKEN_COUNT_FIFTY,
                 ),
@@ -336,6 +338,8 @@ class ClaudeSettledTurnUsageTest(unittest.TestCase):
     """
 
     def test_captured_turns_carry_final_counts(self) -> None:
+        # Each turn is priced at its own message's final counts, so the turns'
+        # estimates sum to the run's, which is the cost the CLI reported.
         run, trajectory = _parsed(_capture.MAIN_RUN_STDOUT)
         self.assertEqual(
             [step.turn for step in trajectory.steps],
@@ -344,13 +348,18 @@ class ClaudeSettledTurnUsageTest(unittest.TestCase):
         self.assertEqual(
             [_settled_turn(turn) for turn in trajectory.turns],
             [
-                (turn, _capture.MODEL, message.final, _usage_cases.UNKNOWN_COST_SOURCE)
+                (turn, _capture.MODEL, message.final, _usage_cases.ESTIMATED_COST_SOURCE)
                 for turn, message in enumerate(_capture.MAIN_RUN_MESSAGES)
             ],
         )
         self.assertEqual(
             _capture.summed(_turn_counts(trajectory)),
             _capture.TokenCounts.parsed(run),
+        )
+        self.assertAlmostEqual(
+            sum(turn.cost_usd for turn in trajectory.turns),
+            _capture.MAIN_RUN_COST_USD,
+            places=_usage_cases.COST_ASSERT_PLACES,
         )
 
     def test_captured_subagent_turns_settle(self) -> None:
@@ -382,6 +391,7 @@ class ClaudeSettledTurnUsageTest(unittest.TestCase):
                 usage=_claude.usage(
                     input=_usage_cases.CLAUDE_TURN_INPUT_TOKENS,
                     cache_write=_usage_cases.CLAUDE_TURN_CACHE_WRITE_TOKENS,
+                    cache_five_minute=_usage_cases.CLAUDE_TURN_CACHE_WRITE_TOKENS,
                     cache_read=_usage_cases.CLAUDE_TURN_CACHE_READ_TOKENS,
                     output=1,
                 ),
