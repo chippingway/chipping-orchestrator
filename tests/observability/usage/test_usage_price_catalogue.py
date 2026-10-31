@@ -1,13 +1,19 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Bounded model resolution, dated rate rows, and dormant rows in the API price catalogue."""
+"""Bounded model resolution, dated rate rows, request tiers, and dormant rows in the API price catalogue."""
 
 import itertools
 import unittest
 from datetime import date, timedelta
-from functools import partial
 
-from orchestrator.observability.usage import metrics as _metrics, price_catalogue, prices
+from orchestrator.observability.usage import (
+    codex_requests,
+    event_stream,
+    metrics as _metrics,
+    price_catalogue,
+    prices,
+    protocol,
+)
 from tests.observability.usage import (
     usage_catalogue_cases as _cases,
     usage_claude_events as _claude,
@@ -33,25 +39,32 @@ def _codex_run(model: str, cached: int = _usage_cases.TOKEN_COUNT_TWO_HUNDRED) -
     return _metrics.parse_codex_usage(_jsonl.jsonl(usage))
 
 
-def _spellings(table: tuple[price_catalogue.PriceRow, ...]) -> list[str]:
-    return sorted({name for row in table for name in (row.model, *row.aliases)})
+def _codex_record_run(model: str) -> _metrics.UsageMetrics:
+    # No CLI stream establishes a GPT-5.6 or later run's cache writes, so the
+    # usage record the Codex accounting prices is built here: one establishing
+    # that nothing was written or read from cache, which keeps the pro models,
+    # publishing no cached-input rate, priced too.
+    counts = {protocol.INPUT: 1000, protocol.CACHE_WRITE_UNKNOWN_LIFETIME: 0, protocol.OUTPUT: 100}
+    metrics = _metrics.UsageMetrics(backend=_usage_cases.CODEX)
+    estimate = codex_requests.CodexUsageRow(model, counts).estimate()
+    metrics.apply_cost(event_stream.select_cost(None, estimate, has_usage=True))
+    return metrics
 
 
 # A restricted model with no row, an arbitrary suffix on an active row's ID,
-# an unknown version, a dormant row, and an invented SKU: each a model the run
-# parsers leave unpriced.
+# an unknown version, and an invented SKU: each a model the run parsers leave
+# unpriced.
 _UNPRICED_RUNS = (
     (_claude_run, "claude-mythos-5-1"),
     (_claude_run, "claude-opus-4-7[1m]"),
     (_claude_run, "claude-opus-4-9"),
-    (_codex_run, _cases.GPT_FIVE_SIX),
     (_codex_run, "gpt-5.5-mini"),
     (_codex_run, "gpt-5.6-pro"),
 )
-# No cached input on the Codex side, so the pro models, which publish no
-# cached-input rate, still estimate.
-_UNCACHED_CODEX_RUN = partial(_codex_run, cached=0)
-_ALIAS_RUNNERS = ((_claude_run, _cases.CLAUDE), (_UNCACHED_CODEX_RUN, _cases.OPENAI))
+_ALIAS_RUNNERS = ((_claude_run, _cases.CLAUDE), (_codex_record_run, _cases.OPENAI))
+# Each cache-write lifetime OpenAI prices and its rate as a multiple of input.
+_WRITE_LIFETIMES = (protocol.CACHE_WRITE_THIRTY_MIN, protocol.CACHE_WRITE_TWELVE_HOUR)
+_WRITE_MULTIPLES = (1.25, 2.5)
 
 # A `_codex_run` on gpt-5.1-chat-latest: its 800 uncached input, 200 cached, and
 # 100 output tokens at the model page's $1.25 / $0.125 / $10.
@@ -137,6 +150,32 @@ class CatalogueTierTest(unittest.TestCase):
                 self.assertIs(row.rates_for_prompt(above), row.rates)
                 self.assertIs(row.rates_for_prompt(above + 1), row.tier.rates)
 
+    def test_summed_requests_pay_base_rates(self) -> None:
+        # Usage summed over requests pays a tiered row's base rates only where
+        # its bound keeps every request at or under the threshold, and never
+        # the tier's rates; an untiered row prices it whatever the bound.
+        for row in itertools.chain.from_iterable(_TABLES):
+            above = 0 if row.tier is None else row.tier.above
+            past = row.rates if row.tier is None else None
+            with self.subTest(model=row.model, starting=row.starting):
+                bounded = map(row.rates_for_requests_within, (above, above + 1, None))
+                self.assertEqual(tuple(bounded), (row.rates, past, past))
+
+    def test_openai_writes_cost_lifetime_multiples(self) -> None:
+        # Where a page lists cache writes -- GPT-5.6 and later -- a 30-minute
+        # write costs 1.25x the input rate beside it and a 12-hour one 2.5x,
+        # on the base rates and the long-context tier alike; the earlier
+        # models list neither.
+        rate_sets = itertools.chain(
+            (row.rates for row in prices.OPENAI_PRICES),
+            (row.tier.rates for row in prices.OPENAI_PRICES if row.tier is not None),
+        )
+        for rates in rate_sets:
+            multiples = tuple(rates[protocol.INPUT] * times for times in _WRITE_MULTIPLES)
+            with self.subTest(rates=rates):
+                published = tuple(map(rates.get, _WRITE_LIFETIMES))
+                self.assertIn(published, ((None, None), multiples))
+
 
 class CatalogueDateTest(unittest.TestCase):
     """Scheduled rate changes take effect on their published dates; a review trigger changes nothing."""
@@ -156,7 +195,8 @@ class CatalogueDateTest(unittest.TestCase):
 
     def test_spellings_never_overlap_in_time(self) -> None:
         for table in _TABLES:
-            for spelling in _spellings(table):
+            aliases = {alias for row in table for alias in row.aliases}
+            for spelling in sorted({row.model for row in table} | aliases):
                 with self.subTest(spelling=spelling):
                     self._assert_consecutive([row for row in table if row.answers_to(spelling)])
 
@@ -195,7 +235,16 @@ class CatalogueEstimateTest(unittest.TestCase):
                 with self.subTest(spelling=spelling):
                     self.assertEqual(lookup(spelling) is not None, provider.is_active(model))
 
-    def test_unknown_and_dormant_ids_run_unpriced(self) -> None:
+    def test_only_gemini_rows_stay_dormant(self) -> None:
+        dormant = [row for table in _TABLES for row in table if not row.active]
+        self.assertEqual(dormant, list(prices.GEMINI_PRICES))
+        for row in dormant:
+            with self.subTest(model=row.model, starting=row.starting):
+                on = row.starting or row.through
+                self.assertIs(price_catalogue.resolve(prices.GEMINI_PRICES, row.model, on), row)
+                self.assertIsNone(price_catalogue.active_row(prices.GEMINI_PRICES, row.model, on))
+
+    def test_unknown_ids_run_unpriced(self) -> None:
         for run, model in _UNPRICED_RUNS:
             with self.subTest(model=model):
                 metrics = run(model)

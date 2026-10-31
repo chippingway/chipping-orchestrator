@@ -27,8 +27,10 @@ catalogue over the dated rows and bounded lookup on `price_catalogue.py`, and `m
 lookup, `claude_rows.py` / `claude_summary.py` and `codex_rows.py` /
 `codex_summary.py` the per-provider frame decoding and run summary, with `claude_settlement.py` settling each Claude
 message's final output count between the two and `claude_requests.py` holding each Claude usage row's scope, the
-lifetime of each of its cache writes, and the estimate it is priced at, `shell_segments.py` / `skill_commands.py` /
-`skills_claude.py` / `skills_codex.py` the skill-evidence classification, and `trajectory_claude_blocks.py` /
+lifetime of each of its cache writes, and the estimate it is priced at, and `codex_requests.py` what one Codex usage
+record establishes about the requests it sums and the estimate it is priced at, `shell_segments.py` /
+`skill_commands.py` / `skills_claude.py` / `skills_codex.py` the skill-evidence classification, and
+`trajectory_claude_blocks.py` /
 `trajectory_claude_stream.py` / `trajectory_claude_turns.py` plus `trajectory_codex.py` and the per-item-type
 `trajectory_codex_items.py` under it the timeline reconstruction. Antigravity's envelopes, tool lifecycles, and
 completed-step usage live in `agy_events.py` / `agy_summary.py`, with its text and tool timeline in
@@ -63,7 +65,10 @@ stream with no `assistant` usage falls back to the `result` frame's `usage`. The
 captures this accounting is pinned to, and the frame-by-frame evidence behind it, are in
 [`usage_claude_stream_capture.py`](../../tests/observability/usage/usage_claude_stream_capture.py).
 `parse_codex_usage(stdout, fallback_model=None)` consumes codex `--json` events and treats
-usage as cumulative across the session: the *last* non-zero usage record is the authoritative total.
+usage as cumulative across the session: the *last* non-zero usage record is the authoritative total. Codex prints usage
+on `turn.completed` alone, and its block sums every API request of the thread — each request the turn made, and on
+`exec resume` the requests of the invocations before it too, so a resumed run's counters include theirs. No frame names
+the model, so the configured `-m` model the caller passes as `fallback_model` is what an estimate is priced as.
 `parse_agent_usage(backend, stdout, fallback_model=None)` dispatches by backend string the same way
 `agents.runner.run_agent` does.
 
@@ -124,6 +129,45 @@ which pricing it records, and records carry no orchestrator version. Records alr
 and the pinned issue totals those runs fed, as does an `unknown-price` an earlier build recorded for a Claude model
 it did not price. Nothing reprices them. A CLI-reported `cost_usd` is unchanged.
 
+**Codex cache writes.** What a Codex usage block establishes is pinned to codex-cli 0.166.0 captures, run with the
+backend's own flags against a local stand-in for the Responses API whose scripted usage sits beside each stream in
+[`usage_codex_usage_capture.py`](../../tests/observability/usage/usage_codex_usage_capture.py). The block carries five
+flat counts: `input_tokens` is the whole input, `cached_input_tokens` the billed cache reads inside it,
+`cache_write_input_tokens` the cache writes inside it, and `output_tokens` holds `reasoning_output_tokens`. The write
+count is the responses' `input_tokens_details.cache_write_tokens`, with its `cache_write_tokens_details` split into
+`ttl_30m_tokens` and `ttl_12h_tokens` dropped — the binary holds neither name — and printed as `0` where a response
+reported no write count at all, so a zero there, the 0.148.0 capture's included, is no evidence that nothing was
+written. `codex_rows.codex_usage_record` reads a positive count as that many writes of unknown lifetime and a zero or
+an absent field as no write count, and keeps a negative count, which then prices the run on no model. No nested
+lifetime field is parsed, since no CLI stream prints one.
+`codex_requests.CodexUsageRow.estimate` prices the authoritative record on its own, following
+[OpenAI's cache accounting](https://developers.openai.com/api/docs/guides/prompt-caching#monitor-cache-performance),
+revalidated on 2026-10-31. A model whose row publishes cache-write rates — GPT-5.6 and later, a 30-minute write at
+1.25× ordinary input and a 12-hour one at 2.5× — bills as ordinary input the input less its reads and writes, and each
+write once, at its lifetime's rate, never the aggregate again. A write of unknown lifetime finds no rate there, and a
+record establishing no whole write count cannot separate its ordinary input, so either leaves the run
+`unknown-price`; on GPT-5.6 and later every run the CLI prints is one or the other. A model before GPT-5.6 charges no
+cache write of its own, so there a write is ordinary input and the run prices its input less its reads at the input
+rate. Reads and writes beyond the input, or a negative count, price nothing on any model.
+
+**Codex request tiers.** A usage block sums the thread's requests, so it sizes none of them, and neither does a
+difference between two blocks: repeated and cumulative blocks are priced once, on the last. The tiered rows — GPT-5.4
+and GPT-5.5 with their pro models, and every GPT-5.6 and GPT-6 row — charge their long-context rates to a request
+over 272,000 input tokens, so a run on one prices at the base rates only where its whole input is at or under 272,000,
+which keeps every request it sums there too (`PriceRow.rates_for_requests_within`); past it the run is
+`unknown-price`, however small each request was. The
+captured turn of two requests, at 200,000 and 201,000 input tokens, prints 401,000 and is unpriced on GPT-5.5. The
+long-context rates are never charged, since no stream sizes a request past the threshold, and a flat-rate model
+prices any run.
+
+**Codex estimates recorded before the request correction.** v0.14.0 and every earlier release price a Codex run's
+whole cumulative input at the long-context rates, output included, once it passes 272,000 tokens, and price the input
+a cache-read count exceeds at nothing. A source checkout after the v0.14.0 tag still reports `0.14.0`, so its history,
+not its version, decides which pricing it records, and records carry no orchestrator version. Records already written
+keep their values — an `estimated` `cost_usd` on `agent_exit` lines and trajectory `run_usage`, the analytics rows
+synced from them, and the pinned issue totals they fed — as does the `unknown-price` an earlier build recorded for a
+GPT-5.6 or GPT-6 row it held dormant. Nothing reprices them. A CLI-reported `cost_usd` is unchanged.
+
 For `agy`, token totals come from the completed `step_update` events in this invocation, deduplicated by step index.
 The terminal result's usage and turn counts include earlier conversation turns on a resume, so they are not added
 to the per-run counters. `user_input` steps count this invocation's turns; `init.model` supplies the model, falling
@@ -144,8 +188,9 @@ and emit terminal output.
 (`cost_source="reported"`, on the `cli-reported` basis); otherwise the parser prices the usage from an active row of the
 price catalogue below and produces an estimate (`"estimated"`, on that provider's API basis). When usage is present but
 its model resolves to no active row — or, for Claude, a cache write carries no lifetime, a lifetime split contradicts
-its aggregate, or a request-tiered model's row establishes no prompt, as the Claude paragraphs above describe — the
-parser returns
+its aggregate, or a request-tiered model's row establishes no prompt, as the Claude paragraphs above describe, and for
+Codex, a GPT-5.6 or later run's cache writes carry no lifetime or no count, its reads and writes exceed its input, or a
+request-tiered model's run passes 272,000 input tokens, as the Codex paragraphs describe — the parser returns
 `cost_source="unknown-price"` and `cost_usd=None` — an `incomplete` cost — rather than guess at zero, bill cached
 tokens at the input rate, or choose a rate the usage does not establish. An empty stream — or one with
 no usage frames at all — yields `"no-usage"`. One selection, `event_stream.select_cost`, builds the run's cost
@@ -188,8 +233,9 @@ search, and every other non-token charge. That matters most for Codex,
 which can run on a ChatGPT plan's subscription or credits as well as on an API key:
 [Codex pricing](https://developers.openai.com/codex/pricing) states that Codex credit billing has no separate
 cache-write charge and that GPT-6.1 Sol usage drawn from a subscription has no long-context surcharge, while API-key
-usage follows API pricing. An `openai-api-estimate` can therefore price cache writes or a long-context tier the
-account's Codex billing never charges; it is an API comparison basis, never the subscription or credit charge. The
+usage follows API pricing. An `openai-api-estimate` therefore prices usage on the API's terms, which charge GPT-5.6 and
+later cache writes and long-context requests where the account's Codex billing may not; it is an API comparison basis,
+never the subscription or credit charge. The
 Gemini basis is the same kind of comparison: once it prices Antigravity usage, it establishes no Antigravity charge.
 
 `recorded_cost(record)` reads the cost any serialized usage record states — an `agent_exit` line, a trajectory's
@@ -229,9 +275,10 @@ depends on a request the stream does not size, it states no amount; a run's own 
 that message out, as the provider parsing above describes. A Codex run observes what its authoritative record
 reported: the last one reporting any tokens, or, when every one reports only zeros, the last record reporting a count
 at all — those zeros were measured, so they are observed, while such a stream still has `no-usage` cost. Codex's
-`cached_tokens` is the part of its input served from
-cache, and it reports no cache-read or cache-write counter. An Antigravity run observes a counter once any completed
-step reported one; nothing established yet says whether its cache reads are part of its input.
+`cached_tokens` is the part of its input served from cache, and it records no cache-read or cache-write counter: its
+`cache_write_input_tokens`, a part of its input too, is read by the estimate alone. An Antigravity run observes a
+counter once any completed step reported one; nothing established yet says whether its cache reads are part of its
+input.
 
 `non_overlapping_total(record)` is the shared way to add the counters up: every observed counter once, a cache counter
 left out only where it sits `within-input` of an input count that was itself observed — a cache count with no
@@ -268,7 +315,8 @@ the pro models' cached input, has no rate, so tokens of that class leave the est
 request tier carries the whole set of rates a request pays once its prompt exceeds the threshold: Claude Haiku 5.5
 above 100,000 prompt tokens, the GPT-5.4, GPT-5.5, GPT-5.6, and GPT-6 families above 272,000 input tokens, and Gemini
 3.1 Pro Preview above 200,000. The Claude estimate applies Haiku 5.5's tier to each API message's own prompt, as
-the request pricing above describes; the Codex estimate applies its tiers to the run's cumulative input count.
+the request pricing above describes; the Codex estimate prices a tiered row's base rates only under a bound on every
+request, and its tier never, as the Codex request tiers above describe.
 
 A provider-scheduled change is two rows over consecutive inclusive dates, and a dated row resolves only for a usage
 date inside its interval: Gemini 4 Argon is $2 / $0.10 / $10 for input, cached input, and output through 2026-11-30
@@ -278,11 +326,12 @@ and $1.50 / $0.15 / $7.50 from 2027-01-01. GPT-5.6 Sol's promotional rates are g
 
 Only active rows price a run: every Claude row — Opus 4 through 5.5, Sonnet 4 through 5.5, Fable 5 and 5.1, and Haiku
 3.5, 4.5, and 5.5, since the Claude accounting prices each message's cache writes and request tier as billed — and
-OpenAI's GPT-5 through GPT-5.5 rows with their Codex and chat models. Every other row is dormant — resolvable for its
-identity and rates, but priced by nothing until its provider's accounting activates it — so a run on one records
-`unknown-price`. The dormant rows are GPT-5.6 Sol (also `gpt-5.6`), Terra, and Luna, GPT-6 Astra, Sol, and Luna, and
-GPT-6.1 Sol and Terra; and every Gemini row (Gemini 4 Argon, 3.8 Flash, 3.6 Flash, and 3.1 Pro Preview). No Gemini 3.7
-row exists: the Developer API routes that deprecated ID to 3.8. The restricted Claude Mythos and OpenAI Daybreak (cyber)
+every OpenAI row: GPT-5 through GPT-5.5 with their Codex and chat models, GPT-5.6 Sol (also `gpt-5.6`), Terra, and
+Luna, GPT-6 Astra, Sol, and Luna, and GPT-6.1 Sol and Terra, since the Codex accounting prices a cache write only at a
+lifetime its record reports and a tier only under a bound on every request. Every Gemini row is dormant — resolvable
+for its identity and rates, but priced by nothing until Antigravity's accounting activates it — so a run on one records
+`unknown-price`: Gemini 4 Argon, 3.8 Flash, 3.6 Flash, and 3.1 Pro Preview. No Gemini 3.7 row exists: the Developer
+API routes that deprecated ID to 3.8. The restricted Claude Mythos and OpenAI Daybreak (cyber)
 models carry no row, since no captured stream shows a harness emitting their IDs and `gpt-5.6-cyber` names whichever
 cyber model is current; nor does any `gpt-5.6-pro`, which OpenAI does not publish.
 

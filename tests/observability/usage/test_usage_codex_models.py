@@ -20,61 +20,6 @@ class CodexModelPricingTest(unittest.TestCase):
     deltas.
     """
 
-    def test_gpt_five_four_tiers_long_context(self) -> None:
-        # gpt-5.4 carries the same >272K input long-context tier as
-        # gpt-5.5 per OpenAI's GPT-5.4 pricing docs: 2x input, 1.5x
-        # output. Same regression-guard shape as the gpt-5.5 test --
-        # a flat-rate fallback would silently undercount real runs.
-        stdout = _jsonl.jsonl(
-            _codex.turn_complete(
-                model="gpt-5.4",
-                input=_usage_cases.LONG_CONTEXT_INPUT_TOKENS,
-                cached=0,
-                output=_usage_cases.CODEX_PRICING_OUTPUT_TOKENS,
-            ),
-        )
-        metrics = _metrics.parse_codex_usage(stdout)
-        self.assertEqual(metrics.cost_source, _usage_cases.ESTIMATED_COST_SOURCE)
-        # gpt-5.4 rates: input=2.50, output=15; long-context 2x / 1.5x.
-        expected = (
-            _usage_cases.LONG_CONTEXT_INPUT_TOKENS
-            * _usage_cases.PRICE_RATE_TWO_AND_HALF
-            * _usage_cases.LONG_CONTEXT_INPUT_MULTIPLIER
-            + _usage_cases.CODEX_PRICING_OUTPUT_TOKENS
-            * _usage_cases.PRICE_RATE_FIFTEEN
-            * _usage_cases.LONG_CONTEXT_OUTPUT_MULTIPLIER
-        ) / _usage_cases.TOKENS_PER_MILLION
-        assert metrics.cost_usd is not None
-        self.assertAlmostEqual(metrics.cost_usd, expected, places=9)
-
-    def test_pro_models_use_tiers(self) -> None:
-        # The pricing page lists both pro models at $30 / $180 and, past 272K
-        # input, $60 / $270: the same 2x / 1.5x tier the standard rows carry.
-        # Cached tokens stay at 0 so the estimate runs at all, since neither
-        # publishes a cached-input rate.
-        for model in ("gpt-5.4-pro", "gpt-5.5-pro"):
-            with self.subTest(model=model):
-                stdout = _jsonl.jsonl(
-                    _codex.turn_complete(
-                        model=model,
-                        input=_usage_cases.LONG_CONTEXT_INPUT_TOKENS,
-                        cached=0,
-                        output=_usage_cases.CODEX_PRICING_OUTPUT_TOKENS,
-                    ),
-                )
-                metrics = _metrics.parse_codex_usage(stdout)
-                self.assertEqual(metrics.cost_source, _usage_cases.ESTIMATED_COST_SOURCE)
-                expected = (
-                    _usage_cases.LONG_CONTEXT_INPUT_TOKENS
-                    * _usage_cases.PRICE_RATE_THIRTY
-                    * _usage_cases.LONG_CONTEXT_INPUT_MULTIPLIER
-                    + _usage_cases.CODEX_PRICING_OUTPUT_TOKENS
-                    * _usage_cases.PRICE_RATE_ONE_EIGHTY
-                    * _usage_cases.LONG_CONTEXT_OUTPUT_MULTIPLIER
-                ) / _usage_cases.TOKENS_PER_MILLION
-                assert metrics.cost_usd is not None
-                self.assertAlmostEqual(metrics.cost_usd, expected, places=9)
-
     def test_gpt_five_four_small_models_stay_flat(self) -> None:
         # The long-context tier is documented only for the standard
         # and pro tiers of GPT-5.4 / GPT-5.5. Mini / nano stay on

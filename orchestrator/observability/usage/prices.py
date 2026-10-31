@@ -10,11 +10,12 @@ to. Each rate tuple copies one row of its provider's page in that page's column 
 
 Every Claude row is active -- Opus 4 through 5.5, Sonnet 4 through 5.5, Fable 5 and 5.1, and Haiku 3.5, 4.5, and
 5.5 -- since the Claude accounting (`claude_requests`) prices each API message on its own, at the lifetime each cache
-write was reported under, as each request is billed. OpenAI's GPT-5 through GPT-5.5 rows are active with their Codex
-and shut-down chat models. Every other row is dormant until its provider's accounting can price it: the GPT-5.6 and
-GPT-6 families, and every Gemini row. The restricted Mythos and Daybreak (cyber) models carry no row: no captured stream
-shows a harness emitting their IDs, and `gpt-5.6-cyber` is a moving alias for whichever cyber model is current, as is
-the bare `chat-latest`.
+write was reported under, as each request is billed. Every OpenAI row is active too -- GPT-5 through GPT-5.5 with
+their Codex and shut-down chat models, and the GPT-5.6 and GPT-6 families -- since the Codex accounting
+(`codex_requests`) charges a cache write only at a lifetime its usage record reports and a request tier only where the
+record bounds every request it sums. Every Gemini row is dormant until Antigravity's accounting can price it. The
+restricted Mythos and Daybreak (cyber) models carry no row: no captured stream shows a harness emitting their IDs, and
+`gpt-5.6-cyber` is a moving alias for whichever cyber model is current, as is the bare `chat-latest`.
 
 An estimate priced from a table is a token-only list-price equivalent on that provider's API basis, carrying the
 `verified_on` date of every row it was priced at, as `cost_evidence` defines it -- never a subscription or credit
@@ -50,7 +51,8 @@ _CLAUDE_COLUMNS = (
     protocol.OUTPUT,
 )
 # Input, output, cached input, 30m write, 12h write; the older models' table
-# stops after cached input.
+# stops after cached input, since a model before GPT-5.6 charges no cache
+# write of its own.
 _OPENAI_COLUMNS = (
     protocol.INPUT,
     protocol.OUTPUT,
@@ -183,30 +185,35 @@ OPENAI_PRICES: tuple[price_catalogue.PriceRow, ...] = (
         _openai((10, 50, 1, 12.5, 25)),
         _VERIFIED_ON,
         tier=price_catalogue.RequestTier(_OPENAI_LONG_CONTEXT_TIER, _openai((20, 75, 2, 25, 50))),
+        active=True,
     ),
     price_catalogue.PriceRow(
         "gpt-6.1-sol",
         _openai((2, 10, 0.1, 2.5, 5)),
         _VERIFIED_ON,
         tier=price_catalogue.RequestTier(_OPENAI_LONG_CONTEXT_TIER, _openai((4, 15, 0.2, 5, 10))),
+        active=True,
     ),
     price_catalogue.PriceRow(
         "gpt-6.1-terra",
         _openai((1, 5, 0.05, 1.25, 2.5)),
         _VERIFIED_ON,
         tier=price_catalogue.RequestTier(_OPENAI_LONG_CONTEXT_TIER, _openai((2, 7.5, 0.1, 2.5, 5))),
+        active=True,
     ),
     price_catalogue.PriceRow(
         "gpt-6-luna",
         _openai((0.1, 0.5, 0.01, 0.125, 0.25)),
         _VERIFIED_ON,
         tier=price_catalogue.RequestTier(_OPENAI_LONG_CONTEXT_TIER, _openai((0.2, 0.75, 0.02, 0.25, 0.5))),
+        active=True,
     ),
     price_catalogue.PriceRow(
         "gpt-6-sol",
         _openai((2, 10, 0.2, 2.5, 5)),
         _VERIFIED_ON,
         tier=price_catalogue.RequestTier(_OPENAI_LONG_CONTEXT_TIER, _openai((4, 15, 0.4, 5, 10))),
+        active=True,
     ),
     price_catalogue.PriceRow(
         "gpt-5.6-sol",
@@ -215,18 +222,21 @@ OPENAI_PRICES: tuple[price_catalogue.PriceRow, ...] = (
         aliases=("gpt-5.6",),
         tier=price_catalogue.RequestTier(_OPENAI_LONG_CONTEXT_TIER, _openai((8, 30, 0.8, 10, 20))),
         review_after=_GPT_FIVE_SIX_SOL_REVIEW,
+        active=True,
     ),
     price_catalogue.PriceRow(
         "gpt-5.6-terra",
         _openai((2, 12, 0.2, 2.5, 5)),
         _VERIFIED_ON,
         tier=price_catalogue.RequestTier(_OPENAI_LONG_CONTEXT_TIER, _openai((4, 18, 0.4, 5, 10))),
+        active=True,
     ),
     price_catalogue.PriceRow(
         "gpt-5.6-luna",
         _openai((0.2, 1.2, 0.02, 0.25, 0.5)),
         _VERIFIED_ON,
         tier=price_catalogue.RequestTier(_OPENAI_LONG_CONTEXT_TIER, _openai((0.4, 1.8, 0.04, 0.5, 1))),
+        active=True,
     ),
     price_catalogue.PriceRow(
         "gpt-5.5",
@@ -393,13 +403,14 @@ def claude_estimate(
     """
     row = claude_row(model)
     rates = None if row is None else row.rates_for_request(prompt_tokens)
-    amount = None if rates is None else _priced_amount(rates, bucket)
+    amount = None if rates is None else priced_amount(rates, bucket)
     if row is None or amount is None:
         return None
     return cost_evidence.CostContribution(cost_evidence.ANTHROPIC_API_ESTIMATE, amount, (row.verified_on,))
 
 
-def _priced_amount(rates: protocol.RateMap, bucket: protocol.TokenBucket) -> float | None:
+def priced_amount(rates: protocol.RateMap, bucket: protocol.TokenBucket) -> float | None:
+    """The bucket's tokens at `rates`, in USD, or None where it holds tokens of a class the rates do not publish."""
     charged = {token_class: count for token_class, count in bucket.items() if count}
     if not charged.keys() <= rates.keys():
         return None

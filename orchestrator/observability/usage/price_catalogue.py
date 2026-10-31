@@ -76,6 +76,18 @@ class PriceRow:
             return self.rates
         return None if prompt_tokens is None else self.rates_for_prompt(prompt_tokens)
 
+    def rates_for_requests_within(self, prompt_bound: int | None) -> protocol.RateMap | None:
+        """The rates each of several requests pays when none has a prompt over `prompt_bound`, or None.
+
+        Usage summed over requests says nothing of which of them passed a tier, so a tiered row prices it only where
+        the bound keeps every one at or under the threshold; a bound of None establishes nothing.
+        """
+        if self.tier is None:
+            return self.rates
+        if prompt_bound is None or prompt_bound > self.tier.above:
+            return None
+        return self.rates
+
 
 def resolve(
     rows: Iterable[PriceRow],

@@ -28,6 +28,7 @@ _OWNERS = (
     "claude_rows",
     "claude_settlement",
     "claude_summary",
+    "codex_requests",
     "codex_rows",
     "codex_summary",
     "cost_evidence",

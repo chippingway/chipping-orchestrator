@@ -1,6 +1,11 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Codex cumulative usage pricing and run summary."""
+"""Codex cumulative usage pricing and run summary.
+
+A run's estimate is its authoritative record priced on its own (`codex_requests.CodexUsageRow.estimate`): every
+record sums the run's requests, so a difference between two of them sizes no request, and pricing the last one once
+charges no request twice.
+"""
 
 from __future__ import annotations
 
@@ -10,10 +15,10 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
 from orchestrator.observability.usage import (
+    codex_requests,
     codex_rows,
     cost_evidence,
     event_stream,
-    prices,
     protocol,
     token_evidence,
 )
@@ -32,39 +37,15 @@ COUNTER_NAMES = MappingProxyType({
 })
 
 
-@dataclass(frozen=True)
-class CodexPrice:
-    rates: protocol.RateMap
-    usage: protocol.TokenBucket
-
-    def estimate(self) -> float | None:
-        input_cost = self._input_cost()
-        if input_cost is None:
-            return None
-        output_cost = self.usage[protocol.OUTPUT] * self.rates[protocol.OUTPUT]
-        return (input_cost + output_cost) / protocol.TOKENS_PER_MILLION
-
-    def _input_cost(self) -> float | None:
-        cached_tokens = self.usage[protocol.CACHED]
-        cached_rate = self.rates.get(protocol.CACHED)
-        if cached_tokens > 0 and cached_rate is None:
-            return None
-        uncached_tokens = max(self.usage[protocol.INPUT] - cached_tokens, 0)
-        return uncached_tokens * self.rates[protocol.INPUT] + cached_tokens * (cached_rate or 0)
-
-
 def estimate_cost(
-    model: str,
-    usage: protocol.TokenBucket,
+    model: str | None,
+    usage_events: list[protocol.CodexUsageEvent],
 ) -> cost_evidence.CostContribution | None:
-    row = prices.codex_row(model)
-    billable_tokens = usage[protocol.INPUT] + usage[protocol.OUTPUT]
-    if row is None or billable_tokens <= 0:
+    """The run's authoritative record -- the last of `usage_events` -- priced on its own, or None where it has none."""
+    if not usage_events:
         return None
-    amount = CodexPrice(row.rates_for_prompt(usage[protocol.INPUT]), usage).estimate()
-    if amount is None:
-        return None
-    return cost_evidence.CostContribution(cost_evidence.OPENAI_API_ESTIMATE, amount, (row.verified_on,))
+    record = usage_events[-1][1]
+    return codex_requests.CodexUsageRow(model or protocol.UNKNOWN, record).estimate()
 
 
 def reported_turn_count(events: list[dict[str, Any]]) -> int | None:
@@ -98,7 +79,9 @@ def last_record_evidence(usage_events: list[protocol.CodexUsageEvent]) -> token_
     if not usage_events:
         return token_evidence.TokenEvidence((), token_evidence.WITHIN_INPUT)
     last_record = usage_events[-1][1]
-    return token_evidence.TokenEvidence.reporting(map(COUNTER_NAMES.get, last_record), token_evidence.WITHIN_INPUT)
+    # A cache write is read for the estimate alone, so no counter observes it.
+    counted = (COUNTER_NAMES[token_class] for token_class in last_record if token_class in COUNTER_NAMES)
+    return token_evidence.TokenEvidence.reporting(counted, token_evidence.WITHIN_INPUT)
 
 
 @dataclass(frozen=True)
@@ -144,7 +127,7 @@ class CodexUsageSummary:
         metrics.apply_cost(
             event_stream.select_cost(
                 event_stream.find_last_reported_cost(self.events),
-                estimate_cost(self.model or protocol.UNKNOWN, self.usage),
+                estimate_cost(self.model, self.usage_events),
                 bool(self.usage_events),
             ),
         )

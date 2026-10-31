@@ -120,7 +120,11 @@ arbitrary suffix, or a dormant row is an unpriced cost, never another row's rate
 row on its own, a run and its turns alike: a cache write at the lifetime its usage block reports as a whole number, a
 write it reports no lifetime for at neither lifetime's rate, a block whose lifetime split contradicts its aggregate at
 no rate at all, and a request-tiered rate only on one API message's own prompt, never on a `result` total or an
-output-only hand-back. A usage record states what its
+output-only hand-back. A Codex estimate prices a run's last usage record once, as the sum of every request it covers:
+on a model charging cache writes by lifetime, a write only at a lifetime the record reports, never one the CLI's flat
+count or its zero leaves unknown; reads and writes past the input at no rate at all; and a request-tiered row's base
+rates only where the record's input keeps every request at or under its threshold, the tier's rates never. A usage
+record states what its
 cost and counters mean in its `cost_evidence` and `token_evidence`, which `UsageMetrics`, each `TurnUsage`, the
 `agent_exit` record, and the trajectory `run_usage` serialize alike: a CLI-reported amount, an explicit zero included,
 outranks an estimate and is labelled CLI-reported, never a verified bill; an estimate is a token-only Standard API
@@ -268,6 +272,7 @@ or lost write interrupted are current state, not historical compatibility.
 [groups in Postgres](../tests/observability/analytics/sync/test_live_grouped_reads.py),
 [price catalogue](../tests/observability/usage/test_usage_price_catalogue.py),
 [Claude requests](../tests/observability/usage/test_usage_claude_requests.py),
+[Codex requests](../tests/observability/usage/test_usage_codex_requests.py),
 [cost evidence](../tests/observability/usage/test_usage_cost_evidence.py),
 [token evidence](../tests/observability/usage/test_usage_token_evidence.py),
 [recorded evidence](../tests/workflow/engine/test_usage_metrics.py),

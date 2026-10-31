@@ -55,9 +55,11 @@ naming the item type in `name`, its id in `tool_id`, and its reported status in 
 that reports none), and the final `output`. `run_usage`
 is the denormalized `UsageMetrics` (`models`, `input_tokens`, `output_tokens`, `cached_tokens`, `cache_read_tokens`,
 `cache_write_tokens`, `turns` count, `cost_usd`, `cost_source`, `cost_evidence`, `token_evidence`) minus `backend`
-(already on the record) — the run headline, and the codex surface too, since codex has no per-turn detail. Its two
-evidence objects are the ones the same run's `agent_exit` record carries. Each `turns[]` entry is one claude assistant
-turn (`turn` index, `model`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, an
+(already on the record) — the run headline, and the codex surface too, since codex has no per-turn detail: a codex
+run's estimate there is its last usage block priced once, `incomplete` with no amount wherever that block cannot
+establish a cache write's lifetime or a tiered request's size, as [`usage.md`](usage.md#usage-parser) describes.
+Its two evidence objects are the ones the same run's `agent_exit` record carries. Each `turns[]` entry is one claude
+assistant turn (`turn` index, `model`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, an
 always-*estimated* `cost_usd` / `cost_source`, and that turn's own `cost_evidence` and `token_evidence`). A turn's cost
 is always an Anthropic API estimate of its own message, each cache write at the lifetime its usage block reports, or
 `incomplete` with no amount where that message's price is unknown — an unpriced model, a cache write of no reported
