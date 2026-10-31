@@ -86,7 +86,9 @@ class CompletionHandoff:
     `watermarks` are the input the run's prompt delivered and `spends` the
     round and bookmarks the road closes, each `((field, value), ...)` bounded
     by the vocabulary the report records hold them to, applied only by the
-    settlement of the report they ride. `frozen` is `((field, digest), ...)`:
+    settlement of the report they ride -- save on a road that settles its own
+    input, whose watermarks its recovery applies as its tick would have and
+    whose report carries none (`completion_routes.RouteContract`). `frozen` is `((field, digest), ...)`:
     each pinned record the road's handoff was decided on, as the digest of its
     spelling at the launch, so a handoff another road moved since is told
     apart from the one the run answered. `delivered` is `(after, through)`:
@@ -103,6 +105,11 @@ class CompletionHandoff:
     spends: tuple = ()
     frozen: tuple = ()
     delivered: tuple = ()
+
+    @property
+    def delivered_input(self) -> tuple:
+        """The watermarks the report this handoff becomes carries: none on a road that settles its own input."""
+        return () if _routes.CONTRACTS[self.route].settles_input else self.watermarks
 
 
 @dataclass(frozen=True)

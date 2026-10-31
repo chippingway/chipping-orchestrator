@@ -31,9 +31,10 @@ a return that was merely held; review, verification, the final
 documentation pass, and the readiness proof follow the handoff as ever.
 
 The rebuilt result and the session's settlement are read by the recovery of a
-reviewer's change request's capture and of a pull request feedback round's too
-(`validating/captured_fix`, `fixing/captured_fixes`), which settles its run's
-session exactly so.
+reviewer's change request's capture, of a pull request feedback round's, and
+of a requirements-drift resume's too (`validating/captured_fix`,
+`fixing/captured_fixes`, `captured_drift`), which settles its run's session
+exactly so.
 """
 from __future__ import annotations
 

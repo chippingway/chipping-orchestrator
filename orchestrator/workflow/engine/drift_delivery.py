@@ -51,7 +51,7 @@ this record names and stops at the first id it does not.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from github.Issue import Issue
 
@@ -162,6 +162,18 @@ def _pr_drift_resume_prompt(
         ),
         _drift._build_user_content_change_prompt(issue, quoted),
     )
+
+
+def _settled_half(record: _delivery.PromptDeliverySnapshot) -> _delivery.PromptDeliverySnapshot:
+    """The half of a two-surface record its road settles from: the issue thread's, with the requirements revision.
+
+    What it names on the pull request's conversation is left to the walk
+    that carries the shared cursor (see the module note above), so nothing
+    settled from this half writes that cursor -- the settlement a resume on
+    an open pull request makes once its run is back, and the one its capture
+    freezes for a recovery to make.
+    """
+    return replace(record, entries=record.surface_provenance(_delivery.SURFACE_ISSUE_THREAD))
 
 
 def _delivered_pr_conversation(

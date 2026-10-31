@@ -53,8 +53,9 @@ are preserved unchanged and never overwritten, duplicated, or silently upgraded.
 capture read back after an unconfirmed write, carries the report and what its road froze, never a log, analytics,
 a native session, a trajectory, or a host record. Only the first implementation, an implementing resume, the fix a
 reviewer's change request hands its developer -- the run its handoff launches, and the resume that finishes its parked
-round -- and the resume answering a pull request's human feedback capture one, as their developer returns. The
-dispatcher's recovery reads a pending capture through that read-back alone.
+round -- the resume answering a pull request's human feedback, and a requirements-drift resume on `implementing`,
+`validating`, `in_review`, or `resolving_conflict` -- the replies that remain its continuation included -- capture
+one, as their developer returns. The dispatcher's recovery reads a pending capture through that read-back alone.
 
 **Specs:** [state](architecture.md#design-constraints), [restarts](configuration/operations.md#what-survives-a-restart).
 
@@ -64,7 +65,8 @@ dispatcher's recovery reads a pending capture through that read-back alone.
 [capture recovery](../tests/workflow/engine/test_completion_recovery.py),
 [captured attempts](../tests/workflow/stages/implementing/test_captured_attempts.py),
 [captured fixes](../tests/workflow/stages/validating/test_captured_fixes.py),
-[captured feedback](../tests/workflow/stages/fixing/test_captured_feedback.py).
+[captured feedback](../tests/workflow/stages/fixing/test_captured_feedback.py),
+[captured drift](../tests/workflow/stages/validating/test_captured_drift.py).
 
 ## C-02: Workflow labels and transitions
 
@@ -185,7 +187,9 @@ above what its two thread reads prove complete -- with the review surfaces scann
 moves `pr_last_comment_id` over nothing above what its thread and pull-request reads prove complete, so an issue reply
 landing between them is left to the next scan, and a `/orchestrator continue` replay is rebuilt only from the id lists
 its route recorded, a list missing or damaged replaying nothing. A captured feedback round's recovery settles only the
-pairs its launch froze, never a rescan, so nothing posted after the scan is recorded as delivered. An approval or
+pairs its launch froze, never a rescan, so nothing posted after the scan is recorded as delivered, and a captured
+drift resume's recovery settles the frozen reading its run was handed, never a newer one, the pull-request comments an
+`in_review` prompt quoted left for the next scan rather than marked read. An approval or
 permission is read only as its current writers record it whole: no approval record, an approval beside no evidence
 claim, a `late_approved_sha` with no `late_approved_basis` this build can read, and a rewrite permission beside an
 attempt record with no declared terms are each no grounds -- never an earlier producer's default -- and authorize no
@@ -213,7 +217,10 @@ only whole, in the one shape its stage writes: absent is an issue that captured 
 `null`, a key too many or too few, a member out of its bound, a report the report records refuse, or a road its
 contract refuses -- is a damaged claim, never an absence, so nothing captures over it, retires it, or acts on it,
 and no delivery is bound beside it. Its READY text and VERIFIED reference stay two outcomes, a rewritten-head refresh
-is captured only READY, and a change-request or pull-request-feedback road only beside the handoff it froze.
+is captured only READY, and a change-request or pull-request-feedback road only beside the handoff it froze. A
+requirements-drift resume settles the input it was handed for itself, so the report its capture becomes carries none
+of it, as the recording its own tick makes carries none: no requirements baseline rides a report onto one that later
+supersedes it.
 
 Unsupported input cannot serve as fresh work, current evidence, or authorization to publish or delete artifacts. Neither
 a format change nor a refusal grants permission to discard that input or the artifacts it names; the owning
@@ -310,6 +317,7 @@ or lost write interrupted are current state, not historical compatibility.
 [usage receipts](../tests/workflow/engine/test_usage_checkpoint.py),
 [completion records](../tests/workflow/engine/test_completion_records.py),
 [completion roads](../tests/workflow/engine/test_completion_eligibility.py),
+[superseded drift reports](../tests/workflow/stages/validating/test_report_hold.py),
 [branch resolution](../tests/git/worktrees/test_resolution.py),
 [checkout reuse](../tests/git/worktrees/test_creation.py),
 [refused drift unwind](../tests/workflow/stages/documenting/test_drift_checkout.py),
@@ -606,8 +614,8 @@ release and the parent's return move only the workflow label, and the walk reads
 of every release, so a hold applied while the poll runs is never written away or worked past. A hold a finished agent
 run meets, or an accounting checkpoint of it that neither landed nor read back, permits that run's usage accounting
 alone, beside a quota retirement it owes and, on the first implementation, an implementing resume, a reviewer's change
-request's fix, or a pull request feedback round, the capture of the report the run finished on: the exit is counted
-once, as it returns, and
+request's fix, a pull request feedback round, or a requirements-drift resume, the capture of the report the run
+finished on: the exit is counted once, as it returns, and
 nothing else of the run -- a
 publication, a label, a park, a consumed input, a session pin, a further launch -- is written or made, nor does the
 count give any stage outcome a replay; the hold the run's return first read is the one honored, whatever a later
@@ -619,11 +627,13 @@ back is handed on to no road until that run's receipt reads back, and the issue'
 requirements, its checkout, and its pull request are read again right before the capture is retired or handed on,
 so a hold applied, or a close, reopening, edit, or source moved or put back, while its readings were taken writes
 nothing; a landed retirement ends its tick, so no stage runs on the snapshot its readings outdated. An applicable
-capture of an implementing road, of a change request's fix, or of a pull request feedback round is finished with no
-developer launched: only what that run was handed and its session are settled -- a feedback round's frozen batch,
-reset round, and cleared bookmarks, later feedback left unread -- and its report goes through the existing delivery,
-size gate, and publication -- a change request's retired in the very commit that hands its report on, and its round
-spent once,
+capture of an implementing road, of a change request's fix, of a pull request feedback round, or of a
+requirements-drift resume is finished with no developer launched: only what that run was handed and its session are
+settled -- a feedback round's frozen batch, reset round, and cleared bookmarks, later feedback left unread, and a drift
+resume's frozen reading, recorded as the baseline only by its report's handoff or its stage's own write, beside the
+round its stage's drift disposition spends, resets, or hands on, the lease a conflict round's caller proved, and no
+baseline a dependency hold defers -- and its report goes through the existing delivery, size gate, and publication --
+a change request's retired in the very commit that hands its report on, and its round spent once,
 only over its reviewed subject read again save the head its run moved and the issue's controls and requirements,
 its checkout, and its pull request's head read again behind it, damage there -- a settled report and its handoff
 that no longer agree included, judged ahead of the revision reviewed -- or a push meanwhile holding it rather than
@@ -654,7 +664,11 @@ the grant that permits further runs are covered by [C-15].
 [ready captures](../tests/workflow/stages/decomposition/test_ready_capture.py),
 [held fixes](../tests/workflow/stages/validating/test_captured_fixes.py),
 [held fix resumes](../tests/workflow/stages/fixing/test_captured_resumes.py),
-[held feedback rounds](../tests/workflow/stages/fixing/test_captured_feedback.py).
+[held feedback rounds](../tests/workflow/stages/fixing/test_captured_feedback.py),
+[held drift resumes](../tests/workflow/stages/implementing/test_captured_drift.py),
+[held drift replies](../tests/workflow/stages/validating/test_captured_drift.py),
+[held in_review drift](../tests/workflow/stages/in_review/test_captured_drift.py),
+[held conflict drift](../tests/workflow/stages/conflicts/test_captured_drift.py).
 
 ## C-11: Credentials and execution boundaries
 

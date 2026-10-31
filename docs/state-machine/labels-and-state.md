@@ -1965,7 +1965,15 @@ The keys that matter for the state machine fall into a few groups:
   resume answering a pull request's human feedback returns, on the `pr_feedback` road
   (`stages/fixing/feedback_road.py`), frozen over `pending_fix_at`, the `pending_fix_*_ids` lists, `pr_number`, the
   code-publication receipt, and the pull request's three readers, its `watermarks` the batch its prompt quoted and its
-  `spends` the reset round and cleared bookmarks. No other road captures one yet. Only a
+  `spends` the reset round and cleared bookmarks; and so it does as a requirements-drift resume returns, on the
+  `requirements_drift` road (`stages/implementing/drift_road.py`) -- the body edit `implementing`, `validating`,
+  `in_review`, or `resolving_conflict` resumes the session on, the reply `validating` reads as the rest of a drift
+  park or an owed report, and the reply a conflict park owing a report is answered with -- frozen over `pr_number`,
+  the code-publication receipt, the settled report pair, `review_round`, `conflict_round`, the report debt flags,
+  `developer_report_owed_round_reset`, and `requirements_drift_open` (a body edit on `validating` beside
+  `validating_reviewer_owes_a_round` too), its `watermarks` the settlement of the frozen reading its prompt was cut
+  from, beside the commands a retry consumed, and no `spends`, and its `before` commit, on `resolving_conflict`, the
+  head the publication is leased against. No other road captures one yet. Only a
   return the
   outcome owner's completed-run reader answers READY or VERIFIED for, whose backend recorded no unfinished tool steps
   or terminal failure, that a tracked spawn
@@ -2011,7 +2019,9 @@ The keys that matter for the state machine fall into a few groups:
   recording (`report_delivery.records_the_report`), measured afresh over the candidate it sends, escaped in full, with
   the binding and settlement it reserves, so a comment another road filled since the capture refuses it for room and
   the capture stays pending; it is minted from the captured outcome under the road's frozen route,
-  requirements, input and round, with the capture rewritten `handed_off` in the same commit, what the caller's road
+  requirements, input and round -- no input for a road that settles its own, as a requirements-drift resume does, so
+  no baseline rides the delivery onto a later report that supersedes it -- with the capture rewritten `handed_off` in
+  the same commit, what the caller's road
   retires with the report riding it, and decided on every record its handoff froze and on what that road decides its
   own recording on (`HandedRun.decided_on`), the latter as the caller read it: the report has one durable owner on
   either side, and a frozen record another road moved, or one the caller's road was decided on moved since the caller
@@ -2049,8 +2059,12 @@ The keys that matter for the state machine fall into a few groups:
   and a parked round's resume through its own roads, each only once its reviewed subject reads again, with no developer
   or reviewer run and the request retired in the commit that hands its report on, and a pull request's `pr_feedback`
   round through those same roads with no subject to re-read -- the issue, checkout, and pull request read again behind
-  the pull request the owner fetches -- settling only the batch, round, and bookmarks its road froze; and none for any
-  other road in this build, so that stage is held; stale -- its
+  the pull request the owner fetches -- settling only the batch, round, and bookmarks its road froze; the stage a
+  `requirements_drift` capture reported under (`stages/<stage>/captured_drift.py`, `completion_recovery.DRIFT_OWNERS`),
+  which stages from the capture what its tick settled around the run -- the session, the park flag, the frozen
+  reading's watermarks, which record the baseline -- and finishes it through that stage's own drift disposition, on
+  the round it counts, resets, or hands on and, on `resolving_conflict`, the frozen lease; and none for any other road
+  in this build, so that stage is held; stale -- its
   road's pull request, report debt, or adjudication gone among the proofs -- it is retired `invalidated` by a guarded
   commit owning the capture alone, its invocation kept, and held to the whole reading the proof was taken over, so a
   comment that moved since -- a field it lacked restored included -- refuses it, and the tick ends behind it, the stage

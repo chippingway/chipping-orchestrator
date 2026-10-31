@@ -37,9 +37,11 @@ records, so an edit beside the command is never the report's revision
 unseen. A documentation pass, a conflict resolution, and every other
 resume freeze no road, so the coordinator captures nothing for them merely
 because they run through it -- save the two a reviewer's change request
-hands its developer through and the fixing stage's resume answering a pull
-request's human feedback, whose callers freeze a road of this same shape
-(`validating/fix_road`, `fixing/resume_road`, `fixing/feedback_road`).
+hands its developer through, the fixing stage's resume answering a pull
+request's human feedback, and every requirements-drift resume and the replies
+that remain its continuation, whose callers freeze a road of this same shape
+(`validating/fix_road`, `fixing/resume_road`, `fixing/feedback_road`,
+`drift_road`).
 """
 from __future__ import annotations
 

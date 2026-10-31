@@ -55,6 +55,12 @@ the binding is `report_settlement`'s.
 What the resume freezes for the helper that finishes it is a record only this
 route builds and only this route reads, so it answers on `drift_models.py`
 beside this owner rather than on the stage's shared `models.py`.
+
+The resume is launched on the drift road, frozen over that same reading and
+the round this stage stood down for (`implementing/drift_road`), so a return a
+live hold, a lost write, or a restart keeps from the finishing helper is
+captured with its report, and the dispatcher's recovery finishes it through
+that same helper with no developer run (`captured_drift`).
 """
 from __future__ import annotations
 
@@ -63,7 +69,6 @@ from pathlib import Path
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
-from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
@@ -76,6 +81,7 @@ from orchestrator.workflow.engine import (
     usage as _usage,
 )
 from orchestrator.workflow.stages.implementing import (
+    drift_road as _drift_road,
     resume as _dev_resume,
     resume_batch as _resume_batch,
     resume_request as _dev_resume_request,
@@ -95,7 +101,7 @@ from orchestrator.workflow.state import WorkflowLabel
 def _run_validating_drift(
     gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState, worktree: Path,
 ) -> _drift_models._ValidatingDriftRun:
-    before_sha = _verification_probes._head_sha(worktree)
+    checkout = _drift_road.launched_in(spec, issue.number, state, worktree)
     answered = _drift_delivery._drift_resume_prompt(gh, issue, state)
     worktree, agent_result, paused = _dev_resume._resume_dev_with_text(_dev_resume_request._DevResumeRequest(
         gh, spec, issue, state, answered.text, pause_guard=True,
@@ -103,9 +109,15 @@ def _run_validating_drift(
         # with, so a rotated or retired session is handed this tick's one
         # read rather than a newer one the settlement never saw.
         thread_text=answered.delivery.rendered_text,
+        # Frozen over that same reading, beside the round this stage stood
+        # down for, so a held return is captured with its report.
+        completion=_drift_road.road(
+            WorkflowLabel.VALIDATING, state, _drift_road.DriftReading.settled_by(answered.delivery, state),
+            checkout, _drift_road.STOOD_DOWN,
+        ),
     ))
     return _drift_models._ValidatingDriftRun(
-        worktree, agent_result, before_sha, paused, answered.delivery,
+        worktree, agent_result, checkout.before_sha, paused, answered.delivery,
     )
 
 
@@ -155,7 +167,7 @@ def _finish_validating_drift(
     # handed those words, never that they are resolved.
     if _resume_batch._counts_as_delivered(run.agent_result, run.paused):
         run.delivery.settle(state)
-    owed = _rounds._spends_next_round(state)
+    owed = _rounds._spends_next_round(state) if run.spends is None else run.spends
     outcome = _outcomes._post_user_content_change_result(
         gh,
         spec,

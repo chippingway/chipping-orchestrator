@@ -17,7 +17,12 @@ caller froze before the launch. A rewritten-head refresh is paid only by a
 fresh READY report of the head it was asked about, so a verification of the
 report the pull request already carried is refused here, as that road's own
 outcome owner refuses it. A reviewer's change request and a pull request's
-feedback round each answer a handoff, so neither is captured without one.
+feedback round each answer a handoff, so neither is captured without one. A
+requirements-drift resume settles the reading it was handed for itself, as its
+own tick always has, so the report its capture becomes carries none of that
+input: a pair riding the report would be carried onto every later report that
+supersedes it, and a requirements baseline settled late would move the issue
+back onto requirements it has since left.
 
 Whether a return qualifies is read through the outcome owner's completed-run
 reader (`report_outcomes._report_outcome_of_run`): a run that never started,
@@ -81,12 +86,15 @@ class RouteContract:
 
     `labels` are the workflow labels a report on the road is recorded under;
     `verified` is whether a verification pays it; `handed` is whether it
-    answers a handoff its caller froze before the launch.
+    answers a handoff its caller froze before the launch; `settles_input` is
+    whether the road settles the input its run was handed for itself, as its
+    own tick does, so the report its capture becomes carries none of it.
     """
 
     labels: frozenset[WorkflowLabel]
     verified: bool = True
     handed: bool = False
+    settles_input: bool = False
 
 
 _IMPLEMENTING = frozenset((WorkflowLabel.IMPLEMENTING,))
@@ -101,7 +109,7 @@ CONTRACTS = MappingProxyType({
     CompletionRoute.REQUIREMENTS_DRIFT: RouteContract(frozenset((
         WorkflowLabel.IMPLEMENTING, WorkflowLabel.VALIDATING,
         WorkflowLabel.IN_REVIEW, WorkflowLabel.RESOLVING_CONFLICT,
-    ))),
+    )), settles_input=True),
     CompletionRoute.REPORT_REFRESH: RouteContract(frozenset((WorkflowLabel.VALIDATING,)), verified=False),
     CompletionRoute.LATE_REVISION: RouteContract(frozenset((WorkflowLabel.DECOMPOSING,))),
 })

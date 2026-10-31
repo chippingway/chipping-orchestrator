@@ -317,7 +317,8 @@ delivery by one guarded commit; the implementing stage captures the first implem
 as they come back, a held one included, and hands an ordinary one on in its own disposition, and so does the fix a
 reviewer's change request hands its developer, on the round's direct run and on the resume that finishes it after a
 park, the request retired in the very commit that hands its report on, and the fixing round answering a pull
-request's human feedback, over the batch its prompt quoted and the round its route resets. A pending one is decided
+request's human feedback, over the batch its prompt quoted and the round its route resets, and every
+requirements-drift resume, over the one frozen reading its prompt was cut from. A pending one is decided
 by the dispatcher ahead of every handler, behind the reconciliations
 ([the captured-completion recovery](state-machine/delivery-stages.md#the-captured-completion-recovery-every-dispatch)):
 handed, admitted, to its road's owner, retired as invalidated where a reading proves it stale or an auto-rebase
@@ -445,7 +446,12 @@ request carries; the issue then goes back to `workflow:validating`, which is whe
 `workflow:resolving_conflict`: the report its body-edit resume returns — over a rebase that session ran, or with no
 commit at all — is recorded under that route before the push, bound to the head the push left once the round is
 counted, and settled before `workflow:validating` spawns a reviewer, and a reply to a park that left the report owed
-is answered on the same road rather than as a conflict resolution. A late
+is answered on the same road rather than as a conflict resolution. Every one of those resumes, and the replies that
+continue them, is launched on the drift road over its frozen reading, so a report a live hold, a lost write, or a
+restart kept from its disposition is captured, and the dispatcher's recovery finishes it with no developer run on
+that stage's own drift disposition and round: the reading's watermarks settled as the run's tick would, the
+requirements it was handed recorded as the baseline, and an edit landing meanwhile retiring the capture rather than
+restamping its report. A late
 adjudication on `workflow:decomposing` runs no check of its own, but every reply it acts on records the baseline off
 the one reading it acted on — short of an edit in that reading nobody has answered yet, or guidance a park's notice
 withheld that nothing the answer runs has read — so the umbrella a late split hands the issue to meets guidance a

@@ -133,6 +133,24 @@ The rules below follow from the frozen record, and they are the general rules fo
   relabel, so the next poll does not announce the same one again. The comments that moved the hash stay unread for
   the reviewer the relabel hands the issue to, and for the fix round behind it.
 
+A drift resume is launched on the drift road, frozen over that very reading
+(`workflow/stages/implementing/drift_road.py`): the requirements revision the run's report is stamped with -- the one
+its prompt fingerprints, which is also what a rotated, retired, or poisoned session's fresh spawn is re-grounded
+with -- the watermarks its settlement advances, beside the commands a retry consumed, and the records its stage's
+accounting is read off. So does every reply that remains the drift resume's continuation: the reply `validating`
+reads as the rest of a drift park or an owed report, and the reply a `resolving_conflict` park owing a report is
+answered with. A run that finished on its report is captured as it returns, and the capture moves nothing else: a
+return a live hold, a lost write, or a restart kept from its disposition settles no baseline, delivered input,
+park, round, or approval merely because the run came back. Its report is handed to the delivery as the capture's
+transfer, which carries none of that input onto the report, and the dispatcher's
+[captured-completion recovery](#the-captured-completion-recovery-every-dispatch) finishes a held one with no developer
+run: it stages what the resume's tick settled -- the frozen reading's watermarks, which record its revision as the
+baseline, never a newer one -- and answers the run through the stage's own drift disposition, on the round that stage
+counts, resets, or hands on. An edit or a reply landing while the capture waits moves the requirements, and the
+capture is retired rather than its report restamped; the next tick answers that edit afresh. A dependency hold is
+waited through, its deferred baseline untouched. A park that hands the report to nobody -- an `ACK:` or a question
+on `implementing`, a loose tree beside a report alone, a rebase left mid-flight -- withdraws the capture first.
+
 `_handle_fixing`, `_handle_question`, and `_handle_discussion` deliberately skip the drift check. `_handle_fixing`
 refreshes `user_content_hash` itself once it has consumed the PR-side feedback; `_handle_question` and
 `_handle_discussion` run their own conversation flows on an operator-applied label nothing routes into, so rerouting
@@ -1410,7 +1428,9 @@ because there it is the claim that this stage has already rerouted rather than a
   stages for the fix a reviewer's change request hands its developer, on the run its handoff launches
   ([`_handle_validating`](#_handle_validating-label-workflowvalidating) step 6) and the resume of its parked round
   ([`_handle_fixing`](#_handle_fixing-label-workflowfixing)), and the fixing stage for the resume answering a pull
-  request's human feedback; this reconciliation reads no capture of its own. A pending capture is decided behind it,
+  request's human feedback, and every stage a requirements-drift resume runs on for that resume
+  ([user-content drift](#user-content-drift-detection)), whose transfer carries none of the input its road settles
+  for itself; this reconciliation reads no capture of its own. A pending capture is decided behind it,
   by the [captured-completion recovery](#the-captured-completion-recovery-every-dispatch), and from the transfer on the
   delivery and this transaction hold the checkout out of the base refresh the capture held it out of before.
 
@@ -2011,7 +2031,11 @@ and handed off -- and this is what it guarantees and what stops it.
   ([`_handle_validating`](#_handle_validating-label-workflowvalidating) step 6) and the resume a reply or an
   `/orchestrator continue` buys on the far side of a park that round took
   ([`_handle_fixing`](#_handle_fixing-label-workflowfixing)), and so does the resume the fixing stage makes over a
-  pull request's human feedback on the in_review route, on the `pr_feedback` road. No other road captures one yet.
+  pull request's human feedback on the in_review route, on the `pr_feedback` road, and so does a requirements-drift
+  resume on the `requirements_drift` road ([user-content drift](#user-content-drift-detection)): the body edit
+  `implementing`, `validating`, `in_review`, or `resolving_conflict` resumes the session on, and the replies that
+  remain its continuation -- the reply `validating` reads as the rest of a drift park or an owed report, and the reply
+  a conflict park owing a report is answered with. No other road captures one yet.
 - **Reads** (`workflow/engine/completion_admission.py`, `completion_sources.py`), the cheapest first: the capture read
   back afresh through its own checkpoint, which admits the comment and binds it to the invocation's repository, issue,
   comment, and cycle -- the only thing the capture is read from; the issue fetched again for its labels, controls, and
@@ -2024,7 +2048,9 @@ and handed off -- and this is what it guarantees and what stops it.
   (`completion_frozen_reads.py`: the feedback anchor, `pending_fix_at`, the code-publication receipt, the settled
   report pair, and the verification evidence, the current report and the current evidence each read beside the
   handoff its settlement wrote, and the `pending_fix_*_ids` lists and the pull request's three readers a pull request's
-  feedback round froze, each a list of whole ids, a whole id, or cleared to `null`), and for a late record the late
+  feedback round froze, each a list of whole ids, a whole id, or cleared to `null`, and the review and conflict rounds
+  and the report debt, round-reset, open-drift, and stood-down-for claims a drift resume froze, each a whole count or a
+  flag, or cleared to `null`), and for a late record the late
   domain's check of that very
   field: the measurement evidence, the publication group, a hold's route bookkeeping --
   takes its new spelling, and a move of one no reader is registered for holding it, a late record none of those checks
@@ -2115,10 +2141,29 @@ and handed off -- and this is what it guarantees and what stops it.
   write that settles the report, so a comment posted after the scan, during the run, the hold, or the recovery's own
   publication, stays unread for the next `in_review` scan and no omission is ever recorded as delivered. A report
   with no commit goes onto the head the pull request already carries, superseding the report the approval covered,
-  so that approval covers it no longer, and either handover goes back to `workflow:validating`. Every other road
-  names no owner in this build, so an applicable capture of it holds the stage, every tick, rather than letting it run
-  the paid work again. This recovery publishes nothing of its own and infers no review, verification, approval, or
-  docs pass.
+  so that approval covers it no longer, and either handover goes back to `workflow:validating`. A requirements-drift
+  resume's owner is the stage it reported under (`completion_recovery.finishes_a_drift`, by `DRIFT_OWNERS`), asked
+  ahead of the drift check that would resume the developer again over the same edit, and each stages from the capture
+  alone what that resume's tick settled around its run (`implementing/captured_drift.settled_resume`) -- the session
+  as above, the park flag the resume takes down, the frozen reading's watermarks, which record the requirements the
+  run was handed as the baseline, and the commands a retry consumed -- then answers the run on its stage's own drift
+  disposition, handed the reading reduced to that revision, so nothing later on the thread reads as delivered and
+  the report carries none of that input. `implementing`'s publishes a commit -- or the commits the branch carries,
+  for a report the issue owes -- through the stage's own publication and its handoff to review, and parks a report
+  with nothing to carry it as the question it reads as, its capture withdrawn first (`implementing/captured_drift`).
+  `validating`'s finishes the body edit and the reply to its drift park through the body edit's finishing helper, a
+  commit spending the round that road's own tick would -- the body edit's next round, or what the reply's park owes,
+  nothing where an `in_review` hand-back reset the budget, told apart by the round the body edit also froze -- and a
+  report alone going onto the head the pull request carries and spending none (`validating/captured_drift`).
+  `in_review`'s fetches the pull request and reads the issue, checkout, and head again behind it, a move holding the
+  capture, then stages the move to `validating` the edit owes and hands the issue back with the round reset; its
+  carry crosses only this orchestrator's posts and the delivered stretch, so the pull-request comments its prompt
+  quoted stay for the next scan (`in_review/captured_drift`). `resolving_conflict`'s publishes through the road the
+  body edit and the report-owed reply share, leased against the head the run's caller proved, which its road froze as
+  the head the run began on, a pushed round counted once and handed to `validating`, a report alone settled on the
+  head the pull request carries (`conflicts/captured_drift`). Every other road names no owner in this build, so an
+  applicable capture of it holds the stage, every tick, rather than letting it run the paid work again. This
+  recovery publishes nothing of its own and infers no review, verification, approval, or docs pass.
 - **Retires** a capture a reading proved stale -- an auto rebase of its branch begun and not recovered, its anchor
   reading as a commit, the issue closed or labelled `done` or `rejected`, moved onto any other road than the one it
   reported on, a record its handoff froze moved to a spelling its reader takes, the pull request, debt, or adjudication
@@ -3058,8 +3103,11 @@ and handed off -- and this is what it guarantees and what stops it.
      this same shape -- the run its handoff launches
      ([`_handle_validating`](#_handle_validating-label-workflowvalidating) step 6) and the fixing stage's resume of
      that round on the validating route
-     ([`_handle_fixing`](#_handle_fixing-label-workflowfixing)). Documentation passes, conflict resolutions, and every
-     other resume freeze no road.
+     ([`_handle_fixing`](#_handle_fixing-label-workflowfixing)). So does the session resume a requirements edit buys,
+     on this stage and on every review and conflict stage, on the drift road
+     ([user-content drift](#user-content-drift-detection)); here its disposition (`implementing/drift_disposition.py`)
+     withdraws the capture before an `ACK:` or a question hands the report to nobody. Documentation passes, conflict
+     resolutions, and every other resume freeze no road.
   6. Branch on result:
      - `interrupted` (shutdown sweep killed the run mid-flight) → ignore the partial result and return WITHOUT writing
        pinned state, so durable GitHub state stays exactly as the prior tick left it and the next process retries.
@@ -4904,7 +4952,10 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      from `in_review`, whose hand-back already reset `review_round` for the very edit this publication answers —
      counted again, an edit answered a tick late would leave its reviewer one round short of the same edit answered
      at once — and the ordinary next round for a debt this stage's own roads left, where nothing was published when
-     the resume parked and the head the reply lands is one no reviewer has read.
+     the resume parked and the head the reply lands is one no reviewer has read. That reply is launched on the drift
+     road over its batch, so a return a live hold kept from this disposition is captured with its report and finished
+     by the [recovery](#the-captured-completion-recovery-every-dispatch) on that same round, read off the records its
+     road froze, with no developer run.
      A transient park (`_VALIDATING_TRANSIENT_PARK_REASONS`) with NO new comment goes to
      `_try_recover_validating_transient_park` instead, which retries silently and, on `cleared` / `pushed`, posts the
      **Recovery follow-up** described below before clearing the park. An `agent_timeout` park is answered by the
@@ -5850,7 +5901,11 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      `interrupted` resume short-circuits via `_ignore_if_interrupted` BEFORE `_post_user_content_change_result` and
      the watermark bump, returning WITHOUT writing pinned state so the drift stays unconsumed for the next process to
      retry. A mid-run `paused` / `backlog` (`pause_guard=True`)
-     short-circuits the same way, right after the interrupted check.
+     short-circuits the same way, right after the interrupted check. The resume runs on the drift road, frozen over
+     the issue thread's half of that reading, so a held return keeps its report captured: the
+     [recovery](#the-captured-completion-recovery-every-dispatch) stages the marker, settles that half, and hands the
+     issue back with `review_round` reset through this very disposition, its carry crossing only this orchestrator's
+     own posts and the delivered stretch -- the pull-request comments the prompt quoted are left for the next scan.
   6. **Manual-merge HITL path** (only reached with no owed report, no fresh PR feedback, AND no drift):
      - `pr_is_mergeable` is `None` → try next tick.
      - `False` → park with `unmergeable`; HITL ping mentioning every `HITL_HANDLE`, then carry the issue-side
@@ -6897,6 +6952,13 @@ measurement exists to prevent.
   again, so nothing reaches the pull request, and no round is counted, until a usable report exists.
   A park that owes no report — a question, a timeout —
   keeps the resolution road and writes no `requirements_drift_open`, since nothing on this stage reads that claim.
+  Both runs -- the body edit's resume and the reply over a report-owed park -- are launched on the drift road, frozen
+  as starting on the head their publication is leased against, so a return a live hold kept from this disposition is
+  captured with its report and finished by the
+  [recovery](#the-captured-completion-recovery-every-dispatch) through this same road on that exact lease: admitted
+  only while the pull request still stands there or on the commit reported on, a push meanwhile retiring it, a round
+  it pushed counted once on the way to `workflow:validating`, and a rebase left mid-flight parking as the funnel
+  parks it, its capture withdrawn first. The ordinary resolution freezes no road, so nothing of it is replayed.
   The crash windows between the record and the settlement are recovered as follows. Past the record and before the
   push, the commit is ahead of the remote or, rebased, diverged from it, and the recorded report is durable beside
   the settled baseline and the `conflict_resume_*` publication: the next tick's recovered push publishes it -- over

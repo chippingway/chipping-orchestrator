@@ -47,8 +47,11 @@ base.
 """
 from __future__ import annotations
 
+from dataclasses import replace
+
 from orchestrator.git.base_sync import state as _base_sync_state
 from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.worktrees import naming as _naming, paths as _worktree_paths
 from orchestrator.github.comments import filter_trusted
 from orchestrator.workflow.engine import (
     comments as _comments,
@@ -68,10 +71,13 @@ from orchestrator.workflow.stages.conflicts import (
     resume_reports as _resume_reports,
 )
 from orchestrator.workflow.stages.implementing import (
+    drift_road as _drift_road,
     resume as _dev_resume,
     resume_batch as _resume_batch,
     resume_request as _dev_resume_request,
 )
+from orchestrator.workflow.stages.implementing.completion_roads import CompletionRoad, RoadCheckout
+from orchestrator.workflow.state import WorkflowLabel
 
 
 def _resume_on_user_content_change(
@@ -127,7 +133,7 @@ def _resume_on_user_content_change(
         ctx.gh, int(pr_number), ctx.state,
         ":pencil2: issue body changed; resuming dev session.",
     )
-    run = _run_drift_resume(ctx)
+    run = _run_drift_resume(ctx, before_sha)
     # A launch the run circuit turned away: no process read the prompt, so the
     # refusal it recorded where it was decided is the whole of what this tick
     # says. Return before the disposition, which would otherwise park in the
@@ -163,6 +169,7 @@ def _resume_on_user_content_change(
 
 def _run_drift_resume(
     ctx: _models._ConflictContext,
+    lease: str,
     reply: _models._ParkedReply | None = None,
 ) -> _models._ConflictResumeRun:
     """Freeze what this edit's resume quotes, and run it on that text.
@@ -181,18 +188,36 @@ def _run_drift_resume(
     quoted, the command would be the last thing a human said, to a developer
     with no context for it. The report contract and the revision it is
     stamped with are the drift prompt's either way.
+
+    `lease` is the head the publication behind the run is leased against,
+    which the caller proved: the head a body edit's resume began at, or the
+    pull request's own head ahead of a reply. The run is launched on the
+    drift road over that same reading (`implementing/drift_road`), frozen as
+    starting on that head and settling what the reading delivered beside the
+    commands a retry consumed ahead of it, so a return a live hold, a lost
+    write, or a restart keeps from the disposition is captured with its
+    report and finished by the dispatcher's recovery on that exact lease
+    (`captured_drift`).
     """
-    answered = _drift_delivery._drift_resume_prompt(
-        ctx.gh, ctx.issue, ctx.state, answering=None if reply is None else reply.retried,
-    )
-    prompt = (
-        f"{_prompt_notes._CONTINUE_RETRY_PROMPT}\n\n{answered.text}"
-        if reply is not None and reply.retried else answered.text
-    )
+    retried = None if reply is None else reply.retried
+    answered = _drift_delivery._drift_resume_prompt(ctx.gh, ctx.issue, ctx.state, answering=retried)
+    prompt = f"{_prompt_notes._CONTINUE_RETRY_PROMPT}\n\n{answered.text}" if retried else answered.text
+    consumed = ((_delivery.PINNED_LAST_ACTION_COMMENT_ID, reply.through),) if retried else ()
+    settled = _drift_road.DriftReading.settled_by(answered.delivery, ctx.state)
     return _run_conflict_resume(
         ctx, prompt,
         thread_text=answered.delivery.rendered_text,
         delivered=answered.delivery,
+        completion=_drift_road.road(
+            WorkflowLabel.RESOLVING_CONFLICT,
+            ctx.state,
+            replace(settled, watermarks=(*consumed, *settled.watermarks)),
+            RoadCheckout(
+                _worktree_paths._worktree_path(ctx.spec, ctx.issue.number),
+                _naming._resolve_branch_name(ctx.state, ctx.spec, ctx.issue.number),
+                lease,
+            ),
+        ),
     )
 
 
@@ -272,7 +297,7 @@ def _resume_awaiting_human(
     )
     entered_head = pr.head.sha
     run = (
-        _run_drift_resume(ctx, reply) if owes
+        _run_drift_resume(ctx, entered_head or "", reply) if owes
         else _run_conflict_resume(ctx, reply.followup, thread_text=reply.thread_text)
     )
     # Live pause applied mid-run: honor the helper's decision and return
@@ -376,6 +401,7 @@ def _run_conflict_resume(
     *,
     thread_text: str | None = None,
     delivered: _delivery.PromptDeliverySnapshot | None = None,
+    completion: CompletionRoad | None = None,
 ) -> _models._ConflictResumeRun:
     """Resume the locked dev session over `followup` and stamp the agent
     action time. Shared by the drift, awaiting-human, and fresh-conflict
@@ -387,11 +413,14 @@ def _run_conflict_resume(
     given would otherwise read the thread a second time -- newer than the
     record the caller settles, carrying a comment nothing would record.
     `delivered` is that record itself, carried back on the run for the road
-    that settles it.
+    that settles it, and `completion` the drift road a caller froze over it
+    -- none for the conflict resolution, whose outcome is no report and is
+    never replayed.
     """
     wt, conflict_result, paused = _dev_resume._resume_dev_with_text(_dev_resume_request._DevResumeRequest(
         ctx.gh, ctx.spec, ctx.issue, ctx.state, followup, pause_guard=True,
         thread_text=thread_text,
+        completion=completion,
     ))
     ctx.state.set("last_agent_action_at", _usage._now_iso())
     return _models._ConflictResumeRun(

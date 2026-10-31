@@ -82,9 +82,7 @@ included.
 from __future__ import annotations
 
 import logging
-from dataclasses import replace
 
-from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.workflow.engine import (
     comments as _comments,
     drift as _engine_drift,
@@ -96,6 +94,7 @@ from orchestrator.workflow.engine import (
     usage as _usage,
 )
 from orchestrator.workflow.stages.implementing import (
+    drift_road as _drift_road,
     resume as _dev_resume,
     resume_batch as _resume_batch,
     resume_request as _dev_resume_request,
@@ -179,7 +178,7 @@ def _resume_dev_for_drift(
         ctx.gh, int(ctx.pr_number), ctx.state,
         ":pencil2: issue body changed; resuming dev session.",
     )
-    before_sha = _verification_probes._head_sha(wt)
+    checkout = _drift_road.launched_in(ctx.spec, ctx.issue.number, ctx.state, wt)
     answered = _drift_delivery._pr_drift_resume_prompt(
         ctx.gh, ctx.issue, ctx.state, unread_pr_conv,
     )
@@ -191,10 +190,21 @@ def _resume_dev_for_drift(
         # taken there it would be a second reading, newer than the record this
         # tick settles, carrying a comment the settlement would leave unread.
         thread_text=answered.delivery.rendered_text,
+        # Frozen over that same reading, settled as this road settles it --
+        # the issue thread's half alone -- so a held return is captured with
+        # its report.
+        completion=_drift_road.road(
+            WorkflowLabel.IN_REVIEW,
+            ctx.state,
+            _drift_road.DriftReading.settled_by(
+                _drift_delivery._settled_half(answered.delivery), ctx.state,
+            ),
+            checkout,
+        ),
     ))
     ctx.state.set("last_agent_action_at", _usage._now_iso())
     return _models._DriftResume(
-        worktree=wt, dev_result=dev_result, paused=paused, before_sha=before_sha,
+        worktree=wt, dev_result=dev_result, paused=paused, before_sha=checkout.before_sha,
         delivery=answered.delivery,
     )
 
@@ -291,12 +301,7 @@ def _settles_what_it_delivered(
     """
     if not _resume_batch._counts_as_delivered(resume.dev_result, resume.paused):
         return None
-    replace(
-        resume.delivery,
-        entries=resume.delivery.surface_provenance(
-            _delivery.SURFACE_ISSUE_THREAD,
-        ),
-    ).settle(ctx.state)
+    _drift_delivery._settled_half(resume.delivery).settle(ctx.state)
     return resume.delivery
 
 

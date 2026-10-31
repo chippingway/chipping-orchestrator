@@ -12,7 +12,10 @@ records, and the fixing stage's resume of it on the far side of a park, whose
 report `fixing/reporting` records -- each naming its own road, and the direct
 run's transfer retiring the change request it answers. So is that stage's
 resume answering a pull request's human feedback, on its own road, whose
-report `fixing/reporting` records the same way. Recorded again from
+report `fixing/reporting` records the same way, and so is every
+requirements-drift resume, whose report the drift outcome records
+(`validating/drift_reports`) and, on this stage, the publication
+(`candidate_recovery`). Recorded again from
 the run, the issue would carry two reports the next tick could publish. So where the
 run's own capture stands pending, the recording is the capture's transfer
 (`completion_handoff.transfer`): the delivery is minted from the outcome the

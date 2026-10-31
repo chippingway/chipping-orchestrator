@@ -52,9 +52,9 @@ _VERDICT_MOVES = (
 )
 
 # A record no reader is registered for, as the launch read it and as another road moves it.
-_UNREGISTERED = "review_round"
+_UNREGISTERED = "dev_resume_count"
 
-_ROUND_AT_LAUNCH = 3
+_COUNT_AT_LAUNCH = 3
 
 # Each move that leaves a frozen record as nothing a reader here can take --
 # the change request hand-damaged, and the unregistered record moved on --
@@ -62,7 +62,7 @@ _ROUND_AT_LAUNCH = 3
 # request's own where None.
 _UNDECIDED = (
     ((_VERDICT, None), Turn(edits=MappingProxyType({_VERDICT: {"unreadable": True}}))),
-    ((_UNREGISTERED, _ROUND_AT_LAUNCH), Turn(edits=MappingProxyType({_UNREGISTERED: _ROUND_AT_LAUNCH + 1}))),
+    ((_UNREGISTERED, _COUNT_AT_LAUNCH), Turn(edits=MappingProxyType({_UNREGISTERED: _COUNT_AT_LAUNCH + 1}))),
 )
 
 # The pinned readings a dispatch takes up to its retirement's own: the

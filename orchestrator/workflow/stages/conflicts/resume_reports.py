@@ -69,6 +69,13 @@ whatever head the receipt names when it settles. The per-tick base refresh,
 which runs ahead of every handler, holds still for the same records
 (`git/base_sync/frozen.py`), so no crash between a publication and its
 report's settlement hands the report a head somebody else rewrote.
+
+Both runs are launched on the drift road (`implementing/drift_road`), frozen as
+starting on the head their publication is leased against, so a return a live
+hold, a lost write, or a restart keeps from `_disposes` is captured with its
+report, recorded here as that capture's transfer, and finished by the
+dispatcher's recovery through `_disposes` itself on that exact lease
+(`captured_drift`), with no developer run.
 """
 from __future__ import annotations
 

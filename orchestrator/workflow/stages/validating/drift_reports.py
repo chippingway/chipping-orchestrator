@@ -39,6 +39,14 @@ code in it -- the drift prompt asks for a report whenever the report has to
 change -- and it goes onto the head the pull request already carries, needing
 no new commit, once the tree is proved to carry nothing that head does not.
 
+A drift resume launched on its road leaves its report captured as it returns
+(`implementing/drift_road`), so the recording here is that capture's transfer
+into the delivery (`implementing/captured_report`), minted from what the
+capture kept and handed off in the very commit that records it, and recorded
+from the run as ever where no capture of it stands. A park that hands the
+report to nobody -- the loose tree beside a report with no commit -- withdraws
+the capture first, so the reply answering it is captured afresh.
+
 Nothing is bound here. What happens to the report once it is recorded -- bound
 to the publication and settled, `report_settlement`'s, asked by the caller once
 its own bookkeeping is written, or held in front of the reviewer until it is,
@@ -63,6 +71,7 @@ from orchestrator.workflow.engine import (
     report_record_state as _record_state,
 )
 from orchestrator.workflow.stages.implementing import (
+    captured_report as _captured_report,
     checkout_parks as _checkout_parks,
     parks as _dev_parks,
     session_read as _session_read,
@@ -134,7 +143,7 @@ def _records_the_run(
     takes, since the quota and its reset are what the operator waits out and
     the missing-report park would refuse the bare continue that retries it.
     """
-    if _report_delivery.recording_stops_the_tick(
+    if _captured_report.recording_stops_the_tick(
         gh, issue, state, run.agent_result, run.handed,
     ):
         return True
@@ -248,13 +257,15 @@ def _records_a_report_alone(
         # than the report: this run DID report, and refusing to record it
         # leaves the pull request owed one all the same. Recorded here, the
         # reply that answers the park is read as the answer to the report it
-        # asked for, and the write below carries it.
-        state.set(_report_delivery.OWED_REPORT, True)
-        _checkout_parks._on_unpublishable_tree(
-            gh, issue, state,
-            _guards._ParkedRun(run.agent_result, _guards._ROUTE_DEV_DRIFT_RESUME),
-            tree,
-        )
+        # asked for, and the write below carries it -- the run's own capture
+        # withdrawn first, since the park hands its report to nobody.
+        if _captured_report.withdraws_the_capture(gh, issue, state, run.agent_result):
+            state.set(_report_delivery.OWED_REPORT, True)
+            _checkout_parks._on_unpublishable_tree(
+                gh, issue, state,
+                _guards._ParkedRun(run.agent_result, _guards._ROUTE_DEV_DRIFT_RESUME),
+                tree,
+            )
         return _state._OUTCOME_PARKED
     if _records_the_run(gh, issue, state, run):
         return _state._OUTCOME_PARKED

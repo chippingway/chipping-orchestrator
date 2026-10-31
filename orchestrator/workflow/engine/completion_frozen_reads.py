@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Whether a record a fix round's road froze still reads, told by the record's name.
+"""Whether a record a fix round's or a requirements-drift resume's road froze still reads, told by its name.
 
 A frozen record that moved is proved stale only where the record's own reader
 takes its new spelling (`completion_prerequisites`); one no reader takes is
@@ -26,6 +26,16 @@ the settled report a held change request was reviewed over, and the evidence
 it claims, can be read at all (`settled_report_reads`, `evidence_unread`), so
 damage there holds its capture rather than reading as a report or evidence
 another revision superseded.
+
+A requirements-drift resume freezes the records its own accounting and the
+reason it was allowed are read off, on whichever stage it ran
+(`stages/implementing/drift_road`): beside the pull request, the receipt, and
+the settled report pair above, the review and conflict rounds its outcome
+counts or resets, and the report debt, the fresh budget an `in_review`
+hand-back reset, the open drift claim, and the round `validating` stood down
+for, each a flag its writers set to `true` or clear to `null`. A round reads
+as a whole count or unset and a flag as `true`, `false`, or `null`; anything
+else is damage, never a round counted or a claim taken since.
 """
 from __future__ import annotations
 
@@ -82,6 +92,23 @@ _BATCH_IDS = ("pending_fix_issue_ids", "pending_fix_review_ids", "pending_fix_re
 # The readers of the pull request's three surfaces.
 _PR_READERS = (PINNED_PR_LAST_COMMENT_ID, PINNED_PR_LAST_REVIEW_COMMENT_ID, PINNED_PR_LAST_REVIEW_SUMMARY_ID)
 
+# The rounds a requirements-drift resume's outcome counts or resets, as the
+# validating and conflict stages spell them.
+_ROUNDS = ("review_round", "conflict_round")
+
+# The claims a requirements-drift resume is allowed on and settles beside its
+# report: the report debt and the undescribed work it names, the fresh review
+# budget an `in_review` hand-back reset, as `report_delivery` spells them, the
+# drift the validating stage holds open across a park, and the round it stood
+# down for, as `stages/validating/state` does.
+_DRIFT_FLAGS = (
+    "developer_report_owed",
+    "developer_report_unreported_work",
+    "developer_report_owed_round_reset",
+    "requirements_drift_open",
+    "validating_reviewer_owes_a_round",
+)
+
 
 def settled_report_reads(state: PinnedState) -> bool:
     """Whether the settled report and its handoff read as the pair one settlement wrote, or as no settlement yet.
@@ -136,6 +163,21 @@ def _batch_reads(field: str, state: PinnedState) -> bool:
     return all(_formats.whole_number(member) for member in recorded)
 
 
+def _drift_reads(field: str, state: PinnedState) -> bool:
+    """Whether one round or claim a drift resume froze reads as its writers leave it.
+
+    A round is a whole count, never a `bool`, and a claim `true`, `false`, or
+    cleared to `null`; unset reads as either's resting state. Anything else
+    is damage, never a round counted or a claim taken since.
+    """
+    recorded = state.get(field)
+    if recorded is None:
+        return True
+    if field in _ROUNDS:
+        return _formats.whole_number(recorded) and recorded >= 0
+    return isinstance(recorded, bool)
+
+
 def _reader_reads(field: str, state: PinnedState) -> bool:
     """Whether one pull request surface's reader reads as a watermark a settlement writes, or unset.
 
@@ -164,7 +206,7 @@ def _reader_reads(field: str, state: PinnedState) -> bool:
 # settlement writes (`settled_report_reads`, `_settled_evidence_reads`). A
 # bookmarked id list is cleared to `null` by the round that closes it, and a
 # pull request surface's reader is left unset where nothing initialized it, so
-# both read `null` as gone.
+# both read `null` as gone, as a drift resume's rounds and claims do.
 READS = MappingProxyType({
     _FEEDBACK_ANCHOR: lambda state: (
         state.get(_FEEDBACK_ANCHOR) is None
@@ -187,6 +229,7 @@ READS = MappingProxyType({
     ),
     **{field: partial(_batch_reads, field) for field in _BATCH_IDS},
     **{field: partial(_reader_reads, field) for field in _PR_READERS},
+    **{field: partial(_drift_reads, field) for field in (*_ROUNDS, *_DRIFT_FLAGS)},
 })
 
 
