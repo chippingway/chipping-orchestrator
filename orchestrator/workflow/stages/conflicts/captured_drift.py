@@ -25,6 +25,14 @@ somebody moved since refuses the push rather than being adopted. A run that
 left the rebase mid-flight parks as the resolution funnel parks it, its
 capture withdrawn first. The ordinary conflict resolution freezes no road, so
 nothing of it is replayed.
+
+The head the run left is the capture's own source, which the admission read
+the checkout as, rather than a second reading of the checkout
+(`resume_reports._disposes`): a head that moved or would not read once
+behind the admission would otherwise be staged as the candidate the size gate
+measures, a commit the report never described, and parked there for good. A
+checkout that really moved is refused by the admission read again before the
+handoff, which keeps the capture, and by the gate, which proves it again.
 """
 from __future__ import annotations
 

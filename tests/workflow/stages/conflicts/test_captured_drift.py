@@ -13,7 +13,9 @@ ahead of the reply -- and hands a pushed round to `validating` once, counted
 once; a report with no commit settles on the head the pull request carries and
 leaves the issue here. A push meanwhile retires the capture rather than
 adopting the moved head as the lease, and a head or a status that will not
-read keeps it for the dispatch whose reading returns.
+read keeps it for the dispatch whose reading returns. Whichever tick finishes
+it answers the commit the capture names, so no reading of the checkout taken
+again behind the capture is ever staged as the candidate the gate measures.
 """
 from __future__ import annotations
 
@@ -56,6 +58,21 @@ _UNREAD = (
 # resume owing one.
 _UNREPORTED = "rebased onto main and folded in the new criterion"
 
+# A recovery whose checkout reads as the commit the capture names at its
+# admission, as another head once behind it -- the reading a disposition
+# taking the checkout again would stage -- and as that commit again.
+_MOVED_ONCE = MappingProxyType({
+    **_held.COMMITTED,
+    world.HEAD_SHAS: (world.FIXED_HEAD, world.FIXED_HEAD, world.CONCURRENT_HEAD, world.FIXED_HEAD),
+})
+
+# A live resume's checkout: on the head the pull request carries as it is
+# launched, on the commit the run left as it returns, then unreadable once.
+_LIVE_LOST_ONCE = MappingProxyType({
+    **_held.COMMITTED,
+    world.HEAD_SHAS: (world.PUBLISHED_HEAD, world.FIXED_HEAD, "", world.FIXED_HEAD),
+})
+
 
 class HeldConflictDriftTicks(conflict._ConflictDriftReportMixin, _held.HeldDriftTicks):
     """Whole dispatches mid-rebase, the stage's git answering as a branch on its base, under the fix loop's authors."""
@@ -64,6 +81,36 @@ class HeldConflictDriftTicks(conflict._ConflictDriftReportMixin, _held.HeldDrift
         """One whole dispatch under the world the conflict stage reads its git and its replies in."""
         with conflict.on_its_base(), _fix_world.author_policy():
             return super().dispatched(run_agent, **run_options)
+
+    def leased(self, recovered, *, committed: bool) -> None:
+        """A recovery that `committed` pushed once, leased against the head its caller proved; else nothing."""
+        pushed = recovered[_fixes.PUSH_BRANCH]
+        self.assertEqual(pushed.call_count, int(committed))
+        if committed:
+            self.assertEqual(pushed.call_args.kwargs.get(_LEASE), world.PUBLISHED_HEAD)
+
+    def finished(self, *, committed: bool) -> None:
+        """One report published, of the requirements the run was handed, and the round counted by the commit alone."""
+        finished = self.pinned()
+        subject = self.records()["current"].subject
+        self.assertEqual(
+            (
+                len(self.published_reports()),
+                subject.requirements_revision,
+                subject.source_sha,
+                finished[_held.BASELINE],
+                finished[_CONFLICT_ROUND],
+                self.github.label_history,
+            ),
+            (
+                1,
+                self.handed(),
+                world.FIXED_HEAD if committed else world.PUBLISHED_HEAD,
+                self.handed(),
+                1 if committed else 0,
+                [(conflict.ISSUE, LABEL_VALIDATING)] if committed else [],
+            ),
+        )
 
 
 class HeldConflictDriftTest(unittest.TestCase, HeldConflictDriftTicks):
@@ -86,8 +133,8 @@ class HeldConflictDriftTest(unittest.TestCase, HeldConflictDriftTicks):
                     (launched, 0, []),
                 )
                 self.held_ticks()
-                self._leased(self.unheld(**_held.READING[committed]), committed=committed)
-                self._finished(committed=committed)
+                self.leased(self.unheld(**_held.READING[committed]), committed=committed)
+                self.finished(committed=committed)
 
     def test_a_held_reply_finishes_the_report_it_owes(self) -> None:
         # The body edit's resume committed and wrote no report, so it parked
@@ -100,9 +147,9 @@ class HeldConflictDriftTest(unittest.TestCase, HeldConflictDriftTicks):
         world.human_reply(self)
         self.held_drift(world.reported(), **world.STRANDED)
         self.assertEqual(self.pull_request.head.sha, world.PUBLISHED_HEAD)
-        self._leased(self.unheld(**world.STRANDED), committed=True)
+        self.leased(self.unheld(**world.STRANDED), committed=True)
         self.reconcile()
-        self._finished(committed=True)
+        self.finished(committed=True)
 
     def test_a_push_while_held_retires_it(self) -> None:
         # Somebody pushes to the pull request while the issue is held: the
@@ -153,38 +200,49 @@ class HeldConflictDriftTest(unittest.TestCase, HeldConflictDriftTicks):
                 before = (self.pinned(), self.github.write_state_calls)
                 self.unheld(**unread)[_fixes.PUSH_BRANCH].assert_not_called()
                 self.assertEqual((self.pinned(), self.github.write_state_calls), before)
-                self._leased(self.dispatched(**_held.READING[committed]), committed=committed)
-                self._finished(committed=committed)
+                self.leased(self.dispatched(**_held.READING[committed]), committed=committed)
+                self.finished(committed=committed)
 
-    def _leased(self, recovered, *, committed: bool) -> None:
-        """A recovery that `committed` pushed once, leased against the head its caller proved; else nothing."""
-        pushed = recovered[_fixes.PUSH_BRANCH]
-        self.assertEqual(pushed.call_count, int(committed))
-        if committed:
-            self.assertEqual(pushed.call_args.kwargs.get(_LEASE), world.PUBLISHED_HEAD)
 
-    def _finished(self, *, committed: bool) -> None:
-        """One report published, of the requirements the run was handed, and the round counted by the commit alone."""
-        finished = self.pinned()
-        subject = self.records()["current"].subject
+class CapturedSourceTest(unittest.TestCase, HeldConflictDriftTicks):
+    """A drift run mid-rebase answers the commit its capture names, never a reading of the checkout taken again."""
+
+    def test_a_moved_head_is_never_the_candidate(self) -> None:
+        # The checkout reads as another commit once behind the recovery's
+        # admission, and as the captured one again after it: the disposition
+        # stages the commit the capture names, so that reading is never
+        # recorded as the candidate the gate would park on for good, and the
+        # admission read again before the handoff keeps the capture over it
+        # with nothing written, parked, pushed, or counted. The dispatch
+        # whose reading agrees publishes it once on its own lease, the round
+        # counted once.
+        self.seeded_on_conflict()
+        self.held_drift(world.reported())
+        before = (self.pinned(), self.github.write_state_calls)
+        self.unheld(**_MOVED_ONCE)[_fixes.PUSH_BRANCH].assert_not_called()
+        self.assertEqual((self.pinned(), self.github.write_state_calls), before)
+        self.leased(self.dispatched(**_held.COMMITTED), committed=True)
+        self.finished(committed=True)
+
+    def test_a_live_lost_head_publishes_the_commit(self) -> None:
+        # The resume reports on a commit and is captured as it returns, and
+        # the checkout's HEAD will not read once behind that capture: its own
+        # tick answers the commit the capture names -- the capture handed
+        # off, the commit pushed once on the head the resume began at, and its
+        # round counted on the way to `validating` -- rather than holding the
+        # report over a reading that did not return. The review hold the next
+        # dispatch takes binds that report to the push, published once.
+        self.seeded_on_conflict()
+        reported = _agent(session_id=world.DEV_SESSION, last_message=world.reported())
+        self.leased(self.dispatched(reported, **_LIVE_LOST_ONCE), committed=True)
+        pushed = self.pinned()
+        pr_head = self.pull_request.head.sha
         self.assertEqual(
-            (
-                len(self.published_reports()),
-                subject.requirements_revision,
-                subject.source_sha,
-                finished[_held.BASELINE],
-                finished[_CONFLICT_ROUND],
-                self.github.label_history,
-            ),
-            (
-                1,
-                self.handed(),
-                world.FIXED_HEAD if committed else world.PUBLISHED_HEAD,
-                self.handed(),
-                1 if committed else 0,
-                [(conflict.ISSUE, LABEL_VALIDATING)] if committed else [],
-            ),
+            (_fixes.stage_of(pushed), pushed.get("park_reason"), pushed[_CONFLICT_ROUND], pr_head),
+            (_fixes.HANDED_OFF, None, 1, world.FIXED_HEAD),
         )
+        self.dispatched(**_held.COMMITTED)
+        self.finished(committed=True)
 
 
 if __name__ == "__main__":

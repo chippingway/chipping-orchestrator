@@ -2898,7 +2898,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             publication is leased against (`implementing/drift_road.py`); the conflict resolution
                             freezes none
       captured_drift.py     the recovery of either drift run's held capture, finished through
-                            `resume_reports._disposes` on the lease its road froze, with no developer run
+                            `resume_reports._disposes` on the lease its road froze and the commit the capture names,
+                            with no developer run
       resume_reports.py     the developer report a body edit's resume returns, carried into the report transaction:
                             the shared drift disposition named with this stage's route and the revision the resume
                             was handed, the report recorded ahead of the size gate, a pushed answer counted and
@@ -2914,8 +2915,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             is re-grounded on the same frozen text -- and that record is settled. Either run left
                             with the rebase mid-flight parks before anything is recorded or pushed, a timeout read
                             ahead of that as the funnel reads it, and a report from a run that left a command
-                            running parks as the execution failure it is, recorded nowhere; one that commits
-                            nothing and reports names the
+                            running parks as the execution failure it is, recorded nowhere. The head the run left
+                            is the one its own pending capture names where one stands, live or recovered, never the
+                            checkout read again behind it, so no moved or unread HEAD is staged as the candidate the
+                            size gate measures; one that commits nothing and reports names the
                             head it is about in place of an earlier candidate in the write that saves its report,
                             for its settlement to spend. And ahead of
                             any rebase, a report this issue recorded and has not settled is settled first, through the

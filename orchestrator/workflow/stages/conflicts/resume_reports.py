@@ -96,6 +96,7 @@ from orchestrator.workflow.stages.conflicts import (
     transitions as _transitions,
 )
 from orchestrator.workflow.stages.implementing import (
+    captured_report as _captured_report,
     late_publication_state as _late_publication_state,
     parks as _dev_parks,
 )
@@ -160,14 +161,22 @@ def _disposes(
     reply's run, behind the divergence guard. It stays the lease whatever the
     remote reads as afterwards (`dev_fix._replaced_head`), so a pull request
     somebody moved while the run was out refuses the push rather than being
-    adopted as the head it replaces. The head the run left is read
-    once and travels to all three things that have to agree about it: the
-    candidate the gate measures and pushes, the receipt a hold leaves for the
-    tick that resumes behind it, and the SHA the round is counted under. A run
-    that left it where `lease` stands committed nothing, and the report it
-    saves records that head in the same write, over the record of any earlier
-    candidate. Whichever it is, the record holds that report to its head for
-    as long as the report is unbound.
+    adopted as the head it replaces.
+
+    The head the run left is the one its own pending capture names, where one
+    stands, read as it returned (`captured_report.pending_source`): a second
+    reading of the checkout behind that capture -- a recovery's, behind its
+    admission -- would stage a HEAD that moved or would not read meanwhile as
+    a commit the report never described, which the size gate then parks for
+    good. With no capture it is read once. Either way it travels to all three
+    things that have to agree about it: the candidate the gate measures and
+    pushes, the receipt a hold leaves for the tick that resumes behind it, and
+    the SHA the round is counted under. A checkout that really moved off it is
+    refused by a recovery's admission, read again before the handoff, and by
+    the gate, which proves it again. A run that left it where `lease` stands
+    committed nothing, and the report it saves records that head in the same
+    write, over the record of any earlier candidate. Whichever it is, the
+    record holds that report to its head for as long as the report is unbound.
 
     The round rides the gate's own durable write as well, for the exit where
     the tail below never runs: a held candidate is relabelled to the
@@ -194,7 +203,9 @@ def _disposes(
         ctx, run, _guards._ParkedRun(run.dev_result, _guards._ROUTE_DEV_DRIFT_RESUME, before_sha=before_sha),
     ):
         return
-    after_sha = _verification_probes._head_sha(run.worktree)
+    after_sha = _captured_report.pending_source(ctx.state, run.dev_result) or _verification_probes._head_sha(
+        run.worktree,
+    )
     if _drift_reports._reports(run.dev_result) and _refuses_the_report(ctx, run, before_sha, after_sha):
         return
     pr_number = ctx.state.get("pr_number")
