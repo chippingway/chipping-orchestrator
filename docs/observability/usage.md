@@ -70,8 +70,9 @@ usage as cumulative across the session: the *last* non-zero usage record is the 
 on `turn.completed` alone, and its block sums every API request of the thread — each request the turn made, and on
 `exec resume` the requests of the invocations before it too, so a resumed run's counters include theirs. No frame names
 the model, so the configured `-m` model the caller passes as `fallback_model` is what an estimate is priced as.
-`parse_agent_usage(backend, stdout, fallback_model=None)` dispatches by backend string the same way
-`agents.runner.run_agent` does.
+`parse_agent_usage(backend, stdout, fallback_model=None, span=None)` dispatches by backend string the same way
+`agents.runner.run_agent` does, handing an Antigravity parse the `span` its dated Gemini rows are resolved over, as the
+Antigravity usage span below describes.
 
 **Claude cache lifetimes.** A Claude usage block reports its cache writes twice: `cache_creation_input_tokens` is
 their aggregate, and the `cache_creation` object splits it by lifetime into `ephemeral_5m_input_tokens` and
