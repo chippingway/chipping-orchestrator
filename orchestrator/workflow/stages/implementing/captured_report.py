@@ -12,7 +12,10 @@ records, and the fixing stage's resume of it on the far side of a park, whose
 report `fixing/reporting` records -- each naming its own road, and the direct
 run's transfer retiring the change request it answers. So is that stage's
 resume answering a pull request's human feedback, on its own road, whose
-report `fixing/reporting` records the same way. Recorded again from
+report `fixing/reporting` records the same way, and so is every
+requirements-drift resume, whose report the drift outcome records
+(`validating/drift_reports`) and, on this stage, the publication
+(`candidate_recovery`). Recorded again from
 the run, the issue would carry two reports the next tick could publish. So where the
 run's own capture stands pending, the recording is the capture's transfer
 (`completion_handoff.transfer`): the delivery is minted from the outcome the
@@ -54,6 +57,13 @@ park too, so no notice goes out for a park the comment never took. A park
 over a reading that merely did not return -- a status, a fetch, a count --
 takes neither (`parks_beside_the_capture`): the capture still holds a report
 the next tick may prove, so it is kept and the tick held with nothing written.
+
+On a recovery, both the transfer and the withdrawal ask the capture's
+admission again behind every request the disposition and the write took on
+the way, the strict edit's walk to the comment last (`captured_rereads`), so
+a control, a relabel, an edit, or a push landing during those requests hands
+on and retires nothing: the write is refused as MOVED_BEHIND, the state
+withheld, the tick held.
 """
 from __future__ import annotations
 
@@ -91,8 +101,10 @@ def recording_stops_the_tick(
 ) -> bool:
     """Record what a finished run wrote, or hold the tick over it; True is a tick this ended.
 
-    The run's own pending capture is handed to the delivery, with what the
-    tick settled around the run and what its road retires with the report
+    The run's own pending capture is handed to the delivery -- on a
+    recovery, refused where its admission no longer reads as it did
+    (`captured_rereads`) -- with what the tick settled around the run and
+    what its road retires with the report
     (`HandedRun.retires`) riding that very commit, decided on what that road
     decides its recording on (`HandedRun.decided_on`); anything else is recorded
     by the delivery under `route`, which parks the reports it cannot record
@@ -131,7 +143,8 @@ def withdraws_the_capture(
     """Retire the run's own pending capture ahead of a park that hands its report to nobody; whether the park may go on.
 
     True where the run left no capture pending, and where the retirement
-    settled; False -- the state withheld -- where it did not.
+    settled; False -- the state withheld -- where it did not, a recovery's
+    admission read again no longer standing among them (`captured_rereads`).
     """
     pending = _pending_of(state, agent_result)
     if pending is None:
@@ -175,6 +188,17 @@ def parks_beside_the_capture(
         issue.number, pending.invocation.ordinal, pending.invocation.nonce,
     )
     return False
+
+
+def pending_source(state: _pinned_state.PinnedState, agent_result: AgentResult) -> str:
+    """The commit the pending capture `state` carries of `agent_result`'s very process reports on; "" for none.
+
+    The head that run left, read as it returned: a disposition behind the
+    capture answers on it rather than on a second reading of the checkout,
+    which a HEAD that will not read again would answer as no commit at all.
+    """
+    pending = _pending_of(state, agent_result)
+    return "" if pending is None else pending.run.source_sha
 
 
 def captured_source(state: _pinned_state.PinnedState) -> str:

@@ -51,7 +51,9 @@ Between rounds the stage is a dev-fix driver, and `dev_fix` owns what one
 finished dev run leaves behind -- the no-commit reading, the push, and the
 `review_round` bump a landed fix earns so the reviewer re-reads the new head.
 Three entry points feed it: `awaiting` and `awaiting_resume` for a park a
-human replied to, `drift` and `drift_outcomes` for a body edit mid-review, and
+human replied to, `drift` and `drift_outcomes` for a body edit mid-review --
+whose resume, and the reply `awaiting_resume` reads as its continuation, a
+held return of which `captured_drift` finishes from its capture -- and
 `recovery` for the parks that can clear without a human at all. `stranded`
 holds the probe under that no-commit reading -- the one that keeps a
 committed-but-unpublished fix from ping-ponging between parks -- because the

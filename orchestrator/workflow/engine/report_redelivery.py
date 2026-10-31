@@ -36,7 +36,8 @@ def redelivers_an_owed_report(
     state: _pinned_state.PinnedState,
     agent_result: AgentResult,
     worktree: Path,
-) -> bool:
+    unread: bool | None = False,
+) -> bool | None:
     """Whether this run answers a report this issue owes rather than a question.
 
     The one road on which a run that committed nothing still has work to
@@ -52,6 +53,12 @@ def redelivers_an_owed_report(
     else. And the BRANCH has to carry something, because what this licenses is
     a publication: a checkout with nothing ahead of base would push an empty
     branch and open a pull request with no diff in it.
+
+    A count of that branch which did not return answers `unread`: False, the
+    question, by default; None for a caller whose run's own capture may still
+    hold the report, so a walk that failed is no proof the branch carries
+    nothing (`implementing/drift_models._ImplementingDriftRun.publishes`,
+    `implementing/disposition._run_left_commits`).
     """
     if not _delivery.owes_a_report(state):
         return False
@@ -60,4 +67,4 @@ def redelivers_an_owed_report(
         _outcome_models._ReportRefusal,
     ):
         return False
-    return _worktree_creation._has_new_commits(spec, worktree)
+    return _worktree_creation._has_new_commits(spec, worktree, unread=unread)

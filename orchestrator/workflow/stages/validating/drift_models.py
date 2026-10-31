@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 """The record a body-edit resume freezes for the helper that finishes it.
 
-`_ValidatingDriftRun` carries the five things the finishing helper cannot read
-back for itself. `worktree` is the checkout the resume actually ran in, which
+`_ValidatingDriftRun` carries what the finishing helper cannot read back for
+itself. `worktree` is the checkout the resume actually ran in, which
 need not be the one the route located before the spawn. `agent_result` is the
 run the outcome is read from. `before_sha` is the HEAD taken ahead of the
 agent, the only thing that tells a commit this run produced from one an
@@ -15,7 +15,10 @@ it would be a different thread, since an agent is out for minutes and a human
 may write in them -- and it carries the requirements revision that read
 fingerprints to: the settlement records it as the baseline and the report the
 session wrote is stamped with the same value, so no reader is left holding a
-report against requirements its own prompt already contained.
+report against requirements its own prompt already contained. `spends` is the
+round a publication lands on where the caller decided it rather than the body
+edit's own next round: the recovery of a captured reply to a drift park, which
+spends what that park owes (`captured_drift`).
 
 The boundary against `models.py` is who reads the record. That owner answers
 for the records several owners in this stage hand each other, so every
@@ -31,6 +34,7 @@ from pathlib import Path
 
 from orchestrator.agents.models import AgentResult
 from orchestrator.workflow.engine.prompt_delivery import PromptDeliverySnapshot
+from orchestrator.workflow.stages.implementing.late_gate_models import _Spends
 
 
 @dataclass(frozen=True)
@@ -40,3 +44,8 @@ class _ValidatingDriftRun:
     before_sha: str
     paused: bool
     delivery: PromptDeliverySnapshot
+    # The round a publication this run makes lands on, where its caller
+    # froze one: the recovery of a reply that answered a drift park, whose
+    # publication spends what that park owes. None is the body edit's own
+    # next round, read as the run is finished.
+    spends: _Spends | None = None

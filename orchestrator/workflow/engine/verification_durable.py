@@ -125,6 +125,9 @@ _REFUSALS = MappingProxyType({
     _commit_models.CommitRefusal.INADMISSIBLE: ReportEvidence(
         ReportEvidenceVerdict.DEFER, "the write's own check refused the record it would leave",
     ),
+    _commit_models.CommitRefusal.MOVED_BEHIND: ReportEvidence(
+        ReportEvidenceVerdict.DEFER, "the issue moved behind the readings its captured completion's recovery took",
+    ),
 })
 
 _UNCONFIRMED = ReportEvidence(

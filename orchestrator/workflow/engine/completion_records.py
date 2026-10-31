@@ -86,13 +86,20 @@ class CompletionHandoff:
     `watermarks` are the input the run's prompt delivered and `spends` the
     round and bookmarks the road closes, each `((field, value), ...)` bounded
     by the vocabulary the report records hold them to, applied only by the
-    settlement of the report they ride. `frozen` is `((field, digest), ...)`:
+    settlement of the report they ride -- save on a road that settles its own
+    input, whose watermarks its recovery applies as its tick would have and
+    whose report carries none (`completion_routes.RouteContract`). `frozen` is `((field, digest), ...)`:
     each pinned record the road's handoff was decided on, as the digest of its
     spelling at the launch, so a handoff another road moved since is told
     apart from the one the run answered. `delivered` is `(after, through)`:
     the stretch of the issue thread a prompt over the whole of it quoted, as
     the delivered stretch records one (`thread_delivery`), for a road that
-    records that stretch itself once its run is back -- empty for every road
+    records that stretch itself once its run is back -- or, on a drift resume
+    over an open pull request, that stretch and then, where the prompt quoted
+    any, the stretch of the pull request's conversation it quoted beside it,
+    `(after, through, pr_after, pr_through)`, which its recovery reads back
+    for the carry of the shared IssueComment cursor and nothing settles from
+    (`completion_routes.RouteContract.stretches`) -- empty for every road
     whose delivered input is its watermarks alone.
     """
 
@@ -103,6 +110,11 @@ class CompletionHandoff:
     spends: tuple = ()
     frozen: tuple = ()
     delivered: tuple = ()
+
+    @property
+    def delivered_input(self) -> tuple:
+        """The watermarks the report this handoff becomes carries: none on a road that settles its own input."""
+        return () if _routes.CONTRACTS[self.route].settles_input else self.watermarks
 
 
 @dataclass(frozen=True)

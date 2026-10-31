@@ -7,7 +7,8 @@ A missing, moved, or unreadable candidate remains held. Every publication
 checks the tree and passes the size gate before handing approved work on, its
 run's report recorded between the two -- handed over from the run's own
 capture where it took one (`captured_report`), which a tree no push may
-publish withdraws before its park.
+publish withdraws before its park, and a status read that established nothing
+keeps, holding the tick for a reading that returns.
 """
 from __future__ import annotations
 
@@ -35,7 +36,7 @@ from orchestrator.workflow.stages.implementing import (
     state as _state,
     unreported_recovery as _unreported_recovery,
 )
-from orchestrator.workflow.stages.implementing.captured_report import recording_stops_the_tick, withdraws_the_capture
+from orchestrator.workflow.stages.implementing.captured_report import parks_beside_the_capture, recording_stops_the_tick
 from orchestrator.workflow.stages.implementing.models import _AgentWork, _ApprovedWork, _RecoveredWork
 
 
@@ -121,7 +122,10 @@ def _publish_committed_work(
     state.set(_state._READ_ONLY_BASELINE_SHA, None)
     tree = _worktree_status._worktree_status(work.worktree)
     if not tree.is_clean:
-        if withdraws_the_capture(gh, issue, state, work.agent_result):
+        # A status that established nothing is no loose tree: the run's own
+        # capture is kept and the tick held for a reading that returns.
+        unread = not (tree.readable or tree.paths)
+        if parks_beside_the_capture(gh, issue, state, work.agent_result, unread=unread):
             _checkout_parks._on_unpublishable_tree(
                 gh, issue, state,
                 _guards._ParkedRun(

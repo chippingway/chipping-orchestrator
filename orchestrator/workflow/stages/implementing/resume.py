@@ -130,9 +130,11 @@ def _resume_developer_on_human_reply(
     always asks to read a live pause: True for one, for a quota retirement
     the pinned comment would not take, and for a capture of its return that
     did not settle; both callers (implementing and validating) honor the
-    flag. `completion` is the road the implementing caller froze for this
-    resume (`completion_roads.reply_road`), so an eligible return is
-    captured on it; validating's resume freezes none.
+    flag. `completion` is the road the caller froze for this resume -- the
+    implementing reply road (`completion_roads.reply_road`), or the drift road
+    validating freezes for a reply it reads as the rest of a drift resume
+    (`drift_road`) -- so an eligible return is captured on it; validating's
+    ordinary reply freezes none.
 
     Used by `implementing` and `validating` -- both deliberately watch only
     the issue's comment thread, not the PR's. The `in_review` handler watches

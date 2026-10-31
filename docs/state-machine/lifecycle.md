@@ -1003,9 +1003,12 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                    fixing stage a reviewer's change request's
                                    fix through that round's own finish and a
                                    pull request feedback round through its
-                                   resume's own roads, no developer run on
-                                   any of them; any other road has none in
-                                   this build, so its handler is HELD;
+                                   resume's own roads, and the stage a
+                                   requirements-drift resume reported under
+                                   that resume through its own drift
+                                   disposition, no developer run on any of
+                                   them; any other road has none in this
+                                   build, so its handler is HELD;
                                    a proof it is stale
                                    (ended, relabelled, a frozen record
                                    moved to a spelling its reader takes,

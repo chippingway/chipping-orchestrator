@@ -39,9 +39,14 @@ a publication spends is the round `rounds` says it does, which is nothing
 where the park came back from `in_review` with the budget already reset for
 it.
 
-The claim is read BEFORE the run, because the resume clears the park it was
-written beside: read afterwards, the road would lose exactly the parks it is
-for.
+The claim, and the report debt beside it, are read BEFORE the run, because
+the resume clears the park it was written beside: read afterwards, the road
+would lose exactly the parks it is for. Read there, they also say which road
+the run is launched on: a reply answering the drift is frozen on the drift
+road over its batch (`awaiting._run_awaiting_dev`), so a return a live hold, a
+lost write, or a restart keeps from this disposition is captured with its
+report and finished by the dispatcher's recovery with no developer run, on the
+round this road's own publication spends (`captured_drift`).
 """
 from __future__ import annotations
 
@@ -76,11 +81,13 @@ def _resume_validating_awaiting_dev(context: _models._AwaitingValidation) -> str
         )
         context.gh.write_pinned_state(context.issue, context.state)
         return _state._OUTCOME_RETURN
-    drifting = bool(context.state.get(_state._OPEN_DRIFT))
-    attempt = _awaiting._run_awaiting_dev(context, continue_action)
+    drifting = bool(context.state.get(_state._OPEN_DRIFT)) or (
+        _report_delivery.owes_a_report(context.state)
+    )
+    attempt = _awaiting._run_awaiting_dev(context, continue_action, drifting=drifting)
     if _stops_after_the_run(context, attempt):
         return _state._OUTCOME_RETURN
-    if drifting or _report_delivery.owes_a_report(context.state):
+    if drifting:
         return _answers_the_drift_park(
             context, attempt,
             _rounds._spends_for_an_owed_publication(context.state),

@@ -9,7 +9,12 @@ that left no attributable commits parks or presents its question, withdrawing
 the capture of a report it finished on first (`captured_report`), so the reply
 that answers the park is captured afresh. A captured run the dispatcher's
 recovery finishes is disposed here too (`captured_completion`), on a result
-rebuilt from its capture.
+rebuilt from its capture -- a requirements-drift park's reply or continue
+among them. Where the run's own capture stands pending, the head it left is
+the one that capture names, and a count of the branch that did not return is
+no proof the run left nothing: the capture is kept and the tick held with
+nothing written (`captured_report.parks_beside_the_capture`), for the
+recovery to read again with no developer run.
 """
 from __future__ import annotations
 
@@ -38,7 +43,7 @@ from orchestrator.workflow.stages.implementing import (
     state as _state,
     unreported_recovery as _unreported_recovery,
 )
-from orchestrator.workflow.stages.implementing.captured_report import withdraws_the_capture
+from orchestrator.workflow.stages.implementing.captured_report import parks_beside_the_capture, pending_source
 
 
 def _park_agent_timeout(
@@ -142,8 +147,8 @@ def _try_recover_implementing_timeout_park(
 
 def _run_left_commits(
     spec: _config_models.RepoSpec, state: PinnedState, prepared: _models._PreparedDevRun,
-) -> bool:
-    """True when there is committed work for THIS disposition to publish.
+) -> bool | None:
+    """True when there is committed work for THIS disposition to publish; None where the branch would not count.
 
     Ahead-of-base answers this for every issue that reached the stage the
     ordinary way: it spawns only on a branch carrying nothing, so commits found
@@ -208,12 +213,21 @@ def _run_left_commits(
     outcome without moving HEAD again, that clean ahead-of-base commit is
     attributable to the failed run and is published through the normal report,
     size, push, and PR gates (`_unreported_recovery._attributable_failed_run_commit`).
+
+    A run that left a tool step running did not finish, so nothing it left
+    is this disposition's to publish, as on the timeout half. A count of the
+    branch ahead of its base that did not return answers None rather than
+    nothing to publish, for the caller to tell from a branch proved to carry
+    nothing. And the head the run left is the one its own pending capture
+    names where one stands, read as it returned, rather than a second reading
+    a HEAD that will not read would answer as no end at all.
     """
-    if not _worktree_creation._has_new_commits(spec, prepared.worktree):
+    if prepared.agent_result.unfinished_steps:
         return False
-    if prepared.recovered:
-        return True
-    head = _verification_probes._head_sha(prepared.worktree)
+    left = _worktree_creation._has_new_commits(spec, prepared.worktree, unread=None)
+    if not left or prepared.recovered:
+        return left
+    head = pending_source(state, prepared.agent_result) or _verification_probes._head_sha(prepared.worktree)
     if not _attributable_run(prepared, head):
         return False
     if (head != _inherited_floor(state) and head != prepared.before_sha) or (
@@ -223,7 +237,7 @@ def _run_left_commits(
     ):
         return True
     return _report_redelivery.redelivers_an_owed_report(
-        spec, state, prepared.agent_result, prepared.worktree,
+        spec, state, prepared.agent_result, prepared.worktree, unread=None,
     )
 
 
@@ -399,8 +413,12 @@ def _dispose_agent_result(
         gh.write_pinned_state(issue, state)
         return
 
-    if held or prepared.agent_result.unfinished_steps or not _run_left_commits(spec, state, prepared):
-        if withdraws_the_capture(gh, issue, state, prepared.agent_result):
+    left = not held and _run_left_commits(spec, state, prepared)
+    if not left:
+        # A branch that would not count (None) is no proof the run left
+        # nothing, so the run's own capture is kept and the tick held; any
+        # other no-publish reading withdraws it ahead of the question's park.
+        if parks_beside_the_capture(gh, issue, state, prepared.agent_result, unread=left is None):
             _parks._on_question(gh, issue, state, parked)
         gh.write_pinned_state(issue, state)
         return

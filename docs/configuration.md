@@ -1317,9 +1317,11 @@ pinned into an in-flight session — are in
   A run that finished on its report also leaves that report captured (`developer_completion`) -- an implementing
   run (the first implementation, a human-reply resume, or an `/orchestrator continue` retry), the fix a reviewer's
   change request hands its developer (the run its handoff launches, or the `workflow:fixing` resume of its parked
-  round), and the `workflow:fixing` resume answering a pull request's human feedback: once the label comes off, the
+  round), the `workflow:fixing` resume answering a pull request's human feedback, and the session resume a
+  requirements edit buys on any stage, a reply that answers its park included: once the label comes off, the
   dispatcher publishes it with no second developer run, settling only what that run was handed -- a comment posted
-  after the run's prompt was built stays unread for the next round
+  after the run's prompt was built stays unread for the next round, and an edit meanwhile retires the capture for the
+  next tick to answer afresh
   ([captured-completion recovery](state-machine/delivery-stages.md#the-captured-completion-recovery-every-dispatch)).
   An `ACK:`, a question, or a failure is no report, so a paused one leaves only its accounting, and the input it was
   handed is answered afresh once the label comes off.

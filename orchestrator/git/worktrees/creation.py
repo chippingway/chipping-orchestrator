@@ -328,12 +328,21 @@ def _pr_branch_start_point(
     return f"{spec.remote_name}/{spec.base_branch}"
 
 
-def _has_new_commits(spec: _config_models.RepoSpec, worktree: Path) -> bool:
+def _has_new_commits(
+    spec: _config_models.RepoSpec, worktree: Path, unread: bool | None = False,
+) -> bool | None:
+    """Whether `worktree`'s HEAD carries a commit ahead of `<remote>/<base>`; `unread` where the count did not return.
+
+    Most callers read a walk that failed as nothing to publish, which is the
+    default. The implementing dispositions must not where the run's own
+    capture still holds its report, which a failed walk would retire as a
+    question, so they pass None and hold the capture where they get it back.
+    """
     commit_count_result = commands._git(
         "rev-list", "--count",
         f"{spec.remote_name}/{spec.base_branch}..HEAD",
         cwd=worktree,
     )
     if commit_count_result.returncode != 0:
-        return False
+        return unread
     return recovery._commit_count_from_stdout(commit_count_result) > 0

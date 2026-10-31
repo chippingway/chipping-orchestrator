@@ -41,7 +41,11 @@ from typing import Any
 from github.Issue import Issue
 from github.IssueComment import IssueComment
 
-from orchestrator.github import comments as _comments, pinned_refusal as _pinned_refusal
+from orchestrator.github import (
+    comments as _comments,
+    edit_questions as _edit_questions,
+    pinned_refusal as _pinned_refusal,
+)
 from orchestrator.github.issue_polling import GitHubIssuePollingMixin
 
 log = logging.getLogger("orchestrator.github")
@@ -366,7 +370,19 @@ class PinnedEdit(enum.Enum):
     # that will not parse is MOVED -- or the state the rewrite would write is
     # one the next reading would refuse.
     UNSUPPORTED = "unsupported"
+    # The caller's question, asked behind the walk and immediately before the
+    # edit (`edit_questions`), answered that the edit no longer stands.
+    HELD = "held"
     UNCONFIRMED = "unconfirmed"
+
+    @classmethod
+    def unsent(cls, reading: PinnedState | None, over: dict) -> PinnedEdit | None:
+        """What a rewrite over the comment its walk read as `reading` answers unsent; None where it may go on."""
+        if reading is None:
+            return cls.MISSING
+        if not reading.reads_as(over):
+            return cls.UNSUPPORTED if reading.parsed and not reading.supported else cls.MOVED
+        return None
 
 
 @dataclass(kw_only=True)
@@ -663,7 +679,9 @@ class GitHubStateMixin(GitHubIssuePollingMixin):
         last reading before the edit, so a comment another writer moved since
         `over` was read -- compared as the comment's JSON spells it, where
         `null` is not an absent field and `true` is not `1` -- is answered
-        MOVED and left as it stands.
+        MOVED and left as it stands. Behind that walk, and immediately before
+        the edit, a caller's question is asked (`edit_questions`): an answer
+        that the edit no longer stands is HELD, with nothing sent.
 
         Nothing is sent over a record refused admission -- answered
         UNSUPPORTED, or MOVED where it will not parse at all -- nor for a state
@@ -691,14 +709,14 @@ class GitHubStateMixin(GitHubIssuePollingMixin):
                 issue.number,
             )
             return PinnedEdit.UNREAD
-        if located is None:
-            return PinnedEdit.MISSING
-        target, reading = located
-        if not reading.reads_as(over):
-            return PinnedEdit.UNSUPPORTED if reading.parsed and not reading.supported else PinnedEdit.MOVED
+        unsent = PinnedEdit.unsent(located and located[1], over)
+        if unsent is None and not _edit_questions.stands(over, state.state_data):
+            unsent = PinnedEdit.HELD
+        if unsent is not None:
+            return unsent
         body = pinned_state_body(state.state_data)
         try:
-            answered = self._send_pinned_edit(target, body)
+            answered = self._send_pinned_edit(located[0], body)
         except Exception:
             log.exception(
                 "issue=#%s its pinned comment rewrite went unanswered, so it "

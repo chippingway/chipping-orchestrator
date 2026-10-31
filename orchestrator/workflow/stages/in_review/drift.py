@@ -82,9 +82,7 @@ included.
 from __future__ import annotations
 
 import logging
-from dataclasses import replace
 
-from orchestrator.git.verification import probes as _verification_probes
 from orchestrator.workflow.engine import (
     comments as _comments,
     drift as _engine_drift,
@@ -96,6 +94,7 @@ from orchestrator.workflow.engine import (
     usage as _usage,
 )
 from orchestrator.workflow.stages.implementing import (
+    drift_road as _drift_road,
     resume as _dev_resume,
     resume_batch as _resume_batch,
     resume_request as _dev_resume_request,
@@ -179,7 +178,7 @@ def _resume_dev_for_drift(
         ctx.gh, int(ctx.pr_number), ctx.state,
         ":pencil2: issue body changed; resuming dev session.",
     )
-    before_sha = _verification_probes._head_sha(wt)
+    checkout = _drift_road.launched_in(ctx.spec, ctx.issue.number, ctx.state, wt)
     answered = _drift_delivery._pr_drift_resume_prompt(
         ctx.gh, ctx.issue, ctx.state, unread_pr_conv,
     )
@@ -191,10 +190,20 @@ def _resume_dev_for_drift(
         # taken there it would be a second reading, newer than the record this
         # tick settles, carrying a comment the settlement would leave unread.
         thread_text=answered.delivery.rendered_text,
+        # Frozen over that same reading, settled as this road settles it --
+        # the issue thread's half, and the stretch of the pull request's
+        # conversation it quoted for the carry to vouch for -- so a held
+        # return is captured with its report.
+        completion=_drift_road.road(
+            WorkflowLabel.IN_REVIEW,
+            ctx.state,
+            _drift_road.DriftReading.over_both_surfaces(answered.delivery, ctx.state),
+            checkout,
+        ),
     ))
     ctx.state.set("last_agent_action_at", _usage._now_iso())
     return _models._DriftResume(
-        worktree=wt, dev_result=dev_result, paused=paused, before_sha=before_sha,
+        worktree=wt, dev_result=dev_result, paused=paused, before_sha=checkout.before_sha,
         delivery=answered.delivery,
     )
 
@@ -229,8 +238,13 @@ def _dispose_drift_result(
     # This pass crosses what the prompt delivered; the one below crosses the
     # notices the disposition posts, which do not exist yet. Both stop at the
     # first comment nothing vouches for, so the early one can only ever cross
-    # less.
-    _watermarks._bump_in_review_watermarks(ctx, delivered=consumed)
+    # less. A recovery's early pass that could not read holds the tick with
+    # nothing written: nothing is posted yet, and a report handed on past it
+    # would leave the feedback its prompt quoted to buy that round.
+    carried = _watermarks._bump_in_review_watermarks(ctx, delivered=consumed)
+    if not carried and resume.carried is not None:
+        ctx.state.withheld = True
+        return
     outcome = _drift_outcomes._post_user_content_change_result(
         ctx.gh, ctx.spec, ctx.issue, ctx.state,
         resume.worktree, resume.dev_result, resume.before_sha,
@@ -288,16 +302,16 @@ def _settles_what_it_delivered(
     outcome, so what the predicate states here is the contract rather than the
     last line of defence -- the record is settled by what the RUN came to, not
     by which guards a road happens to ask first.
+
+    What the carry is handed is that record, save on a recovery, which names
+    the record it read back of the comments the prompt quoted (`carried`):
+    settled from instead, that record would carry the reply boundary past
+    what the excerpt bound left out.
     """
     if not _resume_batch._counts_as_delivered(resume.dev_result, resume.paused):
         return None
-    replace(
-        resume.delivery,
-        entries=resume.delivery.surface_provenance(
-            _delivery.SURFACE_ISSUE_THREAD,
-        ),
-    ).settle(ctx.state)
-    return resume.delivery
+    _drift_delivery._settled_half(resume.delivery).settle(ctx.state)
+    return resume.delivery if resume.carried is None else resume.carried
 
 
 def _relabels_for_review(ctx: _models._InReviewContext) -> None:

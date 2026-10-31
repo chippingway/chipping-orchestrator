@@ -376,7 +376,10 @@ bound and settled once the push lands and the stage's own bookkeeping is written
 rather than being pushed, and stays unpublished until a reply brings the report. A no-commit reply ending on a report
 outcome is published onto the head the pull request already carries — over a tree proved clean, or parked on the
 tree with nothing recorded — and routed as an `ACK:` is, and the reviewer waits until the report is confirmed on the
-pull request. `ACK:` and a question keep their own roads.
+pull request. `ACK:` and a question keep their own roads. Each of those resumes, and the reply each stage answers as
+its continuation, is captured on the drift road as it returns, so a report a live hold, a lost write, or a restart
+kept is recorded later, from its capture, through the same disposition and on the same round, under the revision its
+own frozen read fingerprints -- never one an edit since has moved the issue to.
 
 The **reviewer-requested fix round** acts on one on the same pull request, under the `workflow:fixing` label it runs
 under. The initial `CHANGES_REQUESTED` run reads its result through `workflow/stages/validating/fix_reports.py`
@@ -596,13 +599,17 @@ division of labour between the developer and the orchestrator never changes.
   either spends the round once, by the publication or by the report's settlement, a report alone replacing the one
   the pull request carried on the same head for a fresh review. So does the fixing stage's resume answering a pull
   request's human feedback, on the `pr_feedback` road, whose report carries the batch its prompt quoted and the
-  route's reset round and cleared bookmarks, a report alone superseding the one its approval covered. No other road
-  captures one yet. A return a live hold kept is left captured, with nothing it was handed consumed -- a change
-  request stays handed, its round unspent, and a feedback batch unread -- and its recovery is asked ahead of every
-  stage handler, before an unreported checkout, a drift resume, a launch, a review resume, or a feedback rescan could
-  lose or repeat the captured work: it settles exactly the excerpt, reply batch, retry commands, or feedback batch the
-  run was handed and the session it ran, launches no developer, and supplies no verdict, verification, approval, or
-  docs pass of its own
+  route's reset round and cleared bookmarks, a report alone superseding the one its approval covered. So does a
+  requirements-drift resume on any stage it runs on, and the replies that remain its continuation, on the
+  `requirements_drift` road: its report carries none of the frozen reading it was handed, which its stage settles for
+  itself as ever -- in the transfer's own commit on a live tick, and from the capture on a recovery -- and its round
+  is the one that stage's drift disposition spends, resets, or hands on. No other road captures one yet. A return a
+  live hold kept is left captured, with nothing it was handed consumed -- a change request stays handed, its round
+  unspent, a feedback batch unread, and a drift resume's edit unanswered, its baseline unmoved -- and its recovery is
+  asked ahead of every stage handler, before an unreported checkout, a drift resume, a launch, a review resume, or a
+  feedback rescan could lose or repeat the captured work: it settles exactly the excerpt, reply batch, retry
+  commands, feedback batch, or frozen drift reading the run was handed and the session it ran, launches no
+  developer, and supplies no verdict, verification, approval, or docs pass of its own
   ([captured-completion recovery](../state-machine/delivery-stages.md#the-captured-completion-recovery-every-dispatch)).
 - **Review-subject freshness.** No reviewer spawns while a report is owed. Each is handed the report the pull request
   carries, re-read where it settled and quoted whole, and what it reviewed — pull request, head, requirements, and

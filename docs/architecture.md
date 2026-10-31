@@ -640,7 +640,9 @@ read-back alone: handed, admitted and immutable, to the owner of the road it was
 for the first implementation and its resumes, which finishes it through the stage's own disposition with no developer
 run, the fixing stage's for a reviewer's change request's fix, which finishes it through that round's own finish and
 retires the request with the report's handoff, and for a pull request's feedback round, which settles only the batch
-and round its launch froze, and none for any other road in this build, so that handler is held --
+and round its launch froze, the stage a requirements-drift resume reported under for that resume, which finishes it
+through its own drift disposition from the one frozen reading the run was handed, and none for any other road in this
+build, so that handler is held --
 only while that road's pull request, debt,
 or adjudication stands and an unaccounted run's receipt has read back, retired as invalidated where a reading proves
 it stale, on that very reading, held with nothing written where a reading fails, the issue moves behind the readings
@@ -734,7 +736,7 @@ stands at, and a random nonce), so two runs of an identical request and a run wi
 the request's fingerprint and the session id do not. It is what usage accounting is keyed by
 ([The agent-run circuit](state-machine/labels-and-state.md#the-agent-run-circuit)), and stays `None` for a result
 no charged process produced. A captured developer completion is bound to it too
-(`workflow/engine/completion_checkpoint.py`, taken as each implementing attempt returns by
+(`workflow/engine/completion_checkpoint.py`, taken as each attempt on a report-producing road returns by
 `workflow/stages/implementing/completion_roads.py`, and decided ahead of every stage handler by
 `completion_recovery.py`): the comment and cycle its charge was taken on, and the ordinal
 that refuses a capture of an older return once a later one resolved; a return carrying unfinished steps or a terminal

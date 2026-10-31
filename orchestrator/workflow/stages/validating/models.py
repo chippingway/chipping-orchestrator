@@ -203,6 +203,21 @@ class _DevFixRun:
     # settles the report: the one handover with no code in it passes no size
     # gate, so nothing else is left to carry them.
     handed: Any = None
+    # The status of the checkout, where the caller read it ahead of the
+    # report's handoff: a run whose own capture stands pending is proved
+    # before that capture is handed on, so a status that establishes nothing
+    # keeps it rather than parking past a report already handed off. Read
+    # last of the readings taken ahead of the handoff, and once, so the
+    # publication behind it proves the tree on the latest reading rather than
+    # an earlier one, or a second one the handoff could fall between.
+    tree: Any = None
+    # The proof of where the branch stands against its publication, where the
+    # caller took it ahead of the report's handoff with no head of its own to
+    # name as the one the push replaces: one whose status did not return holds
+    # the capture, as any that did not return does for a run that committed
+    # nothing, and any other is the one the publishable reading answers on
+    # rather than a second proof.
+    evidence: Any = None
 
     @property
     def entered_head(self) -> str:

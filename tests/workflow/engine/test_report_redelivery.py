@@ -10,8 +10,12 @@ are already on the branch.
 
 from __future__ import annotations
 
+import subprocess
 import unittest
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
+from orchestrator.git.worktrees import creation as _worktree_creation
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     report_delivery_state as _delivery_state,
@@ -22,6 +26,9 @@ from tests.workflow.engine import (
 )
 from tests.workflow.fixtures import _FAKE_WT, _TEST_SPEC, _agent
 from tests.workflow.git_owners import seam_patch
+
+# A `rev-list --count` of the branch that git could not walk.
+_FAILED_WALK = subprocess.CompletedProcess(("git", "rev-list", "--count"), 1, "", "fatal: failed to read history")
 
 
 class OwedReportRedeliveryTest(unittest.TestCase):
@@ -36,7 +43,7 @@ class OwedReportRedeliveryTest(unittest.TestCase):
         state = PinnedState()
         _delivery_state.record_delivered_report(state, delivery_support.DELIVERED)
 
-        with seam_patch("_has_new_commits", lambda *_args: True):
+        with seam_patch("_has_new_commits", lambda *_args, **_options: True):
             self.assertTrue(_redelivery.redelivers_an_owed_report(
                 _TEST_SPEC,
                 state,
@@ -57,7 +64,7 @@ class OwedReportRedeliveryTest(unittest.TestCase):
                 "which database?",
             ),
         )
-        with seam_patch("_has_new_commits", lambda *_args: True):
+        with seam_patch("_has_new_commits", lambda *_args, **_options: True):
             for described, state, message in answered:
                 with self.subTest(refusal=described):
                     self.assertFalse(_redelivery.redelivers_an_owed_report(
@@ -65,13 +72,30 @@ class OwedReportRedeliveryTest(unittest.TestCase):
                         _FAKE_WT,
                     ))
 
-        with seam_patch("_has_new_commits", lambda *_args: False):
+        with seam_patch("_has_new_commits", lambda *_args, **_options: False):
             self.assertFalse(_redelivery.redelivers_an_owed_report(
                 _TEST_SPEC,
                 PinnedState(state_data=dict(delivery_support.OWED)),
                 _agent(last_message=delivery_support.ready(delivery_support.DELIVERED.report)),
                 _FAKE_WT,
             ))
+
+    def test_an_uncounted_branch_answers_as_asked(self) -> None:
+        # The debt is owed and the run reported, and git cannot walk the
+        # branch it would publish: that is the question by default, which
+        # every ordinary road reads it as, and None for a caller whose run's
+        # capture still holds the report -- a walk that failed is no proof
+        # the branch carries nothing.
+        reported = _agent(last_message=delivery_support.ready(delivery_support.DELIVERED.report))
+        unwalked = SimpleNamespace(_git=MagicMock(return_value=_FAILED_WALK))
+        with patch.object(_worktree_creation, "commands", unwalked):
+            answered = tuple(
+                _redelivery.redelivers_an_owed_report(
+                    _TEST_SPEC, PinnedState(state_data=dict(delivery_support.OWED)), reported, _FAKE_WT, **asked,
+                )
+                for asked in ({}, {"unread": None})
+            )
+        self.assertEqual(answered, (False, None))
 
 
 if __name__ == "__main__":

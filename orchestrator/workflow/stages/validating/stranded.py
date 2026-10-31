@@ -221,6 +221,17 @@ class _StrandedEvidence:
         """
         return self.finding in _UNREAD
 
+    @property
+    def unread_tree(self) -> bool:
+        """Whether this reading stopped on a checkout status that established nothing.
+
+        The one unread reading that stops a commit already in hand as well:
+        a fetch or a count that did not return, or a checkout that moved
+        under it, still leaves that commit leased to the head its run began
+        on, but nothing may be pushed out of a checkout nobody could read.
+        """
+        return self.finding == _UNREADABLE_TREE
+
 
 def _stranded_evidence(
     spec: _config_models.RepoSpec, wt: Path, state: PinnedState, issue: Issue

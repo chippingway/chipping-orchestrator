@@ -153,7 +153,7 @@ def _bump_in_review_watermarks(
     ctx: _models._InReviewContext,
     *,
     delivered: _delivery.PromptDeliverySnapshot | None = None,
-) -> None:
+) -> bool:
     """Carry the issue-side watermark (`pr_last_comment_id`) over what this
     tick wrote, and stop there.
 
@@ -187,7 +187,10 @@ def _bump_in_review_watermarks(
     A thread this call cannot re-read leaves the watermark exactly where it
     was, because the caller asks this AFTER its notice is posted and BEFORE
     the write that records the park: raising here would strand a notice with
-    nothing durable behind it and have the next poll say it again.
+    nothing durable behind it and have the next poll say it again. It answers
+    False there, and True where the walk read both surfaces, so a caller with
+    nothing posted yet may hold its tick rather than write past a carry that
+    never ran.
 
     Only the issue-side watermark moves. The inline-review and review-summary
     watermarks belong to the `fixing` handler, which advances them when it
@@ -208,7 +211,7 @@ def _bump_in_review_watermarks(
             "over this tick's own post; leaving it where it was",
             ctx.issue.number,
         )
-        return
+        return False
     answered = _models._AnsweredIssueSpace(
         ours=set(_comments._orchestrator_ids(ctx.state)),
         consumed=_thread_delivery.DeliveredThread.read(ctx.state),
@@ -220,6 +223,7 @@ def _bump_in_review_watermarks(
         watermark = comment.id
     if watermark is not None:
         ctx.state.set(_state._PR_LAST_COMMENT_ID, watermark)
+    return True
 
 
 def _initialize_unset_watermarks(

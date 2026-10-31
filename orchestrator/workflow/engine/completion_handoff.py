@@ -10,7 +10,9 @@ the transfer is the delivery's own recording (`report_delivery.records_the_repor
 with the capture's handoff among what its road retires: the delivered report
 is minted from the outcome the capture kept (`report_minting.minted_report`),
 under the route, requirements, delivered input and round settlement its road
-froze, and the very commit that records it rewrites the capture as HANDED_OFF
+froze -- no delivered input for a road that settles its own, as a
+requirements-drift resume does -- and the very commit that records it
+rewrites the capture as HANDED_OFF
 -- no report, the delivery's receipt and revision, and the branch and source
 commit it is about. A write GitHub never confirmed leaves both or neither. It
 is decided on the capture, the cycle, and every record the road's handoff was
@@ -289,13 +291,17 @@ class _Transfer:
 
 
 def _handed_run(captured: _records.CompletionCapture) -> HandedRun:
-    """The run the capture's road froze, as the delivery's recording is handed one."""
+    """The run the capture's road froze, as the delivery's recording is handed one.
+
+    A road that settles its own input hands the delivery none of it, as the
+    recording its own tick makes hands none (`CompletionHandoff.delivered_input`).
+    """
     handoff = captured.handoff
     return HandedRun(
         route=handoff.origin,
         requirements_revision=handoff.requirements_revision,
         spends=handoff.spends,
-        watermarks=handoff.watermarks,
+        watermarks=handoff.delivered_input,
     )
 
 
