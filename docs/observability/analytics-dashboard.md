@@ -315,16 +315,19 @@ on the events table only an `agent_exit` row counts as a run. Neither reprices a
 - `get_backend_daily_tokens` (agent-run view) — per `(day, backend)` token totals feeding the hero chart's "By
   backend" stacked-area toggle: the runs' summed non-overlapping `total_tokens`, so a Codex run's cached input is not
   added again beside the input holding it, and `unknown_token_runs`, the runs whose total is unknown (an Antigravity
-  run's cache reads, whose overlap nothing establishes yet, among them).
+  run an earlier build recorded reading from cache, whose overlap that build left unestablished, among them).
 - `get_cost_coverage` (agent-run view) — per `cost_source` rollups carrying runs, the summed non-overlapping
   `total_tokens`, and `unknown_token_runs`, the runs whose total is unknown. The
   `unknown-price` cohort is exposed verbatim (never collapsed into a generic "unknown") because it is the maintenance
   signal for the price catalogue in `observability/usage/prices.py`: a model with no row there, or with a row still
-  dormant until its provider's accounting activates it. On Claude it also counts usage the catalogue cannot price as
+  dormant (Gemini 3.1 Pro Preview). On Claude it also counts usage the catalogue cannot price as
   reported: a cache write of no reported lifetime, a lifetime split contradicting its aggregate, or Haiku 5.5 usage
   whose request size no row establishes. On Codex it counts every GPT-5.6 and later run, whose cache writes the CLI
   reports with no lifetime or a zero that establishes none, and a request-tiered model's run past 272,000 input
-  tokens, whose request sizes no block establishes. NULL `cost_source` buckets under `"unknown"`.
+  tokens, whose request sizes no block establishes. On Antigravity it counts a run on a slug no Gemini API model is
+  established for — Gemini 3.7 Flash and 3.1 Pro, the Claude and GPT-OSS models Antigravity serves — a run whose
+  models are mixed or unnamed or that spawned a subagent, and a run whose span touches both sides of a scheduled rate
+  change, besides every run an earlier build recorded. NULL `cost_source` buckets under `"unknown"`.
 
 **Filter contract.** The agent-run view has no `event` column (its WHERE `event = 'agent_exit'` is baked in), so
 view-backed functions cannot push an `event IN (...)` clause down. They honor the dashboard's event-filter contract by

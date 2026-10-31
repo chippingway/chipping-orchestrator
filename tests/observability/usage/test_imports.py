@@ -23,6 +23,7 @@ _METRICS_OWNER = "metrics"
 # directory against.
 _OWNERS = (
     "agy_events",
+    "agy_requests",
     "agy_summary",
     "claude_requests",
     "claude_rows",

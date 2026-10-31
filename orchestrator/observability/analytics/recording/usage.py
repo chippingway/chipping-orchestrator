@@ -14,18 +14,22 @@ from __future__ import annotations
 
 from orchestrator.observability.analytics import sink
 from orchestrator.observability.analytics.recording.models import AgentExitContext
-from orchestrator.observability.usage import metrics as usage_metrics
+from orchestrator.observability.usage import metrics as usage_metrics, price_catalogue
 
 
 def parse_agent_exit_usage(
     context: AgentExitContext,
 ) -> usage_metrics.UsageMetrics | None:
-    """Parse usage and attach it to the result, failing open on bad streams."""
+    """Parse usage and attach it to the result, failing open on bad streams.
+
+    The run has just exited, so its usage was spent over the `duration_s` seconds before now.
+    """
     try:
         metrics = usage_metrics.parse_agent_usage(
             context.backend,
             context.agent_result.stdout,
             fallback_model=context.fallback_model,
+            span=price_catalogue.UsageSpan.ending_now(context.duration_s),
         )
     except Exception:  # noqa: BLE001 - an unreadable stream cancels the record, not the tick
         sink.log.exception(

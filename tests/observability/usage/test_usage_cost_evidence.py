@@ -116,7 +116,7 @@ _RUN_CASES = (
         _NO_USAGE,
         _NOTHING_TO_PRICE,
     ),
-    _Case("antigravity usage", _agy.BACKEND, _agy.resumed_stream(), _INCOMPLETE, _UNPRICED),
+    _Case("antigravity usage given no span to date it", _agy.BACKEND, _agy.resumed_stream(), _INCOMPLETE, _UNPRICED),
     _Case("antigravity with no usage", _agy.BACKEND, "", _NO_USAGE, _NOTHING_TO_PRICE),
 )
 

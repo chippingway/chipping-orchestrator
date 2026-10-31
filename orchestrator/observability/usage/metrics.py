@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from orchestrator.observability.usage import (
     agy_summary,
@@ -17,6 +17,9 @@ from orchestrator.observability.usage import (
     protocol,
     token_evidence as usage_tokens,
 )
+
+if TYPE_CHECKING:
+    from orchestrator.observability.usage.price_catalogue import UsageSpan
 
 
 @dataclass
@@ -98,15 +101,20 @@ def parse_agent_usage(
     stdout: str,
     *,
     fallback_model: str | None = None,
+    span: UsageSpan | None = None,
 ) -> UsageMetrics:
-    """Dispatch usage parsing by agent backend."""
+    """Dispatch usage parsing by agent backend.
+
+    `span` is when the run spent its usage; an Antigravity estimate needs it to find the dated Gemini row in effect,
+    and without one the run is unpriced. The Claude and OpenAI rows carry no dates, so their estimates ignore it.
+    """
     if backend == protocol.CLAUDE:
         return parse_claude_usage(stdout)
     if backend == protocol.CODEX:
         return parse_codex_usage(stdout, fallback_model=fallback_model)
     if backend == protocol.AGY:
         metrics = UsageMetrics(backend=backend)
-        agy_summary.apply_usage(event_stream.iter_events(stdout), metrics, fallback_model)
+        agy_summary.apply_usage(event_stream.iter_events(stdout), metrics, fallback_model, span)
         return metrics
     raise ValueError(
         f"unknown agent backend {backend!r}; expected 'claude', 'codex', or 'agy'",

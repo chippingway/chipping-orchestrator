@@ -1,15 +1,20 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Antigravity usage for the steps emitted by one process invocation."""
+"""Antigravity usage for the steps emitted by one process invocation.
+
+The counters and the estimate read the same completed steps: each step's usage once, however often the CLI repeats
+its frame, and only the steps this invocation emitted, so a resume adds nothing of the conversation before it.
+"""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from orchestrator.observability.usage import agy_events, event_stream, protocol, token_evidence
+from orchestrator.observability.usage import agy_events, agy_requests, event_stream, protocol, token_evidence
 
 if TYPE_CHECKING:
     from orchestrator.observability.usage.metrics import UsageMetrics
+    from orchestrator.observability.usage.price_catalogue import UsageSpan
 
 # The counters a completed step's usage is read for, each under its own name.
 _COUNTERS = (protocol.INPUT_TOKENS, protocol.OUTPUT_TOKENS, protocol.CACHE_READ_TOKENS)
@@ -46,16 +51,17 @@ def apply_usage(
     events: list[dict[str, Any]],
     metrics: UsageMetrics,
     fallback_model: str | None,
+    span: UsageSpan | None,
 ) -> None:
+    """Fill `metrics` from the run's completed steps, its estimate priced over `span` (`agy_requests.estimate`)."""
     records = usage_records(events)
     metrics.input_tokens = sum(row.get(protocol.INPUT_TOKENS, 0) for row in records)
     metrics.output_tokens = sum(row.get(protocol.OUTPUT_TOKENS, 0) for row in records)
     metrics.cache_read_tokens = sum(row.get(protocol.CACHE_READ_TOKENS, 0) for row in records)
-    # Nothing established yet says whether a step's cache reads are part of
-    # its input count, so a run that read from cache beside it has no total.
+    # A step's input counts its ordinary input alone, apart from its cache reads.
     metrics.token_evidence = token_evidence.TokenEvidence.reporting(
         (counter for row in records for counter in row),
-        token_evidence.UNKNOWN,
+        token_evidence.DISJOINT,
     )
     metrics.turns = sum(
         step.get(agy_events.STEP_TYPE) == "user_input" for step in completed_steps(events)
@@ -67,5 +73,8 @@ def apply_usage(
     )
     if not metrics.models and fallback_model:
         metrics.models = (fallback_model,)
-    # The CLI prints no USD amount, and nothing prices its usage yet.
-    metrics.apply_cost(event_stream.select_cost(None, None, bool(records)))
+    # The CLI prints no USD amount, so the run's cost is its steps' estimate or none.
+    estimate = None
+    if not agy_requests.delegates(events):
+        estimate = agy_requests.estimate(metrics.models, records, span)
+    metrics.apply_cost(event_stream.select_cost(None, estimate, bool(records)))

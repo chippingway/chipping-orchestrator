@@ -176,7 +176,8 @@ sync (`sync/evidence.py`) reads the raw evidence through the readers every usage
   verification dates, sorted and distinct.
 - `token_cache_overlap` and `total_tokens` — how the cache counters relate to input, and the non-overlapping total:
   every observed counter once, a cache counter already inside input (Codex's `cached_tokens`) not added again, NULL
-  where the evidence leaves it unknown (an Antigravity run's cache reads, whose overlap nothing establishes yet).
+  where the evidence leaves it unknown (the cache reads of an Antigravity run an earlier build recorded, whose overlap
+  that build left unestablished).
 
 A record without evidence is read as those readers read it: `unknown` completeness with its `cost_usd` under the
 `unknown` basis, never a provider's basis inferred from its `cost_source`, backend, or models, and a token total only

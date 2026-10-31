@@ -123,7 +123,12 @@ no rate at all, and a request-tiered rate only on one API message's own prompt, 
 output-only hand-back. A Codex estimate prices a run's last usage record once, as the sum of every request it covers:
 on a model charging cache writes by lifetime, a write only at a lifetime the record reports, never one the CLI's flat
 count or its zero leaves unknown; reads and writes past the input at no rate at all; and a request-tiered row's base
-rates only where the record's input keeps every request at or under its threshold, the tier's rates never. A usage
+rates only where the record's input keeps every request at or under its threshold, the tier's rates never. An
+Antigravity estimate prices a run's own completed steps once, each once however often its frame repeats, as the Gemini
+API model its one CLI slug is documented as -- cache reads beside the input at the cached rate, thinking inside the
+output -- and only over a usage span one dated row is in effect for on every date it touches in any time zone: a slug
+no SKU is established for, such as Gemini 3.7 Flash or 3.1 Pro, another provider's model, mixed or unnamed models, a
+run spawning a subagent, a step reporting no count or a negative one, and a run with no span are unpriced. A usage
 record states what its
 cost and counters mean in its `cost_evidence` and `token_evidence`, which `UsageMetrics`, each `TurnUsage`, the
 `agent_exit` record, and the trajectory `run_usage` serialize alike: a CLI-reported amount, an explicit zero included,
@@ -273,6 +278,7 @@ or lost write interrupted are current state, not historical compatibility.
 [price catalogue](../tests/observability/usage/test_usage_price_catalogue.py),
 [Claude requests](../tests/observability/usage/test_usage_claude_requests.py),
 [Codex requests](../tests/observability/usage/test_usage_codex_requests.py),
+[Antigravity requests](../tests/observability/usage/test_usage_agy_requests.py),
 [cost evidence](../tests/observability/usage/test_usage_cost_evidence.py),
 [token evidence](../tests/observability/usage/test_usage_token_evidence.py),
 [recorded evidence](../tests/workflow/engine/test_usage_metrics.py),

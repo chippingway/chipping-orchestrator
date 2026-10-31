@@ -33,7 +33,8 @@ record establishes about the requests it sums and the estimate it is priced at, 
 `trajectory_claude_blocks.py` /
 `trajectory_claude_stream.py` / `trajectory_claude_turns.py` plus `trajectory_codex.py` and the per-item-type
 `trajectory_codex_items.py` under it the timeline reconstruction. Antigravity's envelopes, tool lifecycles, and
-completed-step usage live in `agy_events.py` / `agy_summary.py`, with its text and tool timeline in
+completed-step usage live in `agy_events.py` / `agy_summary.py`, with `agy_requests.py` holding which Gemini API model
+a run's CLI slug is priced as and the estimate its steps are priced at, and its text and tool timeline in
 `trajectory_agy.py`. The
 trajectory classifier reuses the same event decoder, pricing path, and skill evidence owners, so the resilience and
 cost-precedence contracts are defined once. Tests intercept parsers on the module their caller imports. The package
@@ -171,8 +172,53 @@ GPT-5.6 or GPT-6 row it held dormant. Nothing reprices them. A CLI-reported `cos
 For `agy`, token totals come from the completed `step_update` events in this invocation, deduplicated by step index.
 The terminal result's usage and turn counts include earlier conversation turns on a resume, so they are not added
 to the per-run counters. `user_input` steps count this invocation's turns; `init.model` supplies the model, falling
-back to the configured `--model`. Output tokens already include thinking tokens. The CLI supplies no USD cost;
-usage has `unknown-price`, an `incomplete` cost with no amount. No completed usage frames means `no-usage`.
+back to the configured `--model`. The CLI supplies no USD cost. No completed usage frames means `no-usage`.
+
+**Antigravity usage and its Gemini estimate.** What a step's usage counts is pinned to agy 1.4.10: a fresh run and
+its `--conversation` resume, captured with the backend's own flags in
+[`usage_agy_stream_capture.py`](../../tests/observability/usage/usage_agy_stream_capture.py) beside the stream
+examples the [headless guide](https://antigravity.google/docs/cli/headless/) publishes, and the CLI's conversation
+store on the capture host. `init.model` echoes the `--model` slug, only when one was given, and no other frame names
+a model. A completed step carries one generation's usage, and every generation the store records, a response's and
+each helper generation beside it, names the model the conversation selected, so a `checkpoint` step's usage is priced
+as that model's like a response's. `input_tokens` is
+the ordinary input alone, apart from `cache_read_tokens`: a step's cache reads exceed its input on nearly every step
+the store holds that reads any, and the guide's second turn reads 30,214 cached tokens beside 278 of input. Output
+tokens already include thinking tokens: a step's `total_tokens` is its input plus its output, `thinking_tokens`
+inside the output. A resumed run's steps are its own, while its `result` usage counts the whole conversation, so the
+estimate prices the same deduplicated steps the counters sum, each once.
+
+`agy_requests.API_MODELS` maps a slug to the Gemini API model it is priced as only where the headless guide or the
+CLI's model listing names it: `gemini-4-argon-high` and `-medium` to `gemini-4-argon`; `gemini-3.8-flash-high`,
+`-medium`, and `-low` (the last from the 1.4.10 listing) to `gemini-3.8-flash`; and `gemini-3.6-flash-high` and
+`-medium` to `gemini-3.6-flash`. A thinking level is a setting of the model, not another SKU. Nothing else maps.
+Gemini 3.7 Flash stays unpriced: the Developer API
+[routes its deprecated ID to 3.8 Flash](https://ai.google.dev/gemini-api/docs/models/gemini-3.7-flash) while
+Antigravity still serves a 3.7 deployment, and neither is the other's price. Gemini 3.1 Pro stays unpriced too, since
+nothing confirms that it is the `gemini-3.1-pro-preview` SKU or sizes the requests its 200,000-token tier is charged
+on. So do the Claude and GPT-OSS models Antigravity also serves, a bare API ID, an unlisted thinking level, and any
+other spelling. `agy_requests.estimate` prices a run attributed to exactly one mapped slug: ordinary input at the
+input rate, cache reads at the cached-input rate, and output, thinking included, at the output rate, on the active row
+in effect throughout the run's usage span (below). It states no amount for a run whose models are mixed or unnamed, a
+run any of whose steps spawned a subagent (`subagent_info`), since that conversation's model and usage are not on the
+stream, a step reporting a negative count or no count at all, and a run with no span or one a scheduled rate change
+falls inside.
+
+**Antigravity usage span.** Gemini 4 Argon and the Flash models change rates on a scheduled date, and the pricing
+page names that date and no time zone. `parse_agent_usage` takes the run's `span` — a `price_catalogue.UsageSpan`
+of the instants it started and ended — and `record_agent_exit` hands it the `duration_s` seconds that end as the
+record is built, right after the run exits. A dated row prices the run only where the same row is in effect on every
+calendar date the span touches in any time zone, UTC-12 through UTC+14 (`price_catalogue.active_row_throughout`): a
+run ending by 09:59:59 UTC on 2026-11-30 pays Argon's first rates, one starting at or after 12:00 UTC on 2026-12-01
+its second, and one touching both dates is `unknown-price`. A parse given no span prices no dated row, so every Gemini
+estimate needs one; the Claude and OpenAI rows carry no dates and ignore it.
+
+**Antigravity costs recorded before the estimate.** v0.14.0 and every earlier release record every Antigravity run as
+`unknown-price`, and its cache reads with a cache overlap nothing establishes, so its token total is unknown wherever
+it read from cache. A source checkout after the v0.14.0 tag still reports `0.14.0`, so its history, not its version,
+decides which it records, and records carry no orchestrator version. Records already written keep their values: the
+`agent_exit` lines and trajectory `run_usage`, the analytics rows synced from them, and the pinned issue totals they
+fed. Nothing reprices them or reads their overlap again.
 
 Antigravity trajectories join each response step's text deltas, retain tool parameters and outcomes, read offered
 tools from `init`, and take the final answer only from a successful terminal result. Interrupted response text is
@@ -190,7 +236,9 @@ price catalogue below and produces an estimate (`"estimated"`, on that provider'
 its model resolves to no active row — or, for Claude, a cache write carries no lifetime, a lifetime split contradicts
 its aggregate, or a request-tiered model's row establishes no prompt, as the Claude paragraphs above describe, and for
 Codex, a GPT-5.6 or later run's cache writes carry no lifetime or no count, its reads and writes exceed its input, or a
-request-tiered model's run passes 272,000 input tokens, as the Codex paragraphs describe — the parser returns
+request-tiered model's run passes 272,000 input tokens, as the Codex paragraphs describe, and for Antigravity, a run's
+models are mixed or unnamed, a step spawned a subagent or reports no count or a negative one, or the run has no span
+one dated row covers throughout, as the Antigravity paragraphs describe — the parser returns
 `cost_source="unknown-price"` and `cost_usd=None` — an `incomplete` cost — rather than guess at zero, bill cached
 tokens at the input rate, or choose a rate the usage does not establish. An empty stream — or one with
 no usage frames at all — yields `"no-usage"`. One selection, `event_stream.select_cost`, builds the run's cost
@@ -215,8 +263,8 @@ A basis says what an amount is:
   nothing here verifies it against an invoice, a subscription, or a credit balance, so it is never presented as a bill.
 - `anthropic-api-estimate`, `openai-api-estimate`, `gemini-api-estimate` — a token-only list-price equivalent: the
   run's observable usage priced at that provider's Standard first-party API rates from active catalogue rows, with
-  `rates_verified_on` naming each row's verification date. Claude estimates are on the Anthropic basis and Codex
-  estimates on the OpenAI one; no parser writes the Gemini basis yet, since Antigravity usage is still unpriced.
+  `rates_verified_on` naming each row's verification date. Claude estimates are on the Anthropic basis, Codex
+  estimates on the OpenAI one, and Antigravity estimates on the Gemini one.
 - `unknown` — an amount recorded with no basis. No parser writes it; a reader files under it the `cost_usd` of a record
   that carries no `cost_evidence`.
 
@@ -236,7 +284,9 @@ cache-write charge and that GPT-6.1 Sol usage drawn from a subscription has no l
 usage follows API pricing. An `openai-api-estimate` therefore prices usage on the API's terms, which charge GPT-5.6 and
 later cache writes and long-context requests where the account's Codex billing may not; it is an API comparison basis,
 never the subscription or credit charge. The
-Gemini basis is the same kind of comparison: once it prices Antigravity usage, it establishes no Antigravity charge.
+Gemini basis is the same kind of comparison: it prices Antigravity usage at the Gemini API's rates for the model a
+slug maps to, and establishes no Antigravity charge — no plan, quota, or credit Antigravity draws on, and no proof
+that Antigravity serves a request as the API would.
 
 `recorded_cost(record)` reads the cost any serialized usage record states — an `agent_exit` line, a trajectory's
 `run_usage`, or one of its `turns`. An amount is read only as a non-negative finite number a float holds, zero included,
@@ -265,7 +315,7 @@ needs every input and cache class of a message to size its prompt.
 | --- | --- | --- |
 | `claude` | `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens` | `disjoint` |
 | `codex` | `input_tokens`, `output_tokens`, `cached_tokens` | `within-input` |
-| `agy` | `input_tokens`, `output_tokens`, `cache_read_tokens` | `unknown` |
+| `agy` | `input_tokens`, `output_tokens`, `cache_read_tokens` | `disjoint` |
 
 A Claude run observes a counter once any usage row it sums reported one, and a turn what its own row reported. Claude's
 usage blocks count ordinary input apart from cache reads and writes, and a block omitting a cache field observes none of
@@ -277,8 +327,8 @@ reported: the last one reporting any tokens, or, when every one reports only zer
 at all — those zeros were measured, so they are observed, while such a stream still has `no-usage` cost. Codex's
 `cached_tokens` is the part of its input served from cache, and it records no cache-read or cache-write counter: its
 `cache_write_input_tokens`, a part of its input too, is read by the estimate alone. An Antigravity run observes a
-counter once any completed step reported one; nothing established yet says whether its cache reads are part of its
-input.
+counter once any completed step reported one, and its cache reads sit beside its input, as the Antigravity paragraphs
+above establish.
 
 `non_overlapping_total(record)` is the shared way to add the counters up: every observed counter once, a cache counter
 left out only where it sits `within-input` of an input count that was itself observed — a cache count with no
@@ -316,22 +366,26 @@ request tier carries the whole set of rates a request pays once its prompt excee
 above 100,000 prompt tokens, the GPT-5.4, GPT-5.5, GPT-5.6, and GPT-6 families above 272,000 input tokens, and Gemini
 3.1 Pro Preview above 200,000. The Claude estimate applies Haiku 5.5's tier to each API message's own prompt, as
 the request pricing above describes; the Codex estimate prices a tiered row's base rates only under a bound on every
-request, and its tier never, as the Codex request tiers above describe.
+request, and its tier never, as the Codex request tiers above describe; and the Antigravity estimate prices no tiered
+row, since no slug it maps is one.
 
 A provider-scheduled change is two rows over consecutive inclusive dates, and a dated row resolves only for a usage
-date inside its interval: Gemini 4 Argon is $2 / $0.10 / $10 for input, cached input, and output through 2026-11-30
-and $4 / $0.20 / $20 from 2026-12-01; Gemini 3.8 Flash and 3.6 Flash are $0.75 / $0.075 / $3.75 through 2026-12-31
-and $1.50 / $0.15 / $7.50 from 2027-01-01. GPT-5.6 Sol's promotional rates are guaranteed at least through
+date inside its interval, and prices a run only for a usage span it covers on every date the span touches in any time
+zone, as the Antigravity usage span above describes: Gemini 4 Argon is $2 / $0.10 / $10 for input, cached input, and
+output through 2026-11-30 and $4 / $0.20 / $20 from 2026-12-01; Gemini 3.8 Flash and 3.6 Flash are $0.75 / $0.075 /
+$3.75 through 2026-12-31 and $1.50 / $0.15 / $7.50 from 2027-01-01, rates the Gemini page still listed when
+revalidated on 2026-10-31. GPT-5.6 Sol's promotional rates are guaranteed at least through
 2026-11-21; the row records that date as a review trigger (`review_after`), which changes no rate by itself.
 
 Only active rows price a run: every Claude row — Opus 4 through 5.5, Sonnet 4 through 5.5, Fable 5 and 5.1, and Haiku
 3.5, 4.5, and 5.5, since the Claude accounting prices each message's cache writes and request tier as billed — and
 every OpenAI row: GPT-5 through GPT-5.5 with their Codex and chat models, GPT-5.6 Sol (also `gpt-5.6`), Terra, and
 Luna, GPT-6 Astra, Sol, and Luna, and GPT-6.1 Sol and Terra, since the Codex accounting prices a cache write only at a
-lifetime its record reports and a tier only under a bound on every request. Every Gemini row is dormant — resolvable
-for its identity and rates, but priced by nothing until Antigravity's accounting activates it — so a run on one records
-`unknown-price`: Gemini 4 Argon, 3.8 Flash, 3.6 Flash, and 3.1 Pro Preview. No Gemini 3.7 row exists: the Developer
-API routes that deprecated ID to 3.8. The restricted Claude Mythos and OpenAI Daybreak (cyber)
+lifetime its record reports and a tier only under a bound on every request. The Gemini 4 Argon, 3.8 Flash, and 3.6
+Flash rows are active too, since the Antigravity accounting prices a mapped slug's steps at them over a span one row
+covers. Gemini 3.1 Pro Preview is the one dormant row — resolvable for its identity and rates, but priced by nothing,
+since no Antigravity slug is established as that SKU — so nothing a parser reads is priced on it. No Gemini 3.7 row
+exists: the Developer API routes that deprecated ID to 3.8. The restricted Claude Mythos and OpenAI Daybreak (cyber)
 models carry no row, since no captured stream shows a harness emitting their IDs and `gpt-5.6-cyber` names whichever
 cyber model is current; nor does any `gpt-5.6-pro`, which OpenAI does not publish.
 

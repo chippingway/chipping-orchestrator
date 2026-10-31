@@ -4,17 +4,20 @@
 from __future__ import annotations
 
 import unittest
+from datetime import date, datetime
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from orchestrator.agents.models import AgentResult
 from orchestrator.observability.analytics import settings as analytics_settings, sink as analytics_sink
 from orchestrator.observability.usage import (
     cost_evidence as _cost,
     metrics as _usage_metrics,
+    price_catalogue as _price_catalogue,
     token_evidence as _tokens,
 )
 from orchestrator.workflow.engine import usage as engine_usage
+from tests.support import agy_stream as _agy
 from tests.support.fakes import FakeGitHubClient
 from tests.workflow.engine import usage_frames as _usage_frames, usage_test_support as support
 
@@ -55,6 +58,17 @@ _claude_stdout_with_skills = _usage_frames._claude_stdout_with_skills
 _codex_stdout_no_model = _usage_frames._codex_stdout_no_model
 _CLAUDE_CACHE_READ_TOKENS = 100
 _RECORDED_USAGE_FIELDS = (_cost.COST_USD, "cost_source", _cost.COST_EVIDENCE, _tokens.TOKEN_EVIDENCE)
+# An exit well inside Gemini 3.8 Flash's first rates, and the resumed fixture's
+# step priced at them: its input, cached input, and output at the page's rates.
+_AGY_EXITED_AT = datetime.fromisoformat("2026-10-31T12:00:00+00:00")
+_FLASH_CHARGES = (
+    (_agy.INPUT_TOKENS, 0.75),
+    (_agy.CACHE_READ_TOKENS, 0.075),
+    (_agy.OUTPUT_TOKENS, 3.75),
+)
+_TOKENS_PER_MILLION = 1_000_000
+_AGY_STEP_USD = sum(tokens * rate for tokens, rate in _FLASH_CHARGES) / _TOKENS_PER_MILLION
+_AGY_ESTIMATE = _cost.CostContribution(_cost.GEMINI_API_ESTIMATE, _AGY_STEP_USD, (date.fromisoformat("2026-10-29"),))
 
 
 def _run_usage(
@@ -232,6 +246,23 @@ class AgentExitUsageEvidenceTest(unittest.TestCase):
         self.assertEqual(
             _tokens.non_overlapping_total(record),
             _CLAUDE_INPUT_TOKENS + _CLAUDE_OUTPUT_TOKENS + _CLAUDE_CACHE_READ_TOKENS + _CLAUDE_CACHE_WRITE_TOKENS,
+        )
+
+    def test_antigravity_record_priced_at_its_exit(self) -> None:
+        # The record is priced over the span the run's duration ends at its
+        # exit, so a run on a dated Gemini row is priced at the rates in
+        # effect then, and its cache reads count beside its input.
+        path = _analytics_path(self, "usage-agy-")
+        clock = MagicMock(wraps=datetime)
+        clock.now.return_value = _AGY_EXITED_AT
+        with patch.object(_price_catalogue, "datetime", clock):
+            _run_usage(stdout=_agy.resumed_stream(), backend=_agy.BACKEND, analytics_path=path)
+        record = _analytics_records(path, event=EVENT_AGENT_EXIT)[0]
+        expected = _cost.CostEvidence(_cost.COMPLETE, (_AGY_ESTIMATE,))
+        self.assertEqual(_cost.recorded_cost(record), expected)
+        self.assertEqual(
+            _tokens.non_overlapping_total(record),
+            _agy.INPUT_TOKENS + _agy.OUTPUT_TOKENS + _agy.CACHE_READ_TOKENS,
         )
 
     def test_unstated_metrics_record_unknown_basis(self) -> None:

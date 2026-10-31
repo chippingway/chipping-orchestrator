@@ -525,10 +525,12 @@ every tracked agent run, distinct from (and in addition to) the audit `agent_spa
   contents). With the switch off the extractor never runs and none of the skill keys appear.
 
 The configured model is pulled out of the role's `extra_args` (via `_configured_model`; recognises `-m <model>` /
-`-m=<model>` for codex and `--model <model>` / `--model=<model>` for claude) and forwarded as the parser's
-`fallback_model` so a codex run whose stdout includes usage frames but omits the model still records the configured
+`-m=<model>` for codex and `--model <model>` / `--model=<model>` for claude and agy) and forwarded as the parser's
+`fallback_model` so a run whose stdout includes usage frames but omits the model still records the configured
 model and — when it resolves to an active row of the price catalogue and the usage establishes its price — an
-estimated `cost_usd`. A stream-reported model always wins over the fallback.
+estimated `cost_usd`. A stream-reported model always wins over the fallback. The parse is also handed the span the
+run's `duration_s` ends at the record, which an Antigravity estimate needs to find the dated Gemini row in effect
+throughout it, as [`usage.md`](usage.md#usage-parser) describes.
 
 Prompts, raw stdout / stderr, secrets, and worktree contents are deliberately NOT stored — the sink is a usage / cost
 surface, not a debugging mirror. A parser exception or sink IO failure is swallowed so an analytics misconfiguration

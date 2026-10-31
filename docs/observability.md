@@ -202,8 +202,11 @@ the lifetime its usage block reports and Haiku 5.5's tier on that message's own 
 lifetime, a block whose lifetime split contradicts its aggregate, or a tiered row of no established prompt is unpriced
 too. A Codex estimate prices the run's last usage block once, as the sum of every request it covers: a GPT-5.6 or later
 run is unpriced, since the CLI prints its cache writes with no lifetime and a zero write count that establishes none,
-and so is a tiered model's run past 272,000 input tokens, since no block sizes a single request. Beside those fields
-the run records its cost
+and so is a tiered model's run past 272,000 input tokens, since no block sizes a single request. An Antigravity
+estimate prices the run's completed steps once, on the Gemini API model its documented CLI slug names, cache reads
+beside the input and thinking inside the output, over a span of the run one dated row covers in every time zone; a
+Gemini 3.7 Flash or 3.1 Pro run, another provider's model, mixed or unnamed models, and a run that spawned a subagent
+are unpriced. Beside those fields the run records its cost
 evidence — monetary contributions by basis (`cli-reported`, or a provider's token-only API list-price estimate) and
 their completeness — and its token evidence, which counters were observed and whether the cache counters sit inside
 the input, with shared readers that fold costs per basis and total tokens without counting one twice. Malformed JSONL
