@@ -217,6 +217,7 @@ def _run_drift_resume(
                 _naming._resolve_branch_name(ctx.state, ctx.spec, ctx.issue.number),
                 lease,
             ),
+            _drift_road.LEASED,
         ),
     )
 

@@ -258,8 +258,11 @@ def _records_a_report_alone(
         # leaves the pull request owed one all the same. Recorded here, the
         # reply that answers the park is read as the answer to the report it
         # asked for, and the write below carries it -- the run's own capture
-        # withdrawn first, since the park hands its report to nobody.
-        if _captured_report.withdraws_the_capture(gh, issue, state, run.agent_result):
+        # withdrawn first, since the park hands its report to nobody. A status
+        # that established nothing is no loose tree: the capture is kept and
+        # the tick held, nothing written, for a reading that returns.
+        unread = not (tree.readable or tree.paths)
+        if _captured_report.parks_beside_the_capture(gh, issue, state, run.agent_result, unread=unread):
             state.set(_report_delivery.OWED_REPORT, True)
             _checkout_parks._on_unpublishable_tree(
                 gh, issue, state,

@@ -57,6 +57,11 @@ park too, so no notice goes out for a park the comment never took. A park
 over a reading that merely did not return -- a status, a fetch, a count --
 takes neither (`parks_beside_the_capture`): the capture still holds a report
 the next tick may prove, so it is kept and the tick held with nothing written.
+
+On a recovery, both the transfer and the withdrawal are made only once the
+capture's admission reads again behind every request the disposition took
+on the way (`captured_rereads`), so a control, a relabel, an edit, or a push
+landing during those requests hands on and retires nothing.
 """
 from __future__ import annotations
 
@@ -79,7 +84,7 @@ from orchestrator.workflow.engine import (
     report_record_room as _room,
 )
 from orchestrator.workflow.engine.report_records import HandedRun
-from orchestrator.workflow.stages.implementing import state as _state
+from orchestrator.workflow.stages.implementing import captured_rereads as _rereads, state as _state
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
@@ -94,8 +99,9 @@ def recording_stops_the_tick(
 ) -> bool:
     """Record what a finished run wrote, or hold the tick over it; True is a tick this ended.
 
-    The run's own pending capture is handed to the delivery, with what the
-    tick settled around the run and what its road retires with the report
+    The run's own pending capture is handed to the delivery -- on a
+    recovery, only once its admission reads again (`captured_rereads`) --
+    with what the tick settled around the run and what its road retires with the report
     (`HandedRun.retires`) riding that very commit, decided on what that road
     decides its recording on (`HandedRun.decided_on`); anything else is recorded
     by the delivery under `route`, which parks the reports it cannot record
@@ -109,6 +115,8 @@ def recording_stops_the_tick(
     pending = _pending_of(state, agent_result)
     if pending is None:
         return _report_delivery.recording_stops_the_tick(gh, issue, state, agent_result, route)
+    if _rereads.holds(state, pending):
+        return True
     answering = route if isinstance(route, HandedRun) else HandedRun(route)
     behind = replace(answering, retires=_staged_moves(state) + answering.retires)
     handed = _handoff.transfer(gh, issue, state, pending.invocation, behind)
@@ -134,11 +142,14 @@ def withdraws_the_capture(
     """Retire the run's own pending capture ahead of a park that hands its report to nobody; whether the park may go on.
 
     True where the run left no capture pending, and where the retirement
-    settled; False -- the state withheld -- where it did not.
+    settled; False -- the state withheld -- where it did not, or where a
+    recovery's admission read again no longer stands (`captured_rereads`).
     """
     pending = _pending_of(state, agent_result)
     if pending is None:
         return True
+    if _rereads.holds(state, pending):
+        return False
     retired = _checkpoint.retire(gh, issue, state, pending.invocation, _records.RetirementReason.INVALIDATED)
     if retired.settled:
         return True

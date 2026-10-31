@@ -212,8 +212,6 @@ def _resume_dev_for_drift(
 def _dispose_drift_result(
     ctx: _models._InReviewContext,
     resume: _models._DriftResume,
-    *,
-    carried: bool = False,
 ) -> None:
     """Post the dev result (a no-commit reply is an ack, not a park), record
     what the resume's prompt delivered, and on a pushed fix, an ack, or a
@@ -230,11 +228,6 @@ def _dispose_drift_result(
     either: a shutdown kill, a live pause and a launch the circuit turned away
     all leave the edit and every comment under it exactly as unanswered as
     they were.
-
-    `carried` is a caller that took the early carry itself and read the issue
-    again behind it -- the recovery of a held capture, whose report may be
-    handed on behind no request a control could land after -- so that pass
-    is not taken a second time between that reading and the handoff.
     """
     consumed = _settles_what_it_delivered(ctx, resume)
     # Carried TWICE, because the disposition below writes durably -- the
@@ -247,8 +240,7 @@ def _dispose_drift_result(
     # notices the disposition posts, which do not exist yet. Both stop at the
     # first comment nothing vouches for, so the early one can only ever cross
     # less.
-    if not carried:
-        _watermarks._bump_in_review_watermarks(ctx, delivered=consumed)
+    _watermarks._bump_in_review_watermarks(ctx, delivered=consumed)
     outcome = _drift_outcomes._post_user_content_change_result(
         ctx.gh, ctx.spec, ctx.issue, ctx.state,
         resume.worktree, resume.dev_result, resume.before_sha,

@@ -30,7 +30,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from orchestrator.workflow.engine import completion_recovery_models as _recovery_models
-from orchestrator.workflow.stages.implementing import captured_drift as _captured_drift, drift_road as _drift_road
+from orchestrator.workflow.stages.implementing import (
+    captured_drift as _captured_drift,
+    captured_rereads as _rereads,
+    drift_road as _drift_road,
+)
 from orchestrator.workflow.stages.validating import drift as _drift, drift_models as _drift_models, rounds as _rounds
 
 
@@ -47,5 +51,6 @@ def recovers(admitted: _recovery_models.AdmittedCompletion) -> bool:
         delivery=_captured_drift.frozen_reading(admitted),
         spends=None if body_edit else _rounds._spends_for_an_owed_publication(state),
     )
-    _drift._finish_validating_drift(admitted.gh, admitted.spec, admitted.issue, state, run)
+    with _rereads.rereads(admitted):
+        _drift._finish_validating_drift(admitted.gh, admitted.spec, admitted.issue, state, run)
     return True

@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import unittest
 from itertools import product
-from types import MappingProxyType
+from types import MappingProxyType, SimpleNamespace
 from unittest.mock import patch
 
 from orchestrator import config
@@ -51,6 +51,33 @@ _ROUND_RESET = "developer_report_owed_round_reset"
 # The reply's tick reads the checkout once ahead of its launch, on the head
 # the pull request carries, and the run leaves the commit it made.
 _REPLY_READS = MappingProxyType({world.HEAD_SHAS: (world.PUBLISHED_HEAD, world.PUBLISHED_HEAD, world.FIXED_HEAD)})
+
+
+# The readings a recovery cannot take, each beside whether the held run
+# committed: a checkout nobody can prove the issue's own, a head that will not
+# read, and a status that establishes nothing about the tree a report alone
+# would go out over.
+_UNREAD = (
+    ("an unproven checkout", True, MappingProxyType({"checkout_identity": ProbeAnswer.UNREADABLE})),
+    ("a head that will not read", True, MappingProxyType({world.HEAD_SHAS: ("",)})),
+    ("a status that will not read", False, MappingProxyType({"tree_readable": False})),
+)
+
+
+class _HeldDuringTheFetch:
+    """The remote fetch a publication's proof takes, during which an operator applies `control` to the issue."""
+
+    def __init__(self, case, control: str) -> None:
+        self._case = case
+        self._control = control
+        self.applied = False
+
+    def __call__(self, *_fetch, **_options):
+        """Apply the control as the fetch goes on, then answer as a fetch that landed does."""
+        if not self.applied:
+            self._case.issue.labels.append(FakeLabel(self._control))
+            self.applied = True
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
 
 
 class HeldDriftTest(unittest.TestCase, _held.HeldDriftTicks):
@@ -92,6 +119,28 @@ class HeldDriftTest(unittest.TestCase, _held.HeldDriftTicks):
             settled.append(tuple(map(pinned.get, _SETTLED)))
             self.assertEqual(_fixes.stage_of(pinned), _fixes.HANDED_OFF)
         self.assertEqual(settled[0], settled[1])
+
+    def test_a_control_during_the_fetch_holds_it(self) -> None:
+        # An operator holds the issue again while the recovery's disposition
+        # fetches the remote tip its publication replaces, under either
+        # control: the admission read again before the handoff holds the
+        # capture, with nothing settled, pushed, published, or counted; once
+        # that control comes off too, the next dispatch finishes it once.
+        for control in (_fixes.PAUSED, _fixes.BACKLOG):
+            with self.subTest(control=control):
+                self.seeded(ISSUE, PR, LABEL_VALIDATING)
+                self.held_drift(world.reported(), control)
+                self.lifts_the_control()
+                before = self.pinned()
+                fetched = _HeldDuringTheFetch(self, control)
+                recovered = self.dispatched(**_held.COMMITTED, authed_fetch_result=fetched)
+                self.assertEqual(
+                    (fetched.applied, recovered[_fixes.PUSH_BRANCH].call_count, self.published_reports()),
+                    (True, 0, []),
+                )
+                self.assertEqual(self.pinned(), before)
+                self.unheld(**_held.COMMITTED)
+                self._finished(committed=True)
 
     def _finished(self, *, committed: bool) -> None:
         """One report published, of the requirements the run was handed, and the round spent by the commit alone."""
@@ -173,19 +222,21 @@ class MovedWhileHeldTest(unittest.TestCase, _held.HeldDriftTicks):
                 self._retired(launched)
 
     def test_an_unreadable_checkout_holds_it(self) -> None:
-        # A checkout nobody can prove the issue's own, or whose head will not
-        # read: nothing proves the capture stale, so it is kept with nothing
-        # written, and the dispatch whose readings return publishes it once.
-        for unread in ({"checkout_identity": ProbeAnswer.UNREADABLE}, {world.HEAD_SHAS: ("",)}):
-            with self.subTest(unread=unread):
+        # A checkout nobody can prove the issue's own, a head that will not
+        # read, or a status that establishes nothing about the tree a report
+        # alone would go out over: nothing proves the capture stale, so it is
+        # kept with nothing written or settled, and the dispatch whose
+        # readings return publishes it once, a commit's on one round.
+        for name, committed, unread in _UNREAD:
+            with self.subTest(name):
                 self.seeded(ISSUE, PR, LABEL_VALIDATING)
-                self.held_drift(world.reported())
+                self.held_drift(world.reported(), committed=committed)
                 before = (self.pinned(), self.github.write_state_calls)
-                self.unheld(**{**_held.COMMITTED, **unread})
+                self.unheld(**{**_held.READING[committed], **unread})
                 self.assertEqual((self.pinned(), self.github.write_state_calls), before)
-                self.dispatched(**_held.COMMITTED)[_fixes.RUN_AGENT].assert_not_called()
+                self.dispatched(**_held.READING[committed])[_fixes.RUN_AGENT].assert_not_called()
                 self.assertEqual(len(self.published_reports()), 1)
-                self.assertEqual(self.pinned()[_held.ROUND], 1)
+                self.assertEqual(self.pinned()[_held.ROUND], int(committed))
 
     def test_a_dependency_hold_keeps_it_waiting(self) -> None:
         # A human moves the held issue onto a dependency hold: the capture

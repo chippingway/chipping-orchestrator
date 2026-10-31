@@ -56,9 +56,11 @@ The checkout is the one the run ran in, at the head it began on
 (`launched_in`) -- save on `resolving_conflict`, whose publication is leased
 against a head its caller proved, which that road freezes as the head it began
 on: the head a body edit's resume started from in sync with its remote, or the
-pull request's own head a reply's run was admitted over, so the capture is
-admitted only while the pull request still stands there or on the commit
-reported on, and is published against that exact lease.
+pull request's own head a reply's run was admitted over. That road freezes no
+code-publication receipt (`LEASED`), whose head the admission would otherwise
+take too, so the capture is admitted only while the pull request still stands
+on that lease or on the commit reported on, and is published against that
+exact lease.
 """
 from __future__ import annotations
 
@@ -104,6 +106,14 @@ FROZEN = (
 STOOD_DOWN_FOR = "validating_reviewer_owes_a_round"
 
 STOOD_DOWN = (*FROZEN, STOOD_DOWN_FOR)
+
+# What a conflict round's drift road freezes: every drift road's records save
+# the code-publication receipt, since its publication is leased against the
+# head its caller proved and the receipt would admit the capture on another
+# head (`completion_frozen.published_over`).
+_RECEIPT = (_frozen.PUBLISHED_COMMIT, _frozen.PUBLISHED_LEASE, _frozen.PUBLISHED_PULL_REQUEST)
+
+LEASED = tuple(field for field in FROZEN if field not in _RECEIPT)
 
 
 @dataclass(frozen=True)

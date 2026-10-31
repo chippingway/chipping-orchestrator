@@ -1973,7 +1973,8 @@ The keys that matter for the state machine fall into a few groups:
   `requirements_drift` road (`stages/implementing/drift_road.py`) -- the body edit `implementing`, `validating`,
   `in_review`, or `resolving_conflict` resumes the session on, the reply `validating` reads as the rest of a drift
   park or an owed report, and the reply a conflict park owing a report is answered with -- frozen over `pr_number`,
-  the code-publication receipt, the settled report pair, `review_round`, `conflict_round`, the report debt flags,
+  the code-publication receipt (save on `resolving_conflict`, whose lease names the head instead), the settled
+  report pair, `review_round`, `conflict_round`, the report debt flags,
   `developer_report_owed_round_reset`, and `requirements_drift_open` (a body edit on `validating` beside
   `validating_reviewer_owes_a_round` too), its `watermarks` the settlement of the frozen reading its prompt was cut
   from, beside the commands a retry consumed, and no `spends`, and its `before` commit, on `resolving_conflict`, the
@@ -2067,7 +2068,9 @@ The keys that matter for the state machine fall into a few groups:
   `requirements_drift` capture reported under (`stages/<stage>/captured_drift.py`, `completion_recovery.DRIFT_OWNERS`),
   which stages from the capture what its tick settled around the run -- the session, the park flag, the frozen
   reading's watermarks, which record the baseline -- and finishes it through that stage's own drift disposition, on
-  the round it counts, resets, or hands on and, on `resolving_conflict`, the frozen lease; and none for any other road
+  the round it counts, resets, or hands on and, on `resolving_conflict`, the frozen lease, the capture handed on or
+  withdrawn only once its admission reads again behind every request that disposition took
+  (`stages/implementing/captured_rereads.py`); and none for any other road
   in this build, so that stage is held; stale -- its
   road's pull request, report debt, or adjudication gone among the proofs -- it is retired `invalidated` by a guarded
   commit owning the capture alone, its invocation kept, and held to the whole reading the proof was taken over, so a

@@ -632,7 +632,9 @@ requirements-drift resume is finished with no developer launched: only what that
 settled -- a feedback round's frozen batch, reset round, and cleared bookmarks, later feedback left unread, and a drift
 resume's frozen reading, recorded as the baseline only by its report's handoff or its stage's own write, beside the
 round its stage's drift disposition spends, resets, or hands on, the lease a conflict round's caller proved, and no
-baseline a dependency hold defers -- and its report goes through the existing delivery, size gate, and publication --
+baseline a dependency hold defers, its handoff or withdrawal made only once its admission reads again behind every
+request that disposition took, and a status read that establishes nothing keeping it -- and its report goes through
+the existing delivery, size gate, and publication --
 a change request's retired in the very commit that hands its report on, and its round spent once,
 only over its reviewed subject read again save the head its run moved and the issue's controls and requirements,
 its checkout, and its pull request's head read again behind it, damage there -- a settled report and its handoff

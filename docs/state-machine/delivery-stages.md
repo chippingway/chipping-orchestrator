@@ -2148,22 +2148,28 @@ and handed off -- and this is what it guarantees and what stops it.
   as above, the park flag the resume takes down, the frozen reading's watermarks, which record the requirements the
   run was handed as the baseline, and the commands a retry consumed -- then answers the run on its stage's own drift
   disposition, handed the reading reduced to that revision, so nothing later on the thread reads as delivered and
-  the report carries none of that input. `implementing`'s publishes a commit -- or the commits the branch carries,
-  for a report the issue owes -- through the stage's own publication and its handoff to review, and parks a report
-  with nothing to carry it as the question it reads as, its capture withdrawn first (`implementing/captured_drift`).
+  the report carries none of that input. That disposition runs inside `implementing/captured_rereads.rereads`: the
+  capture is handed to the delivery, or withdrawn ahead of a park, only once every reading a handoff's effect stands
+  on is taken again immediately before it, behind every request the disposition took on the way -- a pull request
+  fetched, a watermark carry over both comment surfaces, a remote fetch proving the tip a publication replaces -- so
+  a control, relabel, close, edit, checkout move, or push landing during them holds the capture with nothing
+  settled, pushed, or counted. A status read of the checkout that establishes nothing is no loose tree: the capture
+  is kept and the tick held rather than the report withdrawn. `implementing`'s publishes a commit -- or the commits
+  the branch carries, for a report the issue owes -- through the stage's own publication and its handoff to review,
+  and parks a report with nothing to carry it as the question it reads as, its capture withdrawn first
+  (`implementing/captured_drift`).
   `validating`'s finishes the body edit and the reply to its drift park through the body edit's finishing helper, a
   commit spending the round that road's own tick would -- the body edit's next round, or what the reply's park owes,
   nothing where an `in_review` hand-back reset the budget, told apart by the round the body edit also froze -- and a
   report alone going onto the head the pull request carries and spending none (`validating/captured_drift`).
-  `in_review`'s fetches the pull request, stages the move to `validating` the edit owes, and takes the early
-  watermark carry itself -- reads of both IssueComment surfaces -- then reads the issue, checkout, and head again
-  behind all of them, a control applied or a move made during any of them holding the capture with nothing written,
-  and only then hands the issue back with the round reset, through the disposition with that carry not taken again;
-  the carry crosses only this orchestrator's posts and the delivered stretch, so the pull-request comments its prompt
-  quoted stay for the next scan (`in_review/captured_drift`). `resolving_conflict`'s publishes through the road the
-  body edit and the report-owed reply share, leased against the head the run's caller proved, which its road froze as
-  the head the run began on, a pushed round counted once and handed to `validating`, a report alone settled on the
-  head the pull request carries (`conflicts/captured_drift`). Every other road names no owner in this build, so an
+  `in_review`'s fetches the pull request and stages the move to `validating` the edit owes, then hands the issue back
+  with the round reset; its carry crosses only this orchestrator's posts and the delivered stretch, so the
+  pull-request comments its prompt quoted stay for the next scan (`in_review/captured_drift`). `resolving_conflict`'s
+  publishes through the road the body edit and the report-owed reply share, leased against the head the run's caller
+  proved, which its road froze as the head the run began on -- and froze no code-publication receipt, so the capture
+  is admitted only while the pull request stands on that lease or on the commit reported on -- a pushed round counted
+  once and handed to `validating`, a report alone settled on the head the pull request carries
+  (`conflicts/captured_drift`). Every other road names no owner in this build, so an
   applicable capture of it holds the stage, every tick, rather than letting it run the paid work again. This
   recovery publishes nothing of its own and infers no review, verification, approval, or docs pass.
 - **Retires** a capture a reading proved stale -- an auto rebase of its branch begun and not recovered, its anchor

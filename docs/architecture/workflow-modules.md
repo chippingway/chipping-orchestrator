@@ -4494,7 +4494,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             tick (`parks_beside_the_capture`); a run with no capture of its own recorded by the
                             delivery's own recording; and
                             the commit an owed captured report is about, which the size gate is held to
-                            (`captured_source`)
+                            (`captured_source`); on a recovery, the transfer and the withdrawal each made only once
+                            the capture's admission reads again (`captured_rereads.py`)
       captured_completion.py the owner the dispatcher's recovery hands an applicable capture of the first implementation
                             or an implementing resume to: the command pinned, the session settled as the run's tick
                             would have -- a pin dropped only where the capture records the launch dropped it -- the
@@ -4507,13 +4508,20 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             stamped with and the watermarks its own settlement advances, beside a retry's consumed
                             commands, none of which ride its report), the records its stage's accounting and the
                             reason it resumed are read off (`FROZEN`, a validating body edit's `STOOD_DOWN` beside
-                            them), and the checkout it launches in (`launched_in`), a conflict round's at the head its
-                            publication is leased against
+                            them, a conflict round's `LEASED` without the code-publication receipt, whose head its
+                            lease names instead), and the checkout it launches in (`launched_in`), a conflict
+                            round's at the head its publication is leased against
       captured_drift.py     the shared staging every stage's recovery of a drift capture opens with
                             (`settled_resume`): the session settled as `captured_completion.py` settles one, the park
                             flag taken down, the frozen watermarks advanced, and the agent action stamped -- and the
                             reading reduced to its revision for the disposition behind it (`frozen_reading`); and
                             this stage's own recovery, answered on `drift_disposition.py`
+      captured_rereads.py   the admission a recovery owner has read again immediately before its capture is handed
+                            to the delivery or withdrawn ahead of a park, behind every request its stage's
+                            disposition took first (`rereads`, asked by `captured_report.py` through `holds`): a
+                            control, relabel, close, edit, checkout move, or push landing meanwhile withholds the
+                            state and holds the tick with nothing written; per execution context, and asked of no
+                            live tick, which honors the hold its run's return read
       candidate_recovery.py exact-commit recovery for approved and frozen work, timeout-commit evidence, and publication
                             through a proved clean tree and the size gate; a recovery hands on the candidate it proved.
                             The report the run wrote is recorded between the tree and the gate, the last moment it is
@@ -5348,11 +5356,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             resume is launched on the drift road over the issue thread's half of that record
                             (`implementing/drift_road.py`, `engine/drift_delivery._settled_half`)
       captured_drift.py     the recovery of that resume's held capture: the pull request fetched, the move to
-                            `workflow:validating` staged, and the early carry taken here, the issue, checkout, and
-                            head read again behind all of those requests, and the run answered through
-                            `drift._dispose_drift_result` with that carry not repeated (`carried`), on the reading
-                            reduced to its revision, so its carry crosses only this orchestrator's posts and the
-                            delivered stretch
+                            `workflow:validating` staged, and the run answered through `drift._dispose_drift_result`
+                            inside `implementing/captured_rereads.rereads`, on the reading reduced to its revision,
+                            so its carry crosses only this orchestrator's posts and the delivered stretch
       merge_gate.py         the unmergeable park -- bounded, since the scan that let the tick reach it ran several
                             round-trips ago -- and the gates in front of the one HITL ready-ping an approved, unvetoed
                             head earns per head SHA, which is no park and carries no mark; a fresh approval retires

@@ -83,7 +83,46 @@ def _finished():
     return _agent(session_id=_SESSION, last_message=_reported())
 
 
-class HeldImplementingDriftTest(unittest.TestCase, _held.HeldCaptureTicks):
+class _HeldDrifts(_held.HeldCaptureTicks):
+    """Whole dispatches of one implementing issue whose session resume a body edit buys, held as it runs."""
+
+    def _held_drift(self, github, issue, control: str = _held.PAUSED, **seams) -> dict:
+        """Dispatch the drift resume over `seams`, held under `control` as it runs; the record it left.
+
+        The run is launched once behind the notice its road always posts, and
+        its return held: nothing moved but the charge, its one accounted exit,
+        and the capture -- no pull request, label, park, input, or session.
+        """
+        launched = Launched.over(github, _held.ISSUE)
+        noticed = _behind_the_notice(github)
+        self._finished_mid_run = (issue, _finished(), FakeLabel(control))
+        self.dispatch(github, issue, MagicMock(side_effect=self._pauses_mid_run), **seams)
+        held = launched.held(self, github, _held.ISSUE, writes=_HELD_WRITES, beside=_CAPTURED_ALONE)
+        self.assertEqual(held[_held.CAPTURED][_STAGE], _held.PENDING)
+        self.assertEqual(_published(github), noticed)
+        return held
+
+    def _settled(self, record: dict, handed: str) -> None:
+        """The baseline `handed`, the session charged one resume, one exit accounted, and the capture handed off."""
+        self.assertEqual(
+            (
+                record[_BASELINE],
+                record[_held.SESSION_PIN],
+                record[_RESUMES],
+                accounted(record),
+                record[_held.CAPTURED][_STAGE],
+            ),
+            (handed, _SESSION, 1, (1, 1), _held.HANDED_OFF),
+        )
+
+    def _edited(self):
+        """The issue on `workflow:implementing` with a recorded session, its body edited off the baseline."""
+        github, issue = self.seeded(**_SESSION_PIN)
+        issue.body = _EDITED_BODY
+        return github, issue
+
+
+class HeldImplementingDriftTest(unittest.TestCase, _HeldDrifts):
     """A held drift resume's report is captured, waited through, and published once by the recovery."""
 
     def test_each_hold_is_finished_once(self) -> None:
@@ -156,40 +195,24 @@ class HeldImplementingDriftTest(unittest.TestCase, _held.HeldCaptureTicks):
         self.assertNotEqual(handed, superseded)
         self.assertEqual(self.published(github, revision=2)[_BASELINE], handed)
 
-    def _held_drift(self, github, issue, control: str = _held.PAUSED, **seams) -> dict:
-        """Dispatch the drift resume over `seams`, held under `control` as it runs; the record it left.
 
-        The run is launched once behind the notice its road always posts, and
-        its return held: nothing moved but the charge, its one accounted exit,
-        and the capture -- no pull request, label, park, input, or session.
-        """
-        launched = Launched.over(github, _held.ISSUE)
-        noticed = _behind_the_notice(github)
-        self._finished_mid_run = (issue, _finished(), FakeLabel(control))
-        self.dispatch(github, issue, MagicMock(side_effect=self._pauses_mid_run), **seams)
-        held = launched.held(self, github, _held.ISSUE, writes=_HELD_WRITES, beside=_CAPTURED_ALONE)
-        self.assertEqual(held[_held.CAPTURED][_STAGE], _held.PENDING)
-        self.assertEqual(_published(github), noticed)
-        return held
+class UnreadStatusTest(unittest.TestCase, _HeldDrifts):
+    """A recovery whose status read establishes nothing about the tree keeps the capture for a reading that returns."""
 
-    def _settled(self, record: dict, handed: str) -> None:
-        """The baseline `handed`, the session charged one resume, one exit accounted, and the capture handed off."""
-        self.assertEqual(
-            (
-                record[_BASELINE],
-                record[_held.SESSION_PIN],
-                record[_RESUMES],
-                accounted(record),
-                record[_held.CAPTURED][_STAGE],
-            ),
-            (handed, _SESSION, 1, (1, 1), _held.HANDED_OFF),
-        )
-
-    def _edited(self):
-        """The issue on `workflow:implementing` with a recorded session, its body edited off the baseline."""
-        github, issue = self.seeded(**_SESSION_PIN)
-        issue.body = _EDITED_BODY
-        return github, issue
+    def test_an_unread_status_keeps_the_report(self) -> None:
+        # The status of the checkout the commit would be published from will
+        # not read: that is no loose tree, so the capture is kept and nothing
+        # is written, settled, published, or parked; the dispatch whose status
+        # reads publishes the commit under the captured report once.
+        github, issue = self._edited()
+        self._held_drift(github, issue)
+        before = (github.pinned_data(_held.ISSUE), github.write_state_calls)
+        self.unpaused(github, issue, tree_readable=False)
+        self.assertEqual((github.pinned_data(_held.ISSUE), github.write_state_calls), before)
+        self.assertEqual(github.opened_prs, [])
+        recovered = self.dispatch(github, issue, MagicMock(), **_LEFT_A_COMMIT)
+        recovered[_held.RUN_AGENT].assert_not_called()
+        self._settled(self.published(github), _content_hash._compute_user_content_hash(issue, set()))
 
 
 if __name__ == "__main__":

@@ -103,6 +103,25 @@ class HeldConflictDriftTest(unittest.TestCase, HeldConflictDriftTicks):
         )
         self.assertEqual(_held.held(retired), launched)
 
+    def test_an_older_receipt_retires_it(self) -> None:
+        # The body edit's resume began over a pull request somebody had
+        # pushed past the commit this orchestrator last published, so its
+        # lease is that newer head. The remote is put back on the older
+        # published commit while the issue is held: the receipt naming that
+        # commit is no lease of this road's, so the capture is retired with
+        # nothing pushed, published, or settled.
+        self.seeded_on_conflict()
+        self.pull_request.head.sha = world.CONCURRENT_HEAD
+        self.held_drift(world.reported(), fetched_branch_tip=world.CONCURRENT_HEAD)
+        launched = _held.held(self.pinned())
+        self.pull_request.head.sha = world.PUBLISHED_HEAD
+        self.unheld(**_held.COMMITTED)[_fixes.PUSH_BRANCH].assert_not_called()
+        retired = self.pinned()
+        self.assertEqual(
+            (_fixes.stage_of(retired), _held.held(retired), self.published_reports()),
+            (_fixes.RETIRED, launched, []),
+        )
+
     def _leased(self, recovered, *, committed: bool) -> None:
         """A recovery that `committed` pushed once, leased against the head its caller proved; else nothing."""
         pushed = recovered[_fixes.PUSH_BRANCH]

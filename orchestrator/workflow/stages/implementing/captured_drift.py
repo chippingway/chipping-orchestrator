@@ -23,7 +23,11 @@ the frozen reading reduced to the revision the run was handed
 already. The report goes through the existing drift outcome, report delivery,
 size gate, and exact-revision, leased publication, its capture handed off in
 the commit that records it with everything staged here riding that commit;
-each stage keeps its own accounting.
+each stage keeps its own accounting. Every owner runs that disposition inside
+`captured_rereads.rereads`, so the capture is handed on or withdrawn only once
+its admission reads again behind every request the disposition took first --
+a fetch of the pull request, a watermark carry, a remote fetch -- a control,
+relabel, edit, or push landing during them holding it with nothing written.
 
 Here that is implementing's: the branch stamped, a commit the run made or the
 branch already carried for an owed report published and handed to review
@@ -48,6 +52,7 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.stages.implementing import (
     captured_completion as _captured_completion,
+    captured_rereads as _rereads,
     drift_disposition as _drift_disposition,
     state as _state,
 )
@@ -72,7 +77,8 @@ def recovers(admitted: _recovery_models.AdmittedCompletion) -> bool:
         committed=run.source_sha != run.before_sha,
         delivery=frozen_reading(admitted),
     )
-    _drift_disposition._dispose_implementing_drift(admitted.gh, admitted.spec, admitted.issue, state, drift)
+    with _rereads.rereads(admitted):
+        _drift_disposition._dispose_implementing_drift(admitted.gh, admitted.spec, admitted.issue, state, drift)
     return True
 
 

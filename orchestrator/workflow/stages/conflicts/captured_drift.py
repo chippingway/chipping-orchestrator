@@ -32,7 +32,7 @@ from pathlib import Path
 
 from orchestrator.workflow.engine import completion_recovery_models as _recovery_models
 from orchestrator.workflow.stages.conflicts import models as _models, resume_reports as _resume_reports
-from orchestrator.workflow.stages.implementing import captured_drift as _captured_drift
+from orchestrator.workflow.stages.implementing import captured_drift as _captured_drift, captured_rereads as _rereads
 
 
 def recovers(admitted: _recovery_models.AdmittedCompletion) -> bool:
@@ -40,11 +40,12 @@ def recovers(admitted: _recovery_models.AdmittedCompletion) -> bool:
     rebuilt = _captured_drift.settled_resume(admitted)
     capture = admitted.capture
     lease = capture.run.before_sha
-    _resume_reports._disposes(
-        _models._ConflictContext(admitted.gh, admitted.spec, admitted.issue, admitted.state),
-        _models._ConflictResumeRun(worktree=Path(capture.run.worktree), dev_result=rebuilt, paused=False),
-        lease,
-        capture.handoff.requirements_revision,
-        lease,
-    )
+    with _rereads.rereads(admitted):
+        _resume_reports._disposes(
+            _models._ConflictContext(admitted.gh, admitted.spec, admitted.issue, admitted.state),
+            _models._ConflictResumeRun(worktree=Path(capture.run.worktree), dev_result=rebuilt, paused=False),
+            lease,
+            capture.handoff.requirements_revision,
+            lease,
+        )
     return True
