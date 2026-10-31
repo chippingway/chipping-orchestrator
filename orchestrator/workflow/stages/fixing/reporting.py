@@ -23,6 +23,10 @@ and the head a pull request happens to carry -- both of which outlive every
 transaction. It is cleared by the relabel that closes the round, and placed
 against the comment through `round_marks` before that relabel is taken.
 
+A report the launch's road captured as it returned -- the validating route's
+-- is recorded by handing that capture to the delivery
+(`implementing/captured_report`), so the report has one owner at a time.
+
 The park a failed push filed comes down in that same write, and for the same
 reason the mark does: the retry that finally lands that push is durable before
 the publication it carries is, so a relabel taken over the park hands a
@@ -58,6 +62,7 @@ from orchestrator.workflow.stages.fixing import (
     state as _state,
 )
 from orchestrator.workflow.stages.implementing import (
+    captured_report as _captured_report,
     late_gate_models as _late_gate_models,
     parks as _dev_parks,
     session_read as _dev_session_read,
@@ -74,6 +79,13 @@ log = logging.getLogger("orchestrator.workflow")
 # moved -- the settled report and the publication receipt are persistent, so a
 # head a pull request is standing on proves nothing about this transaction.
 _SETTLES_THE_ROUND = ((_state._SETTLED_ROUND, True),)
+
+# The park a resume answers, which the report its run hands on is recorded
+# decided on as the tick read it (`report_records.HandedRun.decided_on`): a
+# park another road or an operator records meanwhile -- a spent run ledger's
+# among them -- refuses the record, and the publication and the round behind
+# it, rather than being taken down by the write that hands the report on.
+_PARK_FLAGS = frozenset((_state._AWAITING_HUMAN, _state._PARK_REASON))
 
 # The parks a landed publication is itself the answer to. Two reasons rather
 # than the transient set, because what membership claims here is narrower than
@@ -401,16 +413,28 @@ def _recording_stops_the_tick(
     round whose whole answer was its report drops nothing at all: the push
     that would have reset it never happens, and one later transient failure
     rotates a session this round proved healthy.
+
+    A run whose report its launch's road captured as it returned -- the
+    validating route's (`resume_road`) -- is recorded by handing that capture
+    to the delivery, with everything this tick settled around the run riding
+    the same commit (`implementing/captured_report`), so the report has one
+    owner at a time; a capture the delivery refuses for the report itself is
+    withdrawn and the run recorded, or parked, as here. Either way the record
+    is decided on the park the resume answers as the tick read it
+    (`_PARK_FLAGS`), since the tick takes that park down in the same write: a
+    park recorded meanwhile refuses the record rather than coming down
+    behind it.
     """
     if run.reported:
         ctx.state.set(_dev_state._SILENT_PARK_COUNT, 0)
-    if _report_delivery.recording_stops_the_tick(
+    if _captured_report.recording_stops_the_tick(
         ctx.gh, ctx.issue, ctx.state, run.dev_result,
         _report_records.HandedRun(
             route=WorkflowLabel.FIXING,
             requirements_revision=run.requirements_revision,
             watermarks=consumed,
             spends=owed.fields + _SETTLES_THE_ROUND,
+            decided_on=_PARK_FLAGS,
         ),
     ):
         return True

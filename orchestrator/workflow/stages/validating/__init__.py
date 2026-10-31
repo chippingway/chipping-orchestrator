@@ -42,7 +42,10 @@ the branch and on the publication receipt alike -- and owns the park where it
 cannot be, with the input the round's prompt delivered riding that park's own
 write. The resume behind a parked round is the `fixing` stage's own road
 (`stages/fixing/reporting.py`), which holds it to the same contract and, while
-the report is owed, holds the readers and the round with it.
+the report is owed, holds the readers and the round with it. `fix_road` is
+what that run's launch freezes, so a report it finishes on is captured as it
+returns whatever a live hold makes of the tick, and `captured_fix` finishes a
+capture of it the dispatcher's recovery admitted, with no developer run.
 
 Between rounds the stage is a dev-fix driver, and `dev_fix` owns what one
 finished dev run leaves behind -- the no-commit reading, the push, and the

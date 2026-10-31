@@ -51,8 +51,10 @@ supported version-1 records authored by the orchestrator token account; malforme
 are preserved unchanged and never overwritten, duplicated, or silently upgraded. A captured developer completion
 (`developer_completion`) is the pinned record of one returned report alone: only its confirmed capture, or that
 capture read back after an unconfirmed write, carries the report and what its road froze, never a log, analytics,
-a native session, a trajectory, or a host record. Only the first implementation and an implementing resume capture
-one, as their developer returns. The dispatcher's recovery reads a pending capture through that read-back alone.
+a native session, a trajectory, or a host record. Only the first implementation, an implementing resume, and the fix
+a reviewer's change request hands its developer -- the run its handoff launches, and the resume that finishes its
+parked round -- capture one, as their developer returns. The dispatcher's recovery reads a pending capture through
+that read-back alone.
 
 **Specs:** [state](architecture.md#design-constraints), [restarts](configuration/operations.md#what-survives-a-restart).
 
@@ -60,7 +62,8 @@ one, as their developer returns. The dispatcher's recovery reads a pending captu
 [quota recovery](../tests/workflow/stages/implementing/test_quota_retirement_host.py),
 [completion captures](../tests/workflow/engine/test_completion_checkpoint.py),
 [capture recovery](../tests/workflow/engine/test_completion_recovery.py),
-[captured attempts](../tests/workflow/stages/implementing/test_captured_attempts.py).
+[captured attempts](../tests/workflow/stages/implementing/test_captured_attempts.py),
+[captured fixes](../tests/workflow/stages/validating/test_captured_fixes.py).
 
 ## C-02: Workflow labels and transitions
 
@@ -404,7 +407,8 @@ depends on the accounting. A completion's capture, transfer, and retirement each
 one left unconfirmed withholds the caller's state and settles nothing until read back, and asking again records
 nothing twice; any of them answered or refused over a comment that moved since its caller read it withholds that
 caller too, so its whole-state write never puts back a delivery, retirement, or damaged claim it did not hold. The
-transfer records the delivered report and hands the capture off in one commit, so the report has one durable owner
+transfer records the delivered report and hands the capture off in one commit, what the capture's road retires with
+the report -- a change request it answers -- riding it, so the report has one durable owner
 either way; a pending capture is retired only by a guarded invalidation, never behind a transfer nobody confirmed,
 and a handed-off one is neither replaced nor retired until the transaction its delivery becomes settles, the binding
 holding that delivery to the commit the capture reported on -- save by a later capture carrying it while that
@@ -597,8 +601,9 @@ works past `paused`/`backlog`: a held child is not released, a held parent is ne
 release and the parent's return move only the workflow label, and the walk reads the parent's controls again in front
 of every release, so a hold applied while the poll runs is never written away or worked past. A hold a finished agent
 run meets, or an accounting checkpoint of it that neither landed nor read back, permits that run's usage accounting
-alone, beside a quota retirement it owes and, on the first implementation or an implementing resume, the capture of
-the report the run finished on: the exit is counted once, as it returns, and nothing else of the run -- a
+alone, beside a quota retirement it owes and, on the first implementation, an implementing resume, or a reviewer's
+change request's fix, the capture of the report the run finished on: the exit is counted once, as it returns, and
+nothing else of the run -- a
 publication, a label, a park, a consumed input, a session pin, a further launch -- is written or made, nor does the
 count give any stage outcome a replay; the hold the run's return first read is the one honored, whatever a later
 fetch sees. A captured completion waits through `paused`/`backlog`, a dependency hold, the `ready`
@@ -609,9 +614,18 @@ back is handed on to no road until that run's receipt reads back, and the issue'
 requirements, its checkout, and its pull request are read again right before the capture is retired or handed on,
 so a hold applied, or a close, reopening, edit, or source moved or put back, while its readings were taken writes
 nothing; a landed retirement ends its tick, so no stage runs on the snapshot its readings outdated. An applicable
-capture of an implementing road is finished with no developer launched: only what that run was handed and its
-session are settled, and its report goes through the existing delivery, size gate, and publication. Lifetime agent-run
-charges and the grant that permits further runs are covered by [C-15].
+capture of an implementing road, or of a change request's fix, is finished with no developer launched: only what
+that run was handed and its session are settled, and its report goes through the existing delivery, size gate, and
+publication -- a change request's retired in the very commit that hands its report on, and its round spent once,
+only over its reviewed subject read again save the head its run moved and the issue's controls and requirements,
+its checkout, and its pull request's head read again behind it, damage there -- a settled report and its handoff
+that no longer agree included, judged ahead of the revision reviewed -- or a push meanwhile holding it rather than
+proving it stale, its report recorded decided on that subject and on the park's flags as those reads took them, so a
+record moved or damaged, or a park recorded -- a spent run ledger's among them -- while they ran holds it too, a
+handed request never dropped or launched
+again beside a capture nothing has decided, and a reading that did not return holding the capture rather than
+discarding it. Lifetime agent-run charges and
+the grant that permits further runs are covered by [C-15].
 
 **Specs:** [controls](state-machine/labels-and-state.md#workflow-labels),
 [waiting for human action](state-machine.md#per-tick-flow-workflowengineticktick),
@@ -630,7 +644,9 @@ charges and the grant that permits further runs are covered by [C-15].
 [review parks](../tests/workflow/stages/in_review/test_parked.py),
 [retry-cap parks](../tests/workflow/engine/test_retry_budget.py),
 [held captures](../tests/workflow/engine/test_completion_holds.py),
-[ready captures](../tests/workflow/stages/decomposition/test_ready_capture.py).
+[ready captures](../tests/workflow/stages/decomposition/test_ready_capture.py),
+[held fixes](../tests/workflow/stages/validating/test_captured_fixes.py),
+[held fix resumes](../tests/workflow/stages/fixing/test_captured_resumes.py).
 
 ## C-11: Credentials and execution boundaries
 

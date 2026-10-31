@@ -97,7 +97,11 @@ stage's own, through `reporting` above. Both record the report before the size
 gate and publish a report needing no commit onto the head the pull request is
 proved to be standing on -- and the second holds the readers, the round and the
 relabel until that publication really lands, since nothing behind it comes back
-for a handover the reviewer was handed early.
+for a handover the reviewer was handed early. Either captures the report its run
+finishes on: `resume_road` is what this stage's resume freezes on the validating
+route, and `captured_fixes` is the owner the dispatcher's recovery hands a
+reviewer's change request's capture to, finishing a parked round's resume here
+and the direct round's through `validating/captured_fix`.
 
 Callers import the owner they need, so this initializer binds nothing: the
 dispatcher resolves one handler per issue, and an eager binding here would

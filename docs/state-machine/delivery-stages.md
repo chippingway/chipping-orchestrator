@@ -2000,8 +2000,11 @@ and handed off -- and this is what it guarantees and what stops it.
   held issue reaches the guards -- a close somebody observed. The implementing handler asks it first of its preflight
   too, for the pickup that hands an unlabeled issue there in-tick. The capture is described under
   [pinned state](labels-and-state.md#pinned-state); the first implementation and an implementing resume take one as
-  their developer returns ([`_handle_implementing`](#_handle_implementing-label-workflowimplementing)), and no other
-  road captures one yet.
+  their developer returns ([`_handle_implementing`](#_handle_implementing-label-workflowimplementing)), and so does
+  the fix a reviewer's change request hands its developer, on either half of that round: the run its handoff launches
+  ([`_handle_validating`](#_handle_validating-label-workflowvalidating) step 6) and the resume a reply or an
+  `/orchestrator continue` buys on the far side of a park that round took
+  ([`_handle_fixing`](#_handle_fixing-label-workflowfixing)). No other road captures one yet.
 - **Reads** (`workflow/engine/completion_admission.py`, `completion_sources.py`), the cheapest first: the capture read
   back afresh through its own checkpoint, which admits the comment and binds it to the invocation's repository, issue,
   comment, and cycle -- the only thing the capture is read from; the issue fetched again for its labels, controls, and
@@ -2010,14 +2013,20 @@ and handed off -- and this is what it guarantees and what stops it.
   `resolving_conflict` is owed to, the rewritten-head debt a report refresh answers, owed on the pull request the record
   pins and the run's branch and naming as its rewritten head the commit its run reported on, the live adjudication a
   late revision answers, and the records its handoff froze, a move of one proving the capture stale only where the moved
-  record's own reader -- the debt's, the pinned number's, the returned reviewer verdict's, and for a late record the
-  late domain's check of that very field: the measurement evidence, the publication group, a hold's route bookkeeping --
+  record's own reader -- the debt's, the pinned number's, the returned reviewer verdict's, and a change request's
+  round's records' (`completion_frozen_reads.py`: the feedback anchor, `pending_fix_at`, the code-publication receipt,
+  the settled report pair, and the verification evidence, the current report and the current evidence each read
+  beside the handoff its settlement wrote), and for a late record the late domain's check of that very
+  field: the measurement evidence, the publication group, a hold's route bookkeeping --
   takes its new spelling, and a move of one no reader is registered for holding it, a late record none of those checks
   judges included; the requirements, fingerprinted as a developer prompt is handed them; the branch the live resolver
   names; the checkout, proven the issue's own at its own path and read for its head; for a run captured with its usage
   unaccounted, that run's receipt read back on the ledger beside counters its writers would write; and the recorded pull
   request, which has to be open, on the run's branch in this repository, and standing on the head the run started on or
-  the one it reported on -- a refresh's on the one it reported on alone, as that road holds it -- a reading missing its
+  the one it reported on -- or, for a road that froze the code-publication receipt, the head that receipt names there,
+  the publication a resume over work an earlier run left unpushed is still owed onto
+  (`completion_frozen.published_over`) -- a refresh's on the one it reported on alone, as that road holds it -- a
+  reading missing its
   head's branch, commit, or repository is no reading. On the implementing road a pull request that road's own
   classification reads as the `discussion` stage's plan (`implementing.handler._recorded_pr_is_the_plan`, asked of the
   head this reading took) is none of the run's: a human merges the plan to agree to the design, and the implementation
@@ -2040,9 +2049,43 @@ and handed off -- and this is what it guarantees and what stops it.
   capture reported on, so a checkout moved off it parks before anything is measured or pushed -- and the leased,
   exact-revision publication, and a run that committed nothing parks as it would have; no developer is launched and no
   run charged, and neither a synthetic commit nor an undeliverable-report park stands in for a return that was merely
-  held. Every other road names no owner in this build, so an applicable capture of it holds the stage, every tick,
-  rather than letting it run the paid work again. This recovery publishes nothing of its own and infers no review,
-  verification, approval, or docs pass.
+  held. A reviewer's change request's owner is the fixing stage's (`fixing/captured_fixes.recovers`), which both
+  halves of that round run under, the handoff each froze saying which half it was. The direct round froze the request
+  itself, which still stands handed beside the capture, and is finished through the round's own finish
+  (`validating/captured_fix.recovers`, `requested_changes._finish_requested_fix`) once its reviewed subject reads
+  again as the request names it, save the head the run was asked to move -- the settled report read beside the
+  handoff its settlement wrote, then as the revision reviewed, and re-read where it settled, and the evidence it
+  claims still settled beside the handoff its settlement wrote, one proved superseded retiring the capture and one
+  damaged or unread, the settled pair and the evidence included and asked first and a current report or current
+  evidence beside no handoff that describes it damage, holding it -- and the issue, the checkout, and the pull
+  request's head read again behind those reads as a handoff's effect reads them (`completion_effect.admitted_again`),
+  a control applied, a label moved, a close, a requirements edit, or a push while they were taken holding it too, so
+  nothing is retired or published over a head the admission never read (`captured_fix.subject_stands`):
+  the session settled as above, the
+  run disposed on a rebuilt result, its report handed to the delivery with the request retired in that very commit,
+  decided on the request's subject as those reads took it (`review_writes.VERDICT_STANDS_ON`), so a settled report
+  pair or evidence record moved or damaged while they ran refuses the transfer and holds it with nothing written,
+  the commit published or the report alone settled on the head the pull request already carries, the round spent
+  once, and the issue handed back to `workflow:validating` -- asked ahead of
+  `review_resume.finishes_a_handed_request`, which would read that developer as a launch that may have run and drop
+  the request, or park it for `/orchestrator continue`. The parked round's resume froze the route, the anchor, all
+  three members of the code-publication receipt, and the settled report and every evidence record it was decided on,
+  the revision floor
+  included -- a report settled over the reviewed one since, or a later evidence revision, retiring it as a frozen
+  move, a damaged record holding it, a current report or current evidence beside no handoff that describes it
+  included -- and has its
+  evidence read and that report re-read where it settled, and the
+  issue, checkout, and pull request's head read again behind the read, before the park or its input is touched, a
+  report gone or edited there retiring it and one unread, damaged evidence, or a control, requirements edit, or push
+  meanwhile holding it; it is finished through
+  the resume's own roads (`fixing/resume._finishes_the_run`): the park it answered
+  taken down, the requirements baseline moved to the fingerprint the run was handed, and the reply or command it
+  consumed left to the pairs that ride its report. The park comes down only in the commit that hands the report on,
+  decided on the park's flags as the recovery read them (`fixing/reporting._PARK_FLAGS`), so a park an operator
+  recorded during those reads -- a spent run ledger's among them -- refuses it and stands, the capture waiting with
+  nothing written until a grant or reply answers that park. Every other road names no owner in this build, so an
+  applicable capture of it holds the stage, every tick, rather than letting it run the paid work again. This
+  recovery publishes nothing of its own and infers no review, verification, approval, or docs pass.
 - **Retires** a capture a reading proved stale -- an auto rebase of its branch begun and not recovered, its anchor
   reading as a commit, the issue closed or labelled `done` or `rejected`, moved onto any other road than the one it
   reported on, a record its handoff froze moved to a spelling its reader takes, the pull request, debt, or adjudication
@@ -2978,7 +3021,12 @@ and handed off -- and this is what it guarantees and what stops it.
      its caller names -- on the run's own tick, its recovery, the restart shortcut after either, and a recovery that
      re-measures a recorded candidate alike -- so a checkout something moved off it, or a record naming another
      commit, parks before anything is measured, pushed, or opened, rather than publishing a commit the binding would
-     then refuse the report on. Documentation passes, conflict resolutions, and every other resume freeze no road.
+     then refuse the report on. A reviewer's change request hands its fix through two resumes that freeze a road of
+     this same shape -- the run its handoff launches
+     ([`_handle_validating`](#_handle_validating-label-workflowvalidating) step 6) and the fixing stage's resume of
+     that round on the validating route
+     ([`_handle_fixing`](#_handle_fixing-label-workflowfixing)). Documentation passes, conflict resolutions, and every
+     other resume freeze no road.
   6. Branch on result:
      - `interrupted` (shutdown sweep killed the run mid-flight) → ignore the partial result and return WITHOUT writing
        pinned state, so durable GitHub state stays exactly as the prior tick left it and the next process retries.
@@ -5571,7 +5619,8 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        the launch stands on is carried onto the state the developer's run is written back from, and the developer's run
        retires the verdict only in a guarded commit decided on it, the pull request the issue points at, the start of
        its launch, the anchor, and the park's flags (`review_writes.ANSWERED`): the commit recording its report, which
-       writes the retirement itself (`report_records.HandedRun.retires`), the commit landing a park the round takes
+       writes the retirement itself (`report_records.HandedRun.retires`) -- the transfer of the capture the launch
+       took of that report, where it took one (below) -- the commit landing a park the round takes
        instead -- a timeout's, a question's, or one over a tree or a push it could not publish -- or, where no report
        was recorded first, the hand-back behind the relabel. It is prepared over the comment read afresh right behind
        the run (`HandedLaunch.retires`), and every write recording or holding the report is decided on the same records
@@ -5592,15 +5641,44 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        is held, nothing relabelled or launched, since no failed run could replay the feedback, or one would replay
        another comment as it. The record and both parks are described under
        [pinned state](labels-and-state.md#pinned-state).
+       The launch carries the request's road (`validating/fix_road.py`), frozen over the comment as it then reads: the
+       change request's route under `workflow:fixing`, the requirements baseline the report is stamped with, the round
+       settlement it rides -- `review_round` one past the reviewer's, the anchor cleared, the settled-round mark -- and
+       a digest of the request as handed, the pull request the issue points at, and the feedback anchor. A return that
+       finished on its report is captured as `developer_completion` as it comes back, live hold or not, beside the run's
+       accounting and nothing else, so the request stays handed beside it. The round's report is recorded by handing
+       that capture to the delivery (`implementing/captured_report.py`), decided on the frozen records and on
+       everything `HandedRun.decided_on` names, with the request's retirement and what the tick settled around the run
+       riding the same commit: the request's retirement and the durable ownership of its answer land together or not
+       at all. A report alone parked over loose work, or a head the branch or the receipt refused, is recorded nowhere,
+       so its capture is withdrawn ahead of the park, and the reply that answers it is captured afresh; one whose head
+       proof met a reading that did not return -- a status, a fetch, a divergence count, a checkout read moving -- keeps
+       the capture and the request, holding the tick with nothing written, and the recovery takes that reading again
+       with no developer run. The recovery finishes a held round only over its reviewed subject read again save the
+       head the run was asked to move (`validating/captured_fix.py`): the settled report read beside the handoff its
+       settlement wrote and re-read at its location as the revision the request was reviewed over, and the evidence it
+       claims still settled beside the handoff its settlement wrote. A report settled since, one refused for good, or
+       superseded evidence retires the capture by a guarded invalidation, leaving the request for the fixing stage's
+       road to drop; a report nobody could read, a settled pair that disagrees -- either record without the other, or
+       the two naming another revision, pull request, or commit, judged ahead of the revision reviewed -- evidence
+       still owed, or evidence damaged -- current evidence beside no handoff that describes it included -- holds it.
+       The round's report is recorded decided on that subject as the recovery read it, as on what the request's
+       retirement is decided on (`review_writes.VERDICT_STANDS_ON`, `HandedRun.decided_on`), and the transfer holds
+       those records to the reading the recovery decided on before it reads the comment afresh: a record moved or
+       damaged while the subject was read refuses it, and the capture waits with nothing written.
   7. `paused` / `backlog` applied mid-run → each of the three dev resumes (the drift resume, the awaiting-human
      resume, and the CHANGES_REQUESTED fix resume) re-checks a FRESHLY fetched issue via `_paused_during_agent_run`.
      On a hit the handler returns WITHOUT running its result handler (`_post_user_content_change_result` /
-     `_post_requested_fix_result` / `_handle_dev_fix_result`), so nothing is recorded of the report the run wrote,
-     no comment posts, no push, no `review_round` bump, no relabel, and no pinned-state
-     write. The committed work stays on the branch; the CHANGES_REQUESTED path leaves the pre-spawn `workflow:fixing`
-     flip standing and `_handle_fixing` owns the issue once the label is removed — its no-feedback exit (step 7 there)
-     is what publishes the discarded run's commit, since the reviewer comment that started the round is filtered out
-     of every later rescan.
+     `_post_requested_fix_result` / `_handle_dev_fix_result`), so no comment posts, no push, no `review_round` bump,
+     no relabel, and no pinned-state write but the run's charge and accounting -- and, on the CHANGES_REQUESTED fix
+     resume, the capture of a report the run finished on. The committed work stays on the branch, and the
+     CHANGES_REQUESTED path leaves the pre-spawn `workflow:fixing` flip standing, its request still handed. Once the
+     label is removed, a capture is finished by the
+     [captured-completion recovery](#the-captured-completion-recovery-every-dispatch) ahead of `_handle_fixing`, with
+     no developer launched; a run that finished on no report captured nothing, and `_handle_fixing` owns the issue --
+     its handed-request recovery drops the request whose developer ran, and its no-feedback exit (step 7 there) is what
+     publishes the discarded run's commit, since the reviewer comment that started the round is filtered out of every
+     later rescan.
 - **Output**: label moved to `workflow:documenting` (approval after verify + squash) OR `workflow:fixing`
   (CHANGES_REQUESTED, then back to `workflow:validating` with `review_round` bumped on the round's handover — a
   pushed fix or a report delivered with no commit) OR `workflow:decomposing` (the size gate held a fix or a
@@ -6088,10 +6166,12 @@ of those recoverable without telling a human twice
      behind that, still ahead of the scan (`validating/review_resume.finishes_a_handed_request`): its feedback is a
      comment this orchestrator posted, which the scan filters out, so the no-feedback bounce would pay a second reviewer
      for a round already reviewed. It stands down while a park stands, whose own dispatch answers first -- the run
-     circuit's `agent_run_limit` over a launch it refused, say. A developer launch still owed is made once
-     (`validating/review_handoffs.HandedLaunch.owed`), with no relabel: the issue is on this label already, and writing
-     it again would emit a `stage_enter` nothing made, and its checkout is restored only once the launch is held to its
-     subject, so a moved subject drops the verdict with no checkout restored; one that may have started -- a run ledger
+     circuit's `agent_run_limit` over a launch it refused, say -- and holds the tick with nothing written beside a
+     captured completion nothing has decided, which may be that very developer's report. A developer launch still owed
+     is made once (`validating/review_handoffs.HandedLaunch.owed`), with no relabel: the issue is on this label
+     already, and writing it again would emit a `stage_enter` nothing made, and its checkout is restored only once
+     the launch is held to its subject, so a moved subject drops the verdict with no checkout restored; one that may
+     have started -- a run ledger
      whose record of that launch no reader takes included -- is never made again. The owed launch resumes its developer
      on the record's feedback as `engine/review_findings.py` shows it, so a request handed before findings were
      formatted is answered on the concise findings, and one handed before leads on its checks led, while the post it
@@ -6299,10 +6379,16 @@ of those recoverable without telling a human twice
      the record would find them equal, publish, and hand the reviewer a head over feedback no session ever saw.
 
      Three outcomes are ignored entirely BEFORE the ACK
-     fast path, the stranded-fix check, and the settlement below, and each returns WITHOUT writing pinned state, so
-     nothing is settled, `awaiting_human` is untouched, and the next tick re-discovers the same feedback: an
-     `interrupted` resume a shutdown killed, a launch the run circuit never invoked
-     (`guards._ignore_if_never_invoked`), and a mid-run `paused` / `backlog`. Past them the prompt reached an agent, so
+     fast path, the stranded-fix check, and the settlement below, and each returns WITHOUT writing pinned state past
+     the run's charge, its accounting, and a capture, so nothing is settled, `awaiting_human` is untouched, and the next
+     tick re-discovers the same feedback: an `interrupted` resume a shutdown killed, a launch the run circuit never
+     invoked (`guards._ignore_if_never_invoked`), and a mid-run `paused` / `backlog` -- on the validating route a report
+     the held run finished on captured beside its accounting, the launch having carried the change request's road
+     (`stages/fixing/resume_road.py`: the route, the fingerprint below, the pairs the batch settles, the round
+     settlement, and a digest of `pending_fix_at`, the reviewer anchor, the pull request the issue points at, the
+     code-publication receipt, and the settled report and every evidence record the request was reviewed over), for
+     the [captured-completion recovery](#the-captured-completion-recovery-every-dispatch) to finish once the hold comes
+     off; the in_review route's resume captures nothing here. Past them the prompt reached an agent, so
      the batch it quoted is delivered and is **settled** right there (`_settle_consumed_feedback`), ahead of every
      disposition below, because the size gate's own durable write and a park's both land inside that disposition and a
      settlement taken afterwards would be lost to a crash in the window a hold's relabel opens. The one outcome that

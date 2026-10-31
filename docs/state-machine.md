@@ -314,7 +314,9 @@ dispatcher reconciles an outstanding transaction ahead of every handler
 ([the developer-report transaction](state-machine/delivery-stages.md#the-developer-report-transaction-every-dispatch)).
 Beside them sits `developer_completion`, the bounded capture of one finished developer return, handed into that
 delivery by one guarded commit; the implementing stage captures the first implementation's and its resumes' returns
-as they come back, a held one included, and hands an ordinary one on in its own disposition. A pending one is decided
+as they come back, a held one included, and hands an ordinary one on in its own disposition, and so does the fix a
+reviewer's change request hands its developer, on the round's direct run and on the resume that finishes it after a
+park, the request retired in the very commit that hands its report on. A pending one is decided
 by the dispatcher ahead of every handler, behind the reconciliations
 ([the captured-completion recovery](state-machine/delivery-stages.md#the-captured-completion-recovery-every-dispatch)):
 handed, admitted, to its road's owner, retired as invalidated where a reading proves it stale or an auto-rebase
@@ -725,7 +727,10 @@ Spawns a **fresh** reviewer every round (so a `REVIEW_AGENT` flip takes effect o
 prompt that must end in `VERDICT: APPROVED` or `VERDICT: CHANGES_REQUESTED`. An approval runs the local verify gate,
 then `SQUASH_ON_APPROVAL`, then hands off to `workflow:documenting`; `CHANGES_REQUESTED` flips to `workflow:fixing`
 **before** the dev spawn, and flips back before the round's report is bound; a flip back that never lands is
-finished by `workflow:fixing`'s recovery on the settled-round mark the round's record carries. `MAX_REVIEW_ROUNDS`
+finished by `workflow:fixing`'s recovery on the settled-round mark the round's record carries. The developer the
+request is handed to reports through a capture taken as it returns, so a report a live hold, a lost write, or a
+restart kept is finished by the dispatcher's recovery with no developer or reviewer run, the round spent once and the
+request retired with the report's handoff. `MAX_REVIEW_ROUNDS`
 parks with the `/orchestrator add-review-rounds N` escape hatch. No reviewer spawns while a developer report this
 issue recorded is still owed to the pull request. A reviewer that times out or crashes parks for the next quiet tick
 to retry. A Codex reviewer whose last turn failed on the account's usage limit is recognized ahead of any VERDICT
@@ -884,7 +889,10 @@ contract the `CHANGES_REQUESTED` round ahead of it answers: a commit publishes u
 no commit reaches the pull request on the head the branch and its publication receipt are proved to agree on, and either
 handover spends the route's one fix round and hands the issue back to `workflow:validating`, where the reviewer waits
 for the report — the round a report alone buys being the settlement's to write, since a handover nothing confirmed has
-bought none. Full flow: [`state-machine/delivery-stages.md`][fixing].
+bought none. On the validating route that resume's report is captured as it returns, and a held one is finished by
+the dispatcher's recovery, which takes the park down and settles the reply or command it consumed once; a handed
+change request is never dropped, nor its developer launched again, beside a capture nothing has decided. Full flow:
+[`state-machine/delivery-stages.md`][fixing].
 
 ### `_handle_resolving_conflict` (label `workflow:resolving_conflict`)
 

@@ -74,6 +74,7 @@ _ENGINE_OWNERS = (
     "completion_values",
     "completion_spelling",
     "completion_frozen",
+    "completion_frozen_reads",
     "completion_state",
     "completion_commits",
     "completion_handoff",

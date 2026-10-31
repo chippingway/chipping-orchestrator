@@ -22,6 +22,11 @@ Every other proof stands: the records it was read off bind the retirement's
 own commit (`completion_evidence.DecidedOn`). A reading that answers
 otherwise holds the capture with nothing written or handed on, for the next
 dispatch to decide afresh; one nobody can take again holds it as unread.
+
+An owner that takes readings of its own between the admission and its effect
+-- a reviewed report re-read where it settled -- lets a move land behind them
+too, so it asks for all of a handoff's readings again behind those
+(`admitted_again`), whichever effect it then makes.
 """
 from __future__ import annotations
 
@@ -112,6 +117,15 @@ def _repeated(reading: _Reading, decision: _models.Decision) -> _models.Decision
         return decision
     again = reread(reading)
     return decision if again == decision else _held(again)
+
+
+def admitted_again(admitted: _models.AdmittedCompletion) -> _models.Decision:
+    """`admitted` read again behind a fresh fetch of its issue, as a handoff's effect is: APPLICABLE, or a hold."""
+    fresh = _admission.live_issue(admitted.gh, admitted.issue, admitted.label)
+    if isinstance(fresh, _models.Decision):
+        return fresh
+    reading = _Reading(admitted.gh, admitted.spec, fresh, admitted.label, admitted.state)
+    return _admitted_again(reading, admitted)
 
 
 def _admitted_again(reading: _Reading, admitted: _models.AdmittedCompletion) -> _models.Decision:

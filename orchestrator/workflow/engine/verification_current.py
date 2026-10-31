@@ -103,7 +103,7 @@ def settled_artifact(
             _evidence_models.ReportEvidenceVerdict.DEFER,
             "verification evidence newer than the current record is recorded",
         ), None
-    if not _handoff_describes(state, current):
+    if not handoff_describes(state, current):
         return _evidence_models.ReportEvidence(
             _evidence_models.ReportEvidenceVerdict.DEFER,
             "the evidence handoff does not describe the current evidence",
@@ -184,7 +184,7 @@ def _outranked(state: PinnedState, current: _records.CurrentEvidence) -> bool:
     return latest is None or latest > current.revision
 
 
-def _handoff_describes(state: PinnedState, current: _records.CurrentEvidence) -> bool:
+def handoff_describes(state: PinnedState, current: _records.CurrentEvidence) -> bool:
     """Whether the recorded handoff is the one the current record's settlement wrote."""
     handoff = _settlement.read_evidence_handoff(state)
     return handoff is not None and (

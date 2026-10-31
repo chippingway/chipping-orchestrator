@@ -28,7 +28,11 @@ recording, code publication, binding, and settlement -- this owner publishes
 nothing, infers no review, verification, approval, or documentation pass, and
 the owner says whether the tick carries on. The first implementation and an
 implementing resume are the implementing stage's
-(`stages/implementing/captured_completion`); a road no owner takes yet holds
+(`stages/implementing/captured_completion`), and the fix a reviewer's change
+request handed its developer -- the direct round, or the resume finishing its
+parked round -- the fixing stage's (`stages/fixing/captured_fixes`), asked
+ahead of the review resume that would read that developer as a launch that may
+have run and drop the request it answered; a road no owner takes yet holds
 the tick, so no handler re-runs paid work. An INVALID capture is retired by a
 guarded invalidation (`completion_checkpoint.retire`), which keeps which
 invocation it was, owns nothing but the capture, and is decided on the
@@ -80,13 +84,15 @@ log = logging.getLogger("orchestrator.workflow")
 # and the function taking the one `AdmittedCompletion` and answering whether
 # the tick stops -- resolved when called, as every stage owner the engine
 # reaches is (`stage_targets`). The first implementation and an implementing
-# resume are the implementing stage's; a road no owner takes yet holds an
-# applicable capture rather than finishing it.
+# resume are the implementing stage's, and a reviewer's change request the
+# fixing stage's, which both halves of its round run under; a road no owner
+# takes yet holds an applicable capture rather than finishing it.
 _IMPLEMENTING_OWNER = (_stage_targets._IMPLEMENTING_CAPTURE_OWNER, "recovers")
 
 ROUTE_OWNERS: Mapping[_routes.CompletionRoute, tuple[str, str]] = MappingProxyType({
     _routes.CompletionRoute.IMPLEMENTATION: _IMPLEMENTING_OWNER,
     _routes.CompletionRoute.RESUME: _IMPLEMENTING_OWNER,
+    _routes.CompletionRoute.REQUESTED_CHANGES: (_stage_targets._FIXING_CAPTURE_OWNER, "recovers"),
 })
 
 

@@ -262,6 +262,12 @@ UNPROVED_HEADS = (
     ("the remote has moved on", {AHEAD_BEHIND: (0, 1)}),
 )
 
+# The readings among those that did not return, beside a report the run's
+# capture holds: a round meeting one waits for it again rather than parking.
+# A local head that would not read is not one, since a capture names the
+# commit its report is about and no capture is taken without it.
+HELD_READINGS = frozenset(("the tree could not be read", "the fetch failed", "the divergence was unreadable"))
+
 
 class _Runs:
     """The agent runs one tick makes, in order, each resolved as it is reached.

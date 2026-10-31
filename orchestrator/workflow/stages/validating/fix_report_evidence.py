@@ -15,7 +15,10 @@ standing exactly where its remote is, and the code-publication receipt naming
 that same commit on the pull request the report would go onto. Short of all of
 it the round is parked with the debt recorded and the report unwritten, since a
 record made over an unproved head is one no reconciliation could ever settle
-honestly.
+honestly -- save where nothing refused it and a reading merely did not return,
+and the run's own capture holds the report: that round waits for the reading
+again, nothing written, rather than discarding a report the next tick can
+still prove.
 
 The consumed-input write sits here beside them because it is the same kind of
 obligation, owed by every park rather than by one: a park is durable the moment
@@ -30,6 +33,7 @@ from github.Issue import Issue
 
 from orchestrator import config
 from orchestrator.config import models as _config_models
+from orchestrator.git.verification import status as _worktree_status
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
@@ -69,8 +73,18 @@ def _proves_the_published_head(
     issue: Issue,
     state: PinnedState,
     worktree: Path,
-) -> bool:
-    """Whether the head a report alone would go onto is proved, affirmatively.
+    tree: _worktree_status._WorktreeStatus,
+) -> bool | None:
+    """Whether the head a report alone would go onto is proved, affirmatively; None where a reading did not return.
+
+    `tree` is the status the caller read of `worktree`. False is a refusal
+    the branch or the record itself gave -- loose work, a remote that moved
+    past the checkout, a receipt naming another pull request or commit --
+    and None one no reading established either way: a status nobody could
+    take, a fetch that failed, a divergence git would not count, a checkout
+    that moved while it was read (`stranded._StrandedEvidence.unread`). The
+    two are told apart for a caller whose report a capture holds, which can
+    wait for the reading again where nothing refused it.
 
     Two readings, and both have to have HAPPENED. The BRANCH is proved to be
     standing exactly where its remote is -- a clean tree, a local head, a tip,
@@ -94,9 +108,12 @@ def _proves_the_published_head(
     receipt, which is persistent and on a tick that pushed nothing names an
     older round's commit.
     """
-    head = _stranded._stranded_evidence(spec, worktree, state, issue).in_sync
+    if not tree.is_clean:
+        return False if tree.readable else None
+    evidence = _stranded._stranded_evidence(spec, worktree, state, issue)
+    head = evidence.in_sync
     if not head:
-        return False
+        return None if evidence.unread else False
     published = _late_publication_state._published_pull_request(state)
     if not published or published != _late_publication_state._recorded_pull_request(state):
         return False

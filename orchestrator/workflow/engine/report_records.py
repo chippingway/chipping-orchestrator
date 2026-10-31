@@ -299,11 +299,18 @@ class HandedRun:
     `decided_on` is what that road is decided on beyond the report records,
     and every write recording or holding the run's report is decided on it
     too -- the request, the pull request the issue points at, the start of
-    its developer's launch, and the anchor its feedback is replayed from as
-    the tick read them -- so another road moving any of them refuses the
-    record, and the publication, the push, the relabel, and the round behind
-    it, rather than answering a request that is no longer this run's to
-    answer. Empty, both, on every other road.
+    its developer's launch, the anchor its feedback is replayed from, and,
+    for the report itself, the settled report pair and every verification
+    evidence record the request was reviewed over, as the tick read them --
+    so another road moving any of them refuses the record, and the
+    publication, the push, the relabel, and the round behind it, rather than
+    answering a request that is no longer this run's to answer. A captured
+    report's transfer holds them to the tick's own reading too
+    (`completion_handoff`), so a recovery that read the request's subject
+    again records nothing over one moved while it read. The fixing stage's
+    resume of such a request's round is decided on the park it answers, which
+    its report's write takes down, so a park recorded meanwhile refuses it.
+    Empty, `retires` and `decided_on` both, on every other road.
     """
 
     route: WorkflowLabel

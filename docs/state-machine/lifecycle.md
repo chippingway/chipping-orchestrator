@@ -999,9 +999,12 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                    APPLICABLE is handed, admitted, to its
                                    road's owner -- the implementing stage
                                    finishes the first implementation's or a
-                                   resume's through its own disposition, no
-                                   developer run; any other road has none
-                                   in this build, so its handler is HELD;
+                                   resume's through its own disposition, the
+                                   fixing stage a reviewer's change request's
+                                   fix through that round's own finish, no
+                                   developer run either way; any other road
+                                   has none in this build, so its handler is
+                                   HELD;
                                    a proof it is stale
                                    (ended, relabelled, a frozen record
                                    moved to a spelling its reader takes,

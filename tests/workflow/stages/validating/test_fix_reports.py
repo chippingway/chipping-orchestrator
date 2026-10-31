@@ -300,8 +300,12 @@ class RequestedFixRefusalTest(unittest.TestCase, world._FixReportMixin):
         # request has not got. None of them may be read as a report alone:
         # published over one, the report describes a head no reviewer will see.
         # Each parks with the debt recorded, the report unwritten, and the
-        # commit under it left for the ordinary measurement.
+        # commit under it left for the ordinary measurement -- save a reading
+        # that merely did not return beside a report the run's capture holds,
+        # which waits for that reading again (`test_captured_fixes`).
         for described, unproved in world.UNPROVED_HEADS:
+            if described in world.HELD_READINGS:
+                continue
             with self.subTest(refusal=described):
                 self.seeded(ISSUE, PR, LABEL_VALIDATING)
 

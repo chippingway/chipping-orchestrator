@@ -322,7 +322,7 @@ def _rests_on(state: PinnedState, current: CurrentEvidence | PendingEvidence) ->
     if named != (current.receipt, current.revision, current.content_revision):
         return False
     return not _current._outranked(state, current) and (
-        isinstance(current, PendingEvidence) or _current._handoff_describes(state, current)
+        isinstance(current, PendingEvidence) or _current.handoff_describes(state, current)
     )
 
 

@@ -181,13 +181,15 @@ PARK = _commits.ReportWrite(
 # issue points at, the start of its developer's launch, the feedback anchor a
 # failed run's continue replays, and the park's flags as the reading the run
 # was launched over spells them. The report record the round makes first is
-# decided on the same records (`report_records.HandedRun.decided_on`), so a
-# move of any of them between the run and the request's retirement refuses
-# whatever writes them, and nothing is published, pushed, relabelled, or spent
-# behind it: a report recorded after the issue was pointed at another pull
-# request would be delivered there as an answer to a review of this one, and a
-# park recorded over an anchor another road repointed would have that continue
-# replay another comment, or none.
+# decided on the same records and on everything the request stands on
+# (`VERDICT_STANDS_ON`) as the tick read them
+# (`report_records.HandedRun.decided_on`), so a move of any of them between
+# the run and the request's retirement refuses whatever writes them, and
+# nothing is published, pushed, relabelled, or spent behind it: a report
+# recorded after the issue was pointed at another pull request would be
+# delivered there as an answer to a review of this one, and a park recorded
+# over an anchor another road repointed would have that continue replay
+# another comment, or none.
 ANSWERED = _commits.ReportWrite(
     owned=frozenset((_verdicts.RETURNED_VERDICT,)),
     decided_on=_PARK_FLAGS | {

@@ -33,7 +33,7 @@ from orchestrator.workflow.engine import (
     report_delivery_state as _delivery_state,
 )
 from orchestrator.workflow.engine.report_record_room import CommentOverflow, MeasuredWrite
-from orchestrator.workflow.engine.report_records import DELIVERED_REPORT, DeliveredReport, ReportMode
+from orchestrator.workflow.engine.report_records import DELIVERED_REPORT, DeliveredReport, HandedRun, ReportMode
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.engine import completion_test_support as support, report_commit_test_support as commit_support
 
@@ -48,7 +48,8 @@ _TRANSFER = _handoff.transfer
 _READ_BACK = _checkpoint.read_back
 _RETIRE = _checkpoint.retire
 _VERDICT = "review_returned_verdict"
-_RETIRES = ((_VERDICT, None),)
+# The road's own run as the transfer is handed it: the verdict its report answers, retired with it.
+_ANSWERING = HandedRun(WorkflowLabel.FIXING, retires=((_VERDICT, None),))
 
 # How much room a comment is left with once another road has filled it.
 _LEFT = 64
@@ -155,7 +156,7 @@ class TransferTest(unittest.TestCase):
         """A change request's capture handed on: the world, and what the transfer answered."""
         world = support.seeded(**_HANDED_VERDICT)
         captured = _captured(world, handoff=_handed(world))
-        return world, world.asks(_TRANSFER, captured.invocation, _RETIRES)
+        return world, world.asks(_TRANSFER, captured.invocation, _ANSWERING)
 
     def test_the_delivery_and_handoff_land_together(self) -> None:
         """One more write records the delivery on the road's terms, hands the capture off, and retires its verdict.
@@ -220,7 +221,7 @@ class TransferTest(unittest.TestCase):
         captured = _captured(world, handoff=_handed(world))
         commit_support.another_road(world.github, world.issue, **_MOVED_VERDICT)
         before = world.snapshot()
-        outcome = world.asks(_TRANSFER, captured.invocation, _RETIRES)
+        outcome = world.asks(_TRANSFER, captured.invocation, _ANSWERING)
         observed = (outcome.refusal, outcome.fields, world.snapshot())
         self.assertEqual(observed, (_REFUSAL.HANDOFF_MOVED, (_VERDICT,), before))
 
