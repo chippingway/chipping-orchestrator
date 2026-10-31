@@ -29,7 +29,7 @@ from tests.workflow import (
     drift_reports as world,
     fix_reports as _fix_world,
 )
-from tests.workflow.fixtures import LABEL_IN_REVIEW, LABEL_VALIDATING
+from tests.workflow.fixtures import LABEL_IN_REVIEW, LABEL_VALIDATING, _agent
 
 ISSUE = 2_432
 PR = 24_320
@@ -51,20 +51,38 @@ _QUOTED_FEEDBACK_ID = 60_000
 
 _QUOTED_FEEDBACK = "please keep the old flag working too"
 
+# A reply on the issue thread too long for the excerpt a drift prompt quotes
+# the thread under, so the prompt cuts it, and the short reply behind it.
+_CUT_REPLY_ID = 59_999
+
+_PAST_THE_EXCERPT = 5_000
+
+_CUT_REPLY_BODY = "x" * _PAST_THE_EXCERPT
+
+_CUT_REPLY = FakeComment(id=_CUT_REPLY_ID, body=_CUT_REPLY_BODY, user=FakeUser("alice"))
+
+_SHORT_REPLY = FakeComment(id=_QUOTED_FEEDBACK_ID, body=_QUOTED_FEEDBACK, user=FakeUser("alice"))
+
 
 class _CommentedBehindTheScan:
-    """The in_review feedback scan, behind which a reviewer comments on the pull request once."""
+    """The in_review feedback scan, behind which a reviewer comments on the pull request, or humans reply on the
+    issue thread (`replies`), once.
+    """
 
-    def __init__(self, case) -> None:
+    def __init__(self, case, *replies: FakeComment) -> None:
         self._case = case
+        self._replies = replies
         self._scan = _feedback._scan_fresh_pr_feedback
 
     def __call__(self, *args, **kwargs):
-        """Scan as the stage does, then post the comment the drift resume's prompt reads."""
+        """Scan as the stage does, then post the comments the drift resume's prompt reads."""
         scanned = self._scan(*args, **kwargs)
-        self._case.pull_request.issue_comments.append(FakeComment(
-            id=_QUOTED_FEEDBACK_ID, body=_QUOTED_FEEDBACK, user=FakeUser("bob"),
-        ))
+        if self._replies:
+            self._case.issue.comments.extend(self._replies)
+        else:
+            self._case.pull_request.issue_comments.append(FakeComment(
+                id=_QUOTED_FEEDBACK_ID, body=_QUOTED_FEEDBACK, user=FakeUser("bob"),
+            ))
         return scanned
 
 
@@ -252,6 +270,44 @@ class HeldInReviewDriftTest(unittest.TestCase, _held.HeldDriftTicks):
             self.dispatched(held_under)
         self.assertIn(_QUOTED_FEEDBACK, held_under.call_args.args[1])
         self.assertEqual(_fixes.stage_of(self.pinned()), _fixes.PENDING)
+
+
+class QuotedThreadTest(unittest.TestCase, _held.HeldDriftTicks):
+    """The issue-thread replies a held drift resume's prompt quoted are read by its recovery as by its own tick."""
+
+    def test_a_quoted_reply_is_read_once(self) -> None:
+        # A human replies on the issue thread behind the scan, so the drift
+        # resume's prompt quotes it: the recovery's carry crosses it as the
+        # live tick's carry does, rather than leaving it to buy a fix round.
+        live, recovered = self._on_both_roads(_SHORT_REPLY)
+        self.assertGreaterEqual(min(live[0], recovered[0]), _QUOTED_FEEDBACK_ID)
+
+    def test_an_omission_holds_both_below_it(self) -> None:
+        # A reply too long for the excerpt, and a short one behind it: the
+        # prompt quotes the short one whole and only part of the long one, so
+        # neither road's carry nor its reply boundary crosses the long one.
+        live, recovered = self._on_both_roads(_CUT_REPLY, _SHORT_REPLY)
+        self.assertEqual(recovered, live)
+        self.assertLess(recovered[0], _CUT_REPLY.id)
+
+    def _on_both_roads(self, *replies: FakeComment) -> tuple:
+        """The PR reader and reply boundary a live drift resume, then a held and recovered one, leave over `replies`."""
+        finished = []
+        for held in (False, True):
+            self.seeded(ISSUE, PR, LABEL_IN_REVIEW)
+            behind = _CommentedBehindTheScan(self, *replies)
+            with _fix_world.author_policy(), patch.object(_feedback, "_scan_fresh_pr_feedback", behind):
+                if held:
+                    self.held_drift(world.reported())
+                else:
+                    self.dispatched(_agent(session_id=world.DEV_SESSION, last_message=world.reported()))
+            with _fix_world.author_policy():
+                if held:
+                    self.unheld(**_held.COMMITTED)
+            pinned = self.pinned()
+            self.assertEqual(len(self.published_reports()), 1)
+            finished.append((pinned[_PR_READER], pinned.get("last_action_comment_id")))
+        return tuple(finished)
 
 
 class UnreadStatusTest(unittest.TestCase, _held.HeldDriftTicks):

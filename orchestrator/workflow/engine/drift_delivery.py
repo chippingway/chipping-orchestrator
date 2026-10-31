@@ -202,6 +202,27 @@ def _delivered_pr_conversation(
     )
 
 
+def _quoted_back(thread: list, conversation: list, state: PinnedState) -> _delivery.PromptDeliverySnapshot:
+    """The record of the comments a two-surface prompt quoted, read back by a recovery, for the cursor carry alone.
+
+    Each surface's comments are the ones inside the stretch its capture froze
+    of it, every one of which that prompt quoted or nobody is owed, so both
+    are recorded WHOLE, as the pull request's half always is: a bound here
+    would name an omission the prompt never made. Never settled from -- the
+    frozen reading is, whose bound holds the reply boundary below what the
+    excerpt cut -- so it moves no cursor but the carry's. Our own posts and
+    what the trust filter refuses are recorded as the prompt's own record
+    recorded them.
+    """
+    return _delivery.create_prompt_delivery_snapshot(
+        issue_comments=thread,
+        pr_conversation_comments=conversation,
+        max_chars=_UNBOUNDED_EXCERPT,
+        retained_ids=frozenset(_comments._orchestrator_ids(state)),
+        state=state,
+    )
+
+
 def _both_surfaces(
     issue_side: _delivery.PromptDeliverySnapshot,
     appended: _delivery.PromptDeliverySnapshot,

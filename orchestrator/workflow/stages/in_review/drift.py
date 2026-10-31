@@ -297,11 +297,16 @@ def _settles_what_it_delivered(
     outcome, so what the predicate states here is the contract rather than the
     last line of defence -- the record is settled by what the RUN came to, not
     by which guards a road happens to ask first.
+
+    What the carry is handed is that record, save on a recovery, which names
+    the record it read back of the comments the prompt quoted (`carried`):
+    settled from instead, that record would carry the reply boundary past
+    what the excerpt bound left out.
     """
     if not _resume_batch._counts_as_delivered(resume.dev_result, resume.paused):
         return None
     _drift_delivery._settled_half(resume.delivery).settle(ctx.state)
-    return resume.delivery
+    return resume.delivery if resume.carried is None else resume.carried
 
 
 def _relabels_for_review(ctx: _models._InReviewContext) -> None:

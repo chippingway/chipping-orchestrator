@@ -27,20 +27,20 @@ capture with nothing written, for the next dispatch to decide afresh. A pull
 request that would not read holds it too.
 
 What the run's prompt delivered is settled as the capture froze it -- the
-issue thread's half of the reading, as this road settles it -- and the carry
-of the shared IssueComment cursor behind it crosses this orchestrator's own
-posts, the delivered stretch, and the pull-request comments that prompt
-quoted: the capture froze the stretch of that conversation it read
-(`delivered`), and the comments still unread inside it are read back into the
-record the carry is handed, its own tick's record of that half. A comment
-written after the prompt was read is numbered past that stretch, so it stays
-above the cursor for the next scan; a conversation that would not read holds
-the capture with nothing written.
+issue thread's half of the reading, as this road settles it, its bound
+holding the reply boundary below what the excerpt cut -- and the carry of the
+shared IssueComment cursor behind it crosses this orchestrator's own posts,
+the delivered stretch, and the comments that prompt quoted on either surface:
+the capture froze the stretch of each it read (`delivered`), and the comments
+inside them are read back into the record the carry alone is handed
+(`_DriftResume.carried`), as its own tick's carry is handed the prompt's
+record. A comment written after the prompt was read is numbered past those
+stretches, so it stays above the cursor for the next scan; a surface that
+would not read holds the capture with nothing written.
 """
 from __future__ import annotations
 
 import logging
-from dataclasses import replace
 from pathlib import Path
 
 from orchestrator.workflow.engine import (
@@ -55,12 +55,16 @@ log = logging.getLogger("orchestrator.workflow")
 
 _PR_NUMBER = "pr_number"
 
+# The ends one delivered stretch is spelled as: the issue thread's comes
+# first, and a pull request conversation's after it.
+_ONE_STRETCH = 2
+
 
 def recovers(admitted: _recovery_models.AdmittedCompletion) -> bool:
     """Finish the admitted capture through the stage's drift disposition; True, since this tick is its."""
     context = _context(admitted)
-    delivery = None if context is None else _delivered(context, admitted)
-    if delivery is None:
+    carried = None if context is None else _carried(context, admitted)
+    if carried is None:
         return True
     rebuilt = _captured_drift.settled_resume(admitted)
     context.state.set(_state._HANDOFF_PENDING, True)
@@ -71,7 +75,8 @@ def recovers(admitted: _recovery_models.AdmittedCompletion) -> bool:
             dev_result=rebuilt,
             paused=False,
             before_sha=run.before_sha,
-            delivery=delivery,
+            delivery=_captured_drift.frozen_reading(admitted),
+            carried=carried,
         ))
     return True
 
@@ -90,29 +95,44 @@ def _context(admitted: _recovery_models.AdmittedCompletion) -> _models._InReview
     return _models._InReviewContext(admitted.gh, admitted.spec, admitted.issue, admitted.state, pull_request, number)
 
 
-def _delivered(
+def _carried(
     context: _models._InReviewContext, admitted: _recovery_models.AdmittedCompletion,
 ) -> _prompt_delivery.PromptDeliverySnapshot | None:
-    """The reading the capture froze, the pull-request conversation its prompt quoted read back; None where none read.
+    """The record the cursor carry is handed: what the run's prompt quoted on either surface, read back; None unread.
 
-    That conversation is read again over the stretch the capture froze
-    (`implementing/drift_road.DriftReading.over_both_surfaces`): every comment
-    there still unread was quoted, and one written since the prompt was read
-    is numbered past it, so it stays out of the record the carry is handed.
+    Read back over the stretches the capture froze
+    (`implementing/drift_road.DriftReading.over_both_surfaces`): the issue
+    thread's, above what its excerpt left out and through the newest comment
+    it read, and the pull request conversation's, through the newest comment
+    it quoted there. Every comment still inside them was quoted, or is
+    nobody's input, and one written since the prompt was read is numbered
+    past them, so it stays out of this record.
     """
-    reading = _captured_drift.frozen_reading(admitted)
-    if not admitted.capture.handoff.delivered:
-        return reading
+    stretches = admitted.capture.handoff.delivered
+    if not stretches:
+        return _captured_drift.frozen_reading(admitted)
     try:
-        unread = _drift._drift_unread_pr_conv(context)
-    except Exception:  # noqa: BLE001 - a conversation nobody could read holds the capture, never invalidates it
+        thread, conversation = _read_back(context, stretches)
+    except Exception:  # noqa: BLE001 - a surface nobody could read holds the capture, never invalidates it
         log.warning(
-            "issue=#%d could not read the pull request conversation its captured drift resume quoted; holding the tick",
+            "issue=#%d could not read back the comments its captured drift resume quoted; holding the tick",
             admitted.issue.number,
         )
         return None
-    after, through = admitted.capture.handoff.delivered
-    quoted = _drift_delivery._delivered_pr_conversation(
-        [comment for comment in unread if after < comment.id <= through], admitted.state,
-    )
-    return replace(reading, entries=quoted.entries)
+    return _drift_delivery._quoted_back(thread, conversation, context.state)
+
+
+def _read_back(context: _models._InReviewContext, stretches: tuple) -> tuple[list, list]:
+    """The comments inside `stretches` on the issue thread and, where they name one, the pull request conversation."""
+    pinned = context.state.comment_id
+    read = context.gh.comments_after(context.issue, stretches[0], state_comment_id=pinned)
+    thread = _inside(read, stretches)
+    if len(stretches) == _ONE_STRETCH:
+        return thread, []
+    return thread, _inside(_drift._drift_unread_pr_conv(context), stretches[_ONE_STRETCH:])
+
+
+def _inside(comments: list, stretches: tuple) -> list:
+    """The `comments` numbered inside the first of `stretches`: above its first end, and through its second."""
+    after, through = stretches[:_ONE_STRETCH]
+    return [comment for comment in comments if after < comment.id <= through]

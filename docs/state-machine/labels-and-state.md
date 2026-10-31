@@ -2061,7 +2061,9 @@ The keys that matter for the state machine fall into a few groups:
   [captured-completion recovery](delivery-stages.md#the-captured-completion-recovery-every-dispatch), from its read-back
   alone and never from a log, analytics, a native session, a trajectory, or a host record: applicable, it is handed,
   admitted, to the owner of its road -- the implementing stage's for the first implementation and its resumes, which
-  finishes it with no developer run; the fixing stage's for a reviewer's change request's `requested_changes` road
+  finishes it with no developer run, the capture handed on or withdrawn only once its admission reads again behind the
+  strict edit's walk to the comment (`stages/implementing/captured_rereads.py`), a reply or continue answering a
+  requirements-drift park included; the fixing stage's for a reviewer's change request's `requested_changes` road
   (`stages/fixing/captured_fixes.py`), which finishes the direct round through `requested_changes._finish_requested_fix`
   and a parked round's resume through its own roads, each only once its reviewed subject reads again, with no developer
   or reviewer run and the request retired in the commit that hands its report on, and a pull request's `pr_feedback`

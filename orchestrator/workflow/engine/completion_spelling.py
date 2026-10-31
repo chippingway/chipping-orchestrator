@@ -237,7 +237,8 @@ def _pending(raw: dict, handoff: _records.ResolvedCapture | None) -> _records.Co
         verified=outcome == _VERIFIED,
         handed=bool(members[_FROZEN]),
     )
-    if refused is not None:
+    contract = _routes.CONTRACTS[members[_ROUTE]]
+    if refused is not None or not contract.holds(members[_DELIVERED]):
         return None
     return _records.CompletionCapture(
         invocation=_built(AgentInvocation, members, _INVOCATION_ATTRIBUTES),

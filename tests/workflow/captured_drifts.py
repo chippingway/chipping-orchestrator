@@ -21,6 +21,7 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator import config
 from orchestrator.workflow.engine import issue_processing as _issue_processing
+from tests.support.fakes import FakeLabel
 from tests.workflow import captured_fixes as _fixes, drift_reports as world
 from tests.workflow.fixtures import _TEST_SPEC, AGENT_RUN_WRITES, Launched
 
@@ -45,6 +46,37 @@ MOVED_HEAD = "d" * len(world.FIXED_HEAD)
 # Wide enough that no case here is ended by the review cap, which is a bound of
 # its own with its own park and its own operator command.
 _REVIEW_ROUNDS = 10
+
+
+class HeldAtTheWalk:
+    """A write over a capture -- its transfer or its retirement -- whose edit's last read sees `control` applied.
+
+    The write reads the comment for itself, its guarded commit reads it
+    again, and the strict editor sending the edit walks the thread to it once
+    more: the last reading before the edit goes out. The control lands on
+    `issue` during that walk, behind everything the write took before it.
+    """
+
+    def __init__(self, github, issue, control: str, write) -> None:
+        self._github = github
+        self._issue = issue
+        self._control = control
+        self._write = write
+        self._walks = github._pinned_comment
+        self.applied = False
+
+    def __call__(self, *args, **kwargs):
+        """Make the write as asked, the control applied during its strict edit's walk to the comment."""
+        with patch.object(self._github, "_pinned_comment", side_effect=self._walk):
+            return self._write(*args, **kwargs)
+
+    def _walk(self, *walked, **options):
+        """Walk to the comment as the client does, applying the control during the strict edit's walk."""
+        found = self._walks(*walked, **options)
+        if options.get("authoritative") and not self.applied:
+            self._issue.labels.append(FakeLabel(self._control))
+            self.applied = True
+        return found
 
 
 def held(record: dict) -> tuple:

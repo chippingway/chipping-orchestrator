@@ -25,7 +25,13 @@ records the report (`captured_report`), so the report reaches the existing
 transaction once and keeps the requirements and source commit the run had,
 and the commit goes through the size gate and the exact-revision, leased
 publication as any run's does. A run that committed nothing parks as its own
-tick would have, withdrawing the capture. No developer is launched, no run
+tick would have, withdrawing the capture. That disposition runs inside
+`captured_rereads.rereads`, so the capture is handed on or withdrawn only once
+its admission reads again behind every request the disposition and the write
+took, the strict edit's walk to the comment last: a control applied, a
+relabel, a close, an edit, or a push landing during them -- on a resume that
+answers a requirements-drift park's reply or continue as on any other --
+holds the capture with nothing written. No developer is launched, no run
 charged, and no synthetic commit or undeliverable-report park stands in for
 a return that was merely held; review, verification, the final
 documentation pass, and the readiness proof follow the handoff as ever.
@@ -53,6 +59,7 @@ from orchestrator.workflow.engine import (
     usage as _usage,
 )
 from orchestrator.workflow.stages.implementing import (
+    captured_rereads as _rereads,
     disposition as _disposition,
     models as _models,
     session as _session,
@@ -79,10 +86,11 @@ def recovers(admitted: _recovery_models.AdmittedCompletion) -> bool:
     )
     _settles_the_session(state, capture, rebuilt)
     _settles_the_input(state, capture)
-    _disposition._dispose_agent_result(
-        admitted.gh, admitted.spec, admitted.issue, state,
-        _models._PreparedDevRun(rebuilt, capture.run.before_sha, False, Path(capture.run.worktree)),
-    )
+    with _rereads.rereads(admitted):
+        _disposition._dispose_agent_result(
+            admitted.gh, admitted.spec, admitted.issue, state,
+            _models._PreparedDevRun(rebuilt, capture.run.before_sha, False, Path(capture.run.worktree)),
+        )
     return True
 
 

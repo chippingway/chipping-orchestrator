@@ -1159,8 +1159,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             on it
     completion_routes.py    the report-producing roads a developer completion may be captured on, each with the
                             labels its report records under, whether a VERIFIED outcome pays it -- a rewritten-head
-                            refresh is paid only READY -- whether it answers a frozen handoff, and whether it settles
-                            its own input, as a requirements-drift resume does, so its report carries none; and whether one
+                            refresh is paid only READY -- whether it answers a frozen handoff, whether it settles
+                            its own input, as a requirements-drift resume does, so its report carries none, and how
+                            many delivered stretches its capture may freeze -- a drift resume's two, the issue
+                            thread's and a pull request conversation's, every other road's one; and whether one
                             return qualifies, read through the outcome owner's completed-run reader and the
                             backend's unfinished-step and terminal-failure diagnostics, never a role, a backend, or
                             an exit code alone, and only for a return a tracked spawn identified
@@ -4501,14 +4503,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             would have -- a pin dropped only where the capture records the launch dropped it -- the
                             park it answered taken down, the delivered input its road froze settled,
                             and the run disposed through `disposition.py` on a result rebuilt from the capture, with
-                            no developer launched
+                            no developer launched, inside `captured_rereads.rereads` -- a reply or continue answering
+                            a requirements-drift park resumes on this road, and is handed on or withdrawn only over
+                            an admission that still stands
       drift_road.py         what a requirements-drift resume freezes before its launch, on whichever stage it runs
                             and for the replies that remain its continuation: the `requirements_drift` road over the
                             one frozen reading its prompt was cut from (`DriftReading` -- the revision its report is
                             stamped with and the watermarks its own settlement advances, beside a retry's consumed
-                            commands, none of which ride its report, and on `in_review` the stretch of the pull
-                            request's conversation it quoted, for the recovery's carry), the records its stage's
-                            accounting and the
+                            commands, none of which ride its report, and on `in_review` the stretches its prompt
+                            quoted, the issue thread's above what the excerpt left out and the pull request
+                            conversation's, for the recovery's carry), the records its stage's accounting and the
                             reason it resumed are read off (`FROZEN`, a validating body edit's `STOOD_DOWN` beside
                             them, a conflict round's `LEASED` without the code-publication receipt, whose head its
                             lease names instead), and the checkout it launches in (`launched_in`), a conflict
@@ -5358,15 +5362,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             is made is recorded as belonging to the budget that reset gives it, so the road that
                             lands it on `workflow:validating` spends no round the edit has already paid for. The
                             resume is launched on the drift road over the issue thread's half of that record and
-                            the stretch of the pull request's conversation it quoted
+                            the stretch it quoted on each surface
                             (`implementing/drift_road.DriftReading.over_both_surfaces`,
                             `engine/drift_delivery._settled_half`)
       captured_drift.py     the recovery of that resume's held capture: the pull request fetched, the move to
                             `workflow:validating` staged, and the run answered through `drift._dispose_drift_result`
-                            inside `implementing/captured_rereads.rereads`, on the reading reduced to its revision
-                            beside the pull-request comments its prompt quoted, read back over that stretch, so its
-                            carry crosses those, this orchestrator's posts, and the delivered stretch and no comment
-                            written since; a conversation that will not read holds the capture
+                            inside `implementing/captured_rereads.rereads`, settling the reading reduced to its
+                            revision and handing the carry the comments its prompt quoted on either surface, read
+                            back over those stretches (`models._DriftResume.carried`,
+                            `engine/drift_delivery._quoted_back`), so the carry crosses those, this orchestrator's
+                            posts, and the delivered stretch, and nothing the excerpt left out or written since; a
+                            surface that will not read holds the capture
       merge_gate.py         the unmergeable park -- bounded, since the scan that let the tick reach it ran several
                             round-trips ago -- and the gates in front of the one HITL ready-ping an approved, unvetoed
                             head earns per head SHA, which is no park and carries no mark; a fresh approval retires

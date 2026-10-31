@@ -189,8 +189,9 @@ landing between them is left to the next scan, and a `/orchestrator continue` re
 its route recorded, a list missing or damaged replaying nothing. A captured feedback round's recovery settles only the
 pairs its launch froze, never a rescan, so nothing posted after the scan is recorded as delivered, and a captured
 drift resume's recovery settles the frozen reading its run was handed, never a newer one: an `in_review` resume's
-carry crosses the pull-request comments its prompt quoted, read back over the stretch of that conversation its launch
-froze, and no comment written since. An approval or
+carry crosses the comments its prompt quoted on either surface, read back over the two stretches its launch froze --
+the issue thread's above what the excerpt left out, and the pull request conversation's -- and no comment written
+since. An approval or
 permission is read only as its current writers record it whole: no approval record, an approval beside no evidence
 claim, a `late_approved_sha` with no `late_approved_basis` this build can read, and a rewrite permission beside an
 attempt record with no declared terms are each no grounds -- never an earlier producer's default -- and authorize no
@@ -221,7 +222,9 @@ and no delivery is bound beside it. Its READY text and VERIFIED reference stay t
 is captured only READY, and a change-request or pull-request-feedback road only beside the handoff it froze. A
 requirements-drift resume settles the input it was handed for itself, so the report its capture becomes carries none
 of it, as the recording its own tick makes carries none, and no report hands its requirements baseline on to one that
-supersedes it: the later report's settlement never writes an older baseline back.
+supersedes it: the later report's settlement never writes an older baseline back. Only that road's capture may freeze
+a second delivered stretch, a pull request conversation's beside the issue thread's, each in order: its recovery's
+cursor carry reads both back, and nothing settles from either.
 
 Unsupported input cannot serve as fresh work, current evidence, or authorization to publish or delete artifacts. Neither
 a format change nor a refusal grants permission to discard that input or the artifacts it names; the owning
@@ -671,6 +674,7 @@ the grant that permits further runs are covered by [C-15].
 [held fix resumes](../tests/workflow/stages/fixing/test_captured_resumes.py),
 [held feedback rounds](../tests/workflow/stages/fixing/test_captured_feedback.py),
 [held drift resumes](../tests/workflow/stages/implementing/test_captured_drift.py),
+[held drift continuations](../tests/workflow/stages/implementing/test_captured_drift_continuations.py),
 [held drift replies](../tests/workflow/stages/validating/test_captured_drift.py),
 [held in_review drift](../tests/workflow/stages/in_review/test_captured_drift.py),
 [held conflict drift](../tests/workflow/stages/conflicts/test_captured_drift.py).

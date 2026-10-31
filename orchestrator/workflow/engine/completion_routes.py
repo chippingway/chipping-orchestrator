@@ -88,14 +88,25 @@ class RouteContract:
     `verified` is whether a verification pays it; `handed` is whether it
     answers a handoff its caller froze before the launch; `settles_input` is
     whether the road settles the input its run was handed for itself, as its
-    own tick does, so the report its capture becomes carries none of it.
+    own tick does, so the report its capture becomes carries none of it; and
+    `stretches` is how many delivered stretches its capture may freeze -- the
+    issue thread's, and on a two-surface prompt the pull request
+    conversation's beside it (`completion_frozen.delivered_stretch`).
     """
 
     labels: frozenset[WorkflowLabel]
     verified: bool = True
     handed: bool = False
     settles_input: bool = False
+    stretches: int = 1
 
+    def holds(self, delivered: tuple) -> bool:
+        """Whether a capture on this road may carry the delivered stretches `delivered`, two ends to each."""
+        return len(delivered) <= _ENDS_PER_STRETCH * self.stretches
+
+
+# The two ends each delivered stretch is spelled as.
+_ENDS_PER_STRETCH = 2
 
 _IMPLEMENTING = frozenset((WorkflowLabel.IMPLEMENTING,))
 
@@ -109,7 +120,7 @@ CONTRACTS = MappingProxyType({
     CompletionRoute.REQUIREMENTS_DRIFT: RouteContract(frozenset((
         WorkflowLabel.IMPLEMENTING, WorkflowLabel.VALIDATING,
         WorkflowLabel.IN_REVIEW, WorkflowLabel.RESOLVING_CONFLICT,
-    )), settles_input=True),
+    )), settles_input=True, stretches=2),
     CompletionRoute.REPORT_REFRESH: RouteContract(frozenset((WorkflowLabel.VALIDATING,)), verified=False),
     CompletionRoute.LATE_REVISION: RouteContract(frozenset((WorkflowLabel.DECOMPOSING,))),
 })

@@ -2084,7 +2084,10 @@ and handed off -- and this is what it guarantees and what stops it.
   capture reported on, so a checkout moved off it parks before anything is measured or pushed -- and the leased,
   exact-revision publication, and a run that committed nothing parks as it would have; no developer is launched and no
   run charged, and neither a synthetic commit nor an undeliverable-report park stands in for a return that was merely
-  held. A reviewer's change request's owner is the fixing stage's (`fixing/captured_fixes.recovers`), which both
+  held. That disposition runs inside `implementing/captured_rereads.rereads`, as a drift owner's does, so a resume
+  answering a requirements-drift park's reply or `/orchestrator continue` -- which resumes on this road, not the drift
+  road -- is handed on or withdrawn only once its admission reads again behind the strict edit's walk to the comment.
+  A reviewer's change request's owner is the fixing stage's (`fixing/captured_fixes.recovers`), which both
   halves of that round run under, the handoff each froze saying which half it was. The direct round froze the request
   itself, which still stands handed beside the capture, and is finished through the round's own finish
   (`validating/captured_fix.recovers`, `requested_changes._finish_requested_fix`) once its reviewed subject reads
@@ -2170,9 +2173,11 @@ and handed off -- and this is what it guarantees and what stops it.
   nothing where an `in_review` hand-back reset the budget, told apart by the round the body edit also froze -- and a
   report alone going onto the head the pull request carries and spending none (`validating/captured_drift`).
   `in_review`'s fetches the pull request and stages the move to `validating` the edit owes, then hands the issue back
-  with the round reset; its carry crosses this orchestrator's posts, the delivered stretch, and the pull-request
-  comments its prompt quoted, read back over the stretch of that conversation its road froze, so a comment written
-  since the prompt was read stays for the next scan, and a conversation that will not read holds the capture
+  with the round reset, settling the reading its capture froze; its carry crosses this orchestrator's posts, the
+  delivered stretch, and the comments its prompt quoted on either surface, read back over the two stretches its road
+  froze -- the issue thread's above what the excerpt left out, and the pull request conversation's -- into a record
+  the carry alone is handed, so an omission still holds the reply boundary and the cursor below it, a comment written
+  since the prompt was read stays for the next scan, and a surface that will not read holds the capture
   (`in_review/captured_drift`). `resolving_conflict`'s
   publishes through the road the body edit and the report-owed reply share, leased against the head the run's caller
   proved, which its road froze as the head the run began on -- and froze no code-publication receipt, so the capture
@@ -5919,11 +5924,11 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
      the watermark bump, returning WITHOUT writing pinned state so the drift stays unconsumed for the next process to
      retry. A mid-run `paused` / `backlog` (`pause_guard=True`)
      short-circuits the same way, right after the interrupted check. The resume runs on the drift road, frozen over
-     the issue thread's half of that reading and the stretch of the pull request's conversation it quoted, so a held
-     return keeps its report captured: the [recovery](#the-captured-completion-recovery-every-dispatch) stages the
-     marker, settles that half, and hands the issue back with `review_round` reset through this very disposition,
-     its carry crossing this orchestrator's own posts, the delivered stretch, and the pull-request comments the
-     prompt quoted, read back over that stretch -- a comment written since is left for the next scan.
+     the issue thread's half of that reading and the stretch the prompt quoted on each surface, so a held return
+     keeps its report captured: the [recovery](#the-captured-completion-recovery-every-dispatch) stages the marker,
+     settles that half, and hands the issue back with `review_round` reset through this very disposition, its carry
+     crossing this orchestrator's own posts, the delivered stretch, and the comments the prompt quoted, read back
+     over those stretches -- a comment written since, or one the excerpt left out, is left for the next scan.
   6. **Manual-merge HITL path** (only reached with no owed report, no fresh PR feedback, AND no drift):
      - `pr_is_mergeable` is `None` → try next tick.
      - `False` → park with `unmergeable`; HITL ping mentioning every `HITL_HANDLE`, then carry the issue-side

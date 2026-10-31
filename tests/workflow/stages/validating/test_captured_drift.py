@@ -68,36 +68,6 @@ _UNREAD = (
 )
 
 
-class _HeldDuringTheWrite:
-    """A write over the capture -- its transfer or its retirement -- whose edit's last read sees `control` applied.
-
-    The write reads the comment for itself, its guarded commit reads it
-    again, and the strict editor sending the edit walks the thread to it once
-    more: the last reading before the edit goes out. The control lands during
-    that walk, behind everything the write took before it.
-    """
-
-    def __init__(self, case, control: str, write) -> None:
-        self._case = case
-        self._control = control
-        self._write = write
-        self._walks = case.github._pinned_comment
-        self.applied = False
-
-    def __call__(self, *args, **kwargs):
-        """Make the write as asked, the control applied during its strict edit's walk to the comment."""
-        with patch.object(self._case.github, "_pinned_comment", side_effect=self._walk):
-            return self._write(*args, **kwargs)
-
-    def _walk(self, *walked, **options):
-        """Walk to the comment as the client does, applying the control during the strict edit's walk."""
-        found = self._walks(*walked, **options)
-        if options.get("authoritative") and not self.applied:
-            self._case.issue.labels.append(FakeLabel(self._control))
-            self.applied = True
-        return found
-
-
 class _HeldDuringTheFetch:
     """The remote fetch a publication's proof takes, during which an operator applies `control` to the issue."""
 
@@ -189,7 +159,7 @@ class HeldDriftTest(unittest.TestCase, _held.HeldDriftTicks):
                 self.held_drift(world.reported(), control)
                 self.lifts_the_control()
                 before = self.pinned()
-                transfer = _HeldDuringTheWrite(self, control, _handoff.transfer)
+                transfer = _held.HeldAtTheWalk(self.github, self.issue, control, _handoff.transfer)
                 with patch.object(_handoff, "transfer", transfer):
                     recovered = self.dispatched(**_held.COMMITTED)
                 self.assertEqual(
@@ -213,7 +183,7 @@ class HeldDriftTest(unittest.TestCase, _held.HeldDriftTicks):
                 self.held_drift(world.reported(), control, committed=False)
                 self.lifts_the_control()
                 before = (self.pinned(), self.github.write_state_calls)
-                retire = _HeldDuringTheWrite(self, control, _checkpoint.retire)
+                retire = _held.HeldAtTheWalk(self.github, self.issue, control, _checkpoint.retire)
                 with patch.object(_checkpoint, "retire", retire):
                     self.dispatched(**_held.UNMOVED, dirty_files=("scratch.txt",))
                 self.assertTrue(retire.applied)

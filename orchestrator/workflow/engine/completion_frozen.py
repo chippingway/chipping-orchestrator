@@ -14,7 +14,9 @@ that reading carries. Only digests are kept, so a capture holds no copy of the
 records its road was decided on.
 
 The issue-thread stretch a road's prompt quoted is frozen beside them, for a
-road that records it once its report is handed on, and read back only whole
+road that records it once its report is handed on -- or, on a drift resume
+over an open pull request, beside the stretch of that pull request's
+conversation, for its recovery's cursor carry -- and read back only whole
 (`delivered_stretch`).
 
 A road that froze the code-publication receipt -- one launched over a checkout
@@ -28,6 +30,7 @@ from __future__ import annotations
 import hashlib
 import importlib
 import json
+import operator
 from collections.abc import Iterable
 from typing import Any
 
@@ -41,6 +44,9 @@ from orchestrator.workflow.late_split import payloads as _payloads
 
 # A delivered stretch: its two ends.
 _ENDS = 2
+
+# How many ends the delivered stretches may come to: none, one stretch, or two.
+_SHAPES = frozenset((0, _ENDS, 2 * _ENDS))
 
 # The code-publication receipt a road may freeze, as the implementing stage
 # spells it -- the commit last pushed onto a pull request, the head that push
@@ -98,17 +104,20 @@ def published_over(state: PinnedState, frozen: tuple) -> tuple[str, ...]:
 
 
 def delivered_stretch(raw: Any) -> tuple | None:
-    """A delivered stretch as a capture writes it -- none, or the two ends of one in order -- or None.
+    """The delivered stretches as a capture writes them -- none, one, or two, each its two ends in order -- or None.
 
     Each end is a comment id as the delivered stretch records one
-    (`thread_delivery`), or as a drift resume's pull-request stretch does
-    (`stages/implementing/drift_road.DriftReading`), the lower one 0 where
-    the prompt left nothing out, neither past the recorded bound nor the
-    upper below the lower.
+    (`thread_delivery`), the lower one 0 where the prompt left nothing out,
+    neither past the recorded bound nor the upper below the lower. One is the
+    issue thread's; a second, which only a road whose contract takes it may
+    carry (`completion_routes.RouteContract.stretches`), is the stretch of a
+    pull request's conversation a two-surface prompt quoted beside it
+    (`stages/implementing/drift_road.DriftReading`).
     """
-    if not isinstance(raw, list) or len(raw) not in {0, _ENDS}:
+    if not isinstance(raw, list) or len(raw) not in _SHAPES:
         return None
     ends = [_payloads.as_count(end) for end in raw]
     if None in ends or any(end > _record_values.MAX_RECORDED_NUMBER for end in ends):
         return None
-    return tuple(ends) if ends == sorted(ends) else None
+    lower, upper = ends[::_ENDS], ends[1::_ENDS]
+    return tuple(ends) if all(map(operator.le, lower, upper)) else None

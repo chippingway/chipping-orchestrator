@@ -79,6 +79,7 @@ from orchestrator.workflow.engine import (
     prompt_delivery as _prompt_delivery,
     report_delivery as _report_delivery,
     report_records as _report_records,
+    thread_delivery as _thread_delivery,
 )
 from orchestrator.workflow.engine.prompt_delivery import PromptDeliverySnapshot
 from orchestrator.workflow.late_split import payloads as _payloads
@@ -123,11 +124,13 @@ LEASED = tuple(field for field in FROZEN if field not in _RECEIPT)
 class DriftReading:
     """What one drift resume was handed: its report's requirements revision, and the watermarks its road advances.
 
-    `delivered` is, on an open pull request read on two surfaces, the stretch
-    of that pull request's conversation the prompt quoted entire -- the
-    reader's mark it was read above, and the newest comment it read there --
-    which no settlement writes and the recovery's watermark carry vouches for;
-    empty on every other road.
+    `delivered` is, on an open pull request read on two surfaces, what the
+    prompt quoted on each for the recovery's cursor carry to vouch for, which
+    no settlement writes: the issue thread's stretch, above what its excerpt
+    left out and through the newest comment it read, and then -- where it
+    quoted any -- the stretch of that pull request's conversation it quoted
+    entire, above the reader's mark it was read over and through the newest
+    comment it read there. Empty on every other road.
     """
 
     revision: str
@@ -141,19 +144,23 @@ class DriftReading:
 
     @classmethod
     def over_both_surfaces(cls, delivery: PromptDeliverySnapshot, state: PinnedState) -> DriftReading:
-        """The two-surface reading `delivery` is the record of: its issue thread's half settled, its PR half's stretch.
+        """The two-surface reading `delivery` is the record of: its issue thread's half settled, and what each quoted.
 
-        Every comment on the pull request's conversation newer than the mark
-        it was read above, and no newer than the newest it read, was quoted:
-        ids rise with time on both surfaces, so a comment written after the
-        read is numbered past that newest one.
+        Every comment inside either stretch was quoted, or is nobody's input
+        -- a post of ours, an outsider's comment the read filtered: the issue
+        thread's excerpt drops its oldest comments first, so its stretch
+        starts above the newest one it left out (`DeliveredThread.quoted`),
+        and the pull request's conversation is quoted whole above the mark it
+        was read over. Ids rise with time on both surfaces, so a comment
+        written after a read is numbered past its stretch.
         """
         settled = cls.settled_by(_drift_delivery._settled_half(delivery), state)
+        thread = _thread_delivery.DeliveredThread.quoted(delivery).recorded()
         quoted = [entry.id for entry in delivery.surface_provenance(_prompt_delivery.SURFACE_PR_CONVERSATION)]
         if not quoted:
-            return settled
+            return replace(settled, delivered=thread)
         floor = _read_above(state, min(quoted))
-        return replace(settled, delivered=(floor, max(quoted)))
+        return replace(settled, delivered=(*thread, floor, max(quoted)))
 
 
 def _read_above(state: PinnedState, lowest: int) -> int:
