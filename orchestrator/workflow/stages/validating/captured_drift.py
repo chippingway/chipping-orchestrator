@@ -26,11 +26,12 @@ it is counted once: by the gate's write on a hold, or by the push's, and
 never by a report with no code in it.
 
 The head the run left is the capture's own source, which the admission read
-the checkout as, rather than a second reading of the checkout: a head that
-will not read again behind the admission would recast a commit as a report
-with no code, handed on and parked owing the report it carries. A checkout
-that really moved is refused by the gate, which proves it again, and by the
-admission read again before the handoff.
+the checkout as, rather than a second reading of the checkout
+(`drift_reports._proved_ahead_of_the_handoff`): a head that will not read
+again behind the admission would recast a commit as a report with no code,
+handed on and parked owing the report it carries. A checkout that really
+moved is refused by the gate, which proves it again, and by the admission
+read again before the handoff.
 """
 from __future__ import annotations
 
@@ -57,7 +58,6 @@ def recovers(admitted: _recovery_models.AdmittedCompletion) -> bool:
         paused=False,
         delivery=_captured_drift.frozen_reading(admitted),
         spends=None if body_edit else _rounds._spends_for_an_owed_publication(state),
-        after_sha=capture.run.source_sha,
     )
     with _rereads.rereads(admitted):
         _drift._finish_validating_drift(admitted.gh, admitted.spec, admitted.issue, state, run)

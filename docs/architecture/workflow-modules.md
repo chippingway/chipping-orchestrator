@@ -4496,7 +4496,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             tick (`parks_beside_the_capture`); a run with no capture of its own recorded by the
                             delivery's own recording; and
                             the commit an owed captured report is about, which the size gate is held to
-                            (`captured_source`); on a recovery, the transfer and the withdrawal each made only once
+                            (`captured_source`); the commit the run's own pending capture names, which a disposition
+                            behind it answers on rather than reading the checkout again (`pending_source`); on a
+                            recovery, the transfer and the withdrawal each made only once
                             the capture's admission reads again (`captured_rereads.py`)
       captured_completion.py the owner the dispatcher's recovery hands an applicable capture of the first implementation
                             or an implementing resume to: the command pinned, the session settled as the run's tick
@@ -5259,8 +5261,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             answered in words (`_answers_in_words`) behind the withdrawal of a capture they hand to
                             nobody; the drift recovery answers a held run here too
       drift_models.py       the frozen record that route's resume hands its disposition: the checkout it ran in,
-                            the run, the head before it and whether the run moved it, the live-pause decision, and
-                            the delivery record of what its prompt quoted -- kept beside the route that alone builds
+                            the run, the head before it and whether the run moved it -- told from the head its own
+                            capture names where one stands, never a HEAD read again behind it -- the live-pause
+                            decision, and the delivery record of what its prompt quoted -- kept beside the route that
+                            alone builds
                             and reads it, so its dataclass, path, and agent-result imports stay out of the route
       drift_preflight.py    a pre-session edit -- handed on rather than consumed, since clearing a park delivers
                             nothing at all -- the refusal that records nothing about the edit and its own reason
@@ -5766,8 +5770,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             was out is refused rather than adopted, and a rebase that reads to the proof as a remote
                             that moved still goes out; the tree proved in BOTH halves before the push, since the
                             size gate's own proof rides the entry it freezes and `DECOMPOSE=off` freezes none --
-                            on the status the caller read ahead of a captured report's handoff where it read one
-                            (`models._DevFixRun.tree`) --
+                            on the status and the branch proof the caller read ahead of a captured report's handoff
+                            where it read them (`models._DevFixRun.tree`, `evidence`) --
                             the size gate every fix route publishes through, told the
                             state the run really belongs to by the route that relabels before it spawns rather
                             than reading it off the issue object, the push and the approval it spends, the round
@@ -5848,8 +5852,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             prompt's reading and the round this stage stood down for (`implementing/drift_road.py`)
       drift_models.py       the frozen record that route's resume hands the helper that finishes it, the delivery
                             it was built from -- and the revision that read fingerprints -- included, and the round
-                            a publication lands on and the head the run left where a recovery decided them rather
-                            than the body edit's own tick
+                            a publication lands on where a recovery decided it rather than the body edit's own
       captured_drift.py     the recovery of a held drift capture on this stage, the body edit's and the drift-park
                             reply's alike, answered through `drift._finish_validating_drift` on the reading reduced to
                             its revision -- the body edit on its next round, the reply on what its park owes, told
@@ -5884,11 +5887,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             or transaction an earlier run left describes the branch before the commits a later run
                             made, so the undescribed-work flag those commits leave is read first and the reply
                             that publishes them is the one that describes them. A run's own pending capture is
-                            what the recording hands to the delivery (`implementing/captured_report.py`), the
-                            checkout's status read ahead of that handoff -- one that establishes nothing keeping
-                            the capture and holding the tick, any other riding the run for the publication to prove
-                            the tree on (`_proved_ahead_of_the_handoff`) -- and the loose-tree park beside a report
-                            alone withdraws it first
+                            what the recording hands to the delivery (`implementing/captured_report.py`), every
+                            reading the disposition decides on taken once ahead of that handoff
+                            (`_proved_ahead_of_the_handoff`): the head the run left as the capture names it, the
+                            checkout's status, and for a run that committed nothing the proof of where the branch
+                            stands against its publication -- a status or proof that did not return keeping the
+                            capture and holding the tick, anything else riding the run for the publication to
+                            decide on -- and the loose-tree park beside a report alone withdraws it first
       fix_reports.py        that same contract for the `CHANGES_REQUESTED` run this stage spawns itself, which is
                             the half of the fix loop it owns -- every later round is `stages/fixing/reporting.py`'s,
                             holding it to the same contract and, while the report is owed, holding the readers,

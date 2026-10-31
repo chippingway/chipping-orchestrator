@@ -50,6 +50,7 @@ from orchestrator.workflow.engine import (
     usage as _usage,
 )
 from orchestrator.workflow.stages.implementing import (
+    captured_report as _captured_report,
     completion_roads as _completion_roads,
     drift_disposition as _drift_disposition,
     drift_preflight as _drift_preflight,
@@ -129,7 +130,8 @@ def _run_implementing_drift_resume(
             WorkflowLabel.IMPLEMENTING, state, _drift_road.DriftReading.settled_by(answered.delivery, state), checkout,
         ),
     ))
-    return _ImplementingDriftRun.finished(checkout.before_sha, resumed, answered.delivery)
+    captured = _captured_report.pending_source(state, resumed[1])
+    return _ImplementingDriftRun.finished(checkout.before_sha, resumed, answered.delivery, captured)
 
 
 

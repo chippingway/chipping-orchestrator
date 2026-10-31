@@ -2151,8 +2151,11 @@ and handed off -- and this is what it guarantees and what stops it.
   as above, the park flag the resume takes down, the frozen reading's watermarks, which record the requirements the
   run was handed as the baseline, and the commands a retry consumed -- then answers the run on its stage's own drift
   disposition, handed the reading reduced to that revision, so nothing later on the thread reads as delivered and
-  the report carries none of that input, and handed the head the capture names as the one the run left, so a
-  checkout that will not read again behind the admission never recasts a commit as a report with no code. That
+  the report carries none of that input. Every drift disposition -- a live tick's over its own capture, and a
+  recovery's -- answers on the head the capture names as the one the run left, so a checkout that will not read again
+  behind it never recasts a commit as a report with no code, and a run that committed nothing over a branch an
+  earlier run left unpushed has where that branch stands proved before the handoff, a proof that did not return
+  holding the capture rather than reading as nothing to publish (`validating/drift_reports`). That
   disposition runs inside `implementing/captured_rereads.rereads`, which
   hands the GitHub client a question its strict edit asks of every edit, behind its walk to the comment and
   immediately before the edit goes out (`github/edit_questions`), answering for the edit that moves the pending

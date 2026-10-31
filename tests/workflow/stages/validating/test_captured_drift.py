@@ -54,6 +54,24 @@ _ROUND_RESET = "developer_report_owed_round_reset"
 _REPLY_READS = MappingProxyType({world.HEAD_SHAS: (world.PUBLISHED_HEAD, world.PUBLISHED_HEAD, world.FIXED_HEAD)})
 
 
+# A live resume's checkout: on the head the pull request carries as it is
+# launched, on the commit the run left as it returns, then unreadable once.
+_LIVE_LOST_ONCE = MappingProxyType({
+    **_held.COMMITTED,
+    world.HEAD_SHAS: (world.PUBLISHED_HEAD, world.FIXED_HEAD, "", world.FIXED_HEAD),
+})
+
+# A held resume that committed nothing over a commit an earlier run left on
+# the branch unpushed, and a recovery whose fetch proving where that branch
+# stands does not return.
+_ON_UNPUSHED_WORK = MappingProxyType({world.HEAD_SHAS: (world.FIXED_HEAD,)})
+
+_UNPROVED = MappingProxyType({
+    **_ON_UNPUSHED_WORK,
+    world.FETCHED_TIP: world.PUBLISHED_HEAD,
+    "authed_fetch_result": SimpleNamespace(returncode=1, stdout="", stderr="temporary fetch failure"),
+})
+
 # The readings a recovery cannot take, each beside whether the held run
 # committed: a checkout nobody can prove the issue's own, a head that will not
 # read, and a status that establishes nothing about the tree the commit or a
@@ -389,6 +407,39 @@ class CapturedSourceTest(unittest.TestCase, _held.HeldDriftTicks):
         self.seeded(ISSUE, PR, LABEL_VALIDATING)
         self.held_drift(world.reported())
         self.unheld(**_held.LOST_ONCE)
+        self._published_once(world.FIXED_HEAD)
+
+    def test_a_live_lost_head_publishes_the_commit(self) -> None:
+        # The resume reports on a commit and is captured as it returns, and
+        # the checkout's HEAD will not read once behind that capture: its own
+        # tick answers the commit the capture names, published once under
+        # its report on one round, never a report with no code parked owing it.
+        self.seeded(ISSUE, PR, LABEL_VALIDATING)
+        reported = _agent(session_id=world.DEV_SESSION, last_message=world.reported())
+        self.dispatched(reported, **_LIVE_LOST_ONCE)
+        self._published_once(world.FIXED_HEAD)
+
+    def test_an_unproved_branch_keeps_it(self) -> None:
+        # The held resume committed nothing over a commit an earlier run left
+        # on the branch unpushed, and the fetch proving where that branch
+        # stands does not return: that is no proof there is nothing to
+        # publish, so the capture is kept with nothing written, settled, or
+        # parked; the dispatch whose fetch returns publishes that commit under
+        # the captured report once, on one round.
+        self.seeded(ISSUE, PR, LABEL_VALIDATING)
+        self.held_drift(world.reported(), **_ON_UNPUSHED_WORK)
+        before = (self.pinned(), self.github.write_state_calls)
+        self.unheld(**_UNPROVED)[_fixes.PUSH_BRANCH].assert_not_called()
+        self.assertEqual((self.pinned(), self.github.write_state_calls), before)
+        published = self.dispatched(**world.STRANDED)
+        published[_fixes.PUSH_BRANCH].assert_called_once()
+        self.reconcile()
+        self._published_once(world.FIXED_HEAD)
+        handed = world.handed_revision(self.issue)
+        self.assertEqual(self.pinned()[_held.BASELINE], handed)
+
+    def _published_once(self, head: str) -> None:
+        """The capture handed off, one report published, one round spent, the pull request on `head`, no park."""
         finished = self.pinned()
         self.assertEqual(
             (
@@ -398,7 +449,7 @@ class CapturedSourceTest(unittest.TestCase, _held.HeldDriftTicks):
                 self.pull_request.head.sha,
                 finished.get("park_reason"),
             ),
-            (_fixes.HANDED_OFF, 1, 1, world.FIXED_HEAD, None),
+            (_fixes.HANDED_OFF, 1, 1, head, None),
         )
 
 

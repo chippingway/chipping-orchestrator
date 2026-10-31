@@ -177,7 +177,6 @@ def _finish_validating_drift(
         run.agent_result,
         run.before_sha,
         spends=owed,
-        after_sha=run.after_sha,
         handed=_records.HandedRun(
             WorkflowLabel.VALIDATING, run.delivery.requirements_revision,
         ),

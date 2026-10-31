@@ -128,9 +128,15 @@ def _reads_the_finished_resume(
         else:
             _dev_fix._park_dev_fix_timeout(gh, issue, state, run.before_sha)
         return _state._OUTCOME_PARKED
-    publishable = _dev_fix._publishable_dev_fix(spec, issue, state, run)
+    # A run whose own capture stands pending is read as that capture names
+    # it, and its checkout proved, before anything hands the capture on: a
+    # reading that did not return holds the tick with the capture kept.
+    proved = _drift_reports._proved_ahead_of_the_handoff(gh, spec, issue, state, run)
+    if proved is None:
+        return _state._OUTCOME_PARKED
+    publishable = _dev_fix._publishable_dev_fix(spec, issue, state, proved)
     if publishable is None or _drift_reports._withholds_the_stranded(state, publishable):
-        return _dispose_silent_reply(gh, issue, state, run)
+        return _dispose_silent_reply(gh, issue, state, proved)
     return _publishes_the_fix(gh, spec, issue, state, publishable)
 
 
@@ -186,20 +192,12 @@ def _publishes_the_fix(
     process can die -- and the session that wrote it is already gone. Binding
     it to the publication the push left is the caller's, behind its own
     bookkeeping.
-
-    A run whose own capture stands pending has its checkout's status read
-    ahead of that capture's handoff, and the publication proves the tree on
-    that same reading; one that establishes nothing holds the tick with the
-    capture kept (`drift_reports._proved_ahead_of_the_handoff`).
     """
-    proved = _drift_reports._proved_ahead_of_the_handoff(gh, issue, state, run)
-    if proved is None:
-        return _state._OUTCOME_PARKED
-    if proved.handed is not None and _drift_reports._records_the_run(
-        gh, issue, state, proved,
+    if run.handed is not None and _drift_reports._records_the_run(
+        gh, issue, state, run,
     ):
         return _state._OUTCOME_PARKED
-    if not _dev_fix._publish_dev_fix(gh, spec, issue, state, proved):
+    if not _dev_fix._publish_dev_fix(gh, spec, issue, state, run):
         return _state._OUTCOME_PARKED
     return _state._OUTCOME_PUSHED
 

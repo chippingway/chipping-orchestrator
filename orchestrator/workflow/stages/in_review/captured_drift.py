@@ -42,10 +42,11 @@ since a report handed on past a carry that never ran would leave the feedback
 its prompt quoted to buy a fix round.
 
 The head the run left is the capture's own source, which the admission read
-the checkout as, rather than a second reading of the checkout: a head that
-will not read again behind the admission would recast a commit as a report
-with no code. A checkout that really moved is refused by the gate, which
-proves it again, and by the admission read again before the handoff.
+the checkout as, rather than a second reading of the checkout
+(`validating/drift_reports._proved_ahead_of_the_handoff`): a head that will
+not read again behind the admission would recast a commit as a report with
+no code. A checkout that really moved is refused by the gate, which proves it
+again, and by the admission read again before the handoff.
 """
 from __future__ import annotations
 
@@ -86,7 +87,6 @@ def recovers(admitted: _recovery_models.AdmittedCompletion) -> bool:
             before_sha=run.before_sha,
             delivery=_captured_drift.frozen_reading(admitted),
             carried=carried,
-            after_sha=run.source_sha,
         ))
     return True
 

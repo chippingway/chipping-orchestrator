@@ -58,6 +58,12 @@ _COMMITTED_NOTHING = MappingProxyType({"has_new_commits": False, "head_shas": _h
 
 _LEFT_A_COMMIT = MappingProxyType({"has_new_commits": True, "head_shas": _held.LEFT})
 
+# A run that left its commit, whose checkout then will not read once and reads
+# as that commit again from then on.
+_LOST_ONCE = MappingProxyType({
+    "has_new_commits": True, "head_shas": (*_held.UNMOVED, _held.SOURCE, "", _held.SOURCE),
+})
+
 # What a dispatch publishes: pull requests opened, relabels, and comments.
 _PUBLISHED = ("opened_prs", "label_history", "posted_comments")
 
@@ -197,7 +203,18 @@ class HeldImplementingDriftTest(unittest.TestCase, _HeldDrifts):
 
 
 class UnreadStatusTest(unittest.TestCase, _HeldDrifts):
-    """A recovery whose status read establishes nothing about the tree keeps the capture for a reading that returns."""
+    """A reading of the checkout that establishes nothing never recasts or retires the report a capture holds."""
+
+    def test_a_lost_head_still_publishes_the_commit(self) -> None:
+        # The resume reports on a commit and is captured as it returns, and
+        # the checkout's HEAD will not read once behind that capture: the
+        # tick answers the commit the capture names -- published once under
+        # its report and handed to review -- rather than reading the run as
+        # one that committed nothing and retiring the capture over a park.
+        edited = self._edited()
+        handed = _content_hash._compute_user_content_hash(edited[1], set())
+        self.dispatch(*edited, _finished(), **_LOST_ONCE)
+        self._settled(self.published(edited[0]), handed)
 
     def test_an_unread_status_keeps_the_report(self) -> None:
         # The status of the checkout the commit would be published from will

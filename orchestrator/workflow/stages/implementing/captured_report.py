@@ -190,9 +190,15 @@ def parks_beside_the_capture(
     return False
 
 
-def holds_the_capture(state: _pinned_state.PinnedState, agent_result: AgentResult) -> bool:
-    """Whether `state` carries the pending capture of the very process `agent_result` came from."""
-    return _pending_of(state, agent_result) is not None
+def pending_source(state: _pinned_state.PinnedState, agent_result: AgentResult) -> str:
+    """The commit the pending capture `state` carries of `agent_result`'s very process reports on; "" for none.
+
+    The head that run left, read as it returned: a disposition behind the
+    capture answers on it rather than on a second reading of the checkout,
+    which a HEAD that will not read again would answer as no commit at all.
+    """
+    pending = _pending_of(state, agent_result)
+    return "" if pending is None else pending.run.source_sha
 
 
 def captured_source(state: _pinned_state.PinnedState) -> str:

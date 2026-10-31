@@ -210,6 +210,12 @@ class _DevFixRun:
     # once, so the publication behind the handoff proves the tree on that
     # same reading rather than a second one the handoff could fall between.
     tree: Any = None
+    # The proof of where the branch stands against its publication, where the
+    # caller took it ahead of the report's handoff for a run that committed
+    # nothing: one that did not return holds the capture rather than reading
+    # as nothing to publish, and any other is the one the publishable reading
+    # answers on rather than a second proof.
+    evidence: Any = None
 
     @property
     def entered_head(self) -> str:

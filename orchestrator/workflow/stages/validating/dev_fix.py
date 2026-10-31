@@ -153,11 +153,13 @@ def _replaced_head(
     moved. A candidate standing ON the named head has nothing to publish over
     it, and answers "".
 
-    Otherwise the remote tip is proved, as the publishable fix above says.
+    Otherwise the remote tip is proved, as the publishable fix above says --
+    or answered on the proof the caller already took (`_DevFixRun.evidence`).
     """
     if run.published_head:
         return "" if run.published_head == after_sha else run.published_head
-    return _stranded._stranded_evidence(spec, run.worktree, state, issue).stranded
+    evidence = run.evidence or _stranded._stranded_evidence(spec, run.worktree, state, issue)
+    return evidence.stranded
 
 
 def _publish_dev_fix(

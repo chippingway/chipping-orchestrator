@@ -248,7 +248,6 @@ def _dispose_drift_result(
     outcome = _drift_outcomes._post_user_content_change_result(
         ctx.gh, ctx.spec, ctx.issue, ctx.state,
         resume.worktree, resume.dev_result, resume.before_sha,
-        after_sha=resume.after_sha,
         handed=_records.HandedRun(
             WorkflowLabel.IN_REVIEW, resume.requirements_revision,
         ),
