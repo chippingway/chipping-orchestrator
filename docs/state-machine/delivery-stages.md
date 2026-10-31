@@ -1395,7 +1395,10 @@ because there it is the claim that this stage has already rerouted rather than a
   (`developer_completion`, [pinned state](labels-and-state.md#pinned-state)) enters this transaction through the
   delivery's own recording, never beside it: its transfer (`workflow/engine/completion_handoff.py`) mints the
   delivered report from the captured outcome under the road's frozen route, requirements, delivered input and round,
-  and rewrites the capture as handed off in the same commit, so the report has one durable owner on either side and
+  decided on every record the road froze and on what the caller's road decides its own recording on, the latter held
+  to the caller's own reading of the comment as a recording with no capture is, so a record another road moved
+  between the caller's decision and the transfer's read refuses it, and rewrites the capture as handed off in the
+  same commit, so the report has one durable owner on either side and
   the binding behind it holds the publication to the branch and commit the captured run reported on — the handed-off
   capture is neither replaced nor retired until the transaction it becomes settles, save by a later capture carrying
   it while its delivery still stands unbound, which holds that delivery to the same commit and, invalidated rather
@@ -1403,8 +1406,11 @@ because there it is the claim that this stage has already rerouted rather than a
   is taken only where it, and then that transfer, the binding, and the settlement, still fit the comment with every
   terminator escaped, and the transfer, the binding, and the settlement are each measured that way again over the
   comment they land on. The implementing stage captures and transfers its runs' reports
-  ([`_handle_implementing`](#_handle_implementing-label-workflowimplementing)), and this reconciliation reads no
-  capture of its own. A pending capture is decided behind it, by the
+  ([`_handle_implementing`](#_handle_implementing-label-workflowimplementing)), and so do the validating and fixing
+  stages for the fix a reviewer's change request hands its developer, on the run its handoff launches
+  ([`_handle_validating`](#_handle_validating-label-workflowvalidating) step 6) and the resume of its parked round
+  ([`_handle_fixing`](#_handle_fixing-label-workflowfixing)); this reconciliation reads no capture of its
+  own. A pending capture is decided behind it, by the
   [captured-completion recovery](#the-captured-completion-recovery-every-dispatch), and from the transfer on the
   delivery and this transaction hold the checkout out of the base refresh the capture held it out of before.
 
@@ -6406,7 +6412,11 @@ of those recoverable without telling a human twice
 
      Then the report contract itself — the report of a commit this
      run made is recorded ahead of the size gate, and a run that committed with none parks instead, an unfinished one
-     in this road's own words since the engine exempts it and this road publishes. Resumed developer runs execute
+     in this road's own words since the engine exempts it and this road publishes. Every report this round records,
+     on either route, is decided on the park the resume answers as the tick read it
+     (`stages/fixing/reporting._PARK_FLAGS`), since the write that hands the report on takes that park down: a park
+     recorded meanwhile -- a spent run ledger's among them -- refuses the record and stands, rather than coming down
+     behind it. Resumed developer runs execute
      through `implementing/execution.py`'s bounded coordinator, recovering premature AGY command exits with unfinished
      steps in the existing worktree before inspecting commits or reports; runs that exit with unfinished steps across
      the continuation do not count as valid reports and park under retryable `agent_execution_failed` while
