@@ -10,8 +10,10 @@ tokens of that class leave the estimate unknown instead of borrowing another cla
 
 Every row records the date its rates were last checked against the provider's pricing page (`verified_on`). A
 provider-scheduled change is two rows of one ID over consecutive inclusive `starting` / `through` intervals; a row
-carrying either bound resolves only for a usage date inside it, never for a caller with no date. `review_after` marks
-a published guarantee whose expiry calls for a recheck of the row; it changes no rate by itself.
+carrying either bound resolves only for a usage date inside it, never for a caller with no date. A provider page names
+a change's date and no time zone, so a run is priced by a dated row only where that one row is in effect on every
+calendar date the run's `UsageSpan` touches in any time zone (`active_row_throughout`). `review_after` marks a
+published guarantee whose expiry calls for a recheck of the row; it changes no rate by itself.
 
 A row is dormant unless it is `active`: the catalogue resolves it, so its identity and rates can be read and tested,
 but the production estimates price only active rows. New rows stay dormant until the accounting that prices their
@@ -20,11 +22,15 @@ provider's usage correctly lands.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 
 from orchestrator.observability.usage import protocol
+
+# The furthest any civil time zone sits behind and ahead of UTC, in hours.
+_WESTMOST_HOURS = 12
+_EASTMOST_HOURS = 14
 
 
 @dataclass(frozen=True)
@@ -89,6 +95,32 @@ class PriceRow:
         return self.rates
 
 
+@dataclass(frozen=True)
+class UsageSpan:
+    """The instants one run's usage was spent between, each aware of its time zone."""
+
+    started: datetime
+    ended: datetime
+
+    @classmethod
+    def ending_now(cls, duration_s: float) -> UsageSpan:
+        """The span of a run that ended just now, after `duration_s` seconds."""
+        ended = datetime.now(UTC)
+        return cls(ended - timedelta(seconds=duration_s), ended)
+
+    def dates(self) -> tuple[date, ...]:
+        """Every calendar date the span touches in some time zone, from UTC-12 through UTC+14, in order.
+
+        A span ending before it starts touches none.
+        """
+        if self.ended < self.started:
+            return ()
+        first = (self.started.astimezone(UTC) - timedelta(hours=_WESTMOST_HOURS)).date()
+        last = (self.ended.astimezone(UTC) + timedelta(hours=_EASTMOST_HOURS)).date()
+        days = range((last - first).days + 1)
+        return tuple(first + timedelta(days=offset) for offset in days)
+
+
 def resolve(
     rows: Iterable[PriceRow],
     model: str,
@@ -111,3 +143,21 @@ def active_row(
     if row is None or not row.active:
         return None
     return row
+
+
+def active_row_throughout(
+    rows: Sequence[PriceRow],
+    model: str,
+    span: UsageSpan | None,
+) -> PriceRow | None:
+    """Return the one active row in effect for `model` on every date `span` touches, or None.
+
+    A span reaching dates on either side of a scheduled change has no one row, nor has a span ending before it starts.
+    A span of None establishes no date, so only an undated row prices it.
+    """
+    dates = (None,) if span is None else span.dates()
+    found = [active_row(rows, model, on) for on in dates]
+    first = found[0] if found else None
+    if first is None or any(row is not first for row in found):
+        return None
+    return first

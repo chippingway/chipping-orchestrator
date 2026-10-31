@@ -19,6 +19,7 @@ SUCCESS = "SUCCESS"
 TOOL = "tool"
 TOOL_INFO = "tool_info"
 TOOL_NAME = "tool_name"
+SUBAGENT_INFO = "subagent_info"
 ACTIVE = "ACTIVE"
 NAME = "name"
 

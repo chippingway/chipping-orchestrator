@@ -13,9 +13,12 @@ Every Claude row is active -- Opus 4 through 5.5, Sonnet 4 through 5.5, Fable 5 
 write was reported under, as each request is billed. Every OpenAI row is active too -- GPT-5 through GPT-5.5 with
 their Codex and shut-down chat models, and the GPT-5.6 and GPT-6 families -- since the Codex accounting
 (`codex_requests`) charges a cache write only at a lifetime its usage record reports and a request tier only where the
-record bounds every request it sums. Every Gemini row is dormant until Antigravity's accounting can price it. The
-restricted Mythos and Daybreak (cyber) models carry no row: no captured stream shows a harness emitting their IDs, and
-`gpt-5.6-cyber` is a moving alias for whichever cyber model is current, as is the bare `chat-latest`.
+record bounds every request it sums. The Gemini 4 Argon, 3.8 Flash, and 3.6 Flash rows are active, since the
+Antigravity accounting (`agy_requests`) prices a run on a CLI slug mapped to one of them over a span one row covers
+throughout; Gemini 3.1 Pro Preview stays dormant, since nothing confirms that Antigravity's Gemini 3.1 Pro is that SKU
+or sizes the requests its tier is charged on. The restricted Mythos and Daybreak (cyber) models carry no row: no
+captured stream shows a harness emitting their IDs, and `gpt-5.6-cyber` is a moving alias for whichever cyber model is
+current, as is the bare `chat-latest`.
 
 An estimate priced from a table is a token-only list-price equivalent on that provider's API basis, carrying the
 `verified_on` date of every row it was priced at, as `cost_evidence` defines it -- never a subscription or credit
@@ -339,36 +342,42 @@ GEMINI_PRICES: tuple[price_catalogue.PriceRow, ...] = (
         _gemini((2, 10, 0.1)),
         _VERIFIED_ON,
         through=_GEMINI_FOUR_ARGON_THROUGH,
+        active=True,
     ),
     price_catalogue.PriceRow(
         "gemini-4-argon",
         _gemini((4, 20, 0.2)),
         _VERIFIED_ON,
         starting=_GEMINI_FOUR_ARGON_STARTING,
+        active=True,
     ),
     price_catalogue.PriceRow(
         "gemini-3.8-flash",
         _GEMINI_FLASH_BEFORE_CHANGE,
         _VERIFIED_ON,
         through=_GEMINI_FLASH_THROUGH,
+        active=True,
     ),
     price_catalogue.PriceRow(
         "gemini-3.8-flash",
         _GEMINI_FLASH_AFTER_CHANGE,
         _VERIFIED_ON,
         starting=_GEMINI_FLASH_STARTING,
+        active=True,
     ),
     price_catalogue.PriceRow(
         "gemini-3.6-flash",
         _GEMINI_FLASH_BEFORE_CHANGE,
         _VERIFIED_ON,
         through=_GEMINI_FLASH_THROUGH,
+        active=True,
     ),
     price_catalogue.PriceRow(
         "gemini-3.6-flash",
         _GEMINI_FLASH_AFTER_CHANGE,
         _VERIFIED_ON,
         starting=_GEMINI_FLASH_STARTING,
+        active=True,
     ),
     price_catalogue.PriceRow(
         "gemini-3.1-pro-preview",
@@ -420,3 +429,11 @@ def priced_amount(rates: protocol.RateMap, bucket: protocol.TokenBucket) -> floa
 
 def codex_row(model: str) -> price_catalogue.PriceRow | None:
     return price_catalogue.active_row(OPENAI_PRICES, model)
+
+
+def gemini_row(
+    model: str,
+    span: price_catalogue.UsageSpan | None,
+) -> price_catalogue.PriceRow | None:
+    """The active Gemini API row in effect for `model` throughout `span`, or None where no one row is."""
+    return price_catalogue.active_row_throughout(GEMINI_PRICES, model, span)

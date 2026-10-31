@@ -8,8 +8,8 @@ it does not name is missing evidence, never a zero, even though the raw field re
 apart by reading each field through `reported_count` / `first_count`, which answer None for a field no payload
 reported, and keeping only the counts they answer (`reported_counts`). `cache_overlap` says how the cache counters
 relate to the input counter: `disjoint` when each is a class of its own beside the input (Claude's cache reads and
-writes), `within-input` when they count part of the input again (Codex's `cached_tokens`), and `unknown` when nothing
-establishes either.
+writes, Antigravity's cache reads), `within-input` when they count part of the input again (Codex's `cached_tokens`),
+and `unknown` when nothing establishes either.
 
 `non_overlapping_total` is the one way to add the counters up, and it answers only where that evidence permits: every
 observed counter once, a cache counter left out only where it sits inside an input count that was observed. Beside an

@@ -14,7 +14,7 @@ model-name lookup an estimate needs (``prices``, ``price_catalogue``,
 scoping, and run summary the token counts and estimates come from
 (``claude_rows``, ``claude_requests``, ``claude_settlement``,
 ``claude_summary``, ``codex_rows``, ``codex_requests``, ``codex_summary``,
-``agy_events``, ``agy_summary``); the shell scanning and
+``agy_events``, ``agy_requests``, ``agy_summary``); the shell scanning and
 command classification a codex skill reference is inferred from (``shell_segments``, ``skill_commands``,
 ``skills_claude``, ``skills_codex``); and the records and per-provider
 reconstruction one timeline is rebuilt into (``trajectory_models``,

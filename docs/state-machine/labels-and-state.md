@@ -4020,10 +4020,11 @@ The keys that matter for the state machine fall into a few groups:
   `_run_agent_tracked` parses, each run read as its usage record serializes it (`usage.cost_evidence`,
   `usage.token_evidence`), so metrics built with no evidence state an unknown cost and cache overlap.
   `issue_total_tokens` adds each run's non-overlapping total -- every observed counter once, a cache counter inside an
-  observed input (codex `cached_tokens`) not again -- and a run whose evidence leaves that total unknown, such as an
-  Antigravity run reading cache beside its input, adds nothing to it and one to `issue_total_tokens_unknown_runs`, so
-  the sum is a known subtotal with the runs it lacks counted beside it. `issue_cost_evidence` is every run's cost
-  reduced as `usage.cost_evidence.reduce_costs` reduces many, spelled as a usage record spells its `cost_evidence` --
+  observed input (codex `cached_tokens`) not again -- and a run whose evidence leaves that total unknown, such as
+  metrics built with no evidence that count cache reads, adds nothing to it and one to
+  `issue_total_tokens_unknown_runs`, so the sum is a known subtotal with the runs it lacks counted beside it.
+  `issue_cost_evidence` is every run's cost reduced as `usage.cost_evidence.reduce_costs` reduces many, spelled as a
+  usage record spells its `cost_evidence` --
   `{"completeness": <completeness>, "contributions": [{"basis": <basis>, "amount_usd": <amount>,
   "rates_verified_on": [<ISO date>, ...]}, ...]}` -- one summed amount per basis, with every date an estimate's rates
   were verified on, and the weakest completeness any run states: a CLI-reported amount, each provider's API estimate,
