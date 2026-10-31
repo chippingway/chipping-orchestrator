@@ -36,7 +36,9 @@ answered -- and, handing no requirements, answers the baseline the issue
 records, so an edit beside the command is never the report's revision
 unseen. A documentation pass, a conflict resolution, and every other
 resume freeze no road, so the coordinator captures nothing for them merely
-because they run through it.
+because they run through it -- save the two a reviewer's change request
+hands its developer through, whose callers freeze a road of this same shape
+(`validating/fix_road`, `fixing/resume_road`).
 """
 from __future__ import annotations
 

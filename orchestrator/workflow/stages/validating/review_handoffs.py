@@ -128,7 +128,11 @@ repoint, a start written away, the anchor repointed, or a park recorded there
 written, posted, pushed, relabelled, or spent, and the hand-back is refused
 where another road wrote a verdict while the label moved back, nothing
 settled behind it. A run that wrote nothing -- paused live, killed by the
-shutdown sweep, or refused at the circuit -- retires nothing. A drop of a moved subject (`_DROP`) and a retirement of a
+shutdown sweep, or refused at the circuit -- retires nothing; the launch
+carries the request's road (`fix_road`), so a report a paused one finished on
+is captured as it returned and finished by the dispatcher's recovery, and an
+ordinary one's capture is handed to the delivery in the commit that retires
+the request. A drop of a moved subject (`_DROP`) and a retirement of a
 launched one (`_RETIRE`) are guarded commits too, decided on the verdict held
 and the start of the launch it owes as the comment spells them -- and a drop
 on the records the request stands on and its anchor besides -- so a verdict

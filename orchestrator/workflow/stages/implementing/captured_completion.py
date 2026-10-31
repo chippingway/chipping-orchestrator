@@ -29,6 +29,10 @@ tick would have, withdrawing the capture. No developer is launched, no run
 charged, and no synthetic commit or undeliverable-report park stands in for
 a return that was merely held; review, verification, the final
 documentation pass, and the readiness proof follow the handoff as ever.
+
+The rebuilt result and the session's settlement are read by the recovery of a
+reviewer's change request's capture too (`validating/captured_fix`,
+`fixing/captured_fixes`), which settles its run's session exactly so.
 """
 from __future__ import annotations
 

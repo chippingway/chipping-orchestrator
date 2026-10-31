@@ -96,8 +96,12 @@ per-stage behavior is in
   is removed the dispatcher's recovery pins the command it ran, settles the session as that run's tick would have --
   a retired id never restored -- consumes exactly what it was handed, and publishes its commit under the captured
   report, with no second developer run
-  ([recovery](../state-machine/delivery-stages.md#the-captured-completion-recovery-every-dispatch)). Every other
-  resume on the list above captures nothing.
+  ([recovery](../state-machine/delivery-stages.md#the-captured-completion-recovery-every-dispatch)). So do the two
+  resumes a reviewer's `CHANGES_REQUESTED` hands its fix through: the one its handoff launches
+  (`workflow/stages/validating/fix_road.py`) and the fixing stage's resume of that round on the far side of a park
+  (`workflow/stages/fixing/resume_road.py`), whose held reports the recovery finishes with the request retired in
+  the commit that hands the report on, the round spent once, and no developer or reviewer run. Every other resume on
+  the list above captures nothing.
 - **A docs pass that changes the pull request.** `_handle_documenting` resumes the dev session for the final-docs
   pass behind an approval, and it is the last automated delivery stage: a pass that publishes a docs commit — a fresh
   one, commits an earlier tick left unpushed, or the commit a `docs_settled_sha` receipt names — completes straight

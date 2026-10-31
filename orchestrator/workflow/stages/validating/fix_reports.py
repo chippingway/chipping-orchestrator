@@ -56,6 +56,17 @@ handover, so nothing of one may be durable before it lands. A pushed fix is the
 other way round -- its round was spent by a commit that reached the pull
 request, in the write the size gate made beside its own receipt.
 
+A report the run's launch captured as it returned (`fix_road`) is recorded by
+handing that capture to the delivery (`implementing/captured_report`), the
+change request the run answered retired and what the tick settled around the
+run riding that very commit, so the report has one owner at a time; a report
+alone that parks over loose work or a head the branch or the receipt refused is
+recorded nowhere, so its capture is withdrawn first, and the reply that answers
+the park is captured afresh; one over a reading that did not return -- a
+status, a fetch, a count -- keeps the capture and holds the tick with nothing
+written, so the recovery reads it again and publishes the report it holds
+with no developer run.
+
 Every park this owner takes carries the input the run's prompt delivered into
 its own write. A park durable over feedback that still reads as unanswered is
 one the next tick reads as fresh, resuming the developer again over the very
@@ -76,6 +87,7 @@ from orchestrator.workflow.engine import (
     report_delivery as _report_delivery,
 )
 from orchestrator.workflow.stages.implementing import (
+    captured_report as _captured_report,
     checkout_parks as _checkout_parks,
     parks as _dev_parks,
     session_read as _session_read,
@@ -139,7 +151,7 @@ def _records_the_fix(
     waits out, and the missing-report park would refuse the bare continue
     that retries the round.
     """
-    if _report_delivery.recording_stops_the_tick(
+    if _captured_report.recording_stops_the_tick(
         gh, issue, state, run.agent_result, run.handed,
     ):
         return True
@@ -185,6 +197,19 @@ def _records_a_report_alone(
     session to finish the work and report again.
     """
     tree = _worktree_status._worktree_status(run.worktree)
+    proved = _evidence._proves_the_published_head(
+        spec, issue, state, run.worktree, tree,
+    )
+    # Either refusal parks with the report recorded nowhere, so the run's own
+    # capture of it is withdrawn first: the reply that answers the park
+    # resumes a developer whose return is captured afresh. A reading that did
+    # not return keeps that capture instead, the tick held for the recovery
+    # to read it again; and a withdrawal that did not settle parks nothing,
+    # its state withheld for a later reading.
+    if not proved and not _captured_report.parks_beside_the_capture(
+        gh, issue, state, run.agent_result, unread=proved is None,
+    ):
+        return _state._OUTCOME_PARKED
     if not tree.is_clean:
         # The debt outlives the tree park, which names the loose files rather
         # than the report: this run DID report, and refusing to record it
@@ -200,9 +225,7 @@ def _records_a_report_alone(
             tree,
         )
         return _state._OUTCOME_PARKED
-    if not _evidence._proves_the_published_head(
-        spec, issue, state, run.worktree,
-    ):
+    if not proved:
         return _evidence._parks_the_unproved_head(gh, issue, state, run)
     if _records_the_fix(gh, issue, state, run):
         return _state._OUTCOME_PARKED

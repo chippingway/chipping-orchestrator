@@ -24,7 +24,11 @@ what would be published.
 The pull request, where the record names one, has to be open, on the run's
 branch in this repository, and standing on the head the run started on or
 the one it reported on: the first is a source still owed its push, the second
-one already published. A rewritten-head refresh pushes nothing, so its pull
+one already published. A road launched over a commit an earlier run left
+unpushed starts on a head the pull request has never carried, so where it
+froze the code-publication receipt the head that receipt names there is one
+too (`completion_frozen.published_over`): the publication the stranded work
+is still owed onto. A rewritten-head refresh pushes nothing, so its pull
 request has to stand on the very commit it reported on, as the refresh's own
 road holds it to before it records anything. Any other head is somebody
 else's push, and a pull request merged or closed ended the work the report
@@ -53,6 +57,7 @@ from orchestrator.git.worktrees.models import ProbeAnswer
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    completion_frozen as _frozen,
     completion_records as _records,
     completion_recovery_models as _models,
     completion_routes as _routes,
@@ -126,7 +131,9 @@ def _reading_refusal(
             return None
     if reading.state != _OPEN:
         return _models.Decision(_models.Standing.INVALID, _models.Reason.PULL_REQUEST_ENDED)
-    owed_its_push = () if capture.handoff.route is _REFRESH else (capture.run.before_sha,)
+    owed_its_push = () if capture.handoff.route is _REFRESH else (
+        capture.run.before_sha, *_frozen.published_over(state, capture.handoff.frozen),
+    )
     on_the_run = reading.head in {capture.run.source_sha, *owed_its_push}
     own_branch = reading.branch == capture.run.branch and gh.is_own_repository(reading.repository)
     if not (own_branch and on_the_run):

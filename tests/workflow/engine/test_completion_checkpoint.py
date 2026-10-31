@@ -28,6 +28,7 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.engine.pinned_commit_models import CommitRefusal
 from orchestrator.workflow.engine.report_record_values import MAX_REPORT_TEXT, RecordRefusal
+from orchestrator.workflow.engine.report_records import HandedRun
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.engine import (
     completion_edits_support as edits,
@@ -48,6 +49,9 @@ _RETIRE = _checkpoint.retire
 _WATERMARK = "pr_last_comment_id"
 _DELIVERED = "developer_report_delivery"
 _VERDICT = "review_returned_verdict"
+
+# A change request's run as the transfer is handed it: the verdict its report answers, retired with it.
+_ANSWERING = HandedRun(WorkflowLabel.FIXING, retires=((_VERDICT, None),))
 
 # A report past the ceiling the report records hold every report to.
 _TOO_LONG = "REPORT: READY\n{report}\nREPORT: END".format(report="x" * (MAX_REPORT_TEXT + 1))
@@ -364,7 +368,7 @@ class UncertainCaptureTest(unittest.TestCase):
         completion = world.completion(handoff=road)
         world.captures(completion)
         stale = world.restarted()
-        world.asks(_handoff.transfer, completion.invocation, ((_VERDICT, None),))
+        world.asks(_handoff.transfer, completion.invocation, _ANSWERING)
         read_back = stale.asks(_READ_BACK, completion.invocation)
         stale.github.write_pinned_state(stale.issue, stale.state)
         self.assertEqual((read_back.stage, stale.state.withheld), (_STAGE.HANDED_OFF, True))

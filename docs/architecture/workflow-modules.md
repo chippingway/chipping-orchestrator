@@ -1169,9 +1169,21 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     completion_spelling.py  the flat wire object each stage is spelled as, and the strict whole reading of one, a key
                             too many or too few, a member out of bound, or a road its contract refuses reading as
                             no capture
-    completion_frozen.py    a road's handoff frozen as one digest per pinned record its launch was decided on, and
-                            which of those records a later reading spells otherwise, `null` from missing included;
-                            and the thread stretch a road delivered, read back only whole (`delivered_stretch`)
+    completion_frozen.py    a road's handoff frozen as one digest per pinned record its launch was decided on --
+                            from a tick's state, over the comment it last read or wrote (`frozen_over_the_comment`)
+                            -- and which of those records a later reading spells otherwise, `null` from missing
+                            included; the thread stretch a road delivered, read back only whole
+                            (`delivered_stretch`); and, where a road froze the code-publication receipt, the head
+                            that receipt names on the recorded pull request (`published_over`)
+    completion_frozen_reads.py whether a record a reviewer's change request's round froze still reads, by the
+                            record's name -- the feedback anchor, `pending_fix_at`, the code-publication receipt
+                            (read only where `stages/implementing/late_receipt_damage.py` reads the group, resolved
+                            when called), the settled report pair, read only as the pair one settlement wrote
+                            (`settled_report_reads`, by `report_replay_guards.companions_disagree`), and the
+                            verification evidence, current evidence read beside the handoff its settlement wrote
+                            (`verification_current.handoff_describes`) -- so a move of one is told from its damage;
+                            and whether the settled report and the evidence a held request claims read at all
+                            (`settled_report_reads`, `evidence_unread`), damage there no proof of a later revision
     completion_state.py     the state's view of its capture: a claim asked apart from a reading, so damage is never
                             an absence; whether a handed-off capture is still owed to its report -- the one record of
                             the commit it is about until the transaction its delivery becomes settles -- or beside a
@@ -1190,8 +1202,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             withholding the caller
     completion_handoff.py   the transfer of a pending capture into the delivery: the report minted from the captured
                             outcome under the road's frozen terms and recorded through `report_delivery.py`'s own
-                            write, the capture rewritten HANDED_OFF in that very commit and decided on every record
-                            its handoff froze and measured afresh, escaped in full, over the comment it lands on,
+                            write, the capture rewritten HANDED_OFF in that very commit, what the caller's road
+                            retires with the report riding it, and decided on every record its handoff froze and on
+                            what that road's recording is decided on (`HandedRun`), the latter held to the caller's
+                            own reading of the comment first, as a recording with no capture is, measured afresh,
+                            escaped in full, over the comment it lands on,
                             read back first so a repeat records nothing twice and hands its
                             caller every field a transfer writes (`TRANSFERRED`), as every standing answer past
                             PENDING does (`confirmed`); and what a capture is admitted on:
@@ -1230,7 +1245,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             for a handoff, the issue's state and requirements, the checkout, and the pull request at
                             the head admitted; for a retirement, the one reading of those that proved it -- a moved
                             answer, a source put back included, holding the capture with nothing written; every
-                            other proof is the pinned record's, which the retirement's own commit is held to
+                            other proof is the pinned record's, which the retirement's own commit is held to; and
+                            all of a handoff's readings asked again for an owner whose own reads come between the
+                            admission and its effect (`admitted_again`)
     completion_evidence.py  what an invalidation is decided on: the whole reading its proof was taken over, asked of
                             the candidate the retirement's commit derives (`DecidedOn`), so a field moved, restored,
                             or added since refuses it as EVIDENCE_MOVED
@@ -1242,7 +1259,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             record `stages/implementing/late_claims.py` finds claiming a reading it cannot produce
                             holding it), and the records its handoff froze, a move proving it stale only where the moved
                             record's own reader -- the debt's, the pinned number's, the returned reviewer verdict's
-                            (`stages/validating/review_verdicts.py`, resolved when called), and for a late record the
+                            (`stages/validating/review_verdicts.py`, resolved when called), the feedback anchor's, the
+                            in_review route stamp's, and for a late record the
                             late domain's check of that very field (`late_claims._FIELD_READS`) -- takes the new
                             spelling, a moved record no reader is registered for holding it, a late one none of those
                             checks judges included -- gone proving the capture stale and unreadable holding it; an
@@ -1252,8 +1270,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             would write, without which the capture is held
     completion_sources.py   whether the branch the live resolver names, the issue's own checkout at its own path and the
                             commit it stands on, and the recorded pull request -- open, on the run's branch in this
-                            repository, at the head the run started on or reported on, a report refresh's at the one it
-                            reported on alone -- are still the ones a pending capture reported on; a reading that fails
+                            repository, at the head the run started on or reported on -- or, for a road that froze
+                            the code-publication receipt, the one it names there (`completion_frozen.published_over`)
+                            -- a report refresh's at the one it reported on alone -- are still the ones a pending
+                            capture reported on; a reading that fails
                             or misses its head's branch, commit, or repository, a checkout nothing proves the issue's
                             own, and a checkout head naming no commit the store holds each hold the capture rather than
                             proving it stale. On the implementing road a pull request that road reads as the
@@ -1263,8 +1283,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             effect's readings taken again behind the issue's last fetch (`completion_effect.py`): an
                             applicable one handed to its road's owner (`ROUTE_OWNERS`, resolved when called -- the
                             first implementation's and an implementing resume's to
-                            `stages/implementing/captured_completion.py`, every other road's to none in this build,
-                            so its stage is held), a stale one retired `invalidated` by the
+                            `stages/implementing/captured_completion.py`, a reviewer's change request's to
+                            `stages/fixing/captured_fixes.py`, every other road's to none in this build, so its stage
+                            is held), a stale one retired `invalidated` by the
                             checkpoint's guarded retirement and the tick ended behind it, so the stage runs on the
                             next over the issue as it then reads, an uncertain or damaged one held with nothing written,
                             and a hold it waits through, or an operator's hard-skip on the observed-close road,
@@ -4087,7 +4108,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             fix answered the feedback in code the pull request now carries and a PARK answered it
                             with a notice a human is being asked to read. A
                             replay settles the batch it REPLAYED joined with the fresh rescan, each item against the
-                            reader of the surface it was posted on
+                            reader of the surface it was posted on. On the validating route the launch carries the
+                            change request's road (`resume_road.py`), and a held run's report is captured beside
+                            its accounting; the tail behind the run (`_finishes_the_run`) is the one the recovery of
+                            such a capture runs too, handed the pairs the road froze
       reporting.py          the settlement-driven form of that road, which the resume above disposes every
                             reported round through, a run an account quota stopped parked as the session limit over
                             the debt the missing-report parks would record. Which reply this is -- a report, an
@@ -4107,7 +4131,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             carries this round's consumed readers, its route bookkeeping, the requirements revision
                             its own spawn was handed -- never a baseline re-read after the run, which would fold in
                             every reply that arrived while the developer worked -- and the settlement MARK for the
-                            write that completes the publication. The binding taken only on a commit the CALLER
+                            write that completes the publication, decided on the park the resume answers as the
+                            tick read it (`_PARK_FLAGS`), so a park recorded meanwhile refuses the record rather
+                            than coming down behind it. The binding taken only on a commit the CALLER
                             proved, never on the persistent publication receipt, and held to the fresh reading in
                             `report_publication.py` that both those roads share. A request that FAILED is the one
                             refusal the answer names for itself, because a caller may spend nothing on it. Then the
@@ -4201,6 +4227,27 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             same after a relabel that landed and a later anchorless move back, so what decides is
                             `review_returned_subject` -- a round whose report no reviewer has returned over is still
                             owed that review, and one a reviewer read is not
+      resume_road.py        what the validating route's resume freezes before its launch -- the reviewer's change
+                            request's road under `workflow:fixing`, the fingerprint the run is handed, the pairs the
+                            batch settles, the round settlement with the settled-round mark, and a digest of
+                            `pending_fix_at`, the reviewer anchor, `pr_number`, the code-publication receipt's three
+                            members -- which name the head a resume over unpushed work stands its pull request on --
+                            and the
+                            settled report pair and every verification evidence record, the revision floor among
+                            them, the request was reviewed over -- so a
+                            report the run finishes on is captured as it returns; the in_review route's resume
+                            freezes none. The park the resume answers is held at the report's write instead
+                            (`reporting._PARK_FLAGS`)
+      captured_fixes.py     the owner the dispatcher's recovery hands an applicable capture of a reviewer's change
+                            request to: the direct round's, which froze the request, to
+                            `stages/validating/captured_fix.py`, and the parked round's resume finished here from the
+                            capture alone, once its settled report re-reads where it settled and the issue still
+                            reads as admitted (`stages/validating/captured_fix.subject_stands`) -- the session
+                            settled, the park taken down, the baseline moved to the fingerprint the run was handed
+                            -- through the resume's own roads
+                            (`resume._finishes_the_run`), with no developer run; the park comes down only in the
+                            commit handing the report on, decided on its flags as the tick read them
+                            (`reporting._PARK_FLAGS`), so one recorded meanwhile stands
       parked.py             the five answers an `awaiting_human` tick can reach and the order they are asked in.
                             What counts as a reply is the reading the readers cannot give while a report is owed,
                             so the record's own frozen pairs decide it: a rescan with nothing above them clears
@@ -4407,7 +4454,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             two land together or not at all; one refused for the report itself withdrawn and the run
                             recorded or parked
                             as ever -- and withdrawn by a guarded invalidation ahead of a park that hands the report
-                            to nobody; a run with no capture of its own recorded by the delivery's own recording; and
+                            to nobody, save a park over a reading that did not return, which keeps it and holds the
+                            tick (`parks_beside_the_capture`); a run with no capture of its own recorded by the
+                            delivery's own recording; and
                             the commit an owed captured report is about, which the size gate is held to
                             (`captured_source`)
       captured_completion.py the owner the dispatcher's recovery hands an applicable capture of the first implementation
@@ -5596,8 +5645,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             round a persisted request's developer answers retires that request only in a guarded commit
                             decided on it (`review_writes.ANSWERED`): its report's record, the park the round lands, or
                             the hand-back behind the relabel back to validating, which keeps what another road wrote
-                            while the label moved and settles nothing where it is refused. The post is in the words
-                            `feedback_posts.py` writes
+                            while the label moved and settles nothing where it is refused. The launch carries the
+                            request's road (`fix_road.py`), so a report the developer finishes on is captured as it
+                            returns, live hold or not. The post is in the words `feedback_posts.py` writes
       feedback_posts.py     a change request's reviewer-feedback post: the words it is posted in (`posted`) -- a line
                             naming the review and its round, then the feedback -- below them a hidden receipt naming
                             the persisted request it was posted for, a digest of its round, recorded subject, and
@@ -5753,11 +5803,40 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`ReportWrite.behind`). The report contract is the RUN's only where that
                             run committed or reported: a commit an EARLIER round stranded is published through the
                             ordinary gate either way, since its report was that round's to record and the debt it
-                            left is what holds the reviewer off the head this lands on
+                            left is what holds the reviewer off the head this lands on. A report the run's launch
+                            captured is recorded by handing that capture to the delivery
+                            (`stages/implementing/captured_report.py`), the request retired in that very commit, and
+                            withdrawn ahead of a park over loose work or a head the branch or the receipt refused,
+                            which records it nowhere -- kept, the tick held with nothing written, where the head
+                            proof met a reading that did not return
+      fix_road.py           what a reviewer's change request freezes before its developer is launched: the
+                            `requested_changes` road under `workflow:fixing`, the requirements baseline, the round
+                            settlement the report rides, and a digest of the request as handed, `pr_number`, and the
+                            feedback anchor, over the comment as it reads; the round's report is recorded decided as
+                            well on everything the request stands on (`review_writes.VERDICT_STANDS_ON`) as the tick
+                            read it
+      captured_fix.py       the recovery of the direct round's capture, handed on by `stages/fixing/captured_fixes.py`:
+                            the request's reviewed subject read again save the head the run moves -- the settled
+                            report read as the revision reviewed and re-read where it settled, and the claimed
+                            evidence still settled, one proved superseded retiring the capture and one damaged or
+                            unread -- the settled pair, judged ahead of the revision reviewed
+                            (`completion_frozen_reads.settled_report_reads`), and evidence included and asked first
+                            (`completion_frozen_reads.evidence_unread`) -- holding it, and the issue, the checkout,
+                            and the pull request's head read again
+                            behind those reads (`completion_effect.admitted_again`), a control, label, close,
+                            requirements edit, or push meanwhile holding it too (`subject_stands`, which the parked
+                            resume's recovery asks as well) --
+                            then
+                            the session settled from the capture and the run disposed through
+                            `requested_changes._finish_requested_fix` on a result rebuilt from it, with no developer
+                            or reviewer run, the round spent once, and the request retired with the report's handoff,
+                            which is decided on the subject as these reads took it, so a record moved or damaged
+                            while they ran refuses the transfer
       fix_report_evidence.py what a report with no code in it has to prove before it is recorded, and what its
                             refusal owes: the branch proved to be standing exactly where its remote is (a clean
                             tree, a local head, a tip, the two equal) AND the code-publication receipt naming that
-                            same commit on the pull request the report would go onto. Asked of a CHECKOUT rather
+                            same commit on the pull request the report would go onto, a refusal of either told
+                            apart from a reading that did not return. Asked of a CHECKOUT rather
                             than of a run, because what it is about is a checkout rather than a session: this
                             disposition holds the run and the worktree it ran in, and everything it proves is
                             about where that worktree stands. One caller only -- the `fixing` stage answers the

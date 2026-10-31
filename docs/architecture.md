@@ -638,7 +638,9 @@ parks once on a record it may not act on
 — a captured developer completion still pending, decided behind that debt and ahead of the reuse guard, from its
 read-back alone: handed, admitted and immutable, to the owner of the road it was taken on -- the implementing stage's
 for the first implementation and its resumes, which finishes it through the stage's own disposition with no developer
-run, and none for any other road in this build, so that handler is held -- only while that road's pull request, debt,
+run, the fixing stage's for a reviewer's change request's fix, which finishes it through that round's own finish and
+retires the request with the report's handoff, and none for any other road in this build, so that handler is held --
+only while that road's pull request, debt,
 or adjudication stands and an unaccounted run's receipt has read back, retired as invalidated where a reading proves
 it stale, on that very reading, held with nothing written where a reading fails, the issue moves behind the readings
 before their effect, or the claim is damaged, and waited through on a dependency hold, the `ready` decision, and an

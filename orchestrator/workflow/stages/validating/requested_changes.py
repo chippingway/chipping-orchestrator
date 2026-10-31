@@ -17,6 +17,14 @@ label would leave an issue nobody re-enters. A pushed fix bumps the round and
 relabels back; any park leaves the issue on `fixing`, whose handler owns the
 awaiting-human rescan from there.
 
+The launch carries the request's road (`fix_road`), so a report the developer
+finishes on is captured as it returns, beside the run's accounting and nothing
+else. An ordinary return hands that capture to the delivery where its report is
+recorded (`fix_reports`), the request retired in the same commit; one a live
+hold, a lost write, or a restart kept is finished by the dispatcher's recovery
+ahead of the fixing handler (`captured_fix`), so its developer is neither read
+as a launch that may have run nor launched again.
+
 What that run hands back is a report as well as, perhaps, a commit, and
 `fix_reports` beside this owner holds it to both: the report is recorded ahead
 of the size gate, a report with no code in it reaches the pull request on the
@@ -66,8 +74,7 @@ from github.Issue import Issue
 from orchestrator import config
 from orchestrator.agents import provider_failures as _provider_failures
 from orchestrator.git.verification import probes as _verification_probes
-from orchestrator.github.client import GitHubClient
-from orchestrator.github.pinned_state import PinnedState
+from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
     agent_diagnostics as _agent_diagnostics,
     comments as _comments,
@@ -93,6 +100,7 @@ from orchestrator.workflow.stages.validating import (
     rounds as _rounds,
     state as _state,
 )
+from orchestrator.workflow.stages.validating.fix_road import road as _requested_road
 from orchestrator.workflow.state import WorkflowLabel, stage_name
 
 log = logging.getLogger("orchestrator.workflow")
@@ -144,9 +152,9 @@ def _reviewer_no_verdict_park(review) -> tuple[str, str]:
 
 
 def _park_reviewer_no_verdict(
-    gh: GitHubClient,
+    gh: _client.GitHubClient,
     issue: Issue,
-    state: PinnedState,
+    state: _pinned_state.PinnedState,
     reviewer_run: _models._ReviewerRun,
 ) -> None:
     """Park `validating` when the reviewer produced no VERDICT line, with what its run returned.
@@ -266,8 +274,15 @@ def _run_requested_fix(
     at and what it stands on -- which the run circuit holds the launch to on
     the readings it charges and starts it from. The live round adds nothing,
     since it owes the launch once by construction.
+
+    The launch carries the request's road (`fix_road.road`), so a return that
+    finished on its report is captured as it comes back, whatever a live hold
+    then makes of the tick, and a capture that did not settle answers paused.
     """
     before_sha = _verification_probes._head_sha(context.wt)
+    # The settlement the round's report rides, frozen once from the round the
+    # request names, as its finish below freezes it again.
+    spends = _rounds._spends_a_requested_round(context.round_n).fields + _SETTLES_THE_ROUND
     # The caller flipped the label validating -> fixing just before this -- or,
     # recovering a launch a handed request still owes, found the issue on
     # `fixing` already and made no flip. Pass `fixing` explicitly rather than
@@ -282,6 +297,7 @@ def _run_requested_fix(
         _prompts._build_fix_prompt(context.feedback),
         stage=stage_name(WorkflowLabel.FIXING),
         pause_guard=True,
+        completion=_requested_road(context, before_sha, spends),
         **resume,
     ))
     context.state.set("last_agent_action_at", _usage._now_iso())
@@ -327,7 +343,9 @@ def _finish_requested_fix(
     a guarded commit decided on that request, the pull request the issue
     points at, the start of its developer's launch, the feedback anchor its
     continue replays, and the park's flags: the commit recording its report
-    (`report_records.HandedRun.retires` and `decided_on`), so a move there
+    (`report_records.HandedRun.retires` and `decided_on`), decided as well on
+    the settled report pair and every evidence record the request was
+    reviewed over (`review_writes.VERDICT_STANDS_ON`), so a move there
     publishes, pushes, relabels, and spends nothing; the park a round that
     parks instead takes -- a timeout, a question, a tree or a push it could not
     publish, or a report it still owes, whose park writes the retirement itself
@@ -337,7 +355,11 @@ def _finish_requested_fix(
     the label moved, and nothing is settled or posted behind a hand-back that
     did not land. Until then the request stays on the comment beside what the
     round recorded, the obligation a later tick answers it by. A paused run,
-    and one the shutdown sweep killed, write nothing.
+    and one the shutdown sweep killed, write nothing here: what a paused one
+    finished on is captured beside its accounting as it returned
+    (`fix_road`), and the dispatcher's recovery finishes it through this very
+    function once the hold comes off (`captured_fix`), on a result rebuilt
+    from the capture.
     """
     if attempt.paused:
         return
@@ -370,12 +392,18 @@ def _finish_requested_fix(
         # published has earned. The mark rides beside it for the relabel below
         # that may not land. The revision is left to the pinned baseline: no
         # drift check snapshotted one for this route, and the reviewer round
-        # runs behind the one the tick's own drift check left.
+        # runs behind the one the tick's own drift check left. The report is
+        # recorded decided on what the request's retirement is decided on and
+        # on everything the request stands on -- the settled report pair and
+        # every verification evidence record it was reviewed over -- as the
+        # tick read them, so a recovery that read that subject again before
+        # finishing the round (`captured_fix`) records nothing over a subject
+        # another road moved, or damaged, while it read.
         handed=_records.HandedRun(
             WorkflowLabel.FIXING,
             spends=owed.fields + _SETTLES_THE_ROUND,
             retires=_RETIRES,
-            decided_on=_review_writes.ANSWERED.decided_on,
+            decided_on=_review_writes.ANSWERED.decided_on | _review_writes.VERDICT_STANDS_ON,
         ),
     )
     if outcome not in _state._REPORTING_OUTCOMES:
@@ -410,9 +438,9 @@ def _answers(context: _models._RequestedChanges, handed: _verdicts.ReturnedVerdi
 
 
 def _park_review_cap(
-    gh: GitHubClient,
+    gh: _client.GitHubClient,
     issue: Issue,
-    state: PinnedState,
+    state: _pinned_state.PinnedState,
     round_n: int,
 ) -> None:
     _guards._park_awaiting_human(

@@ -32,12 +32,16 @@ they stand (`road_refusal`):
   longer the one the run answered -- asked behind the road's own records, and
   only where the record moved still reads: a moved record whose own reader
   takes its new spelling as nothing it can describe (the rewrite debt, the
-  pinned pull request, a returned reviewer verdict, and the late records the
-  late-claims owner judges field by field -- the measurement evidence, the
-  publication group, a hold's route bookkeeping) is damage, not a move, and
-  holds the capture. So does a moved record no reader is registered for,
-  since nothing here can tell its move from its damage: a road that freezes
-  a record registers its reader here, or with that owner for a late one.
+  pinned pull request, a returned reviewer verdict, the records a change
+  request's round freezes beside it, whose readers `completion_frozen_reads`
+  keeps -- the feedback anchor, the in_review route's stamp, the
+  code-publication receipt, the settled report and the verification
+  evidence -- and the late records the late-claims owner judges field by
+  field -- the measurement evidence, the publication group, a hold's route
+  bookkeeping) is damage, not a move, and holds the capture. So does a moved
+  record no reader is registered for, since nothing here can tell its move
+  from its damage: a road that freezes a record registers its reader here,
+  with `completion_frozen_reads`, or with that owner for a late one.
 
 An auto-rebase anchor beside the capture is asked here as well
 (`anchor_refusal`): one that reads as a commit is a rewrite of the branch no
@@ -72,6 +76,7 @@ from orchestrator.workflow.engine import (
     usage_counters as _usage_counters,
     usage_receipts as _usage_receipts,
 )
+from orchestrator.workflow.engine.completion_frozen_reads import READS as _ROAD_READS
 from orchestrator.workflow.late_split import formats as _formats, payloads as _payloads
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -208,7 +213,7 @@ def _frozen_refusal(state: PinnedState, capture: _records.CompletionCapture) -> 
     moved = _frozen.moved_since(state, capture.handoff.frozen)
     if not moved:
         return None
-    reads = {**importlib.import_module(_stage_targets._LATE_CLAIMS_OWNER)._FIELD_READS, **_READS}
+    reads = {**importlib.import_module(_stage_targets._LATE_CLAIMS_OWNER)._FIELD_READS, **_ROAD_READS, **_READS}
     for field in moved:
         reader = reads.get(field)
         if reader is None or not reader(state):

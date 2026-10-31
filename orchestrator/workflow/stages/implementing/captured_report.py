@@ -1,12 +1,17 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The report an implementing run's capture holds, handed to the delivery or withdrawn, as its disposition decides.
+"""The report a run's capture holds, handed to the delivery or withdrawn, as its disposition decides.
 
 An implementing run that finished on a report is captured as it returns
 (`completion_roads`), so by the time its disposition reaches the point where
 the report is recorded -- between proving a clean tree and the size gate --
-the capture already holds the one copy of it. Recorded again from the run,
-the issue would carry two reports the next tick could publish. So where the
+the capture already holds the one copy of it. The developer a reviewer's
+change request hands its fix to is captured the same way, on either half of
+that round: the run its handoff launches, whose report `validating/fix_reports`
+records, and the fixing stage's resume of it on the far side of a park, whose
+report `fixing/reporting` records -- each naming its own road, and the direct
+run's transfer retiring the change request it answers. Recorded again from
+the run, the issue would carry two reports the next tick could publish. So where the
 run's own capture stands pending, the recording is the capture's transfer
 (`completion_handoff.transfer`): the delivery is minted from the outcome the
 capture kept, under the requirements and delivered input its road froze, and
@@ -43,12 +48,16 @@ committed nothing past what it started on, or left a tree no push may
 publish -- withdraws the capture first (`withdraws_the_capture`): a guarded
 invalidation of it, so a reply that resumes the developer is captured afresh
 rather than refused behind it. A retirement that does not settle holds the
-park too, so no notice goes out for a park the comment never took.
+park too, so no notice goes out for a park the comment never took. A park
+over a reading that merely did not return -- a status, a fetch, a count --
+takes neither (`parks_beside_the_capture`): the capture still holds a report
+the next tick may prove, so it is kept and the tick held with nothing written.
 """
 from __future__ import annotations
 
 import json
 import logging
+from dataclasses import replace
 
 from github.Issue import Issue
 
@@ -64,33 +73,46 @@ from orchestrator.workflow.engine import (
     report_delivery as _report_delivery,
     report_record_room as _room,
 )
+from orchestrator.workflow.engine.report_records import HandedRun
 from orchestrator.workflow.stages.implementing import state as _state
+from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
 
 
 def recording_stops_the_tick(
-    gh: _client.GitHubClient, issue: Issue, state: _pinned_state.PinnedState, agent_result: AgentResult,
+    gh: _client.GitHubClient,
+    issue: Issue,
+    state: _pinned_state.PinnedState,
+    agent_result: AgentResult,
+    route: WorkflowLabel | HandedRun = _state._REPORT_ROUTE,
 ) -> bool:
-    """Record what a finished implementing run wrote, or hold the tick over it; True is a tick this ended.
+    """Record what a finished run wrote, or hold the tick over it; True is a tick this ended.
 
     The run's own pending capture is handed to the delivery, with what the
-    tick settled around the run riding that very commit; anything else is
-    recorded by the delivery under the implementing route, which parks the
-    reports it cannot record -- a captured report whose transfer is refused
-    for itself included, once its capture is withdrawn.
+    tick settled around the run and what its road retires with the report
+    (`HandedRun.retires`) riding that very commit, decided on what that road
+    decides its recording on (`HandedRun.decided_on`); anything else is recorded
+    by the delivery under `route`, which parks the reports it cannot record
+    -- a captured report whose transfer is refused for itself included, once
+    its capture is withdrawn. `route` is the implementing route unless a
+    caller on another road names its own: a reviewer's change request's
+    direct run, which answers the request it retires (`validating/fix_reports`),
+    and the fixing stage's resume of that round (`fixing/reporting`).
     """
     pending = _pending_of(state, agent_result)
     if pending is None:
-        return _report_delivery.recording_stops_the_tick(gh, issue, state, agent_result, _state._REPORT_ROUTE)
-    handed = _handoff.transfer(gh, issue, state, pending.invocation, retires=_staged_moves(state))
+        return _report_delivery.recording_stops_the_tick(gh, issue, state, agent_result, route)
+    answering = route if isinstance(route, HandedRun) else HandedRun(route)
+    behind = replace(answering, retires=_staged_moves(state) + answering.retires)
+    handed = _handoff.transfer(gh, issue, state, pending.invocation, behind)
     if handed.settled:
         return False
     refused_for_itself = handed.refusal is _commits.CheckpointRefusal.UNRECORDABLE or isinstance(
         handed.refusal, _room.RecordingRefusal,
     )
     if not state.withheld and refused_for_itself and withdraws_the_capture(gh, issue, state, agent_result):
-        return _report_delivery.recording_stops_the_tick(gh, issue, state, agent_result, _state._REPORT_ROUTE)
+        return _report_delivery.recording_stops_the_tick(gh, issue, state, agent_result, route)
     state.withheld = True
     log.warning(
         "issue=#%d could not hand the captured report of agent invocation %d/%s to the delivery (%s); "
@@ -119,6 +141,35 @@ def withdraws_the_capture(
         "issue=#%d could not retire the captured completion of agent invocation %d/%s ahead of its park (%s); "
         "parking nothing, for the recovery to decide on a later reading",
         issue.number, pending.invocation.ordinal, pending.invocation.nonce, retired.refusal or retired.status,
+    )
+    return False
+
+
+def parks_beside_the_capture(
+    gh: _client.GitHubClient,
+    issue: Issue,
+    state: _pinned_state.PinnedState,
+    agent_result: AgentResult,
+    *,
+    unread: bool,
+) -> bool:
+    """Whether a park that hands the run's report to nobody may go on, the run's own capture settled for it first.
+
+    `unread` is a park over a reading that did not return rather than one
+    the branch or the record refused. There the run's own pending capture
+    still holds the report the next tick can prove, so it is kept and the
+    tick held, its state withheld and nothing written, for the dispatcher's
+    recovery to take the reading again with no developer run; False. Every
+    other park withdraws the capture first (`withdraws_the_capture`).
+    """
+    pending = _pending_of(state, agent_result)
+    if not unread or pending is None:
+        return withdraws_the_capture(gh, issue, state, agent_result)
+    state.withheld = True
+    log.warning(
+        "issue=#%d could not take the reading the captured report of agent invocation %d/%s is published on; "
+        "keeping the capture and writing nothing, for the recovery to read it again on a later tick",
+        issue.number, pending.invocation.ordinal, pending.invocation.nonce,
     )
     return False
 

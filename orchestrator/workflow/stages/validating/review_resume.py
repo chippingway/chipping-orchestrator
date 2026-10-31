@@ -68,7 +68,10 @@ refuses it, and the next tick answers the reply again -- and the round runs on
 the next tick (`settles_a_bought_round`).
 
 On `workflow:fixing` (`finishes_a_handed_request`) it is asked ahead of the
-feedback scan, whose no-feedback bounce would otherwise walk past it: the
+feedback scan, whose no-feedback bounce would otherwise walk past it -- and
+holds, writing nothing, while a captured completion nothing has decided
+stands, since that may be the very report the request's developer returned,
+which the dispatcher's recovery finishes first (`fixing/captured_fixes`): the
 feedback is a comment this orchestrator posted, which the scan filters out, so
 the bounce would return an unchanged head to review and pay a second reviewer
 for a round already reviewed. A handed request whose developer is still owed
@@ -137,6 +140,7 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     comments as _comments,
+    completion_state as _completion_state,
     prompt_context as _prompt_context,
     report_commits as _commits,
 )
@@ -310,7 +314,20 @@ def finishes_a_handed_request(
     whose launch may have run and has moved on is dropped for good
     (`_drops_it`), and the next tick's road publishes whatever work is there
     and hands the pull request back.
+
+    A captured completion nothing has decided yet -- pending, or claimed in a
+    shape nobody can read -- holds the tick with nothing written, ahead of all
+    of it: it may be the very run this request's launch made, whose report
+    the dispatcher's recovery finishes (`fixing/captured_fixes`), and a
+    request dropped or launched again beside it would lose that report or pay
+    for it twice.
     """
+    if _completion_state.unresolved(state):
+        log.warning(
+            "issue=#%d holds a captured developer completion nothing has decided; leaving its handed "
+            "change request for the recovery to finish", issue.number,
+        )
+        return True
     handed = _verdicts.read_returned_verdict(state)
     if handed is None or handed.handed is None or state.get(_AWAITING_HUMAN):
         return False

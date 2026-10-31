@@ -185,7 +185,7 @@ def _on_the_records(
     return (
         (current.receipt, current.revision, current.content_revision) == named
         and not _current._outranked(state, current)
-        and _current._handoff_describes(state, current)
+        and _current.handoff_describes(state, current)
         and current.binding.context_revision == _proof.configured_context_revision()
     )
 

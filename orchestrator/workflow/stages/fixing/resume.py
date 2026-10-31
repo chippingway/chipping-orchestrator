@@ -18,7 +18,11 @@ just consumed as fresh drift and resume a second time on input already handled.
 
 Three refusals sit between the finished run and any disposition, and all bail
 WITHOUT writing pinned state so the whole tick is re-decidable next time: a
-launch nothing invoked, a shutdown kill, and an operator pausing mid-run. None
+launch nothing invoked, a shutdown kill, and an operator pausing mid-run. On
+the validating route the launch carries the reviewer's change request's road
+(`resume_road`), so a report a paused run finished on is captured beside its
+accounting as it returned, and the dispatcher's recovery finishes it through the
+same tail a live run takes (`_finishes_the_run`) once the hold comes off. None
 of them delivered the batch, so none of them may settle it -- and a shutdown
 kill must cover the new-commit case too: falling through would consume the
 feedback while the commit sits unpushed, and the next tick would see nothing to
@@ -62,6 +66,7 @@ final-docs handoff after reviewer approval.
 from __future__ import annotations
 
 from orchestrator.git.verification import probes as _verification_probes
+from orchestrator.git.worktrees import naming as _naming
 from orchestrator.workflow.engine import (
     comments as _comments,
     content_hash as _content_hash,
@@ -80,7 +85,9 @@ from orchestrator.workflow.stages.fixing import (
     reporting as _reporting,
     state as _state,
 )
+from orchestrator.workflow.stages.fixing.resume_road import road as _resume_road
 from orchestrator.workflow.stages.implementing import (
+    completion_roads as _completion_roads,
     late_gate_models as _late_gate_models,
     resume as _dev_resume,
     resume_request as _dev_resume_request,
@@ -145,6 +152,7 @@ def _run_fixing_resume(
     ctx: _models._FixingContext,
     followup: str,
     delivered: _models._FixingFeedback,
+    owed: _late_gate_models._Spends,
 ) -> _models._FixingResumeRun:
     """Ensure the worktree, resume the locked dev session over `followup`,
     fingerprint the requirements it is handed, and read HEAD before/after.
@@ -186,9 +194,18 @@ def _run_fixing_resume(
     timeout is a way to commit like any other -- the recovery behind that park
     PUSHES what such a run left. Read as "committed nothing", the work goes out
     under a report written before it existed.
+
+    On the validating route the launch carries the reviewer's change request's
+    road (`resume_road`), frozen over that same fingerprint, the batch, and
+    `owed`, the round settlement the route's report rides, so a return that
+    finished on its report is captured as it comes back.
     """
     wt = _dev_worktree._ensure_resume_worktree(ctx.spec, ctx.issue, ctx.state)
-    before_sha = _verification_probes._head_sha(wt)
+    checkout = _completion_roads.RoadCheckout(
+        wt,
+        _naming._resolve_branch_name(ctx.state, ctx.spec, ctx.issue.number),
+        _verification_probes._head_sha(wt),
+    )
     requirements = _content_hash._compute_user_content_hash(
         ctx.issue, _comments._orchestrator_ids(ctx.state),
         comments=delivered.read,
@@ -201,6 +218,7 @@ def _run_fixing_resume(
         # agent a comment no watermark here records and the next poll pays a
         # second developer to answer.
         thread_text=delivered.thread_text,
+        completion=_resume_road(ctx, delivered, checkout, requirements, owed),
     ))
     ctx.state.set("last_agent_action_at", _usage._now_iso())
     ctx.state.set("user_content_hash", requirements)
@@ -208,7 +226,7 @@ def _run_fixing_resume(
         worktree=wt,
         dev_result=dev_result,
         paused=paused,
-        before_sha=before_sha,
+        before_sha=checkout.before_sha,
         after_sha=_verification_probes._head_sha(wt),
         reported=_report_outcomes._finished_on_a_report(dev_result),
         requirements_revision=requirements,
@@ -308,7 +326,7 @@ def _fixing_ack_fast_path(
 def _records_the_report_it_owes(
     ctx: _models._FixingContext,
     run: _models._FixingResumeRun,
-    feedback: _models._FixingFeedback,
+    consumed: tuple,
     owed,
 ) -> bool:
     """Hold this round to the report contract, and record the report it wrote.
@@ -329,12 +347,12 @@ def _records_the_report_it_owes(
     publishes.
 
     What a recorded report carries is the pairs this round CONSUMED, frozen
-    before anything applies them -- the record has to name what was consumed
-    rather than what is left to consume, since derived after a settlement they
-    are empty and the recovery replaying this record would have nothing to put
-    the feedback beyond. A run that reported nothing has settled its own
-    readers ahead of this call, so it hands over none: there is no transaction
-    to carry them, only the park that ends the road.
+    by the caller before anything applies them -- the record has to name what
+    was consumed rather than what is left to consume, since derived after a
+    settlement they are empty and the recovery replaying this record would
+    have nothing to put the feedback beyond. A run that reported nothing has
+    settled its own readers ahead of this call, so it hands over none: there
+    is no transaction to carry them, only the park that ends the road.
 
     A run nobody heard the end of is not held here at all. The timeout park
     behind this is the answer to it and has a recovery of its own, so parking
@@ -349,38 +367,58 @@ def _records_the_report_it_owes(
         not run.after_sha or run.after_sha == run.before_sha
     ):
         return False
-    consumed = ()
-    if run.reported:
-        consumed = _feedback._consumed_delivery(
-            ctx.state, feedback,
-        ).consumed_pairs(ctx.state)
     return _reporting._recording_stops_the_tick(ctx, run, consumed, owed)
 
 
-def _delivered_nothing(
-    ctx: _models._FixingContext, run: _models._FixingResumeRun,
-) -> bool:
-    """The three finished runs that put this batch in front of nobody.
+def _finishes_the_run(
+    ctx: _models._FixingContext,
+    run: _models._FixingResumeRun,
+    consumed: tuple,
+    owed: _late_gate_models._Spends,
+    *,
+    routed: bool,
+) -> None:
+    """Hold, record, and dispose of a finished run whose prompt reached an agent.
 
-    A shutdown kill has no trustworthy result and its partial last message is
-    no ACK and no question; a launch the run circuit turned away invoked no
-    process at all; and a live pause is an operator stopping the tick before
-    anything is persisted. Each bails WITHOUT writing pinned state, so the
-    whole tick stays re-decidable: no reader moves, no bookmark is cleared,
-    `awaiting_human` is untouched, and the next tick re-discovers the same
-    comments and re-feeds them to a fresh session.
+    Shared by the live resume behind its run and by the recovery of a
+    validating-route run whose return was captured and held
+    (`captured_fixes`), which hands in the pairs its road froze as `consumed`:
+    each run is answered on the same roads, in the same order, whichever tick
+    finishes it. `routed` is the in_review route, the only one the ACK fast
+    path answers.
 
-    The kill MUST cover the new-commit case too. Falling through would consume
-    the feedback while the commit sits unpushed -- the disposition refuses to
-    publish an interrupted run -- and the next tick would see nothing to do and
-    bounce a PR head that is missing the fix. Left on disk, a later clean run
-    republishes it through the stranded-fix tail.
+    The two replies this round may act on no half of are held ahead of every
+    road below. A message that reached for the report contract and MISSED is
+    one: the `ACK:` half would return the pull request to review as needing
+    no change, and a commit beside it would be pushed and relabelled with no
+    report on the pull request at all. A round that COMMITTED over a report
+    an earlier tick recorded is the other: that report describes the branch
+    before this commit, so every road that publishes afterwards would bind it
+    to work it never saw. Both park with the settlement of a non-reporting
+    run already staged, so the notice is never left standing over feedback
+    that still reads as unread. Neither is a run that reported, so neither
+    holds a captured one.
+
+    Then the report contract itself, which this round answers before
+    anything of it may go out: the report of a commit this run made is
+    recorded ahead of the size gate -- a captured one handed to the delivery
+    -- and a run that committed with none parks instead.
+
+    Then the ACK fast path (in_review route only): the dev made no commit but
+    explicitly signaled via the `ACK: <reason>` marker that the PR feedback
+    carries no actionable change. Any other unmarked no-commit reply falls
+    through to the disposition, which parks for the human unless its
+    stranded-fix check publishes a committed-but-unpushed fix instead
+    (`validating/stranded.py`'s probe).
     """
-    if _guards._ignore_if_interrupted(ctx.issue, run.dev_result):
-        return True
-    if _guards._ignore_if_never_invoked(ctx.issue, run.dev_result):
-        return True
-    return run.paused
+    if _reporting._holds_for_a_human(ctx, run):
+        ctx.gh.write_pinned_state(ctx.issue, ctx.state)
+        return
+    if _records_the_report_it_owes(ctx, run, consumed, owed):
+        return
+    if _fixing_ack_fast_path(ctx, run, routed=routed):
+        return
+    _disposes(ctx, run, owed)
 
 
 def _resume_fixing_and_dispatch_result(
@@ -420,6 +458,13 @@ def _resume_fixing_and_dispatch_result(
     delivered = (
         feedback if replay_batch is None else replay_batch.merged_with(feedback)
     )
+
+    # What this route owes for the candidate, frozen BEFORE anything is
+    # written -- and before the launch, whose road the validating route's
+    # report rides: the bookmarks the consumed batch clears and the round the
+    # fix lands on. Read once, so a second reading taken after the write that
+    # already applied it cannot count the same round twice.
+    owed = _spends_fix_round(ctx.state, pending_fix_at_was_set)
     run = _run_fixing_resume(
         ctx,
         _conversation_prompts._build_pr_comment_followup(
@@ -430,19 +475,28 @@ def _resume_fixing_and_dispatch_result(
         # thread of its own, and what the fingerprint and the re-grounding owe
         # is the surface as this tick found it.
         delivered,
+        owed,
     )
 
-    # Nothing below may run for a batch no agent read (`_delivered_nothing`),
-    # and none of it persists: the awaiting_human reset and the hash refresh
-    # staged earlier this tick are dropped with the write we skip.
-    if _delivered_nothing(ctx, run):
+    # The three finished runs that put this batch in front of nobody, and
+    # nothing below may run for any of them, none of which persists: the
+    # awaiting_human reset and the hash refresh staged earlier this tick are
+    # dropped with the write we skip. A shutdown kill has no trustworthy result
+    # and its partial last message is no ACK and no question; a launch the run
+    # circuit turned away invoked no process at all; and a live pause is an
+    # operator stopping the tick before anything is persisted -- the report
+    # of a run it held is captured beside its accounting, for the recovery to
+    # finish. The kill MUST cover the new-commit case too: falling through
+    # would consume the feedback while the commit sits unpushed, and the next
+    # tick would see nothing to do and bounce a PR head that is missing the
+    # fix. Left on disk, a later clean run republishes it through the
+    # stranded-fix tail.
+    if (
+        _guards._ignore_if_interrupted(ctx.issue, run.dev_result)
+        or _guards._ignore_if_never_invoked(ctx.issue, run.dev_result)
+        or run.paused
+    ):
         return
-
-    # What this route owes for the candidate, frozen BEFORE anything is
-    # written: the bookmarks the consumed batch clears and the round the fix
-    # lands on. Read once, so a second reading taken after the write that
-    # already applied it cannot count the same round twice.
-    owed = _spends_fix_round(ctx.state, pending_fix_at_was_set)
 
     # The prompt reached an agent, so the batch it quoted is delivered whatever
     # the run came back with -- a fix, a timeout, an empty message, a question,
@@ -455,41 +509,16 @@ def _resume_fixing_and_dispatch_result(
     # feedback on the pushed path (the next in_review tick would miss it) and
     # on the park path (the next fixing tick's `awaiting_human and not
     # new_feedback` gate would drop it). A run that DID write one records
-    # nothing here at all -- both groups ride that report's record, and the
-    # An unfinished command execution park (`unfinished_steps`) leaves
-    # watermarks unsettled so review context remains intact until publication.
-    if not run.reported and not run.dev_result.unfinished_steps:
+    # nothing here at all -- both groups ride that report's record, frozen
+    # here before anything applies them. An unfinished command execution park
+    # (`unfinished_steps`) leaves watermarks unsettled so review context
+    # remains intact until publication.
+    consumed = ()
+    if run.reported:
+        consumed = _feedback._consumed_delivery(ctx.state, delivered).consumed_pairs(ctx.state)
+    elif not run.dev_result.unfinished_steps:
         _feedback._settle_consumed_feedback(ctx.state, delivered)
-
-    # The two replies this round may act on no half of, held ahead of every
-    # road below. A message that reached for the report contract and MISSED is
-    # one: the `ACK:` half would return the pull request to review as needing
-    # no change, and a commit beside it would be pushed and relabelled with no
-    # report on the pull request at all. A round that COMMITTED over a report
-    # an earlier tick recorded is the other: that report describes the branch
-    # before this commit, so every road that publishes afterwards would bind
-    # it to work it never saw. Both park after the settlement above, so the
-    # notice is never left standing over feedback that still reads as unread.
-    if _reporting._holds_for_a_human(ctx, run):
-        ctx.gh.write_pinned_state(ctx.issue, ctx.state)
-        return
-
-    # The report contract itself, which this round answers before anything of
-    # it may go out: the report of a commit this run made is recorded ahead of
-    # the size gate, and a run that committed with none parks instead.
-    if _records_the_report_it_owes(ctx, run, delivered, owed):
-        return
-
-    # ACK fast path (in_review route only): the dev made no commit but
-    # explicitly signaled via the `ACK: <reason>` marker that the PR feedback
-    # carries no actionable change. Any other unmarked no-commit reply falls
-    # through to the disposition, which parks for the human unless its
-    # stranded-fix check publishes a committed-but-unpushed fix instead
-    # (`validating/stranded.py`'s probe).
-    if _fixing_ack_fast_path(ctx, run, routed=pending_fix_at_was_set):
-        return
-
-    _disposes(ctx, run, owed)
+    _finishes_the_run(ctx, run, consumed, owed, routed=pending_fix_at_was_set)
 
 
 def _disposes(

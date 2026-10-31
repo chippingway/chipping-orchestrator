@@ -1955,8 +1955,16 @@ The keys that matter for the state machine fall into a few groups:
   asking an agent to write it again. The implementing stage's shared developer coordinator takes one as the first
   implementation or an implementing resume -- a human reply's, or an `/orchestrator continue` retry's -- returns, an
   ordinary unpaused return included (`stages/implementing/completion_roads.py`), and the run's own disposition hands
-  it on; no other road captures one yet. Only a return the outcome owner's completed-run reader answers READY or
-  VERIFIED for, whose backend recorded no unfinished tool steps or terminal failure, that a tracked spawn
+  it on; so it does as the developer a reviewer's change request hands its fix to returns, on the `requested_changes`
+  road under `workflow:fixing` -- the run the request's handoff launches (`stages/validating/fix_road.py`), frozen
+  over the request as handed, `pr_number`, and `pending_fix_reviewer_comment_id`, and the resume a reply or a
+  continue buys on the far side of a park that round took (`stages/fixing/resume_road.py`), frozen over
+  `pending_fix_at`, that anchor, `pr_number`, the code-publication receipt, and the settled report pair and every
+  verification evidence record the request was reviewed over -- and the round's own disposition hands it on, the
+  direct run's with the request it answers retired in the transfer's commit. No other road captures one yet. Only a
+  return the
+  outcome owner's completed-run reader answers READY or VERIFIED for, whose backend recorded no unfinished tool steps
+  or terminal failure, that a tracked spawn
   identified, and that its road's contract takes qualifies (`engine/completion_routes.py`); a role, a backend, or a
   clean exit alone qualifies none.
   The roads are named by their callers — `implementation`, `resume`, `requested_changes` and `pr_feedback` (each of
@@ -1999,9 +2007,12 @@ The keys that matter for the state machine fall into a few groups:
   recording (`report_delivery.records_the_report`), measured afresh over the candidate it sends, escaped in full, with
   the binding and settlement it reserves, so a comment another road filled since the capture refuses it for room and
   the capture stays pending; it is minted from the captured outcome under the road's frozen route,
-  requirements, input and round, with the capture rewritten `handed_off` in the same commit and decided on every
-  record its handoff froze: the report has one durable owner on either side, and a frozen record another road moved
-  refuses it. Asked again, it answers standing with the capture, every report record, and the debt flags a recording
+  requirements, input and round, with the capture rewritten `handed_off` in the same commit, what the caller's road
+  retires with the report riding it, and decided on every record its handoff froze and on what that road decides its
+  own recording on (`HandedRun.decided_on`), the latter as the caller read it: the report has one durable owner on
+  either side, and a frozen record another road moved, or one the caller's road was decided on moved since the caller
+  read it, refuses it. Asked again, it answers standing with the capture, every report record, and the
+  debt flags a recording
   retires laid onto the caller as the comment carries them, as a capture, read-back, or retirement finding the capture
   past `pending` does, so a caller that read the capture before its transfer never writes the delivery away. A
   retirement keeps the invocation; a pending capture is retired only as `invalidated`, so the only copy of a report
@@ -2029,7 +2040,11 @@ The keys that matter for the state machine fall into a few groups:
   [captured-completion recovery](delivery-stages.md#the-captured-completion-recovery-every-dispatch), from its read-back
   alone and never from a log, analytics, a native session, a trajectory, or a host record: applicable, it is handed,
   admitted, to the owner of its road -- the implementing stage's for the first implementation and its resumes, which
-  finishes it with no developer run, and none for any other road in this build, so that stage is held; stale -- its
+  finishes it with no developer run; the fixing stage's for a reviewer's change request's `requested_changes` road
+  (`stages/fixing/captured_fixes.py`), which finishes the direct round through `requested_changes._finish_requested_fix`
+  and a parked round's resume through its own roads, each only once its reviewed subject reads again, with no developer
+  or reviewer run and the request retired in the commit that hands its report on; and none for any other road in this
+  build, so that stage is held; stale -- its
   road's pull request, report debt, or adjudication gone among the proofs -- it is retired `invalidated` by a guarded
   commit owning the capture alone, its invocation kept, and held to the whole reading the proof was taken over, so a
   comment that moved since -- a field it lacked restored included -- refuses it, and the tick ends behind it, the stage

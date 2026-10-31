@@ -14,8 +14,16 @@ froze, and the very commit that records it rewrites the capture as HANDED_OFF
 -- no report, the delivery's receipt and revision, and the branch and source
 commit it is about. A write GitHub never confirmed leaves both or neither. It
 is decided on the capture, the cycle, and every record the road's handoff was
-frozen over, as well as on everything a recording is decided on, and lands
-beside every field another road wrote; nothing the caller staged rides it.
+frozen over, as well as on everything a recording is decided on and on what
+the caller's road decides its own recording on -- the start of the launch a
+change request owed, which its launch writes and so no handoff froze, and the
+subject that request was reviewed over, which a recovery reads again before
+finishing it -- and lands beside every field another road wrote; nothing the
+caller staged rides it but what its road names to retire with the report.
+What the caller's road is decided on is held to the caller's own reading of
+the comment, as a recording with no capture is, before the transfer reads the
+comment afresh: a record another road moved or damaged between the caller's
+decision and that read refuses the transfer rather than landing beside it.
 
 The transfer asks first over the comment read afresh and admitted
 (`completion_commits`), so a transfer asked again finds the handoff it
@@ -75,7 +83,7 @@ from orchestrator.workflow.engine import (
     report_delivery_state as _delivery_state,
     report_minting as _minting,
 )
-from orchestrator.workflow.engine.completion_frozen import moved_since
+from orchestrator.workflow.engine.completion_frozen import frozen_over_the_comment, moved_since
 from orchestrator.workflow.engine.pinned_commit_models import CommitOutcome, CommitStatus
 from orchestrator.workflow.engine.report_record_room import (
     CommentOverflow,
@@ -106,15 +114,20 @@ def transfer(
     issue: Issue,
     state: _pinned_state.PinnedState,
     invocation: AgentInvocation,
-    retires: tuple = (),
+    answering: HandedRun | None = None,
 ) -> _commits.CheckpointOutcome:
     """Record `invocation`'s captured report as the issue's delivered report, handing the capture off with it.
 
-    `retires` is what the capture's road retires with its report, as
-    `HandedRun.retires` spells it -- a change request it answers -- written in
-    the same commit. LANDED and STANDING both leave the capture HANDED_OFF:
-    the delivery owns the report, and what the transfer wrote, `retires`
-    included, is laid onto `state` as the comment carries it.
+    `answering` is the caller's own run as its recording is handed one, where
+    it names one: what its road retires with the report (`HandedRun.retires`)
+    -- a change request it answers -- written in the same commit, and what
+    that road's every write recording the report is decided on beside the
+    capture (`HandedRun.decided_on`) -- the start of the launch that request
+    owed, say -- as the caller last read the comment. The route, requirements,
+    round settlement, and delivered input
+    are the capture's own. LANDED and STANDING both leave the capture
+    HANDED_OFF: the delivery owns the report, and what the transfer wrote,
+    what it retires included, is laid onto `state` as the comment carries it.
     """
     commit = _commits.CompletionCommit(gh, issue, state, invocation)
     fresh = commit.fresh()
@@ -122,11 +135,12 @@ def transfer(
         return fresh
     captured = _state.read(fresh)
     if isinstance(captured, _records.CompletionCapture) and captured.invocation == invocation:
-        return _Transfer(commit, captured, fresh).lands(retires)
+        return _Transfer(commit, captured, fresh).lands(answering or _handed_run(captured))
     if captured is None or captured.invocation != invocation:
         return commit.refused(_commits.CheckpointRefusal.ABSENT)
     if captured.stage is _records.CaptureStage.HANDED_OFF:
-        return commit.standing(fresh, captured.stage, (*TRANSFERRED, *dict(retires)))
+        retired = () if answering is None else dict(answering.retires)
+        return commit.standing(fresh, captured.stage, (*TRANSFERRED, *retired))
     return commit.refused(_commits.CheckpointRefusal.RETIRED)
 
 
@@ -206,14 +220,24 @@ class _Transfer:
     captured: _records.CompletionCapture
     fresh: _pinned_state.PinnedState
 
-    def lands(self, retires: tuple) -> _commits.CheckpointOutcome:
+    def lands(self, answering: HandedRun) -> _commits.CheckpointOutcome:
         """Record the delivery the capture's outcome mints, the capture handed off in the same commit.
 
         Refused, with nothing sent, where a record the road's handoff was
-        frozen over has moved since, and where the outcome earns no delivered
-        report.
+        frozen over has moved since, where a record `answering` is decided on
+        reads otherwise afresh than the caller last read it, and where the
+        outcome earns no delivered report. `answering` is the caller's run,
+        retiring and decided on what it names. The recording below is guarded
+        over the fresh reading, so what the caller decided its run on is held
+        to the caller's own reading first -- the comment as its state was last
+        read or written (`completion_frozen.frozen_over_the_comment`), as a
+        recording with no capture is guarded -- and a record another road moved
+        between the caller's decision and this read refuses the transfer
+        rather than landing beside it.
         """
-        moved = moved_since(self.fresh, self.captured.handoff.frozen)
+        moved = moved_since(self.fresh, self.captured.handoff.frozen) or moved_since(
+            self.fresh, frozen_over_the_comment(self.commit.state, answering.decided_on),
+        )
         if moved:
             return self.commit.refused(_commits.CheckpointRefusal.HANDOFF_MOVED, moved)
         carried = _minting.carried_by_outcome(self.commit.gh, self.captured.outcome)
@@ -222,16 +246,20 @@ class _Transfer:
         delivered = _minting.minted_report(
             self.commit.issue.number, self.fresh, carried, _handed_run(self.captured),
         )
-        return self.records(delivered, self.handed(delivered, retires))
+        return self.records(delivered, self.handed(delivered, answering))
 
-    def handed(self, delivered: DeliveredReport, retires: tuple) -> HandedRun:
-        """The run the recording is handed: the road's, retiring `retires` and the pending capture with the report."""
+    def handed(self, delivered: DeliveredReport, answering: HandedRun) -> HandedRun:
+        """The run the recording is handed: the road's, retiring what `answering` does and the capture with the report.
+
+        Decided on the capture, the cycle, every record the road's handoff was
+        frozen over, and what `answering` is decided on.
+        """
         handed_off = _spelling.spelled(_handed_off(self.captured, delivered))
         frozen = (field for field, _digest in self.captured.handoff.frozen)
         return replace(
             _handed_run(self.captured),
-            retires=(*retires, (_records.DEVELOPER_COMPLETION, handed_off)),
-            decided_on=frozenset((*_commits.DECIDED_ON, *frozen)),
+            retires=(*answering.retires, (_records.DEVELOPER_COMPLETION, handed_off)),
+            decided_on=frozenset((*_commits.DECIDED_ON, *frozen, *answering.decided_on)),
         )
 
     def records(self, delivered: DeliveredReport, handed: HandedRun) -> _commits.CheckpointOutcome:

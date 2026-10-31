@@ -21,8 +21,8 @@ its requirements over the issue read afresh, for the final-documentation
 proof, and the owner of which pinned fields keep both of two roads' moves,
 for the developer report's guarded commits. So is the owner that says whether
 a late record claims a reading it cannot produce, for the recovery that holds
-a captured late revision over one, and the owner that recovery hands the
-implementing roads' captures to.
+a captured late revision over one, and the owners that recovery hands the
+implementing roads' and a reviewer's change request's captures to.
 """
 from __future__ import annotations
 
@@ -59,6 +59,13 @@ _FIXING_PACKAGE = "orchestrator.workflow.stages.fixing"
 # and asking the stage directly would make the engine's own import pull the
 # handlers that import it back.
 _FIXING_ROUND_MARKS_OWNER = f"{_FIXING_PACKAGE}.round_marks"
+
+# The owner that finishes a captured fix of a reviewer's change request -- the
+# developer its handoff launched, or the resume that finished its parked round
+# -- which the recovery hands an admitted capture of that road to
+# (`completion_recovery.ROUTE_OWNERS`). Resolved when called for the reason
+# every owner here is: the stage imports the engine.
+_FIXING_CAPTURE_OWNER = f"{_FIXING_PACKAGE}.captured_fixes"
 _IMPLEMENTING_PACKAGE = "orchestrator.workflow.stages.implementing"
 _LATE_RECONCILE_OWNER = f"{_IMPLEMENTING_PACKAGE}.late_reconcile"
 
