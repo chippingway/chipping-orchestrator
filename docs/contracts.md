@@ -51,10 +51,10 @@ supported version-1 records authored by the orchestrator token account; malforme
 are preserved unchanged and never overwritten, duplicated, or silently upgraded. A captured developer completion
 (`developer_completion`) is the pinned record of one returned report alone: only its confirmed capture, or that
 capture read back after an unconfirmed write, carries the report and what its road froze, never a log, analytics,
-a native session, a trajectory, or a host record. Only the first implementation, an implementing resume, and the fix
-a reviewer's change request hands its developer -- the run its handoff launches, and the resume that finishes its
-parked round -- capture one, as their developer returns. The dispatcher's recovery reads a pending capture through
-that read-back alone.
+a native session, a trajectory, or a host record. Only the first implementation, an implementing resume, the fix a
+reviewer's change request hands its developer -- the run its handoff launches, and the resume that finishes its parked
+round -- and the resume answering a pull request's human feedback capture one, as their developer returns. The
+dispatcher's recovery reads a pending capture through that read-back alone.
 
 **Specs:** [state](architecture.md#design-constraints), [restarts](configuration/operations.md#what-survives-a-restart).
 
@@ -63,7 +63,8 @@ that read-back alone.
 [completion captures](../tests/workflow/engine/test_completion_checkpoint.py),
 [capture recovery](../tests/workflow/engine/test_completion_recovery.py),
 [captured attempts](../tests/workflow/stages/implementing/test_captured_attempts.py),
-[captured fixes](../tests/workflow/stages/validating/test_captured_fixes.py).
+[captured fixes](../tests/workflow/stages/validating/test_captured_fixes.py),
+[captured feedback](../tests/workflow/stages/fixing/test_captured_feedback.py).
 
 ## C-02: Workflow labels and transitions
 
@@ -183,10 +184,12 @@ the orchestrator's own posts, that delivered stretch, and bare run-grant control
 above what its two thread reads prove complete -- with the review surfaces scanned from 0. A fix round's settlement
 moves `pr_last_comment_id` over nothing above what its thread and pull-request reads prove complete, so an issue reply
 landing between them is left to the next scan, and a `/orchestrator continue` replay is rebuilt only from the id lists
-its route recorded, a list missing or damaged replaying nothing. An approval or permission is read only as its current
-writers record it whole: no approval record, an approval beside no evidence claim, a `late_approved_sha` with no
-`late_approved_basis` this build can read, and a rewrite permission beside an attempt record with no declared terms are
-each no grounds -- never an earlier producer's default -- and authorize no publication, transfer, or ready notification.
+its route recorded, a list missing or damaged replaying nothing. A captured feedback round's recovery settles only the
+pairs its launch froze, never a rescan, so nothing posted after the scan is recorded as delivered. An approval or
+permission is read only as its current writers record it whole: no approval record, an approval beside no evidence
+claim, a `late_approved_sha` with no `late_approved_basis` this build can read, and a rewrite permission beside an
+attempt record with no declared terms are each no grounds -- never an earlier producer's default -- and authorize no
+publication, transfer, or ready notification.
 An exempt commit with no semantic identity, the settlement's when fingerprinting fails, stays a current record that
 exempts that commit alone. A recorded decomposition outcome is read only whole, under the manifest contract its reply
 was held to: a split child with no stated `depends_on` list, a late slice with no `estimated_added_lines`, and a late
@@ -296,6 +299,7 @@ or lost write interrupted are current state, not historical compatibility.
 [timeout parks](../tests/workflow/stages/documenting/test_timeout_delivery.py),
 [fix settlement](../tests/workflow/stages/fixing/test_cross_read_race.py),
 [replay batches](../tests/workflow/stages/fixing/test_batch.py),
+[recovered batches](../tests/workflow/stages/fixing/test_captured_feedback.py),
 [approval bases](../tests/workflow/stages/implementing/test_late_approval_basis.py),
 [rewrite permissions](../tests/git/base_sync/test_transfers.py),
 [split manifests](../tests/workflow/stages/decomposition/test_manifest.py),
@@ -601,8 +605,9 @@ works past `paused`/`backlog`: a held child is not released, a held parent is ne
 release and the parent's return move only the workflow label, and the walk reads the parent's controls again in front
 of every release, so a hold applied while the poll runs is never written away or worked past. A hold a finished agent
 run meets, or an accounting checkpoint of it that neither landed nor read back, permits that run's usage accounting
-alone, beside a quota retirement it owes and, on the first implementation, an implementing resume, or a reviewer's
-change request's fix, the capture of the report the run finished on: the exit is counted once, as it returns, and
+alone, beside a quota retirement it owes and, on the first implementation, an implementing resume, a reviewer's change
+request's fix, or a pull request feedback round, the capture of the report the run finished on: the exit is counted
+once, as it returns, and
 nothing else of the run -- a
 publication, a label, a park, a consumed input, a session pin, a further launch -- is written or made, nor does the
 count give any stage outcome a replay; the hold the run's return first read is the one honored, whatever a later
@@ -614,9 +619,11 @@ back is handed on to no road until that run's receipt reads back, and the issue'
 requirements, its checkout, and its pull request are read again right before the capture is retired or handed on,
 so a hold applied, or a close, reopening, edit, or source moved or put back, while its readings were taken writes
 nothing; a landed retirement ends its tick, so no stage runs on the snapshot its readings outdated. An applicable
-capture of an implementing road, or of a change request's fix, is finished with no developer launched: only what
-that run was handed and its session are settled, and its report goes through the existing delivery, size gate, and
-publication -- a change request's retired in the very commit that hands its report on, and its round spent once,
+capture of an implementing road, of a change request's fix, or of a pull request feedback round is finished with no
+developer launched: only what that run was handed and its session are settled -- a feedback round's frozen batch,
+reset round, and cleared bookmarks, later feedback left unread -- and its report goes through the existing delivery,
+size gate, and publication -- a change request's retired in the very commit that hands its report on, and its round
+spent once,
 only over its reviewed subject read again save the head its run moved and the issue's controls and requirements,
 its checkout, and its pull request's head read again behind it, damage there -- a settled report and its handoff
 that no longer agree included, judged ahead of the revision reviewed -- or a push meanwhile holding it rather than
@@ -646,7 +653,8 @@ the grant that permits further runs are covered by [C-15].
 [held captures](../tests/workflow/engine/test_completion_holds.py),
 [ready captures](../tests/workflow/stages/decomposition/test_ready_capture.py),
 [held fixes](../tests/workflow/stages/validating/test_captured_fixes.py),
-[held fix resumes](../tests/workflow/stages/fixing/test_captured_resumes.py).
+[held fix resumes](../tests/workflow/stages/fixing/test_captured_resumes.py),
+[held feedback rounds](../tests/workflow/stages/fixing/test_captured_feedback.py).
 
 ## C-11: Credentials and execution boundaries
 

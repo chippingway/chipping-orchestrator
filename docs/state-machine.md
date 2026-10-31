@@ -316,7 +316,8 @@ Beside them sits `developer_completion`, the bounded capture of one finished dev
 delivery by one guarded commit; the implementing stage captures the first implementation's and its resumes' returns
 as they come back, a held one included, and hands an ordinary one on in its own disposition, and so does the fix a
 reviewer's change request hands its developer, on the round's direct run and on the resume that finishes it after a
-park, the request retired in the very commit that hands its report on. A pending one is decided
+park, the request retired in the very commit that hands its report on, and the fixing round answering a pull
+request's human feedback, over the batch its prompt quoted and the round its route resets. A pending one is decided
 by the dispatcher ahead of every handler, behind the reconciliations
 ([the captured-completion recovery](state-machine/delivery-stages.md#the-captured-completion-recovery-every-dispatch)):
 handed, admitted, to its road's owner, retired as invalidated where a reading proves it stale or an auto-rebase
@@ -889,9 +890,11 @@ contract the `CHANGES_REQUESTED` round ahead of it answers: a commit publishes u
 no commit reaches the pull request on the head the branch and its publication receipt are proved to agree on, and either
 handover spends the route's one fix round and hands the issue back to `workflow:validating`, where the reviewer waits
 for the report — the round a report alone buys being the settlement's to write, since a handover nothing confirmed has
-bought none. On the validating route that resume's report is captured as it returns, and a held one is finished by
-the dispatcher's recovery, which takes the park down and settles the reply or command it consumed once; a handed
-change request is never dropped, nor its developer launched again, beside a capture nothing has decided. Full flow:
+bought none. On either route that resume's report is captured as it returns, and a held one is finished by the
+dispatcher's recovery, which takes the park down and settles the reply, command, or feedback batch it consumed once;
+a handed change request is never dropped, nor its developer launched again, beside a capture nothing has decided,
+and a pull request's feedback is never rescanned for it, so a comment posted after the scan stays the next round's
+and a reply on the issue meanwhile retires the capture rather than restamping its report. Full flow:
 [`state-machine/delivery-stages.md`][fixing].
 
 ### `_handle_resolving_conflict` (label `workflow:resolving_conflict`)

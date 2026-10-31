@@ -33,10 +33,12 @@ they stand (`road_refusal`):
   only where the record moved still reads: a moved record whose own reader
   takes its new spelling as nothing it can describe (the rewrite debt, the
   pinned pull request, a returned reviewer verdict, the records a change
-  request's round freezes beside it, whose readers `completion_frozen_reads`
-  keeps -- the feedback anchor, the in_review route's stamp, the
-  code-publication receipt, the settled report and the verification
-  evidence -- and the late records the late-claims owner judges field by
+  request's round freezes beside it and a pull request's feedback round
+  beside its stamp, whose readers `completion_frozen_reads` keeps -- the
+  feedback anchor, the in_review route's stamp, the code-publication receipt,
+  the settled report and the verification evidence, the bookmarked batch's id
+  lists, and the pull request's readers -- and the late records the
+  late-claims owner judges field by
   field -- the measurement evidence, the publication group, a hold's route
   bookkeeping) is damage, not a move, and holds the capture. So does a moved
   record no reader is registered for, since nothing here can tell its move

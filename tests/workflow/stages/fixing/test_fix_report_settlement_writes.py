@@ -11,7 +11,10 @@ request and nothing relabelled. The dispatcher's reconciliation ahead of the
 next handler settles whatever is still owed -- finding the report by its
 receipt rather than posting it again -- and the fixing handler hands the round
 back off the mark: one report, one round, the reader advanced once, and no
-developer run.
+developer run. The same holds for the recovery of a human-feedback round whose
+report was captured as its developer returned under a hold: the dispatch behind
+a recovery its settlement did not land for finishes the round on the reset
+round and the batch the capture froze, and accounts nothing again.
 """
 
 from __future__ import annotations
@@ -21,9 +24,10 @@ from types import MappingProxyType
 from unittest.mock import patch
 
 from orchestrator.workflow.engine import report_records as _records
-from tests.workflow import fix_reports as world
+from tests.workflow import captured_fixes as _held, fix_reports as world
 from tests.workflow.engine import report_commit_test_support as commit_support
-from tests.workflow.fixtures import LABEL_FIXING, LABEL_VALIDATING
+from tests.workflow.fixtures import LABEL_FIXING, LABEL_VALIDATING, accounted
+from tests.workflow.stages.fixing import captured_feedback_support as _feedback
 
 ISSUE = 1_796
 
@@ -137,6 +141,32 @@ class UnlandedSettlementTest(unittest.TestCase, world._FixReportMixin):
             ),
             (1, None, self.revision, 1, answered, None, (ISSUE, LABEL_VALIDATING)),
         )
+
+
+class CapturedFeedbackSettlementTest(unittest.TestCase, _feedback.FeedbackTicks):
+    """A held human-feedback round's recovery, its post or settlement unconfirmed or refused, finished once."""
+
+    def test_a_recovery_finishes_once(self) -> None:
+        # The recovery hands the held report on and posts it, and GitHub loses
+        # the post's answer, lands the settlement and loses its answer, or
+        # takes another road's evidence under the settlement's edit: the tick
+        # ends with the report on the pull request. The dispatch behind it
+        # settles what is still owed, finding the report by its receipt, and
+        # hands the round back: one report, the round reset, the batch the
+        # capture froze settled once, no developer run, and the run's one
+        # exit accounted once.
+        for during in (_LostPost, _LostSettlement, _MovedUnderTheSettlement):
+            with self.subTest(during=during.__name__):
+                asked = self.opened(ISSUE, PR, committed=False)
+                self.held_round(committed=False)
+                with during(self):
+                    self.unheld(**_held.UNMOVED)
+                self.assertEqual(self.reports(), 1)
+                self.assertEqual(self.standing()[-1], LABEL_FIXING)
+                self.dispatched(**_held.UNMOVED)[RUN_AGENT].assert_not_called()
+                self.assertEqual(self.standing(), _feedback.HANDED_BACK)
+                self.assertEqual(self.fields(PR_LAST_COMMENT_ID, SETTLED_ROUND), (asked, None))
+                self.assertEqual(accounted(self.pinned()), (1, 1))
 
 
 class _LostPost:

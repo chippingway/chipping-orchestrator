@@ -13,7 +13,9 @@ its report is captured on the change request's road as the direct round's is
 discards the return leaves it for the dispatcher's recovery to finish
 (`captured_fixes`) rather than for a second developer to write again. The
 in_review route's resume, which answers a pull request's human feedback, is
-another road's and freezes nothing here.
+launched on that feedback's own road instead (`feedback_road`), which this
+owner hands it to, so every resume this stage makes carries the one road its
+route names.
 
 What the road freezes is what its settlement applies once the report is handed
 on, none of which the run's output can say afterwards: the requirements the
@@ -52,6 +54,7 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.stages.fixing import (
     feedback as _feedback,
+    feedback_road as _feedback_road,
     models as _models,
     reporting as _reporting,
     state as _state,
@@ -93,14 +96,14 @@ def road(
     checkout: RoadCheckout,
     requirements: str,
     owed: _late_gate_models._Spends,
-) -> CompletionRoad | None:
-    """The change request's road the resume over `delivered` is launched on; None on the in_review route.
+) -> CompletionRoad:
+    """The road the resume over `delivered` is launched on: the change request's, or the in_review route's feedback's.
 
     `requirements` is the fingerprint the run is handed and its report
     stamped with, and `owed` the round settlement the route's report rides.
     """
     if ctx.state.get(_state._PENDING_FIX_AT) is not None:
-        return None
+        return _feedback_road.road(ctx, delivered, checkout, requirements, owed)
     return CompletionRoad(_records.CompletionHandoff(
         route=_routes.CompletionRoute.REQUESTED_CHANGES,
         origin=WorkflowLabel.FIXING,

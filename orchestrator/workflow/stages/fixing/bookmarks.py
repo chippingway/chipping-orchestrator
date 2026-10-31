@@ -48,6 +48,16 @@ from __future__ import annotations
 from orchestrator.workflow.stages.fixing import state as _state
 from orchestrator.workflow.stages.validating import state as _validating_state
 
+# The id lists the in_review route records, one per id space: the two
+# IssueComment surfaces' shared one, the inline review comments', and the
+# review summaries'. The only thing a replay rebuilds a surface from, and so
+# what the pull request feedback road's capture is frozen over
+# (`feedback_road`).
+_ISSUE_IDS = "pending_fix_issue_ids"
+_REVIEW_IDS = "pending_fix_review_ids"
+_SUMMARY_IDS = "pending_fix_review_summary_ids"
+BATCH_IDS = (_ISSUE_IDS, _REVIEW_IDS, _SUMMARY_IDS)
+
 # Every bookmark one fix route leaves, and the value clearing it writes.
 # Spelled as pairs rather than as a sequence of writes, so a caller that has
 # to hand the clear somewhere else -- the size gate, which applies a route's
@@ -61,9 +71,9 @@ _CLEARED_BOOKMARKS = (
     ("pending_fix_issue_max_id", None),
     ("pending_fix_review_max_id", None),
     ("pending_fix_review_summary_max_id", None),
-    ("pending_fix_issue_ids", None),
-    ("pending_fix_review_ids", None),
-    ("pending_fix_review_summary_ids", None),
+    (_ISSUE_IDS, None),
+    (_REVIEW_IDS, None),
+    (_SUMMARY_IDS, None),
     ("pending_fix_reviewer_comment_id", None),
 )
 
@@ -151,7 +161,7 @@ def _reconstruct_issue_space(gh, issue, pr, state, comments) -> tuple:
     fingerprint never saw, and a report the settlement then refuses. `None` is
     a caller holding no read at all, which takes one here.
     """
-    recorded = _pending_fix_id_set(state, "pending_fix_issue_ids")
+    recorded = _pending_fix_id_set(state, _ISSUE_IDS)
     if not recorded:
         return [], []
     return (
@@ -169,8 +179,8 @@ def _reconstruct_review_surfaces(gh, pr, state) -> tuple:
     its bookmark names something, since the fetch is a request and a round
     that recorded no review feedback has nothing on either to rebuild.
     """
-    inline_ids = _pending_fix_id_set(state, "pending_fix_review_ids")
-    summary_ids = _pending_fix_id_set(state, "pending_fix_review_summary_ids")
+    inline_ids = _pending_fix_id_set(state, _REVIEW_IDS)
+    summary_ids = _pending_fix_id_set(state, _SUMMARY_IDS)
     return (
         _matched(gh.pr_inline_comments_after(pr, None), inline_ids)
         if inline_ids else [],

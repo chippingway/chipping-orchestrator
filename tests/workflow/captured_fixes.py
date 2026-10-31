@@ -16,8 +16,9 @@ it, reads it. Every later tick is a whole dispatch
 captured completion ahead of the stage handler.
 
 What a lost process or a lost answer leaves is made at the one edit that hands
-a capture off (`LostAtTheHandoff`): the process gone before it is sent, gone
-once it landed, or the edit landing with its answer lost.
+a capture off (`LostAtTheHandoff`), or at the one that takes it: the process
+gone before it is sent, gone once it landed, or the edit landing with its
+answer lost.
 """
 from __future__ import annotations
 
@@ -137,11 +138,16 @@ class HeldUnder:
 
 
 class LostAtTheHandoff:
-    """The strict edit, at the one handing a capture off: the process lost before or after it, or its answer lost."""
+    """The strict edit, at the one handing a capture off: the process lost before or after it, or its answer lost.
 
-    def __init__(self, github, lost: str) -> None:
+    `stage` names another edit to lose it at instead, by the stage it moves
+    the capture to: `PENDING` is the one taking the capture.
+    """
+
+    def __init__(self, github, lost: str, stage: str = HANDED_OFF) -> None:
         self._github = github
         self._lost = lost
+        self._stage = stage
 
     def __call__(self, issue, state, *, over: dict):
         """Send the edit, losing the process or the answer around the one that hands the capture off."""
@@ -157,9 +163,9 @@ class LostAtTheHandoff:
         return sent
 
     def _hands_off(self, state) -> bool:
-        """Whether `state`, a pinned state or the record an edit is sent over, carries a handed-off capture."""
+        """Whether `state`, a pinned state or the record an edit is sent over, carries a capture at the edit's stage."""
         captured = state.get(CAPTURED) or {}
-        return captured.get(STAGE) == HANDED_OFF
+        return captured.get(STAGE) == self._stage
 
 
 class ReadAt:

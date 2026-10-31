@@ -1001,10 +1001,11 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                    finishes the first implementation's or a
                                    resume's through its own disposition, the
                                    fixing stage a reviewer's change request's
-                                   fix through that round's own finish, no
-                                   developer run either way; any other road
-                                   has none in this build, so its handler is
-                                   HELD;
+                                   fix through that round's own finish and a
+                                   pull request feedback round through its
+                                   resume's own roads, no developer run on
+                                   any of them; any other road has none in
+                                   this build, so its handler is HELD;
                                    a proof it is stale
                                    (ended, relabelled, a frozen record
                                    moved to a spelling its reader takes,

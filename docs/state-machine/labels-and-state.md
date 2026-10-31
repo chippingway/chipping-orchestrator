@@ -1961,7 +1961,11 @@ The keys that matter for the state machine fall into a few groups:
   continue buys on the far side of a park that round took (`stages/fixing/resume_road.py`), frozen over
   `pending_fix_at`, that anchor, `pr_number`, the code-publication receipt, and the settled report pair and every
   verification evidence record the request was reviewed over -- and the round's own disposition hands it on, the
-  direct run's with the request it answers retired in the transfer's commit. No other road captures one yet. Only a
+  direct run's with the request it answers retired in the transfer's commit; and so it does as the fixing stage's
+  resume answering a pull request's human feedback returns, on the `pr_feedback` road
+  (`stages/fixing/feedback_road.py`), frozen over `pending_fix_at`, the `pending_fix_*_ids` lists, `pr_number`, the
+  code-publication receipt, and the pull request's three readers, its `watermarks` the batch its prompt quoted and its
+  `spends` the reset round and cleared bookmarks. No other road captures one yet. Only a
   return the
   outcome owner's completed-run reader answers READY or VERIFIED for, whose backend recorded no unfinished tool steps
   or terminal failure, that a tracked spawn
@@ -2043,8 +2047,10 @@ The keys that matter for the state machine fall into a few groups:
   finishes it with no developer run; the fixing stage's for a reviewer's change request's `requested_changes` road
   (`stages/fixing/captured_fixes.py`), which finishes the direct round through `requested_changes._finish_requested_fix`
   and a parked round's resume through its own roads, each only once its reviewed subject reads again, with no developer
-  or reviewer run and the request retired in the commit that hands its report on; and none for any other road in this
-  build, so that stage is held; stale -- its
+  or reviewer run and the request retired in the commit that hands its report on, and a pull request's `pr_feedback`
+  round through those same roads with no subject to re-read -- the issue, checkout, and pull request read again behind
+  the pull request the owner fetches -- settling only the batch, round, and bookmarks its road froze; and none for any
+  other road in this build, so that stage is held; stale -- its
   road's pull request, report debt, or adjudication gone among the proofs -- it is retired `invalidated` by a guarded
   commit owning the capture alone, its invocation kept, and held to the whole reading the proof was taken over, so a
   comment that moved since -- a field it lacked restored included -- refuses it, and the tick ends behind it, the stage
@@ -3680,7 +3686,12 @@ The keys that matter for the state machine fall into a few groups:
   replay is delivered and so is settled: its issue-thread half advances `last_action_comment_id` and the delivered
   stretch beside the PR-side cursor and its PR-conversation half advances that PR-side cursor alone — and what the retry
   settles is that batch JOINED with the fresh rescan, so the bare `/orchestrator continue` the prompt deliberately drops
-  is still recorded as answered.
+  is still recorded as answered. A round on this route captures its report on the `pr_feedback` road, frozen over
+  `pending_fix_at`, the three id lists, `pr_number`, the code-publication receipt, and `pr_last_comment_id`,
+  `pr_last_review_comment_id`, and `pr_last_review_summary_id` as the comment spells them at its launch
+  (`stages/fixing/feedback_road.py`): nothing moves any of them while the capture holds the stage, so a capture's
+  recovery reads a list or reader that moved -- each read as a list of whole ids, a whole id, or `null` -- as another
+  road's, and one spelled as anything else as damage that holds it.
 
   The `validating → fixing` route instead records a single `pending_fix_reviewer_comment_id` — the id of the
   PR conversation comment carrying the reviewer's CHANGES_REQUESTED feedback — and does NOT set `pending_fix_at` (that

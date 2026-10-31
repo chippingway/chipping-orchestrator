@@ -18,12 +18,14 @@ just consumed as fresh drift and resume a second time on input already handled.
 
 Three refusals sit between the finished run and any disposition, and all bail
 WITHOUT writing pinned state so the whole tick is re-decidable next time: a
-launch nothing invoked, a shutdown kill, and an operator pausing mid-run. On
-the validating route the launch carries the reviewer's change request's road
-(`resume_road`), so a report a paused run finished on is captured beside its
-accounting as it returned, and the dispatcher's recovery finishes it through the
-same tail a live run takes (`_finishes_the_run`) once the hold comes off. None
-of them delivered the batch, so none of them may settle it -- and a shutdown
+launch nothing invoked, a shutdown kill, and an operator pausing mid-run. The
+launch carries the road its route names (`resume_road`) -- the reviewer's
+change request's on the validating route, and the pull request feedback's on
+the in_review route (`feedback_road`) -- so a report a paused run finished on
+is captured beside its accounting as it returned, and the dispatcher's recovery
+finishes it through the same tail a live run takes (`_finishes_the_run`) once
+the hold comes off. None of them delivered the batch, so none of them may
+settle it -- and a shutdown
 kill must cover the new-commit case too: falling through would consume the
 feedback while the commit sits unpushed, and the next tick would see nothing to
 do and bounce a PR head that is missing the fix. Leaving it on disk is what
@@ -195,10 +197,12 @@ def _run_fixing_resume(
     PUSHES what such a run left. Read as "committed nothing", the work goes out
     under a report written before it existed.
 
-    On the validating route the launch carries the reviewer's change request's
-    road (`resume_road`), frozen over that same fingerprint, the batch, and
-    `owed`, the round settlement the route's report rides, so a return that
-    finished on its report is captured as it comes back.
+    The launch carries the road its route names (`resume_road`): the
+    reviewer's change request's on the validating route, and the pull request
+    feedback's on the in_review route (`feedback_road`), each frozen over that
+    same fingerprint, the batch, and `owed`, the round settlement the route's
+    report rides, so a return that finished on its report is captured as it
+    comes back.
     """
     wt = _dev_worktree._ensure_resume_worktree(ctx.spec, ctx.issue, ctx.state)
     checkout = _completion_roads.RoadCheckout(
@@ -380,12 +384,11 @@ def _finishes_the_run(
 ) -> None:
     """Hold, record, and dispose of a finished run whose prompt reached an agent.
 
-    Shared by the live resume behind its run and by the recovery of a
-    validating-route run whose return was captured and held
-    (`captured_fixes`), which hands in the pairs its road froze as `consumed`:
-    each run is answered on the same roads, in the same order, whichever tick
-    finishes it. `routed` is the in_review route, the only one the ACK fast
-    path answers.
+    Shared by the live resume behind its run and by the recovery of a run on
+    either route whose return was captured and held (`captured_fixes`), which
+    hands in the pairs its road froze as `consumed`: each run is answered on
+    the same roads, in the same order, whichever tick finishes it. `routed` is
+    the in_review route, the only one the ACK fast path answers.
 
     The two replies this round may act on no half of are held ahead of every
     road below. A message that reached for the report contract and MISSED is
@@ -460,9 +463,9 @@ def _resume_fixing_and_dispatch_result(
     )
 
     # What this route owes for the candidate, frozen BEFORE anything is
-    # written -- and before the launch, whose road the validating route's
-    # report rides: the bookmarks the consumed batch clears and the round the
-    # fix lands on. Read once, so a second reading taken after the write that
+    # written -- and before the launch, whose road either route's report
+    # rides: the bookmarks the consumed batch clears and the round the fix
+    # lands on. Read once, so a second reading taken after the write that
     # already applied it cannot count the same round twice.
     owed = _spends_fix_round(ctx.state, pending_fix_at_was_set)
     run = _run_fixing_resume(

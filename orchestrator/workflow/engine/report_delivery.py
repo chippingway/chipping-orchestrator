@@ -82,8 +82,9 @@ transaction it becomes, once the push has reached a pull request, is
 `report_binding`'s. A captured completion's transfer records its report
 through the same write (`records_the_report`), the capture handed off in that
 very commit (`completion_handoff`) -- which is how the implementing seam,
-and both halves of a reviewer's change request's fix loop, record a run whose
-report its coordinator captured as it returned
+both halves of a reviewer's change request's fix loop, and the fixing stage's
+resume answering a pull request's human feedback record a run whose report
+its coordinator captured as it returned
 (`stages/implementing/captured_report`).
 """
 from __future__ import annotations

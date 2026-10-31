@@ -456,6 +456,22 @@ answered for a report no reviewer has is the one reading that fork exists to ref
 is the report's own record, beside the round and the `pending_fix_*` bookmarks, and the write that completes the
 publication applies all of them.
 
+Those pairs are frozen before the launch, not after the run. A round answering a pull request's human feedback
+launches its developer on the `pr_feedback` road (`workflow/stages/fixing/feedback_road.py`), which freezes the
+batch's pairs -- each surface to the newest id its prompt quoted, `pr_last_comment_id` bounded by what the scan's two
+reads prove complete, the delivered stretch carried only where it already reached `last_action_comment_id` -- the
+requirements fingerprint off the scan's read, the reset round with the bookmarks cleared, and a digest of the route's
+stamp, its id lists, the pull request, the code-publication receipt, and the pull request's three readers. A run that
+finishes on a report is captured with them as it returns, so a live hold, a lost write, or a restart that keeps the
+tick from recording it leaves the batch unconsumed and the capture for the dispatcher's recovery, which records the
+report from those pairs alone and never from a rescan: a comment posted after the scan -- while the developer was
+out, while the capture waited, or as the recovery published -- stays unread for the next `in_review` scan, a
+delivered stretch left short of the reply boundary is never carried over the comments beneath it no prompt was
+handed, and an issue-thread reply landing meanwhile is a requirements move that retires the capture rather than a
+revision its report is restamped with. An `ACK:`, a
+question, a timeout, or a failure is no report, so it is captured for nothing: a held one is accounted and the batch
+is answered afresh by the next tick.
+
 While that publication is outstanding the readers therefore say less than they usually do, and the record's frozen
 pairs are what the stage asks instead: a rescan with nothing above them is the prompt the outstanding report answers,
 so no scan resumes a second developer over it and no park clears on it. A comment that landed ABOVE those pairs is
@@ -578,12 +594,15 @@ division of labour between the developer and the orchestrator never changes.
   launches, whose report's transfer retires the request it answers in the same commit, and the resume a reply or a
   continue buys on the far side of a park that round took, whose report carries the reply or command it consumed;
   either spends the round once, by the publication or by the report's settlement, a report alone replacing the one
-  the pull request carried on the same head for a fresh review. No other road captures one yet. A return a
-  live hold kept is left captured, with nothing it was handed consumed -- a change request stays handed, its round
-  unspent -- and its recovery is asked ahead of every stage handler, before an unreported checkout, a drift resume, a
-  launch, or a review resume could lose or repeat the captured work: it settles exactly the excerpt, reply batch, or
-  retry commands the run was handed and the session it ran, launches no developer, and supplies no verdict,
-  verification, approval, or docs pass of its own
+  the pull request carried on the same head for a fresh review. So does the fixing stage's resume answering a pull
+  request's human feedback, on the `pr_feedback` road, whose report carries the batch its prompt quoted and the
+  route's reset round and cleared bookmarks, a report alone superseding the one its approval covered. No other road
+  captures one yet. A return a live hold kept is left captured, with nothing it was handed consumed -- a change
+  request stays handed, its round unspent, and a feedback batch unread -- and its recovery is asked ahead of every
+  stage handler, before an unreported checkout, a drift resume, a launch, a review resume, or a feedback rescan could
+  lose or repeat the captured work: it settles exactly the excerpt, reply batch, retry commands, or feedback batch the
+  run was handed and the session it ran, launches no developer, and supplies no verdict, verification, approval, or
+  docs pass of its own
   ([captured-completion recovery](../state-machine/delivery-stages.md#the-captured-completion-recovery-every-dispatch)).
 - **Review-subject freshness.** No reviewer spawns while a report is owed. Each is handed the report the pull request
   carries, re-read where it settled and quoted whole, and what it reviewed — pull request, head, requirements, and

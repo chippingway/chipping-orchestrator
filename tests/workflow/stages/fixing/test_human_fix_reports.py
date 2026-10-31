@@ -68,6 +68,14 @@ AGENT_RUNS_USED = "agent_runs_used"
 
 CURRENT = "current"
 
+# The one field a round's report is captured in, and the stage of a capture
+# the delivery has taken over.
+CAPTURED = "developer_completion"
+
+STAGE = "stage"
+
+HANDED_OFF = "handed_off"
+
 # The round the issue arrives carrying. The reviewer approved it -- which is
 # what put the issue on `in_review` at all -- so the count behind that approval
 # is what this route's handover drops rather than advances.
@@ -163,6 +171,10 @@ class HumanFeedbackHandoverTest(unittest.TestCase, human._HumanFixReportMixin):
                     ),
                     (*HANDED_BACK, None, None),
                     "the route's own bookkeeping is closed by the handover",
+                )
+                self.assertEqual(
+                    self.pinned()[CAPTURED][STAGE], HANDED_OFF,
+                    "the report was captured as the run returned and handed to the delivery",
                 )
 
     def test_a_human_published_report_is_verified(self) -> None:
@@ -264,6 +276,10 @@ class HumanFeedbackRefusalTest(unittest.TestCase, human._HumanFixReportMixin):
                 self.assertEqual(
                     self.pinned()[PENDING_FIX_AT] is None, not parked,
                     "only the road that ends the round drops the bookmarks",
+                )
+                self.assertNotIn(
+                    CAPTURED, self.pinned(),
+                    "a reply that finished on no report is captured for nothing",
                 )
 
     def test_an_edit_mid_run_is_not_answered(self) -> None:

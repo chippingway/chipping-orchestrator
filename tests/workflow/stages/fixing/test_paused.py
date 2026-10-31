@@ -5,9 +5,11 @@
 before the run's results are published. `_resume_dev_with_text(pause_guard=True)`
 re-fetches the issue after the run returns (`gh.get_issue`) and, on a hit, the
 handler returns before the delivery settlement, the ACK fast path,
-`_handle_dev_fix_result`, or any relabel / pinned-state write -- so the feedback
-stays unconsumed and the committed work stays on the branch until the label is
-removed, when a later tick re-discovers the feedback and republishes."""
+`_handle_dev_fix_result`, or any relabel / pinned-state write past the run's
+charge, its accounting, and the capture of the report it finished on -- so the
+feedback stays unconsumed and the committed work stays on the branch until the
+label is removed, when the dispatcher's recovery publishes that work under the
+captured report with no developer running again."""
 
 from __future__ import annotations
 
@@ -17,6 +19,7 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator import config
 from orchestrator.github.labels import PAUSED_LABEL
+from orchestrator.workflow.engine import completion_routes as _routes, issue_processing as _issue_processing
 from tests.support.fakes import (
     FakeComment,
     FakeGitHubClient,
@@ -26,7 +29,16 @@ from tests.support.fakes import (
     FakeUser,
     make_issue,
 )
-from tests.workflow.fixtures import Launched, _agent, _PatchedWorkflowMixin
+from tests.workflow import drift_reports as _drift_world
+from tests.workflow.fixtures import (
+    _FAKE_WT,
+    _TEST_SPEC,
+    AGENT_RUN_WRITES,
+    Launched,
+    _agent,
+    _PatchedWorkflowMixin,
+    accounted,
+)
 from tests.workflow.stages.fixing import fixing_test_support as support
 from tests.workflow.stages.fixing.prompt_expectations import (
     only_prompt,
@@ -42,6 +54,9 @@ DEV_SESSION = "dev-sess"
 TRIGGER_ID = 2000
 INITIAL_COMMENT_WATERMARK = 1999
 DEBOUNCE_SECONDS = 600
+
+# The one field a held run's report is captured in, beside its accounting.
+CAPTURED = "developer_completion"
 
 
 def _paused_view(number: int) -> object:
@@ -100,7 +115,15 @@ def _assert_fixing_pause_preserves_state(
     mocks["_push_branch"].assert_not_called()
     test_case.assertEqual(github.label_history, [])
     test_case.assertEqual(github.posted_comments, [])
-    pinned_data = before.held(test_case, github, ISSUE)
+    pinned_data = before.held(
+        test_case, github, ISSUE, writes=AGENT_RUN_WRITES + 1, beside=(CAPTURED,),
+    )
+    # The report the run finished on, captured on the pull request feedback
+    # road and owned by nothing else yet.
+    test_case.assertEqual(
+        (pinned_data[CAPTURED]["stage"], pinned_data[CAPTURED]["route"]),
+        ("pending", _routes.CompletionRoute.PR_FEEDBACK),
+    )
     test_case.assertEqual(
         pinned_data.get("pr_last_comment_id"),
         INITIAL_COMMENT_WATERMARK,
@@ -157,12 +180,18 @@ class FixingLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
             before,
         )
 
-    def test_unpause_republishes_via_resume(self) -> None:
-        # End-to-end: tick 1 is frozen by a live pause and leaves the feedback
-        # unconsumed; tick 2, after the operator removes `paused`, re-discovers
-        # the same feedback, resumes the dev, pushes the fix, and flips to
-        # `validating` -- proving the pause preserved exactly enough state to
-        # resume cleanly.
+    def test_unpause_publishes_the_captured_report(self) -> None:
+        # End-to-end: tick 1 is frozen by a live pause, which leaves the
+        # feedback unconsumed and the report the run finished on captured;
+        # tick 2, after the operator removes `paused`, is a whole dispatch,
+        # whose recovery pushes the commit under that report and flips to
+        # `validating` with no developer launched -- the batch the pause left
+        # unconsumed settled once, the round reset, and the run's exit
+        # accounted once. The fetch carries the same thread the round was
+        # handed, because the admission and the settlement behind the push
+        # both re-read the issue to say whether its requirements have moved:
+        # a view missing the very comment this round answered would read as
+        # an edit nobody made.
         gh = FakeGitHubClient()
         issue = _seed_fixing_pause(gh)
 
@@ -179,34 +208,34 @@ class FixingLivePauseTest(unittest.TestCase, _PatchedWorkflowMixin):
             )
         self.assertEqual(gh.label_history, [])
 
-        # Tick 2: `paused` removed -> the fresh fetch is clean, so the resume's
-        # pushed fix publishes and relabels to `validating`. The fetch carries
-        # the same thread the round was handed, because the settlement behind
-        # the push re-reads the issue to say whether its requirements have
-        # moved: a view missing the very comment this round answered would
-        # read as an edit nobody made and hold the report back.
         unpaused = make_issue(ISSUE, label="workflow:fixing")
         unpaused.comments.append(FEEDBACK)
         with (
             patch.object(config, "IN_REVIEW_DEBOUNCE_SECONDS", DEBOUNCE_SECONDS),
             patch.object(gh, "get_issue", MagicMock(return_value=unpaused)),
         ):
-            mocks = self._run_fixing(
-                gh,
-                issue,
-                run_agent=_agent(session_id=DEV_SESSION, last_message=support.PUSHED_FIX_MESSAGE),
-                head_shas=(support.SHA_BEFORE, support.SHA_AFTER),
-                push_branch=True,
+            mocks = self._run(
+                lambda: _issue_processing._process_issue(gh, _TEST_SPEC, unpaused),
+                run_agent=MagicMock(),
+                head_shas=(support.SHA_AFTER,),
+                push_branch=_drift_world._LandingPush(gh.get_pr(PR_NUMBER)),
+                issue_checkout=_FAKE_WT,
             )
 
+        mocks["run_agent"].assert_not_called()
         mocks["_push_branch"].assert_called_once()
-        # The batch the pause left unconsumed is the batch this tick delivers.
-        self.assertEqual(only_prompt(mocks), pr_feedback_prompt([FEEDBACK]))
         self.assertIn((ISSUE, "workflow:validating"), gh.label_history)
         pinned_data = gh.pinned_data(ISSUE)
-        self.assertEqual(pinned_data.get("review_round"), 0)
-        self.assertIsNone(pinned_data.get("pending_fix_at"))
-        self.assertGreaterEqual(pinned_data.get("pr_last_comment_id"), TRIGGER_ID)
+        self.assertEqual(
+            (
+                pinned_data[CAPTURED]["stage"],
+                pinned_data.get("review_round"),
+                pinned_data.get("pending_fix_at"),
+                pinned_data.get("pr_last_comment_id"),
+                accounted(pinned_data),
+            ),
+            ("handed_off", 0, None, TRIGGER_ID, (1, 1)),
+        )
 
 
 if __name__ == "__main__":
