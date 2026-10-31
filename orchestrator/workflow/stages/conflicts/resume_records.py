@@ -57,11 +57,14 @@ A report whose run left a head nobody could read is refused before it is
 recorded at all (`_refuses_an_unread_head`): with no commit to name, no record
 could hold it to one, and whatever the checkout carries by the time a later
 tick reads it -- a commit gained since included -- would become the head it is
-published with or bound to.
+published with or bound to. A run whose report its own capture still holds is
+held instead, nothing written, since the capture names the commit the report
+is about and a later reading may prove it.
 """
 from __future__ import annotations
 
 from orchestrator import config
+from orchestrator.agents.models import AgentResult
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     report_delivery as _report_delivery,
@@ -69,6 +72,7 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.late_split import formats as _formats, payloads as _payloads
 from orchestrator.workflow.stages.conflicts import models as _models, state as _state
+from orchestrator.workflow.stages.implementing.captured_report import parks_beside_the_capture
 
 _ANOTHER_HEAD_PARK = (
     "{mentions} the developer report this issue saved for PR #{pr} describes "
@@ -163,17 +167,25 @@ def _refuses_another_head(ctx: _models._ConflictContext, head: str) -> bool:
     return True
 
 
-def _refuses_an_unread_head(ctx: _models._ConflictContext, head: str) -> bool:
-    """Park a report whose run left a head nobody could read; True where it parked.
+def _refuses_an_unread_head(ctx: _models._ConflictContext, head: str, agent_result: AgentResult) -> bool:
+    """Park a report whose run left a head nobody could read; True where it parked or held.
 
-    `head` is what the run left, read once behind it. The report is about
-    that commit and nothing can say which it was, so nothing is recorded and
-    nothing pushed. The run's work is marked undescribed, which the recovered
-    push refuses to carry out, and the reply to the park resumes the session
-    for a report of the branch as it stands.
+    `head` is what `agent_result`'s run left, read once behind it. The report
+    is about that commit and nothing can say which it was, so nothing is
+    recorded and nothing pushed. The run's work is marked undescribed, which
+    the recovered push refuses to carry out, and the reply to the park
+    resumes the session for a report of the branch as it stands.
+
+    Unless the run's own capture still holds that report: a reading that did
+    not return is no proof against the commit the capture names, so the
+    capture is kept and the tick held with nothing written or parked
+    (`captured_report.parks_beside_the_capture`), for a later reading to
+    publish it.
     """
     if _commit(head):
         return False
+    if not parks_beside_the_capture(ctx.gh, ctx.issue, ctx.state, agent_result, unread=True):
+        return True
     ctx.state.set(_report_delivery.UNREPORTED_WORK, True)
     _report_delivery.parks_an_undeliverable_report(
         ctx.gh, ctx.issue, ctx.state, _UNREAD_HEAD_PARK.format(mentions=config.HITL_MENTIONS),

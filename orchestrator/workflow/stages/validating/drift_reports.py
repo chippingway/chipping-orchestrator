@@ -39,6 +39,18 @@ code in it -- the drift prompt asks for a report whenever the report has to
 change -- and it goes onto the head the pull request already carries, needing
 no new commit, once the tree is proved to carry nothing that head does not.
 
+A drift resume launched on its road leaves its report captured as it returns
+(`implementing/drift_road`), so the recording here is that capture's transfer
+into the delivery (`implementing/captured_report`), minted from what the
+capture kept and handed off in the very commit that records it, and recorded
+from the run as ever where no capture of it stands. A park that hands the
+report to nobody -- the loose tree beside a report with no commit -- withdraws
+the capture first, so the reply answering it is captured afresh. The status of
+the checkout a captured run's commit goes out from is read ahead of that
+transfer (`_proved_ahead_of_the_handoff`), so a status that establishes
+nothing keeps the capture for a reading that returns rather than parking past
+a report already handed off.
+
 Nothing is bound here. What happens to the report once it is recorded -- bound
 to the publication and settled, `report_settlement`'s, asked by the caller once
 its own bookkeeping is written, or held in front of the reviewer until it is,
@@ -47,10 +59,13 @@ stands beside a label still claiming the approval it made stale.
 """
 from __future__ import annotations
 
+from dataclasses import replace
+
 from github.Issue import Issue
 
 from orchestrator import config
 from orchestrator.agents.models import AgentResult
+from orchestrator.config import models as _config_models
 from orchestrator.git.verification import status as _worktree_status
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
@@ -63,11 +78,12 @@ from orchestrator.workflow.engine import (
     report_record_state as _record_state,
 )
 from orchestrator.workflow.stages.implementing import (
+    captured_report as _captured_report,
     checkout_parks as _checkout_parks,
     parks as _dev_parks,
     session_read as _session_read,
 )
-from orchestrator.workflow.stages.validating import models as _models, state as _state
+from orchestrator.workflow.stages.validating import models as _models, state as _state, stranded as _stranded
 
 _REPORTS = (_outcome_models._ReadyReport, _outcome_models._VerifiedReport)
 
@@ -134,7 +150,7 @@ def _records_the_run(
     takes, since the quota and its reset are what the operator waits out and
     the missing-report park would refuse the bare continue that retries it.
     """
-    if _report_delivery.recording_stops_the_tick(
+    if _captured_report.recording_stops_the_tick(
         gh, issue, state, run.agent_result, run.handed,
     ):
         return True
@@ -152,6 +168,63 @@ def _records_the_run(
         _UNFINISHED_PARK.format(mentions=config.HITL_MENTIONS),
     )
     return True
+
+
+def _proved_ahead_of_the_handoff(
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    state: PinnedState,
+    run: _models._DevFixRun,
+) -> _models._DevFixRun | None:
+    """The run read as its own capture names it, its checkout proved ahead of the handoff; None where that holds.
+
+    The report is recorded ahead of the gate and the push, and a run whose
+    own capture stands pending records it by handing that capture on -- the
+    baseline and what its road settles riding the same commit. Every reading
+    the disposition is decided on is therefore taken before that handoff, and
+    taken once. The head the run left is the one its capture names, read as
+    it returned, never a second reading a HEAD that will not read would
+    answer as no commit.
+
+    Where no caller names the head the push replaces, where the branch stands
+    against its publication is proved next -- for a commit the run made,
+    whose lease it is, and for a run that committed nothing over a branch an
+    earlier run may have left unpushed alike -- and handed to the publication
+    rather than proved again behind the handoff. A status that established
+    nothing during that proof keeps the capture and holds the tick, nothing
+    written, for the next dispatch to read again
+    (`parks_beside_the_capture`): nothing may be pushed out of that checkout,
+    and a park taken after the handoff would strand the report it describes.
+    For a run that committed nothing, any proof that did not return holds the
+    same way, since it is no evidence there is nothing to publish. A commit
+    the run made is the evidence in hand, so a fetch or a count that did not
+    return, or a checkout that moved under it, leaves it leased to the head
+    the run began on, as `dev_fix._publishable_dev_fix` leases any other.
+
+    The status of the checkout is read last, so the one the publication
+    proves the tree on is the latest reading taken ahead of the handoff, and
+    one that establishes nothing holds the tick the same way. What the
+    readings found rides the run, for the publication to decide on rather
+    than reading any of it again. A run with no capture of its own is
+    recorded and proved as ever.
+    """
+    source = _captured_report.pending_source(state, run.agent_result)
+    if not source:
+        return run
+    captured = replace(run, after_sha=run.after_sha or source)
+    evidence = None
+    if not captured.published_head:
+        evidence = _stranded._stranded_evidence(spec, captured.worktree, state, issue)
+        committed = captured.after_sha != captured.before_sha
+        if evidence.unread_tree or (evidence.unread and not committed):
+            _captured_report.parks_beside_the_capture(gh, issue, state, run.agent_result, unread=True)
+            return None
+    tree = _worktree_status._worktree_status(run.worktree)
+    if not (tree.readable or tree.paths):
+        _captured_report.parks_beside_the_capture(gh, issue, state, run.agent_result, unread=True)
+        return None
+    return replace(captured, tree=tree, evidence=evidence)
 
 
 def _withholds_the_stranded(state: PinnedState, run: _models._DevFixRun) -> bool:
@@ -242,19 +315,24 @@ def _records_a_report_alone(
     the reply that answers the park resumes the session to finish the work and
     report again.
     """
-    tree = _worktree_status._worktree_status(run.worktree)
+    tree = run.tree or _worktree_status._worktree_status(run.worktree)
     if not tree.is_clean:
         # The debt outlives the tree park, which names the loose files rather
         # than the report: this run DID report, and refusing to record it
         # leaves the pull request owed one all the same. Recorded here, the
         # reply that answers the park is read as the answer to the report it
-        # asked for, and the write below carries it.
-        state.set(_report_delivery.OWED_REPORT, True)
-        _checkout_parks._on_unpublishable_tree(
-            gh, issue, state,
-            _guards._ParkedRun(run.agent_result, _guards._ROUTE_DEV_DRIFT_RESUME),
-            tree,
-        )
+        # asked for, and the write below carries it -- the run's own capture
+        # withdrawn first, since the park hands its report to nobody. A status
+        # that established nothing is no loose tree: the capture is kept and
+        # the tick held, nothing written, for a reading that returns.
+        unread = not (tree.readable or tree.paths)
+        if _captured_report.parks_beside_the_capture(gh, issue, state, run.agent_result, unread=unread):
+            state.set(_report_delivery.OWED_REPORT, True)
+            _checkout_parks._on_unpublishable_tree(
+                gh, issue, state,
+                _guards._ParkedRun(run.agent_result, _guards._ROUTE_DEV_DRIFT_RESUME),
+                tree,
+            )
         return _state._OUTCOME_PARKED
     if _records_the_run(gh, issue, state, run):
         return _state._OUTCOME_PARKED

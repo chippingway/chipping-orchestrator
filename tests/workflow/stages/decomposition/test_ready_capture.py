@@ -8,16 +8,21 @@ implementation as it would without one. But the implementing tick that
 handoff runs in-tick is the stage that would read the captured commit as
 unreported work and launch the developer over it, so the capture is asked
 about first, as the dispatcher asks ahead of every handler it reaches: with
-no owner for its road -- a requirements-drift resume's, in this build -- it
-holds that tick, and an owner is handed it.
+no owner registered for its road it holds that tick, and an owner is handed
+it.
 """
 from __future__ import annotations
 
-import contextlib
 import unittest
+from types import MappingProxyType
+from unittest.mock import patch
 
 from orchestrator.git.worktrees import naming as _naming, paths as _paths
-from orchestrator.workflow.engine import completion_records as _records, completion_routes as _routes
+from orchestrator.workflow.engine import (
+    completion_records as _records,
+    completion_recovery as _recovery,
+    completion_routes as _routes,
+)
 from orchestrator.workflow.stages.decomposition import blocked as _blocked
 from tests.support.fakes import FakeGitHubClient
 from tests.workflow.engine import completion_dispatch_support as _dispatch, completion_recovery_support as _captures
@@ -30,8 +35,11 @@ _SOURCE = "c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0"
 _HEADS = (_SOURCE,) * 8
 
 # The road the capture was taken on: a requirements-drift resume of the
-# implementation, which no owner takes in this build.
+# implementation.
 _DRIFT = _captures.road(_routes.CompletionRoute.REQUIREMENTS_DRIFT)
+
+# The owners' table with no road registered in it.
+_UNOWNED = MappingProxyType({})
 
 # What the captured run ran as: in the child's own checkout, on its branch, leaving `_SOURCE`.
 _RUN = _records.CompletionRun(
@@ -44,21 +52,28 @@ _RUN = _records.CompletionRun(
 )
 
 
+def _owned_by(owner: _dispatch.RoadOwner | None):
+    """Every road owned by `owner` for the block, or none owned at all where there is none."""
+    if owner is None:
+        return patch.object(_recovery, "ROUTE_OWNERS", _UNOWNED)
+    return _dispatch.owned(owner)
+
+
 class ReadyCaptureTest(unittest.TestCase, _PatchedWorkflowMixin, _support.ReadyTicks):
     """The handoff to implementation stops behind a capture nothing has decided."""
 
     def test_the_implementer_waits_behind_it(self) -> None:
         # Handed on as ever -- pickup, consumption, relabel -- and then held:
-        # with no owner no implementer is launched over the captured commit,
-        # and an owner is handed the capture first; either way it is left as
-        # it was.
+        # with no owner registered for its road no implementer is launched
+        # over the captured commit, and an owner is handed the capture first;
+        # either way it is left as it was.
         for owner in (None, _dispatch.RoadOwner()):
             with self.subTest(owned=owner is not None):
                 gh = FakeGitHubClient()
                 child = _support.ready_child(gh)
                 captured = _captures.landed_capture(gh, child, _RUN, _DRIFT)
 
-                with contextlib.nullcontext() if owner is None else _dispatch.owned(owner):
+                with _owned_by(owner):
                     self.assertEqual(self._ready(gh, child), 0)
 
                 self.assertEqual(gh.label_history[-1], _support.STARTED)

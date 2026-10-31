@@ -46,7 +46,9 @@ again. `report_debt` is what that tail owes `validating` when the round
 rewrote the head -- a clean rebase, a resolution, a recovered push -- read off
 the code-publication receipt the push left and written ahead of the relabel,
 since the head it hands on is one no developer report is about. `state` holds
-the two counter keys the writers and readers share.
+the two counter keys the writers and readers share. `captured_drift` finishes
+a held return of a body edit's resume, or of the reply that finishes its
+report-owed park, from its capture, through `resume_reports` on its lease.
 
 Callers import the owner they need, so this initializer binds nothing: the
 dispatcher resolves one handler per issue, and an eager binding here would

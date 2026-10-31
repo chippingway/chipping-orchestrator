@@ -43,6 +43,7 @@ from orchestrator.workflow.stages.implementing import (
     parks as _dev_parks,
     session_read as _session_read,
 )
+from orchestrator.workflow.stages.implementing.captured_report import withdraws_the_capture
 
 
 def _post_conflict_resolution_result(
@@ -167,9 +168,16 @@ def _parks_an_unfinished_rebase(
     is rather than as `rebase_in_progress`: that reason refuses a bare
     `/orchestrator continue`, which is the one reply a quota stop needs once
     the quota resets.
+
+    A report the drift road captured as its run returned is handed to
+    nobody by this park, so the capture is withdrawn ahead of it
+    (`implementing/captured_report.withdraws_the_capture`); a withdrawal that
+    does not settle parks nothing and holds the tick, its state withheld.
     """
     if not _base_sync_pre_pr._rebase_in_progress(run.worktree):
         return False
+    if not withdraws_the_capture(ctx.gh, ctx.issue, ctx.state, run.dev_result):
+        return True
     if _session_read._is_session_limit(run.dev_result):
         return _parks_a_quota_stop(ctx, parked)
     raw = run.dev_result.last_message.strip()

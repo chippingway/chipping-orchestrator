@@ -86,7 +86,9 @@ them is back.
 Both halves resume from the context's OWN frozen batch rather than reading the
 thread again, since the decisions above were made from it -- and a retry whose
 session is missing or retired is re-grounded off that batch's conversation less
-the commands it consumes.
+the commands it consumes. A reply its caller reads as the rest of a drift
+resume is launched on the drift road over that batch, which is what lets its
+report outlive a held return.
 """
 from __future__ import annotations
 
@@ -102,11 +104,14 @@ from orchestrator.workflow.engine import (
     report_delivery as _report_delivery,
 )
 from orchestrator.workflow.stages.implementing import (
+    drift_road as _drift_road,
     resume as _dev_resume,
     resume_request as _dev_resume_request,
     worktree as _dev_worktree,
 )
+from orchestrator.workflow.stages.implementing.completion_roads import CompletionRoad
 from orchestrator.workflow.stages.validating import models as _models, recovery as _recovery, state as _state
+from orchestrator.workflow.state import WorkflowLabel
 
 
 def _cap_command_to_answer(
@@ -292,7 +297,9 @@ def _reviewer_retry_awaiting_action(
 
 
 def _resume_awaiting_dev_agent(
-    context: _models._AwaitingValidation, continue_action: str,
+    context: _models._AwaitingValidation,
+    continue_action: str,
+    completion: CompletionRoad | None = None,
 ) -> tuple[Path, AgentResult, bool] | None:
     if continue_action != "retry":
         return _dev_resume._resume_developer_on_human_reply(
@@ -300,6 +307,7 @@ def _resume_awaiting_dev_agent(
             context.spec,
             context.issue,
             context.batch,
+            completion=completion,
         )
     context.consume_comments()
     return _dev_resume._resume_dev_with_text(_dev_resume_request._DevResumeRequest(
@@ -310,15 +318,30 @@ def _resume_awaiting_dev_agent(
         _prompt_notes._DEVELOPER_CONTINUE_RETRY_PROMPT,
         pause_guard=True,
         thread_text=context.batch.retry_thread_text,
+        completion=completion,
     ))
 
 
 def _run_awaiting_dev(
-    context: _models._AwaitingValidation, continue_action: str,
+    context: _models._AwaitingValidation, continue_action: str, *, drifting: bool = False,
 ) -> _models._AwaitingDevAttempt | None:
+    """Resume the developer over the context's frozen batch; None where nothing ran.
+
+    `drifting` is a reply the caller reads as the rest of a drift resume --
+    over a drift park or a report this issue owes -- which is launched on the
+    drift road, frozen over that batch, so a held return is captured with
+    its report (`implementing/drift_road`). Every other reply is no road of
+    its own here.
+    """
     worktree = _dev_worktree._ensure_resume_worktree(context.spec, context.issue, context.state)
     before_sha = _verification_probes._head_sha(worktree)
-    resumed = _resume_awaiting_dev_agent(context, continue_action)
+    road = _drift_road.road(
+        WorkflowLabel.VALIDATING,
+        context.state,
+        _drift_road.DriftReading.settled_by(context.batch.delivery, context.batch.state),
+        _drift_road.launched_in(context.spec, context.issue.number, context.state, worktree),
+    ) if drifting else None
+    resumed = _resume_awaiting_dev_agent(context, continue_action, road)
     if resumed is None:
         return None
     return _models._AwaitingDevAttempt(

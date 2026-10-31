@@ -51,7 +51,7 @@ this record names and stops at the first id it does not.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from github.Issue import Issue
 
@@ -164,6 +164,18 @@ def _pr_drift_resume_prompt(
     )
 
 
+def _settled_half(record: _delivery.PromptDeliverySnapshot) -> _delivery.PromptDeliverySnapshot:
+    """The half of a two-surface record its road settles from: the issue thread's, with the requirements revision.
+
+    What it names on the pull request's conversation is left to the walk
+    that carries the shared cursor (see the module note above), so nothing
+    settled from this half writes that cursor -- the settlement a resume on
+    an open pull request makes once its run is back, and the one its capture
+    freezes for a recovery to make.
+    """
+    return replace(record, entries=record.surface_provenance(_delivery.SURFACE_ISSUE_THREAD))
+
+
 def _delivered_pr_conversation(
     pr_comments: list, state: PinnedState,
 ) -> _delivery.PromptDeliverySnapshot:
@@ -184,6 +196,27 @@ def _delivered_pr_conversation(
     """
     return _delivery.create_prompt_delivery_snapshot(
         pr_conversation_comments=pr_comments,
+        max_chars=_UNBOUNDED_EXCERPT,
+        retained_ids=frozenset(_comments._orchestrator_ids(state)),
+        state=state,
+    )
+
+
+def _quoted_back(thread: list, conversation: list, state: PinnedState) -> _delivery.PromptDeliverySnapshot:
+    """The record of the comments a two-surface prompt quoted, read back by a recovery, for the cursor carry alone.
+
+    Each surface's comments are the ones inside the stretch its capture froze
+    of it, every one of which that prompt quoted or nobody is owed, so both
+    are recorded WHOLE, as the pull request's half always is: a bound here
+    would name an omission the prompt never made. Never settled from -- the
+    frozen reading is, whose bound holds the reply boundary below what the
+    excerpt cut -- so it moves no cursor but the carry's. Our own posts and
+    what the trust filter refuses are recorded as the prompt's own record
+    recorded them.
+    """
+    return _delivery.create_prompt_delivery_snapshot(
+        issue_comments=thread,
+        pr_conversation_comments=conversation,
         max_chars=_UNBOUNDED_EXCERPT,
         retained_ids=frozenset(_comments._orchestrator_ids(state)),
         state=state,

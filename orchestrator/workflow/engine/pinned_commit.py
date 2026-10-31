@@ -132,6 +132,7 @@ _UNSENT = MappingProxyType({
     PinnedEdit.MISSING: _models.CommitRefusal.REPLACED,
     PinnedEdit.MOVED: _models.CommitRefusal.MOVED,
     PinnedEdit.UNSUPPORTED: _models.CommitRefusal.UNSUPPORTED,
+    PinnedEdit.HELD: _models.CommitRefusal.MOVED_BEHIND,
 })
 
 _NO_TRANSFORMS: Mapping[str, _models.Transform] = MappingProxyType({})
@@ -172,7 +173,9 @@ def commit(
     fresh one. A candidate the comment already reads as is COMMITTED with
     nothing sent. A comment that moved between the fresh reading and the edit
     is refused as MOVED with nothing sent, and a commit asked again derives
-    over whatever it carries then.
+    over whatever it carries then. An edit the caller's question held, asked
+    by the editor behind its own walk and immediately before the edit
+    (`github/edit_questions`), is refused as MOVED_BEHIND with nothing sent.
     """
     change = _Change.of(guard, staged, derived)
     fresh = _fresh(gh, issue, change)

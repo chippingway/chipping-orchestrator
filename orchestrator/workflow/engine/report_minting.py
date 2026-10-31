@@ -161,7 +161,7 @@ def minted_report(
             [record.spends for record in superseded], handed.spends,
         ),
         watermarks=_carried_on(
-            [record.watermarks for record in superseded], handed.watermarks,
+            [_boundaries(record.watermarks) for record in superseded], handed.watermarks,
         ),
         **carried,
     )
@@ -185,6 +185,24 @@ def _carried_on(superseded: list, handed: tuple) -> tuple:
     for pairs in (*superseded, handed):
         carried.update(pairs)
     return tuple(carried.items())
+
+
+def _boundaries(watermarks: tuple) -> tuple:
+    """The watermarks a superseded record hands on: every boundary it consumed, and no requirements baseline.
+
+    A boundary only ever moves forward, so one an earlier report's run
+    consumed is still owed its advance whatever report finally settles. The
+    baseline is not a boundary but the revision THAT report was written
+    against, and the report superseding it was written against requirements
+    of its own -- recorded as its own revision, and settled as the baseline
+    by its own road, or carried in its own watermarks. Handed on, the older
+    revision would be written over the newer one when the later report
+    settles, and the edit that report answered would read as new again.
+    """
+    return tuple(
+        (consumed_field, consumed) for consumed_field, consumed in watermarks
+        if consumed_field != _prompt_delivery.PINNED_USER_CONTENT_HASH
+    )
 
 
 def carried_by_outcome(

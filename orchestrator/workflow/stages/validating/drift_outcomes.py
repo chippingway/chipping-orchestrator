@@ -128,9 +128,15 @@ def _reads_the_finished_resume(
         else:
             _dev_fix._park_dev_fix_timeout(gh, issue, state, run.before_sha)
         return _state._OUTCOME_PARKED
-    publishable = _dev_fix._publishable_dev_fix(spec, issue, state, run)
+    # A run whose own capture stands pending is read as that capture names
+    # it, and its checkout proved, before anything hands the capture on: a
+    # reading that did not return holds the tick with the capture kept.
+    proved = _drift_reports._proved_ahead_of_the_handoff(gh, spec, issue, state, run)
+    if proved is None:
+        return _state._OUTCOME_PARKED
+    publishable = _dev_fix._publishable_dev_fix(spec, issue, state, proved)
     if publishable is None or _drift_reports._withholds_the_stranded(state, publishable):
-        return _dispose_silent_reply(gh, issue, state, run)
+        return _dispose_silent_reply(gh, issue, state, proved)
     return _publishes_the_fix(gh, spec, issue, state, publishable)
 
 
