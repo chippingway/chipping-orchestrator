@@ -65,8 +65,9 @@ refuses a later capture of it.
 The implementing stage's shared developer coordinator captures through
 `captured` and `capture` as each attempt on a report-producing road returns
 (`stages/implementing/completion_roads`) -- the implementing roads', a
-reviewer's change request's, and a pull request feedback round's, whose roads
-its validating and fixing callers freeze -- and each road's disposition
+reviewer's change request's, a pull request feedback round's, and every
+requirements-drift resume's, whose roads its validating, fixing, in_review, and
+conflict callers freeze -- and each road's disposition
 withdraws a capture through `retire`
 ahead of a park that hands its report to nobody. The dispatcher's recovery (`completion_recovery`) reads a pending
 capture through `read_back` alone and ends one its readings proved stale

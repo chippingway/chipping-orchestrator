@@ -44,7 +44,9 @@ jumps to a tip, because both walk forward and stop at the first comment they
 cannot vouch for. `models` and `state` carry the per-tick handles and the wire
 keys -- the watermark those two surfaces are read against, and the marker
 saying this issue still owes `validating` a label move, which `state` stages
-beside everything else the hand-back writes.
+beside everything else the hand-back writes. `captured_drift` finishes a held
+return of the drift route's resume from its capture, through `drift`'s own
+disposition.
 
 Callers import the owner they need, so this initializer binds nothing: the
 dispatcher resolves one handler per issue, and an eager binding here would

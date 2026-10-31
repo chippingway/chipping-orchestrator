@@ -153,11 +153,13 @@ def _replaced_head(
     moved. A candidate standing ON the named head has nothing to publish over
     it, and answers "".
 
-    Otherwise the remote tip is proved, as the publishable fix above says.
+    Otherwise the remote tip is proved, as the publishable fix above says --
+    or answered on the proof the caller already took (`_DevFixRun.evidence`).
     """
     if run.published_head:
         return "" if run.published_head == after_sha else run.published_head
-    return _stranded._stranded_evidence(spec, run.worktree, state, issue).stranded
+    evidence = run.evidence or _stranded._stranded_evidence(spec, run.worktree, state, issue)
+    return evidence.stranded
 
 
 def _publish_dev_fix(
@@ -204,10 +206,12 @@ def _publish_dev_fix(
     keeps candidates out of that reading entirely -- so the unreadable half
     would reach the remote and be answered by the proof taken AFTER the push,
     which holds the handoff over a commit the pull request already has. A
+    status the caller already read ahead of the report's handoff
+    (`_DevFixRun.tree`) is the one proved here. A
     run an account quota stopped parks over such a tree as that session limit
     instead, whose bare continue the tree park would refuse.
     """
-    tree = _worktree_status._worktree_status(run.worktree)
+    tree = run.tree or _worktree_status._worktree_status(run.worktree)
     if not tree.is_clean:
         parked = _guards._ParkedRun(run.agent_result, _guards._ROUTE_DEV_FIX)
         if _session_read._is_session_limit(run.agent_result):

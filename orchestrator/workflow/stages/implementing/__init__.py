@@ -147,7 +147,9 @@ from, is `late_debt`; and what a pinned record CLAIMS about either -- and the
 claims nothing may act on, since every field here is read fail-closed and a
 group missing a member parses as no group -- is `late_claims`. The last five
 own the signals that arrive between runs -- a body edit (`drift`, whose resume
-hands its disposition the record `drift_models` freezes), a body edit
+hands `drift_disposition` the record `drift_models` freezes, on the road
+`drift_road` freezes for every stage's drift resume, and whose held capture
+`captured_drift` finishes), a body edit
 before any session existed plus the quiet timeout recovery
 (`drift_preflight`), an operator's `/orchestrator continue` (`continue_command`),
 the park a spent spawn budget leaves and the one command that lifts it

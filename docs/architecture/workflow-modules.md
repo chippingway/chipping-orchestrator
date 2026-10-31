@@ -442,8 +442,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`stages/fixing/round_marks.py`); and the records a reviewer round writes onto that
                             comment (`stages/validating/review_records.py`). So are the owners the captured-completion
                             recovery hands the implementing roads' captures to
-                            (`stages/implementing/captured_completion.py`) and the fix rounds' captures to
-                            (`stages/fixing/captured_fixes.py`)
+                            (`stages/implementing/captured_completion.py`), the fix rounds' captures to
+                            (`stages/fixing/captured_fixes.py`), and each stage's requirements-drift captures to
+                            (`stages/<stage>/captured_drift.py`)
     poll_models.py          poll-time closure evidence and family/fanout/cleanup partitions, preserving deferred issues
                             absent from enumeration and the blocked/umbrella family capacity exemption; a closed
                             reading -- a family-bucket issue's included, there only when its label could not be read
@@ -615,7 +616,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             comment refused rather than dropping it, so the carry behind the run may cross what no
                             reader is owed. It names NO shared watermark field: the two surfaces are covered at two
                             moments, so the cursor spanning them is the caller's merged re-read to derive and no
-                            settlement's to write
+                            settlement's to write -- the half a settlement may write from, the issue thread's, being
+                            `_settled_half`, which the drift road's capture freezes too
     guards.py               what a finished agent run may leave behind: the never-invoked, shutdown-interruption,
                             and freshly-read pause refusals, and the awaiting-human park. The first is asked ahead
                             of the second wherever a stage reads the worktree before it asks whether the run
@@ -1061,6 +1063,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             outstanding record owes has been written anywhere, and this record replaces it, so a
                             report minted on its own caller's pair alone settles leaving a round nobody spent,
                             bookmarks nobody cleared, and feedback a developer already answered reading as fresh.
+                            A superseded record's requirements baseline is the one pair never joined
+                            (`_boundaries`): it names the revision that report answered, and settled with a later
+                            one it would move the issue back onto requirements that report has left.
                             `MINTED_FROM` names the records all of that is read from, which recording it is decided on.
                             `minted_report` is that minting alone, from what one outcome contributes, and
                             `outcome_fields` that contribution unchecked, for a captured completion's transfer and the
@@ -1154,7 +1159,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             on it
     completion_routes.py    the report-producing roads a developer completion may be captured on, each with the
                             labels its report records under, whether a VERIFIED outcome pays it -- a rewritten-head
-                            refresh is paid only READY -- and whether it answers a frozen handoff; and whether one
+                            refresh is paid only READY -- whether it answers a frozen handoff, whether it settles
+                            its own input, as a requirements-drift resume does, so its report carries none, and how
+                            many delivered stretches its capture may freeze -- a drift resume's two, the issue
+                            thread's and a pull request conversation's, every other road's one; and whether one
                             return qualifies, read through the outcome owner's completed-run reader and the
                             backend's unfinished-step and terminal-failure diagnostics, never a role, a backend, or
                             an exit code alone, and only for a return a tracked spawn identified
@@ -1162,7 +1170,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             invocation, the road and the handoff frozen before the launch -- the thread stretch its
                             prompt delivered among it -- what ran and where and the conversation it resumed, the
                             READY text or VERIFIED reference, the session it returned and its accounting -- no raw
-                            output, prompt, or staged state -- and the resolved HANDED_OFF and RETIRED stages that
+                            output, prompt, or staged state -- the input its report carries asked of its road
+                            (`delivered_input`) -- and the resolved HANDED_OFF and RETIRED stages that
                             keep no report, a RETIRED one still carrying the handoff it superseded where it had one
     completion_values.py    what each member of a capture may be: bounded single lines, recorded numbers, a frozen
                             handoff of at most sixteen named digests, and a report the report records' reading takes,
@@ -1176,7 +1185,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             included; the thread stretch a road delivered, read back only whole
                             (`delivered_stretch`); and, where a road froze the code-publication receipt, the head
                             that receipt names on the recorded pull request (`published_over`)
-    completion_frozen_reads.py whether a record a fix round's road froze still reads, by the record's name -- the
+    completion_frozen_reads.py whether a record a fix round's or a drift resume's road froze still reads, by its name -- the
                             feedback anchor, `pending_fix_at`, the code-publication receipt
                             (read only where `stages/implementing/late_receipt_damage.py` reads the group, resolved
                             when called), the settled report pair, read only as the pair one settlement wrote
@@ -1184,7 +1193,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             verification evidence, current evidence read beside the handoff its settlement wrote
                             (`verification_current.handoff_describes`), and the `pending_fix_*_ids` lists and the
                             pull request's three readers a pull request's feedback round freezes, each a list of
-                            whole ids, a whole id, or `null` -- so a move of one is told from its damage;
+                            whole ids, a whole id, or `null`, and the rounds and claims a drift resume freezes, a
+                            whole count or a flag, or `null` -- so a move of one is told from its damage;
                             and whether the settled report and the evidence a held request claims read at all
                             (`settled_report_reads`, `evidence_unread`), damage there no proof of a later revision
     completion_state.py     the state's view of its capture: a claim asked apart from a reading, so damage is never
@@ -1289,7 +1299,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             applicable one handed to its road's owner (`ROUTE_OWNERS`, resolved when called -- the
                             first implementation's and an implementing resume's to
                             `stages/implementing/captured_completion.py`, a reviewer's change request's and a pull
-                            request feedback round's to `stages/fixing/captured_fixes.py`, every other road's to none
+                            request feedback round's to `stages/fixing/captured_fixes.py`, a requirements-drift
+                            resume's to the stage it reported under (`finishes_a_drift`, by `DRIFT_OWNERS`:
+                            `stages/<stage>/captured_drift.py`), every other road's to none
                             in this build, so its stage is held), a stale one retired `invalidated` by the
                             checkpoint's guarded retirement and the tick ended behind it, so the stage runs on the
                             next over the issue as it then reads, an uncertain or damaged one held with nothing written,
@@ -2881,7 +2893,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             through `resume_reports` too rather than the conflict disposition, resumed on the frozen
                             drift prompt as the edit's own resume is and leased against the head the pull request
                             stood on before the run. This orchestrator's own notices, by the id ledger, are no
-                            reply, so a park whose notice stands above the watermark waits for a human
+                            reply, so a park whose notice stands above the watermark waits for a human. The body
+                            edit and that reply are launched on the drift road, frozen as starting on the head the
+                            publication is leased against (`implementing/drift_road.py`); the conflict resolution
+                            freezes none
+      captured_drift.py     the recovery of either drift run's held capture, finished through
+                            `resume_reports._disposes` on the lease its road froze and the commit the capture names,
+                            with no developer run
       resume_reports.py     the developer report a body edit's resume returns, carried into the report transaction:
                             the shared drift disposition named with this stage's route and the revision the resume
                             was handed, the report recorded ahead of the size gate, a pushed answer counted and
@@ -2897,14 +2915,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             is re-grounded on the same frozen text -- and that record is settled. Either run left
                             with the rebase mid-flight parks before anything is recorded or pushed, a timeout read
                             ahead of that as the funnel reads it, and a report from a run that left a command
-                            running parks as the execution failure it is, recorded nowhere; one that commits
-                            nothing and reports names the
+                            running parks as the execution failure it is, recorded nowhere. The head the run left
+                            is the one its own pending capture names where one stands, live or recovered, never the
+                            checkout read again behind it, so no moved or unread HEAD is staged as the candidate the
+                            size gate measures; one that commits nothing and reports names the
                             head it is about in place of an earlier candidate in the write that saves its report,
                             for its settlement to spend. And ahead of
                             any rebase, a report this issue recorded and has not settled is settled first, through the
                             validating hold's own settling half, so it is never bound to a head a rewrite left
       outcomes.py           the interrupt / timeout / mid-rebase parks read before HEAD -- the mid-rebase one asked
-                            by the report-carrying road too, behind its own timeout reading, and a timeout, a
+                            by the report-carrying road too, behind its own timeout reading, the run's own capture
+                            withdrawn ahead of it -- and a timeout, a
                             mid-rebase stop, or a resolution over a tree not proved clean an account quota caused
                             taken as the session limit through the shared question park instead, which a bare
                             continue retries -- and the push a completed
@@ -4478,13 +4499,42 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             tick (`parks_beside_the_capture`); a run with no capture of its own recorded by the
                             delivery's own recording; and
                             the commit an owed captured report is about, which the size gate is held to
-                            (`captured_source`)
+                            (`captured_source`); the commit the run's own pending capture names, which a disposition
+                            behind it answers on rather than reading the checkout again (`pending_source`); on a
+                            recovery, the transfer and the withdrawal each made only once
+                            the capture's admission reads again (`captured_rereads.py`)
       captured_completion.py the owner the dispatcher's recovery hands an applicable capture of the first implementation
                             or an implementing resume to: the command pinned, the session settled as the run's tick
                             would have -- a pin dropped only where the capture records the launch dropped it -- the
                             park it answered taken down, the delivered input its road froze settled,
                             and the run disposed through `disposition.py` on a result rebuilt from the capture, with
-                            no developer launched
+                            no developer launched, inside `captured_rereads.rereads` -- a reply or continue answering
+                            a requirements-drift park resumes on this road, and is handed on or withdrawn only over
+                            an admission that still stands
+      drift_road.py         what a requirements-drift resume freezes before its launch, on whichever stage it runs
+                            and for the replies that remain its continuation: the `requirements_drift` road over the
+                            one frozen reading its prompt was cut from (`DriftReading` -- the revision its report is
+                            stamped with and the watermarks its own settlement advances, beside a retry's consumed
+                            commands, none of which ride its report, and on `in_review` the stretches its prompt
+                            quoted, the issue thread's above what the excerpt left out and the pull request
+                            conversation's, for the recovery's carry), the records its stage's accounting and the
+                            reason it resumed are read off (`FROZEN`, a validating body edit's `STOOD_DOWN` beside
+                            them, a conflict round's `LEASED` without the code-publication receipt, whose head its
+                            lease names instead), and the checkout it launches in (`launched_in`), a conflict
+                            round's at the head its publication is leased against
+      captured_drift.py     the shared staging every stage's recovery of a drift capture opens with
+                            (`settled_resume`): the session settled as `captured_completion.py` settles one, the park
+                            flag taken down, the frozen watermarks advanced, and the agent action stamped -- and the
+                            reading reduced to its revision for the disposition behind it (`frozen_reading`); and
+                            this stage's own recovery, answered on `drift_disposition.py`
+      captured_rereads.py   the admission a recovery owner has read again immediately before its capture is handed
+                            to the delivery or withdrawn ahead of a park (`rereads`), handed to the GitHub client
+                            as the question its strict edit asks behind its walk to the comment, right before the
+                            edit moving the capture (`github/edit_questions.py`): a control, relabel, close, edit,
+                            checkout move, or push landing during any request before it -- that walk included --
+                            holds the edit with nothing sent, refused to the guarded commit as `MOVED_BEHIND`, the
+                            state withheld and the tick held; asked of no live tick, which honors the hold its run's
+                            return read
       candidate_recovery.py exact-commit recovery for approved and frozen work, timeout-commit evidence, and publication
                             through a proved clean tree and the size gate; a recovery hands on the candidate it proved.
                             The report the run wrote is recorded between the tree and the gate, the last moment it is
@@ -5208,10 +5258,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             nothing here stages it ahead of a run, since a baseline written for a prompt nobody
                             read marks the edit answered and hands the words under it on as already delivered. The
                             resume's checkout is prepared before its notice, so a refused branch or checkout says
-                            nothing on any tick
+                            nothing on any tick, and the resume is launched on the drift road (`drift_road.py`)
+      drift_disposition.py  what that resume's run is made into: a commit, or the commits an owed report covers,
+                            published through `candidate_recovery.py`, a timeout parked, and an `ACK:` or a question
+                            answered in words (`_answers_in_words`) behind the withdrawal of a capture they hand to
+                            nobody; the drift recovery answers a held run here too
       drift_models.py       the frozen record that route's resume hands its disposition: the checkout it ran in,
-                            the run, the head before it and whether the run moved it, the live-pause decision, and
-                            the delivery record of what its prompt quoted -- kept beside the route that alone builds
+                            the run, the head before it and whether the run moved it -- told from the head its own
+                            capture names where one stands, never a HEAD read again behind it -- the live-pause
+                            decision, and the delivery record of what its prompt quoted -- kept beside the route that
+                            alone builds
                             and reads it, so its dataclass, path, and agent-result imports stay out of the route
       drift_preflight.py    a pre-session edit -- handed on rather than consumed, since clearing a park delivers
                             nothing at all -- the refusal that records nothing about the edit and its own reason
@@ -5311,7 +5367,20 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             comment a human wrote while the resume was out still unread beneath the carry, so the
                             move hands on the reply they wrote. A publication still owed when either move
                             is made is recorded as belonging to the budget that reset gives it, so the road that
-                            lands it on `workflow:validating` spends no round the edit has already paid for
+                            lands it on `workflow:validating` spends no round the edit has already paid for. The
+                            resume is launched on the drift road over the issue thread's half of that record and
+                            the stretch it quoted on each surface
+                            (`implementing/drift_road.DriftReading.over_both_surfaces`,
+                            `engine/drift_delivery._settled_half`)
+      captured_drift.py     the recovery of that resume's held capture: the pull request fetched, the move to
+                            `workflow:validating` staged, and the run answered through `drift._dispose_drift_result`
+                            inside `implementing/captured_rereads.rereads`, settling the reading reduced to its
+                            revision and handing the carry the comments its prompt quoted on either surface, read
+                            back over those stretches (`models._DriftResume.carried`,
+                            `engine/drift_delivery._quoted_back`), so the carry crosses those, this orchestrator's
+                            posts, and the delivered stretch, and nothing the excerpt left out or written since; a
+                            surface that will not read, the carry's own read of both included, holds the capture,
+                            and the head the run left is the one the capture names
       merge_gate.py         the unmergeable park -- bounded, since the scan that let the tick reach it ran several
                             round-trips ago -- and the gates in front of the one HITL ready-ping an approved, unvetoed
                             head earns per head SHA, which is no park and carries no mark; a fresh approval retires
@@ -5703,7 +5772,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             which is then the lease and is never re-proved, so a pull request moved while the agent
                             was out is refused rather than adopted, and a rebase that reads to the proof as a remote
                             that moved still goes out; the tree proved in BOTH halves before the push, since the
-                            size gate's own proof rides the entry it freezes and `DECOMPOSE=off` freezes none,
+                            size gate's own proof rides the entry it freezes and `DECOMPOSE=off` freezes none --
+                            on the status and the branch proof the caller read ahead of a captured report's handoff
+                            where it read them (`models._DevFixRun.tree`, `evidence`) --
                             the size gate every fix route publishes through, told the
                             state the run really belongs to by the route that relabels before it spawns rather
                             than reading it off the issue object, the push and the approval it spends, the round
@@ -5765,7 +5836,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             it arrives on -- a park over an edit its own resume never answered reads the same
                             way, off a claim taken BEFORE the run, since the resume clears the park it was written
                             beside -- and spending the round `rounds.py` says it does, which is none where the
-                            park came back from `in_review` with the budget already reset for it
+                            park came back from `in_review` with the budget already reset for it; a reply read so
+                            is launched on the drift road over its batch (`awaiting._run_awaiting_dev`), the claim
+                            and the debt read before the run saying so
       drift.py              a body edit mid-review, the parks that defer -- every reviewer-side one and the
                             review cap, which deliver nothing and so
                             record nothing, baseline included -- the one thing that outranks a deferral, which is
@@ -5778,9 +5851,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and in the settled baseline, and a report stamped behind them is one the reviewer hold
                             refuses; on a parked tick the edit is measured by what the park had already read. The
                             resume's checkout is prepared before its notice, so a refused branch or checkout says
-                            nothing on any tick
+                            nothing on any tick, and the resume is launched on the drift road, frozen over that
+                            prompt's reading and the round this stage stood down for (`implementing/drift_road.py`)
       drift_models.py       the frozen record that route's resume hands the helper that finishes it, the delivery
-                            it was built from -- and the revision that read fingerprints -- included
+                            it was built from -- and the revision that read fingerprints -- included, and the round
+                            a publication lands on where a recovery decided it rather than the body edit's own
+      captured_drift.py     the recovery of a held drift capture on this stage, the body edit's and the drift-park
+                            reply's alike, answered through `drift._finish_validating_drift` on the reading reduced to
+                            its revision -- the body edit on its next round, the reply on what its park owes, told
+                            apart by the stood-down-for round the body edit alone froze -- and on the head the
+                            capture names as the one the run left, never a second reading of the checkout
       drift_outcomes.py     the claim that the edit is still unanswered, written -- for a caller that named what
                             its resume was `handed`, which is the caller that reads it back, so on the two review
                             routes alone, since a `resolving_conflict` park is answered by that stage's own reply
@@ -5809,7 +5889,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             What the debt is asked against is a record of THIS work: a delivery
                             or transaction an earlier run left describes the branch before the commits a later run
                             made, so the undescribed-work flag those commits leave is read first and the reply
-                            that publishes them is the one that describes them
+                            that publishes them is the one that describes them. A run's own pending capture is
+                            what the recording hands to the delivery (`implementing/captured_report.py`), every
+                            reading the disposition decides on taken once ahead of that handoff
+                            (`_proved_ahead_of_the_handoff`): the head the run left as the capture names it, the
+                            checkout's status, and for a run that committed nothing the proof of where the branch
+                            stands against its publication -- a status or proof that did not return keeping the
+                            capture and holding the tick, anything else riding the run for the publication to
+                            decide on -- and the loose-tree park beside a report alone withdraws it first
       fix_reports.py        that same contract for the `CHANGES_REQUESTED` run this stage spawns itself, which is
                             the half of the fix loop it owns -- every later round is `stages/fixing/reporting.py`'s,
                             holding it to the same contract and, while the report is owed, holding the readers,

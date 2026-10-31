@@ -99,12 +99,19 @@ class _DriftResume:
     left out on either, and the requirements revision that read fingerprints
     to. Re-derived after the run instead, it would cross replies written while
     the agent was out.
+
+    `carried` is the record the carry of the shared IssueComment cursor is
+    handed where it is not that one: a recovery's, which settles the reading
+    its capture froze and hands the carry the comments that prompt quoted on
+    either surface, read back over the stretches the capture froze. None on a
+    live tick, whose carry is handed the record it settled.
     """
     worktree: Any
     dev_result: Any
     paused: bool
     before_sha: Any
     delivery: _delivery.PromptDeliverySnapshot
+    carried: _delivery.PromptDeliverySnapshot | None = None
 
     @property
     def requirements_revision(self) -> str:

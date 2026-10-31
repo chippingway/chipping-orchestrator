@@ -47,6 +47,10 @@ _VERDICT = "review_returned_verdict"
 _RECEIPT = "issue-2426-report-3"
 _REVISION = 3
 _OVERSIZED = "x" * (_bounds.MAX_COMMAND + 1)
+
+# The issue thread's delivered stretch and a pull request conversation's
+# beside it, which only a requirements-drift capture may freeze.
+_TWO_STRETCHES = (0, 41, 30, 52)
 _LONG_SESSION = "s" * (_bounds.MAX_SESSION + 1)
 
 # The keys a PENDING READY capture is spelled with, beside the invocation's.
@@ -91,6 +95,9 @@ _DAMAGED = MappingProxyType({
     "a stretch below zero": (_DELIVERED, [-1, 3]),
     "a stretch of flags": (_DELIVERED, [False, True]),
     "no stretch at all": (_DELIVERED, None),
+    "a stretch of three ends": (_DELIVERED, [0, 3, 5]),
+    "a second stretch upside down": (_DELIVERED, [0, 3, 9, 5]),
+    "two stretches off the drift road": (_DELIVERED, list(_TWO_STRETCHES)),
     "a resumed conversation past its bound": (_RESUMED, _LONG_SESSION),
     "a pinned conversation past its bound": (_PINNED, _LONG_SESSION),
     "no superseded handoff spelled": (_SUPERSEDES, None),
@@ -202,6 +209,13 @@ class CompletionReadingTest(unittest.TestCase):
         unhanded[_ORIGIN] = str(WorkflowLabel.FIXING)
         read_back = (_spelling.read_record(refreshed), _spelling.read_record(unhanded))
         self.assertEqual(read_back, (None, None))
+
+    def test_a_drift_road_freezes_two_stretches(self) -> None:
+        """A requirements-drift capture over an open pull request reads back with both stretches it froze."""
+        drifted = {**self.spelled, _ROUTE: str(_routes.CompletionRoute.REQUIREMENTS_DRIFT)}
+        drifted[_ORIGIN] = str(WorkflowLabel.IN_REVIEW)
+        drifted[_DELIVERED] = list(_TWO_STRETCHES)
+        self.assertEqual(_spelling.read_record(drifted).handoff.delivered, _TWO_STRETCHES)
 
     def test_damage_is_a_claim_and_absence_is_none(self) -> None:
         """A missing field carries nothing; `null`, a list, and a damaged object are each a claim nothing reads."""

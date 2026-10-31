@@ -103,7 +103,11 @@ per-stage behavior is in
   the commit that hands the report on, the round spent once, and no developer or reviewer run. So does the fixing
   stage's resume over a pull request's human feedback on the in_review route
   (`workflow/stages/fixing/feedback_road.py`), whose held report the recovery finishes over the batch its prompt
-  quoted alone, the round reset once, and no developer run. Every other resume on the list above captures nothing.
+  quoted alone, the round reset once, and no developer run. So does every requirements-drift resume -- on
+  `workflow:implementing`, `workflow:validating`, `in_review`, and `workflow:resolving_conflict`, the replies that
+  remain its continuation included (`workflow/stages/implementing/drift_road.py`) -- whose held report the recovery
+  finishes through that stage's own drift disposition, from the one frozen reading the run was handed, with no
+  developer run. Every other resume on the list above captures nothing.
 - **A docs pass that changes the pull request.** `_handle_documenting` resumes the dev session for the final-docs
   pass behind an approval, and it is the last automated delivery stage: a pass that publishes a docs commit — a fresh
   one, commits an earlier tick left unpushed, or the commit a `docs_settled_sha` receipt names — completes straight

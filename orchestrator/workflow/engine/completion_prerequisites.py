@@ -37,7 +37,8 @@ they stand (`road_refusal`):
   beside its stamp, whose readers `completion_frozen_reads` keeps -- the
   feedback anchor, the in_review route's stamp, the code-publication receipt,
   the settled report and the verification evidence, the bookmarked batch's id
-  lists, and the pull request's readers -- and the late records the
+  lists, and the pull request's readers, and the rounds and claims a
+  requirements-drift resume freezes -- and the late records the
   late-claims owner judges field by
   field -- the measurement evidence, the publication group, a hold's route
   bookkeeping) is damage, not a move, and holds the capture. So does a moved

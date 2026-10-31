@@ -52,9 +52,9 @@ _VERDICT_MOVES = (
 )
 
 # A record no reader is registered for, as the launch read it and as another road moves it.
-_UNREGISTERED = "review_round"
+_UNREGISTERED = "dev_resume_count"
 
-_ROUND_AT_LAUNCH = 3
+_COUNT_AT_LAUNCH = 3
 
 # Each move that leaves a frozen record as nothing a reader here can take --
 # the change request hand-damaged, and the unregistered record moved on --
@@ -62,7 +62,7 @@ _ROUND_AT_LAUNCH = 3
 # request's own where None.
 _UNDECIDED = (
     ((_VERDICT, None), Turn(edits=MappingProxyType({_VERDICT: {"unreadable": True}}))),
-    ((_UNREGISTERED, _ROUND_AT_LAUNCH), Turn(edits=MappingProxyType({_UNREGISTERED: _ROUND_AT_LAUNCH + 1}))),
+    ((_UNREGISTERED, _COUNT_AT_LAUNCH), Turn(edits=MappingProxyType({_UNREGISTERED: _COUNT_AT_LAUNCH + 1}))),
 )
 
 # The pinned readings a dispatch takes up to its retirement's own: the
@@ -104,6 +104,21 @@ _HASHED = (_COMMENT_HASH, "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdc
 _HASH_MOVED = Turn(edits=MappingProxyType({
     _COMMENT_HASH: "efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef",
 }))
+
+# A requirements-drift resume's frozen rounds and claims: each record and its
+# spelling at the launch, and the move made of it -- one its writers make,
+# which retires the capture, or a spelling none of them writes, which holds it.
+_ROUND = "review_round"
+_STOOD_DOWN = "validating_reviewer_owes_a_round"
+_DRIFT_MOVES = (
+    ((_ROUND, 1), Turn(edits=MappingProxyType({_ROUND: 2}))),
+    ((_STOOD_DOWN, True), Turn(edits=MappingProxyType({_STOOD_DOWN: "bought_by_a_reply"}))),
+    ((_STOOD_DOWN, None), Turn(edits=MappingProxyType({_STOOD_DOWN: True}))),
+)
+_DRIFT_HOLDS = (
+    ((_ROUND, 1), Turn(edits=MappingProxyType({_ROUND: "two"}))),
+    ((_STOOD_DOWN, True), Turn(edits=MappingProxyType({_STOOD_DOWN: "bought_elsewhere"}))),
+)
 
 _LATE_HOLDS = ((_SPENT_ONCE, _SPEND_DAMAGED), (_HASHED, _HASH_MOVED))
 _LATE_MOVES = ((_SPENT_ONCE, _SPENT_AGAIN), (_CEILING_AT_LAUNCH, _CEILING_MOVED))
@@ -237,6 +252,42 @@ class FrozenHandoffTest(unittest.TestCase):
         self.assertEqual((seen.ran, seen.handed), ((), ()))
         self.assertTrue(seen.untouched)
 
+
+
+def _drift_world(launched: tuple) -> _support.CapturedWorld:
+    """A world on `validating` whose requirements-drift capture froze one round or claim, as `launched` spells it."""
+    record, at_launch = launched
+    world = _support.CapturedWorld(WorkflowLabel.VALIDATING, pull_request=True)
+    world.hand_edit(**{record: at_launch})
+    frozen = _frozen.frozen_over(world.github.read_pinned_state(world.issue), (record,))
+    world.captured(_support.road(_routes.CompletionRoute.REQUIREMENTS_DRIFT, WorkflowLabel.VALIDATING, frozen))
+    return world
+
+
+class FrozenDriftRecordTest(unittest.TestCase):
+    """A drift resume's frozen rounds and claims are read as their writers spell them."""
+
+    def test_a_written_move_retires_it(self) -> None:
+        # Another round counted, and the round `validating` stood down for
+        # moved to what a reply that bought it writes, or written where none
+        # stood: another road's move, so the capture is stale and retired.
+        for launched, turn in _DRIFT_MOVES:
+            with self.subTest(turn=turn):
+                seen = _dispatch.observed(_drift_world(launched), _dispatch.RoadOwner(), turn)
+
+                self.assertTrue(seen.says(_models.Reason.HANDOFF_MOVED), seen.said)
+                self.assertEqual(_support.read_capture(seen.after).stage, _records.CaptureStage.RETIRED)
+
+    def test_an_unwritten_spelling_holds_it(self) -> None:
+        # A round spelled as no count, and a note spelled as nothing its
+        # writers write: damage, so the capture is kept with nothing written.
+        for launched, turn in _DRIFT_HOLDS:
+            with self.subTest(turn=turn):
+                seen = _dispatch.observed(_drift_world(launched), _dispatch.RoadOwner(), turn)
+
+                self.assertTrue(seen.says(*_HELD), seen.said)
+                self.assertEqual((seen.ran, seen.handed), ((), ()))
+                self.assertTrue(seen.untouched)
 
 
 class FrozenLateRecordTest(unittest.TestCase):

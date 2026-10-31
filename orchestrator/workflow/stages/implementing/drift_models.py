@@ -7,7 +7,9 @@ itself. `worktree` is the checkout the resume actually ran in. `agent_result`
 is the run the outcome is read from. `before_sha` is the HEAD taken ahead of
 the agent, the only thing that tells a commit this run produced from one an
 earlier tick stranded on the branch, and `committed` is that comparison taken
-once the run is back. `paused` says a live pause stopped the resume before it
+once the run is back -- against the head the run's own capture names where one
+stands, so a HEAD that will not read behind the capture never reads as no
+commit. `paused` says a live pause stopped the resume before it
 persisted the session id. `delivery` is the record of what that resume's
 prompt quoted of the issue thread: it travels with the run rather than being
 re-read after it, since the thread moves while an agent is out.
@@ -51,10 +53,17 @@ class _ImplementingDriftRun:
         before_sha: str | None,
         resumed: tuple[Path, AgentResult, bool],
         delivery: PromptDeliverySnapshot,
+        captured: str = "",
     ) -> _ImplementingDriftRun:
-        """One finished resume, told from the head it started on."""
+        """One finished resume, told from the head it started on.
+
+        `captured` is the head the run's own capture names, read as it
+        returned, which answers in place of reading the checkout again: a
+        HEAD that will not read behind the capture would answer as no commit,
+        and send a report the capture holds down the question's road.
+        """
         worktree, agent_result, paused = resumed
-        after_sha = _verification_probes._head_sha(worktree)
+        after_sha = captured or _verification_probes._head_sha(worktree)
         return cls(
             worktree=worktree,
             agent_result=agent_result,

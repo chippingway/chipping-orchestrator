@@ -64,8 +64,9 @@ class _DevResumeRequest:
     # run is handed and where it runs -- so the coordinator captures an
     # eligible return on it (`completion_roads`): an implementing road's, a
     # reviewer's change request's (`validating/fix_road`, `fixing/resume_road`),
-    # or a pull request's feedback round's (`fixing/feedback_road`). None for
-    # every other resume, which captures nothing.
+    # a pull request's feedback round's (`fixing/feedback_road`), or a
+    # requirements-drift resume's (`drift_road`). None for every other resume,
+    # which captures nothing.
     completion: _roads.CompletionRoad | None = None
 
     @property

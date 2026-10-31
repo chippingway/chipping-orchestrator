@@ -34,8 +34,12 @@ parked round -- and the resume answering a pull request's human feedback the
 fixing stage's (`stages/fixing/captured_fixes`), asked ahead of the review
 resume that would read that developer as a launch that may have run and drop
 the request it answered, and of the rescan that would hand the feedback batch
-to a second developer; a road no owner takes yet holds the tick, so no
-handler re-runs paid work. An INVALID capture is retired by a
+to a second developer. A requirements-drift resume -- on `implementing`,
+`validating`, `in_review`, or `resolving_conflict`, a reply that remains its
+continuation included -- is the stage's it reported under
+(`stages/<stage>/captured_drift`), asked ahead of the drift check that would
+resume the developer again over the same edit; a road no owner takes yet
+holds the tick, so no handler re-runs paid work. An INVALID capture is retired by a
 guarded invalidation (`completion_checkpoint.retire`), which keeps which
 invocation it was, owns nothing but the capture, and is decided on the
 reading the proof was taken over. The tick ends behind it either way. A
@@ -88,17 +92,31 @@ log = logging.getLogger("orchestrator.workflow")
 # reaches is (`stage_targets`). The first implementation and an implementing
 # resume are the implementing stage's, and a reviewer's change request and a
 # pull request's feedback round the fixing stage's, which every half of those
-# rounds runs under; a road no owner takes yet holds an applicable capture
-# rather than finishing it.
-_IMPLEMENTING_OWNER = (_stage_targets._IMPLEMENTING_CAPTURE_OWNER, "recovers")
+# rounds runs under, and a requirements-drift resume the stage it reported
+# under (`DRIFT_OWNERS`); a road no owner takes yet holds an applicable
+# capture rather than finishing it.
+_FINISHES = "recovers"
 
-_FIXING_OWNER = (_stage_targets._FIXING_CAPTURE_OWNER, "recovers")
+_IMPLEMENTING_OWNER = (_stage_targets._IMPLEMENTING_CAPTURE_OWNER, _FINISHES)
+
+_FIXING_OWNER = (_stage_targets._FIXING_CAPTURE_OWNER, _FINISHES)
 
 ROUTE_OWNERS: Mapping[_routes.CompletionRoute, tuple[str, str]] = MappingProxyType({
     _routes.CompletionRoute.IMPLEMENTATION: _IMPLEMENTING_OWNER,
     _routes.CompletionRoute.RESUME: _IMPLEMENTING_OWNER,
     _routes.CompletionRoute.REQUESTED_CHANGES: _FIXING_OWNER,
     _routes.CompletionRoute.PR_FEEDBACK: _FIXING_OWNER,
+    _routes.CompletionRoute.REQUIREMENTS_DRIFT: (__name__, "finishes_a_drift"),
+})
+
+# A requirements-drift resume is finished by the stage it reported under,
+# each through its own drift disposition, so its owner is told by the label
+# the capture was taken on (`finishes_a_drift`) rather than by the road alone.
+DRIFT_OWNERS: Mapping[WorkflowLabel, tuple[str, str]] = MappingProxyType({
+    WorkflowLabel.IMPLEMENTING: (_stage_targets._IMPLEMENTING_DRIFT_CAPTURE_OWNER, _FINISHES),
+    WorkflowLabel.VALIDATING: (_stage_targets._VALIDATING_DRIFT_CAPTURE_OWNER, _FINISHES),
+    WorkflowLabel.IN_REVIEW: (_stage_targets._IN_REVIEW_DRIFT_CAPTURE_OWNER, _FINISHES),
+    WorkflowLabel.RESOLVING_CONFLICT: (_stage_targets._CONFLICT_DRIFT_CAPTURE_OWNER, _FINISHES),
 })
 
 
@@ -176,6 +194,21 @@ def _hands_on(admitted: _models.AdmittedCompletion) -> bool:
             admitted.issue.number, route, admitted.label,
         )
         return True
+    return _finished_by(target, admitted)
+
+
+def finishes_a_drift(admitted: _models.AdmittedCompletion) -> bool:
+    """Hand an applicable requirements-drift capture to the stage it reported under; whether the tick stops.
+
+    Every label that road's contract records a report under has an owner
+    (`DRIFT_OWNERS`), and a capture its contract refuses never reads back
+    as one, so the label always names one.
+    """
+    return _finished_by(DRIFT_OWNERS[admitted.capture.handoff.origin], admitted)
+
+
+def _finished_by(target: tuple[str, str], admitted: _models.AdmittedCompletion) -> bool:
+    """Resolve the owner `target` names when called and hand it `admitted`; whether the tick stops."""
     owner_module, owner_name = target
     owner = getattr(importlib.import_module(owner_module), owner_name)
     return bool(owner(admitted))
