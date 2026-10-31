@@ -308,8 +308,9 @@ class HandedRun:
     report's transfer holds them to the tick's own reading too
     (`completion_handoff`), so a recovery that read the request's subject
     again records nothing over one moved while it read. The fixing stage's
-    resume of such a request's round is decided on the park it answers, which
-    its report's write takes down, so a park recorded meanwhile refuses it.
+    resumes -- of such a request's round, and of a pull request's human
+    feedback -- are decided on the park they answer, which their report's
+    write takes down, so a park recorded meanwhile refuses it.
     Empty, `retires` and `decided_on` both, on every other road.
     """
 

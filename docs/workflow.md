@@ -168,12 +168,14 @@ commit it reported on (`workflow/engine/completion_checkpoint.py`, `completion_h
 coordinator captures the first implementation's and an implementing resume's return as it comes back
 (`workflow/stages/implementing/completion_roads.py`), and the fix a reviewer's change request hands its developer --
 the run its handoff launches and the resume that finishes its parked round
-(`workflow/stages/validating/fix_road.py`, `workflow/stages/fixing/resume_road.py`) -- so a live hold or a lost
+(`workflow/stages/validating/fix_road.py`, `workflow/stages/fixing/resume_road.py`) -- and the fixing round
+answering a pull request's human feedback (`workflow/stages/fixing/feedback_road.py`), so a live hold or a lost
 write cannot discard the report. A pending capture is decided ahead of every stage handler, handed to its road's
 owner only while every reading still admits it -- the implementing stage finishes those two roads' with no developer
 run (`workflow/stages/implementing/captured_completion.py`), and the fixing stage a change request's round, retiring
-the request in the commit that hands its report on (`workflow/stages/fixing/captured_fixes.py`) -- and its checkout
-is kept out of the base refresh until then (`workflow/engine/completion_recovery.py`). The pull-request body leaves
+the request in the commit that hands its report on, and a feedback round, settling only the batch its launch froze
+(`workflow/stages/fixing/captured_fixes.py`) -- and its checkout is kept out of the base refresh until then
+(`workflow/engine/completion_recovery.py`). The pull-request body leaves
 the run's closing message out wherever a report is owed or settled, and a reused pull request's description is never
 rewritten. Full contract:
 [`workflow/conversations.md#the-developer-report-contract-in-developer-prompts`](workflow/conversations.md#the-developer-report-contract-in-developer-prompts);

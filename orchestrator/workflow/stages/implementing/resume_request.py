@@ -62,9 +62,10 @@ class _DevResumeRequest:
     owed: OwedLaunch | None = None
     # The road a report-producing caller froze before the launch -- what its
     # run is handed and where it runs -- so the coordinator captures an
-    # eligible return on it (`completion_roads`): an implementing road's, or a
-    # reviewer's change request's (`validating/fix_road`, `fixing/resume_road`).
-    # None for every other resume, which captures nothing.
+    # eligible return on it (`completion_roads`): an implementing road's, a
+    # reviewer's change request's (`validating/fix_road`, `fixing/resume_road`),
+    # or a pull request's feedback round's (`fixing/feedback_road`). None for
+    # every other resume, which captures nothing.
     completion: _roads.CompletionRoad | None = None
 
     @property

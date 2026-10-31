@@ -10,7 +10,9 @@ change request hands its fix to is captured the same way, on either half of
 that round: the run its handoff launches, whose report `validating/fix_reports`
 records, and the fixing stage's resume of it on the far side of a park, whose
 report `fixing/reporting` records -- each naming its own road, and the direct
-run's transfer retiring the change request it answers. Recorded again from
+run's transfer retiring the change request it answers. So is that stage's
+resume answering a pull request's human feedback, on its own road, whose
+report `fixing/reporting` records the same way. Recorded again from
 the run, the issue would carry two reports the next tick could publish. So where the
 run's own capture stands pending, the recording is the capture's transfer
 (`completion_handoff.transfer`): the delivery is minted from the outcome the
@@ -98,7 +100,8 @@ def recording_stops_the_tick(
     its capture is withdrawn. `route` is the implementing route unless a
     caller on another road names its own: a reviewer's change request's
     direct run, which answers the request it retires (`validating/fix_reports`),
-    and the fixing stage's resume of that round (`fixing/reporting`).
+    and the fixing stage's resumes, of that round and of a pull request's
+    human feedback (`fixing/reporting`).
     """
     pending = _pending_of(state, agent_result)
     if pending is None:

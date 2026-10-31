@@ -1409,9 +1409,9 @@ because there it is the claim that this stage has already rerouted rather than a
   ([`_handle_implementing`](#_handle_implementing-label-workflowimplementing)), and so do the validating and fixing
   stages for the fix a reviewer's change request hands its developer, on the run its handoff launches
   ([`_handle_validating`](#_handle_validating-label-workflowvalidating) step 6) and the resume of its parked round
-  ([`_handle_fixing`](#_handle_fixing-label-workflowfixing)); this reconciliation reads no capture of its
-  own. A pending capture is decided behind it, by the
-  [captured-completion recovery](#the-captured-completion-recovery-every-dispatch), and from the transfer on the
+  ([`_handle_fixing`](#_handle_fixing-label-workflowfixing)), and the fixing stage for the resume answering a pull
+  request's human feedback; this reconciliation reads no capture of its own. A pending capture is decided behind it,
+  by the [captured-completion recovery](#the-captured-completion-recovery-every-dispatch), and from the transfer on the
   delivery and this transaction hold the checkout out of the base refresh the capture held it out of before.
 
 ## The verification-evidence transaction (every dispatch)
@@ -2010,7 +2010,8 @@ and handed off -- and this is what it guarantees and what stops it.
   the fix a reviewer's change request hands its developer, on either half of that round: the run its handoff launches
   ([`_handle_validating`](#_handle_validating-label-workflowvalidating) step 6) and the resume a reply or an
   `/orchestrator continue` buys on the far side of a park that round took
-  ([`_handle_fixing`](#_handle_fixing-label-workflowfixing)). No other road captures one yet.
+  ([`_handle_fixing`](#_handle_fixing-label-workflowfixing)), and so does the resume the fixing stage makes over a
+  pull request's human feedback on the in_review route, on the `pr_feedback` road. No other road captures one yet.
 - **Reads** (`workflow/engine/completion_admission.py`, `completion_sources.py`), the cheapest first: the capture read
   back afresh through its own checkpoint, which admits the comment and binds it to the invocation's repository, issue,
   comment, and cycle -- the only thing the capture is read from; the issue fetched again for its labels, controls, and
@@ -2019,10 +2020,12 @@ and handed off -- and this is what it guarantees and what stops it.
   `resolving_conflict` is owed to, the rewritten-head debt a report refresh answers, owed on the pull request the record
   pins and the run's branch and naming as its rewritten head the commit its run reported on, the live adjudication a
   late revision answers, and the records its handoff froze, a move of one proving the capture stale only where the moved
-  record's own reader -- the debt's, the pinned number's, the returned reviewer verdict's, and a change request's
-  round's records' (`completion_frozen_reads.py`: the feedback anchor, `pending_fix_at`, the code-publication receipt,
-  the settled report pair, and the verification evidence, the current report and the current evidence each read
-  beside the handoff its settlement wrote), and for a late record the late domain's check of that very
+  record's own reader -- the debt's, the pinned number's, the returned reviewer verdict's, and a fix round's records'
+  (`completion_frozen_reads.py`: the feedback anchor, `pending_fix_at`, the code-publication receipt, the settled
+  report pair, and the verification evidence, the current report and the current evidence each read beside the
+  handoff its settlement wrote, and the `pending_fix_*_ids` lists and the pull request's three readers a pull request's
+  feedback round froze, each a list of whole ids, a whole id, or cleared to `null`), and for a late record the late
+  domain's check of that very
   field: the measurement evidence, the publication group, a hold's route bookkeeping --
   takes its new spelling, and a move of one no reader is registered for holding it, a late record none of those checks
   judges included; the requirements, fingerprinted as a developer prompt is handed them; the branch the live resolver
@@ -2089,9 +2092,33 @@ and handed off -- and this is what it guarantees and what stops it.
   consumed left to the pairs that ride its report. The park comes down only in the commit that hands the report on,
   decided on the park's flags as the recovery read them (`fixing/reporting._PARK_FLAGS`), so a park an operator
   recorded during those reads -- a spent run ledger's among them -- refuses it and stands, the capture waiting with
-  nothing written until a grant or reply answers that park. Every other road names no owner in this build, so an
-  applicable capture of it holds the stage, every tick, rather than letting it run the paid work again. This
-  recovery publishes nothing of its own and infers no review, verification, approval, or docs pass.
+  nothing written until a grant or reply answers that park. A pull request feedback round's owner is the fixing
+  stage's too (`fixing/captured_fixes.recovers`, on the `pr_feedback` road its handoff names), asked ahead of the
+  rescan that would hand the batch to a second developer, the bounce that would hand the pull request back with its
+  answer unpublished, and the publication of a checkout no report describes. It re-reads no reviewed subject, since
+  it answers the human's batch rather than a review: its admission already held `pending_fix_at`, the three
+  `pending_fix_*_ids` lists, `pr_number`, the code-publication receipt, and the pull request's three readers to their
+  frozen spellings -- a route stamped afresh, a batch bookmarked afresh, a reader somebody advanced, or another pull
+  request retiring it as a frozen move, and any of them spelled as nothing its reader takes holding it -- the
+  requirements to the fingerprint the run was handed, so an issue-thread reply landing during the run or while the
+  capture waits retires it rather than being restamped onto its report, the checkout to the commit reported on, and
+  the pull request to the head the run started on or reported on, a push over it retiring the capture and a pull
+  request nobody can read holding it. The pull request the owner fetches for the round's handles is a request of its
+  own behind those readings, so the issue, its controls, label, state, and requirements, the checkout, and the pull
+  request's head are read again behind that fetch (`completion_effect.admitted_again`), and a control applied, a label
+  moved, a close, an edit, or a push while it ran holds the capture with nothing staged or written, for the next
+  dispatch to decide. It is finished through the same roads as the parked round's resume, from the
+  capture alone and never from a rescan: the session settled, the park it answered taken down decided on the same
+  flags, the baseline moved to the fingerprint it was handed, and the batch its prompt quoted -- each surface to the
+  id its road froze, `pr_last_comment_id` no further than the scan's two reads proved complete, the delivered stretch
+  only where it reached `last_action_comment_id` -- applied with the round's reset and the cleared bookmarks by the
+  write that settles the report, so a comment posted after the scan, during the run, the hold, or the recovery's own
+  publication, stays unread for the next `in_review` scan and no omission is ever recorded as delivered. A report
+  with no commit goes onto the head the pull request already carries, superseding the report the approval covered,
+  so that approval covers it no longer, and either handover goes back to `workflow:validating`. Every other road
+  names no owner in this build, so an applicable capture of it holds the stage, every tick, rather than letting it run
+  the paid work again. This recovery publishes nothing of its own and infers no review, verification, approval, or
+  docs pass.
 - **Retires** a capture a reading proved stale -- an auto rebase of its branch begun and not recovered, its anchor
   reading as a commit, the issue closed or labelled `done` or `rejected`, moved onto any other road than the one it
   reported on, a record its handoff froze moved to a spelling its reader takes, the pull request, debt, or adjudication
@@ -6392,9 +6419,16 @@ of those recoverable without telling a human twice
      the held run finished on captured beside its accounting, the launch having carried the change request's road
      (`stages/fixing/resume_road.py`: the route, the fingerprint below, the pairs the batch settles, the round
      settlement, and a digest of `pending_fix_at`, the reviewer anchor, the pull request the issue points at, the
-     code-publication receipt, and the settled report and every evidence record the request was reviewed over), for
-     the [captured-completion recovery](#the-captured-completion-recovery-every-dispatch) to finish once the hold comes
-     off; the in_review route's resume captures nothing here. Past them the prompt reached an agent, so
+     code-publication receipt, and the settled report and every evidence record the request was reviewed over), and on
+     the in_review route the pull request feedback road (`stages/fixing/feedback_road.py`: the `pr_feedback` route,
+     the same fingerprint, the pairs the batch settles -- each surface to the newest id quoted on it, the shared
+     cursor bounded by what the scan's reads prove complete -- the reset round with the cleared bookmarks, and a digest
+     of `pending_fix_at`, the `pending_fix_*_ids` lists, the pull request, the code-publication receipt, and the pull
+     request's three readers), for the
+     [captured-completion recovery](#the-captured-completion-recovery-every-dispatch) to finish once the hold comes
+     off. An `ACK:`, a question, a timeout, or a failure finishes on no report and is captured on neither route, so a
+     held one is accounted and nothing more: the next tick answers the batch afresh. Past them the prompt reached an
+     agent, so
      the batch it quoted is delivered and is **settled** right there (`_settle_consumed_feedback`), ahead of every
      disposition below, because the size gate's own durable write and a park's both land inside that disposition and a
      settlement taken afterwards would be lost to a crash in the window a hold's relabel opens. The one outcome that

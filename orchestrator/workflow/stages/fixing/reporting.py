@@ -23,8 +23,9 @@ and the head a pull request happens to carry -- both of which outlive every
 transaction. It is cleared by the relabel that closes the round, and placed
 against the comment through `round_marks` before that relabel is taken.
 
-A report the launch's road captured as it returned -- the validating route's
--- is recorded by handing that capture to the delivery
+A report the launch's road captured as it returned -- the change request's on
+the validating route, the pull request feedback's on the in_review route -- is
+recorded by handing that capture to the delivery
 (`implementing/captured_report`), so the report has one owner at a time.
 
 The park a failed push filed comes down in that same write, and for the same
@@ -414,8 +415,8 @@ def _recording_stops_the_tick(
     that would have reset it never happens, and one later transient failure
     rotates a session this round proved healthy.
 
-    A run whose report its launch's road captured as it returned -- the
-    validating route's (`resume_road`) -- is recorded by handing that capture
+    A run whose report its launch's road captured as it returned -- either
+    route's (`resume_road`) -- is recorded by handing that capture
     to the delivery, with everything this tick settled around the run riding
     the same commit (`implementing/captured_report`), so the report has one
     owner at a time; a capture the delivery refuses for the report itself is

@@ -440,9 +440,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             stale-approval hand-back an `in_review` relabel writes; the stamp a fixing
                             hand-back leaves on the comment the settlement ahead of it left
                             (`stages/fixing/round_marks.py`); and the records a reviewer round writes onto that
-                            comment (`stages/validating/review_records.py`). So is the owner the captured-completion
+                            comment (`stages/validating/review_records.py`). So are the owners the captured-completion
                             recovery hands the implementing roads' captures to
-                            (`stages/implementing/captured_completion.py`)
+                            (`stages/implementing/captured_completion.py`) and the fix rounds' captures to
+                            (`stages/fixing/captured_fixes.py`)
     poll_models.py          poll-time closure evidence and family/fanout/cleanup partitions, preserving deferred issues
                             absent from enumeration and the blocked/umbrella family capacity exemption; a closed
                             reading -- a family-bucket issue's included, there only when its label could not be read
@@ -1175,13 +1176,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             included; the thread stretch a road delivered, read back only whole
                             (`delivered_stretch`); and, where a road froze the code-publication receipt, the head
                             that receipt names on the recorded pull request (`published_over`)
-    completion_frozen_reads.py whether a record a reviewer's change request's round froze still reads, by the
-                            record's name -- the feedback anchor, `pending_fix_at`, the code-publication receipt
+    completion_frozen_reads.py whether a record a fix round's road froze still reads, by the record's name -- the
+                            feedback anchor, `pending_fix_at`, the code-publication receipt
                             (read only where `stages/implementing/late_receipt_damage.py` reads the group, resolved
                             when called), the settled report pair, read only as the pair one settlement wrote
-                            (`settled_report_reads`, by `report_replay_guards.companions_disagree`), and the
+                            (`settled_report_reads`, by `report_replay_guards.companions_disagree`), the
                             verification evidence, current evidence read beside the handoff its settlement wrote
-                            (`verification_current.handoff_describes`) -- so a move of one is told from its damage;
+                            (`verification_current.handoff_describes`), and the `pending_fix_*_ids` lists and the
+                            pull request's three readers a pull request's feedback round freezes, each a list of
+                            whole ids, a whole id, or `null` -- so a move of one is told from its damage;
                             and whether the settled report and the evidence a held request claims read at all
                             (`settled_report_reads`, `evidence_unread`), damage there no proof of a later revision
     completion_state.py     the state's view of its capture: a claim asked apart from a reading, so damage is never
@@ -1226,7 +1229,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             holds -- refused where the comment no longer reads as it, and its commit held to that
                             reading whole (`completion_evidence.py`), a field the reading lacked included.
                             The implementing roads capture through it as their developer returns
-                            (`stages/implementing/completion_roads.py`)
+                            (`stages/implementing/completion_roads.py`), and so do the fix rounds' roads its
+                            validating and fixing callers freeze
     completion_recovery_models.py the five answers one reading of a pending capture gives -- applicable, invalid,
                             uncertain, damaged, and waiting -- the reason each is said with, and the immutable
                             `AdmittedCompletion` an applicable capture is handed to its road's owner as: the
@@ -1260,7 +1264,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             holding it), and the records its handoff froze, a move proving it stale only where the moved
                             record's own reader -- the debt's, the pinned number's, the returned reviewer verdict's
                             (`stages/validating/review_verdicts.py`, resolved when called), the feedback anchor's, the
-                            in_review route stamp's, and for a late record the
+                            in_review route stamp's, a feedback round's bookmarked id lists' and pull request readers'
+                            (`completion_frozen_reads.py`), and for a late record the
                             late domain's check of that very field (`late_claims._FIELD_READS`) -- takes the new
                             spelling, a moved record no reader is registered for holding it, a late one none of those
                             checks judges included -- gone proving the capture stale and unreadable holding it; an
@@ -1283,9 +1288,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             effect's readings taken again behind the issue's last fetch (`completion_effect.py`): an
                             applicable one handed to its road's owner (`ROUTE_OWNERS`, resolved when called -- the
                             first implementation's and an implementing resume's to
-                            `stages/implementing/captured_completion.py`, a reviewer's change request's to
-                            `stages/fixing/captured_fixes.py`, every other road's to none in this build, so its stage
-                            is held), a stale one retired `invalidated` by the
+                            `stages/implementing/captured_completion.py`, a reviewer's change request's and a pull
+                            request feedback round's to `stages/fixing/captured_fixes.py`, every other road's to none
+                            in this build, so its stage is held), a stale one retired `invalidated` by the
                             checkpoint's guarded retirement and the tick ended behind it, so the stage runs on the
                             next over the issue as it then reads, an uncertain or damaged one held with nothing written,
                             and a hold it waits through, or an operator's hard-skip on the observed-close road,
@@ -4069,7 +4074,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             already been delivered is the RECORD's own frozen pairs rather than any reader
       bookmarks.py          the `pending_fix_*` ids a replay rebuilds the triggering batch from -- each surface
                             apart, since the replay is delivered and so is settled, and each from its recorded id list
-                            alone, a list missing or damaged rebuilding nothing -- and the clear each round earns.
+                            alone, a list missing or damaged rebuilding nothing; `BATCH_IDS` names those lists for
+                            the feedback road that freezes them -- and the clear each round earns.
                             The issue-thread half is CUT from the caller's own read of that surface rather than one
                             taken here, because a replay is part of the batch: a bookmarked comment edited or
                             deleted between two reads would reach the developer in the prompt while the requirements
@@ -4108,10 +4114,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             fix answered the feedback in code the pull request now carries and a PARK answered it
                             with a notice a human is being asked to read. A
                             replay settles the batch it REPLAYED joined with the fresh rescan, each item against the
-                            reader of the surface it was posted on. On the validating route the launch carries the
-                            change request's road (`resume_road.py`), and a held run's report is captured beside
-                            its accounting; the tail behind the run (`_finishes_the_run`) is the one the recovery of
-                            such a capture runs too, handed the pairs the road froze
+                            reader of the surface it was posted on. The launch carries the road its route names
+                            (`resume_road.py`) -- the change request's on the validating route, the pull request
+                            feedback's on the in_review route (`feedback_road.py`) -- and a held run's report is
+                            captured beside its accounting; the tail behind the run (`_finishes_the_run`) is the one
+                            the recovery of such a capture runs too, handed the pairs the road froze
       reporting.py          the settlement-driven form of that road, which the resume above disposes every
                             reported round through, a run an account quota stopped parked as the session limit over
                             the debt the missing-report parks would record. Which reply this is -- a report, an
@@ -4235,14 +4242,27 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and the
                             settled report pair and every verification evidence record, the revision floor among
                             them, the request was reviewed over -- so a
-                            report the run finishes on is captured as it returns; the in_review route's resume
-                            freezes none. The park the resume answers is held at the report's write instead
-                            (`reporting._PARK_FLAGS`)
+                            report the run finishes on is captured as it returns; the in_review route's resume is
+                            handed to `feedback_road.py` instead. The park the resume answers is held at the report's
+                            write instead (`reporting._PARK_FLAGS`)
+      feedback_road.py      what the in_review route's resume freezes before its launch -- the pull request
+                            feedback road under `workflow:fixing`, the fingerprint the run is handed, the pairs the
+                            batch settles, each surface to the newest id its prompt quoted and the shared cursor
+                            no further than the scan's reads prove complete, the reset round with the cleared
+                            bookmarks and the settled-round mark, and a digest of `pending_fix_at`, the three
+                            `pending_fix_*_ids` lists, `pr_number`, the code-publication receipt's three members, and
+                            the pull request's three readers -- so a report the run finishes on is captured as it
+                            returns, and recovered from those pairs alone, never a rescan
       captured_fixes.py     the owner the dispatcher's recovery hands an applicable capture of a reviewer's change
-                            request to: the direct round's, which froze the request, to
-                            `stages/validating/captured_fix.py`, and the parked round's resume finished here from the
-                            capture alone, once its settled report re-reads where it settled and the issue still
-                            reads as admitted (`stages/validating/captured_fix.subject_stands`) -- the session
+                            request, or of a pull request feedback round, to: the direct round's, which froze the
+                            request, to `stages/validating/captured_fix.py`, and the parked round's resume finished
+                            here from the capture alone, once its settled report re-reads where it settled and the
+                            issue still reads as admitted (`stages/validating/captured_fix.subject_stands`), and a
+                            feedback round's with no subject to re-read, its admission having held its frozen batch,
+                            route, readers, requirements, checkout, and pull request, and every reading a handoff's
+                            effect stands on taken again behind the pull request this owner fetches
+                            (`engine/completion_effect.admitted_again`), a control or a push meanwhile holding it --
+                            the session
                             settled, the park taken down, the baseline moved to the fingerprint the run was handed
                             -- through the resume's own roads
                             (`resume._finishes_the_run`), with no developer run; the park comes down only in the
