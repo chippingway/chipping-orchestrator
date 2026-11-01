@@ -376,10 +376,11 @@ bound and settled once the push lands and the stage's own bookkeeping is written
 rather than being pushed, and stays unpublished until a reply brings the report. A no-commit reply ending on a report
 outcome is published onto the head the pull request already carries — over a tree proved clean, or parked on the
 tree with nothing recorded — and routed as an `ACK:` is, and the reviewer waits until the report is confirmed on the
-pull request. `ACK:` and a question keep their own roads. Each of those resumes, and the reply each stage answers as
-its continuation, is captured on the drift road as it returns, so a report a live hold, a lost write, or a restart
-kept is recorded later, from its capture, through the same disposition and on the same round, under the revision its
-own frozen read fingerprints -- never one an edit since has moved the issue to.
+pull request. `ACK:` and a question keep their own roads. Each of those resumes, and the reply `workflow:validating`
+or `workflow:resolving_conflict` answers as its continuation, is captured on the drift road as it returns, so a
+report a live hold, a lost write, or a restart kept is recorded later, from its capture, through the same disposition
+and on the same round, under the revision its own frozen read fingerprints -- never one an edit since has moved the
+issue to.
 
 The **reviewer-requested fix round** acts on one on the same pull request, under the `workflow:fixing` label it runs
 under. The initial `CHANGES_REQUESTED` run reads its result through `workflow/stages/validating/fix_reports.py`
@@ -600,10 +601,12 @@ division of labour between the developer and the orchestrator never changes.
   the pull request carried on the same head for a fresh review. So does the fixing stage's resume answering a pull
   request's human feedback, on the `pr_feedback` road, whose report carries the batch its prompt quoted and the
   route's reset round and cleared bookmarks, a report alone superseding the one its approval covered. So does a
-  requirements-drift resume on any stage it runs on, and the replies that remain its continuation, on the
-  `requirements_drift` road: its report carries none of the frozen reading it was handed, which its stage settles for
-  itself as ever -- in the transfer's own commit on a live tick, and from the capture on a recovery -- and its round
-  is the one that stage's drift disposition spends, resets, or hands on. No other road captures one yet. A return a
+  requirements-drift resume on any stage it runs on, and the reply `workflow:validating` or
+  `workflow:resolving_conflict` answers as its continuation, on the `requirements_drift` road: its report carries none
+  of the frozen reading it was handed, which its stage settles for itself as ever -- in the transfer's own commit on a
+  live tick, and from the capture on a recovery -- and its round is the one that stage's drift disposition spends,
+  resets, or hands on. A reply or continue to an implementing drift park is an implementing resume, captured and
+  finished as one. No other road captures one yet. A return a
   live hold kept is left captured, with nothing it was handed consumed -- a change request stays handed, its round
   unspent, a feedback batch unread, and a drift resume's edit unanswered, its baseline unmoved -- and its recovery is
   asked ahead of every stage handler, before an unreported checkout, a drift resume, a launch, a review resume, or a
