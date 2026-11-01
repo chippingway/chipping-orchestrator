@@ -122,8 +122,8 @@ def _stage_park(context: _LateContext, message: str, *, reason: str) -> None:
     _late_notice._owe_notice(context, context.staged_park)
 
 
-def _release_unsuperseded_park(context: _LateContext) -> None:
-    """Say what a staged park explains, if nothing else ever will.
+def _stage_unsuperseded_park(context: _LateContext) -> None:
+    """Stage what a park explains for the caller to say, if nothing else ever will; nothing where something will.
 
     The counterpart to holding a notice back for a read that could not be
     taken. Holding one back is only ever a DEFERRAL, and it is a deferral
@@ -140,12 +140,15 @@ def _release_unsuperseded_park(context: _LateContext) -> None:
     Asked of what an earlier tick left owed as well as of what this one
     staged, because the two are the same obligation: a notice a refused
     comment stranded is exactly a sentence nothing else will ever say.
+
+    Staged rather than said, and a superseded one taken off the tick, so the
+    owner guard says what is left only once the issue lets it
+    (`late_owner._may_post`); held back there, it stays owed on the record.
     """
     staged = context.staged_park or _late_notice._owed_notice(context)
-    if staged is None or staged.reason in _late_park_state._SUPERSEDED_PARKS:
-        return
+    if staged is not None and staged.reason in _late_park_state._SUPERSEDED_PARKS:
+        staged = None
     context.staged_park = staged
-    _late_park_delivery._release_staged_park(context)
 
 
 def _retire_park(context: _LateContext) -> bool:

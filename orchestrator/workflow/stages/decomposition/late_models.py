@@ -8,6 +8,7 @@ keep unreadable owners, displaced holds, and staged notices distinct.
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 
@@ -28,11 +29,17 @@ class _OwnerState(Enum):
     an activation -- is an effect on an issue somebody may have closed in
     between. `UNREADABLE` is what the tick fails closed to: it costs one
     poll, while treating it as open costs work done on an issue nobody wants.
+
+    `HELD` is the fourth, answered only to a tick whose context asks of the
+    issue it fetched (`_LateContext.owner_holds`): a control or a relabel
+    that fetch shows on an open issue, on which the tick writes and says
+    nothing more. A closed issue is CLOSED whatever it carries.
     """
 
     OPEN = "open"
     CLOSED = "closed"
     UNREADABLE = "unreadable"
+    HELD = "held"
 
 
 
@@ -141,6 +148,12 @@ class _LateContext:
     not have an agent started under it, but may still have an answer this
     issue already recorded settled -- so the fact is carried rather than acted
     on where it is learned.
+
+    `owner_holds` is not state at all but a question, set by the dispatcher's
+    recovery of a captured revision (`captured_revision`): asked of the issue
+    every owner read fetches, an answer that it holds stops that read with
+    nothing written or posted (`_OwnerState.HELD`), so a control applied while
+    the recovery works keeps what follows its handoff off the issue too.
     """
 
     gh: GitHubClient
@@ -153,3 +166,4 @@ class _LateContext:
     staged_park: _StagedPark | None = None
     displaced_hold: bool = False
     already_published: bool = False
+    owner_holds: Callable[[Issue], bool] | None = None

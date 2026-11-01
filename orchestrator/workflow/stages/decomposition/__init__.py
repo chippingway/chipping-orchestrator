@@ -62,9 +62,14 @@ requirement instead -- while `late_guidance` decides what a
 change to those requirements or an answer about them earns, `late_revision`
 owns the developer run guidance buys and the followup it is resumed with --
 with `late_revision_obligations` holding the refusal a candidate the last
-adjudication already acted on earns instead of a revision, and
+adjudication already acted on earns instead of a revision,
 `late_revision_reconciliation` the clean tree, re-frozen commit, and fresh
-measurement what that run left is proved through -- `late_relabel` owns the
+measurement what that run left is proved through, `late_revision_road` what
+the run's launch freezes for the capture of the report it finishes on,
+`late_revision_landing` what the reconciliation's writes do with that report,
+and `captured_revision` the
+finish of a capture a hold kept, which the dispatcher's recovery hands it --
+`late_relabel` owns the
 label a live generation pins against the kill switch and a hand relabel,
 `late_owner` owns the fresh read that stands between a finished run and
 anything it earns,

@@ -1318,8 +1318,10 @@ pinned into an in-flight session — are in
   run (the first implementation, a human-reply resume, or an `/orchestrator continue` retry), the fix a reviewer's
   change request hands its developer (the run its handoff launches, or the `workflow:fixing` resume of its parked
   round), the `workflow:fixing` resume answering a pull request's human feedback, the session resume a
-  requirements edit buys on any stage, a reply that answers its park included, and the `workflow:validating` resume
-  asking for a rewritten head's fresh report: once the label comes off, the
+  requirements edit buys on any stage, a reply that answers its park included, the `workflow:validating` resume
+  asking for a rewritten head's fresh report, and the `workflow:decomposing` revision a human's guidance buys under a
+  late adjudication, which consumes none of that guidance and advances no generation while held: once the label comes
+  off, the
   dispatcher publishes it with no second developer run, settling only what that run was handed -- a comment posted
   after the run's prompt was built stays unread for the next round, and an edit meanwhile retires the capture for the
   next tick to answer afresh

@@ -26,12 +26,21 @@ guidance can leave the code as it is and still change what the report says.
 What the marker is read against, and what a commit nobody vouched for earns
 instead, are decided where the checkout is.
 
-Nothing before that reconciliation is durable. The guidance is consumed, the
-park is cleared, and the session is recorded in memory; the write that keeps
-any of it is the one the reconciliation itself makes. A mid-run pause, a
-shutdown sweep, and a launch the run circuit refused therefore leave the issue
-exactly as the prior tick did, with the human's guidance still unread -- which
-costs one repeated developer run and never a dropped instruction. A run whose
+Nothing of the tick before that reconciliation is durable. The guidance is
+consumed, the park is cleared, and the session is recorded in memory; the
+write that keeps any of it is the one the reconciliation itself makes. A
+mid-run pause, a shutdown sweep, and a launch the run circuit refused
+therefore leave the issue exactly as the prior tick did, with the human's
+guidance still unread -- which costs one repeated developer run and never a
+dropped instruction. The one exception is the run's own return where it
+finished on a report: the launch carries the revision's road
+(`late_revision_road`), so the shared coordinator captures that return as it
+comes back, beside its accounting, and nothing else -- the guidance stays
+unread, the generation and the park as they stood, no report delivered, and
+nothing said, relabelled, or published. A held capture is finished by the
+dispatcher's recovery once the hold lifts (`captured_revision`), with no
+second developer run, and an unheld one is handed to the report delivery in
+the very write that re-measures the candidate it describes. A run whose
 CLI stopped before it worked -- on its account's quota, on any refusal its
 provider answered with, or with a failed exit and nothing said -- is
 reconciled like any other, but consumes nothing: the park it earns stands over
@@ -81,6 +90,7 @@ from orchestrator.workflow.stages.decomposition import (
     late_parks as _late_parks,
     late_revision_obligations as _late_obligations,
     late_revision_reconciliation as _late_reconciliation,
+    late_revision_road as _late_revision_road,
 )
 from orchestrator.workflow.stages.decomposition.late_content_models import _LateContentSettlement, _LateContentSignal
 from orchestrator.workflow.stages.decomposition.late_models import _LateContext
@@ -155,7 +165,9 @@ def _revise_from_guidance(
     consumption made durable by one of them would drop a human's instruction
     on the floor with nothing left on the issue pointing at it. The cost is
     the one every declined run has -- the next tick resumes the developer
-    again on the same reply, and it sees its own prior commit.
+    again on the same reply, and it sees its own prior commit -- save a run
+    that finished on a report, whose captured return the next dispatch
+    finishes instead, consuming the reading it was handed then.
 
     The replies an earlier consumption left owed a whole quote are quoted
     too, and they are repaid only where the reconciliation lands on this
@@ -208,6 +220,14 @@ def _resumed(
     no consumption of guidance nothing acted on -- no requirements baseline
     moved, no owed reply repaid. Nor may the park a run that never started
     work earns.
+
+    A session that cannot be resumed -- none pinned, one retired, or one a
+    poisoned transcript replaces -- is spawned fresh and re-grounded with the
+    conversation, which is rendered off the very batch this reading was cut
+    from (`thread_text`) rather than read again at the spawn. A reply landing
+    in between, behind the notice above among them, reaches no agent the
+    requirements the run is captured over (`late_revision_road`) do not
+    describe: it is left for the next tick to read as fresh guidance.
     """
     latched = _latched_close(context)
     if latched is not None:
@@ -220,6 +240,8 @@ def _resumed(
         _revision_prompt(context.issue, signal.guidance),
         stage=_DECOMPOSING_STAGE,
         pause_guard=True,
+        thread_text=_prompt_context._thread_text(signal.read),
+        completion=_late_revision_road.road(context, signal),
     ))
     if paused or _guards._ignore_if_interrupted(context.issue, agent_result):
         return _LateContentSettlement(

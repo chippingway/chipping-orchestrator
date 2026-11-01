@@ -49,6 +49,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from orchestrator.github.pull_request_reports import ReportLocation
+from orchestrator.workflow.engine.pinned_commit_models import ABSENT
 from orchestrator.workflow.state import WorkflowLabel
 
 # The report a completed run wrote, before any pull request carries the code it
@@ -294,7 +295,10 @@ class HandedRun:
     (`report_delivery.parks_the_debt`) -- as `spends` is in the one that
     settles it: a persisted change request this run answers is retired beside
     the record of that answer, so a write GitHub never confirmed leaves both or
-    neither. Never written onto the record itself.
+    neither. A pair whose value is `ABSENT` drops its field in that commit:
+    the drop a late revision's re-measurement makes of a member it cleared
+    rides its captured report's transfer that way. Never written onto the
+    record itself.
 
     `decided_on` is what that road is decided on beyond the report records,
     and every write recording or holding the run's report is decided on it
@@ -320,3 +324,11 @@ class HandedRun:
     watermarks: tuple = ()
     retires: tuple = ()
     decided_on: frozenset = frozenset()
+
+    def retired_onto(self, staged) -> None:
+        """Stage what this run retires on `staged`: each field set as `retires` spells it, or dropped for `ABSENT`."""
+        for retired_field, retired in self.retires:
+            if retired is ABSENT:
+                staged.state_data.pop(retired_field, None)
+            else:
+                staged.set(retired_field, retired)

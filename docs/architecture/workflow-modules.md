@@ -910,7 +910,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             as answered until it lands -- and, where the caller's road is answered by the report
                             itself, what that road retires in the record's own commit and the fields that road is
                             decided on, which every write recording or holding the report is decided on too: a
-                            persisted change request retired beside its developer's report. The MARK a fixing
+                            persisted change request retired beside its developer's report, and a late revision's
+                            re-measurement, a member it dropped staged as a removal (`retired_onto`). The MARK a fixing
                             round's own settlement raises rides that last group and is spelled here because every
                             settlement writes it -- put up by a fixing record's frozen spends, retired by every
                             settlement that froze none, so the mark and the
@@ -1163,7 +1164,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     completion_routes.py    the report-producing roads a developer completion may be captured on, each with the
                             labels its report records under, whether a VERIFIED outcome pays it -- a rewritten-head
                             refresh is paid only READY -- whether it answers a frozen handoff, whether it settles
-                            its own input, as a requirements-drift resume does, so its report carries none, and how
+                            its own input, as a requirements-drift resume and a late developer revision do, so its
+                            report carries none, and how
                             many delivered stretches its capture may freeze -- a drift resume's two, the issue
                             thread's and a pull request conversation's, every other road's one; and whether one
                             return qualifies, read through the outcome owner's completed-run reader and the
@@ -1177,7 +1179,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`delivered_input`) -- and the resolved HANDED_OFF and RETIRED stages that
                             keep no report, a RETIRED one still carrying the handoff it superseded where it had one
     completion_values.py    what each member of a capture may be: bounded single lines, recorded numbers, a frozen
-                            handoff of at most sixteen named digests, and a report the report records' reading takes,
+                            handoff of at most twenty named digests, and a report the report records' reading takes,
                             each answering a damaged member apart from one legitimately `null`
     completion_spelling.py  the flat wire object each stage is spelled as, and the strict whole reading of one, a key
                             too many or too few, a member out of bound, or a road its contract refuses reading as
@@ -1187,7 +1189,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             -- and which of those records a later reading spells otherwise, `null` from missing
                             included; the thread stretch a road delivered, read back only whole
                             (`delivered_stretch`); and, where a road froze the code-publication receipt, the head
-                            that receipt names on the recorded pull request (`published_over`)
+                            that receipt names on the recorded pull request (`published_over`) -- or, where a late
+                            revision's road froze a post-publication context, the head that publication pushed,
+                            read only from a complete context naming the recorded pull request
+                            (`late_published_over`)
     completion_frozen_reads.py whether a record a fix round's or a drift resume's road froze still reads, by its name -- the
                             feedback anchor, `pending_fix_at`, the code-publication receipt
                             (read only where `stages/implementing/late_receipt_damage.py` reads the group, resolved
@@ -1242,8 +1247,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             holds -- refused where the comment no longer reads as it, and its commit held to that
                             reading whole (`completion_evidence.py`), a field the reading lacked included.
                             The implementing roads capture through it as their developer returns
-                            (`stages/implementing/completion_roads.py`), and so do the fix rounds' roads its
-                            validating and fixing callers freeze
+                            (`stages/implementing/completion_roads.py`), and so do the fix rounds', drift resumes',
+                            report refresh's, and late developer revision's roads its validating, fixing, in_review,
+                            conflict, and decomposing callers freeze
     completion_recovery_models.py the five answers one reading of a pending capture gives -- applicable, invalid,
                             uncertain, damaged, and waiting -- the reason each is said with, and the immutable
                             `AdmittedCompletion` an applicable capture is handed to its road's owner as: the
@@ -1265,6 +1271,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             other proof is the pinned record's, which the retirement's own commit is held to; and
                             all of a handoff's readings asked again for an owner whose own reads come between the
                             admission and its effect (`admitted_again`)
+    completion_closes.py    the closes a pending capture's recovery reads, for a road whose owner a close of its issue
+                            ends (`CLOSE_OWNERS`: a late developer revision's, to
+                            `stages/decomposition/captured_revision_closes.py`, resolved when called): the decision
+                            taken over a client that keeps any close a fetch of the issue reads (`watching`), a close
+                            kept there handed to that owner in place of what was decided (`ended`), and the client
+                            riding on into a handoff admitted with none; every other road decides as it always did
     completion_evidence.py  what an invalidation is decided on: the whole reading its proof was taken over, asked of
                             the candidate the retirement's commit derives (`DecidedOn`), so a field moved, restored,
                             or added since refuses it as EVIDENCE_MOVED
@@ -1281,7 +1293,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             read whole or as gone), the feedback anchor's, the
                             in_review route stamp's, a feedback round's bookmarked id lists' and pull request readers'
                             (`completion_frozen_reads.py`), and for a late record the
-                            late domain's check of that very field (`late_claims._FIELD_READS`) -- takes the new
+                            late domain's check of that very field (`late_claims._FIELD_READS`), or -- for the late
+                            comment watermark and the replies owed a whole quote a late revision freezes -- the late
+                            record's own reader, read here -- takes the new
                             spelling, a moved record no reader is registered for holding it, a late one none of those
                             checks judges included -- gone proving the capture stale and unreadable holding it; an
                             auto-rebase anchor beside it, retiring it where it reads as a commit and holding it where it
@@ -1291,12 +1305,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     completion_sources.py   whether the branch the live resolver names, the issue's own checkout at its own path and the
                             commit it stands on, and the recorded pull request -- open, on the run's branch in this
                             repository, at the head the run started on or reported on -- or, for a road that froze
-                            the code-publication receipt, the one it names there (`completion_frozen.published_over`)
-                            -- a report refresh's at the one it reported on alone -- are still the ones a pending
+                            the code-publication receipt, the one it names there (`completion_frozen.published_over`),
+                            and for a late revision over a post-publication generation the head that publication
+                            pushed (`completion_frozen.late_published_over`) -- a report refresh's at the one it
+                            reported on alone -- are still the ones a pending
                             capture reported on; a reading that fails
                             or misses its head's branch, commit, or repository, a checkout nothing proves the issue's
                             own, and a checkout head naming no commit the store holds each hold the capture rather than
-                            proving it stale. On the implementing road a pull request that road reads as the
+                            proving it stale. On the implementing road, and on a late revision's of a candidate
+                            adjudicated before its publication, a pull request the implementing road reads as the
                             `discussion` stage's plan (`stages/implementing/handler.py`, resolved when called) is none
                             of the run's, merged or not
     completion_recovery.py  the dispatch guard that decides a pending capture ahead of every stage handler, its
@@ -1307,9 +1324,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             request feedback round's to `stages/fixing/captured_fixes.py`, a requirements-drift
                             resume's to the stage it reported under (`finishes_a_drift`, by `DRIFT_OWNERS`:
                             `stages/<stage>/captured_drift.py`), a rewritten head's report refresh's to
-                            `stages/validating/captured_refresh.py`, and a late revision's to none
-                            in this build, so its stage is held), a stale one retired `invalidated` by the
-                            checkpoint's guarded retirement and the tick ended behind it, so the stage runs on the
+                            `stages/validating/captured_refresh.py`, and a late developer revision's to
+                            `stages/decomposition/captured_revision.py`; a road the table names no owner for
+                            holds its stage), a close a late revision's decision read handed to that road's close
+                            owner whatever was decided (`completion_closes.py`), a stale one retired `invalidated` by
+                            the checkpoint's guarded retirement and the tick ended behind it, so the stage runs on the
                             next over the issue as it then reads, an uncertain or damaged one held with nothing written,
                             and a hold it waits through, or an operator's hard-skip on the observed-close road,
                             stood down for. `dispatch_guards.py` asks it behind the rewritten-head report debt, on
@@ -3368,12 +3387,19 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             verdict whole -- the same reading that takes the park down ahead of its re-adjudication
       late_owner_reading.py fresh open/closed/unreadable owner readings, with the close-observation latch checked before
                             GitHub so a reopen cannot erase a close already observed during the worker's run -- one
-                            that ends this cycle, a close held for a cycle restarted since asking GitHub instead
+                            that ends this cycle, a close held for a cycle restarted since asking GitHub instead --
+                            and, for a context that asks of the issue it fetched, a held answer where that fetch
+                            shows a control or a relabel on an open issue, on which nothing the read decides is
+                            written or said; a closed one is closed whatever it carries
       late_owner_settlement.py
-                            persist cleared claims, cancellation, and unreadable-owner parks, and deduplicate recovery
+                            persist cleared claims, cancellation, and unreadable-owner parks -- the park's notice
+                            staged for the owner guard to say, never said here -- and deduplicate recovery
                             follow-ups within the park episode before clearing its state
       late_owner.py         guard late outcomes and child activation, claim completion ahead of the owner reading,
                             reconcile pending checks, and release or discard staged parks after that reading settles
+                            -- a notice or unreadable-owner park said only behind the settlement's own write, where
+                            it landed and, for a recovery's context, the owner read once more right before it is
+                            open and unheld, a close there ending the cycle (`_may_post`)
       late_snapshot.py      the immutable copy every child of a split is cut from: the ref this generation's
                             identity names, the obligation written ahead of the push and again behind the proof, the
                             create-or-verify that never overwrites, the fetch that proves a child could obtain it,
@@ -3703,7 +3729,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             any a park's notice withheld ahead of the fresh ones -- carrying the developer report
                             contract, and
                             asking for the `ACK:` marker an UNCHANGED commit needs before it counts as an answer,
-                            offered only while the report needs no change either. The reading is consumed once the
+                            offered only while the report needs no change either. A fresh or replacement spawn is
+                            re-grounded with the conversation rendered off the reading the guidance came off, never
+                            a second read of the thread. The launch carries the road
+                            `late_revision_road.py` freezes, so a return that finished on a report is captured as
+                            it comes back -- a held one finished by the dispatcher's recovery
+                            (`captured_revision.py`) rather than paid for again. The reading is consumed once the
                             run is back and made durable only by the reconciliation's write, so a paused,
                             interrupted, refused, or close-latched run leaves every baseline where it was, and so
                             does one whose CLI stopped before it worked -- on its quota, a Claude notice or an
@@ -3719,7 +3750,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       late_revision_obligations.py
                             the refusal a candidate the last adjudication already acted on earns instead of a
                             revision, asked on BOTH roads into one -- ahead of the notice and the spawn guidance
-                            buys, and ahead of the re-read a bare continue takes without either. Two effects put a
+                            buys, and ahead of the re-read a bare continue takes without either -- and again by a
+                            captured revision's recovery, whose park withdraws the capture behind it. Two effects put a
                             candidate past replacing: children it created, which a second manifest over the top of
                             would strand, and a recorded snapshot obligation, refused in ANY state because a moved
                             `candidate_sha` leaves the reclamation comparing a ref against a commit it no longer
@@ -3732,9 +3764,65 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             proved through (which carries none of the last generation's split receipts, and none of
                             the authorization an operator gave the answer this re-freeze retires -- an acknowledged
                             unchanged candidate comes back matching every term of it), the reading of the `ACK:`
-                            marker that decides whether an UNCHANGED commit is an answer at all, the fresh owner
-                            read a landed reconciliation and a parked one alike ride out past, and the owed replies
-                            only a landed one repays, and only off a run the caller says worked to the end
+                            marker that decides whether an UNCHANGED commit is an answer at all -- or a report
+                            outcome the run finished on, a report-only revision -- the fresh owner read a landed
+                            reconciliation and a parked one alike ride out past, and the owed replies only a landed
+                            one repays, and only off a run the caller says worked to the end; what each of those
+                            writes does with the run's report is `late_revision_landing.py`'s
+      late_revision_road.py what a late developer revision's launch freezes for the capture of the report it finishes
+                            on (`road`): the `late_revision` road under `decomposing`, the requirements its
+                            guidance was read off, that reading's consumption as `last_action_comment_id` at the
+                            newest trusted comment it counted and `user_content_hash` -- which the road settles for
+                            itself, so its report carries none, and which a recovery cuts the thread at
+                            (`read_through`) -- and a handoff frozen over the cycle, generation, frozen pair, phase,
+                            late comment watermark and owed replies -- what selected the guidance its prompt
+                            quoted -- the route bookkeeping a hold on the pair owes (`late_spends`), publication
+                            group, pull request, code-publication receipt, and the split's children and resource
+                            and consumer ledgers: nineteen digests
+      late_revision_landing.py
+                            what the reconciliation's writes do with the run's report: the write a re-measured
+                            candidate lands, the capture handed to the delivery in that very commit with every
+                            field the tick moved riding it, a dropped member as a removal, one refused for room or
+                            a moved frozen record kept pending with nothing written, and one refused for the report
+                            itself withdrawn (`lands_the_revision`); a head read again as anything but the commit
+                            the capture froze, reconciled not at all (`reports_on`); a report no capture holds -- the capture refused for room as the
+                            run returned, or withdrawn -- recorded by the delivery's own recording with the
+                            reconciliation riding it, or parked as one it could not record, the report owed; the
+                            park's own write with the owner read it owes (`lands_the_park`) -- one over a clean
+                            commit it only could not measure landing as a re-measured candidate's does, its report
+                            handed on, and any other a guarded commit decided on the capture, and every record its
+                            handoff was frozen over, while it is pending, so a generation or pair moved since
+                            refuses it and a recovery's question is asked behind the strict edit's own walk -- and the
+                            withdrawal that park takes behind it (`withdraws`)
+      captured_revision.py  the owner the dispatcher's recovery hands an applicable `late_revision` capture to: the
+                            owner's close latch asked first, the reading the run was handed taken again off the
+                            thread cut at the newest trusted comment it counted and held to the requirements it
+                            hashed to, the session settled from the capture (`implementing/captured_completion.py`),
+                            and -- inside `implementing/captured_rereads.py`, every write made while the capture is
+                            pending a strict edit held to the admission read again and the close latch, the park's a
+                            guarded commit, a close latched there, or read by any fetch of the issue the recovery
+                            made, ending the cycle over the comment read again (`captured_revision_closes.py`) --
+                            the obligations asked again, the park answered, the reading consumed, and the checkout
+                            reconciled on a rebuilt result; the owner read behind a settled capture asks of the
+                            issue it fetches, a control or relabel there writing and saying nothing more; with no
+                            developer or adjudicator run, verdict, child, label, or publication
+      captured_revision_guards.py
+                            what that recovery asks before each write behind its reads, and how it lands them: a
+                            client whose whole-state writes of the issue's comment land as guarded commits decided
+                            on every record the handoff froze (`committing`), so the owner read behind a settled
+                            capture writes nothing over an obligation recorded since and its strict edit asks the
+                            recovery's question; and the owner read's question of the issue it fetches (`holds`)
+      captured_revision_closes.py
+                            the closes that recovery reads, kept until the cycle they end reads cancelled: the owner
+                            a close the dispatcher's admission read is handed to (`closed`, by
+                            `engine/completion_closes.py`); a poll's latch asked first (`stops`); the client that
+                            keeps any close a fetch of the issue reads, the admission's own carried on (`seeing`);
+                            the rereads the recovery finishes the capture inside (`rereading`), every
+                            strict edit there asking last whether the issue was closed for the cycle -- a poll's
+                            latch, or one that client kept (`unlatched`); and, however that block is left, the
+                            cancellation a close observed there earns, written over the comment read again whatever
+                            a later read shows -- and, where that reading does not confirm it, the close latched for
+                            the cycle in `engine/observations.py`, for every later barrier and dispatch to end it on
       late_relabel.py       the `workflow:decomposing` label a live generation pins -- one still oversized, or one
                             whose owner read is still owed: the kill-switch route it refuses, and the dispatch it
                             refuses -- with the hand relabel it repairs -- when a human has moved the label out from
@@ -3762,7 +3850,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             frozen content fingerprints, trusted authorization replies, drift signals carrying the
                             issue-wide requirements hash of the batch they read, and the outcome of consuming one
                             reading
-      late_models.py        mutable tick context, tri-state owner readings, held pull requests, and staged park values
+      late_models.py        mutable tick context -- with the question a captured revision's recovery asks of the
+                            issue every owner read fetches -- owner readings, held pull requests, and staged park
+                            values
       models.py             the run plan and its worktree policy, the locked session, the split plan -- with the
                             lineage it seeds, the drift baseline each create answered, held in memory for the seed on
                             an ordinary split and a late split's walk alike, the attempt its receipts name, the
@@ -4440,7 +4530,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             already lists the tracked repositories, the live-pause guard, the frozen conversation a
                             fresh spawn is re-grounded from where the caller holds one, and the launch a resume owed
                             once is -- the run count it is charged against and the hold it is made behind -- and the
-                            road a report-producing implementing caller froze for its completion's capture
+                            road a report-producing caller froze for its completion's capture
                             (`completion_roads.py`), as named fields, so a mistyped option fails where the request
                             is built; beside them, the
                             split rationale a fresh spawn is re-grounded with, read off the resumed issue's pinned
@@ -4500,7 +4590,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the capture an attempt on it earns: asked by `execution.py` of every attempt, it captures
                             only a return the road's contract takes, at the head it left (`source`, which a road
                             asking more of the checkout a run returns over answers None for where that was not met
-                            -- `stages/validating/refresh_road.py`), with the command, prompt digest, and
+                            -- `stages/validating/refresh_road.py`) -- and the road the late developer revision
+                            freezes (`stages/decomposition/late_revision_road.py`), with the command, prompt digest, and
                             conversation it ran as and still pinned, and answers held where that capture left the
                             state withheld
       captured_report.py    the run's own pending capture handed to the report delivery where the disposition records
@@ -4541,13 +4632,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reading reduced to its revision for the disposition behind it (`frozen_reading`); and
                             this stage's own recovery, answered on `drift_disposition.py`
       captured_rereads.py   the admission a recovery owner has read again immediately before its capture is handed
-                            to the delivery or withdrawn ahead of a park (`rereads`), handed to the GitHub client
+                            to the delivery or withdrawn beside a park (`rereads`), handed to the GitHub client
                             as the question its strict edit asks behind its walk to the comment, right before the
                             edit moving the capture (`github/edit_questions.py`): a control, relabel, close, edit,
                             checkout move, or push landing during any request before it -- that walk included --
                             holds the edit with nothing sent, refused to the guarded commit as `MOVED_BEHIND`, the
-                            state withheld and the tick held; asked of no live tick, which honors the hold its run's
-                            return read
+                            state withheld and the tick held -- and, for a recovery whose disposition writes more
+                            than the capture (`every_edit`), every strict edit inside it, behind its handoff the
+                            issue's controls and label alone, a direct whole-state write never asked: the admission,
+                            then the comment once more, then the admission again, and last a stage reading the
+                            admission does not carry (`also`), each behind the requests of the one before it, so
+                            a move, control, relabel, or close landing during any of them holds the edit; asked of
+                            no live tick, which honors the hold its run's return read
       candidate_recovery.py exact-commit recovery for approved and frozen work, timeout-commit evidence, and publication
                             through a proved clean tree and the size gate; a recovery hands on the candidate it proved.
                             The report the run wrote is recorded between the tree and the gate, the last moment it is

@@ -548,6 +548,24 @@ because there it is the claim that this stage has already rerouted rather than a
      push it licenses — which is where the freeze on the base refresh and the live-cycle reading a close is answered
      against both end. A restart's fresh cycle is deliberately not this case: it carries an identity and no
      candidate at all, and it really is waiting to be decomposed.
+
+     A developer revision the coordinator resumes on a human's guidance
+     ([`../workflow/roles.md`](../workflow/roles.md#what-the-humans-can-still-change-while-a-candidate-is-frozen))
+     that finishes on a `REPORT: READY` or `REPORT: VERIFIED` outcome is captured as it returns, on the
+     `late_revision` road (`late_revision_road.py`), frozen over the requirements of the reading its guidance came
+     off; a developer spawned fresh, or replacing a poisoned session, is re-grounded with the conversation rendered
+     off that same reading, never a second read a later reply could land in. Unheld, its report is handed to the
+     delivery in the very write
+     that re-measures the candidate, so the publication this handback makes -- or a later accepted verdict's -- binds
+     the report of exactly that commit, the handed-off capture holding the size gate to it; a report-only revision
+     over the unchanged commit is re-measured on the strength of that report. A report the comment had no room to
+     capture as the run returned goes through the delivery's own recording in that same write, recorded or parked
+     `report_undeliverable` with the report owed (`late_revision_landing.py`); this route does not wait on that
+     park, and the debt stands until a report pays it. Held by `paused` or `backlog`, the
+     capture is all the run writes -- the guidance unread, the generation, the park, and any authorization as they
+     stood, nothing said, relabelled, created, or published -- and
+     [the captured-completion recovery](#the-captured-completion-recovery-every-dispatch) finishes it ahead of this
+     route once the control comes off.
   1. **The spent spawn budget's own park** (`retry_cap._park_owns_the_tick`), asked behind the late route — which
      holds its own copy of this park for an issue under adjudication — and ahead of every step below it. An issue
      standing on `awaiting_human` + `park_reason="retry_cap"` is stopped on its budget, and each of the three steps
@@ -2038,7 +2056,9 @@ and handed off -- and this is what it guarantees and what stops it.
   a conflict park owing a report is answered with -- and so does the fresh report a rewritten head's refresh asks the
   developer for, on the `report_refresh` road ([`_handle_validating`](#_handle_validating-label-workflowvalidating)
   step 3), but only where no quota stopped its run and it left the checkout clean on the rewritten head as it
-  returned. No other road captures one yet.
+  returned, and so does the developer revision a human's guidance buys under a late adjudication, on the
+  `late_revision` road ([`_handle_decomposing`](#_handle_decomposing-label-workflowdecomposing) step 0), where it
+  finished on a `REPORT: READY` or `REPORT: VERIFIED` outcome. No other road captures one yet.
 - **Reads** (`workflow/engine/completion_admission.py`, `completion_sources.py`), the cheapest first: the capture read
   back afresh through its own checkpoint, which admits the comment and binds it to the invocation's repository, issue,
   comment, and cycle -- the only thing the capture is read from; the issue fetched again for its labels, controls, and
@@ -2066,10 +2086,11 @@ and handed off -- and this is what it guarantees and what stops it.
   the publication a resume over work an earlier run left unpushed is still owed onto
   (`completion_frozen.published_over`) -- a refresh's on the one it reported on alone, as that road holds it -- a
   reading missing its
-  head's branch, commit, or repository is no reading. On the implementing road a pull request that road's own
-  classification reads as the `discussion` stage's plan (`implementing.handler._recorded_pr_is_the_plan`, asked of the
-  head this reading took) is none of the run's: a human merges the plan to agree to the design, and the implementation
-  still owes its publication.
+  head's branch, commit, or repository is no reading. On the implementing road, and on a late revision's of a candidate
+  adjudicated before its publication, a pull request the implementing road's own classification reads as the
+  `discussion` stage's plan (`implementing.handler._recorded_pr_is_the_plan`, asked of the head this reading took) is
+  none of the run's: a human merges the plan to agree to the design, and the implementation still owes its
+  publication.
 - **Hands on** an applicable capture, admitted and immutable (`AdmittedCompletion`: the capture, the issue as its last
   fetch read it, the label, the dispatcher's reading, the pull request's head), to the owner of the road it was taken on
   (`completion_recovery.ROUTE_OWNERS`), which finishes it through the existing report recording, code publication,
@@ -2173,7 +2194,7 @@ and handed off -- and this is what it guarantees and what stops it.
   disposition runs inside `implementing/captured_rereads.rereads`, which
   hands the GitHub client a question its strict edit asks of every edit, behind its walk to the comment and
   immediately before the edit goes out (`github/edit_questions`), answering for the edit that moves the pending
-  capture -- its transfer into the delivery, or its invalidation ahead of a park: every reading a handoff's effect
+  capture -- its transfer into the delivery, or its invalidation beside a park: every reading a handoff's effect
   stands on is taken again there, behind every request the disposition and the write took on the way -- a pull
   request fetched, a watermark carry over both comment surfaces, a remote fetch proving the tip a publication
   replaces, the transfer's or invalidation's own read of the comment, the guarded commit's, and that walk last --
@@ -2229,9 +2250,76 @@ and handed off -- and this is what it guarantees and what stops it.
   under the frozen baseline with no round or watermarks riding it, then bound to the receipt's publication and
   settled. No developer or reviewer is launched, no run charged, no round spent, and no verification, approval, docs
   pass, or readiness inferred; the debt stays recorded until the next tick's report hold finds the settled report
-  about the head the pull request stands on and drops it. A late revision's road names no owner in this build, so an
-  applicable capture of it holds the stage, every tick, rather than letting it run the paid work again. This
-  recovery publishes nothing of its own and infers no review, verification, approval, or docs pass.
+  about the head the pull request stands on and drops it. A late developer revision's owner is the decomposition
+  stage's (`decomposition/captured_revision.recovers`), asked on the adjudication's own road ahead of the late
+  coordinator, so neither a second revision over the same guidance, an adjudicator, nor a bare continue's re-read of
+  the checkout -- which would re-measure it with the report lost -- runs first. Its admission already held the live
+  adjudication, the cycle, generation, frozen pair, phase, late comment watermark, replies owed a whole quote, route
+  bookkeeping a hold on the pair owes (`late_spends`), publication group, pull request, code-publication receipt, and
+  the split's children and ledgers to their frozen spellings -- an advanced generation, a reply an operator made owed
+  that the run was never quoted, a handoff recorded since, or an obligation the split took on retiring it as a frozen
+  move -- the requirements to the ones the guidance was read off, so guidance written since retires it, the checkout
+  to the commit reported on, and the pull request to the run's branch, open, and standing on a head the run started
+  on, reported on, the receipt names, or -- for a generation entered past publication -- the head that publication
+  pushed, which the pull request it names stands on until a later one pushes the revised candidate. It asks again what
+  the revision's own tick asked: the owner's close latch, which cancels the cycle with nothing of the run finished; the
+  reading the run was handed, taken again off the thread cut at the newest trusted comment it counted and held to the
+  requirements it hashed to, a thread that will not read or a cut that does not holding the capture with nothing
+  written; and the obligations a split already acted on
+  (`late_revision_obligations`), which park as before the launch. It then settles the session from the capture
+  alone, as above, takes the park the guidance answered down, consumes that reading on every baseline it moves, and
+  reconciles the checkout as the revision's own tick does
+  (`late_revision_reconciliation._reconcile_revised_candidate`) on a rebuilt result, inside
+  `captured_rereads.rereads`: a clean tree proved, the commit it stands on re-frozen -- an unchanged one vouched for by
+  the captured report -- and measured again, and a re-measured candidate's generation advanced, guidance consumed,
+  owed replies repaid, park answered, and operator authorization withdrawn in the very commit that hands the report to
+  the delivery (`late_revision_landing.lands_the_revision`), each member the re-measurement dropped carried as a
+  removal, so an unconfirmed write leaves all of it or none. That commit is decided on every record the handoff froze --
+  the split's `late_split_children`, `late_resources`, and `late_consumers` among them -- so an obligation recorded
+  since the launch refuses it and the next dispatch retires the capture. A head read again as anything but the commit
+  the capture froze is reconciled not at all, the state withheld, on the revision's own tick as much as here. A transfer
+  the comment has no room for writes none of that: the capture stays pending, the guidance unread and the generation
+  where it stood, and every later dispatch asks again until a human frees room; only a refusal of the report itself -- a
+  verification this orchestrator cannot hold against its own repository -- withdraws it and writes the reconciliation
+  alone. A reconciliation that parks over a clean commit it only could not measure lands that park in the same kind of
+  commit, the report handed to the delivery beside it, since the bare continue that answers the park re-measures that
+  very commit with no developer run. Any other park writes the park, the consumed guidance, and the owed read with the
+  capture still pending and
+  withdraws the capture right behind them, so a process lost between the two leaves the capture for this recovery
+  to finish again, never a retired capture beside guidance nobody recorded as read. While the capture is pending,
+  the reconciliation writes only through strict edits -- the transfer, the withdrawal, and the park, landed through
+  a guarded commit (`late_revision_landing.lands_the_park`) rather than the direct whole-state write, which walks to
+  the comment on its own and asks nothing. The park, like the transfer, is decided on every record the handoff was
+  frozen over, so a generation, pair, phase, or watermark moved while the recovery reads refuses it, the guidance left
+  unread for the candidate it now names and the capture for the next dispatch to retire. Each is held to the close
+  latch and the admission read again behind its own walk to the comment (`captured_rereads.rereads`, `every_edit`,
+  `also`), each reading taken behind the requests of the one before it: the admission, then the comment once more --
+  one moved while the admission's requests were out holds the edit -- then the admission again, so a control, relabel,
+  or close made while the comment was read holds it too, and last whether the issue was closed for the cycle, which
+  makes no request: latched so by a poll, or read so by any fetch of the issue the recovery made, from the
+  dispatcher's admission on (`captured_revision_closes.seeing`). So a control, relabel, close latched or made, edit, or
+  move landing behind any reading the recovery took, or behind that walk, writes no park and consumes nothing; a close
+  latched or read there cancels the cycle in the same dispatch, over the comment read again, however the recovery
+  returns (`captured_revision_closes.rereading`), so reopening the issue afterwards revives nothing of the capture. A
+  cancellation that reading does not confirm -- the comment would not read again, read as another record, or refused
+  the write -- leaves the close latched for that cycle in the process's close latch (`engine/observations.py`), which
+  every later barrier and dispatch asks and the cleanup pass it routes the issue to settles. Behind a capture no longer
+  pending, every whole-state write the owner read makes --
+  its claim, its settlement, the persists behind its notices -- lands as a guarded commit decided on what the handoff
+  froze, its strict edit asking the issue's controls and label again: an obligation recorded since refuses it, and a
+  control or relabel holds it. The owner read also asks of the issue it fetches, and a control or relabel on an open
+  issue there writes and says nothing more -- the owner read left claimed, the park's notice owed, the re-measured
+  candidate's notice unsaid -- for the tick after the control comes off to take that read. A closed issue outranks
+  any hold: the close ends the cycle on the cancellation's own road, written over the comment read again where a hold
+  kept the recovery's own write out, so reopening the issue resumes nothing of the cycle. Each comment the
+  settlement says -- the staged park's notice, the unreadable owner's park, the re-measured candidate's notice -- goes
+  out only behind that settlement's own write, the unreadable owner's park written with its notice owed before
+  anything is said, and reads the owner once more right before it goes out (`late_owner._may_post`), so a control,
+  relabel, or close landing as that write returned keeps it unsaid and owed on the record, the close ending the cycle
+  there too. The re-measured candidate is the late gate's on the next tick, answered small and handed to implementing
+  or adjudicated again. No developer or adjudicator is launched, no run charged, no verdict recorded, no child created,
+  no label moved, and nothing published. This recovery publishes nothing of its own and infers no review,
+  verification, approval, or docs pass.
 - **Retires** a capture a reading proved stale -- an auto rebase of its branch begun and not recovered, its anchor
   reading as a commit, the issue closed or labelled `done` or `rejected`, moved onto any other road than the one it
   reported on, a record its handoff froze moved to a spelling its reader takes, the pull request, debt, or adjudication
@@ -2258,13 +2346,22 @@ and handed off -- and this is what it guarantees and what stops it.
   decision's readings and its effect, a record naming no branch live work may use, a pinned pull request number, a
   report debt its road answers, or a record its handoff froze, claimed in a shape nobody can read, a frozen record no
   reader is registered for moved, a late revision beside a late record claiming a measurement the comment cannot
-  produce, an auto-rebase anchor that reads as no commit -- any spelling but null, `false` and an empty string included,
-  a checkout missing, unreadable, at another path, not proven the issue's own, or on a head that is no commit the store
-  holds -- nothing here adopts, resets, recreates, or deletes one -- a run captured with its usage unaccounted whose
-  receipt has not read back, since an accounting checkpoint that neither landed nor read back permits that run's
-  accounting alone, and every damaged claim: a capture or cycle identity nobody can read, or a capture of another
-  comment or of a cycle the record has left, which only a human's repair or removal of the field ends. A cancelled cycle
-  never reaches here, and a restart's projection drops the capture.
+  produce, or whose guidance will not read again as the reading its run was handed, an auto-rebase anchor that reads as
+  no commit -- any spelling but null, `false` and an empty string included, a checkout missing, unreadable, at another
+  path, not proven the issue's own, or on a head that is no commit the store holds -- nothing here adopts, resets,
+  recreates, or deletes one -- a run captured with its usage unaccounted whose receipt has not read back, since an
+  accounting checkpoint that neither landed nor read back permits that run's accounting alone, and every damaged claim:
+  a capture or cycle identity nobody can read, or a capture of another comment or of a cycle the record has left, which
+  only a human's repair or removal of the field ends. A cancelled cycle never reaches here, and a restart's projection
+  drops the capture.
+- **Ends the cycle** of a late developer revision whose admission read its issue closed at any of its fetches, in
+  place of whatever that admission decided -- a retirement, or a hold where the issue reads open again behind it: the
+  admission is decided over a client that keeps any close a fetch of the issue reads (`completion_closes.py`), and a
+  close kept there goes to the road's close owner (`stages/decomposition/captured_revision_closes.py`), which cancels
+  the cycle over the comment read again, or latches the close for that cycle where that reading does not confirm it,
+  with nothing of the capture finished, retired, or handed on. A reopening the next dispatch reads revives none of it.
+  The same client rides on into a late revision's admitted handoff, so a close the recovery's own fetches read is kept
+  alike; every other road reads a close as above.
 - **Waits through** a dependency hold (`workflow:blocked`), the `ready` decision that answers one, and an issue a
   human took the workflow label off: each runs as it would with no capture, and nothing releases, re-baselines,
   hands on, or retires it there -- beside an auto-rebase anchor too. None of those labels is one the base refresh

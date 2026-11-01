@@ -13,10 +13,15 @@ from __future__ import annotations
 
 from functools import partial
 
-from orchestrator.workflow.engine import run_ledger_values as _run_ledger_values, run_limit_values as _run_limit_values
+from orchestrator.workflow.engine import (
+    completion_routes as _routes,
+    run_ledger_values as _run_ledger_values,
+    run_limit_values as _run_limit_values,
+)
 from orchestrator.workflow.late_split.models import LateFailure
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from tests.workflow.stages.decomposition import (
+    captured_revision_support as _captured,
     late_content_replies as _content_replies,
     late_content_support as _support,
     late_revision_support as _stage_support,
@@ -40,6 +45,13 @@ from tests.workflow.stages.decomposition.late_test_support import (
 
 # An allowance the issue has already spent to its last run.
 _SPENT = 4
+
+# The room a comment leaves that neither a revision's capture nor the delivery
+# its report would otherwise be recorded as fits in, and the debt and park a
+# report nothing could record leaves.
+_ROOM_FOR_NEITHER = 1800
+_OWED_REPORT = "developer_report_owed"
+_UNDELIVERABLE = "report_undeliverable"
 
 # Every way a developer's CLI stops before it reads its prompt, each as the
 # reply it hands back: on its quota, with the notice or without it, on a
@@ -361,6 +373,29 @@ class StalledRevisionTest(RevisionCase):
         spawn.assert_not_called()
         self.assertEqual(len(self._bodies()), posted)
 
+    def test_a_continue_keeps_the_parked_report(self) -> None:
+        # A revision that finished on a report over a clean commit nothing
+        # could measure parks with that report handed to the delivery in the
+        # park's own write. The continue re-measures the same commit with no
+        # developer run, and so no report of its own, and the report the run
+        # finished on is still the one the delivery holds.
+        for name, seed, measured in (
+            ("a new commit", WorktreeSeed(head=_support.REVISED_SHA), _stage_support.REMEASURED),
+            ("the commit as it stood", _stage_support.UNCHANGED, _stage_support.ACKNOWLEDGED),
+        ):
+            with self.subTest(name):
+                self._parked_on_its_report(seed)
+                _content_replies.reply(self.issue, _support.BARE_CONTINUE)
+
+                continued = self._revise(seed=seed, measurement=measured)
+
+                self.assertEqual(continued[0].disposition, _LateDisposition.REVISED)
+                continued[1].assert_not_called()
+                pinned = self._pinned()
+                self.assertEqual(pinned[_support.KEY_GENERATION], NEXT_GENERATION)
+                self.assertEqual(pinned[_captured.DELIVERED]["report"], _captured.DEV_REPORT_TEXT)
+                self.assertEqual(_captured.capture_of(pinned).stage, _captured.HANDED_OFF)
+
     def test_nothing_new_leaves_the_park_alone(self) -> None:
         self._seed(**_support.REVISION_PARKED, **_stage_support.DEV_PIN)
 
@@ -393,6 +428,13 @@ class StalledRevisionTest(RevisionCase):
         pinned = self._pinned()
         self.assertEqual(pinned[KEYS.candidate_sha], _support.REVISED_SHA)
         self.assertFalse(pinned[KEYS.awaiting])
+
+    def _parked_on_its_report(self, seed: WorktreeSeed) -> None:
+        """A revision that finished on its report over `seed`'s clean commit, parked as one nothing could measure."""
+        self._seed_drifted()
+        parked = self._revise(_captured.DEV_REPORT, seed=seed, measurement=_stage_support.UNMEASURED)[0]
+        self.assertEqual(parked.disposition, _LateDisposition.PARKED)
+        self.assertEqual(self._pinned()[KEYS.park_reason], _support.PARK_REVISION_UNMEASURED)
 
 
 class UnparkedGuidanceTest(RevisionCase):
@@ -439,3 +481,135 @@ class UnparkedGuidanceTest(RevisionCase):
         # The recorded verdict is what the tick reaches, so nothing re-froze
         # and no second developer run was paid for.
         self.assertEqual(self._pinned()[KEYS.candidate_sha], CANDIDATE_SHA)
+
+
+
+
+class CapturedRevisionTest(_captured.CapturedRevisionCase):
+    """A revision that finished on a report keeps that report, held or not, for one owner at a time."""
+
+    def test_a_held_report_is_captured_alone(self) -> None:
+        # Under either control the return is kept whole beside its accounting
+        # and nothing else of the run moves: the guidance unread, the
+        # generation and the park where they stood, no report delivered, and
+        # nothing said, relabelled, or published. Dispatches while the
+        # control stands reach nothing at all.
+        for control in _captured.CONTROLS:
+            with self.subTest(control=control):
+                self._seed_drifted()
+
+                held = self._held(control)[0]
+
+                self.assertEqual(held.disposition, _LateDisposition.DEFERRED)
+                pinned = self._pinned()
+                self._captured_alone(pinned)
+                writes = self.github.write_state_calls
+                self._dispatched().assert_not_called()
+                self.assertEqual((self._pinned(), self.github.write_state_calls), (pinned, writes))
+
+    def test_a_returned_report_is_handed_on(self) -> None:
+        # An unpaused return is captured too, and handed to the delivery in
+        # the very write that re-measures it; a report-only revision over the
+        # unchanged commit is the answer its report says it is, re-measured
+        # rather than parked as a reply that vouched for nothing.
+        for name, seed, measured in (
+            ("a new commit", WorktreeSeed(head=_support.REVISED_SHA), _stage_support.REMEASURED),
+            ("the commit as it stood", _stage_support.UNCHANGED, _stage_support.ACKNOWLEDGED),
+        ):
+            with self.subTest(name):
+                self._seed_drifted()
+
+                revised = self._revise(_captured.DEV_REPORT, seed=seed, measurement=measured)[0]
+
+                self.assertEqual(revised.disposition, _LateDisposition.REVISED)
+                _captured.finished(self, seed.head)
+
+    def test_no_report_is_accounted_alone(self) -> None:
+        # An `ACK:`, a question, and a run that did not finish leave no
+        # capture: each keeps its accounting and its own road, as before.
+        for name, answered in (
+            ("an ACK", _stage_support.DEV_ACK),
+            ("a question", _stage_support.DEV_QUESTION),
+            ("a timed-out report", agent_reply(_captured.DEV_REPORT, timed_out=True)),
+        ):
+            with self.subTest(name):
+                self._seed_drifted()
+
+                self._revise(answered)
+
+                self.assertNotIn(_captured.CAPTURED, self._pinned())
+
+    def test_a_parked_reconciliation_withdraws_it(self) -> None:
+        # A tree nothing can vouch for parks, and the report it was handed
+        # describes no candidate anything will publish, so the capture is
+        # withdrawn right behind the park's own write and nothing is
+        # delivered.
+        self._seed_drifted()
+
+        parked = self._revise(
+            _captured.DEV_REPORT,
+            seed=WorktreeSeed(head=_support.REVISED_SHA, dirty=_stage_support.DIRTY_TREE),
+        )[0]
+
+        self.assertEqual(parked.disposition, _LateDisposition.PARKED)
+        pinned = self._pinned()
+        self.assertEqual(pinned[KEYS.park_reason], _support.PARK_REVISION_DIRTY)
+        self.assertEqual(_captured.capture_of(pinned).stage, _captured.RETIRED)
+        self.assertNotIn(_captured.DELIVERED, pinned)
+
+    def test_an_uncaptured_report_is_held_owed(self) -> None:
+        # A comment with no room for the run's capture as it returned leaves
+        # no capture to hand the report on, and the report is not dropped:
+        # the delivery's own recording takes it, and with no room for it
+        # either, parks for a human with the report owed -- the candidate
+        # re-measured and the guidance consumed beside that debt.
+        self._seed_drifted()
+        self._filled(_ROOM_FOR_NEITHER)
+
+        held = self._revise(_captured.DEV_REPORT)[0]
+
+        self.assertEqual(held.disposition, _LateDisposition.DEFERRED)
+        pinned = self._pinned()
+        self.assertNotIn(_captured.CAPTURED, pinned)
+        self.assertTrue(pinned[_OWED_REPORT])
+        self.assertEqual(pinned.get(KEYS.park_reason), _UNDELIVERABLE)
+        self.assertEqual(pinned[_support.KEY_GENERATION], NEXT_GENERATION)
+        self.assertEqual(pinned[_support.KEY_COMMENT_WATERMARK], self.guidance.id)
+
+    def test_a_lost_withdrawal_buys_no_second_run(self) -> None:
+        # The park, the guidance it consumed, and the owed read land with the
+        # capture still pending, and the capture is withdrawn right behind
+        # them. Lost as that withdrawal went out, the capture is left for the
+        # next dispatch's recovery to settle; lost once it landed, the park
+        # stands over guidance already read. Neither resumes the developer
+        # again over the same guidance.
+        dirty = WorktreeSeed(head=_support.REVISED_SHA, dirty=_stage_support.DIRTY_TREE)
+        for lost in _captured.LOST_WITHDRAWALS:
+            with self.subTest(lost=lost):
+                self._seed_drifted()
+                with self._lost_at_the_handoff(lost, _captured.RETIRED):
+                    self._revise(_captured.DEV_REPORT, seed=dirty)
+
+                self._dispatched(seed=dirty).assert_not_called()
+
+                pinned = self._pinned()
+                self.assertEqual(pinned[KEYS.park_reason], _support.PARK_REVISION_DIRTY)
+                self.assertEqual(pinned[_support.KEY_COMMENT_WATERMARK], self.guidance.id)
+                self.assertEqual(_captured.capture_of(pinned).stage, _captured.RETIRED)
+                self.assertEqual(self._developer_runs(), 1)
+
+    def _captured_alone(self, pinned: dict) -> None:
+        """Assert `pinned` carries the run's capture and nothing else of the run moved or said."""
+        captured = _captured.capture_of(pinned)
+        self.assertEqual(
+            (captured.handoff.route, captured.run.source_sha, captured.outcome.report),
+            (_routes.CompletionRoute.LATE_REVISION, _support.REVISED_SHA, _captured.DEV_REPORT_TEXT),
+        )
+        self.assertEqual(pinned[_support.KEY_GENERATION], GENERATION_NUMBER)
+        self.assertEqual(pinned.get(KEYS.candidate_sha), CANDIDATE_SHA)
+        unread = (_support.KEY_COMMENT_WATERMARK, KEY_USER_CONTENT_HASH, _captured.DELIVERED)
+        self.assertEqual([field for field in unread if field in pinned], [])
+        self.assertTrue(pinned[KEYS.awaiting])
+        self.assertEqual(pinned[KEYS.park_reason], _support.PARK_CONTENT_DRIFT)
+        self.assertNotIn(_stage_support.REMEASURED_NOTICE, "".join(self._bodies()))
+        self.assertEqual((self.github.label_history, self.github.opened_prs), ([], []))

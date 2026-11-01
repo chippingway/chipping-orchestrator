@@ -62,10 +62,35 @@ run behind it worked to the end. Every park here leaves them owed -- a
 question over an unchanged commit is the developer asking rather than
 answering -- and so does a re-read no developer ran for.
 
-Nothing here reaches back to the entry coordinator. Both roads in -- the
-guidance that bought a developer run, and the bare continue that re-reads a
-run which already finished -- call in from there, and a reconciliation that
-had to ask what brought it would be deciding the caller's question again.
+A run that finished on a report was captured as it returned
+(`late_revision_road`), so the report has one owner at a time. Its report is
+the answer an unchanged commit needs as surely as an `ACK:` is -- the
+report-only revision the prompt asks for where guidance changes what the
+report says and not the code -- and a re-measured candidate hands it to the
+delivery in the very write that records the candidate, the consumption, the
+repayment, and the owed read, so a write GitHub never confirmed leaves all of
+it or none (`late_revision_landing.lands_the_revision`). A transfer the comment
+has no room for keeps the capture pending with nothing of the reconciliation
+written, for the dispatcher's recovery to hand on once room is freed; a report
+no capture holds is recorded by the delivery's own recording in that write, or
+parked for a human as one it could not record. A park over a clean commit
+that only could not be measured keeps the report the same way, handed on in
+the park's own write: the bare continue that answers it re-measures that very
+commit with no developer run, and so no report of its own. Any other park
+hands that report to nobody, so the capture is withdrawn right behind the
+park's own write: a process lost between the two leaves the capture for the
+recovery to finish again, never a retired capture beside unread guidance.
+While the capture is pending, that park's write is a guarded commit decided
+on every record the capture's handoff was frozen over, whose strict edit asks
+a recovery's question behind its own walk to the comment
+(`late_revision_landing.lands_the_park`).
+
+Nothing here reaches back to the entry coordinator. The roads in -- the
+guidance that bought a developer run, the bare continue that re-reads a run
+which already finished, and the dispatcher's recovery of a run whose captured
+report a hold kept from this reconciliation (`captured_revision`) -- call in
+from there, and a reconciliation that had to ask what brought it would be
+deciding the caller's question again.
 """
 from __future__ import annotations
 
@@ -76,7 +101,11 @@ from pathlib import Path
 from orchestrator import config
 from orchestrator.git.measurement import additions as _measurement
 from orchestrator.git.verification import probes as _verification_probes, status as _worktree_status
-from orchestrator.workflow.engine import comments as _comments, messages as _messages
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    messages as _messages,
+    report_outcomes as _report_outcomes,
+)
 from orchestrator.workflow.late_split import (
     events as _events,
     overrides as _overrides,
@@ -92,6 +121,7 @@ from orchestrator.workflow.stages.decomposition import (
     late_park_state as _late_park_state,
     late_parks as _late_parks,
     late_result_models as _late_result_models,
+    late_revision_landing as _late_revision_landing,
 )
 from orchestrator.workflow.stages.decomposition.late_models import _LateContext, _OwnerState
 
@@ -162,7 +192,13 @@ def _reconcile_revised_candidate(
     human's own `/orchestrator continue` drives. That command is the
     acknowledgment in that case: the human has read the park and accepted the
     commit as it stands, which is exactly what the marker says on the path
-    where an agent is the one speaking.
+    where an agent is the one speaking. A recovery hands the result rebuilt
+    from the run's capture, which is this run's as surely as a live return.
+
+    A run whose report was captured is held to the commit that capture froze:
+    a head read again as anything else is a checkout the report is not about,
+    and nothing of the reconciliation is written over it
+    (`late_revision_landing.reports_on`).
 
     `repays` is the caller's word that the run worked to the end on a prompt
     that quoted the owed replies whole, so a candidate re-measured off it
@@ -172,13 +208,17 @@ def _reconcile_revised_candidate(
     if not tree.readable or tree.paths:
         return _parked(
             context, _DIRTY_PARK,
-            reason=_late_park_state.PARK_REVISION_DIRTY,
+            reason=_late_park_state.PARK_REVISION_DIRTY, agent_result=agent_result,
         )
     revised = _verification_probes._head_sha(worktree)
     if not revised:
         return _parked(
             context, _UNREADABLE_HEAD_PARK,
-            reason=_late_park_state.PARK_REVISION_UNMEASURED,
+            reason=_late_park_state.PARK_REVISION_UNMEASURED, agent_result=agent_result,
+        )
+    if not _late_revision_landing.reports_on(context, agent_result, revised):
+        return _late_content_models._LateContentSettlement(
+            disposition=_late_result_models._LateDisposition.DEFERRED,
         )
     if revised == context.generation.candidate_sha and not _vouched_for(
         agent_result,
@@ -188,7 +228,7 @@ def _reconcile_revised_candidate(
             _UNANSWERED_PARK.format(reply=_quoted_reply(agent_result)),
             reason=_late_park_state.PARK_REVISION_UNANSWERED,
         )
-    return _remeasured(context, worktree, revised, repays=repays)
+    return _remeasured(context, worktree, revised, agent_result, repays=repays)
 
 
 def _vouched_for(agent_result) -> bool:
@@ -197,10 +237,14 @@ def _vouched_for(agent_result) -> bool:
     No run at all is one, because the only way to reach this without one is a
     human's own `/orchestrator continue` on a park that quoted the commit to
     them. A run that made one carries the same `ACK:` marker every other drift
-    resume is answered by, and nothing else counts: prose that merely sounds
-    like agreement is exactly what the marker exists to keep out.
+    resume is answered by, or finished on a report outcome -- the report-only
+    revision the prompt asks for where guidance changes what the report says
+    and not the code, which the landing write hands the delivery whether a
+    capture holds it or not (`late_revision_landing.lands_the_revision`) --
+    and nothing else counts: prose that merely sounds like agreement is
+    exactly what the marker exists to keep out.
     """
-    if agent_result is None:
+    if agent_result is None or _report_outcomes._finished_on_a_report(agent_result):
         return True
     return _messages._drift_ack_reason(
         agent_result.last_message or "",
@@ -218,7 +262,7 @@ def _quoted_reply(agent_result) -> str:
 
 
 def _remeasured(
-    context: _LateContext, worktree: Path, revised: str, *, repays: bool,
+    context: _LateContext, worktree: Path, revised: str, agent_result, *, repays: bool,
 ) -> _late_content_models._LateContentSettlement:
     """Re-freeze this candidate under the ceiling as it stands now.
 
@@ -234,6 +278,10 @@ def _remeasured(
     and an acknowledged candidate can come back matching every one of them.
     Left standing it would license the fresh adjudication this re-freeze buys
     -- a permission taken against requirements a human has since changed.
+
+    The write that records all of it hands the run's captured report to the
+    delivery too, where it has one (`late_revision_landing.lands_the_revision`);
+    one that does not settle is DEFERRED with nothing more written or said.
     """
     measured = _measurement._measure_candidate(
         context.spec, worktree, revised,
@@ -250,7 +298,7 @@ def _remeasured(
             _UNMEASURED_PARK.format(
                 revised=revised, failure=measured.failure,
             ),
-            reason=_late_park_state.PARK_REVISION_UNMEASURED,
+            reason=_late_park_state.PARK_REVISION_UNMEASURED, agent_result=agent_result, keeps_the_report=True,
         )
     context.generation = replace(
         context.generation,
@@ -282,7 +330,10 @@ def _remeasured(
         _late_owed_replies._repaid(context)
     _overrides.clear_publication_override(context.state)
     _late_parks._answer_park(context)
-    _late_park_state._persist(context)
+    if not _late_revision_landing.lands_the_revision(context, agent_result):
+        return _late_content_models._LateContentSettlement(
+            disposition=_late_result_models._LateDisposition.DEFERRED,
+        )
     _telemetry.emit_late_event(
         context.gh,
         _events.LateEvent(family=_events.LateEventFamily.MEASUREMENT),
@@ -330,6 +381,10 @@ def _guarded_revision(
     whatever the read says, and a reopened issue starts from a fresh cycle
     rather than from work nobody kept -- and it costs no comment either, since
     `announce` is what the issue is told only once the read comes back open.
+    A recovery's read that a control or a relabel holds (`_OwnerState.HELD`)
+    ends the tick the same way, with nothing more written or said, and so does
+    a settlement that did not land, its state withheld, or one whose issue a
+    control holds as the notice would go out (`late_owner._may_post`).
     """
     owner = _late_owner._guarded_owner(context)
     if owner == _OwnerState.CLOSED:
@@ -340,7 +395,11 @@ def _guarded_revision(
         return _late_content_models._LateContentSettlement(
             disposition=_late_result_models._LateDisposition.PARKED, persisted=True,
         )
-    if announce:
+    if owner == _OwnerState.HELD:
+        return _late_content_models._LateContentSettlement(
+            disposition=_late_result_models._LateDisposition.DEFERRED, persisted=True,
+        )
+    if announce and _late_owner._may_post(context):
         _comments._post_issue_comment(
             context.gh, context.issue, context.state, announce,
         )
@@ -349,7 +408,7 @@ def _guarded_revision(
 
 
 def _parked(
-    context: _LateContext, message: str, *, reason: str,
+    context: _LateContext, message: str, *, reason: str, agent_result=None, keeps_the_report: bool = False,
 ) -> _late_content_models._LateContentSettlement:
     """Hand the issue back with the generation exactly as it arrived.
 
@@ -371,11 +430,33 @@ def _parked(
     to the guard would leave a generation still reading as adjudicating, with
     the human's instruction spent and nothing on the issue saying why, and the
     next tick would resume the developer on a reply it had already acted on.
+
+    A park `keeps_the_report` where the commit is clean and only could not
+    be measured: the run's report is about the very commit a bare continue
+    re-measures with no developer run, so it is handed to the delivery in
+    the park's own write (`late_revision_landing.lands_the_park`), as a
+    re-measured candidate's is. Any other park hands the run's report to
+    nobody, so a capture `agent_result`'s run left pending is withdrawn
+    (`late_revision_landing.withdraws`) -- right behind that write, never
+    ahead of it. The park, the consumed guidance, and the owed read land with
+    the capture still pending, through a guarded commit a recovery's question
+    is asked of, so a process lost between the two leaves a capture the
+    dispatcher's recovery finishes again, with no developer run, rather than a
+    retired capture beside guidance nobody recorded as read. A withdrawal that
+    does not settle stops there, the park standing with its notice owed and
+    the owner read claimed, for the next dispatch to decide on the capture.
     """
     log.error(
         "issue=#%d the revised candidate could not be reconciled (%s)",
         context.issue.number, reason,
     )
     _late_parks._stage_park(context, message, reason=reason)
-    _late_outcome._completed(context)
+    if not _late_revision_landing.lands_the_park(context, agent_result, keeps_the_report=keeps_the_report):
+        return _late_content_models._LateContentSettlement(
+            disposition=_late_result_models._LateDisposition.DEFERRED,
+        )
+    if not _late_revision_landing.withdraws(context, agent_result):
+        return _late_content_models._LateContentSettlement(
+            disposition=_late_result_models._LateDisposition.PARKED, persisted=True,
+        )
     return _guarded_revision(context, _late_result_models._LateDisposition.PARKED)

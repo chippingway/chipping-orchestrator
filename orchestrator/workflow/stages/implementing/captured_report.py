@@ -53,7 +53,12 @@ committed nothing past what it started on, or left a tree no push may
 publish -- withdraws the capture first (`withdraws_the_capture`): a guarded
 invalidation of it, so a reply that resumes the developer is captured afresh
 rather than refused behind it. A retirement that does not settle holds the
-park too, so no notice goes out for a park the comment never took. A park
+park too, so no notice goes out for a park the comment never took. A late
+adjudication's developer revision withdraws its capture through the same
+retirement, but behind the park its reconciliation writes rather than ahead of
+it, since that park also records the guidance the run consumed; it hands a
+re-measured candidate's report on through the transfer itself, the
+re-measurement riding that commit (`decomposition/late_revision_landing`). A park
 over a reading that merely did not return -- a status, a fetch, a count --
 takes neither (`parks_beside_the_capture`): the capture still holds a report
 the next tick may prove, so it is kept and the tick held with nothing written.
@@ -140,7 +145,11 @@ def recording_stops_the_tick(
 def withdraws_the_capture(
     gh: _client.GitHubClient, issue: Issue, state: _pinned_state.PinnedState, agent_result: AgentResult,
 ) -> bool:
-    """Retire the run's own pending capture ahead of a park that hands its report to nobody; whether the park may go on.
+    """Retire the run's own pending capture beside a park that hands its report to nobody; whether it settled.
+
+    Ahead of that park on every road but a late revision's, whose park is
+    written first and the capture retired right behind it
+    (`decomposition/late_revision_landing.withdraws`).
 
     True where the run left no capture pending, and where the retirement
     settled; False -- the state withheld -- where it did not, a recovery's
@@ -154,8 +163,8 @@ def withdraws_the_capture(
         return True
     state.withheld = True
     log.warning(
-        "issue=#%d could not retire the captured completion of agent invocation %d/%s ahead of its park (%s); "
-        "parking nothing, for the recovery to decide on a later reading",
+        "issue=#%d could not retire the captured completion of agent invocation %d/%s beside its park (%s); "
+        "writing nothing more, for the recovery to decide on a later reading",
         issue.number, pending.invocation.ordinal, pending.invocation.nonce, retired.refusal or retired.status,
     )
     return False

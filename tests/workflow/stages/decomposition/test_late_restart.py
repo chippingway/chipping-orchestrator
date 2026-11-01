@@ -15,7 +15,7 @@ from orchestrator.workflow.stages.decomposition import (
 )
 from orchestrator.workflow.stages.implementing import session_retirement as _session_retirement
 from orchestrator.workflow.state import WorkflowLabel
-from tests.workflow.stages.decomposition import late_restart_support as _fix
+from tests.workflow.stages.decomposition import captured_revision_support as _captured, late_restart_support as _fix
 from tests.workflow.stages.decomposition.late_seam_support import (
     local_teardown,
 )
@@ -105,6 +105,17 @@ class AuthorizedRestartTest(_fix.RestartCase, unittest.TestCase):
             self._pinned()[_fix.KEY_CYCLE_ID], _fix.RESTART_CYCLE_ID,
         )
         self.assertNotIn(_fix.KEY_RESTART_PENDING, self._pinned())
+
+    def test_a_cancelled_cycle_capture_is_dropped(self) -> None:
+        # The fresh cycle inherits nothing the ended one ran: a revision's
+        # report it captured and never finished is no answer to anything the
+        # fresh cycle asks, so the projection keeps none of it.
+        self._seed(**{_captured.CAPTURED: _captured.spelled_capture(CYCLE_ID)})
+
+        self._reported_route()
+
+        self.assertEqual(self._pinned()[_fix.KEY_CYCLE_ID], _fix.RESTART_CYCLE_ID)
+        self.assertNotIn(_captured.CAPTURED, self._pinned())
 
     def test_each_decompose_route_is_applied(self) -> None:
         # The restart puts the issue back where a first pickup would have put

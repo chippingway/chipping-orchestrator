@@ -642,8 +642,10 @@ run, the fixing stage's for a reviewer's change request's fix, which finishes it
 retires the request with the report's handoff, and for a pull request's feedback round, which settles only the batch
 and round its launch froze, the stage a requirements-drift resume reported under for that resume, which finishes it
 through its own drift disposition from the one frozen reading the run was handed, the validating stage's for a
-rewritten head's report refresh, which records and settles it through the refresh's own disposition, and none for
-any other road in this build, so that handler is held --
+rewritten head's report refresh, which records and settles it through the refresh's own disposition, and the
+decomposition stage's for a late adjudication's developer revision, which re-reads the guidance it was handed off the
+thread cut where its reading counted and reconciles the checkout through the revision's own reconciliation, handing
+the report to the delivery in the commit that re-measures the candidate --
 only while that road's pull request, debt,
 or adjudication stands and an unaccounted run's receipt has read back, retired as invalidated where a reading proves
 it stale, on that very reading, held with nothing written where a reading fails, the issue moves behind the readings

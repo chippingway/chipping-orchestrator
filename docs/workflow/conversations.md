@@ -622,13 +622,23 @@ division of labour between the developer and the orchestrator never changes.
   only for a fresh `REPORT: READY` its run returned with no quota stopping it and the checkout left clean on the
   rewritten head: its report carries no round or watermarks, a recovery re-proves the lineage it was entered over and
   re-reads the approved report before handing it on, and the transaction it becomes settles it about that head, the
-  debt paid only on the tick behind that settlement. No other road captures one yet. A return a
-  live hold kept is left captured, with nothing it was handed consumed -- a change request stays handed, its round
-  unspent, a feedback batch unread, and a drift resume's edit unanswered, its baseline unmoved -- and its recovery is
-  asked ahead of every stage handler, before an unreported checkout, a drift resume, a launch, a review resume, or a
-  feedback rescan could lose or repeat the captured work: it settles exactly the excerpt, reply batch, retry
-  commands, feedback batch, or frozen drift reading the run was handed and the session it ran, launches no
-  developer, and supplies no verdict, verification, approval, or docs pass of its own
+  debt paid only on the tick behind that settlement. So does the developer revision a human's guidance buys under a
+  late adjudication, on the `late_revision` road under `workflow:decomposing`: its report carries none of the
+  guidance it was handed, which the revision's reconciliation consumes for itself, and is recorded as the delivery in
+  the very commit that re-measures the candidate it describes -- a report-only revision over the unchanged commit
+  included, re-measured on the strength of that report, and a clean one nobody could measure in the commit parking it
+  for the bare continue that re-measures it -- so the publication that candidate later earns, handed back
+  to `workflow:implementing` or past an accepted verdict, binds this report rather than the one the oversized
+  candidate was recorded with; a report the comment had no room to capture is recorded by the delivery's own recording
+  in that commit instead, or parked as undeliverable with the report owed, never dropped. No other road captures one
+  yet. A return a live hold kept is left captured, with nothing it was handed consumed -- a change request stays handed,
+  its round unspent, a feedback batch unread, a drift resume's edit unanswered, its baseline unmoved, and a late
+  revision's guidance unread, its generation unadvanced -- and its recovery is
+  asked ahead of every stage handler, before an unreported checkout, a drift resume, a launch, a review resume, a
+  feedback rescan, or a late revision or adjudication could lose or repeat the captured work: it settles exactly
+  the excerpt, reply batch, retry commands, feedback batch, frozen drift reading, or late guidance the run was handed
+  and the session it ran, launches no developer, and supplies no verdict, verification, approval, or docs pass of its
+  own
   ([captured-completion recovery](../state-machine/delivery-stages.md#the-captured-completion-recovery-every-dispatch)).
 - **Review-subject freshness.** No reviewer spawns while a report is owed. Each is handed the report the pull request
   carries, re-read where it settled and quoted whole, and what it reviewed — pull request, head, requirements, and

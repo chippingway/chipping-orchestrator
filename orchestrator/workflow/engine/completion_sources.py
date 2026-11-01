@@ -28,7 +28,12 @@ one already published. A road launched over a commit an earlier run left
 unpushed starts on a head the pull request has never carried, so where it
 froze the code-publication receipt the head that receipt names there is one
 too (`completion_frozen.published_over`): the publication the stranded work
-is still owed onto. A rewritten-head refresh pushes nothing, so its pull
+is still owed onto. So is the head a post-publication late generation was
+entered on, where a late revision's road froze that publication context: the
+pull request it names stands on that head until a later publication pushes
+the revised candidate (`completion_frozen.late_published_over`), and the
+branch and repository are held to the run's as for any other head. A
+rewritten-head refresh pushes nothing, so its pull
 request has to stand on the very commit it reported on, as the refresh's own
 road holds it to before it records anything. Any other head is somebody
 else's push, and a pull request merged or closed ended the work the report
@@ -39,7 +44,9 @@ against a reading that has all three.
 On the implementing road the recorded pull request can be another stage's:
 the `discussion` stage's plan, which a human merges to agree to the design
 and then relabels, so the implementation is still owed its own publication.
-That road's own classification tells the two apart
+So can it under a late adjudication entered before that publication, whose
+developer revision reports under `decomposing` over the plan the late hold
+holds. The implementing road's own classification tells the two apart
 (`implementing.handler._recorded_pr_is_the_plan`), asked of the head this
 one reading took, and a pull request it reads as the plan is none of the
 run's: nothing about its state, branch, or head refuses the capture.
@@ -73,6 +80,11 @@ _PR_NUMBER = "pr_number"
 _OPEN = "open"
 
 _REFRESH = _routes.CompletionRoute.REPORT_REFRESH
+
+# The labels a run may report under while the recorded pull request is still
+# the `discussion` stage's plan: the implementation's, and a late revision of
+# a candidate adjudicated before its publication.
+_PLANNED_ROADS = frozenset((WorkflowLabel.IMPLEMENTING, WorkflowLabel.DECOMPOSING))
 
 _UNPROVEN = _models.Decision(_models.Standing.UNCERTAIN, _models.Reason.CHECKOUT_UNPROVEN)
 
@@ -125,14 +137,17 @@ def _reading_refusal(
     gh: GitHubClient, state: PinnedState, capture: _records.CompletionCapture, reading: _PullRequestReading,
 ) -> _models.Decision | None:
     """Why the pull request `reading` read refuses `capture`, or None where it is the run's or the discussion's plan."""
-    if capture.handoff.origin is WorkflowLabel.IMPLEMENTING:
+    if capture.handoff.origin in _PLANNED_ROADS:
         implementing = importlib.import_module(_stage_targets._IMPLEMENTING_HANDLER_OWNER)
         if implementing._recorded_pr_is_the_plan(state, reading.head):
             return None
     if reading.state != _OPEN:
         return _models.Decision(_models.Standing.INVALID, _models.Reason.PULL_REQUEST_ENDED)
+    frozen = capture.handoff.frozen
     owed_its_push = () if capture.handoff.route is _REFRESH else (
-        capture.run.before_sha, *_frozen.published_over(state, capture.handoff.frozen),
+        capture.run.before_sha,
+        *_frozen.published_over(state, frozen),
+        *_frozen.late_published_over(state, frozen),
     )
     on_the_run = reading.head in {capture.run.source_sha, *owed_its_push}
     own_branch = reading.branch == capture.run.branch and gh.is_own_repository(reading.repository)

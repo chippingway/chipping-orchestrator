@@ -42,7 +42,9 @@ they stand (`road_refusal`):
   requirements-drift resume freezes -- and the late records the
   late-claims owner judges field by
   field -- the measurement evidence, the publication group, a hold's route
-  bookkeeping) is damage, not a move, and holds the capture. So does a moved
+  bookkeeping -- beside the two a late revision freezes to say what its
+  prompt quoted, the late comment watermark and the replies owed a whole
+  quote) is damage, not a move, and holds the capture. So does a moved
   record no reader is registered for, since nothing here can tell its move
   from its damage: a road that freezes a record registers its reader here,
   with `completion_frozen_reads`, or with that owner for a late one.
@@ -82,7 +84,12 @@ from orchestrator.workflow.engine import (
 )
 from orchestrator.workflow.engine.completion_frozen_reads import READS as _ROAD_READS
 from orchestrator.workflow.engine.final_docs_records import FINAL_DOCS, read_final_docs
-from orchestrator.workflow.late_split import formats as _formats, payloads as _payloads
+from orchestrator.workflow.late_split import (
+    formats as _formats,
+    keys as _late_keys,
+    ledgers as _ledgers,
+    payloads as _payloads,
+)
 from orchestrator.workflow.state import WorkflowLabel
 
 _PR_NUMBER = "pr_number"
@@ -110,7 +117,13 @@ _UNREAD = _models.Decision(_models.Standing.UNCERTAIN, _models.Reason.PREREQUISI
 # a rewritten-head refresh entered over that pass's lineage freezes, read
 # whole. The stage owners among those readers are resolved when asked, the
 # late records' by the late-claims owner's own table of the fields its claims
-# judge (`late_claims._FIELD_READS`), asked beside these.
+# judge (`late_claims._FIELD_READS`), asked beside these -- save the two a late
+# revision's handoff freezes to say what its prompt quoted, and the three it
+# freezes for the obligations a split took on, read here as the late record's
+# own reader takes them: the late baseline's comment watermark, a whole id; the
+# replies owed a whole quote and the split's children, each a list of whole
+# ids; and the resource and consumer ledgers, each typed whole with nothing
+# left verbatim -- any of them absent where the record carries none.
 _READS = MappingProxyType({
     _rewrite_debt.REWRITE_DEBT: lambda state: (
         not _rewrite_debt.carries_rewrite_debt(state) or _rewrite_debt.read_rewrite_debt(state) is not None
@@ -125,6 +138,22 @@ _READS = MappingProxyType({
         state.get(_RETURNED_VERDICT) is None
         or importlib.import_module(_VERDICTS_OWNER).ReturnedVerdict.read(state.get(_RETURNED_VERDICT)) is not None
     ),
+    _late_keys.COMMENT_WATERMARK_ID: lambda state: (
+        state.get(_late_keys.COMMENT_WATERMARK_ID) is None
+        or _payloads.as_identity(state.get(_late_keys.COMMENT_WATERMARK_ID)) is not None
+    ),
+    _late_keys.OWED_REPLIES: lambda state: _ledgers.register_reads(
+        state.get(_late_keys.OWED_REPLIES),
+    ),
+    _late_keys.SPLIT_CHILDREN: lambda state: _ledgers.register_reads(
+        state.get(_late_keys.SPLIT_CHILDREN),
+    ),
+    _late_keys.RESOURCES: lambda state: not _ledgers.read_resources(
+        state.get(_late_keys.RESOURCES),
+    )[1],
+    _late_keys.CONSUMERS: lambda state: not _ledgers.read_consumers(
+        state.get(_late_keys.CONSUMERS),
+    )[1],
 })
 
 

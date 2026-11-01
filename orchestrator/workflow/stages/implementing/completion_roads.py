@@ -39,11 +39,13 @@ resume freeze no road, so the coordinator captures nothing for them merely
 because they run through it -- save the two a reviewer's change request
 hands its developer through, the fixing stage's resume answering a pull
 request's human feedback, every requirements-drift resume and the replies
-that remain its continuation, and the validating stage's resume asking for
-the fresh report a head this orchestrator rewrote is owed, whose callers
+that remain its continuation, the validating stage's resume asking for
+the fresh report a head this orchestrator rewrote is owed, and the developer
+revision a human's guidance buys under a late adjudication, whose callers
 freeze a road of this same shape (`validating/fix_road`, `fixing/resume_road`,
-`fixing/feedback_road`, `drift_road`, `validating/refresh_road`) -- the last
-asking more of a return's checkout than a report (`CompletionRoad.source`).
+`fixing/feedback_road`, `drift_road`, `validating/refresh_road`,
+`decomposition/late_revision_road`) -- the refresh asking more of a return's
+checkout than a report (`CompletionRoad.source`).
 """
 from __future__ import annotations
 

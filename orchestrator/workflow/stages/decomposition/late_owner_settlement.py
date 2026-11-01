@@ -153,9 +153,13 @@ def _claim_dropped(context: _LateContext) -> None:
 def _unreadable(context: _LateContext) -> None:
     """Leave the claim standing, and park unless something else already does.
 
-    Nothing durable is written here: the claim the read was taken under IS the
-    retry obligation, and it went out before the read. What is left to decide
-    is only whether a human is told, which is the park.
+    The claim itself is not written again: the claim the read was taken under
+    IS the retry obligation, and it went out before the read. What is left to
+    decide is only whether a human is told, which is the park -- written here
+    with its sentence owed, and STAGED rather than said, as every notice the
+    owner guard releases is: the guard says it once the write has landed and
+    the issue lets it (`late_owner._may_post`), and a recovery's issue held or
+    closed as that write returned leaves it owed on the record.
 
     The park is skipped for an issue already handed back to one -- that issue
     is stopped either way, and overwriting the reason it was stopped for would
@@ -178,13 +182,14 @@ def _unreadable(context: _LateContext) -> None:
             "than replacing what it is parked on",
             context.issue.number,
         )
-        _late_parks._release_unsuperseded_park(context)
+        _late_parks._stage_unsuperseded_park(context)
         return
-    _late_parks._park(
+    _late_parks._stage_park(
         context,
         _UNREADABLE_PARK,
         reason=_late_park_state.PARK_OWNER_UNREADABLE,
     )
+    _late_park_state._persist(context)
 
 
 def _announce_recovery(context: _LateContext) -> None:

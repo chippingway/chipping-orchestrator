@@ -23,7 +23,9 @@ for the developer report's guarded commits. So is the owner that says whether
 a late record claims a reading it cannot produce, for the recovery that holds
 a captured late revision over one, and the owners that recovery hands the
 implementing roads', the fix rounds', each stage's requirements-drift
-resumes', and the rewritten-head report refresh's captures to.
+resumes', the rewritten-head report refresh's, and the late developer
+revision's captures to, with the owner a close it reads of that revision's
+issue is handed to.
 """
 from __future__ import annotations
 
@@ -53,6 +55,19 @@ _LATE_CLOSE_OBSERVATION_OWNER = f"{_DECOMPOSITION_PACKAGE}.late_close_observatio
 
 _LATE_CLOSE_READING_OWNER = f"{_DECOMPOSITION_PACKAGE}.late_close_reading"
 _LATE_RELABEL_OWNER = f"{_DECOMPOSITION_PACKAGE}.late_relabel"
+
+# The owner that finishes a captured late developer revision, which the
+# recovery hands an admitted capture of that road to
+# (`completion_recovery.ROUTE_OWNERS`). Resolved when called for the reason
+# every owner here is: the stage imports the engine.
+_LATE_REVISION_CAPTURE_OWNER = f"{_DECOMPOSITION_PACKAGE}.captured_revision"
+
+# The owner a close that recovery read of a late revision's issue is handed
+# to, wherever it was read -- the admission's own fetches included
+# (`completion_closes.CLOSE_OWNERS`) -- which ends the cycle the capture
+# answers. Resolved when called for the same reason.
+_LATE_REVISION_CLOSE_OWNER = f"{_DECOMPOSITION_PACKAGE}.captured_revision_closes"
+
 _LATE_RESTART_OWNER = f"{_DECOMPOSITION_PACKAGE}.late_restart"
 _LATE_REUSE_OWNER = f"{_DECOMPOSITION_PACKAGE}.late_reuse"
 _SPLIT_SEEDS_OWNER = f"{_DECOMPOSITION_PACKAGE}.split_seeds"

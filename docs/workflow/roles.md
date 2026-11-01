@@ -236,7 +236,16 @@ per-stage behavior is in
   that a human edited it since. The budgets are
   the ones that already exist: the resume budget and the session rotation behind it belong to the shared developer
   resume this goes through rather than around, and the per-issue daily retry cap counts fresh spawns, so a resume
-  driven by a human's reply is an unblock signal rather than a retry exactly as it is in every other stage.
+  driven by a human's reply is an unblock signal rather than a retry exactly as it is in every other stage. A run that
+  finishes on a `REPORT: READY` or `REPORT: VERIFIED` outcome is captured as it returns, on the `late_revision` road
+  its launch froze (`workflow/stages/decomposition/late_revision_road.py`), and that report goes to the delivery in
+  the very write that re-measures the candidate it describes; a return an operator's `paused` or `backlog` held keeps
+  the capture and nothing else of the run -- no guidance consumed, reply repaid, generation advanced, park cleared,
+  authorization withdrawn, notice posted, label moved, child created, or publication made -- until the dispatcher's
+  recovery finishes it with no developer run (`workflow/stages/decomposition/captured_revision.py`). An `ACK:`, a
+  question, and a run that failed or did not finish capture nothing and keep their accounting alone. What the road
+  freezes and how a held one is finished is under
+  [what the humans can still change](#what-the-humans-can-still-change-while-a-candidate-is-frozen).
 
 What a resume re-parses, and why the pin is the full spec rather than the backend alone, is in
 [`command-specs.md#in-flight-session-lock`](command-specs.md#in-flight-session-lock). The two conversation stages'
@@ -2620,9 +2629,66 @@ acknowledgment — it is a run that said
 nothing, asked a question, or timed out before it could do either, and all three look identical from the checkout.
 Reading any of them as "the work already covers it" would advance a generation and adjudicate a candidate nobody
 vouched for, so they park (`late_revision_unanswered`) with whatever the developer *did* say quoted, so a question
-reaches the human it was meant for. A commit that MOVED needs no marker: work that changed HEAD speaks for itself. The
-one path where an unchanged commit passes without one is the human's own `/orchestrator continue` on a stalled
-revision — they have read the park and accepted the commit as it stands, which is the same thing the marker says.
+reaches the human it was meant for. A commit that MOVED needs no marker: work that changed HEAD speaks for itself. An
+unchanged commit passes without one where the run finished on a report outcome its own capture holds for the
+delivery: that is the report-only revision the prompt asks for where guidance changes what the report says and not
+the code, and the report is the answer it gave. The other path is the human's own `/orchestrator continue` on a
+stalled revision — they have read the park and accepted the commit as it stands, which is the same thing the marker
+says.
+
+**A revision's report goes out with the candidate it describes.** A run that finished on `REPORT: READY` or `REPORT:
+VERIFIED` is captured as it returns (`developer_completion`, on the `late_revision` road), its handoff frozen over the
+cycle, generation, frozen pair, and phase it was launched over, the late comment watermark and the replies owed a whole
+quote that selected what its prompt quoted, the route bookkeeping a hold on the pair owes (`late_spends`), and the
+publication group, pull request, and code-publication receipt, beside the requirements its guidance was read off and the
+newest trusted comment that reading counted. A developer spawned fresh -- no session pinned, or a poisoned one replaced
+-- is re-grounded with the conversation rendered off that same reading rather than a second read of the thread, so a
+reply landing behind it reaches no developer those requirements do not count, and is left for the next tick to read
+as fresh guidance. A re-measured candidate hands that report to the delivery
+(`developer_report_delivery`, under the `decomposing` route and the requirements the run was handed) in the very write
+that advances the generation, consumes the guidance, repays the owed replies, takes the park down, and withdraws an
+operator's authorization, so a write GitHub never confirmed leaves all of it or none; the handed-off capture then holds
+the size gate and the binding to that candidate, so the publication an answered-small handback or a later accepted
+verdict makes carries that report and no earlier one. A comment with no room for that write gets none of it: the capture
+stays pending, the guidance unread and the generation where it stood, until a human frees room and a later dispatch
+hands it on; only a report this orchestrator could never record -- a verification it cannot hold against its own
+repository -- is withdrawn. A report no capture holds -- one the comment had no room to capture as the run returned, or
+one withdrawn -- goes through the delivery's own recording in that same write: recorded where the comment takes it, and
+otherwise parked for a human (`report_undeliverable`) with the report owed (`developer_report_owed`), so a successful
+report is never silently dropped. The late coordinator does not wait on that park: the next tick adjudicates or hands
+back the re-measured candidate as ever, and the debt stands until a report pays it, the review stages keeping the
+reviewer off until then. A reconciliation that parks over a clean commit it only could not measure hands the report
+on in the park's own write the same way, since the bare continue that answers that park re-measures the very commit
+with no developer run and so no report of its own. Any other park writes the park and the guidance it consumed first
+and withdraws the capture right behind them, so a process lost between the two leaves the capture for the recovery to
+finish again rather than buying a second developer run. A return a `paused` or `backlog` held keeps the capture and
+nothing else: the
+dispatcher asks its recovery ahead of the late coordinator, before another revision, an adjudicator, or a bare
+continue's re-read could run, and finishes it once the control comes off
+(`workflow/stages/decomposition/captured_revision.py`) — the owner's latch, the obligations, and the reading the run was
+handed asked again, that reading cut where it counted so nothing written since is consumed, and the reconciliation run
+on a result rebuilt from the capture, every write it makes while the capture is pending a strict edit -- its park and
+the guidance that park consumes landed through a guarded commit decided on everything the handoff froze, so a
+generation advanced meanwhile refuses it, as much as the handoff -- held to the close latch and
+the admission read again behind the edit's own walk to the comment, so a control, close, edit, or move landing while it
+reads, or while that walk does, writes nothing at all, and a close latched there, or read by any fetch of the issue the
+recovery made -- the dispatcher's admission of the capture included -- cancels the cycle in that dispatch, so reopening
+the issue revives nothing of the capture; a close the
+recovery cannot record as ended there -- the comment would not read again, or refused the write -- is latched for that
+cycle in the process's close latch, so every later barrier ends it whatever a reopening shows.
+The handoff is frozen over the split's children and ledgers at the launch, so one recorded since retires the
+capture, and a head read again as anything but the commit the capture froze reconciles nothing. Behind a settled
+capture, every whole-state write the recovery's owner read makes lands as a guarded commit decided on what the
+handoff froze and asked the issue's controls again, and the read asks of the issue it fetches: an obligation recorded
+since, a control, or a relabel writes and says nothing more, while a close outranks any hold and ends the cycle, the
+read left owed for the tick after the control comes off; each notice its settlement says -- the unreadable owner's park
+included -- goes out only behind that settlement's own write, over the issue read once more as open and unheld, and
+otherwise stays owed. Guidance written since, a generation moved, a reply an operator
+made owed
+that the run was never quoted, a handoff the pair now owes, or a checkout moved off the commit reported on retires the
+capture instead, the new obligation left standing; a close cancels the cycle with nothing of it finished, and a
+restart's projection drops it. Nothing of the capture approves the candidate, creates a child, or licenses publication,
+and every later launch still meets the budgets it always did.
 
 A reconciliation that could not
 be completed parks (`late_revision_dirty` / `late_revision_unmeasured`) with the generation exactly as it was, and a

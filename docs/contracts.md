@@ -54,9 +54,10 @@ capture read back after an unconfirmed write, carries the report and what its ro
 a native session, a trajectory, or a host record. Only the first implementation, an implementing resume, the fix a
 reviewer's change request hands its developer -- the run its handoff launches, and the resume that finishes its parked
 round -- the resume answering a pull request's human feedback, a requirements-drift resume on `implementing`,
-`validating`, `in_review`, or `resolving_conflict` -- the replies that remain its continuation included -- and the
-fresh report a rewritten head's refresh asks for capture one, as their developer returns. The dispatcher's recovery
-reads a pending capture through that read-back alone.
+`validating`, `in_review`, or `resolving_conflict` -- the replies that remain its continuation included -- the
+fresh report a rewritten head's refresh asks for, and the developer revision a human's guidance buys under a late
+adjudication capture one, as their developer returns. The dispatcher's recovery reads a pending capture through that
+read-back alone.
 
 **Specs:** [state](architecture.md#design-constraints), [restarts](configuration/operations.md#what-survives-a-restart).
 
@@ -68,7 +69,8 @@ reads a pending capture through that read-back alone.
 [captured fixes](../tests/workflow/stages/validating/test_captured_fixes.py),
 [captured feedback](../tests/workflow/stages/fixing/test_captured_feedback.py),
 [captured drift](../tests/workflow/stages/validating/test_captured_drift.py),
-[captured refreshes](../tests/workflow/stages/validating/test_captured_refresh.py).
+[captured refreshes](../tests/workflow/stages/validating/test_captured_refresh.py),
+[captured revisions](../tests/workflow/stages/decomposition/test_late_revision.py).
 
 ## C-02: Workflow labels and transitions
 
@@ -223,9 +225,10 @@ contract refuses -- is a damaged claim, never an absence, so nothing captures ov
 and no delivery is bound beside it. Its READY text and VERIFIED reference stay two outcomes, a rewritten-head refresh
 is captured only READY, no quota stopping it, over a checkout its run left clean on the rewritten head as it returned,
 and a change-request or pull-request-feedback road only beside the handoff it froze. A
-requirements-drift resume settles the input it was handed for itself, so the report its capture becomes carries none
-of it, as the recording its own tick makes carries none, and no report hands its requirements baseline on to one that
-supersedes it: the later report's settlement never writes an older baseline back. Only that road's capture may freeze
+requirements-drift resume and a late developer revision each settle the input they were handed for themselves, so the
+report their capture becomes carries none of it, as the recording their own tick makes carries none, and no report
+hands its requirements baseline on to one that supersedes it: the later report's settlement never writes an older
+baseline back. Only a requirements-drift resume's capture may freeze
 a second delivered stretch, a pull request conversation's beside the issue thread's, each in order: its recovery's
 cursor carry reads both back, and nothing settles from either.
 
@@ -445,6 +448,40 @@ restarted cycle never inherits it. A rewritten-head refresh is handed on only wh
 on, and the pull request's head are one commit, as that refresh's own road requires, and one entered over a proved
 squash or docs lineage only once that lineage proves again and the approved report re-reads intact where it settled:
 a refutation or a report moved out of reach retires it, and a tree, descent, or location nobody could read holds it.
+A late developer revision's report is handed on only in the very commit that re-measures the candidate it describes
+-- the generation advanced, the guidance it was handed consumed, the replies it owed repaid, the park answered, and
+an operator's authorization withdrawn riding it, a member the re-measurement dropped carried as a removal -- so a
+write never confirmed lands all of it or none, and a read-back finds each of them once. A comment with no room for
+that commit gets none of it: the capture stays pending, the guidance unread and the generation unadvanced, until room
+is freed and a later reading hands it on; a report no capture holds -- one the comment had no room to capture -- goes
+through the delivery's own recording in that write, recorded or parked with the report owed, never dropped. A park
+over a clean commit its reconciliation only could not measure hands the report on in that same kind of commit, since
+the bare continue answering it re-measures that commit with no run to report. Any other park lands its own write --
+the guidance consumed and the owed read claimed -- with the capture still pending, and withdraws the capture only
+behind it, so a write lost between the two leaves the capture for its recovery rather than a retired one beside
+unread guidance. While the capture is pending that write is a guarded commit decided, as the handoff is, on every record
+the handoff was frozen over, so a generation advanced meanwhile refuses it, and on a recovery the strict edit asks the
+admission, the comment once more, the admission again, and the close latch last, behind its own walk to the comment
+and each behind the requests of the one before it, as the handoff and the withdrawal do, so a hold, a close a poll
+latched or any of the recovery's own fetches read -- the admission's included -- or a move landing meanwhile writes no
+park and consumes nothing, the
+close cancelling the cycle in that dispatch, so a reopening revives nothing of the capture; a cancellation the comment
+read again does not confirm leaves that close latched for the cycle, for every later barrier to end it on.
+A revision over a post-publication generation is admitted while the pull request still stands on the head that
+publication pushed. The handoff is frozen over the split's children and ledgers at the launch, so one recorded
+since retires the capture, and a head read again as anything but the commit the capture froze reconciles nothing.
+Behind a settled capture, the recovery's whole-state writes land as guarded commits decided on what the handoff froze
+and asked the issue's controls again, and its owner read asks of the issue it fetches: an obligation recorded since, or
+a control or a relabel on an open issue, writes and says nothing more, and a close outranks any hold: it ends the cycle
+in that dispatch, over the comment read again where a hold kept the write out, so a reopening resumes nothing. Each
+notice its settlement says, the unreadable owner's park included, goes out only behind that settlement's own write, over
+the issue read once more as open and unheld, and otherwise stays owed. It is
+finished from the reading its run was handed, taken again off the thread cut where that reading counted, held to the
+late comment watermark and owed
+replies that selected what its prompt quoted and to the route bookkeeping a hold on the pair owes, so an obligation or
+handoff added since retires it and stands, and a cut that reads as no longer that reading, or a thread nobody could
+read, holds it. A developer the revision spawns fresh, or that replaces a poisoned session, is re-grounded with the
+conversation rendered off that same reading, so no reply its requirements do not count reaches the run.
 A capture is taken only where it, and then that transfer, its binding, and its settlement, still fit the comment
 with every terminator escaped; the transfer, and the binding and settlement of a captured report, are measured that
 way again over the comment each lands on, and refused for room with the report kept. A refusal leaves the run's
@@ -469,6 +506,7 @@ Writer exclusion comes from [C-05].
 [capture recovery](../tests/workflow/engine/test_completion_recovery.py),
 [frozen handoffs](../tests/workflow/engine/test_frozen_handoff.py),
 [captured lineage refreshes](../tests/workflow/stages/validating/test_captured_refresh_lineage.py),
+[recovered revisions](../tests/workflow/stages/decomposition/test_captured_revision.py),
 [effect re-reads](../tests/workflow/engine/test_completion_effect.py),
 [retirement tick](../tests/workflow/engine/test_completion_retirement.py),
 [recovery checkpoints](../tests/git/base_sync/test_persistence.py),
@@ -624,8 +662,9 @@ release and the parent's return move only the workflow label, and the walk reads
 of every release, so a hold applied while the poll runs is never written away or worked past. A hold a finished agent
 run meets, or an accounting checkpoint of it that neither landed nor read back, permits that run's usage accounting
 alone, beside a quota retirement it owes and, on the first implementation, an implementing resume, a reviewer's change
-request's fix, a pull request feedback round, a requirements-drift resume, or a rewritten head's report refresh, the
-capture of the report the run finished on: the exit is counted once, as it returns, and
+request's fix, a pull request feedback round, a requirements-drift resume, a rewritten head's report refresh, or a
+late adjudication's developer revision, the capture of the report the run finished on: the exit is counted once, as
+it returns, and
 nothing else of the run -- a
 publication, a label, a park, a consumed input, a session pin, a further launch -- is written or made, nor does the
 count give any stage outcome a replay; the hold the run's return first read is the one honored, whatever a later
@@ -638,10 +677,13 @@ requirements, its checkout, and its pull request are read again right before the
 so a hold applied, or a close, reopening, edit, or source moved or put back, while its readings were taken writes
 nothing; a landed retirement ends its tick, so no stage runs on the snapshot its readings outdated. An applicable
 capture of an implementing road, of a change request's fix, of a pull request feedback round, of a
-requirements-drift resume, or of a rewritten head's report refresh is finished with no developer launched: only what
-that run was handed and its session are settled -- a refresh's report recorded under the requirements, debt, receipt,
-head, and any approved or docs lineage it was entered under, its debt left for the transaction's settlement to pay,
-and no verification, approval, docs pass, or readiness inferred -- a feedback round's frozen batch, reset round, and
+requirements-drift resume, of a rewritten head's report refresh, or of a late developer revision is finished with no
+developer launched: only what that run was handed and its session are settled -- a refresh's report recorded under
+the requirements, debt, receipt, head, and any approved or docs lineage it was entered under, its debt left for the
+transaction's settlement to pay, and no verification, approval, docs pass, or readiness inferred -- a late
+revision's guidance consumed once, its candidate re-measured once under a fresh generation, and its report handed on
+in that very commit, the owner's close latch and the obligations a split already acted on asked again first, and no
+verdict, child, label, authorization, or publication made of it -- a feedback round's frozen batch, reset round, and
 cleared bookmarks, later feedback left unread, and a drift
 resume's frozen reading, recorded as the baseline only by its report's handoff or its stage's own write, beside the
 round its stage's drift disposition spends, resets, or hands on, the lease a conflict round's caller proved, and no
@@ -690,7 +732,9 @@ the grant that permits further runs are covered by [C-15].
 [held drift replies](../tests/workflow/stages/validating/test_captured_drift.py),
 [held in_review drift](../tests/workflow/stages/in_review/test_captured_drift.py),
 [held conflict drift](../tests/workflow/stages/conflicts/test_captured_drift.py),
-[held refreshes](../tests/workflow/stages/validating/test_captured_refresh.py).
+[held refreshes](../tests/workflow/stages/validating/test_captured_refresh.py),
+[held revisions](../tests/workflow/stages/decomposition/test_captured_revision.py),
+[closes over held revisions](../tests/workflow/stages/decomposition/test_late_revision_close.py).
 
 ## C-11: Credentials and execution boundaries
 
