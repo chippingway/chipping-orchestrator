@@ -38,7 +38,10 @@ to a second developer. A requirements-drift resume -- on `implementing`,
 `validating`, `in_review`, or `resolving_conflict`, a reply that remains its
 continuation included -- is the stage's it reported under
 (`stages/<stage>/captured_drift`), asked ahead of the drift check that would
-resume the developer again over the same edit; a road no owner takes yet
+resume the developer again over the same edit, and the fresh report a
+rewritten head is owed the validating stage's
+(`stages/validating/captured_refresh`), asked ahead of the report hold that
+would ask the developer for that report again; a road no owner takes yet
 holds the tick, so no handler re-runs paid work. An INVALID capture is retired by a
 guarded invalidation (`completion_checkpoint.retire`), which keeps which
 invocation it was, owns nothing but the capture, and is decided on the
@@ -92,9 +95,10 @@ log = logging.getLogger("orchestrator.workflow")
 # reaches is (`stage_targets`). The first implementation and an implementing
 # resume are the implementing stage's, and a reviewer's change request and a
 # pull request's feedback round the fixing stage's, which every half of those
-# rounds runs under, and a requirements-drift resume the stage it reported
-# under (`DRIFT_OWNERS`); a road no owner takes yet holds an applicable
-# capture rather than finishing it.
+# rounds runs under, a requirements-drift resume the stage it reported under
+# (`DRIFT_OWNERS`), and a rewritten-head report refresh the validating stage's;
+# a road no owner takes yet holds an applicable capture rather than finishing
+# it.
 _FINISHES = "recovers"
 
 _IMPLEMENTING_OWNER = (_stage_targets._IMPLEMENTING_CAPTURE_OWNER, _FINISHES)
@@ -107,6 +111,7 @@ ROUTE_OWNERS: Mapping[_routes.CompletionRoute, tuple[str, str]] = MappingProxyTy
     _routes.CompletionRoute.REQUESTED_CHANGES: _FIXING_OWNER,
     _routes.CompletionRoute.PR_FEEDBACK: _FIXING_OWNER,
     _routes.CompletionRoute.REQUIREMENTS_DRIFT: (__name__, "finishes_a_drift"),
+    _routes.CompletionRoute.REPORT_REFRESH: (_stage_targets._VALIDATING_REFRESH_CAPTURE_OWNER, _FINISHES),
 })
 
 # A requirements-drift resume is finished by the stage it reported under,

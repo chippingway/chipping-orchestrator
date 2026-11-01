@@ -317,8 +317,10 @@ delivery by one guarded commit; the implementing stage captures the first implem
 as they come back, a held one included, and hands an ordinary one on in its own disposition, and so does the fix a
 reviewer's change request hands its developer, on the round's direct run and on the resume that finishes it after a
 park, the request retired in the very commit that hands its report on, and the fixing round answering a pull
-request's human feedback, over the batch its prompt quoted and the round its route resets, and every
-requirements-drift resume, over the one frozen reading its prompt was cut from. A pending one is decided
+request's human feedback, over the batch its prompt quoted and the round its route resets, every
+requirements-drift resume, over the one frozen reading its prompt was cut from, and the fresh report a rewritten
+head's refresh asks for, over the debt, receipt, settled report, and any approved or docs lineage it was entered
+under. A pending one is decided
 by the dispatcher ahead of every handler, behind the reconciliations
 ([the captured-completion recovery](state-machine/delivery-stages.md#the-captured-completion-recovery-every-dispatch)):
 handed, admitted, to its road's owner, retired as invalidated where a reading proves it stale or an auto-rebase
@@ -344,7 +346,10 @@ the pull request, its branch, the head the rewrite replaced, and the exact head 
 readable or not, the dispatcher holds `workflow:documenting` and `in_review`; the validating report hold keeps the
 reviewer off while it resumes the developer, on the branch the issue pins, for a fresh report of that head, with no
 human reply, and drops the claim once a published report of it, still intact where it settled and written against the
-current requirements, pays it.
+current requirements, pays it. That run's fresh `REPORT: READY` is captured as it returns -- only where no quota
+stopped it and it left the checkout clean on that head -- so a report a live hold, a lost write, or a restart kept is
+recorded and settled by the dispatcher's recovery with no developer or reviewer run, a lineage the refresh was
+entered over proved again first, and the claim is paid on the tick behind it.
 `workflow:resolving_conflict` records one for every head its own push rewrites, off the code-publication receipt that
 push left, and the base refresh one for each clean auto rebase whose push lands, its crash recovery included, before
 the attempt is cleared or the issue routed to `workflow:validating`. The authorized settlement of a replay a late

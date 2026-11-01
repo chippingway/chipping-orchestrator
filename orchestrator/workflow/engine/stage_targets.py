@@ -22,8 +22,8 @@ proof, and the owner of which pinned fields keep both of two roads' moves,
 for the developer report's guarded commits. So is the owner that says whether
 a late record claims a reading it cannot produce, for the recovery that holds
 a captured late revision over one, and the owners that recovery hands the
-implementing roads', the fix rounds', and each stage's requirements-drift
-resumes' captures to.
+implementing roads', the fix rounds', each stage's requirements-drift
+resumes', and the rewritten-head report refresh's captures to.
 """
 from __future__ import annotations
 
@@ -140,6 +140,12 @@ _VALIDATING_PACKAGE = "orchestrator.workflow.stages.validating"
 # The owner that finishes a captured drift resume on `validating`: the body
 # edit's, and the reply's it reads as the rest of a drift resume.
 _VALIDATING_DRIFT_CAPTURE_OWNER = f"{_VALIDATING_PACKAGE}.captured_drift"
+
+# The owner that finishes a captured rewritten-head report refresh, which the
+# recovery hands an admitted capture of that road to
+# (`completion_recovery.ROUTE_OWNERS`). Resolved when called for the reason
+# every owner here is: the stage imports the engine.
+_VALIDATING_REFRESH_CAPTURE_OWNER = f"{_VALIDATING_PACKAGE}.captured_refresh"
 
 # The owner that holds the evidence an approval rests on to what an approval
 # needs of it -- its artifact re-read, still the one that settled, passing, and

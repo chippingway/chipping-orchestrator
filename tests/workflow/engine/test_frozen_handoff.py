@@ -5,7 +5,8 @@
 A handoff frozen over a pinned record is handed on only while that record
 still reads as the launch read it. A move the record's own reader takes --
 another change request, a verdict taken off, a debt carried onto another
-head -- is another road's, and retires the capture; a spelling that reader
+head, the docs completion a refresh's lineage was proved from taken off -- is
+another road's, and retires the capture; a spelling that reader
 refuses is damage, and holds it with nothing written. So does a move of a
 record no reader is registered for, since nothing can tell it from damage.
 A late revision's frozen late record is read by the late domain's own check
@@ -15,6 +16,7 @@ reader is registered for.
 from __future__ import annotations
 
 import unittest
+from collections.abc import Mapping
 from types import MappingProxyType
 from unittest.mock import patch
 
@@ -23,11 +25,16 @@ from orchestrator.workflow.engine import (
     completion_records as _records,
     completion_recovery_models as _models,
     completion_routes as _routes,
+    final_docs_records as _final_docs,
     review_subjects as _review_subjects,
 )
 from orchestrator.workflow.stages.validating import review_verdicts as _review_verdicts
 from orchestrator.workflow.state import WorkflowLabel
-from tests.workflow.engine import completion_dispatch_support as _dispatch, completion_recovery_support as _support
+from tests.workflow.engine import (
+    completion_dispatch_support as _dispatch,
+    completion_recovery_support as _support,
+    verification_record_test_support as _evidence_support,
+)
 from tests.workflow.engine.completion_turn_support import Turn
 
 _HELD = (_models.Reason.PREREQUISITE_UNREAD, _models.Standing.UNCERTAIN)
@@ -73,15 +80,48 @@ _RETIREMENT_READING = 3
 # that a road's handoff froze; its hand-damaged spelling, and another
 # readable debt another road carried it onto.
 _DEBT = "developer_report_rewrite_debt"
+_REWRITTEN = "rewritten_head"
 _OWED = MappingProxyType({
     "pr": _support.PR_NUMBER, "branch": _support.BRANCH,
-    "previous_head": _support.ELSEWHERE, "rewritten_head": _support.BEFORE,
+    "previous_head": _support.ELSEWHERE, _REWRITTEN: _support.BEFORE,
 })
 _DAMAGED_DEBT = Turn(edits=MappingProxyType({_DEBT: "unreadable debt"}))
-_CARRIED_DEBT = Turn(edits=MappingProxyType({_DEBT: {**_OWED, "rewritten_head": _support.SOURCE}}))
+_CARRIED_DEBT = Turn(edits=MappingProxyType({_DEBT: {**_OWED, _REWRITTEN: _support.SOURCE}}))
 
-# The roads that froze the debt: the refresh that answers it, and a drift resume that only stood on it.
-_DEBT_ROADS = (_routes.CompletionRoute.REPORT_REFRESH, _routes.CompletionRoute.REQUIREMENTS_DRIFT)
+# What a debt's capture that froze nothing else beside it froze beside it.
+_NOTHING_BESIDE = MappingProxyType({})
+
+_REFRESH = _routes.CompletionRoute.REPORT_REFRESH
+_DRIFT = _routes.CompletionRoute.REQUIREMENTS_DRIFT
+
+# A final docs pass's completion a refresh entered over that pass's lineage
+# froze beside the debt its rewrite of the docs commit left, as the pass's
+# writer records one, and that debt, naming as its rewritten head the commit
+# the refresh reported on, as the refresh's own road requires.
+_COMPLETION = _final_docs.FINAL_DOCS
+_COMPLETED = _final_docs.FinalDocs(
+    _evidence_support.SUBJECT.recorded(), _support.BEFORE, _support.ELSEWHERE,
+    _final_docs.FinalVerification.UNCONFIGURED,
+).recorded()
+_DOCUMENTED = (_REFRESH, {**_OWED, _REWRITTEN: _support.SOURCE}, {_COMPLETION: _COMPLETED})
+
+# Each world a debt's capture was frozen in -- its road, the debt at the
+# launch, and what else it froze beside it -- and a move that leaves a frozen
+# record as nothing its reader takes: the debt hand-damaged, on the refresh
+# that answers it and on a drift resume that only stood on it, and the docs
+# completion a refresh froze hand-damaged too.
+_UNREADABLE_MOVES = (
+    ((_REFRESH, _OWED), _DAMAGED_DEBT),
+    ((_DRIFT, _OWED), _DAMAGED_DEBT),
+    (_DOCUMENTED, Turn(edits=MappingProxyType({_COMPLETION: {"final_head": "unreadable"}}))),
+)
+
+# And a move the record's reader takes: the debt carried onto another head
+# under a drift resume, and the docs completion a refresh froze taken off.
+_READABLE_MOVES = (
+    ((_DRIFT, _OWED), _CARRIED_DEBT),
+    (_DOCUMENTED, Turn(edits=MappingProxyType({_COMPLETION: _support.DROPPED}))),
+)
 
 # A late revision's frozen late records: a hold's route bookkeeping, which the
 # late domain's spend check judges, the measurement's ceiling, which its
@@ -124,11 +164,18 @@ _LATE_HOLDS = ((_SPENT_ONCE, _SPEND_DAMAGED), (_HASHED, _HASH_MOVED))
 _LATE_MOVES = ((_SPENT_ONCE, _SPENT_AGAIN), (_CEILING_AT_LAUNCH, _CEILING_MOVED))
 
 
-def _debt_world(route: _routes.CompletionRoute) -> tuple[_support.CapturedWorld, _records.CompletionCapture]:
-    """A world on `validating` owing a rewritten head's report, whose capture on `route` froze that debt."""
+def _debt_world(
+    route: _routes.CompletionRoute, debt: Mapping = _OWED, beside: Mapping = _NOTHING_BESIDE,
+) -> tuple[_support.CapturedWorld, _records.CompletionCapture]:
+    """A world on `validating` owing a rewritten head's report, whose capture on `route` froze `debt` and `beside`.
+
+    The pull request stands on the head the debt names as rewritten.
+    """
     world = _support.CapturedWorld(WorkflowLabel.VALIDATING, pull_request=True)
-    world.hand_edit(**{_DEBT: dict(_OWED)})
-    frozen = _frozen.frozen_over(world.github.read_pinned_state(world.issue), (_DEBT,))
+    world.github.get_pr(_support.PR_NUMBER).head.sha = debt[_REWRITTEN]
+    world.hand_edit(**{_DEBT: dict(debt), **beside})
+    launched = world.github.read_pinned_state(world.issue)
+    frozen = _frozen.frozen_over(launched, (_DEBT, *beside))
     return world, world.captured(_support.road(route, WorkflowLabel.VALIDATING, frozen))
 
 
@@ -204,12 +251,13 @@ class FrozenHandoffTest(unittest.TestCase):
         # The frozen debt, hand-damaged after the launch, is spelled otherwise
         # but as nothing its reader takes: damage, not another road's move,
         # so the capture is held with nothing written -- on the refresh that
-        # answers the debt and on a road that only froze it.
-        for route in _DEBT_ROADS:
-            with self.subTest(route=route):
-                world, captured = _debt_world(route)
+        # answers the debt and on a road that only froze it -- and so is the
+        # docs completion a refresh froze beside it, hand-damaged.
+        for launched, turn in _UNREADABLE_MOVES:
+            with self.subTest(turn=turn):
+                world, captured = _debt_world(*launched)
 
-                seen = _dispatch.observed(world, _dispatch.RoadOwner(), _DAMAGED_DEBT)
+                seen = _dispatch.observed(world, _dispatch.RoadOwner(), turn)
 
                 self._held(seen, captured)
 
@@ -228,15 +276,19 @@ class FrozenHandoffTest(unittest.TestCase):
 
     def test_a_readable_move_of_it_retires_it(self) -> None:
         # The same debt carried onto another head another road wrote, read
-        # whole: the handoff the drift resume answered is gone.
-        world, captured = _debt_world(_routes.CompletionRoute.REQUIREMENTS_DRIFT)
+        # whole: the handoff the drift resume answered is gone. So is the
+        # one a refresh answered once the docs completion its lineage was
+        # proved from is taken off the comment.
+        for launched, turn in _READABLE_MOVES:
+            with self.subTest(turn=turn):
+                world, captured = _debt_world(*launched)
 
-        seen = _dispatch.observed(world, _dispatch.RoadOwner(), _CARRIED_DEBT)
+                seen = _dispatch.observed(world, _dispatch.RoadOwner(), turn)
 
-        retired = _support.read_capture(seen.after)
-        self.assertTrue(seen.says(_models.Reason.HANDOFF_MOVED), seen.said)
-        self.assertEqual(retired.stage, _records.CaptureStage.RETIRED)
-        self.assertEqual(retired.invocation, captured.invocation)
+                self.assertTrue(seen.says(_models.Reason.HANDOFF_MOVED), seen.said)
+                self.assertEqual(_support.read_capture(seen.after), _records.ResolvedCapture(
+                    captured.invocation, _records.CaptureStage.RETIRED, reason=_records.RetirementReason.INVALIDATED,
+                ))
 
     def test_an_unmoved_frozen_record_hands_it_on(self) -> None:
         world, captured = _frozen_world()

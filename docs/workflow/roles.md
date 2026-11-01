@@ -108,8 +108,13 @@ per-stage behavior is in
   `workflow:validating` or `workflow:resolving_conflict` answers as its continuation included
   (`workflow/stages/implementing/drift_road.py`) -- whose held report the recovery finishes through that stage's own
   drift disposition, from the one frozen reading the run was handed, with no developer run; a reply or continue to an
-  implementing drift park is the implementing resume above, finished as that resume is. Every other resume on the
-  list above captures nothing.
+  implementing drift park is the implementing resume above, finished as that resume is. So does the resume
+  `workflow:validating` asks for the fresh report a head this orchestrator rewrote is owed
+  (`workflow/stages/validating/refresh_road.py`), whose held `REPORT: READY` the recovery records, binds,
+  and settles through the refresh's own disposition -- no developer or reviewer run, no round spent, the debt paid on
+  the tick behind it -- and whose verification of the report the rewrite left behind, quota stop, or return over a
+  commit or loose work it never captures. Every other
+  resume on the list above captures nothing.
 - **A docs pass that changes the pull request.** `_handle_documenting` resumes the dev session for the final-docs
   pass behind an approval, and it is the last automated delivery stage: a pass that publishes a docs commit — a fresh
   one, commits an earlier tick left unpushed, or the commit a `docs_settled_sha` receipt names — completes straight

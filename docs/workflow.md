@@ -172,13 +172,18 @@ the run its handoff launches and the resume that finishes its parked round
 answering a pull request's human feedback (`workflow/stages/fixing/feedback_road.py`), and every
 requirements-drift resume and the reply `workflow:validating` or `workflow:resolving_conflict` answers as its
 continuation (`workflow/stages/implementing/drift_road.py`) -- a reply or continue to an implementing drift park being
-an implementing resume -- so a live hold or a lost write cannot discard the report. A pending capture is decided
+an implementing resume -- and the fresh report a rewritten head's refresh asks for, frozen over the debt, receipt,
+settled report, and any approved or docs lineage it was entered under
+(`workflow/stages/validating/refresh_road.py`), so a live hold or a lost write cannot discard the report. A
+pending capture is decided
 ahead of every stage handler, handed to its road's owner only while every reading still admits it -- the implementing
 stage finishes those two roads' with no developer run (`workflow/stages/implementing/captured_completion.py`), the
 fixing stage a change request's round, retiring the request in the commit that hands its report on, and a feedback
 round, settling only the batch its launch froze (`workflow/stages/fixing/captured_fixes.py`), and the stage a drift
 resume reported under that resume, through its own drift disposition and on its own round
-(`workflow/stages/<stage>/captured_drift.py`) -- and its checkout is kept out of the base refresh until then
+(`workflow/stages/<stage>/captured_drift.py`), and the validating stage a refresh, through the refresh's own
+disposition with no round spent and the claim left for the settled report to pay, its lineage proved again first
+(`workflow/stages/validating/captured_refresh.py`) -- and its checkout is kept out of the base refresh until then
 (`workflow/engine/completion_recovery.py`). The pull-request body leaves the run's closing message out wherever a
 report is owed or settled, and a reused pull request's description is never rewritten. Full contract:
 [`workflow/conversations.md#the-developer-report-contract-in-developer-prompts`](workflow/conversations.md#the-developer-report-contract-in-developer-prompts);

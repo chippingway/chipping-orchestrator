@@ -53,9 +53,10 @@ are preserved unchanged and never overwritten, duplicated, or silently upgraded.
 capture read back after an unconfirmed write, carries the report and what its road froze, never a log, analytics,
 a native session, a trajectory, or a host record. Only the first implementation, an implementing resume, the fix a
 reviewer's change request hands its developer -- the run its handoff launches, and the resume that finishes its parked
-round -- the resume answering a pull request's human feedback, and a requirements-drift resume on `implementing`,
-`validating`, `in_review`, or `resolving_conflict` -- the replies that remain its continuation included -- capture
-one, as their developer returns. The dispatcher's recovery reads a pending capture through that read-back alone.
+round -- the resume answering a pull request's human feedback, a requirements-drift resume on `implementing`,
+`validating`, `in_review`, or `resolving_conflict` -- the replies that remain its continuation included -- and the
+fresh report a rewritten head's refresh asks for capture one, as their developer returns. The dispatcher's recovery
+reads a pending capture through that read-back alone.
 
 **Specs:** [state](architecture.md#design-constraints), [restarts](configuration/operations.md#what-survives-a-restart).
 
@@ -66,7 +67,8 @@ one, as their developer returns. The dispatcher's recovery reads a pending captu
 [captured attempts](../tests/workflow/stages/implementing/test_captured_attempts.py),
 [captured fixes](../tests/workflow/stages/validating/test_captured_fixes.py),
 [captured feedback](../tests/workflow/stages/fixing/test_captured_feedback.py),
-[captured drift](../tests/workflow/stages/validating/test_captured_drift.py).
+[captured drift](../tests/workflow/stages/validating/test_captured_drift.py),
+[captured refreshes](../tests/workflow/stages/validating/test_captured_refresh.py).
 
 ## C-02: Workflow labels and transitions
 
@@ -219,7 +221,8 @@ only whole, in the one shape its stage writes: absent is an issue that captured 
 `null`, a key too many or too few, a member out of its bound, a report the report records refuse, or a road its
 contract refuses -- is a damaged claim, never an absence, so nothing captures over it, retires it, or acts on it,
 and no delivery is bound beside it. Its READY text and VERIFIED reference stay two outcomes, a rewritten-head refresh
-is captured only READY, and a change-request or pull-request-feedback road only beside the handoff it froze. A
+is captured only READY, no quota stopping it, over a checkout its run left clean on the rewritten head as it returned,
+and a change-request or pull-request-feedback road only beside the handoff it froze. A
 requirements-drift resume settles the input it was handed for itself, so the report its capture becomes carries none
 of it, as the recording its own tick makes carries none, and no report hands its requirements baseline on to one that
 supersedes it: the later report's settlement never writes an older baseline back. Only that road's capture may freeze
@@ -439,7 +442,9 @@ so a comment that moved since -- a missing field restored included -- refuses it
 a reading fails or the claim is damaged: an unreadable prerequisite never discards it, a record its handoff froze
 moved into a spelling its own reader refuses, or moved with no reader registered for it, included, and a cancelled or
 restarted cycle never inherits it. A rewritten-head refresh is handed on only where its debt, the commit it reported
-on, and the pull request's head are one commit, as that refresh's own road requires.
+on, and the pull request's head are one commit, as that refresh's own road requires, and one entered over a proved
+squash or docs lineage only once that lineage proves again and the approved report re-reads intact where it settled:
+a refutation or a report moved out of reach retires it, and a tree, descent, or location nobody could read holds it.
 A capture is taken only where it, and then that transfer, its binding, and its settlement, still fit the comment
 with every terminator escaped; the transfer, and the binding and settlement of a captured report, are measured that
 way again over the comment each lands on, and refused for room with the report kept. A refusal leaves the run's
@@ -463,6 +468,7 @@ Writer exclusion comes from [C-05].
 [captured sources](../tests/workflow/engine/test_completion_binding.py),
 [capture recovery](../tests/workflow/engine/test_completion_recovery.py),
 [frozen handoffs](../tests/workflow/engine/test_frozen_handoff.py),
+[captured lineage refreshes](../tests/workflow/stages/validating/test_captured_refresh_lineage.py),
 [effect re-reads](../tests/workflow/engine/test_completion_effect.py),
 [retirement tick](../tests/workflow/engine/test_completion_retirement.py),
 [recovery checkpoints](../tests/git/base_sync/test_persistence.py),
@@ -618,8 +624,8 @@ release and the parent's return move only the workflow label, and the walk reads
 of every release, so a hold applied while the poll runs is never written away or worked past. A hold a finished agent
 run meets, or an accounting checkpoint of it that neither landed nor read back, permits that run's usage accounting
 alone, beside a quota retirement it owes and, on the first implementation, an implementing resume, a reviewer's change
-request's fix, a pull request feedback round, or a requirements-drift resume, the capture of the report the run
-finished on: the exit is counted once, as it returns, and
+request's fix, a pull request feedback round, a requirements-drift resume, or a rewritten head's report refresh, the
+capture of the report the run finished on: the exit is counted once, as it returns, and
 nothing else of the run -- a
 publication, a label, a park, a consumed input, a session pin, a further launch -- is written or made, nor does the
 count give any stage outcome a replay; the hold the run's return first read is the one honored, whatever a later
@@ -631,9 +637,12 @@ back is handed on to no road until that run's receipt reads back, and the issue'
 requirements, its checkout, and its pull request are read again right before the capture is retired or handed on,
 so a hold applied, or a close, reopening, edit, or source moved or put back, while its readings were taken writes
 nothing; a landed retirement ends its tick, so no stage runs on the snapshot its readings outdated. An applicable
-capture of an implementing road, of a change request's fix, of a pull request feedback round, or of a
-requirements-drift resume is finished with no developer launched: only what that run was handed and its session are
-settled -- a feedback round's frozen batch, reset round, and cleared bookmarks, later feedback left unread, and a drift
+capture of an implementing road, of a change request's fix, of a pull request feedback round, of a
+requirements-drift resume, or of a rewritten head's report refresh is finished with no developer launched: only what
+that run was handed and its session are settled -- a refresh's report recorded under the requirements, debt, receipt,
+head, and any approved or docs lineage it was entered under, its debt left for the transaction's settlement to pay,
+and no verification, approval, docs pass, or readiness inferred -- a feedback round's frozen batch, reset round, and
+cleared bookmarks, later feedback left unread, and a drift
 resume's frozen reading, recorded as the baseline only by its report's handoff or its stage's own write, beside the
 round its stage's drift disposition spends, resets, or hands on, the lease a conflict round's caller proved, and no
 baseline a dependency hold defers, its handoff or withdrawal made only once its admission reads again behind every
@@ -680,7 +689,8 @@ the grant that permits further runs are covered by [C-15].
 [held drift continuations](../tests/workflow/stages/implementing/test_captured_drift_continuations.py),
 [held drift replies](../tests/workflow/stages/validating/test_captured_drift.py),
 [held in_review drift](../tests/workflow/stages/in_review/test_captured_drift.py),
-[held conflict drift](../tests/workflow/stages/conflicts/test_captured_drift.py).
+[held conflict drift](../tests/workflow/stages/conflicts/test_captured_drift.py),
+[held refreshes](../tests/workflow/stages/validating/test_captured_refresh.py).
 
 ## C-11: Credentials and execution boundaries
 

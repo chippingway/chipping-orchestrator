@@ -13,6 +13,12 @@ A process ending is spelled as a raise the case swallows, so what a test reads
 afterwards is exactly the durable state a crash would have left. Each window is
 opened on the case's own pull request and the head it stands on, so the
 rebased world and the journey that squashes and rebases it share them.
+
+A refresh whose return was captured opens one window more ahead of all four:
+the commit handing that capture to the delivery, where the process can end
+before it goes out or once it landed, or the commit can land with its answer
+lost (`losing_the_handoff`). Ending before it leaves the capture pending, and
+the others the delivery owning the report, for a later dispatch to finish.
 """
 from __future__ import annotations
 
@@ -23,6 +29,7 @@ from orchestrator.workflow.engine import (
     report_binding as _report_binding,
     report_settlement_state as _settlement,
 )
+from tests.workflow import captured_fixes as _fixes
 
 
 class _Crashed(RuntimeError):
@@ -71,6 +78,18 @@ def dying_on_the_settlement(case):
     with patch.object(
         case.github, "edit_pinned_state", _DiesOnTheSettlement(edits, case.pull_request.head.sha),
     ), contextlib.suppress(_Crashed):
+        yield
+
+
+@contextlib.contextmanager
+def losing_the_handoff(case, lost: str):
+    """The commit handing a capture to the delivery: the process lost before or after it, or its answer lost.
+
+    `lost` is one of `captured_fixes.SENT`, `LANDED`, or `ANSWER`.
+    """
+    with patch.object(
+        case.github, "edit_pinned_state", _fixes.LostAtTheHandoff(case.github, lost),
+    ), contextlib.suppress(SystemExit):
         yield
 
 

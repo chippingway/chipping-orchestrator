@@ -22,6 +22,9 @@ exists only on a new read, says anything the baseline does not -- and where a
 refusal parks, under `report_undeliverable` with the debt recorded, since both
 helpers park the same way.
 
+The road the run is launched on, frozen over what the refresh was entered
+under, is `refresh_road`'s, built from this record.
+
 The boundary against `models.py` is the one `drift_models.py` draws: this
 record is built and read inside the refresh route alone, so it stays beside
 that route rather than charging every importer of the stage's shared records
