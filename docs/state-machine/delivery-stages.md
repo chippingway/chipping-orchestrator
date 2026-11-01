@@ -2321,7 +2321,8 @@ and handed off -- and this is what it guarantees and what stops it.
   no label moved, and nothing published. This recovery publishes nothing of its own and infers no review,
   verification, approval, or docs pass.
 - **Retires** a capture a reading proved stale -- an auto rebase of its branch begun and not recovered, its anchor
-  reading as a commit, the issue closed or labelled `done` or `rejected`, moved onto any other road than the one it
+  reading as a commit, the issue closed (save a late revision's, whose close ends its cycle instead, below) or
+  labelled `done` or `rejected`, moved onto any other road than the one it
   reported on, a record its handoff froze moved to a spelling its reader takes, the pull request, debt, or adjudication
   its road answers gone -- a debt another pull request's or branch's or of another head than the one a refresh reported
   on, a replacement pull request on the same head included -- the requirements edited, the record pinning another

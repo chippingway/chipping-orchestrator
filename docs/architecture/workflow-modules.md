@@ -444,8 +444,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             recovery hands the implementing roads' captures to
                             (`stages/implementing/captured_completion.py`), the fix rounds' captures to
                             (`stages/fixing/captured_fixes.py`), each stage's requirements-drift captures to
-                            (`stages/<stage>/captured_drift.py`), and a rewritten head's report refresh's capture to
-                            (`stages/validating/captured_refresh.py`)
+                            (`stages/<stage>/captured_drift.py`), a rewritten head's report refresh's capture to
+                            (`stages/validating/captured_refresh.py`), and a late developer revision's capture to
+                            (`stages/decomposition/captured_revision.py`), with the owner a close that recovery reads
+                            of that revision's issue is handed to (`stages/decomposition/captured_revision_closes.py`)
     poll_models.py          poll-time closure evidence and family/fanout/cleanup partitions, preserving deferred issues
                             absent from enumeration and the blocked/umbrella family capacity exemption; a closed
                             reading -- a family-bucket issue's included, there only when its label could not be read

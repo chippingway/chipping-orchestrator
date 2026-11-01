@@ -326,7 +326,8 @@ candidate. A pending one is decided
 by the dispatcher ahead of every handler, behind the reconciliations
 ([the captured-completion recovery](state-machine/delivery-stages.md#the-captured-completion-recovery-every-dispatch)):
 handed, admitted, to its road's owner, retired as invalidated where a reading proves it stale or an auto-rebase
-anchor stands beside it, or held where nothing can decide it, and it keeps its checkout out of the base refresh until
+anchor stands beside it, or held where nothing can decide it -- a late revision whose readings read its issue closed
+ending that cycle instead, whatever the issue reads next -- and it keeps its checkout out of the base refresh until
 then.
 Beside it sits the additive `verification_evidence_*` group -- the pending evidence transaction, the evidence the
 pull request carries now, a bounded history of retired evidence, the receipt of the last one settled, and the highest

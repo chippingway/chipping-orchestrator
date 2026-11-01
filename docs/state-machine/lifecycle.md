@@ -1041,7 +1041,12 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                    take, a frozen record moved past its
                                    reader, an unaccounted run's receipt not
                                    read back, and a damaged claim HOLD with
-                                   nothing written;
+                                   nothing written; a late revision whose
+                                   readings read its issue closed at any
+                                   fetch instead ENDS ITS CYCLE --
+                                   cancelled over the comment read again,
+                                   or the close latched for it -- whatever
+                                   the issue reads next;
                                    workflow:blocked, workflow:ready, and an
                                    unlabeled issue run as they would, the
                                    capture kept. Nothing is charged, parked,
