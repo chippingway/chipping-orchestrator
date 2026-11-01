@@ -6053,7 +6053,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             before the binding or on the settlement is finished later by its receipt; a moved head
                             or an edit records nothing. A commit (recorded as work no report describes), loose work, a
                             timeout, and a `REPORT: VERIFIED` of the report already there park under
-                            `report_undeliverable`; any other finished run with no report -- and one an account
+                            `report_undeliverable` -- a commit or loose work judged on the checkout as the run's road
+                            read it returning (`refresh_road.RefreshRoad.returned_over`), however it reads by the
+                            disposition, so a reset or a cleanup since publishes nothing; any other finished run
+                            with no report -- and one an account
                             quota stopped, whatever its checkout reads as, a commit it left off the head still
                             recorded as work no report describes -- takes the agent-failure park
                             `implementing/parks.py` classifies, route `report_refresh` -- a run that left a command
