@@ -2113,7 +2113,10 @@ The keys that matter for the state machine fall into a few groups:
   made while the capture is pending a strict edit -- that park's through a guarded commit decided on every record
   the handoff froze -- held to the close latch
   and the admission read again behind its own walk to the comment -- the comment read once more after those
-  readings -- a latched close cancelling the cycle there, and every whole-state write behind a settled capture landed
+  readings -- a close a poll latched, or one any fetch of the issue read from the dispatcher's admission on, cancelling
+  the cycle there, or latched for that cycle where the comment read again does not confirm it -- the fresh or
+  replacement spawn having been handed the conversation of that same reading -- and every whole-state write behind a
+  settled capture landed
   as a guarded commit decided on what the handoff froze and asked the issue's controls again, the owner read writing
   and saying nothing over a control or relabel its fetch shows, with no developer or adjudicator run, verdict, child,
   label, or publication;
@@ -2125,7 +2128,8 @@ The keys that matter for the state machine fall into a few groups:
   retirement or a handoff, for its controls and label, and what the effect stands on is read again behind it -- the
   issue's state and requirements, the checkout, and the pull request (`completion_effect.py`); uncertain or damaged, or
   held by a control, a relabel, a close, a reopening, an edit, or a checkout or pull request moved or put back
-  meanwhile, the stage is held with nothing written, and so is a capture whose run's usage was captured `unresolved`
+  meanwhile, the stage is held with nothing written -- save a `late_revision` capture's close, which ends its cycle
+  instead, as above, whatever the decision -- and so is a capture whose run's usage was captured `unresolved`
   until that run's receipt reads back on the ledger beside readable counters. On the implementing road, and on a late
   revision's of a candidate adjudicated before its publication, a recorded pull request the implementing road reads as
   the `discussion` stage's plan, merged or not, is none of the run's. Beside an auto-rebase
