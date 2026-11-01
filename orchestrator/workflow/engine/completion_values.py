@@ -12,7 +12,7 @@ apart from a member that will not read.
 
 The bounds are what a comment should hold for each field: a command and a
 checkout path one line each and no longer than a path or a spec ever is, a
-session id far shorter, and a frozen handoff no more than sixteen records,
+session id far shorter, and a frozen handoff no more than twenty records,
 each named as this workflow names its own pinned keys and held as one digest.
 Text is held to what UTF-8 can carry, as every recorded report field is
 (`report_record_values.carries_utf8`).
@@ -34,8 +34,9 @@ MAX_WORKTREE = 4096
 
 MAX_SESSION = 256
 
-# How many pinned records one handoff may be frozen over.
-MAX_FROZEN = 16
+# How many pinned records one handoff may be frozen over: a late revision's
+# freezes nineteen.
+MAX_FROZEN = 20
 
 # A frozen record's name: a pinned key as this workflow spells its own.
 FIELD_SHAPE = re.compile("[a-z][a-z0-9_]{0,63}")

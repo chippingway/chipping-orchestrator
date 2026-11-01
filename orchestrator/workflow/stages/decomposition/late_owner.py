@@ -9,6 +9,7 @@ is released or discarded.
 from __future__ import annotations
 
 import logging
+from types import MappingProxyType
 
 from orchestrator.workflow.late_split.models import LateGeneration
 from orchestrator.workflow.stages.decomposition import (
@@ -22,6 +23,20 @@ from orchestrator.workflow.stages.decomposition.late_result_models import _LateD
 
 log = logging.getLogger("orchestrator.workflow")
 
+
+# What each owner reading's settlement writes before anything is said: the
+# cancellation a closed owner persists, the claim an open one drops, and the
+# park an unreadable one takes.
+_SETTLES = MappingProxyType({
+    _OwnerState.CLOSED: _late_owner_settlement._cancelled,
+    _OwnerState.OPEN: _late_owner_settlement._cleared,
+    _OwnerState.UNREADABLE: _late_owner_settlement._unreadable,
+})
+
+# The readings whose settlement then says what it staged, once it may
+# (`_may_post`): the notice a park this tick staged still owes, or the park an
+# unreadable owner took.
+_SAYS = frozenset((_OwnerState.OPEN, _OwnerState.UNREADABLE))
 
 def _reconcile_pending_owner_check(
     context: _LateContext,
@@ -101,23 +116,54 @@ def _guarded_owner(context: _LateContext) -> _OwnerState:
     it gets the claim here, which costs a write and is not the same as reading
     an owner nothing would bring a tick back to.
 
-    Each answer then persists what it means before anything external happens:
-    an open owner drops the claim and releases what was staged, a closed one
-    persists the cancellation, and an unreadable one leaves the claim exactly
-    where it was written.
+    Each answer then persists what it means before anything external happens
+    (`_SETTLES`): an open owner drops the claim, a closed one persists the
+    cancellation, and an unreadable one leaves the claim exactly where it was
+    written and takes its park. Only behind that write is anything said
+    (`_SAYS`) -- what was staged, or the unreadable owner's park -- and only
+    once the issue lets it (`_may_post`). A held one writes and releases
+    nothing at all: the claim stands as written, and what was staged stays
+    owed -- as it does behind an open or unreadable one whose settlement did
+    not land, its state withheld, or whose issue a recovery reads once more,
+    behind that settlement's write, as anything but open and unheld.
     """
     if not _already_claimed(context.generation):
         _late_outcome._completed(context)
     reading = _late_owner_reading._read_owner(context)
-    if reading == _OwnerState.CLOSED:
-        _late_owner_settlement._cancelled(context)
-    elif reading == _OwnerState.UNREADABLE:
-        _late_owner_settlement._unreadable(context)
-    else:
-        _late_owner_settlement._cleared(context)
+    settles = _SETTLES.get(reading)
+    if settles is not None:
+        settles(context)
+    if reading in _SAYS and _may_post(context):
         _late_park_delivery._release_staged_park(context)
     context.staged_park = None
     return reading
+
+
+def _may_post(context: _LateContext) -> bool:
+    """Whether the owner read's settlement may say what it owes: its write landed, and the issue read once more is open.
+
+    A settlement whose write did not land, its state withheld, says nothing,
+    and nor does one whose cycle a close already ended. A recovery's context
+    asks of its issue (`_LateContext.owner_holds`), and a comment its
+    settlement says -- a released park's notice, the unreadable owner's park,
+    a re-measured candidate's -- follows a write the recovery's question was
+    asked before: the settlement's own, the unreadable owner's park among
+    them, so a control applied, a relabel, or a close as that write
+    returned would otherwise be read by nothing ahead of the post. The owner
+    is read once more right before it, as the read itself is
+    (`late_owner_reading._read_owner`): a close it shows ends the cycle on
+    the cancellation's own road, and any answer but an open, unheld issue
+    says nothing. Any other context's settlement says what it owes as it
+    always did, with no request more.
+    """
+    if context.state.withheld or context.generation.cancelled:
+        return False
+    if context.owner_holds is None:
+        return True
+    reading = _late_owner_reading._read_owner(context)
+    if reading == _OwnerState.CLOSED:
+        _late_owner_settlement._cancelled(context)
+    return reading == _OwnerState.OPEN
 
 
 def _already_claimed(generation: LateGeneration) -> bool:

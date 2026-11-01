@@ -11,8 +11,11 @@ neither is said until the read comes back open.
 """
 from __future__ import annotations
 
+from unittest.mock import patch
+
 from orchestrator.workflow.late_split.phases import LatePhase
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
+from tests.workflow.stages.decomposition import captured_revision_support as _captured
 from tests.workflow.stages.decomposition.late_content_replies import reply
 from tests.workflow.stages.decomposition.late_content_support import KEY_GENERATION, PARK_REVISION_DIRTY
 from tests.workflow.stages.decomposition.late_revision_support import (
@@ -39,6 +42,11 @@ from tests.workflow.stages.decomposition.late_settlement_support import (
 from tests.workflow.stages.decomposition.late_test_support import KEYS
 
 SECOND_GENERATION = 2
+
+# What a revision a recovery finished leaves the record on: the advanced
+# generation, over the commit it re-measured.
+_REVISED = (SECOND_GENERATION, REVISED_SHA)
+_REVISED_AT = (KEY_GENERATION, KEYS.candidate_sha)
 
 
 def _park_reason(pinned) -> object:
@@ -174,6 +182,72 @@ class StalledRevisionGuardTest(RevisionCase):
         return "".join(
             body for _number, body in self.github.posted_comments
         )
+
+
+class RecoveredRevisionGuardTest(_captured.CapturedRevisionCase):
+    """A held revision a recovery finishes passes the owner read its own tick would have."""
+
+    def test_the_owner_is_read_behind_the_handoff(self) -> None:
+        # The re-measured candidate and the report it hands the delivery are
+        # durable before the read, so a close or a read GitHub refuses behind
+        # them costs nothing the recovery produced -- and the notice the
+        # re-measurement earns is said to neither. A close is settled by the
+        # recovery's own owner read. An issue nobody can read holds the
+        # recovery's next write, the controls it is asked about unreadable,
+        # and the read the handoff left owed is taken -- and parks -- on the
+        # dispatch after it.
+        for name, moved, settled, later in (
+            ("closed", self._closes, {KEYS.phase: LatePhase.CANCELLING}, False),
+            ("unreadable", self._refuses_reads, {KEYS.park_reason: PARK_OWNER_UNREADABLE}, True),
+        ):
+            with self.subTest(owner=name):
+                self._held_over_guidance()
+
+                with patch.object(self.github, "edit_pinned_state", _BehindTheHandoff(self.github, moved)):
+                    self._dispatched().assert_not_called()
+                if later:
+                    self._read_on_the_next_dispatch()
+
+                pinned = self._pinned()
+                self.assertEqual(_captured.capture_of(pinned).stage, _captured.HANDED_OFF)
+                self.assertEqual(tuple(map(pinned.get, _REVISED_AT)), _REVISED)
+                self.assertEqual({field: pinned.get(field) for field in settled}, settled)
+                self.assertNotIn(REMEASURED_NOTICE, "".join(self._bodies()))
+
+    def _held_over_guidance(self) -> None:
+        """A revision bought by guidance, held to its capture under `paused` and released."""
+        self._seed(**DEV_PIN)
+        reply(self.issue)
+        self._held()
+        self._released()
+
+    def _read_on_the_next_dispatch(self) -> None:
+        """Assert the owner read is still owed, and dispatch the issue again to take it."""
+        self.assertTrue(self._pinned()[KEYS.owner_check_pending])
+        self._dispatched().assert_not_called()
+
+    def _closes(self) -> None:
+        """A human closing the issue."""
+        self.issue.closed = True
+
+    def _refuses_reads(self) -> None:
+        """GitHub refusing every read of the issue from here on."""
+        self.enterContext(patch.object(self.github, "get_issue", side_effect=RuntimeError))
+
+
+class _BehindTheHandoff:
+    """The strict edits a tick makes, `moved` called once the one handing a capture off has landed."""
+
+    def __init__(self, github, moved) -> None:
+        self._edits = github.edit_pinned_state
+        self._moved = moved
+
+    def __call__(self, issue, state, **options):
+        sent = self._edits(issue, state, **options)
+        handed = _captured.capture_of(state.state_data)
+        if handed is not None and handed.stage is _captured.HANDED_OFF:
+            self._moved()
+        return sent
 
 
 if __name__ == "__main__":

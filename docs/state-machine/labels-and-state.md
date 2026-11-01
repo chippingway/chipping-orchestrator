@@ -1988,7 +1988,16 @@ The keys that matter for the state machine fall into a few groups:
   `source` commits the rewritten head the checkout was proved to stand on, frozen over `pr_number`,
   `developer_report_rewrite_debt`, the code-publication receipt, and the settled report pair -- and, for a refresh
   entered over a proved approval squash or final docs pass, `verification_evidence_pending`, `_current`, and
-  `_history` and `docs_final_provenance` too -- with no `watermarks` or `spends`. No other road captures one yet. Only a
+  `_history` and `docs_final_provenance` too -- with no `watermarks` or `spends`; and so it does as the developer a
+  human's guidance buys under a late adjudication returns, on the `late_revision` road under `workflow:decomposing`
+  (`stages/decomposition/late_revision_road.py`), its `requirements` the issue-wide fingerprint of the reading the
+  guidance came off, its `watermarks` that reading's own consumption -- `last_action_comment_id` at the newest trusted
+  comment it counted and `user_content_hash` at its requirements -- which its reconciliation applies and its report
+  carries none of, frozen over `late_cycle_id`, `late_generation`, the frozen pair, `late_phase`,
+  `late_comment_watermark_id` and `late_owed_replies` -- which, with the thread cut where the reading counted, select
+  every guidance comment its prompt quoted -- `late_spends`, the publication group, `pr_number`, the
+  code-publication receipt, and the split's `late_split_children`, `late_resources`, and `late_consumers`, nineteen
+  digests in all, with no `spends`. No other road captures one yet. Only a
   return the
   outcome owner's completed-run reader answers READY or VERIFIED for, whose backend recorded no unfinished tool steps
   or terminal failure, that a tracked spawn
@@ -2003,7 +2012,7 @@ The keys that matter for the state machine fall into a few groups:
   `issue`, `comment`, `cycle`, `ordinal` and `nonce` (`AgentResult.invocation`), then the stage's own. A `pending`
   capture adds the road's `route` and `origin` label, the `requirements` revision it was handed, the delivered input
   as `watermarks` and the round settlement as `spends` — both bounded by the report records' own vocabularies — the
-  `frozen` handoff as `[[<pinned key>, <sha256 of its spelling>], ...]` (sorted, at most sixteen), the issue-thread
+  `frozen` handoff as `[[<pinned key>, <sha256 of its spelling>], ...]` (sorted, at most twenty), the issue-thread
   stretch its prompt `delivered` as `[<after>, <through>]` (`[]` for a road whose delivered input is its watermarks
   alone), the full `command` the attempt ran under, the SHA-256 `prompt` revision, the `worktree`, `branch`, `before`
   and `source` commits, the conversation the run `resumed` (`null` where it opened a fresh one, a continuation of that
@@ -2090,8 +2099,25 @@ The keys that matter for the state machine fall into a few groups:
   the session from the capture
   and records, binds, and settles its report through the refresh's own disposition, inside those same re-reads, with
   no developer or reviewer run and no round spent, the debt left for the next tick's report hold to drop once the
-  settled report pays it; and
-  none for any other road -- a `late_revision` -- in this build, so that stage is held; stale -- its
+  settled report pays it; and the decomposition stage's for a `late_revision` capture
+  (`stages/decomposition/captured_revision.py`), which asks the owner's close latch, the obligations, and the reading
+  the run was handed again -- the thread cut at the newest trusted comment it counted, held to the requirements it
+  hashed to -- then settles the session from the capture and reconciles the checkout on a rebuilt result inside those
+  same re-reads, a re-measured candidate's generation advanced, guidance consumed, owed replies repaid, park
+  answered, and authorization withdrawn in the very commit that hands its report to the delivery under the
+  `decomposing` route, a member the re-measurement dropped carried as a removal, a head read again as anything but the
+  commit the capture froze reconciling nothing, a transfer the comment has no room for keeping the capture pending with
+  none of that
+  written until room is freed, a park over a clean commit that only could not be measured handing the report on in
+  that same kind of commit, and any other park withdrawing the capture right behind the park's own write, every write
+  made while the capture is pending a strict edit -- that park's through a guarded commit decided on every record
+  the handoff froze -- held to the close latch
+  and the admission read again behind its own walk to the comment -- the comment read once more after those
+  readings -- a latched close cancelling the cycle there, and every whole-state write behind a settled capture landed
+  as a guarded commit decided on what the handoff froze and asked the issue's controls again, the owner read writing
+  and saying nothing over a control or relabel its fetch shows, with no developer or adjudicator run, verdict, child,
+  label, or publication;
+  stale -- its
   road's pull request, report debt, or adjudication gone among the proofs -- it is retired `invalidated` by a guarded
   commit owning the capture alone, its invocation kept, and held to the whole reading the proof was taken over, so a
   comment that moved since -- a field it lacked restored included -- refuses it, and the tick ends behind it, the stage
@@ -2100,8 +2126,9 @@ The keys that matter for the state machine fall into a few groups:
   issue's state and requirements, the checkout, and the pull request (`completion_effect.py`); uncertain or damaged, or
   held by a control, a relabel, a close, a reopening, an edit, or a checkout or pull request moved or put back
   meanwhile, the stage is held with nothing written, and so is a capture whose run's usage was captured `unresolved`
-  until that run's receipt reads back on the ledger beside readable counters. On the implementing road a recorded pull
-  request that road reads as the `discussion` stage's plan, merged or not, is none of the run's. Beside an auto-rebase
+  until that run's receipt reads back on the ledger beside readable counters. On the implementing road, and on a late
+  revision's of a candidate adjudicated before its publication, a recorded pull request the implementing road reads as
+  the `discussion` stage's plan, merged or not, is none of the run's. Beside an auto-rebase
   anchor it is decided ahead of the anchor's hold and, on its own road, retired, since no road hands a report on over a
   rewrite no recovery finished -- or held, where the anchor reads as no commit; under a dependency hold it waits, and
   the anchor's hold answers the anchor; a late revision is held beside a late record whose measurement nobody can read.

@@ -41,8 +41,13 @@ continuation included -- is the stage's it reported under
 resume the developer again over the same edit, and the fresh report a
 rewritten head is owed the validating stage's
 (`stages/validating/captured_refresh`), asked ahead of the report hold that
-would ask the developer for that report again; a road no owner takes yet
-holds the tick, so no handler re-runs paid work. An INVALID capture is retired by a
+would ask the developer for that report again, and the developer revision a
+human's guidance buys under a late adjudication the decomposition stage's
+(`stages/decomposition/captured_revision`), asked ahead of the late
+coordinator that would read the same guidance as fresh and resume the
+developer again, re-read the checkout on a bare continue with the report
+lost, or launch an adjudicator; a road the table names no owner for holds
+the tick, so no handler re-runs paid work. An INVALID capture is retired by a
 guarded invalidation (`completion_checkpoint.retire`), which keeps which
 invocation it was, owns nothing but the capture, and is decided on the
 reading the proof was taken over. The tick ends behind it either way. A
@@ -54,7 +59,10 @@ did not land -- refused because the comment moved since that reading, a
 human's repair of the proof included -- is decided afresh there. UNCERTAIN
 and DAMAGED captures hold the tick with nothing written. A WAITING one stands down with
 nothing written, so a dependency walk, the `ready` decision, or a human's
-unlabeled issue is left to its own stage.
+unlabeled issue is left to its own stage. On the one road whose cycle a close
+of the issue ends -- a late revision's -- a close any fetch of the decision
+read goes to that road's owner in place of all of these, and the client that
+kept it rides on into a handoff admitted with none (`completion_closes`).
 
 An operator's `paused` or `backlog` keeps all of it off: the dispatcher skips
 a held issue before any guard, and on the one road it lets a held issue
@@ -78,6 +86,7 @@ from orchestrator.github.labels import hard_skip_control_label
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
     completion_checkpoint as _checkpoint,
+    completion_closes as _closes,
     completion_effect as _effect,
     completion_records as _records,
     completion_recovery_models as _models,
@@ -96,9 +105,10 @@ log = logging.getLogger("orchestrator.workflow")
 # resume are the implementing stage's, and a reviewer's change request and a
 # pull request's feedback round the fixing stage's, which every half of those
 # rounds runs under, a requirements-drift resume the stage it reported under
-# (`DRIFT_OWNERS`), and a rewritten-head report refresh the validating stage's;
-# a road no owner takes yet holds an applicable capture rather than finishing
-# it.
+# (`DRIFT_OWNERS`), a rewritten-head report refresh the validating stage's,
+# and a late adjudication's developer revision the decomposition stage's; a
+# road the table names no owner for holds an applicable capture rather than
+# finishing it.
 _FINISHES = "recovers"
 
 _IMPLEMENTING_OWNER = (_stage_targets._IMPLEMENTING_CAPTURE_OWNER, _FINISHES)
@@ -112,6 +122,7 @@ ROUTE_OWNERS: Mapping[_routes.CompletionRoute, tuple[str, str]] = MappingProxyTy
     _routes.CompletionRoute.PR_FEEDBACK: _FIXING_OWNER,
     _routes.CompletionRoute.REQUIREMENTS_DRIFT: (__name__, "finishes_a_drift"),
     _routes.CompletionRoute.REPORT_REFRESH: (_stage_targets._VALIDATING_REFRESH_CAPTURE_OWNER, _FINISHES),
+    _routes.CompletionRoute.LATE_REVISION: (_stage_targets._LATE_REVISION_CAPTURE_OWNER, _FINISHES),
 })
 
 # A requirements-drift resume is finished by the stage it reported under,
@@ -136,12 +147,28 @@ def capture_holds_the_tick(
 
     False wherever the issue carries no capture, or a resolved one, and under
     an operator's hard-skip; a capture nothing can read is decided as one
-    (`completion_admission`), and so held.
+    (`completion_admission`), and so held. On a road whose owner a close of
+    the issue ends, a close any of the decision's fetches read is that
+    owner's to answer instead (`completion_closes`), whatever the decision.
     """
     unheld = _state.carries(state) and hard_skip_control_label(issue) is None
     if not unheld or isinstance(_state.read(state), _records.ResolvedCapture):
         return False
-    decision = _effect.decided(gh, spec, issue, label, state)
+    watched = _closes.watching(gh, issue, state)
+    decision = _effect.decided(watched, spec, issue, label, state)
+    if _closes.ended(watched, spec, issue, state):
+        return True
+    return _answered(gh, issue, label, state, decision)
+
+
+def _answered(
+    gh: GitHubClient,
+    issue: Issue,
+    label: WorkflowLabel | None,
+    state: PinnedState,
+    decision: _models.Decision,
+) -> bool:
+    """Make the effect `decision` names for the pending capture `state` carries; whether the tick stops."""
     if decision.standing is _models.Standing.WAITING:
         log.info(
             "issue=#%d carries a captured completion and %s; leaving it captured for the %r stage",
@@ -195,7 +222,7 @@ def _hands_on(admitted: _models.AdmittedCompletion) -> bool:
     if target is None:
         log.warning(
             "issue=#%d carries an applicable captured completion on the %s road, which no owner "
-            "takes in this build; holding the %r handler so it does not run the work again",
+            "takes; holding the %r handler so it does not run the work again",
             admitted.issue.number, route, admitted.label,
         )
         return True

@@ -69,7 +69,7 @@ _STRANDED_SNAPSHOT_PARK = (
 
 
 def _stranded_by_effects(
-    context: _LateContext,
+    context: _LateContext, agent_result=None,
 ) -> _LateContentSettlement | None:
     """Refuse to replace a candidate whose split has already acted outside.
 
@@ -78,6 +78,10 @@ def _stranded_by_effects(
     because they are the effect a human can see and the park can name them;
     the snapshot obligation is the one only the record knows about, and it
     stands on its own wherever no child was ever created from it.
+
+    `agent_result` is the run a captured revision's recovery asks this again
+    for, whose capture is withdrawn right behind the park's own write; None
+    ahead of a launch, where nothing has run.
     """
     if context.generation.split_children:
         return _late_reconciliation._parked(
@@ -88,6 +92,7 @@ def _stranded_by_effects(
                 ),
             ),
             reason=_late_park_state.PARK_REVISION_UNANSWERED,
+            agent_result=agent_result,
         )
     if not _owes_a_snapshot(context.generation):
         return None
@@ -95,6 +100,7 @@ def _stranded_by_effects(
         context,
         _STRANDED_SNAPSHOT_PARK,
         reason=_late_park_state.PARK_REVISION_UNANSWERED,
+        agent_result=agent_result,
     )
 
 

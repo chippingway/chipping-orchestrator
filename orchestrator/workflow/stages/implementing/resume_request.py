@@ -65,9 +65,10 @@ class _DevResumeRequest:
     # eligible return on it (`completion_roads`): an implementing road's, a
     # reviewer's change request's (`validating/fix_road`, `fixing/resume_road`),
     # a pull request's feedback round's (`fixing/feedback_road`), a
-    # requirements-drift resume's (`drift_road`), or a rewritten-head report
-    # refresh's (`validating/refresh_road`). None for every other
-    # resume, which captures nothing.
+    # requirements-drift resume's (`drift_road`), a rewritten-head report
+    # refresh's (`validating/refresh_road`), or a late adjudication's
+    # developer revision's (`decomposition/late_revision_road`). None for
+    # every other resume, which captures nothing.
     completion: _roads.CompletionRoad | None = None
 
     @property

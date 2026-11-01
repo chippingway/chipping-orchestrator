@@ -151,11 +151,13 @@ class RevisionCase(LateContentCase):
 
 
 class PausedDuringRun:
-    """An operator applying `paused` while the developer is still running."""
+    """An operator applying a control -- `paused` unless told otherwise -- while the developer is still running."""
 
-    def __init__(self, case: RevisionCase) -> None:
+    def __init__(self, case: RevisionCase, reply: str = DEV_ACK, control: str = PAUSED_LABEL) -> None:
         self._case = case
+        self._reply = reply
+        self._control = control
 
     def __call__(self, *_args, **_kwargs):
-        self._case.issue.labels.append(FakeLabel(PAUSED_LABEL))
-        return agent_reply(DEV_ACK)
+        self._case.issue.labels.append(FakeLabel(self._control))
+        return agent_reply(self._reply)

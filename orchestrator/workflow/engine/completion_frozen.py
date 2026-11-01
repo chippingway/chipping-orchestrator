@@ -40,7 +40,7 @@ from orchestrator.workflow.engine import (
     report_record_values as _record_values,
     stage_targets as _stage_targets,
 )
-from orchestrator.workflow.late_split import payloads as _payloads
+from orchestrator.workflow.late_split import keys as _late_keys, payloads as _payloads, state as _late_state
 
 # A delivered stretch: its two ends.
 _ENDS = 2
@@ -55,6 +55,9 @@ _SHAPES = frozenset((0, _ENDS, 2 * _ENDS))
 PUBLISHED_COMMIT = "implementing_published_sha"
 PUBLISHED_LEASE = "implementing_published_lease"
 PUBLISHED_PULL_REQUEST = "implementing_published_pr"
+
+# The pull request the issue records.
+_PR_NUMBER = "pr_number"
 
 
 def frozen_over(state: PinnedState, fields: Iterable[str]) -> tuple:
@@ -101,6 +104,26 @@ def published_over(state: PinnedState, frozen: tuple) -> tuple[str, ...]:
     number = receipts._recorded_pull_request(state)
     on_it = bool(number) and receipts._published_pull_request(state) == number
     return (commit,) if commit and on_it else ()
+
+
+def late_published_over(state: PinnedState, frozen: tuple) -> tuple[str, ...]:
+    """The head a post-publication late generation was entered on, where `frozen` froze it; else empty.
+
+    Read through the late record's own reader, from a publication context
+    complete as the late gate reads one -- the marker, the stage, the pull
+    request, and the head together -- and only where the pull request that
+    context names is the one `state` records: a context naming another pull
+    request, or none whole, names no head at all. A late revision launched
+    over a published pull request leaves it standing on that head until a
+    later publication pushes the revised candidate, so its report is about
+    work owed exactly that push.
+    """
+    if _late_keys.PUBLISHED_SHA not in dict(frozen):
+        return ()
+    publication = _late_state.read_late_generation(state).publication
+    recorded = _record_values.as_recorded_number(state.get(_PR_NUMBER))
+    named = publication.is_complete and publication.published_pr_number == recorded
+    return (publication.published_sha,) if named else ()
 
 
 def delivered_stretch(raw: Any) -> tuple | None:

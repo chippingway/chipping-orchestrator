@@ -19,10 +19,12 @@ report the pull request already carried is refused here, as that road's own
 outcome owner refuses it. A reviewer's change request and a pull request's
 feedback round each answer a handoff, so neither is captured without one. A
 requirements-drift resume settles the reading it was handed for itself, as its
-own tick always has, so the report its capture becomes carries none of that
-input: a pair riding the report would be carried onto every later report that
-supersedes it, and a requirements baseline settled late would move the issue
-back onto requirements it has since left.
+own tick always has, and so does a late adjudication's developer revision,
+whose reconciliation consumes the guidance it was handed: the report either
+capture becomes carries none of that input, since a pair riding the report
+would be carried onto every later report that supersedes it, and a
+requirements baseline settled late would move the issue back onto
+requirements it has since left.
 
 Whether a return qualifies is read through the outcome owner's completed-run
 reader (`report_outcomes._report_outcome_of_run`): a run that never started,
@@ -122,7 +124,7 @@ CONTRACTS = MappingProxyType({
         WorkflowLabel.IN_REVIEW, WorkflowLabel.RESOLVING_CONFLICT,
     )), settles_input=True, stretches=2),
     CompletionRoute.REPORT_REFRESH: RouteContract(frozenset((WorkflowLabel.VALIDATING,)), verified=False),
-    CompletionRoute.LATE_REVISION: RouteContract(frozenset((WorkflowLabel.DECOMPOSING,))),
+    CompletionRoute.LATE_REVISION: RouteContract(frozenset((WorkflowLabel.DECOMPOSING,)), settles_input=True),
 })
 
 # What a return that qualifies carries.

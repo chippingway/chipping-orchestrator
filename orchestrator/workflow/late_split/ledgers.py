@@ -129,6 +129,13 @@ def _as_resource(entry: Any) -> LateResource | None:
     return LateResource(kind=kind, target=target, resource_state=recorded)
 
 
+def register_reads(raw: Any) -> bool:
+    """Whether `raw` is absent, or a register this binary reads whole: a list every entry of which is one of its ids."""
+    if raw is None:
+        return True
+    return isinstance(raw, list) and read_register(raw) == tuple(raw)
+
+
 def read_register(raw: Any) -> tuple[int, ...]:
     """Return the ordered child register, or empty unless all of it is ours.
 

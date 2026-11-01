@@ -42,11 +42,19 @@ def _read_owner(context: _LateContext) -> _OwnerState:
     that is neither of the two GitHub reports -- a shape with no state on it
     would otherwise default to "open" and let the tick publish on the strength
     of a read that established nothing.
+
+    A context that asks of the issue it fetched (`_LateContext.owner_holds`)
+    is answered HELD wherever that fetch holds an issue it shows open: a
+    recovery's control or relabel observed here is the last reading before
+    anything the read decides is written. A close outranks it -- an issue
+    the fetch shows closed is CLOSED whatever controls it carries -- so the
+    close is settled on the cancellation's own road rather than forgotten
+    behind a hold, and a reopening later resumes nothing of the cycle.
     """
     if _latched_close(context):
         return _OwnerState.CLOSED
     try:
-        owner_state = _owner_state(context)
+        owner, owner_state = _owner_state(context)
     except Exception:
         log.exception(
             "issue=#%d could not be re-read after its late run finished; "
@@ -54,6 +62,18 @@ def _read_owner(context: _LateContext) -> _OwnerState:
             context.issue.number,
         )
         return _OwnerState.UNREADABLE
+    if owner_state != _CLOSED and context.owner_holds is not None and context.owner_holds(owner):
+        log.warning(
+            "issue=#%d was held by a control or a relabel as its owner was read again; writing and saying "
+            "nothing more this tick",
+            context.issue.number,
+        )
+        return _OwnerState.HELD
+    return _answered(context, owner_state)
+
+
+def _answered(context: _LateContext, owner_state: str) -> _OwnerState:
+    """The answer the state GitHub reported gives: open, closed, or -- for any other -- unreadable."""
     if owner_state == _OPEN:
         return _OwnerState.OPEN
     if owner_state == _CLOSED:
@@ -89,8 +109,8 @@ def _latched_close(context: _LateContext) -> bool:
     return True
 
 
-def _owner_state(context: _LateContext) -> str:
-    """The state GitHub reports for this issue right now.
+def _owner_state(context: _LateContext) -> tuple:
+    """This issue fetched again, and the state GitHub reports for it right now: `(issue, state)`.
 
     Both shapes the workflow sees are honored, exactly as the dispatcher's own
     closed check honors them: PyGithub's `state`, and the `closed` flag the
@@ -99,5 +119,5 @@ def _owner_state(context: _LateContext) -> str:
     """
     owner = context.gh.get_issue(context.issue.number)
     if getattr(owner, "closed", False):
-        return _CLOSED
-    return getattr(owner, "state", "")
+        return owner, _CLOSED
+    return owner, getattr(owner, "state", "")

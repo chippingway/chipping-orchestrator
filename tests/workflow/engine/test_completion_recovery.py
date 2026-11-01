@@ -6,7 +6,7 @@ Each case lands a capture through its own checkpoint, makes somebody else's
 move, then dispatches the issue whole, with the stage handler stood in for,
 and reads back what the dispatch reached and what the pinned comment carries.
 An applicable capture is handed to its road's owner, admitted, and to nothing
-else -- held where no road has an owner, as in this build; a stale one is
+else -- held where the owners' table names none for its road; a stale one is
 retired, keeping which invocation it was, and the tick ends behind it, the
 stage running on the next one as it would without it; and an uncertain or
 damaged one holds the stage with nothing written. What an effect stands on
@@ -16,11 +16,13 @@ from __future__ import annotations
 
 import unittest
 from types import MappingProxyType
+from unittest.mock import patch
 
 from orchestrator.git.worktrees.models import ProbeAnswer
 from orchestrator.workflow.engine import (
     completion_prerequisites as _prerequisites,
     completion_records as _records,
+    completion_recovery as _recovery,
     completion_recovery_models as _models,
     completion_routes as _routes,
 )
@@ -257,16 +259,17 @@ class ApplicableCaptureTest(unittest.TestCase):
                 self.assertEqual([admitted.capture.invocation for admitted in seen.handed], [captured.invocation])
 
     def test_a_road_no_owner_takes_holds_it(self) -> None:
-        # A late revision's road has no owner in this build, under the live
-        # adjudication it answers: nothing finishes the capture, so nothing
-        # may run the work again over it -- every tick holds, and none writes.
+        # A road the owners' table names no owner for -- a late revision's,
+        # under the live adjudication it answers, with the table emptied:
+        # nothing finishes the capture, so nothing may run the work again
+        # over it -- every tick holds, and none writes.
         world = _support.CapturedWorld(WorkflowLabel.DECOMPOSING)
         world.hand_edit(**_support.ADJUDICATING)
         world.captured(_REVISION)
         for tick in ("first", "second"):
-            with self.subTest(tick=tick):
+            with self.subTest(tick=tick), patch.object(_recovery, "ROUTE_OWNERS", MappingProxyType({})):
                 seen = _dispatch.observed(world)
-                self.assertIn("which no owner takes in this build", seen.said)
+                self.assertIn("which no owner takes", seen.said)
                 self.assertEqual(seen.ran, ())
                 self.assertTrue(seen.untouched)
                 self.assertEqual(_stage(seen.after), _records.CaptureStage.PENDING)

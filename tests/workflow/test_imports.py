@@ -84,6 +84,7 @@ _ENGINE_OWNERS = (
     "completion_prerequisites",
     "completion_evidence",
     "completion_admission",
+    "completion_closes",
     "completion_recovery",
     "completion_verdicts",
     "dispatch",

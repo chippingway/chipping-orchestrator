@@ -999,7 +999,8 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                    the checkout, an unaccounted run's
                                    receipt, and the pull request -- a
                                    discussion plan the implementing road
-                                   reads as one is none of the run's.
+                                   reads as one is none of the run's, on
+                                   that road or a late revision's.
                                    APPLICABLE is handed, admitted, to its
                                    road's owner -- the implementing stage
                                    finishes the first implementation's or a
@@ -1010,12 +1011,18 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                    resume's own roads, and the stage a
                                    requirements-drift resume reported under
                                    that resume through its own drift
-                                   disposition, and the validating stage a
+                                   disposition, the validating stage a
                                    rewritten head's report refresh through
-                                   the refresh's own disposition, no
-                                   developer run on any of them; any other
-                                   road has none in this build, so its
-                                   handler is HELD;
+                                   the refresh's own disposition, and the
+                                   decomposition stage a late developer
+                                   revision through the revision's own
+                                   reconciliation, its guidance re-read off
+                                   the thread cut where its reading
+                                   counted and its report handed on in the
+                                   commit that re-measures the candidate,
+                                   no developer run on any of them; a road
+                                   the owners' table names none for is
+                                   HELD;
                                    a proof it is stale
                                    (ended, relabelled, a frozen record
                                    moved to a spelling its reader takes,

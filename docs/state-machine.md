@@ -320,7 +320,9 @@ park, the request retired in the very commit that hands its report on, and the f
 request's human feedback, over the batch its prompt quoted and the round its route resets, every
 requirements-drift resume, over the one frozen reading its prompt was cut from, and the fresh report a rewritten
 head's refresh asks for, over the debt, receipt, settled report, and any approved or docs lineage it was entered
-under. A pending one is decided
+under, and the developer revision a human's guidance buys under a late adjudication, over the cycle, generation, and
+frozen candidate it was launched on, its report handed to the delivery in the very commit that re-measures that
+candidate. A pending one is decided
 by the dispatcher ahead of every handler, behind the reconciliations
 ([the captured-completion recovery](state-machine/delivery-stages.md#the-captured-completion-recovery-every-dispatch)):
 handed, admitted, to its road's owner, retired as invalidated where a reading proves it stale or an auto-rebase
