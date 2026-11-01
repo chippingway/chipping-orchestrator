@@ -32,7 +32,10 @@ it, with no human involved -- a settled report of the approved commit this
 orchestrator's approval squash collapsed into the head the rewrite replaced
 included, once that lineage is proved. A claim nobody can read, or a head it
 does not explain, holds nothing and leaves the reviewer road's own rules to
-answer the report it finds.
+answer the report it finds. A refresh whose return a live hold, a lost write,
+or a restart kept is captured, and the dispatcher's recovery finishes that
+capture ahead of this hold (`captured_refresh`), so no tick here asks the
+developer for the same report again beside it.
 """
 from __future__ import annotations
 

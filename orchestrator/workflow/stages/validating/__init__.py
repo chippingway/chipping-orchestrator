@@ -75,8 +75,11 @@ of that head -- over a settled report of the approved commit an approval
 squash collapsed, too, once that squash's lineage is proved -- and
 `report_refresh_outcomes` records and settles that report or
 parks what the run left instead, over the record `report_refresh_models`
-freezes before the run. The report that settles pays the debt the rewrite
-recorded. Once nothing is owed,
+freezes before the run, beside the road `refresh_road` launches it on, which
+captures only a return that completed the refresh. A held one is finished by
+`captured_refresh` with no developer run, as the dispatcher's recovery hands
+it there, its lineage asked again first where the refresh stood on one. The
+report that settles pays the debt the rewrite recorded. Once nothing is owed,
 `review_report` hands the reviewer the report the pull request carries -- the
 one last settled, re-read and quoted whole -- or refuses the round over one
 the thread has moved out of reach, and `review_comment` binds that subject to

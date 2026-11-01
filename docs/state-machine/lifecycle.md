@@ -484,6 +484,10 @@ than a second source of truth: where the two disagree, the handler pages are aut
        squash's carry proves it and the report re-reads intact ─► no reviewer
        spawned, the developer resumed for that report alone, which is
        recorded, bound, posted once, and settled -- paid on the next tick;
+       its REPORT: READY captured as it returns, over a checkout left clean
+       on the head and no quota stop, so one a live hold kept is recorded and
+       settled by the captured-completion recovery with no developer or
+       reviewer run, any squash or docs lineage proved again first;
        a run that brings none ─► parked once with developer_report_owed;
        any other claim, a damaged one included ─► the refusals below answer
        the report as they would with no claim
@@ -1006,9 +1010,12 @@ than a second source of truth: where the two disagree, the handler pages are aut
                                    resume's own roads, and the stage a
                                    requirements-drift resume reported under
                                    that resume through its own drift
-                                   disposition, no developer run on any of
-                                   them; any other road has none in this
-                                   build, so its handler is HELD;
+                                   disposition, and the validating stage a
+                                   rewritten head's report refresh through
+                                   the refresh's own disposition, no
+                                   developer run on any of them; any other
+                                   road has none in this build, so its
+                                   handler is HELD;
                                    a proof it is stale
                                    (ended, relabelled, a frozen record
                                    moved to a spelling its reader takes,

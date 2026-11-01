@@ -1592,7 +1592,8 @@ The keys that matter for the state machine fall into a few groups:
   ([`_handle_validating`](delivery-stages.md#_handle_validating-label-workflowvalidating)'s `changes_requested` arc
   and [`_handle_fixing`](delivery-stages.md#_handle_fixing-label-workflowfixing) step 9). So does the rewritten-head
   report refresh, recorded under the `workflow:validating` route and the requirements baseline it froze before the
-  run, with no round or watermarks riding it
+  run, with no round or watermarks riding it -- handed over from the capture its return left, where one stands, on
+  the refresh's tick or the recovery's
   ([`_handle_validating`](delivery-stages.md#_handle_validating-label-workflowvalidating) step 3).
 
   `developer_report_delivery` is what one completed run wrote, recorded **before** the size gate reads its candidate
@@ -1980,7 +1981,14 @@ The keys that matter for the state machine fall into a few groups:
   `developer_report_owed_round_reset`, and `requirements_drift_open` (a body edit on `validating` beside
   `validating_reviewer_owes_a_round` too), its `watermarks` the settlement of the frozen reading its prompt was cut
   from, beside the commands a retry consumed, and no `spends`, and its `before` commit, on `resolving_conflict`, the
-  head the publication is leased against. No other road captures one yet. Only a
+  head the publication is leased against; and so it does as the developer a rewritten head's report refresh asks for a
+  fresh report of that head returns, on the `report_refresh` road under `workflow:validating`
+  (`stages/validating/refresh_road.py`) -- only where no quota stopped that run and it left the checkout clean on the
+  rewritten head as it returned -- its `requirements` the baseline the drift check had just proved, its `before` and
+  `source` commits the rewritten head the checkout was proved to stand on, frozen over `pr_number`,
+  `developer_report_rewrite_debt`, the code-publication receipt, and the settled report pair -- and, for a refresh
+  entered over a proved approval squash or final docs pass, `verification_evidence_pending`, `_current`, and
+  `_history` and `docs_final_provenance` too -- with no `watermarks` or `spends`. No other road captures one yet. Only a
   return the
   outcome owner's completed-run reader answers READY or VERIFIED for, whose backend recorded no unfinished tool steps
   or terminal failure, that a tracked spawn
@@ -2075,8 +2083,15 @@ The keys that matter for the state machine fall into a few groups:
   the round it counts, resets, or hands on and, on `resolving_conflict`, the frozen lease, the capture handed on or
   withdrawn only once its admission reads again behind every request that disposition took, the strict edit's walk
   to the comment last, right before the edit goes out (`stages/implementing/captured_rereads.py`,
-  `github/edit_questions.py`); and none for any other road
-  in this build, so that stage is held; stale -- its
+  `github/edit_questions.py`); the validating stage's for a `report_refresh` capture
+  (`stages/validating/captured_refresh.py`), which -- for a refresh entered over a proved squash or docs lineage --
+  proves that lineage again and re-reads the approved report where it settled first, a refutation retiring the
+  capture through those same re-reads and a reading nobody could take, or a move behind it, holding it, then settles
+  the session from the capture
+  and records, binds, and settles its report through the refresh's own disposition, inside those same re-reads, with
+  no developer or reviewer run and no round spent, the debt left for the next tick's report hold to drop once the
+  settled report pays it; and
+  none for any other road -- a `late_revision` -- in this build, so that stage is held; stale -- its
   road's pull request, report debt, or adjudication gone among the proofs -- it is retired `invalidated` by a guarded
   commit owning the capture alone, its invocation kept, and held to the whole reading the proof was taken over, so a
   comment that moved since -- a field it lacked restored included -- refuses it, and the tick ends behind it, the stage

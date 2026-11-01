@@ -32,7 +32,8 @@ they stand (`road_refusal`):
   longer the one the run answered -- asked behind the road's own records, and
   only where the record moved still reads: a moved record whose own reader
   takes its new spelling as nothing it can describe (the rewrite debt, the
-  pinned pull request, a returned reviewer verdict, the records a change
+  pinned pull request, a returned reviewer verdict, the final docs pass's
+  completion a refresh entered over its lineage froze, the records a change
   request's round freezes beside it and a pull request's feedback round
   beside its stamp, whose readers `completion_frozen_reads` keeps -- the
   feedback anchor, the in_review route's stamp, the code-publication receipt,
@@ -80,6 +81,7 @@ from orchestrator.workflow.engine import (
     usage_receipts as _usage_receipts,
 )
 from orchestrator.workflow.engine.completion_frozen_reads import READS as _ROAD_READS
+from orchestrator.workflow.engine.final_docs_records import FINAL_DOCS, read_final_docs
 from orchestrator.workflow.late_split import formats as _formats, payloads as _payloads
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -104,13 +106,17 @@ _UNREAD = _models.Decision(_models.Standing.UNCERTAIN, _models.Reason.PREREQUISI
 
 # Whether a state's spelling of each record a frozen handoff may name reads,
 # by the record's name: absent reads as gone, and anything else has to be
-# what the record's own reader takes. The stage owners among those readers
-# are resolved when asked, the late records' by the late-claims owner's own
-# table of the fields its claims judge (`late_claims._FIELD_READS`), asked
-# beside these.
+# what the record's own reader takes -- a final docs pass's completion, which
+# a rewritten-head refresh entered over that pass's lineage freezes, read
+# whole. The stage owners among those readers are resolved when asked, the
+# late records' by the late-claims owner's own table of the fields its claims
+# judge (`late_claims._FIELD_READS`), asked beside these.
 _READS = MappingProxyType({
     _rewrite_debt.REWRITE_DEBT: lambda state: (
         not _rewrite_debt.carries_rewrite_debt(state) or _rewrite_debt.read_rewrite_debt(state) is not None
+    ),
+    FINAL_DOCS: lambda state: (
+        state.get(FINAL_DOCS) is None or read_final_docs(state) is not None
     ),
     _PR_NUMBER: lambda state: (
         state.get(_PR_NUMBER) is None or _rewrite_debt.pinned_pull_request(state) is not None

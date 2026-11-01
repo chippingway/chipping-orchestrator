@@ -2035,7 +2035,10 @@ and handed off -- and this is what it guarantees and what stops it.
   resume on the `requirements_drift` road ([user-content drift](#user-content-drift-detection)): the body edit
   `implementing`, `validating`, `in_review`, or `resolving_conflict` resumes the session on, and the replies that
   remain its continuation -- the reply `validating` reads as the rest of a drift park or an owed report, and the reply
-  a conflict park owing a report is answered with. No other road captures one yet.
+  a conflict park owing a report is answered with -- and so does the fresh report a rewritten head's refresh asks the
+  developer for, on the `report_refresh` road ([`_handle_validating`](#_handle_validating-label-workflowvalidating)
+  step 3), but only where no quota stopped its run and it left the checkout clean on the rewritten head as it
+  returned. No other road captures one yet.
 - **Reads** (`workflow/engine/completion_admission.py`, `completion_sources.py`), the cheapest first: the capture read
   back afresh through its own checkpoint, which admits the comment and binds it to the invocation's repository, issue,
   comment, and cycle -- the only thing the capture is read from; the issue fetched again for its labels, controls, and
@@ -2044,9 +2047,10 @@ and handed off -- and this is what it guarantees and what stops it.
   `resolving_conflict` is owed to, the rewritten-head debt a report refresh answers, owed on the pull request the record
   pins and the run's branch and naming as its rewritten head the commit its run reported on, the live adjudication a
   late revision answers, and the records its handoff froze, a move of one proving the capture stale only where the moved
-  record's own reader -- the debt's, the pinned number's, the returned reviewer verdict's, and a fix round's records'
-  (`completion_frozen_reads.py`: the feedback anchor, `pending_fix_at`, the code-publication receipt, the settled
-  report pair, and the verification evidence, the current report and the current evidence each read beside the
+  record's own reader -- the debt's, the pinned number's, the returned reviewer verdict's, a final docs pass's
+  completion's, which a refresh entered over that pass's lineage froze, read whole or as gone, and a fix round's
+  records' (`completion_frozen_reads.py`: the feedback anchor, `pending_fix_at`, the code-publication receipt, the
+  settled report pair, and the verification evidence, the current report and the current evidence each read beside the
   handoff its settlement wrote, and the `pending_fix_*_ids` lists and the pull request's three readers a pull request's
   feedback round froze, each a list of whole ids, a whole id, or cleared to `null`, and the review and conflict rounds
   and the report debt, round-reset, open-drift, and stood-down-for claims a drift resume froze, each a whole count or a
@@ -2199,7 +2203,33 @@ and handed off -- and this is what it guarantees and what stops it.
   proved, which its road froze as the head the run began on -- and froze no code-publication receipt, so the capture
   is admitted only while the pull request stands on that lease or on the commit reported on -- a pushed round counted
   once and handed to `validating`, a report alone settled on the head the pull request carries
-  (`conflicts/captured_drift`). Every other road names no owner in this build, so an
+  (`conflicts/captured_drift`). A rewritten head's report refresh's owner is the validating stage's
+  (`validating/captured_refresh.recovers`), asked ahead of the report hold that would ask the developer for that
+  report again. Its admission already held the debt to the pinned pull request and the run's branch, naming as its
+  rewritten head the commit the run reported on, the pull request and the checkout to that very commit, the
+  requirements to the baseline the run was handed, and the records its launch froze -- the pull request, the debt, all
+  three members of the code-publication receipt, and the settled report pair, and for a refresh entered over a proved
+  approval squash or final docs pass the evidence records the squash's carry is kept in and the pass's completion --
+  to their frozen spellings, a debt paid, gone, or carried, a receipt naming another publication, a push, a reset
+  checkout, an edit, or a lineage record taken off retiring it, and any of them spelled as nothing its reader takes,
+  or a checkout, pull request, or tree nobody can read, holding it. A refresh entered over a proved lineage is asked
+  that lineage again first, as the report hold asked it before the launch: the proof taken again
+  (`report_docs_lineage.refresh_verdict` -- the docs pass's descent where the head the debt replaced is a completion's
+  docs commit, the squash's carry and both trees otherwise) and the approved report re-read where it settled as the
+  reviewer road reads it (`review_report._settled_report`), and behind those reads the issue, the checkout, and the
+  pull request's head read again (`completion_effect.admitted_again`): a refuted lineage or a report removed, edited,
+  untrusted, or out of step with its handoff retires the capture -- that retirement going out inside
+  `captured_rereads.rereads`, so a control or a move landing behind its own reads holds it instead -- and a tree,
+  descent, or location nobody could read, or a move behind the reads, holds it with nothing written. It settles the
+  session from the capture alone,
+  as above, and leaves any park the comment carries as it stands, since the refresh answered none; then it disposes
+  the run through the refresh's own disposition (`report_refresh_outcomes._disposes_the_refresh`) on a rebuilt
+  result, inside `captured_rereads.rereads`: the checkout proved clean on the head the capture names, the pull
+  request's head and the requirements read again, the report handed to the delivery through the capture's transfer
+  under the frozen baseline with no round or watermarks riding it, then bound to the receipt's publication and
+  settled. No developer or reviewer is launched, no run charged, no round spent, and no verification, approval, docs
+  pass, or readiness inferred; the debt stays recorded until the next tick's report hold finds the settled report
+  about the head the pull request stands on and drops it. A late revision's road names no owner in this build, so an
   applicable capture of it holds the stage, every tick, rather than letting it run the paid work again. This
   recovery publishes nothing of its own and infers no review, verification, approval, or docs pass.
 - **Retires** a capture a reading proved stale -- an auto rebase of its branch begun and not recovered, its anchor
@@ -5140,19 +5170,37 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        reading nobody could take holds. The checkout is the one the resume runs in, read where it stands and
        recreated only where it is gone (`implementing/worktree._ensure_resume_worktree`), since `_ensure_worktree`
        reclaims an existing directory whose branch carries nothing past the base, loose work included. The
-       locked session is then resumed on `_build_report_refresh_prompt` with the live-pause guard; a launch the run
-       circuit refused, a shutdown kill, and a live pause write nothing and are asked again next tick. What the run
-       left is read by `report_refresh_outcomes.py`: a `REPORT: READY` over a checkout still clean on the head, with
-       the pull request's head and the requirements read again unchanged, is recorded through
-       `report_delivery.recording_stops_the_tick` under the frozen baseline with no round or watermarks riding it,
-       then bound to the receipt's publication and settled through the reconciliation, all on this tick -- so a
-       refused post, a lost response, a crash before the binding, or one on the settlement write is finished by the
+       locked session is then resumed on `_build_report_refresh_prompt` with the live-pause guard, on the
+       `report_refresh` road (`refresh_road.road`): the frozen baseline, the rewritten head as the head the run
+       begins on, and a handoff frozen over the pull request, the claim, the whole code-publication receipt, and the
+       settled report pair -- and, behind a proved squash or docs lineage, the evidence records the squash's carry is
+       kept in and the docs pass's completion -- as the comment spells them. A return that finished on a fresh
+       `REPORT: READY` is captured as it comes back, but only where no account quota stopped it and it left the
+       checkout clean on the rewritten head, read as it returns (`RefreshRoad.source`), and the live disposition
+       answers on that same reading (`RefreshRoad.returned_over`), so a cleanup or a reset during a hold, or between
+       the return and the disposition, never makes such a return a refresh; a `REPORT: VERIFIED`, a timeout, an
+       unfinished command, a
+       quota stop whatever its message closed on, a commit, loose work, a checkout nobody could read, and every other
+       return the road refuses earn none, their accounting alone kept. A launch the run circuit refused and
+       a shutdown kill write nothing and are asked again next tick; a live pause, or a capture never confirmed, writes
+       nothing past the run's accounting and its capture, which the
+       [captured-completion recovery](#the-captured-completion-recovery-every-dispatch) finishes once the hold is
+       gone, with no developer run. What the run left is read by `report_refresh_outcomes.py`, the checkout's HEAD
+       the one the capture names, read as the run returned: a `REPORT: READY` over a checkout still clean on the
+       head, with the pull request's head and the requirements read again unchanged, is recorded by handing the
+       capture to the delivery (`implementing/captured_report.recording_stops_the_tick`), or by the delivery's own
+       recording where no capture stands, under the frozen baseline with no round or watermarks riding it, then
+       bound to the receipt's publication and settled through the reconciliation, all on this tick -- so a refused
+       post, a lost response, a crash before the binding, or one on the settlement write is finished by the
        reconciliation or the next tick's hold, found by its receipt, with no second developer run and no second
-       comment. The per-tick base refresh rebases nothing while that report is recorded and unsettled
-       ([base refresh](labels-and-state.md#base-refresh)), so it settles about the head it was written for, and a
-       base that moved meanwhile is rebased onto behind it, leaving a debt of its own. A head somebody pushed or an
-       edit made while the agent was out records nothing and parks nothing: the reviewer road refuses a head the
-       claim no longer explains, and the drift resume answers the edit. A run an account quota stopped is read
+       comment. The per-tick base refresh rebases nothing while that report is captured and not yet handed on, or
+       recorded and unsettled ([base refresh](labels-and-state.md#base-refresh)), so it settles about the head it
+       was written for, and a base that moved meanwhile is rebased onto behind it, leaving a debt of its own. A head
+       somebody pushed or an edit made while the agent was out records nothing and parks nothing, the capture
+       withdrawn: the reviewer road refuses a head the claim no longer explains, and the drift resume answers the
+       edit. A checkout tree, pull request, or requirements reading that does not return records nothing either, and
+       keeps the capture with nothing written, for the recovery to take the reading again. A run an account quota
+       stopped is read
        ahead of every refusal below, whether or not its clock ran out and whatever its checkout reads as: it takes
        the session limit `_on_question` classifies (route `report_refresh`), whose bare continue the
        `report_undeliverable` park would refuse, with a commit it left off the head still recorded as
@@ -5162,7 +5210,9 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        -- its notice naming the refusal, as the implementing seam's does -- park once under `report_undeliverable`;
        every
        other finished run with no report -- a question, a silent exit, a provider refusal, an unfinished
-       command -- takes the agent-failure park `_on_question` classifies (route `report_refresh`). A run that ended
+       command -- takes the agent-failure park `_on_question` classifies (route `report_refresh`). A park that hands a
+       captured report to nobody -- loose work the tree carries only by the time the disposition reads it again --
+       withdraws the capture first, so the reply answering it is captured afresh. A run that ended
        with a tool step still active, which is what the AGY recovery behind the resume hands back once its one retry
        is spent, is read as that unfinished command ahead of its message, so a `REPORT: READY` block it wrote parks
        `agent_execution_failed` rather than being published. Each park sets

@@ -33,7 +33,9 @@ squash's own proof.
 
 The validating report hold (`stages/validating/report_refresh.py`) is its
 consumer, and asks it in place of the squash's proof wherever the debt's
-`previous_head` is a completion's docs commit.
+`previous_head` is a completion's docs commit -- one question, which of the two
+proofs a refresh stands on (`refresh_verdict`), asked again by the recovery of
+a captured refresh entered over either (`stages/validating/captured_refresh.py`).
 
 The docs commit is a rewrite of the head the settled report is about in its
 own right, too, though the pass that published it recorded no debt for it: it
@@ -153,6 +155,20 @@ def lineage_verdict(
         if not squashed.proved:
             return squashed
     return _descent_verdict(spec, issue_number, final)
+
+
+def refresh_verdict(
+    spec: _config_models.RepoSpec, issue_number: int, state: PinnedState, debt: _rewrite_debt.RewriteDebt,
+) -> ReportEvidence:
+    """The lineage proof a refresh of `debt` stands on: this pass's where it replaced a docs commit, else the squash's.
+
+    The docs pass's where the head `debt` replaced is the docs commit a
+    completion names (`documented_into`), and the approval squash's
+    otherwise; either asked of the head the debt's rewrite published.
+    """
+    if documented_into(state, debt.previous_head) is not None:
+        return lineage_verdict(spec, issue_number, state, debt.rewritten_head)
+    return _squash_lineage.lineage_verdict(spec, issue_number, state, debt.rewritten_head)
 
 
 def _explained_debt(state: PinnedState, head: str) -> _rewrite_debt.RewriteDebt | None:

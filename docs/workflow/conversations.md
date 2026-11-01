@@ -432,7 +432,19 @@ as above; a question or other agent failure takes its usual park; each records `
 read as the report it owes. That reply's resume commits nothing and needs nothing more than the report: it is
 published once, exactly as written, the debt is paid, and the reviewer is handed it, with no later tick posting it again
 or repeating its settlement. A head moved or an issue edited while the agent was out records nothing, leaving the
-reviewer road or the drift resume to answer it.
+reviewer road or the drift resume to answer it. The run is launched on the `report_refresh` road
+(`workflow/stages/validating/refresh_road.py`), so the fresh `REPORT: READY` it finishes on is captured as it returns
+-- but only where no account quota stopped it and it left the checkout clean on the rewritten head, read as it
+returns, and its own disposition answers on that same reading, so a cleanup during a hold, or before that
+disposition, never makes such a return a refresh; a verification, a timeout, an unfinished
+command, a quota stop, a commit, loose work, and every other return that road refuses keep their accounting alone --
+and a park that hands a captured report to nobody withdraws the capture first. A report a live hold, a lost write, or
+a restart kept is recorded, bound, and settled by the dispatcher's recovery through the refresh's own disposition
+(`workflow/stages/validating/captured_refresh.py`), with no developer or reviewer run, no round spent, and no
+verification, approval, docs pass, or readiness inferred, once the debt, the receipt, the head, the checkout, the
+requirements, and the settled report still read as its launch read them, and -- for a refresh entered over a proved
+squash or docs lineage -- once that lineage proves again and the approved report re-reads intact where it settled: one
+moved or refuted retires the capture, and one nobody can read holds it.
 
 Every other developer road is still routed by its commits, its `ACK:` line, and the question parks the
 [delivery stages][delivery-stages] describe, and a no-commit reply that ends on a report outcome is read there the way
@@ -606,7 +618,11 @@ division of labour between the developer and the orchestrator never changes.
   of the frozen reading it was handed, which its stage settles for itself as ever -- in the transfer's own commit on a
   live tick, and from the capture on a recovery -- and its round is the one that stage's drift disposition spends,
   resets, or hands on. A reply or continue to an implementing drift park is an implementing resume, captured and
-  finished as one. No other road captures one yet. A return a
+  finished as one. So does the resume a rewritten head's report refresh asks for, on the `report_refresh` road, but
+  only for a fresh `REPORT: READY` its run returned with no quota stopping it and the checkout left clean on the
+  rewritten head: its report carries no round or watermarks, a recovery re-proves the lineage it was entered over and
+  re-reads the approved report before handing it on, and the transaction it becomes settles it about that head, the
+  debt paid only on the tick behind that settlement. No other road captures one yet. A return a
   live hold kept is left captured, with nothing it was handed consumed -- a change request stays handed, its round
   unspent, a feedback batch unread, and a drift resume's edit unanswered, its baseline unmoved -- and its recovery is
   asked ahead of every stage handler, before an unreported checkout, a drift resume, a launch, a review resume, or a

@@ -443,8 +443,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             comment (`stages/validating/review_records.py`). So are the owners the captured-completion
                             recovery hands the implementing roads' captures to
                             (`stages/implementing/captured_completion.py`), the fix rounds' captures to
-                            (`stages/fixing/captured_fixes.py`), and each stage's requirements-drift captures to
-                            (`stages/<stage>/captured_drift.py`)
+                            (`stages/fixing/captured_fixes.py`), each stage's requirements-drift captures to
+                            (`stages/<stage>/captured_drift.py`), and a rewritten head's report refresh's capture to
+                            (`stages/validating/captured_refresh.py`)
     poll_models.py          poll-time closure evidence and family/fanout/cleanup partitions, preserving deferred issues
                             absent from enumeration and the blocked/umbrella family capacity exemption; a closed
                             reading -- a family-bucket issue's included, there only when its label could not be read
@@ -1275,7 +1276,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             record `stages/implementing/late_claims.py` finds claiming a reading it cannot produce
                             holding it), and the records its handoff froze, a move proving it stale only where the moved
                             record's own reader -- the debt's, the pinned number's, the returned reviewer verdict's
-                            (`stages/validating/review_verdicts.py`, resolved when called), the feedback anchor's, the
+                            (`stages/validating/review_verdicts.py`, resolved when called), a final docs pass's
+                            completion's a refresh entered over that pass's lineage froze (`final_docs_records.py`,
+                            read whole or as gone), the feedback anchor's, the
                             in_review route stamp's, a feedback round's bookmarked id lists' and pull request readers'
                             (`completion_frozen_reads.py`), and for a late record the
                             late domain's check of that very field (`late_claims._FIELD_READS`) -- takes the new
@@ -1303,7 +1306,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `stages/implementing/captured_completion.py`, a reviewer's change request's and a pull
                             request feedback round's to `stages/fixing/captured_fixes.py`, a requirements-drift
                             resume's to the stage it reported under (`finishes_a_drift`, by `DRIFT_OWNERS`:
-                            `stages/<stage>/captured_drift.py`), every other road's to none
+                            `stages/<stage>/captured_drift.py`), a rewritten head's report refresh's to
+                            `stages/validating/captured_refresh.py`, and a late revision's to none
                             in this build, so its stage is held), a stale one retired `invalidated` by the
                             checkpoint's guarded retirement and the tick ended behind it, so the stage runs on the
                             next over the issue as it then reads, an uncertain or damaged one held with nothing written,
@@ -1612,7 +1616,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             replaced head is a completion's docs commit, and tells the refresh prompt so; and, with
                             no claim standing, it stages the claim a completion's published docs commit leaves over
                             the approved report's commit (`documented_rewrite`), where an issue comes back for a
-                            review over that commit
+                            review over that commit. Which of the two proofs a refresh stands on is one question
+                            (`refresh_verdict`), asked by that refresh and again by the recovery of its capture
+                            (`stages/validating/captured_refresh.py`)
     rewrite_finish.py       the one finish of a landed automatic PR base rewrite, whichever road reached it -- the base
                             refresh publishing its own rebase, or a recovery that pushed the replay again or found it
                             standing, announced or not -- handed the typed landing (`git/base_sync/rewrite_handoffs.py`)
@@ -4492,9 +4498,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             batch's consumed pairs, a retry's consumed commands), and the checkout, branch, and head
                             it launches from -- and
                             the capture an attempt on it earns: asked by `execution.py` of every attempt, it captures
-                            only a return the road's contract takes, at the head it left, with the command, prompt
-                            digest, and conversation it ran as and still pinned, and answers held where that capture
-                            left the state withheld
+                            only a return the road's contract takes, at the head it left (`source`, which a road
+                            asking more of the checkout a run returns over answers None for where that was not met
+                            -- `stages/validating/refresh_road.py`), with the command, prompt digest, and
+                            conversation it ran as and still pinned, and answers held where that capture left the
+                            state withheld
       captured_report.py    the run's own pending capture handed to the report delivery where the disposition records
                             a report -- what the tick settled around the run riding the transfer's own commit, so the
                             two land together or not at all; one refused for the report itself withdrawn and the run
@@ -6017,7 +6025,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             freezes its world before any run: a damaged receipt group, a receipt not naming the
                             rewritten head, or a checkout not standing on it clean -- the one the resume runs in,
                             read where it stands and only recreated where gone -- parks under `report_undeliverable`.
-                            A launch nothing ran, a shutdown kill, and a live pause write nothing. Anything else is
+                            The resume is launched on the refresh's road (`refresh_road.py`), so a fresh
+                            `REPORT: READY` it finishes on is captured as it returns. A launch nothing ran and a
+                            shutdown kill write nothing; a live pause writes nothing past the run's accounting and its
+                            capture, which `captured_refresh.py` finishes once the hold is gone. Anything else is
                             left to `review_report.py`'s own staleness refusal
       report_refresh_models.py the frozen record that refresh hands the owner reading its run -- the debt, whose
                             rewritten head is the one proved on the pull request, the receipt, and the checkout, the
@@ -6025,6 +6036,16 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             or docs pass leaves the settled report describing, beside which of the two it was -- with
                             the reading of the
                             requirements taken once the run is back and the park both helpers take
+      refresh_road.py       the `report_refresh` road a refresh's run is launched on (`road`): the frozen baseline,
+                            the rewritten head as the head the run begins on, and a handoff frozen over `pr_number`,
+                            the debt, the whole code-publication receipt, and the settled report pair -- and, over a
+                            proved squash or docs lineage, the evidence records its carry is kept in and the docs
+                            pass's completion (`LINEAGE`, `entered_over_a_lineage`) -- as the comment spells them; and
+                            which return it captures (`RefreshRoad.source`): only one no account quota stopped, over a
+                            checkout left clean on the rewritten head as it returned, read as the refresh's own
+                            disposition reads it and kept for that disposition to answer on (`returned_over`), so a
+                            cleanup or a reset during a hold, or before the disposition, never makes a quota stop, a
+                            commit, or loose work into a refresh
       report_refresh_outcomes.py what a refresh run left: a `REPORT: READY` over a checkout still clean on the head,
                             with the pull request's head and the requirements read again unchanged, recorded under
                             the frozen baseline with no round or watermarks, then bound and settled through
@@ -6037,7 +6058,28 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             recorded as work no report describes -- takes the agent-failure park
                             `implementing/parks.py` classifies, route `report_refresh` -- a run that left a command
                             unfinished among them, read so ahead of any report block it wrote. Each park records
-                            `developer_report_owed`, so the reply is read as the report it owes
+                            `developer_report_owed`, so the reply is read as the report it owes. Where the run's own
+                            capture stands, the report is recorded by handing it to the delivery
+                            (`stages/implementing/captured_report.py`), the checkout's HEAD is the one it names, and
+                            a park that hands the report to nobody -- loose work the tree carries only by the time it
+                            is read again, a moved world -- withdraws it first, while a tree, pull request, or
+                            requirements reading that did not return keeps it with nothing written
+      captured_refresh.py   the recovery of a held refresh's capture, handed on by
+                            `workflow/engine/completion_recovery.py` ahead of the report hold: for a refresh entered
+                            over a proved lineage, that lineage asked again first (`_lineage_stands`) -- the proof
+                            taken again (`workflow/engine/report_docs_lineage.refresh_verdict`) and the approved
+                            report re-read where it settled (`review_report._settled_report`), the issue, checkout,
+                            and pull request read again behind them -- a refutation or a report out of reach
+                            retiring the capture, inside `implementing/captured_rereads.py`'s re-reads, and a reading
+                            nobody could take, or a move behind it, holding it;
+                            then the session settled
+                            from the capture and any park left as it stands, then the run disposed through
+                            `report_refresh_outcomes._disposes_the_refresh` on a result rebuilt from it, under the
+                            debt the admission proved and the requirements the road froze, inside
+                            `implementing/captured_rereads.py`'s re-reads -- the checkout proved clean on the head the
+                            capture names, the report transferred, bound, and settled, with no developer or reviewer
+                            run, no round spent, and no verification, approval, docs pass, or readiness inferred, the
+                            debt left for the next tick's report hold to drop
       review_report.py      the report a reviewer is handed once nothing is owed: the one last settled, re-read where it
                             settled and quoted whole, and the pull request's head read with it for the subject. Refused
                             rather than reviewed -- parked under `report_undeliverable` with the debt recorded, so the

@@ -38,10 +38,12 @@ unseen. A documentation pass, a conflict resolution, and every other
 resume freeze no road, so the coordinator captures nothing for them merely
 because they run through it -- save the two a reviewer's change request
 hands its developer through, the fixing stage's resume answering a pull
-request's human feedback, and every requirements-drift resume and the replies
-that remain its continuation, whose callers freeze a road of this same shape
-(`validating/fix_road`, `fixing/resume_road`, `fixing/feedback_road`,
-`drift_road`).
+request's human feedback, every requirements-drift resume and the replies
+that remain its continuation, and the validating stage's resume asking for
+the fresh report a head this orchestrator rewrote is owed, whose callers
+freeze a road of this same shape (`validating/fix_road`, `fixing/resume_road`,
+`fixing/feedback_road`, `drift_road`, `validating/refresh_road`) -- the last
+asking more of a return's checkout than a report (`CompletionRoad.source`).
 """
 from __future__ import annotations
 
@@ -112,13 +114,14 @@ class CompletionRoad:
         Asked after the attempt's accounting and live-pause reading, so the
         hold that reading decided stands whatever a later fetch sees. An
         attempt that earns no capture is left to its accounting and costs no
-        read; one that does is captured at the head it left, beside the
-        conversation the tick still pins as it returns -- what the launch
-        itself left of the pin, which a recovery repeats. Held where the
-        capture left the state withheld -- sent and never confirmed, or
-        answered over a comment that moved -- and never otherwise: a capture
-        refused for its report or for room records nothing, so the
-        disposition's own recording answers that report as it always has.
+        read; one that does is captured at the head its road reads it as
+        having left (`source`), beside the conversation the tick still pins as
+        it returns -- what the launch itself left of the pin, which a recovery
+        repeats. Held where the capture left the state withheld -- sent and
+        never confirmed, or answered over a comment that moved -- and never
+        otherwise: a capture refused for its report or for room records
+        nothing, so the disposition's own recording answers that report as it
+        always has.
         """
         handoff = self.handoff
         eligible = _routes.eligible_outcome(
@@ -126,13 +129,16 @@ class CompletionRoad:
         )
         if not isinstance(eligible, _routes.CapturedOutcome):
             return False
+        source = self.source(attempt.agent_result)
+        if source is None:
+            return False
         completion = _checkpoint.captured(attempt.agent_result, handoff, _records.CompletionRun(
             command=attempt.command,
             prompt_revision=hashlib.sha256(attempt.prompt.encode()).hexdigest(),
             worktree=str(self.checkout.worktree),
             branch=self.checkout.branch,
             before_sha=self.checkout.before_sha,
-            source_sha=_probes._head_sha(self.checkout.worktree),
+            source_sha=source,
             resumed=attempt.resumed,
             pinned=_session_read._pinned_session_id(state),
         ))
@@ -144,6 +150,17 @@ class CompletionRoad:
                 handoff.route, outcome.status.value,
             )
         return state.withheld
+
+    def source(self, agent_result: AgentResult) -> str | None:
+        """The head `agent_result`'s report is about, read off the checkout as it returns; None where none qualifies.
+
+        Every road here takes the head the run left, whatever it is, and
+        leaves what that head means to its own disposition. A road whose
+        contract asks more of the checkout a run returns over answers None
+        where that was not met, so the return earns no capture
+        (`validating/refresh_road`).
+        """
+        return _probes._head_sha(self.checkout.worktree)
 
 
 def implementation_road(

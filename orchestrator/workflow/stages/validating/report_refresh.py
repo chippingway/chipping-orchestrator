@@ -59,14 +59,24 @@ holds; a definite refusal parks for a human under `report_undeliverable`, as
 the hold does, before any agent runs. What the run leaves is read by
 `report_refresh_outcomes`, over the same world read again.
 
-A run nothing launched, one a shutdown interrupted, and one a live pause
-stopped write nothing, and the next tick asks again. Every other run ends the
-tick, even one whose report settles: the next tick finds it paid and runs the
-reviewer, so one tick never spends two agents.
+The run is launched on the refresh's road (`refresh_road`), frozen over that
+world, so a return that finished on a fresh READY report, no quota stopping it
+and the checkout left clean on the head, is captured as it comes back -- a
+verification of the report already standing, a timeout, an unfinished command,
+and every other return the road refuses are not -- and its recording is that
+capture's transfer into the delivery. A run nothing
+launched and one a shutdown interrupted write nothing, and the next tick asks
+again. One a live pause stopped -- or whose capture never confirmed -- writes
+nothing past its accounting and its capture, and the dispatcher's recovery
+finishes that capture once the hold is gone, through the same disposition and
+with no developer run (`captured_refresh`). Every other run ends the tick, even
+one whose report settles: the next tick finds it paid and runs the reviewer, so
+one tick never spends two agents.
 """
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from github.Issue import Issue
 
@@ -81,7 +91,6 @@ from orchestrator.workflow.engine import (
     prompts as _prompts,
     report_docs_lineage as _docs_lineage,
     report_rewrite_debt as _rewrite_debt,
-    report_squash_lineage as _squash_lineage,
     usage as _usage,
 )
 from orchestrator.workflow.stages.implementing import (
@@ -91,6 +100,7 @@ from orchestrator.workflow.stages.implementing import (
     worktree as _resume_worktree,
 )
 from orchestrator.workflow.stages.validating import (
+    refresh_road as _refresh_road,
     report_refresh_models as _models,
     report_refresh_outcomes as _outcomes,
     report_settlement as _settlement,
@@ -266,8 +276,7 @@ def _refreshes_a_squashed_report(
     that road's refusal, and a location nobody could read holds.
     """
     documented = _docs_lineage.documented_into(state, debt.previous_head) is not None
-    lineage = _docs_lineage if documented else _squash_lineage
-    proof = lineage.lineage_verdict(spec, issue.number, state, debt.rewritten_head)
+    proof = _docs_lineage.refresh_verdict(spec, issue.number, state, debt)
     if not proof.proved:
         if proof.holds:
             log.info(
@@ -295,11 +304,14 @@ def _refreshes_the_report(refresh: _models._ReportRefresh) -> None:
     """Ask the developer for a fresh report of the rewritten head, over a world frozen first.
 
     A refusal parks before anything runs; a reading nobody could take holds.
+    The run is launched on the refresh's road, frozen over that world, so a
+    return that finished on its report is captured as it comes back, and the
+    run is disposed on the checkout that road read it returning over.
     """
-    refusal = _frozen_refusal(refresh)
-    if refusal:
-        refresh.parks(refusal)
-    if refusal != "":
+    frozen = _frozen_checkout(refresh)
+    if isinstance(frozen, str):
+        refresh.parks(frozen)
+    if not isinstance(frozen, Path):
         return
     log.info(
         "issue=#%d PR #%d stands on %s, which this orchestrator rewrote from "
@@ -307,23 +319,25 @@ def _refreshes_the_report(refresh: _models._ReportRefresh) -> None:
         refresh.issue.number, refresh.debt.pr_number, refresh.head[:8],
         refresh.debt.previous_head[:8],
     )
+    road = _refresh_road.road(refresh, frozen)
     worktree, agent_result, paused = _dev_resume._resume_dev_with_text(_dev_resume_request._DevResumeRequest(
         refresh.gh, refresh.spec, refresh.issue, refresh.state,
         _prompts._build_report_refresh_prompt(
             refresh.issue, refresh.debt.previous_head, refresh.head, refresh.approved, documented=refresh.documented,
         ),
         pause_guard=True,
+        completion=road,
     ))
     if _guards._ignore_if_never_invoked(refresh.issue, agent_result) or paused:
         return
     if _guards._ignore_if_interrupted(refresh.issue, agent_result):
         return
     refresh.state.set("last_agent_action_at", _usage._now_iso())
-    _outcomes._disposes_the_refresh(refresh, worktree, agent_result)
+    _outcomes._disposes_the_refresh(refresh, worktree, agent_result, road.returned_over(agent_result))
 
 
-def _frozen_refusal(refresh: _models._ReportRefresh) -> str | None:
-    """Why the report cannot be asked about the rewritten head: "" where it can, None where unread.
+def _frozen_checkout(refresh: _models._ReportRefresh) -> Path | str | None:
+    """The checkout the report is asked about the rewritten head in; why it cannot be, or None where unread.
 
     The receipt first, whole and then by the commit it names, since it costs
     no request. Then the checkout the resume will run in, reused where it
@@ -343,4 +357,4 @@ def _frozen_refusal(refresh: _models._ReportRefresh) -> str | None:
     detail = _outcomes._checkout_refusal(worktree, refresh.head)
     if detail:
         return _UNFROZEN.format(head=refresh.head, detail=detail)
-    return detail
+    return None if detail is None else worktree
