@@ -186,7 +186,9 @@ Non-human content is filtered eight ways:
   comment cannot shift the hash and re-trigger drift on a public repo.
   The same trust helpers filter agent-prompt text in `workflow/engine/prompt_context.py`: `_recent_comments_text`
   (documentation / decompose / question — the prompts whose stage settles
-  nothing by what they quote), `_delivered_thread` beside it (the implementing fresh spawn, the validating reviewer
+  nothing by what they quote, the decompose prompt only on a tick that froze no read of its thread, since the
+  fresh decomposition a parked tick's edit or a `retry_cap` continuation buys quotes and settles its tick's frozen
+  read through `_thread_delivery`), `_delivered_thread` beside it (the implementing fresh spawn, the validating reviewer
   round, and every drift resume, which render the same filtered text and keep the record of which
   comments it was made of), and `drift_delivery._delivered_pr_conversation` for the one prompt that reads the pull
   request's conversation too. Beneath `_recent_comments_text` sits `_thread_text`, which the `discussion`
@@ -260,7 +262,9 @@ the same one fingerprint. On drift the action depends on lifecycle position:
   An issue
   standing on a `retry_cap` park is held one step ahead of this (see that handler's step 1): the re-spawn it falls
   through to is exactly the spawn that park refused, so the edit waits with everything else the issue carries until
-  a human continues it.
+  a human continues it. The continuation moves no reply boundary, so every tick spending the attempt it bought
+  measures the edit off a frozen read of its own the same way, and the replies that park held reach the fresh
+  decomposer whole.
 - **`workflow:blocked`** — nothing: the hold is answered only by its release, and the edit is `workflow:ready`'s to
   compare (above).
 - **`workflow:ready` / `workflow:umbrella`** (no implementation has started) — route back to
