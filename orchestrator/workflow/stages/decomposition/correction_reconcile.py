@@ -1,14 +1,32 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""What a `decomposing` tick owes a manifest correction an earlier tick left pending.
+"""What a `decomposing` tick owes a manifest correction an earlier tick left pending, and the run it then makes.
 
-Asked once the drift reset, the split recovery, and the kill switch have had
-their say and before the tick resumes or spawns a decomposer
-(`session._run_for_the_tick`), since every run charged behind a pending attempt
-would be one its resolution covers: an attempt resolved only after a new
-decomposer is charged would cover that decomposer's own rejected answer too.
-So the attempt is answered first, from what the tick's reading says of it
-(`correction_standing.read`):
+Two questions, asked at two points of the tick.
+
+Ahead of the frozen read and the drift check (`recovers_park`, asked by
+`run._prepare_decomposer_run`), the record is asked whether the attempt is owed
+a park that does not stand: a claim nobody can read holds the tick with
+nothing written, since whatever it still owes cannot be said; an attempt
+STARTED (a launch whose answer nothing acted on: a hold, an unresolved
+accounting, an interruption, a lost write), CROWDED, UNPROVED, or whose pinned
+command does not parse is never launched; and an EXHAUSTED one with nothing
+charged since it resolved and its context standing is a correction's answer,
+or an attempt given up, that nothing was made of -- an exhaustion that landed
+ahead of a park write, or of a decision, that did not. Each parks for a human
+before anything reads a reply as an edit, so a reply written while the
+correction was out is the park's to deliver rather than drift that would retire
+the saved session: the park is said once (`correction_notices.parks_once`),
+recorded over a notice of ours carrying the attempt's receipt where one
+stands, and bounded, the reply boundary walking our own comments and no
+further; a pending attempt is exhausted behind it. The tick then goes on as a
+parked one.
+
+Once the drift reset, the split recovery, and the kill switch have had their
+say, and before any decomposer is charged behind it (`run_for_the_tick`) --
+since an attempt resolved only after a new decomposer is charged would cover
+that decomposer's own rejected answer too -- the attempt is answered from the
+tick's reading of it (`reconciles`):
 
 - ELIGIBLE on an issue no park stands on is the launch an earlier tick owed and
   never made -- a restart behind the arming, an arming read back, a start the
@@ -21,32 +39,21 @@ So the attempt is answered first, from what the tick's reading says of it
   move, the tick's own reset written first where the move is that reset's
   (`correction_settlement.retires`), and the tick goes on to the fresh
   decomposition the move buys.
-- STARTED (a launch whose answer nothing acted on: a hold, an unresolved
-  accounting, an interruption, a lost write), CROWDED, UNPROVED, an
-  unresumable command, or ELIGIBLE under a park a human owns is never launched:
-  it is exhausted, and an issue no park stands on parks for a human first, so
-  the session stays theirs to resume with a reply. A park already standing is
-  that answer -- the one a correction's park left with its exhaustion lost --
-  and its tick goes on to the reply it waits on.
-- EXHAUSTED with nothing charged since it resolved, its context standing, and
-  no park standing is a correction's answer, or an attempt given up, that
-  nothing was made of -- an exhaustion that landed ahead of a park write that
-  did not, or ahead of a decision that never reached its label -- so the issue
-  parks for a human rather than spawning a replacement decomposition.
+- Any other pending attempt is exhausted, behind a park where none stands; a
+  park already standing -- the one a correction's park left with its
+  exhaustion lost -- is its answer, and its tick goes on to the reply it waits
+  on.
 
-Each park here is said once (`correction_notices.parks_once`): a notice of
-ours carrying the attempt's receipt is recorded as the park rather than
-posted again. ABSENT, RETIRED, DAMAGED, DISPLACED, and an exhausted attempt
-anything was charged behind, whose context moved, or that a park stands over
-owe nothing here: a resolved attempt
-has spent its one launch, and a claim nobody can read or that names another
-record is never acted on. A write over the attempt left unconfirmed, landing
-over a comment moved since the tick read it, or a thread a park could not
-read holds the tick, so no decomposer is charged behind an attempt nobody can
-say is resolved.
+Then the run the tick makes is the resume of a park still standing, or the
+fresh spawn. ABSENT, RETIRED, DISPLACED, and EXHAUSTED owe nothing there, and a
+claim nobody can read holds the tick there too. A write over the attempt left
+unconfirmed, landing over a comment moved since the tick read it, or a thread a
+park could not read holds the tick, so no decomposer is charged behind an
+attempt nobody can say is resolved.
 """
 from __future__ import annotations
 
+import logging
 from types import MappingProxyType
 
 from github.Issue import Issue
@@ -58,19 +65,25 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import run_ledger_values as _run_ledger_values
 from orchestrator.workflow.stages.decomposition import (
     correction_notices as _notices,
-    correction_records as _records,
     correction_road as _road,
     correction_settlement as _settlement,
     correction_source as _source,
     correction_standing as _standing,
     replies as _replies,
+    session as _session,
 )
 from orchestrator.workflow.stages.decomposition.models import _DecomposerRunPlan
 
+log = logging.getLogger("orchestrator.workflow")
+
 _STANDING = _standing.Standing
 
-# What owes the tick nothing: no attempt, a retired one, or a claim never acted on.
-_PASSIVE = frozenset((_STANDING.ABSENT, _STANDING.RETIRED, _STANDING.DAMAGED, _STANDING.DISPLACED))
+# What owes a tick's run nothing: no attempt, a resolved one, or one naming another record.
+_PASSIVE = frozenset((_STANDING.ABSENT, _STANDING.RETIRED, _STANDING.DISPLACED, _STANDING.EXHAUSTED))
+
+# A pending attempt that may never be launched, whatever stands beside it, save
+# an eligible one whose command parses.
+_UNLAUNCHABLE = frozenset((_STANDING.STARTED, _STANDING.CROWDED, _STANDING.UNPROVED, _STANDING.ELIGIBLE))
 
 # Why an attempt was never answered, by what its reading says of it -- an
 # exhausted one by whether a correction of it returned.
@@ -84,23 +97,83 @@ _UNANSWERED = MappingProxyType({
 })
 
 
+def recovers_park(gh: GitHubClient, issue: Issue, state: PinnedState) -> bool:
+    """Take the park an attempt is owed where none stands; whether the tick goes on, False holding it."""
+    reading = _standing.read(state, issue.number)
+    if reading.standing is _STANDING.DAMAGED:
+        log.warning(
+            "issue=#%d its manifest correction record cannot be read; holding the tick with nothing written "
+            "until it is repaired", issue.number,
+        )
+        return False
+    unanswered = _owed_park(state, reading)
+    if unanswered is None or _replies.parked(state):
+        return True
+    attempt = reading.attempt
+    if not _notices.parks_once(gh, issue, state, attempt, _notice(reading, unanswered)):
+        return False
+    if reading.standing is not _STANDING.EXHAUSTED:
+        _settlement.spends(gh, issue, state, attempt)
+    return not state.withheld
+
+
+def run_for_the_tick(
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
+    replies: _replies.DecomposerReplies | None,
+) -> _DecomposerRunPlan:
+    """The decomposer run this tick makes once drift, recovery, and the kill switch have had their say.
+
+    The correction an earlier tick left pending first (`reconciles`); then a
+    park still standing is resumed on the replies the tick froze -- a drift
+    reset took the park down, and with it the session the replies would have
+    answered -- and anything else spawns the fresh decomposition, handed that
+    same read where the tick froze one.
+    """
+    reconciled = reconciles(gh, spec, issue, state)
+    if reconciled is not None:
+        return reconciled
+    if replies is not None and _replies.parked(state):
+        return _session._resume_decomposer_on_human_reply(gh, spec, issue, state, replies)
+    return _session._spawn_fresh_decomposer(gh, spec, issue, state, replies)
+
+
 def reconciles(
     gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
 ) -> _DecomposerRunPlan | None:
     """The plan this tick's correction owes, or None where the tick goes on to its ordinary decomposer road."""
     reading = _standing.read(state, issue.number)
     attempt = reading.attempt
+    if reading.standing is _STANDING.DAMAGED:
+        return _held(state)
     if reading.standing in _PASSIVE:
         return None
-    if reading.standing is _STANDING.EXHAUSTED:
-        return _unacted(gh, issue, state, attempt)
     if reading.standing is _STANDING.STALE:
         return None if _settlement.retires(gh, issue, state, attempt) else _held(state)
-    launchable = _source.resumable(attempt.source.command) is not None
-    if reading.grants and launchable and not _replies.parked(state):
+    if _owed_park(state, reading) is None and not _replies.parked(state):
         launched = _road.launch(gh, spec, issue, state, attempt)
         return _DecomposerRunPlan(agent_result=launched, correction=attempt)
     return _given_up(gh, issue, state, reading)
+
+
+def _owed_park(state: PinnedState, reading: _standing.CorrectionReading) -> object:
+    """Why the attempt `reading` carries is owed a park where none stands, or None where it owes none.
+
+    A pending attempt that may never be launched owes one; an eligible one
+    whose command parses owes none, being still to launch. An exhausted one
+    owes one only where nothing has been charged since it resolved and its
+    context stands, so the answer nothing was made of is the last thing the
+    issue did.
+    """
+    attempt = reading.attempt
+    if reading.standing is _STANDING.EXHAUSTED:
+        charged_since = _run_ledger_values._runs_used_strictly(state) != attempt.floor
+        if charged_since or _standing.moved(state, attempt.source) is not None:
+            return None
+        return attempt.correction is not None
+    if reading.standing not in _UNLAUNCHABLE:
+        return None
+    launchable = _source.resumable(attempt.source.command) is not None
+    return None if reading.grants and launchable else reading.standing
 
 
 def _given_up(
@@ -112,29 +185,16 @@ def _given_up(
     """
     parked = _replies.parked(state)
     attempt = reading.attempt
-    notice = _notice(attempt, reading.standing)
+    notice = _notice(reading, reading.standing)
     if not parked and not _notices.parks_once(gh, issue, state, attempt, notice):
         return _held(state)
     _settlement.spends(gh, issue, state, attempt)
     return None if parked and not state.withheld else _held(state)
 
 
-def _unacted(
-    gh: GitHubClient, issue: Issue, state: PinnedState, attempt: _records.CorrectionAttempt,
-) -> _DecomposerRunPlan | None:
-    """Park an exhausted attempt nothing was made of, where nothing since stands behind it; None otherwise."""
-    charged_since = _run_ledger_values._runs_used_strictly(state) != attempt.floor
-    moved = _standing.moved(state, attempt.source)
-    if charged_since or moved is not None or _replies.parked(state):
-        return None
-    returned = attempt.correction is not None
-    _notices.parks_once(gh, issue, state, attempt, _notice(attempt, returned))
-    return _held(state)
-
-
-def _notice(attempt: _records.CorrectionAttempt, unanswered: object) -> str:
-    """What a park over `attempt` tells the human, `unanswered` naming why its correction answered nothing."""
-    diagnostic = attempt.source.diagnostic
+def _notice(reading: _standing.CorrectionReading, unanswered: object) -> str:
+    """What a park over `reading`'s attempt tells the human, `unanswered` naming why its correction answered nothing."""
+    diagnostic = reading.attempt.source.diagnostic
     why = _UNANSWERED[unanswered]
     return (
         f"{config.HITL_MENTIONS} decomposer manifest invalid ({diagnostic}); its one automatic correction {why}. "

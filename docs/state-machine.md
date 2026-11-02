@@ -393,7 +393,8 @@ resolved attempt covering every charge it was resolved across so no correction's
 are guarded commits of that field alone, read back where unconfirmed, a retirement takes a reading that proves its
 context moved, and its one launch is owed once at the run circuit, a retry the daily budget pays for. Every park
 taken over an attempt lands before the attempt is resolved and ends on a receipt, so a lost park write is recorded
-over its notice rather than said twice.
+over its notice rather than said twice, ahead of the drift check and bounded, so a reply written meanwhile resumes the
+saved session; a claim nobody can read holds the tick.
 The additive `dev_session_retirement` record names the developer conversations retired as failed and whether the fresh
 conversation replacing the last is still owed. Nothing that clears the session pin or zeroes `silent_park_count` and
 `dev_resume_count` -- a publication, a rotation, a late restart's projection -- erases it, so a retired id is never
@@ -505,9 +506,10 @@ session replacing it quote off the record rather than out of the bounded thread.
 `split` states its `depends_on` list, `[]` for none; one missing or `null` refuses the reply as an invalid manifest
 naming the child and the field, before any child or split marker is written. A completed, accounted, read-only run's
 refused manifest earns one correction: its saved session resumed under the pinned command with the exact error and
-the whole output contract, rechecked against the issue's holds, owner, label, and requirements behind its charge and
-before its answer is used, and disposed of like any decomposer answer -- a usable one through the ordinary `single` or
-`split`, anything else to the park it reaches, a second invalid manifest's quoting the latest error and answer. A
+the whole output contract, rechecked against the issue's holds, owner, label, and requirements behind its charge,
+before its answer is used, and again behind the write that spends it, and disposed of like any decomposer answer --
+a usable one through the ordinary `single` or `split`, anything else to the park it reaches, a second invalid
+manifest's quoting the latest error and answer. A
 question, silence, a failed or incomplete return, a timeout, an interruption, a dirty checkout, and a run with no
 session to resume park as before, and a correction that a hold, a restart, or a lost write left unanswered is never
 launched again: the next tick parks for a human. A split of an issue

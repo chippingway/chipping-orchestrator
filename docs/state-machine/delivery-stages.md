@@ -739,14 +739,22 @@ because there it is the claim that this stage has already rerouted rather than a
      session an edit's reset in step 2 or a continuation in step 1 retired — is retired over a reading that proves
      the move, step 2's reset written first where only it shows the move, and the tick goes on to the fresh
      decomposition the move buys; one `started`, `crowded`, or `unproved`, or whose pinned command does not parse, is
-     never launched: it is exhausted, and an issue no park stands on parks for a human first, so the session stays
-     theirs to resume with a reply. An `exhausted` attempt nothing has been charged behind, whose context stands, on
-     an issue no park stands on, is an answer nothing was made of — an exhaustion that landed ahead of a park write or
-     a decision that did not — and parks for a human too rather than spawning a replacement. Each such park is said
-     once: its notice ends on the receipt `<!--orchestrator-decomposer-correction:issue=<n>:source=<nonce>-->`, and a
-     comment of ours past the reply boundary already carrying it is recorded as the park, the boundary on it, with
-     nothing posted again (`correction_notices.py`). A write over the attempt left unconfirmed or landing over a moved
-     comment, or a thread that park could not read, holds the tick.
+     never launched: it is exhausted, behind a park for a human where none stands, so the session stays theirs to
+     resume with a reply. An `exhausted` attempt nothing has been charged behind, whose context stands, on an issue no
+     park stands on, is an answer nothing was made of — an exhaustion that landed ahead of a park write, a decision,
+     or a hold behind it that did not let it on — and parks for a human too rather than spawning a replacement.
+
+     Those parks are taken earlier still, right behind the reroute marker's retirement and ahead of step 2's frozen
+     read and drift check (`correction_reconcile.recovers_park`), so a reply written while the correction was out is
+     the park's to deliver — the tick goes on as a parked one and resumes the saved session on it — rather than an
+     edit retiring that session. Each is said once and bounded: its notice ends on the receipt
+     `<!--orchestrator-decomposer-correction:issue=<n>:source=<nonce>-->`; a comment of ours past the reply boundary
+     already carrying it is recorded as the park, taken into our comment ledger, with nothing posted again
+     (`correction_notices.py`); and either way the boundary walks our own comments and no further, so it stops short
+     of a reply written before the notice — standing on the notice only where no boundary stands to walk from. A
+     `decomposer_correction` claim nobody can read holds the tick there, with the claim kept as it stands and nothing
+     reset, launched, created, or written, until it is repaired. A write over the attempt left unconfirmed or landing
+     over a moved comment, or a thread a park could not read, holds the tick too.
 
      Then resume on a new comment; otherwise gate on the per-issue retry budget
      (shared with `implementing`; an exhausted one parks the issue durably as `retry_cap`, says so once, and is held
@@ -857,10 +865,11 @@ because there it is the claim that this stage has already rerouted rather than a
        and ends on its receipt, and the attempt is exhausted behind it, naming the correction's invocation. A hold, an
        unresolved accounting, or an interruption leaves the attempt pending with its start on the ledgers, never
        launched again: the next tick's step 5 parks for a human. A usable answer is acted on only once the issue,
-       read afresh, still stands as above and the attempt is exhausted, before the first child, split marker, or
-       label: a close, a relabel, or an edit since spends it and makes nothing of the answer — the edit taking step
-       2's fresh decomposition on the next tick — and a hold or an issue GitHub would not answer for spends nothing
-       and makes nothing.
+       read afresh, still stands as above, the attempt is exhausted, and the issue, read afresh once more behind that
+       write, still stands, before the first child, split marker, or label: a close, a relabel, or an edit since
+       spends it and makes nothing of the answer — the edit taking step 2's fresh decomposition on the next tick — and
+       a hold or an issue GitHub would not answer for spends nothing and makes nothing, save one met behind the
+       exhaustion, which makes nothing of the spent attempt's answer and leaves it for the next tick to park over.
      - no fenced block → treat as a question; park.
      - `decision == "single"` → post the collected-context comment (rationale plus the manifest's optional
        `affected_files` / `notes`, built by `_build_single_decision_comment`) so the implementer inherits the

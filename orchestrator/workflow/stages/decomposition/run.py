@@ -32,10 +32,14 @@ can read them and finalize a split the human no longer wants. Recovery goes
 next, and deliberately ahead of the `DECOMPOSE` kill switch: children already
 open on GitHub have to be resolved whether or not new decompositions are still
 enabled -- a kill switch that stranded existing work would be the wrong kind of
-off. Only past both does the tick pick its run (`session._run_for_the_tick`):
-the manifest correction an earlier tick left pending first -- launched, retired,
-or given up before any decomposer is charged behind it -- then resuming a
-parked session or spawning a fresh one.
+off. Only past both does the tick pick its run
+(`correction_reconcile.run_for_the_tick`): the manifest correction an earlier
+tick left pending first -- launched, retired, or given up before any decomposer
+is charged behind it -- then resuming a parked session or spawning a fresh one.
+Ahead of all of it but the reroute's marker, a correction owed a park that does
+not stand takes it (`correction_reconcile.recovers_park`), so the frozen read
+and the drift check meet a parked issue whose later replies are the park's, and
+a correction record nobody can read holds the tick.
 
 Everything after the run is about what that run is allowed to publish. A
 `paused` label applied mid-run wins over the whole disposition, an agent that
@@ -75,6 +79,7 @@ from orchestrator.workflow.engine import (
     record_admission as _record_admission,
 )
 from orchestrator.workflow.stages.decomposition import (
+    correction_reconcile as _correction_reconcile,
     drift as _drift,
     handoff as _handoff,
     late_coordinator as _late_coordinator,
@@ -82,7 +87,6 @@ from orchestrator.workflow.stages.decomposition import (
     recovery as _recovery,
     replies as _replies,
     retry_cap as _retry_cap,
-    session as _session,
 )
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from orchestrator.workflow.stages.decomposition.models import _DecomposerCleanup, _DecomposerRunPlan
@@ -100,6 +104,14 @@ def _prepare_decomposer_run(
     # before anything below can run a decomposer or hand the issue back there.
     if not _drift._retires_ready_reroute(gh, issue, state):
         return _DecomposerRunPlan(agent_result=None)
+
+    # A manifest correction owed a park that does not stand -- its own park's
+    # write lost, or an answer nothing acted on -- parks before the thread is
+    # read, so a reply written while it was out is that park's to deliver
+    # rather than an edit retiring the session it saved; a correction record
+    # nobody can read holds the tick.
+    if not _correction_reconcile.recovers_park(gh, issue, state):
+        return _DecomposerRunPlan(agent_result=None, keep_worktree=True)
 
     # A parked tick, or one spending what a continuation bought, reads its
     # thread ONCE, before drift is decided: the drift check, the prompt, and
@@ -138,7 +150,7 @@ def _run_on_the_reading(
     ):
         return _DecomposerRunPlan(agent_result=None)
 
-    return _session._run_for_the_tick(gh, spec, issue, state, replies)
+    return _correction_reconcile.run_for_the_tick(gh, spec, issue, state, replies)
 
 
 def _process_decomposer_run(

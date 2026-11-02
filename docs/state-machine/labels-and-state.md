@@ -1455,8 +1455,10 @@ The keys that matter for the state machine fall into a few groups:
   parked, and one armed with no launch granted given up behind the ordinary park -- lands while the attempt is still
   pending and ends on the hidden receipt `<!--orchestrator-decomposer-correction:issue=<n>:source=<nonce>-->`, the
   nonce the source invocation's own, and the attempt is exhausted behind it; a tick that finds the attempt owed a park
-  it does not stand on records the park over a comment of ours past the reply boundary carrying that receipt rather
-  than posting it again.
+  it does not stand on takes it ahead of its frozen read and drift check, recording it over a comment of ours past
+  the reply boundary carrying that receipt rather than posting it again, and bounded either way, so a reply written
+  while the correction was out stays the saved session's to be resumed on. A claim nobody can read holds every
+  `decomposing` tick with nothing reset, launched, created, or written until it is repaired.
 - **A debt with no record behind it.** `late_approved_sha` + `late_approved_lease` + `late_approved_basis` outlive the
   generation that granted them, because the write that approves a candidate retires that generation before the push.
   The basis is what the debt RESTS on, said by the owner that granted it rather than inferred from the records

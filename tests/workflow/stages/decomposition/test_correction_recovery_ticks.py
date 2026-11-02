@@ -60,7 +60,7 @@ class UnconfirmedWriteTest(unittest.TestCase, support.CorrectionTickCase):
     def test_a_lost_arming_launches_on_the_next_tick(self) -> None:
         self.opened()
         rejected = self.decomposer(support.UNLISTED)
-        with support.LosingEdit.patch(self.github, _ARMING):
+        with support.CountedEdit.losing(self.github, _ARMING):
             self.tick(rejected)
         self.assertEqual(self.said(), [])
         later = self.decomposer(support.LISTED)
@@ -129,7 +129,7 @@ class UnconfirmedWriteTest(unittest.TestCase, support.CorrectionTickCase):
         """A tick whose correction ran and whose strict edit at `lost` went unconfirmed; nothing made of it."""
         self.opened()
         runner = self.decomposer(support.UNLISTED, support.LISTED)
-        with support.LosingEdit.patch(self.github, lost):
+        with support.CountedEdit.losing(self.github, lost):
             self.tick(runner)
         self.assertEqual(len(runner.launches), 2)
         self.assertEqual(self.children(), 0)
@@ -144,6 +144,33 @@ class UnconfirmedWriteTest(unittest.TestCase, support.CorrectionTickCase):
         notice = self.issue.comments[-1]
         self.assertIn(support.CORRECTED_PARK, notice.body)
         return notice
+
+
+class DamagedRecordTest(unittest.TestCase, support.CorrectionTickCase):
+    """A correction record nobody can read holds the tick: what it still owes cannot be said, so nothing replaces it."""
+
+    def test_a_damaged_record_holds(self) -> None:
+        self._damaged()
+        written = self.github.write_state_calls
+        later = self.decomposer(support.LISTED)
+
+        self.tick(later)
+        self.tick(later)
+
+        self.assertEqual(later.launches, [])
+        self.assertEqual(self.children(), 0)
+        self.assertEqual(self.said(), [])
+        self.assertIsNone(self.pinned()[support.FIELD], "the claim is kept as it stands")
+        self.assertEqual(self.github.write_state_calls, written, "nothing is written in its place")
+
+    def _damaged(self) -> None:
+        """A rejected run whose arming went unconfirmed, and a hand edit leaving its attempt `null`."""
+        self.opened()
+        with support.CountedEdit.losing(self.github, _ARMING):
+            self.tick(self.decomposer(support.UNLISTED))
+        state = self.github.read_pinned_state(self.issue)
+        state.set(support.FIELD, None)
+        self.github.write_pinned_state(self.issue, state)
 
 
 class RunLimitTest(unittest.TestCase, support.CorrectionTickCase):

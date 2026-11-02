@@ -3024,7 +3024,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       run.py                one `decomposing` tick: the retry-cap notice a stranded park still owes replayed at
                             entry, the late route asked before anything else after it, the spent-budget park held
                             behind that and ahead of every road that would walk past one, the retirement of a
-                            `ready` reroute's marker, the one frozen read of its thread a parked tick, or one
+                            `ready` reroute's marker, the park a manifest correction is owed taken -- and a
+                            correction record nobody can read held on -- before anything reads the thread, the one
+                            frozen read of its thread a parked tick, or one
                             spending an attempt a continuation bought, decides on -- held with nothing reset or
                             launched where it cannot be taken -- and then the drift / recovery /
                             kill-switch order before the agent, and the pause, dirty-worktree, and interruption
@@ -3050,9 +3052,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             boundary the kill switch stands past the decomposing-era thread, recording no delivery
                             (`engine/thread_delivery.py`), and the re-read the inline handler is given, behind the
                             captured-completion recovery the dispatcher would ask (`engine/completion_recovery.py`)
-      session.py            the locked decomposer session: which run a tick makes (`_run_for_the_tick`) -- a
-                            manifest correction an earlier tick left pending answered first, then the resume or the
-                            fresh spawn -- the spec read, the fresh spawn that pins it -- gated
+      session.py            the locked decomposer session: the spec read, the fresh spawn that pins it -- gated
                             and parked by `engine/retry_budget.py`'s own parking form, bounded where it refuses a
                             spawn a parked tick's frozen read bought, and quoting that read where an edit it showed
                             or a continuation bought it -- the
@@ -3165,17 +3165,21 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             rejected run was handed -- held, moved, unread, or standing
       correction_settlement.py
                             what the correction's answer may come to: the exhaustion behind each park it reaches,
-                            naming the correction, a usable answer acted on only once the issue still stands and the
-                            attempt reads spent, a close, relabel, or edit spending it with nothing made, and the
+                            naming the correction, a usable answer acted on only once the issue still stands, the
+                            attempt reads spent, and the issue still stands read again behind that write, a close, relabel, or edit spending it with nothing made, and the
                             retirement of a moved attempt, the tick's own reset written first where only it shows it
       correction_notices.py the hidden receipt every park over an attempt ends on, naming the issue and the source's
                             nonce, and the park a later tick owes recorded over a comment of ours carrying it rather
-                            than said again
+                            than said again, bounded wherever a reply boundary stands to walk from
       correction_reconcile.py
-                            what a later tick owes an attempt before any decomposer is charged behind it: an eligible
-                            one launched where no park stands, a stale one retired, a started, crowded, unproved, or
-                            unresumable one exhausted behind a human park, and an exhausted one nothing was made of
-                            and nothing charged behind parked for a human, each park said once
+                            what a later tick owes an attempt: ahead of the frozen read and the drift check, the park a
+                            started, crowded, unproved, or unresumable one -- or an exhausted one nothing was made of
+                            and nothing charged behind -- is owed, said once, so a reply written meanwhile resumes the
+                            saved session, and a claim nobody can read held on with nothing written
+                            (`recovers_park`); then, before any decomposer is charged behind it, an eligible one
+                            launched where no park stands, a stale one retired, and any other exhausted; and the run
+                            the tick then makes (`run_for_the_tick`): the resume of a park still standing, or the
+                            fresh spawn
       replacement_lineage.py
                             the late lineage an ordinary split seeds its children with, off the `late_split/` provenance
                             decision: one level below the parent under the same root and never past `MAX_LINEAGE_DEPTH`,

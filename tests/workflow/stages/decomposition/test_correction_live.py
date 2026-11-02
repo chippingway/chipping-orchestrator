@@ -150,6 +150,32 @@ class AfterReturnTest(unittest.TestCase, support.CorrectionTickCase):
                 self.assertEqual(self.stage(), support.EXHAUSTED)
                 self.assertEqual(len(self.said()), 1)
 
+    def test_a_hold_behind_the_exhaustion(self) -> None:
+        # A hold landing right behind the write that spends the correction
+        # makes nothing of its usable answer; once lifted, the next tick parks
+        # for a human over the spent attempt rather than launching it again.
+        self._held_behind_the_exhaustion()
+        self.lift()
+        later = self.decomposer(support.LISTED)
+
+        self.tick(later)
+
+        self.assertEqual(later.launches, [])
+        self.assertEqual(len(self.said()), 1)
+        self.assertIn("returned, but nothing was made of its answer", self.said()[0])
+        self.assertTrue(self.pinned()[KEY_AWAITING_HUMAN])
+
+    def _held_behind_the_exhaustion(self) -> None:
+        """A tick whose correction answered usably, held right behind the write that spent it: nothing made."""
+        self.opened()
+        runner = self.decomposer(support.UNLISTED, support.LISTED)
+        with support.CountedEdit.landing(self, support.EXHAUSTION, lambda world: world.hold()):
+            self.tick(runner)
+        self.assertEqual(self.children(), 0)
+        self.assertFalse(set(support.SPLIT_MARKERS) & set(self.pinned()))
+        self.assertEqual(self.label(), support.LABEL_DECOMPOSING)
+        self.assertEqual(self.stage(), support.EXHAUSTED)
+
     def _answer_held(self, during: dict, fetched) -> None:
         """A tick whose correction's answer a hold, or an unread issue, kept from being used; the hold lifted after."""
         self.opened()

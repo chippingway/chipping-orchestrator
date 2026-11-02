@@ -7,9 +7,10 @@ rejection, the arming, the circuit's charge, the accounting, and every write a
 correction makes are the production ones; only the decomposer process is
 scripted. Each launch records the pinned record and the children the client
 had created when it was invoked, which is how a test proves nothing was made
-before the correction ran. A strict edit can be lost by its place in the tick
-(`LosingEdit`): the rejected run's accounting, the arming, the correction's
-accounting, and its exhaustion are the parent's first four. The issue can be
+before the correction ran. A strict edit can be lost by its place in the tick,
+or the world moved right behind it once it lands (`CountedEdit`): the rejected
+run's accounting, the arming, the correction's accounting, and its exhaustion
+are the parent's first four. The issue can be
 moved right before one of the tick's fresh fetches of it (`OnFetch`): the
 live-pause check behind the rejected run, the one behind the correction's
 charge, the live-pause check behind its return, and the one before its answer
@@ -21,6 +22,7 @@ import copy
 import dataclasses
 import json
 from collections.abc import Callable
+from functools import partial
 from unittest.mock import patch
 
 from orchestrator.agents.models import AgentResult, AgentRunOptions
@@ -46,6 +48,9 @@ RETIRED = "retired"
 # The fetch right behind the correction's charge, and the one before its answer is used.
 BEHIND_THE_CHARGE = 2
 BEFORE_ACTING = 4
+
+# The parent's strict edit that spends a correction its answer returned.
+EXHAUSTION = 4
 
 # The refusal ten children with every list left out earn: the first one's.
 UNLISTED_ERROR = "child 0 missing depends_on"
@@ -165,20 +170,26 @@ class OnFetch:
 
 
 @dataclasses.dataclass
-class LosingEdit:
-    """The strict editor, losing the response of the issue's edits counted at the places named, each landing as sent."""
+class CountedEdit:
+    """The strict editor, at the issue's edits counted at the places named: response lost, or the world moved behind.
+
+    A lost edit lands as sent and answers as though it had not; one with
+    `behind` lands and is answered, and `behind` befalls the world right after.
+    """
 
     github: FakeGitHubClient
-    lost_at: frozenset
+    at: frozenset
     edit: Callable
+    behind: Callable[[], None] | None = None
     seen: int = 0
 
     def __call__(self, issue, *args, **kwargs):
         if issue.number != ISSUE_NUMBER:
             return self.edit(issue, *args, **kwargs)
         self.seen += 1
+        counted = self.seen in self.at
         lost = self.github.pinned_failures.lost
-        if self.seen in self.lost_at:
+        if counted and self.behind is None:
             lost.add(issue.number)
         try:
             answered = self.edit(issue, *args, **kwargs)
@@ -186,12 +197,22 @@ class LosingEdit:
             lost.discard(issue.number)
             raise
         lost.discard(issue.number)
+        if counted and self.behind is not None:
+            self.behind()
         return answered
 
     @classmethod
-    def patch(cls, github: FakeGitHubClient, *nth: int):
-        """The client's strict editor, so patched for the block."""
+    def losing(cls, github: FakeGitHubClient, *nth: int):
+        """The client's strict editor, losing the response of its `nth` edits, for the block."""
         edits = cls(github, frozenset(nth), github.edit_pinned_state)
+        return patch.object(github, "edit_pinned_state", side_effect=edits)
+
+    @classmethod
+    def landing(cls, world: CorrectionTickCase, nth: int, action: Callable):
+        """The world's strict editor, letting `action` befall the world right behind its `nth` edit, for the block."""
+        github = world.github
+        moved = partial(action, world)
+        edits = cls(github, frozenset((nth,)), github.edit_pinned_state, moved)
         return patch.object(github, "edit_pinned_state", side_effect=edits)
 
 

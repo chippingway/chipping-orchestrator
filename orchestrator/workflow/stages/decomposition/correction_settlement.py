@@ -15,13 +15,16 @@ disposition decides what the attempt is left as.
   no second notice (`correction_reconcile`); an exhaustion landing ahead of a
   lost park would leave an issue nobody was told about.
 - A usable manifest is acted on only once the issue, read afresh, still stands
-  where the rejected run left it (`correction_live`) and the attempt is
-  exhausted (`clears`): the exhaustion lands before the first child, split
-  marker, or label, so a split whose transaction a crash interrupts is the
-  split recovery's, never an attempt still pending beside its children. A
-  close, a relabel, or an edit since spends the attempt and makes nothing of
-  the answer, the edit left for the drift reset's fresh decomposition; a hold
-  or a reading GitHub would not answer makes nothing of it and spends nothing.
+  where the rejected run left it (`correction_live`), the attempt is exhausted,
+  and the issue, read afresh again behind that write, still stands (`clears`):
+  the exhaustion lands before the first child, split marker, or label, so a
+  split whose transaction a crash interrupts is the split recovery's, never an
+  attempt still pending beside its children. A close, a relabel, or an edit
+  since spends the attempt and makes nothing of the answer, the edit left for
+  the drift reset's fresh decomposition; a hold or a reading GitHub would not
+  answer makes nothing of it and spends nothing -- save one landing behind the
+  exhaustion, which leaves the attempt spent for the next tick to park over
+  (`correction_reconcile.recovers_park`).
 - A hold, an unresolved accounting, or an interruption leaves the attempt
   pending with its start on the ledgers -- never launched again -- for the
   next tick to give up behind a human park.
@@ -95,7 +98,11 @@ def clears(gh: GitHubClient, issue: Issue, state: PinnedState, run_plan: _Decomp
     """Whether the usable manifest `run_plan`'s run answered may be acted on now.
 
     Every run's but a correction's may. A correction's only where the issue
-    still stands as its rejected run left it and its attempt reads spent.
+    still stands as its rejected run left it, its attempt reads spent, and the
+    issue, read afresh once more behind that exhaustion's write, still stands:
+    a hold, a close, a relabel, or an edit landing while it was written makes
+    nothing of the answer either, the attempt left spent for the next tick to
+    park over.
     """
     attempt = run_plan.correction
     if attempt is None:
@@ -105,13 +112,13 @@ def clears(gh: GitHubClient, issue: Issue, state: PinnedState, run_plan: _Decomp
         log.info("issue=#%d its corrected manifest reads %s; acting on nothing", issue.number, live.value)
         return False
     spent = spends(gh, issue, state, attempt, run_plan.agent_result.invocation)
-    if live is _live.Live.MOVED:
-        log.info(
-            "issue=#%d moved while its manifest correction ran; its answer is spent and acted on nothing",
-            issue.number,
-        )
+    if live is _live.Live.MOVED or not spent:
+        log.info("issue=#%d its corrected manifest is acted on nothing: it reads %s", issue.number, live.value)
         return False
-    return spent
+    behind = _live.reads(gh, issue, state, attempt.source)
+    if behind is not _live.Live.STANDS:
+        log.info("issue=#%d reads %s behind its correction's exhaustion; acting on nothing", issue.number, behind.value)
+    return behind is _live.Live.STANDS
 
 
 def retires(gh: GitHubClient, issue: Issue, state: PinnedState, attempt: _records.CorrectionAttempt) -> bool:

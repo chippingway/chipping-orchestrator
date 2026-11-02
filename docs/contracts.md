@@ -241,8 +241,9 @@ cursor carry reads both back, and nothing settles from either.
 A decomposer manifest correction (`decomposer_correction`) is read only whole as well: absent is an issue that armed
 none, and any other shape -- `null`, a key too many or too few, a member out of its bound, or a correction not charged
 after its source on that comment and in that cycle -- is a damaged claim, never an absence, so nothing arms over it,
-resolves it, or launches on it. Every park over an attempt ends on a hidden receipt naming the issue and the source
-invocation's nonce, which counts as that park's notice only on a comment of ours past the reply boundary.
+resolves it, or launches on it, and an initial decomposition carrying one holds its tick with the claim kept and
+nothing launched, created, or written. Every park over an attempt ends on a hidden receipt naming the issue and the
+source invocation's nonce, which counts as that park's notice only on a comment of ours past the reply boundary.
 
 Unsupported input cannot serve as fresh work, current evidence, or authorization to publish or delete artifacts. Neither
 a format change nor a refusal grants permission to discard that input or the artifacts it names; the owning
@@ -511,7 +512,8 @@ for the charge and start it leaves beside the attempt's widest resolution. Its a
 run's own disposition that landed, so the session and baseline it is held to are durable; every park over it lands
 before the attempt is resolved, and a usable answer is acted on only behind an exhaustion that landed, so a lost
 exhaustion leaves a park standing over a pending attempt and never children beside one, and a lost park write is
-recorded over the notice its receipt finds rather than said twice.
+recorded over the notice its receipt finds rather than said twice -- ahead of the next tick's drift check and
+bounded, so a reply written meanwhile stays the saved session's rather than reading as an edit.
 Writer exclusion comes from [C-05].
 
 **Specs:** [transactions](state-machine/labels-and-state.md#pinned-state),
@@ -750,10 +752,11 @@ and requirements baseline move only behind a run that read the thread,
 and every park that run's disposition takes, a split's included, records the thread read through our own comments
 and no further. Lifetime agent-run charges and
 the grant that permits further runs are covered by [C-15].
-A decomposer manifest correction is held to the issue read afresh behind its charge and again before its answer is
-used: a `paused`/`backlog` hold, a close, a label other than `workflow:decomposing`, or requirements that read as
-neither the whole thread nor the stretch through the settled reply boundary as the revision its rejected run was
-handed invokes nothing and makes no child, split marker, or label; an edit is answered by the drift reset's fresh
+A decomposer manifest correction is held to the issue read afresh behind its charge, again before its answer is
+used, and once more behind the write that spends it: a `paused`/`backlog` hold, a close, a label other than
+`workflow:decomposing`, or requirements that read as neither the whole thread nor the stretch through the settled
+reply boundary as the revision its rejected run was handed invokes nothing and makes no child, split marker, or
+label; an edit is answered by the drift reset's fresh
 decomposition, the attempt resolved rather than replenished. A spent daily budget parks its launch on `retry_cap`,
 whose continuation retires the session and with it the attempt; a spent lifetime ledger parks it on
 `agent_run_limit`, whose grant alone buys that launch. A correction a hold, an unresolved accounting, an

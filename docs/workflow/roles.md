@@ -209,7 +209,9 @@ per-stage behavior is in
   afresh, still stands, and a second invalid one parks with its error and answer quoted -- and earns no correction of
   its own. A question, silence, a failed or incomplete return, a timeout, an interruption, a dirty checkout, or a run
   that saved no session earns none and parks as before; a correction a hold, a restart, or a lost write left
-  unanswered is never launched again, and parks for a human instead. A `retry_cap` park its launch took is lifted
+  unanswered is never launched again, and parks for a human instead -- before any reply is read as an edit, so a
+  reply written while it was out resumes the saved session -- while a correction record nobody can read holds the
+  issue until it is repaired. A `retry_cap` park its launch took is lifted
   by the continuation above, which retires the session and so the attempt.
   The `question` stage reads `DECOMPOSE_AGENT` only as the *fallback* on the first-ever question spawn, then pins what
   it ran under to `question_agent` (a separate key) so a multi-turn Q&A keeps its own lock independent of any
