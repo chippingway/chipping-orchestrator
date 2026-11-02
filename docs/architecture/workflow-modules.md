@@ -3157,11 +3157,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             buys: that session resumed under the pinned command's backend and arguments in the
                             issue's read-only checkout, handed the error and the whole output contract, and named by
                             no retry count, so a charge it reserved is its own to start in any later daily window
-      correction_road.py    the attempt asked for at the rejection: the run's disposition so far written whole, the
-                            attempt armed over it, a crowded one given up behind the ordinary park and a write left
-                            withholding the caller holding the tick; and the launch -- a retry the daily budget pays
-                            for, its spent park taken instead, then the tracked spawn under the attempt's one owed
-                            launch, the issue read afresh behind the charge
+      correction_road.py    the attempt asked for at the rejection: the run's disposition so far written whole over a
+                            comment read back unmoved, the attempt armed over it, a crowded one given up behind the
+                            ordinary park and a write left withholding the caller holding the tick; and the launch --
+                            the comment and the issue read afresh first, then a retry the daily budget pays for, its
+                            spent park taken instead, then the tracked spawn under the attempt's one owed launch, the
+                            issue read afresh behind the charge
       correction_live.py    the issue read afresh around that launch and its answer: a `paused` / `backlog` hold, a
                             close, a label other than `workflow:decomposing`, or requirements that read as neither the
                             whole thread nor the stretch through the settled reply boundary as the revision the
@@ -3180,8 +3181,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             retirement of a moved attempt, the tick's own reset written first where only it shows it
       correction_notices.py the hidden receipt every park over an attempt ends on, naming the issue and the source's
                             nonce, the notice held on the record before it is posted (`owing`, `owed`), and the park a
-                            later tick owes -- taken only where the comment and the issue, read afresh behind the
-                            receipt's thread read, still stand -- recorded over a comment of ours carrying it rather
+                            later tick owes -- taken only where the comment, read back unmoved and still carrying the
+                            attempt bound to its record and cycle, and the issue, read afresh behind the receipt's
+                            thread read, still stand -- recorded over a comment of ours carrying it rather
                             than said again --
                             said otherwise in the held notice's own words -- bounded wherever a reply boundary stands
       correction_reconcile.py

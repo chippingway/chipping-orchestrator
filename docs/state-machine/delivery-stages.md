@@ -747,22 +747,22 @@ because there it is the claim that this stage has already rerouted rather than a
      Those parks are taken earlier still, right behind the reroute marker's retirement and ahead of step 2's frozen
      read and drift check (`correction_reconcile.recovers_park`), so a reply written while the correction was out is
      the park's to deliver — the tick goes on as a parked one and resumes the saved session on it — rather than an
-     edit retiring that session. Each is taken only where the pinned comment and then the issue, read afresh behind
-     the receipt's thread read and ahead of any post or write, still stand (`correction_live.answers`): a hold or an
-     unread reading holds the tick with nothing said or written, and a moved context, owner, or requirements spends
-     the attempt with no park and leaves the move to step 2's drift road. Each is said once and bounded: its notice
-     ends on the receipt
-     `<!--orchestrator-decomposer-correction:issue=<n>:source=<nonce>-->`; a comment of ours past the reply boundary
-     already carrying it is recorded as the park, taken into our comment ledger, with nothing posted again
-     (`correction_notices.py`); and either way the boundary walks our own comments and no further, so it stops short
-     of a reply written before the notice — standing on the notice only where no boundary stands to walk from. A
-     `decomposer_correction` claim nobody can read holds the tick there, with the claim kept as it stands and nothing
-     reset, launched, created, or written, until it is repaired. A write over the attempt left unconfirmed or landing
-     over a moved comment, or a thread a park could not read, holds the tick too. A tick owing an `eligible` attempt's
-     launch freezes its thread in step 2 as a parked one does (`replies.reads_the_thread`): the rejected run settled
-     the boundary through what it read, so a reply written since is past it — the saved session's next resume's,
-     not an edit retiring it — and every park the launched correction's disposition takes is bounded by that read
-     wherever its boundary is the one the requirements baseline was settled through
+     edit retiring that session. Each is taken only where the pinned comment, read back as the tick's own reading and
+     still carrying the attempt bound to its record and cycle, and then the issue, read afresh behind the receipt's
+     thread read and ahead of any post or write, still stand (`correction_live.answers`): a comment moved under the
+     tick, a hold, or an unread reading holds the tick with nothing said or written, and a moved context, owner, or
+     requirements spends the attempt with no park and leaves the move to step 2's drift road. Each is said once and
+     bounded: its notice ends on the receipt `<!--orchestrator-decomposer-correction:issue=<n>:source=<nonce>-->`; a
+     comment of ours past the reply boundary already carrying it is recorded as the park, taken into our comment ledger,
+     with nothing posted again (`correction_notices.py`); and either way the boundary walks our own comments and no
+     further, so it stops short of a reply written before the notice — standing on the notice only where no boundary
+     stands to walk from. A `decomposer_correction` claim nobody can read holds the tick there, with the claim kept as
+     it stands and nothing reset, launched, created, or written, until it is repaired. A write over the attempt left
+     unconfirmed or landing over a moved comment, or a thread a park could not read, holds the tick too. A tick owing an
+     `eligible` attempt's launch freezes its thread in step 2 as a parked one does (`replies.reads_the_thread`): the
+     rejected run settled the boundary through what it read, so a reply written since is past it — the saved session's
+     next resume's, not an edit retiring it — and every park the launched correction's disposition takes is bounded by
+     that read wherever its boundary is the one the requirements baseline was settled through
      (`DecomposerReplies.bounds`); the read is never settled, since the correction is handed the error alone.
 
      Then resume on a new comment; otherwise gate on the per-issue retry budget
@@ -849,14 +849,17 @@ because there it is the claim that this stage has already rerouted rather than a
        read-only, no correction's own answer, the parser's error concrete, and a conversation saved under a
        `decomposer_session_id` the pinned `decomposer_agent` command can resume. A run that saved none parks as above,
        the actionable park, never a fresh decomposition in its place. The run's own disposition so far — the session
-       pin, the settlement of a frozen read, the stamp — is written whole first, and then the attempt is armed
-       (`correction_road.py`, over the guarded `correction_checkpoint.arm`), naming the run's invocation, the
-       requirements baseline it settled, the command and session, and the exact error. An arming refused parks as
-       above; one landing on a comment with no room to launch it parks as above with the attempt exhausted behind the
-       park; one sent and never confirmed, or landing over a comment moved since, holds the tick, and the next tick's
-       step 5 reads back what landed. The launch is a retry the daily budget pays for like a fresh spawn — a spent one
-       takes the `retry_cap` park instead, whose `/orchestrator continue` retires the session and so the attempt, and
-       buys the fresh decomposition it always bought — and is charged and accounted once by the tracked spawn under
+       pin, the settlement of a frozen read, the stamp — is written whole first, over a comment read back as the one the
+       tick read (one another road or a human wrote while the run was out — a session pinned in its place, a cycle moved
+       — holds the tick with nothing written or armed), and then the attempt is armed (`correction_road.py`, over the
+       guarded `correction_checkpoint.arm`), naming the run's invocation, the requirements baseline it settled, the
+       command and session, and the exact error. An arming refused parks as above; one landing on a comment with no room
+       to launch it parks as above with the attempt exhausted behind the park; one sent and never confirmed, or landing
+       over a comment moved since, holds the tick, and the next tick's step 5 reads back what landed. The launch is a
+       retry the daily budget pays for like a fresh spawn, charged only once the comment, read back unmoved, and then
+       the issue still stand as above, so no `retry_cap` park is written or announced over a hold or a move — a spent
+       one takes the `retry_cap` park instead, whose `/orchestrator continue` retires the session and so the attempt,
+       and buys the fresh decomposition it always bought — and is charged and accounted once by the tracked spawn under
        the attempt's one owed launch, refused with nothing invoked on any reading of the comment that no longer grants
        it, and on the issue read afresh right behind the charge (`correction_live.py`): a `paused`/`backlog` hold, a
        close, a label other than `workflow:decomposing`, or requirements that read as neither the whole thread nor the

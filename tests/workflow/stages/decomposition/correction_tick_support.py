@@ -13,12 +13,12 @@ run's accounting, the arming, the correction's accounting, and its exhaustion
 are the parent's first four. The issue can be
 moved right before one of the tick's fresh fetches of it (`OnFetch`), which a
 tick correcting its rejected run on the spot makes in this order: the
-live-pause check behind the rejected run; then three checks of the issue, each
-fetching it before and behind its thread's read -- on the reading the
-correction is charged on, behind the charge, and on the reading its start is
-written over; the live-pause check behind its return; and two more such
-checks before its answer is acted on -- before the exhaustion, and behind it
-and the saved context's read.
+live-pause check behind the rejected run; then four checks of the issue, each
+fetching it before and behind its thread's read -- before the daily retry
+budget is charged, on the reading the correction is charged on, behind the
+charge, and on the reading its start is written over; the live-pause check
+behind its return; and two more such checks before its answer is acted on --
+before the exhaustion, and behind it and the saved context's read.
 """
 from __future__ import annotations
 
@@ -53,11 +53,11 @@ RETIRED = "retired"
 # thread read, and the last before its start, behind the thread read of the
 # check on the reading the start is written over; the first fetch before its
 # answer is used, and the last, behind the saved context's read and its thread's.
-BEHIND_THE_CHARGE = 4
-BEHIND_THE_THREAD = 5
-BEFORE_THE_START = 7
-BEFORE_ACTING = 9
-BEHIND_THE_CONTEXT = 12
+BEHIND_THE_CHARGE = 6
+BEHIND_THE_THREAD = 7
+BEFORE_THE_START = 9
+BEFORE_ACTING = 11
+BEHIND_THE_CONTEXT = 14
 
 # The parent's strict edit that spends a correction its answer returned.
 EXHAUSTION = 4

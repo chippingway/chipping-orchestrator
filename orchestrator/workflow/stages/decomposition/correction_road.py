@@ -84,14 +84,21 @@ def requests(
 
     `run_plan.agent_result` is the run whose manifest the parser refused, and
     the error the parser refuses it with is the one its correction is handed.
-    A write over the attempt that left the caller's state withheld -- sent and
-    never confirmed, or landing over a comment moved since -- holds the tick,
-    since no whole-state write may follow it.
+    The comment is read back before the run's disposition is written whole
+    over it (`correction_checkpoint.read_back`): one another road or a human
+    wrote while the run was out -- a session pinned in place of the run's, a
+    cycle moved -- withholds the caller's state and holds the tick, so that
+    write never puts back what it replaced and no correction is armed for a
+    conversation the record no longer names. A write over the attempt that
+    left the caller's state withheld -- sent and never confirmed, or landing
+    over a comment moved since -- holds the tick too, since no whole-state
+    write may follow it.
     """
     source = _source.earned(issue, state, run_plan)
     if source is None:
         return CorrectionAsk()
-    if not _record_admission.written(gh, issue, state):
+    _checkpoint.read_back(gh, issue, state)
+    if state.withheld or not _record_admission.written(gh, issue, state):
         log.warning(
             "issue=#%d the disposition its manifest correction is armed over did not land; holding the tick",
             issue.number,
@@ -114,7 +121,15 @@ def launch(
     state: PinnedState,
     attempt: _records.CorrectionAttempt,
 ) -> AgentResult | None:
-    """Spend a retry and launch `attempt`'s one correction; None where the retry budget parked the issue instead."""
+    """Spend a retry and launch `attempt`'s one correction; None where it is held, or the retry budget parked it.
+
+    The pinned comment and the issue are read afresh first (`_still_owed`),
+    so a spent budget's park is never written or announced over a hold, a
+    moved owner or requirements, a moved saved context, or a comment another
+    road wrote since the tick read it: each holds the tick with nothing said.
+    """
+    if not _still_owed(gh, issue, state, attempt):
+        return None
     if not _retry_budget._charge_or_park(gh, issue, state, stage=_source.STAGE):
         gh.write_pinned_state(issue, state)
         return None
@@ -124,3 +139,13 @@ def launch(
     owed = dataclasses.replace(owed, stands=stands)
     budget = _run_charge_state.AgentRunBudget(issue=issue, state=state, owed=owed)
     return _usage._run_agent_tracked(gh, budget, _source.resumed(spec, issue, attempt.source))
+
+
+def _still_owed(gh: GitHubClient, issue: Issue, state: PinnedState, attempt: _records.CorrectionAttempt) -> bool:
+    """Whether the comment, read back unmoved, and then the issue still stand as `attempt` was armed over."""
+    _checkpoint.read_back(gh, issue, state)
+    live = _live.answers(gh, issue, state, attempt.source)
+    if live is not _live.Live.STANDS or state.withheld:
+        log.info("issue=#%d reads %s ahead of its manifest correction's launch; holding it", issue.number, live.value)
+        return False
+    return True

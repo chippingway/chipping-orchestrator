@@ -139,6 +139,20 @@ class BeforeLaunchTest(unittest.TestCase, support.CorrectionTickCase):
                 self.assertEqual(self.label(), support.LABEL_DECOMPOSING)
                 self.assertEqual(self.said(), [])
 
+    def test_a_repinned_source_arms_nothing(self) -> None:
+        # A session a human pins in place of the rejected run's while it is
+        # out: the run's disposition is not written back over the pin, and no
+        # correction is armed for, or launched on, the displaced session.
+        self.opened()
+        runner = self.decomposer(support.UNLISTED, support.SINGLE, during={0: _repin})
+
+        self.tick(runner)
+
+        self.assertEqual(len(runner.launches), 1)
+        self.assertEqual(self.pinned()["decomposer_session_id"], _REPINNED)
+        self.assertIsNone(self.stage())
+        self.assertEqual(self.said(), [])
+
     def test_a_moved_owner_launches_nothing(self) -> None:
         for name, move, label in _MOVED_OWNERS:
             with self.subTest(name):

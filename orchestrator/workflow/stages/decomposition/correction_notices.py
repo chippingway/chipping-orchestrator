@@ -43,8 +43,10 @@ from orchestrator.workflow.engine import (
     record_admission as _record_admission,
 )
 from orchestrator.workflow.stages.decomposition import (
+    correction_checkpoint as _checkpoint,
     correction_live as _live,
     correction_records as _records,
+    correction_standing as _standing,
     ready_readings as _ready_readings,
     state as _state,
 )
@@ -54,6 +56,9 @@ log = logging.getLogger("orchestrator.workflow")
 _RECEIPT = "<!--orchestrator-decomposer-correction:issue={issue}:source={nonce}-->"
 
 _OWED = _state._DECOMPOSER_CORRECTION_NOTICE
+
+# What a reading of the attempt says where it is no longer the tick's to park over.
+_NOT_ITS_OWN = frozenset((_standing.Standing.DISPLACED, _standing.Standing.DAMAGED, _standing.Standing.ABSENT))
 
 # The members of an owed notice: the source it is the park of, and its words.
 _SOURCE = "source"
@@ -108,6 +113,9 @@ def parks_once(
     of any post or write (`correction_live.answers`), and nothing is said or
     written: a hold, a reading GitHub would not answer, or a move -- the saved
     context, the owner, or the requirements -- whose road is not this park's.
+    Ahead of those the comment is read back (`_still_its_own`): one moved
+    since the tick read it, or no longer carrying this attempt bound to its
+    record and cycle, holds the tick as UNREAD, with nothing said or written.
 
     The park is written whole either way, and bounded wherever a reply
     boundary stands to walk from: it records the thread read through our own
@@ -125,6 +133,8 @@ def parks_once(
         log.exception("issue=#%d could not be read for its manifest correction's park; holding it", issue.number)
         return _live.Live.UNREAD
     said = _ready_readings.found(gh, state, thread, _receipt(attempt))
+    if not _still_its_own(gh, issue, state, attempt):
+        return _live.Live.UNREAD
     live = _live.answers(gh, issue, state, attempt.source)
     if live is not _live.Live.STANDS:
         log.info("issue=#%d reads %s ahead of its correction's park; parking nothing", issue.number, live.value)
@@ -144,6 +154,23 @@ def parks_once(
     state.state_data.pop(_OWED, None)
     gh.write_pinned_state(issue, state)
     return live
+
+
+def _still_its_own(gh: GitHubClient, issue: Issue, state: PinnedState, attempt: _records.CorrectionAttempt) -> bool:
+    """Whether the comment, read back, is the tick's reading and still carries `attempt` bound to its record and cycle.
+
+    A comment another road or a human wrote since the tick read it withholds
+    the tick's state, whose whole-state write would put back what that write
+    replaced -- a cycle moved, a pin changed -- and one whose attempt names
+    another record or cycle, or is no longer this one, is no park of this
+    attempt's to take.
+    """
+    back = _checkpoint.read_back(gh, issue, state).reading
+    own = back is not None and back.attempt == attempt and back.standing not in _NOT_ITS_OWN
+    if state.withheld or not own:
+        log.info("issue=#%d its manifest correction's record moved under the tick; parking nothing", issue.number)
+        return False
+    return True
 
 
 def _recorded_over(gh: GitHubClient, issue: Issue, state: PinnedState, said: int, *, bounded: bool) -> None:

@@ -509,15 +509,16 @@ resolution is refused wherever no readable count covers every charge its ledgers
 below a charge taken, and a retirement for a moved context is held to a reading that proves the move, so a baseline or
 pin nobody can read retires nothing. Its launch is granted only where the charge counts read and the comment has room
 for the charge and start it leaves beside the attempt's widest resolution. Its arming follows a write of the rejected
-run's own disposition that landed, so the session and baseline it is held to are durable; every park over it lands
-before the attempt is resolved, and a usable answer is acted on only behind an exhaustion that landed, so a lost
-exhaustion leaves a park standing over a pending attempt and never children beside one, and a lost park write is
-recorded over the notice its receipt finds rather than said twice -- ahead of the next tick's drift check and
-bounded, so a reply written meanwhile stays the saved session's rather than reading as an edit, and in the words the
-record held for it before its post, so a post that never landed loses neither its error nor its answer. A usable
-answer is
-acted on only behind an exhaustion that left the caller's state its own: one landing over a comment moved since
-withholds that state, and nothing is made of the answer.
+run's own disposition that landed over a comment read back as the one the tick read, so the session and baseline it is
+held to are durable and no session or cycle written meanwhile is put back; neither a spent budget's park before its
+launch nor a park a later tick recovers is written or announced over a comment moved under the tick, or one no longer
+carrying the attempt bound to its record and cycle; every park over it lands before the attempt is resolved, and a
+usable answer is acted on only behind an exhaustion that landed, so a lost exhaustion leaves a park standing over a
+pending attempt and never children beside one, and a lost park write is recorded over the notice its receipt finds
+rather than said twice -- ahead of the next tick's drift check and bounded, so a reply written meanwhile stays the saved
+session's rather than reading as an edit, and in the words the record held for it before its post, so a post that never
+landed loses neither its error nor its answer. A usable answer is acted on only behind an exhaustion that left the
+caller's state its own: one landing over a comment moved since withholds that state, and nothing is made of the answer.
 Writer exclusion comes from [C-05].
 
 **Specs:** [transactions](state-machine/labels-and-state.md#pinned-state),

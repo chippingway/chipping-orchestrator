@@ -32,6 +32,9 @@ KEY_PARK_REASON = support.KEY_PARK_REASON
 KEY_RETRY_CAP_NOTICE = support.KEY_RETRY_CAP_NOTICE
 KEY_RETRY_CAP_STAGE = support.KEY_RETRY_CAP_STAGE
 KEY_USER_CONTENT_HASH = "user_content_hash"
+# The parent's strict edit that arms the correction: the second of its tick.
+_ARMING_EDIT = 2
+_DAILY_BUDGET = "MAX_RETRIES_PER_DAY"
 RUN_AGENT = support.RUN_AGENT
 
 HELD_TICKS = 3
@@ -460,7 +463,7 @@ class CorrectionCapTest(unittest.TestCase, _corrected.CorrectionTickCase):
     """
 
     def test_a_capped_correction_is_retired(self) -> None:
-        with patch.object(config, "MAX_RETRIES_PER_DAY", 1):
+        with patch.object(config, _DAILY_BUDGET, 1):
             self._capped()
             self.reply(CONTINUE_COMMAND)
             bought = self.decomposer(_corrected.SINGLE)
@@ -473,6 +476,23 @@ class CorrectionCapTest(unittest.TestCase, _corrected.CorrectionTickCase):
         self.assertEqual(self.pinned()[KEY_CONTINUED], 0)
         self.assertEqual(self.runs(), 2)
         self.assertEqual(self.label(), LABEL_READY)
+
+    def test_a_held_arming_parks_nothing(self) -> None:
+        # A hold landing while the correction is armed, the day's budget
+        # already spent: no retry-cap park is written or said over it, and the
+        # tick behind the lifted hold takes that park once.
+        with patch.object(config, _DAILY_BUDGET, 1):
+            self.opened()
+            with _corrected.CountedEdit.landing(self, _ARMING_EDIT, lambda world: world.hold()):
+                self.tick(self.decomposer(_corrected.UNLISTED))
+            held = self.pinned()
+            self.lift()
+            self.tick(self.decomposer(_corrected.LISTED))
+
+        self.assertFalse(held.get(KEY_AWAITING_HUMAN), "no park is written over the hold")
+        self.assertEqual(held[_corrected.FIELD]["stage"], _corrected.PENDING)
+        self.assertEqual(self.pinned()[KEY_PARK_REASON], support.PARK_RETRY_CAP)
+        self.assertEqual(len(self.said()), 1)
 
     def _capped(self) -> None:
         """A rejected run that spent the last slot, its correction parked on the cap, and a quiet tick behind it."""

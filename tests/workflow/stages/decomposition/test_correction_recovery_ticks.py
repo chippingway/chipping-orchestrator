@@ -36,6 +36,8 @@ _EDITED = "Ship ten slices, then document them."
 
 _CORRECTION = "automatic correction"
 
+_CYCLE = "late_cycle_id"
+
 _LATER = "Keep streaming too."
 
 
@@ -297,6 +299,29 @@ class RecoveryLiveTest(unittest.TestCase, support.CorrectionTickCase):
         self.assertEqual(held[support.FIELD]["stage"], support.PENDING)
         self.assertEqual(len(self.said()), 1, "the park is said once, behind the lifted hold")
         self.assertTrue(self.pinned()[KEY_AWAITING_HUMAN])
+
+    def test_a_moved_cycle_parks_nothing(self) -> None:
+        # The record moves on to another cycle while the recovery reads its
+        # thread: the attempt is no longer this record's to park, and the
+        # recovery's whole-state write never puts the earlier cycle back.
+        self.opened()
+        killed = {"interrupted": True, "exit_code": support.SHUTDOWN_EXIT}
+        self.tick(self.decomposer(support.UNLISTED, killed))
+        self._read = self.github.comments_after
+        with patch.object(self.github, "comments_after", side_effect=self._moves_the_cycle_while_reading):
+            self.tick(self.decomposer(support.SINGLE))
+
+        self.assertEqual(self.pinned().get(_CYCLE), 1, "the later cycle is kept")
+        self.assertEqual(self.said(), [])
+        self.assertFalse(self.pinned().get(KEY_AWAITING_HUMAN))
+
+    def _moves_the_cycle_while_reading(self, *args, **kwargs):
+        """The thread read, with the record moved onto the next cycle while it is out, once."""
+        reading = self.github.read_pinned_state(self.issue)
+        if reading.get(_CYCLE) is None:
+            reading.set(_CYCLE, 1)
+            self.github.write_pinned_state(self.issue, reading)
+        return self._read(*args, **kwargs)
 
     def _edits(self, world: support.CorrectionTickCase) -> None:
         """A human edits the issue's body while the correction is out."""
