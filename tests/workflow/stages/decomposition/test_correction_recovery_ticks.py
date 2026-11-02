@@ -30,6 +30,8 @@ _ADD_RUNS = "/orchestrator add-agent-runs 1"
 
 _ANSWER = "Please include every depends_on list."
 
+_HELD_NOTICE = "decomposer_correction_notice"
+
 _LATER = "Keep streaming too."
 
 
@@ -135,6 +137,26 @@ class UnconfirmedWriteTest(unittest.TestCase, support.CorrectionTickCase):
         self.assertEqual(len(self.said()), 1, "the park is not said twice")
         self.assertTrue(pinned[KEY_AWAITING_HUMAN])
         self.assertEqual(pinned["last_action_comment_id"], notice.id)
+        self.assertEqual(self.stage(), support.EXHAUSTED)
+
+    def test_a_refused_notice_is_said_from_the_record(self) -> None:
+        # The second invalid answer's park notice is refused as it is posted:
+        # the record still holds it, so the next tick posts it in its own
+        # words -- the latest error and the rejected answer -- once.
+        self.opened()
+        refusing = _LosesOnce(self.github.comment, lambda body: support.CORRECTED_PARK in body)
+        with patch.object(self.github, "comment", side_effect=refusing), self.assertRaises(RuntimeError):
+            self.tick(self.decomposer(support.UNLISTED, support.SELF_EDGE))
+        later = self.decomposer(support.LISTED)
+
+        self.tick(later)
+        self.tick(later)
+
+        notice, *again = self.said()
+        self.assertEqual((later.launches, again), ([], []))
+        self.assertIn(f"manifest invalid ({support.SELF_EDGE_ERROR}) {support.CORRECTED_PARK}", notice)
+        self.assertIn('"depends_on": [0]', notice, "the rejected answer is quoted")
+        self.assertNotIn(_HELD_NOTICE, self.pinned(), "the held notice is dropped with the park")
         self.assertEqual(self.stage(), support.EXHAUSTED)
 
     def _unsettled(self, lost: int) -> None:

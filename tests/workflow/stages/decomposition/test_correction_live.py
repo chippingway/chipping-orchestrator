@@ -11,6 +11,7 @@ reset's fresh decomposition with the attempt resolved, never replenished.
 from __future__ import annotations
 
 import unittest
+from datetime import UTC, datetime, timedelta
 
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.fixtures import KEY_AWAITING_HUMAN, LABEL_READY
@@ -44,6 +45,19 @@ def _repin(world: support.CorrectionTickCase) -> None:
 
 _REPINNED = "dec-pinned-by-hand"
 
+# A hold landing while a later read of a check was out, by the fetch it lands
+# ahead of, beside how many runs that leaves launched: behind the thread read
+# behind the charge, behind the reading the start is written over, and behind
+# the saved context's read before a usable answer is acted on.
+_LATE_HOLDS = (
+    ("the thread behind the charge", support.BEHIND_THE_THREAD, 1),
+    ("the start's reading", support.ON_THE_START, 1),
+    ("the saved context", support.BEHIND_THE_CONTEXT, 2),
+)
+
+# The days a held correction waits out, past the daily retry window it was charged in.
+_DAYS_LATER = 2
+
 # Owners the issue moves to, by the label it is left reading.
 _MOVED_OWNERS = (("closed", _close, support.LABEL_DECOMPOSING), ("relabelled", _relabel, LABEL_READY))
 
@@ -56,7 +70,11 @@ _MOVED_ANSWERS = tuple(
 
 
 class BeforeLaunchTest(unittest.TestCase, support.CorrectionTickCase):
-    """What lands between the rejection and the correction's start invokes nothing."""
+    """What lands between the rejection and the correction's start invokes nothing.
+
+    Nor does a hold landing while any later read of a check was out: each
+    check ends on the issue's controls, asked afresh behind its last read.
+    """
 
     def test_an_edit_takes_the_fresh_decomposition(self) -> None:
         # The body edited while the rejected run was out: its correction is
@@ -78,17 +96,37 @@ class BeforeLaunchTest(unittest.TestCase, support.CorrectionTickCase):
 
     def test_a_hold_defers_the_launch(self) -> None:
         # A hold applied behind the arming refuses the start with its charge
-        # kept; once lifted, the next tick starts that very charge.
-        self._held_behind_the_charge()
-        self.lift()
-        later = self.decomposer(support.LISTED)
+        # kept; once lifted, the next tick starts that very charge -- in the
+        # same daily retry window, or after it rolled over, the launch being
+        # the same one whatever retry count the window has rolled to.
+        for name, rolled in (("the same window", False), ("the next window", True)):
+            with self.subTest(name):
+                self._held_behind_the_charge()
+                self.lift()
+                if rolled:
+                    self._rolls_the_window()
+                later = self.decomposer(support.LISTED)
 
-        self.tick(later)
+                self.tick(later)
 
-        self.assertEqual(len(later.launches), 1)
-        self.assertEqual(later.launches[0].resumed, support.SESSION)
-        self.assertEqual(self.runs(), 2, "the held charge is started, not paid again")
-        self.assertEqual(self.children(), support.SLICES)
+                self.assertEqual(len(later.launches), 1)
+                self.assertEqual(later.launches[0].resumed, support.SESSION)
+                self.assertEqual(self.runs(), 2, "the held charge is started, not paid again")
+                self.assertEqual(self.children(), support.SLICES)
+
+    def test_a_late_hold_makes_nothing(self) -> None:
+        for name, nth, launched in _LATE_HOLDS:
+            with self.subTest(name):
+                self.opened()
+                runner = self.decomposer(support.UNLISTED, support.LISTED)
+                with support.OnFetch.patch(self, nth, lambda world: world.hold()):
+                    self.tick(runner)
+
+                self.assertEqual(len(runner.launches), launched)
+                self.assertEqual(self.children(), 0)
+                self.assertFalse(set(support.SPLIT_MARKERS) & set(self.pinned()))
+                self.assertEqual(self.label(), support.LABEL_DECOMPOSING)
+                self.assertEqual(self.said(), [])
 
     def test_a_moved_owner_launches_nothing(self) -> None:
         for name, move, label in _MOVED_OWNERS:
@@ -112,6 +150,13 @@ class BeforeLaunchTest(unittest.TestCase, support.CorrectionTickCase):
         self.assertEqual(len(held.launches), 1)
         self.assertEqual(self.runs(), 2)
         self.assertEqual(self.pinned()["agent_run_reservation"], "reserved")
+
+    def _rolls_the_window(self) -> None:
+        """The daily retry window the held correction was charged in runs out."""
+        reading = self.github.read_pinned_state(self.issue)
+        opened = datetime.now(UTC) - timedelta(days=_DAYS_LATER)
+        reading.set("retry_window_start", opened.isoformat(timespec="seconds"))
+        self.github.write_pinned_state(self.issue, reading)
 
 
 class AfterReturnTest(unittest.TestCase, support.CorrectionTickCase):

@@ -113,7 +113,7 @@ def recovers_park(gh: GitHubClient, issue: Issue, state: PinnedState) -> bool:
     if unanswered is None or _replies.parked(state):
         return True
     attempt = reading.attempt
-    if not _notices.parks_once(gh, issue, state, attempt, _notice(reading, unanswered)):
+    if not _notices.parks_once(gh, issue, state, attempt, _notice(state, reading, unanswered)):
         return False
     if reading.standing is not _STANDING.EXHAUSTED:
         _settlement.spends(gh, issue, state, attempt)
@@ -202,15 +202,22 @@ def _given_up(
     """
     parked = _replies.parked(state)
     attempt = reading.attempt
-    notice = _notice(reading, reading.standing)
+    notice = _notice(state, reading, reading.standing)
     if not parked and not _notices.parks_once(gh, issue, state, attempt, notice):
         return _held(state)
     _settlement.spends(gh, issue, state, attempt)
     return None if parked and not state.withheld else _held(state)
 
 
-def _notice(reading: _standing.CorrectionReading, unanswered: object) -> str:
-    """What a park over `reading`'s attempt tells the human, `unanswered` naming why its correction answered nothing."""
+def _notice(state: PinnedState, reading: _standing.CorrectionReading, unanswered: object) -> str:
+    """What a park over `reading`'s attempt tells the human, `unanswered` naming why its correction answered nothing.
+
+    The notice a park was about to post when its tick ended, where the record
+    holds one (`correction_notices.owed`), is said in its own words instead.
+    """
+    held = _notices.owed(state, reading.attempt)
+    if held is not None:
+        return held
     diagnostic = reading.attempt.source.diagnostic
     why = _UNANSWERED[unanswered]
     return (

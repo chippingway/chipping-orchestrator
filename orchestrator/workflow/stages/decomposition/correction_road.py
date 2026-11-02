@@ -118,8 +118,9 @@ def launch(
     if not _retry_budget._charge_or_park(gh, issue, state, stage=_source.STAGE):
         gh.write_pinned_state(issue, state)
         return None
-    standing = partial(_live.resolves, gh, issue, state, attempt.source)
-    budget = _run_charge_state.AgentRunBudget(
-        issue=issue, state=state, owed=_standing.owed_launch(issue.number, attempt, standing),
-    )
-    return _usage._run_agent_tracked(gh, budget, _source.resumed(spec, issue, state, attempt.source))
+    resolves = partial(_live.resolves, gh, issue, state, attempt.source)
+    owed = _standing.owed_launch(issue.number, attempt, resolves)
+    stands = partial(_live.uncontrolled, gh, issue, owed.stands)
+    owed = dataclasses.replace(owed, stands=stands)
+    budget = _run_charge_state.AgentRunBudget(issue=issue, state=state, owed=owed)
+    return _usage._run_agent_tracked(gh, budget, _source.resumed(spec, issue, attempt.source))

@@ -17,7 +17,11 @@ moves both. It is asked right behind the launch's charge (the circuit's
 `OwedLaunch.resolves`), so a hold, a close, a relabel, or an edit landing while
 the attempt was armed and charged invokes nothing, and again before anything is
 made of the answer the correction returns, so none of them is answered with a
-child, a split marker, or a label.
+child, a split marker, a label, or a park. Each of those asks ends on the
+issue's controls (`controls`), fetched once more behind the thread's read, and
+the circuit's judge of the pinned reading its start is written over asks them
+again behind that reading (`uncontrolled`), so a hold landing while an earlier
+request of the check was out is met rather than read past.
 
 The pinned comment is asked of the context the attempt was armed under once
 more before a usable answer is acted on (`saved`): a session, command, or
@@ -33,6 +37,7 @@ reading GitHub would not answer, which proves neither and licenses nothing.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from enum import StrEnum
 
 from github.Issue import Issue
@@ -61,27 +66,43 @@ class Live(StrEnum):
     UNREAD = "unread"
 
 
-def reads(gh: GitHubClient, issue: Issue, state: PinnedState, source: _records.CorrectionSource) -> Live:
-    """What `issue`, fetched now with its thread, says of the correction `source`'s rejected answer earned.
+def controls(gh: GitHubClient, issue: Issue) -> tuple[Live, Issue | None]:
+    """What `issue`, fetched now, says of its controls and its owner, beside the issue fetched where it stands.
 
-    `state` is the caller's record, whose ledger of our own posts is what keeps
-    them out of the fingerprint, as the drift check keeps them out.
+    HELD for a `paused` or `backlog` hold, MOVED for a close or a label other
+    than `workflow:decomposing`, UNREAD where GitHub would not answer.
     """
     try:
         fresh = gh.get_issue(issue.number)
     except Exception:
         log.exception("issue=#%d could not be read for its manifest correction; holding it", issue.number)
-        return Live.UNREAD
+        return Live.UNREAD, None
     if hard_skip_control_label(fresh) is not None:
-        return Live.HELD
+        return Live.HELD, None
     if issue_is_closed(fresh) or gh.workflow_label(fresh) != WorkflowLabel.DECOMPOSING:
-        return Live.MOVED
+        return Live.MOVED, None
+    return Live.STANDS, fresh
+
+
+def reads(gh: GitHubClient, issue: Issue, state: PinnedState, source: _records.CorrectionSource) -> Live:
+    """What `issue`, fetched now with its thread, says of the correction `source`'s rejected answer earned.
+
+    `state` is the caller's record, whose ledger of our own posts is what keeps
+    them out of the fingerprint, as the drift check keeps them out. The
+    controls are asked again behind the thread's read, last, so a hold landing
+    while the thread was read is met rather than read past.
+    """
+    live, fresh = controls(gh, issue)
+    if live is not Live.STANDS:
+        return live
     try:
         thread = list(gh.comments_after(fresh, None, state_comment_id=state.comment_id))
     except Exception:
         log.exception("issue=#%d its thread could not be read for its manifest correction; holding it", issue.number)
         return Live.UNREAD
-    return Live.STANDS if source.requirements in _revisions(fresh, state, thread) else Live.MOVED
+    if source.requirements not in _revisions(fresh, state, thread):
+        return Live.MOVED
+    return controls(gh, issue)[0]
 
 
 def _revisions(fresh: Issue, state: PinnedState, thread: list) -> frozenset[str]:
@@ -109,6 +130,22 @@ def saved(gh: GitHubClient, issue: Issue, source: _records.CorrectionSource) -> 
         log.exception("issue=#%d its pinned comment could not be read for its manifest correction", issue.number)
         return False
     return _standing.moved(reading, source) is None
+
+
+def uncontrolled(gh: GitHubClient, issue: Issue, judged: Callable[[PinnedState], bool], reading: PinnedState) -> bool:
+    """Whether `judged` grants the launch on `reading` and no hold or owner move stands on the issue read after it.
+
+    The circuit's judge of each pinned reading it charges or starts the
+    launch from (`OwedLaunch.stands`), asked of the issue's controls once more
+    behind the reading the start is written over, so a hold landing behind
+    `resolves` -- while that reading was taken -- invokes nothing either.
+    """
+    if not judged(reading):
+        return False
+    live = controls(gh, issue)[0]
+    if live is not Live.STANDS:
+        log.info("issue=#%d reads %s as its manifest correction starts; launching nothing", issue.number, live.value)
+    return live is Live.STANDS
 
 
 def resolves(gh: GitHubClient, issue: Issue, state: PinnedState, source: _records.CorrectionSource) -> bool:

@@ -169,7 +169,11 @@ def retires(gh: GitHubClient, issue: Issue, state: PinnedState, attempt: _record
 
 
 def _stands_behind(gh: GitHubClient, issue: Issue, state: PinnedState, attempt: _records.CorrectionAttempt) -> bool:
-    """Whether the issue still stands, and its comment still carries the attempt's context, behind its exhaustion."""
+    """Whether the issue still stands, and its comment still carries the attempt's context, behind its exhaustion.
+
+    The controls are asked last, behind the pinned comment's read, so a hold
+    landing while that read was out makes nothing of the answer either.
+    """
     behind = _live.reads(gh, issue, state, attempt.source)
     if behind is not _live.Live.STANDS:
         log.info("issue=#%d reads %s behind its correction's exhaustion; acting on nothing", issue.number, behind.value)
@@ -177,4 +181,7 @@ def _stands_behind(gh: GitHubClient, issue: Issue, state: PinnedState, attempt: 
     if not _live.saved(gh, issue, attempt.source):
         log.info("issue=#%d its correction's saved context moved; acting on nothing", issue.number)
         return False
-    return True
+    last = _live.controls(gh, issue)[0]
+    if last is not _live.Live.STANDS:
+        log.info("issue=#%d reads %s behind its correction's context; acting on nothing", issue.number, last.value)
+    return last is _live.Live.STANDS

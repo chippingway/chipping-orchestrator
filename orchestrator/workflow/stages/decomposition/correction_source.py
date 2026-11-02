@@ -25,7 +25,9 @@ The launch it buys (`resumed`) is that saved session resumed under the pinned
 command -- backend and arguments alike, whatever `DECOMPOSE_AGENT` says now --
 in the issue's read-only decompose checkout the session was opened in, handed
 the exact error and the whole output contract
-(`engine/decomposition_prompts._build_correction_prompt`).
+(`engine/decomposition_prompts._build_correction_prompt`), and identified by
+nothing that moves between ticks, so a charge it reserved is its own to start
+on any later tick.
 """
 from __future__ import annotations
 
@@ -82,12 +84,16 @@ def resumable(command: str) -> tuple[str, tuple[str, ...]] | None:
 
 
 def resumed(
-    spec: _config_models.RepoSpec, issue: Issue, state: PinnedState, source: _records.CorrectionSource,
+    spec: _config_models.RepoSpec, issue: Issue, source: _records.CorrectionSource,
 ) -> _run_requests._AgentRunRequest:
     """`source`'s saved session resumed under its pinned command, in the issue's read-only checkout, asked to correct.
 
     The command is one its arming, or the reconciliation launching it on a
-    later tick, already found `resumable`.
+    later tick, already found `resumable`. The request names no retry count:
+    its launch is that saved session under that command, whichever tick and
+    daily window launch it, so a charge it reserved and never started is the
+    same launch's to start (`run_requests._AgentRunRequest.fingerprint`) after
+    the window rolls over, never a second charge beside it.
     """
     backend, extra_args = resumable(source.command)
     checkout = _worktree_decomposition._decompose_worktree_path(spec, issue.number)
@@ -102,7 +108,6 @@ def resumed(
         agent_spec=source.command,
         resume_session_id=source.session,
         extra_args=extra_args,
-        retry_count=state.get("retry_count"),
     )
 
 

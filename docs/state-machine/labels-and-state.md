@@ -1454,7 +1454,9 @@ The keys that matter for the state machine fall into a few groups:
   reconstructs the attempt from the comment alone. Every park taken over an attempt -- the correction's own answer
   parked, and one armed with no launch granted given up behind the ordinary park -- lands while the attempt is still
   pending and ends on the hidden receipt `<!--orchestrator-decomposer-correction:issue=<n>:source=<nonce>-->`, the
-  nonce the source invocation's own, and the attempt is exhausted behind it; a tick that finds the attempt owed a park
+  nonce the source invocation's own, its words held on the record as `decomposer_correction_notice` (the source's
+  nonce and the message) from just before the post until the write recording the park, so a post that never landed
+  is said in its own words; and the attempt is exhausted behind it; a tick that finds the attempt owed a park
   it does not stand on takes it ahead of its frozen read and drift check, recording it over a comment of ours past
   the reply boundary carrying that receipt rather than posting it again, and bounded either way, so a reply written
   while the correction was out stays the saved session's to be resumed on. A tick owing a pending attempt's launch

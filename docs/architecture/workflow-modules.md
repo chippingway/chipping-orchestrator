@@ -3155,7 +3155,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             manifest the parser refuses with a concrete error, no correction's own, over a session
                             the pinned command can resume -- the error asked of the parser again, and the launch it
                             buys: that session resumed under the pinned command's backend and arguments in the
-                            issue's read-only checkout, handed the error and the whole output contract
+                            issue's read-only checkout, handed the error and the whole output contract, and named by
+                            no retry count, so a charge it reserved is its own to start in any later daily window
       correction_road.py    the attempt asked for at the rejection: the run's disposition so far written whole, the
                             attempt armed over it, a crowded one given up behind the ordinary park and a write left
                             withholding the caller holding the tick; and the launch -- a retry the daily budget pays
@@ -3164,8 +3165,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       correction_live.py    the issue read afresh around that launch and its answer: a `paused` / `backlog` hold, a
                             close, a label other than `workflow:decomposing`, or requirements that read as neither the
                             whole thread nor the stretch through the settled reply boundary as the revision the
-                            rejected run was handed -- held, moved, unread, or standing -- and the pinned comment read
-                            afresh for the session, command, and baseline the attempt was armed under (`saved`)
+                            rejected run was handed -- held, moved, unread, or standing, every check ending on the
+                            controls asked afresh behind its last read (`controls`) and the circuit's judge asking them
+                            again on the readings it charges and starts from (`uncontrolled`) -- and the pinned comment
+                            read afresh for the session, command, and baseline the attempt was armed under (`saved`)
       correction_settlement.py
                             what the correction's answer may come to: each park it reaches taken only over an issue
                             that still stands (`parks`), the exhaustion behind it naming the correction, a usable
@@ -3174,8 +3177,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             that write, a close, relabel, or edit spending it with nothing made, and the
                             retirement of a moved attempt, the tick's own reset written first where only it shows it
       correction_notices.py the hidden receipt every park over an attempt ends on, naming the issue and the source's
-                            nonce, and the park a later tick owes recorded over a comment of ours carrying it rather
-                            than said again, bounded wherever a reply boundary stands to walk from
+                            nonce, the notice held on the record before it is posted (`owing`, `owed`), and the park a
+                            later tick owes recorded over a comment of ours carrying it rather than said again --
+                            said otherwise in the held notice's own words -- bounded wherever a reply boundary stands
       correction_reconcile.py
                             what a later tick owes an attempt: ahead of the frozen read and the drift check, the park a
                             started, crowded, unproved, or unresumable one -- or an exhausted one nothing was made of
@@ -3999,7 +4003,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and a merge finalize ask of it -- a child startable only open, `blocked`, and free of
                             `paused` / `backlog` -- and the later reading it adopts
       state.py              the pinned-state field names the owners share, `split_attempt`, `split_rationale`,
-                            `ready_reroute`, the two decomposer pins, and `decomposer_correction` among them, the
+                            `ready_reroute`, the two decomposer pins, `decomposer_correction`, and the park notice held
+                            for it, `decomposer_correction_notice`, among them, the
                             held-child alias, the strict parent-link check, the one
                             rule a split's rationale is read by off its manifest and back off the record, and the
                             issue-reference renderer

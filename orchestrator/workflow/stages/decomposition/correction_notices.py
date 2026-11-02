@@ -10,7 +10,10 @@ parks lands before the attempt is resolved (`correction_settlement`), and a
 park whose write was lost leaves its notice on the thread with nothing
 recording it. The tick that finds that attempt owed a park it does not stand
 on (`correction_reconcile`) asks the thread past the reply boundary for the
-receipt first (`parks_once`): where a comment of ours carries it, the park is
+receipt first (`parks_once`), saying the notice the record still holds where
+one was about to be posted when a tick ended (`owing`, `owed`), so a post that
+never landed is said in its own words -- the latest error and rejected answer
+-- rather than in what the attempt alone recalls: where a comment of ours carries it, the park is
 recorded over that notice and nothing is said again; otherwise the notice is
 posted, receipt and all. Either way the park is bounded wherever a reply
 boundary stands: it records the thread read through our own comments and no
@@ -21,7 +24,9 @@ asks again.
 """
 from __future__ import annotations
 
+import contextlib
 import logging
+from collections.abc import Iterator
 
 from github.Issue import Issue
 
@@ -31,6 +36,7 @@ from orchestrator.workflow.engine import (
     comments as _comments,
     guards as _guards,
     park_watermarks as _park_watermarks,
+    record_admission as _record_admission,
 )
 from orchestrator.workflow.stages.decomposition import (
     correction_records as _records,
@@ -42,12 +48,49 @@ log = logging.getLogger("orchestrator.workflow")
 
 _RECEIPT = "<!--orchestrator-decomposer-correction:issue={issue}:source={nonce}-->"
 
+_OWED = _state._DECOMPOSER_CORRECTION_NOTICE
+
+# The members of an owed notice: the source it is the park of, and its words.
+_SOURCE = "source"
+_MESSAGE = "message"
+
 
 def receipted(message: str, attempt: _records.CorrectionAttempt | None) -> str:
     """`message` ending on `attempt`'s receipt, or as it is where the park is over no attempt."""
     if attempt is None:
         return message
     return f"{message}\n\n{_receipt(attempt)}"
+
+
+@contextlib.contextmanager
+def owing(
+    gh: GitHubClient, issue: Issue, state: PinnedState, attempt: _records.CorrectionAttempt | None, message: str,
+) -> Iterator[None]:
+    """Hold `message`, the park over `attempt` the block posts, on the record before it is posted.
+
+    Written whole ahead of the post, and dropped from `state` once the block
+    has posted it, for the write recording the park to land without it. A post
+    that raises leaves it on the record, which the next tick's park is said
+    from (`owed`) -- the latest error and rejected answer included -- under the
+    same receipt and boundary. A park over no attempt, or a record that would
+    not take the write, posts as it always has.
+    """
+    if attempt is not None:
+        state.set(_OWED, {_SOURCE: attempt.source.invocation.nonce, _MESSAGE: message})
+        if not _record_admission.written(gh, issue, state):
+            log.warning("issue=#%d its manifest correction's park could not be held before its notice", issue.number)
+    yield
+    state.state_data.pop(_OWED, None)
+
+
+def owed(state: PinnedState, attempt: _records.CorrectionAttempt) -> str | None:
+    """The notice a park over `attempt` was about to post when its tick ended, or None where the record holds none."""
+    held = state.get(_OWED)
+    nonce = attempt.source.invocation.nonce
+    if not isinstance(held, dict) or held.get(_SOURCE) != nonce:
+        return None
+    message = held.get(_MESSAGE)
+    return message if isinstance(message, str) and message else None
 
 
 def parks_once(
@@ -83,6 +126,7 @@ def parks_once(
         )
     else:
         _recorded_over(gh, issue, state, said, bounded=bounded)
+    state.state_data.pop(_OWED, None)
     gh.write_pinned_state(issue, state)
     return True
 

@@ -513,7 +513,9 @@ run's own disposition that landed, so the session and baseline it is held to are
 before the attempt is resolved, and a usable answer is acted on only behind an exhaustion that landed, so a lost
 exhaustion leaves a park standing over a pending attempt and never children beside one, and a lost park write is
 recorded over the notice its receipt finds rather than said twice -- ahead of the next tick's drift check and
-bounded, so a reply written meanwhile stays the saved session's rather than reading as an edit. A usable answer is
+bounded, so a reply written meanwhile stays the saved session's rather than reading as an edit, and in the words the
+record held for it before its post, so a post that never landed loses neither its error nor its answer. A usable
+answer is
 acted on only behind an exhaustion that left the caller's state its own: one landing over a comment moved since
 withholds that state, and nothing is made of the answer.
 Writer exclusion comes from [C-05].
@@ -754,8 +756,9 @@ and requirements baseline move only behind a run that read the thread,
 and every park that run's disposition takes, a split's included, records the thread read through our own comments
 and no further. Lifetime agent-run charges and
 the grant that permits further runs are covered by [C-15].
-A decomposer manifest correction is held to the issue read afresh behind its charge, again before its answer is
-used, and once more behind the write that spends it: a `paused`/`backlog` hold, a close, a label other than
+A decomposer manifest correction is held to the issue read afresh behind its charge and on the reading its start is
+written over, again before its answer is used or parked, and once more behind the write that spends it, each check
+ending on the controls asked behind its last read: a `paused`/`backlog` hold, a close, a label other than
 `workflow:decomposing`, or requirements that read as neither the whole thread nor the stretch through the settled
 reply boundary as the revision its rejected run was handed invokes nothing and makes no child, split marker, label,
 or park on the owner it moved to, and neither does a session, command, or baseline pinned in place of the ones it was
@@ -893,7 +896,8 @@ nonce, never the request's fingerprint -- and a receipt, or the floor receipts r
 a settlement asked again never moves the meter past the charges it counts.
 A decomposer manifest correction's one launch is charged before it runs like any other launch, owed once at its source's
 charge, and accounted once as it returns: a start its ledgers show or cannot rule out is never launched again, a start
-refused behind its charge keeps that charge for the launch rather than paying again, and nothing about it -- its
+refused behind its charge keeps that charge for the launch rather than paying again, whatever daily retry window it is
+launched in, and nothing about it -- its
 correction's answer, a park, or the `agent_run_limit` park its launch takes -- refunds or grants a run.
 
 **Specs:** [run budget](state-machine/labels-and-state.md#the-agent-run-circuit),

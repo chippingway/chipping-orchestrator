@@ -856,26 +856,31 @@ because there it is the claim that this stage has already rerouted rather than a
        the attempt's one owed launch, refused with nothing invoked on any reading of the comment that no longer grants
        it, and on the issue read afresh right behind the charge (`correction_live.py`): a `paused`/`backlog` hold, a
        close, a label other than `workflow:decomposing`, or requirements that read as neither the whole thread nor the
-       stretch through the settled boundary as the revision the run was handed. A refused start keeps its charge
-       reserved for the next tick's step 5 to start rather than pay again; a spent lifetime ledger parks
-       `agent_run_limit` as for any launch. It resumes the saved session under the pinned command's backend and
-       arguments, whatever `DECOMPOSE_AGENT` says now, with the error and the whole output contract
-       (`engine/decomposition_prompts._build_correction_prompt`, which shares `_MANIFEST_CONTRACT` with the decompose
-       prompt), asking for one complete corrected manifest.
+       stretch through the settled boundary as the revision the run was handed. Every such check ends on the issue's
+       controls, asked afresh behind its last read, and the circuit asks them once more on each reading it charges or
+       starts the launch from (`correction_live.uncontrolled`), so a hold landing while an earlier read was out still
+       invokes nothing. A refused start keeps its charge reserved for the next tick's step 5 to start rather than pay
+       again: the request names no retry count, so it is the same launch whatever daily window starts it; a spent
+       lifetime ledger parks `agent_run_limit` as for any launch. It resumes the saved session under the pinned
+       command's backend and arguments, whatever `DECOMPOSE_AGENT` says now, with the error and the whole output
+       contract (`engine/decomposition_prompts._build_correction_prompt`, which shares `_MANIFEST_CONTRACT` with the
+       decompose prompt), asking for one complete corrected manifest.
 
        The correction's run is disposed of on the same plan exactly as the rejected run was — step 5's holds and
        timeout park, step 6, the interruption, this parse — and earns no correction of its own. Each park it reaches
        — a timeout, a dirty checkout, a question, silence, or a second invalid manifest, whose park quotes the latest
        error and rejected answer and says it followed the one automatic correction — is taken only where the issue,
        read afresh, still stands as above: a close, a relabel, or an edit since spends the attempt and parks nothing
-       on the owner it moved to, and a hold or an unread issue parks and spends nothing. A park taken lands with the
-       attempt pending and ends on its receipt, and the attempt is exhausted behind it, naming the correction's
-       invocation. A hold, an
+       on the owner it moved to, and a hold or an unread issue parks and spends nothing. A park taken holds its notice
+       on the record (`decomposer_correction_notice`) before posting it, so a post that never lands is said in its own
+       words — the latest error and rejected answer — by the next tick's step 5, lands with the attempt pending, and
+       ends on its receipt, and the attempt is exhausted behind it, naming the correction's invocation. A hold, an
        unresolved accounting, or an interruption leaves the attempt pending with its start on the ledgers, never
        launched again: the next tick's step 5 parks for a human. A usable answer is acted on only once the issue,
        read afresh, still stands as above, the attempt is exhausted over a write that left the tick's state its own,
        and the issue, read afresh once more behind that write, still stands and its pinned comment still carries the
-       session, command, and baseline the attempt was armed under, before the first child, split marker, or label:
+       session, command, and baseline the attempt was armed under, the controls asked last, behind that comment's read,
+       before the first child, split marker, or label:
        a session or command pinned by hand, or a baseline moved, makes nothing of the answer; a close, a relabel, or an
        edit since
        spends it and makes nothing of the answer — the edit taking step 2's fresh decomposition on the next tick — and
