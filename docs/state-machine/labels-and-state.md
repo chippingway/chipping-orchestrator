@@ -1346,7 +1346,10 @@ The keys that matter for the state machine fall into a few groups:
   that never ran it nor hand that backend a session id it never issued. The three conversation pairs also *resume*
   their own session id on a human reply — with the decomposer pair excepted on an issue stopped by its spawn budget,
   where no reply resumes anything and the renewal that lifts the park retires the session it would have replayed
-  ([The retry budget](#the-retry-budget)) — and the late pair resumes on exactly one: a substantive trusted answer to
+  ([The retry budget](#the-retry-budget)), and on an edit: an initial decomposition's parked tick measures its
+  requirements by what the park had already read, so a reply past `last_action_comment_id` resumes the pinned
+  command and session, while a changed title, body, or already-read comment retires the session for a fresh
+  decomposition, a reply beside it or not — and the late pair resumes on exactly one: a substantive trusted answer to
   the categorized question the adjudicator asked, which is a reply to the agent that asked it. Every other late run is a
   fresh conversation against the frozen candidate — see [the late run](#the-late-run) for the two conditions a resume
   takes.
@@ -1561,10 +1564,17 @@ The keys that matter for the state machine fall into a few groups:
   operator controls out, and compared in that one spelling: a value no current reading of the thread reproduces is
   drift for the stage's route to answer, never recognized or rewritten as an earlier producer's spelling. Updated
   whenever the orchestrator reacts to a human edit, and whenever a `workflow:implementing` / `workflow:validating`
-  frozen reply batch is settled, to the fingerprint of that read through the last reply it delivered. On a parked
-  tick the drift check compares it with the frozen comments at or below the park's watermark, so replies to the park
-  are delivered by the batch rather than read as an edit. Every drift resume records it the same way: the settlement
-  of the prompt that answered the edit writes it, to the fingerprint of the read that prompt was built from, so a
+  frozen reply batch, or the frozen read an initial `workflow:decomposing` resume delivered
+  (`stages/decomposition/replies.py`), is settled, to the fingerprint of that read through the last reply it
+  delivered — and only by a run that read it: a launch the circuit refused, an unresolved accounting, a live hold, and
+  a shutdown kill leave it where they found it. An edit that read shows is recorded the same way: the reset leaves
+  the baseline as it stood, and the fresh decomposition it buys, quoting that same read, settles the read's whole
+  fingerprint only where it read it, and so does the fresh decomposition a `retry_cap` continuation buys, which
+  is handed its tick's frozen read too. An edit a tick that froze nothing meets is still recorded at its reset. On a
+  parked tick the drift check compares it with the frozen comments at or below the park's watermark, so replies to
+  the park are delivered by the batch rather than read as an edit. An untrusted reply is in neither the fingerprint
+  nor the batch, so it moves neither. Every drift resume records it the same way: the settlement of the prompt that
+  answered the edit writes it, to the fingerprint of the read that prompt was built from, so a
   comment written while the agent was out is still an edit. That fingerprint is also the revision
   the run's report is stamped with, so no reader holds a report against requirements its own prompt already
   contained. Three of the four roads write nothing ahead of the run: a deferral, a refusal park, a cleared park, a
@@ -2303,7 +2313,17 @@ The keys that matter for the state machine fall into a few groups:
   `bounded=True` (both timeout parks, both push failures, the measurement failure,
   the unauthorized-exemption hold, the checkout-moved refusals, the undeliverable-report park, the squash and verify
   failures, the reviewer timeout and no-VERDICT parks, and the review cap) — and so do the agent-run-limit notice and
-  the repair of its lost write, because the launch the circuit refuses is very often one of these resumes. The
+  the repair of its lost write, because the launch the circuit refuses is very often one of these resumes. So does
+  every park an initial `workflow:decomposing` run earns where that run was handed a tick's frozen read — the
+  resume of the parked session, the fresh decomposition an edit to it buys, or the one a `retry_cap` continuation
+  buys — without asking for it: its disposition runs inside `park_watermarks.bounded_parks`, which bounds every
+  funnel park taken in that execution context, the run's own (timeout, read-only worktree, question, silent, invalid
+  manifest) and the split's below it (a lineage refusal, a failed child create or seed, a release refused) alike, each
+  walking from what the run's
+  settlement recorded. The `retry_cap` park a spent budget takes in place of such a fresh decomposition is bounded
+  by the same scope, since no run read the replies under it, and so is the repair of a lost write behind its notice,
+  which an initial decomposition's stage entry replays inside that scope; a fresh decomposer spawn on a tick that froze
+  nothing keeps its notice's id. The
   `in_review` unmergeable park asks for it too, and it follows no run: what it follows is that tick's own feedback
   scan and several GitHub round-trips after it, which is the same window by another name. The `fixing` bounce's
   `stranded_unproved` park is the same shape — the scan is at the top of the tick and placing the branch is a fetch,
@@ -4480,6 +4500,13 @@ the budget never sees, which is the late adjudication and its live generation.
   `_handle_implementing` and `_handle_decomposing` ahead of every gate) until the thread carries it — and a stage that
   answers a command on this park waits for that sentence before it reads the thread at all, since a delivery moves the
   response boundary past everything written under the old one and words that predate the question are no answer to it.
+  The one park whose delivery does not move the boundary that far is the one an initial decomposition takes in place
+  of the fresh spawn a parked edit bought: bounded, since no run read the replies that edit's read held, it stops
+  below them, and an initial decomposition's stage entry replays it inside the same bounded scope, so the repair of a
+  lost write behind its notice walks rather than ratchets (`retry_notices._reconcile_notice`). Its answer is read
+  past the newest comment of ours on the thread rather than past the boundary, so those replies — a bare
+  `/orchestrator continue` among them — still predate the question and buy nothing. The continuation that does
+  answer it leaves them past the boundary beside its own words, and the fresh spawn it buys is handed them whole.
   Spelled without the mention the delivery prefixes, and kept verbatim for as long as the park stands: the thread is
   searched for exactly that text, so a later refusal under another stage or a retuned cap may not reword it. Before it
   is said again the thread is read for it, so a comment that landed under a pinned write that then failed is recorded
@@ -4512,7 +4539,10 @@ the budget never sees, which is the late adjudication and its live generation.
   routes no comment itself: a caller establishes that the park stands and that the words it is answering are a trusted
   `/orchestrator continue`, and then calls it. The three `retry_cap` owners are the callers that do
   (`_park_owns_the_tick` under `decomposition/`, `decomposition/late_retry_cap.py`, and `implementing/`, each taking
-  the command with whatever else its comment carries and consuming the batch it read); under a stage that has no such
+  the command with whatever else its comment carries). The late owner and `implementing/` consume the batch they read
+  in the write that lifts the park; an initial decomposition's leaves it past `last_action_comment_id`, so every
+  tick spending the attempt reads its thread once and hands that batch, and any reply a bounded park held under it,
+  to the fresh spawn whole, consumed only where the spawn's run read it. Under a stage that has no such
   caller a park is lifted by the reply that resumes the session instead. What the step grants is a single attempt: it
   reopens the window at that moment and clears the park with its stage and notice, and the caller retires the locked
   session in the same write, keeping the agent spec — a fresh spawn is what was bought, and the spawn pins an id of

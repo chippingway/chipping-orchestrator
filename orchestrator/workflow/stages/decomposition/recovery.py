@@ -63,6 +63,13 @@ record admission takes is back on it, and the parent's next dependency walk
 the release. A child adopted by its receipt is recorded on the parent alone
 and seeded here like any other, so one whose record admission refuses stays
 recorded and unwritten.
+
+A split parked awaiting a human is that human's, and this recovery holds it --
+save one no reading shows a child of: nothing recorded, a whole count, and no
+issue this orchestrator's account opened since the parent that could be this
+split's, by its author rather than by a receipt a human may have rewritten. A
+reply answering that park is let through to the resume it is owed
+(`_release_an_empty_split`), and the split's markers go with it.
 """
 from __future__ import annotations
 
@@ -77,6 +84,7 @@ from orchestrator.workflow.engine import guards as _guards
 from orchestrator.workflow.late_split import formats as _formats, state as _late_state
 from orchestrator.workflow.stages.decomposition import (
     child_claims as _child_claims,
+    drift as _drift,
     late_relabel as _late_relabel,
     replacement_lineage as _replacement_lineage,
     split_receipts as _split_receipts,
@@ -86,6 +94,11 @@ from orchestrator.workflow.stages.decomposition import (
 )
 
 log = logging.getLogger("orchestrator.workflow")
+
+# The marker every body carries, so the walk for one answers every issue this
+# orchestrator's account opened -- by author, the one thing about an issue no
+# edit removes -- or, on a client with no login of its own, every issue.
+_EVERY_BODY = ""
 
 
 def _park_incomplete_decomposition(
@@ -224,6 +237,49 @@ def _markers_not_ours(issue: Issue, state: PinnedState) -> bool:
         )
         return True
     return bool(state.get(_state._AWAITING_HUMAN))
+
+
+def _release_an_empty_split(gh: GitHubClient, issue: Issue, state: PinnedState) -> None:
+    """Forget a split nothing says created a child, so a reply to the park it took reaches the decomposer.
+
+    Asked only by a parked tick about to resume its session on a reply. The
+    hold below (`_markers_not_ours`) leaves a parked split to its human
+    because a decomposer run beside a created child would split again over
+    it, and a create that raised may still have opened one. So the split is
+    released only where every reading that could show a child shows none: no
+    child recorded, a whole expected count, an attempt this build mints, no
+    live late generation, and no issue this orchestrator's account opened
+    since the parent that could be this split's -- every one it opened above
+    the parent carries a whole receipt, and none carries any trace of this
+    split's, wherever in its body. A receipt is text a human may rewrite or
+    add to, so an issue of ours carrying none, or carrying this split's
+    anywhere -- under another appended after it included -- keeps the hold; a
+    client that cannot say which issues are ours
+    counts every issue as ours, which keeps it too wherever anyone else has
+    opened one since. That is evidence of absence rather than proof: an issue
+    opened and then deleted, or transferred away, is in no reading at all. In
+    memory only: the resumed run's own writes land the release, and a run
+    held before any of them asks again.
+    """
+    attempt = state.get(_state._SPLIT_ATTEMPT)
+    counted = (
+        not state.get(_state._CHILDREN)
+        and _formats.whole_number(state.get("expected_children_count"))
+    )
+    minted = isinstance(attempt, str) and _split_receipts._ATTEMPT.fullmatch(attempt) is not None
+    if not (counted and minted) or _late_relabel._adjudication_is_live(_late_state.read_late_generation(state)):
+        return
+    this_split = f"{_split_receipts._RECEIPT}issue={issue.number}:attempt={attempt}:"
+    bodies = [
+        seen.body or ""
+        for seen in gh.find_issues_carrying(_EVERY_BODY) if seen.number > issue.number
+    ]
+    if all(_split_receipts.final_receipt(body) and this_split not in body for body in bodies):
+        log.info(
+            "issue=#%s its parked split shows no child anywhere; releasing it to the reply that answers the park",
+            issue.number,
+        )
+        _drift._drop_split(state)
 
 
 def _recover_stale_manifest(

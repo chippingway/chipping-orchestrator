@@ -35,6 +35,17 @@ The notice is posted before the reset touches state, so a tick that dies
 between the two re-detects the same edit next time rather than throwing a
 manifest away nobody was told about.
 
+On a parked tick the edit is measured off the one read the tick froze
+(`replies.py`): the requirements are what the park had already read, so a
+reply past its boundary is the park's answer for the resume, never an edit,
+and only a change the replies do not explain -- the title, the body, a comment
+the park had already read -- resets, whatever reply stands beside it. The
+fresh decomposition the reset buys is handed the same read
+(`DecomposerReplies.conversation`), and that read's fingerprint is recorded as
+the baseline by its settlement rather than by the reset, so only a run that
+read the edit answers it. A tick spending an attempt a retry-cap continuation
+bought froze its thread too, and its edit is measured off that read the same way.
+
 An issue `ready` rerouted here arrives with that reset already landed, beside
 the marker saying its relabel was owed (`ready.py`). The label now answers
 it, so the marker is dropped before the reset is asked -- and before recovery,
@@ -71,12 +82,16 @@ from orchestrator.workflow.late_split import (
 from orchestrator.workflow.stages.decomposition import (
     ready_notice as _ready_notice,
     ready_readings as _ready_readings,
+    replies as _replies,
     session as _session,
     split_receipts as _split_receipts,
     state as _state,
 )
 
 log = logging.getLogger("orchestrator.workflow")
+
+# The requirements baseline a reset records and a parked tick's first check stages.
+_USER_CONTENT_HASH = "user_content_hash"
 
 # The retirement of a `ready` reroute's marker, decided on that marker alone.
 _RETIRING = _commits.ReportWrite(
@@ -115,12 +130,17 @@ def _decomposition_drift_notice(orphans: list) -> str:
 
 def _clear_decomposition_manifest(state: PinnedState) -> None:
     _session._retire_decomposer_session(state)
+    _drop_split(state)
+    state.set(_state._AWAITING_HUMAN, False)
+    state.set(_state._PARK_REASON, None)
+
+
+def _drop_split(state: PinnedState) -> None:
+    """Forget the split this issue records: its register, its graph, and every marker beside them."""
     state.set(_state._CHILDREN, [])
     state.set("dep_graph", {})
     for marker in _SPLIT_MARKERS:
         state.set(marker, None)
-    state.set(_state._AWAITING_HUMAN, False)
-    state.set(_state._PARK_REASON, None)
 
 
 def _retires_ready_reroute(gh: GitHubClient, issue: Issue, state: PinnedState) -> bool:
@@ -161,7 +181,7 @@ def _retires_ready_reroute(gh: GitHubClient, issue: Issue, state: PinnedState) -
 
 
 def _reset_decomposing_on_drift(
-    gh: GitHubClient, issue: Issue, state: PinnedState
+    gh: GitHubClient, issue: Issue, state: PinnedState, replies: _replies.DecomposerReplies | None = None,
 ) -> None:
     """Detect a user-content edit and clear what it invalidated, in place.
 
@@ -171,14 +191,38 @@ def _reset_decomposing_on_drift(
     read the updated body -- the pre-implementation handlers answer the same
     edit by relabelling and returning, but this issue already wears the label
     that re-derives a manifest.
+
+    A tick that froze its thread -- a parked one, or one spending an attempt a
+    continuation bought (`replies.reads_the_thread`) -- hands in that read
+    (`replies.freeze`), and the edit is measured off it: the requirements are what the park had already read
+    (`DecomposerReplies.answered`), so a reply past the boundary is the park's
+    answer for the resume to deliver rather than an edit, and only a change to
+    the title, the body, or a comment the park had read takes this road -- a
+    reply beside it included. The reset records no baseline then: the
+    reading's own fingerprint is settled by the fresh run it buys, and only
+    where that run read it (`DecomposerReplies.conversation`), so a run a
+    shutdown killed -- whose dirty worktree still parks the issue -- leaves the
+    edit owed and the next tick resets again rather than resuming a session
+    that never read it. A first baseline that read stages is written here, as
+    the check writes one it read for itself, so a tick that resumes nothing
+    still keeps it.
     """
-    new_hash = _engine_drift._detect_user_content_change(gh, issue, state)
+    recorded = state.get(_USER_CONTENT_HASH)
+    if replies is None:
+        new_hash = _engine_drift._detect_user_content_change(gh, issue, state)
+    else:
+        new_hash = _engine_drift._detect_user_content_change(
+            gh, issue, state, answered=replies.answered, reading=replies.read,
+        )
+        if new_hash is None and state.get(_USER_CONTENT_HASH) != recorded:
+            gh.write_pinned_state(issue, state)
     if new_hash is None:
         return
     _comments._post_issue_comment(
         gh, issue, state, _decomposition_drift_notice(_account_discarded(gh, issue, state)),
     )
-    state.set("user_content_hash", new_hash)
+    if replies is None:
+        state.set(_USER_CONTENT_HASH, new_hash)
     _clear_decomposition_manifest(state)
 
 

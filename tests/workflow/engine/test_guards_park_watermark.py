@@ -111,6 +111,22 @@ class ParkWatermarkTest(unittest.TestCase):
         self.assertIsNone(self.state.get(_WATERMARK))
         self.assertTrue(self.state.get(_AWAITING_HUMAN))
 
+    def test_a_bounded_scope_walks_instead(self) -> None:
+        # A park taken inside the scope a run's disposition opens is bounded
+        # without asking, however far below that run it is taken; one outside
+        # it records the notice it posted, as ever.
+        for bounded in (False, True):
+            with self.subTest(bounded=bounded):
+                self.setUp()
+                floor = self._reply()
+                self.state.set(_WATERMARK, floor)
+                written = self._reply()
+
+                with _park_watermarks.bounded_parks(bounded):
+                    self._park()
+
+                self.assertEqual(self.state.state_data[_WATERMARK] < written, bounded)
+
     def _reply(self) -> int:
         identified = self.github.next_reply_id(self.issue)
         self.issue.comments.append(

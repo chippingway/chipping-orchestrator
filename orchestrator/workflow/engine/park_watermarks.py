@@ -19,12 +19,26 @@ stage's parks of a returned verdict (`stages/validating/review_parks.py`),
 which post their own notice ahead of the reads that decide whether a park
 lands behind it and report the wait only once their write is down.
 
+A disposition whose parks all follow one run can ask for the walk once, for
+every park taken inside it (`bounded_parks`), rather than threading the flag
+through every owner between the run and a park deep in its disposition: the
+initial decomposition's, whose run was handed a frozen reading of a parked
+thread, and whose split can park on a lineage it cannot prove, a child it could
+not create or seed, or a release refused -- and its retry-cap park, whose lost
+write's repair (`retry_notices._reconcile_notice`) walks too inside the scope.
+The scope is per execution context,
+like the edit question (`github/edit_questions.py`), so the threads a tick fans
+out across never see each other's.
+
 `guards.py` reads this owner rather than the other way round, so nothing here
 may reach back for it: the park is built on the watermark, not beside it.
 """
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 
 from github.Issue import Issue
 
@@ -37,6 +51,25 @@ from orchestrator.workflow.engine import (
 )
 
 log = logging.getLogger("orchestrator.workflow")
+
+# Whether a park taken in this execution context follows a run that asked for
+# the bounded walk on every park its disposition takes.
+_BOUNDED: ContextVar[bool] = ContextVar("bounded_parks", default=False)
+
+
+@contextmanager
+def bounded_parks(applies: bool) -> Iterator[None]:
+    """Have every park taken inside the block bounded, as `bounded=True` asks of one, where `applies`."""
+    token = _BOUNDED.set(applies)
+    try:
+        yield
+    finally:
+        _BOUNDED.reset(token)
+
+
+def _parks_bounded() -> bool:
+    """Whether a park taken here is inside a scope that bounds it (`bounded_parks`)."""
+    return _BOUNDED.get()
 
 
 def _read_this_far(

@@ -16,8 +16,12 @@ from types import MappingProxyType
 from unittest.mock import patch
 
 from orchestrator import config
+from orchestrator.workflow.engine import content_hash as _content_hash
 from tests.workflow.fixtures import LABEL_READY, _agent, _iso_hours_ago
-from tests.workflow.stages.decomposition import retry_cap_support as support
+from tests.workflow.stages.decomposition import (
+    parked_decomposition_support as _parked,
+    retry_cap_support as support,
+)
 
 CONTINUE_COMMAND = support.CONTINUE_COMMAND
 ISSUE_NUMBER = support.ISSUE_NUMBER
@@ -26,9 +30,20 @@ KEY_CONTINUED = support.KEY_CONTINUED
 KEY_PARK_REASON = support.KEY_PARK_REASON
 KEY_RETRY_CAP_NOTICE = support.KEY_RETRY_CAP_NOTICE
 KEY_RETRY_CAP_STAGE = support.KEY_RETRY_CAP_STAGE
+KEY_USER_CONTENT_HASH = "user_content_hash"
 RUN_AGENT = support.RUN_AGENT
 
 HELD_TICKS = 3
+
+# Each reply a parked edit's read holds when the budget refuses its fresh
+# spawn, and whether the write behind the park's notice is lost: guidance, the
+# same guidance with that write repaired on the next tick, and a bare
+# continuation written before the park's question.
+FROZEN_CAP_CASES = (
+    (_parked.REPLY, False),
+    (_parked.REPLY, True),
+    (CONTINUE_COMMAND, False),
+)
 
 # What the issue reads as once the attempt a command bought has been spent:
 # no park, the grant emptied rather than dropped, one spawn charged to the
@@ -91,6 +106,19 @@ class StandingParkTest(unittest.TestCase, support._RetryCapParkCase):
                     mocks = self._tick()
 
                 self._assert_held(mocks)
+
+    def test_a_reply_over_its_baseline_is_no_answer(self) -> None:
+        # Measured against the baseline recorded before it, a trusted reply is
+        # no edit: it is exactly what an ordinary park's resume would deliver
+        # to the locked session. The park is asked ahead of that resume, so it
+        # resumes nothing here either.
+        self._park(support.trusted(support.GUIDANCE), **support.CARRIED_STATE)
+        self.standing["user_content_hash"] = _content_hash._compute_user_content_hash(self.issue, set(), comments=[])
+        self.github.seed_state(ISSUE_NUMBER, **self.standing)
+
+        mocks = self._tick()
+
+        self._assert_held(mocks)
 
     def test_the_clock_does_not_lift_it(self) -> None:
         # The window is a budget window, not a parole hearing: a notice that
@@ -288,6 +316,136 @@ class OwedNoticeTest(unittest.TestCase, support._RetryCapParkCase):
             self._phases(),
             (support.PHASE_RECONCILED, support.PHASE_CONTINUED),
         )
+
+
+class _LosesTheNoticeWrite:
+    """The pinned writer, losing once the write that records a retry-cap park's notice as said."""
+
+    def __init__(self, write) -> None:
+        self._write = write
+        self.lost = False
+
+    def __call__(self, issue, state):
+        parked = state.get(KEY_PARK_REASON) == support.PARK_RETRY_CAP
+        if parked and not state.get(KEY_RETRY_CAP_NOTICE) and not self.lost:
+            self.lost = True
+            raise RuntimeError("502")
+        return self._write(issue, state)
+
+
+class FrozenSpawnCapTest(unittest.TestCase, _parked._ParkedDecompositionCase):
+    """A spent budget refusing the fresh decomposition a parked edit buys, over the replies that edit's read held.
+
+    No run read those replies, so the park stops short of them -- through the
+    repair of a lost write as much as through its own notice -- and none of
+    them, a bare continuation among them, answers it: they were written before
+    its question. The trusted continuation written after its notice moves no
+    boundary and buys a fresh spawn that quotes them whole, consumed only by
+    a run that read them.
+    """
+
+    def test_a_capped_fresh_spawn_keeps_the_reply(self) -> None:
+        for reply, loses in FROZEN_CAP_CASES:
+            with self.subTest(reply=reply, loses_the_notice_write=loses):
+                with patch.object(config, "MAX_RETRIES_PER_DAY", 1):
+                    self._park()
+                    self._reply(reply)
+                    self.issue.body = _parked.EDITED_BODY
+                    self._refuse_and_hold(loses=loses)
+                    self._reply(CONTINUE_COMMAND)
+                    bought = _parked.decomposer_run()
+                    self._tick(bought)
+                quoted, session = _parked.launched(bought)
+                self.assertIsNone(session, "the bought attempt is a fresh session")
+                self.assertIn(reply, quoted)
+                self.assertIn(_parked.EDITED_BODY, quoted)
+
+    def test_a_continuation_quotes_the_reply_whole(self) -> None:
+        # The attempt is spent on the reply the park held, quoted whole however
+        # long -- on the continuation's own tick, or on the next one where a
+        # mid-run pause declined that tick's run and left the attempt unspent
+        # -- and its settlement carries the boundary over it under the
+        # baseline it read, so the tick behind the run's park answers nothing.
+        for declined in (False, True):
+            with self.subTest(declined=declined):
+                command = self._continue_over(_parked.LONG_REPLY, declined=declined)
+                bought = _parked.decomposer_run(_parked.INVALID_MANIFEST)
+
+                self._tick(bought)
+
+                quoted, session = _parked.launched(bought)
+                self.assertEqual((session, _parked.LONG_REPLY in quoted), (None, True))
+                self.assertGreaterEqual(self._pinned()[support.KEY_LAST_ACTION_COMMENT_ID], command.id)
+                self.assertEqual(self._pinned()[KEY_USER_CONTENT_HASH], self._requirements())
+                self.assertTrue(self._ticks_quietly(), "the run's park left nothing to answer")
+
+    def test_a_held_continuation_consumes_nothing(self) -> None:
+        # Each is a run the bought spawn launched without the decomposer
+        # reading the reply the park held, so the reply stays past the
+        # boundary under the baseline the edit was measured against.
+        for name, record_edit, runner_for, run_options in _parked.HELD_RUNS:
+            with self.subTest(name):
+                self._continue_over(_parked.REPLY)
+                if record_edit is not None:
+                    self._edit_record(*record_edit)
+
+                self._tick(runner_for(self.issue), **run_options)
+
+                held = _parked.read_through(self._pinned())
+                self.assertEqual(held, (self.floor, self.baseline))
+
+    def _continue_over(self, reply: str, *, declined: bool = False):
+        """Park, hold `reply` under the spent budget refusing the edit beside it, and continue: the command.
+
+        Where `declined`, a mid-run `paused` declines the run the
+        continuation's own tick launches, and that hold is lifted behind it.
+        """
+        self._park()
+        self._reply(reply)
+        self.issue.body = _parked.EDITED_BODY
+        with patch.object(config, "MAX_RETRIES_PER_DAY", 1):
+            self._refuse_and_hold(loses=False)
+        command = self._reply(CONTINUE_COMMAND)
+        if declined:
+            self._tick(_parked.PausedWhileOut(self.issue))
+            self.assertEqual(self._pinned()[KEY_CONTINUED], 1, "the declined run spent no attempt")
+            lifted = support.PAUSED_LABEL
+            self.issue.labels = [label for label in self.issue.labels if label.name != lifted]
+        return command
+
+    def _ticks_quietly(self) -> bool:
+        """Whether one more tick launches nothing."""
+        quiet = _parked.decomposer_run()
+        self._tick(quiet)
+        return not quiet.called
+
+    def _edit_record(self, key: str, edited) -> None:
+        """Rewrite one field of the issue's own pinned comment, in place."""
+        state = self.github.read_pinned_state(self.issue)
+        state.set(key, edited)
+        self.github.write_pinned_state(self.issue, state)
+
+    def _refuse_and_hold(self, *, loses: bool) -> None:
+        """The tick the spent budget refuses the fresh spawn on, and a quiet one behind it the park holds.
+
+        The write behind the park's notice is lost where `loses`, so the tick
+        behind it repairs that write. Neither tick runs anything or moves the
+        boundary over the replies, and the baseline stays the one the edit
+        was measured against.
+        """
+        refused = _parked.decomposer_run()
+        if loses:
+            losing = _LosesTheNoticeWrite(self.github.write_pinned_state)
+            with patch.object(self.github, "write_pinned_state", side_effect=losing), self.assertRaises(RuntimeError):
+                self._tick(refused)
+        else:
+            self._tick(refused)
+        self._tick(refused)
+        self.assertEqual(
+            (refused.call_count, *_parked.read_through(self._pinned())),
+            (0, self.floor, self.baseline),
+        )
+
 
 
 if __name__ == "__main__":

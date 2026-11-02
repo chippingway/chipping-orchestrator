@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 
+from orchestrator.workflow.engine import content_hash as _content_hash
 from tests.support.fakes import FakeComment, FakeGitHubClient, FakeIssue, make_issue
 
 LABEL_BLOCKED = "workflow:blocked"
@@ -71,15 +72,18 @@ def _seed_blocked_children(
 def _seed_decomposer_resume(
     resume_case: DecomposerResumeCase,
 ) -> tuple[FakeGitHubClient, FakeIssue]:
+    """A parked decomposition whose baseline is the thread its park had read, so every reply is past both."""
     github = FakeGitHubClient()
     issue = make_issue(resume_case.issue_number, label=resume_case.label)
     issue.comments.extend(resume_case.comments)
     github.add_issue(issue)
+    answered = [seen for seen in resume_case.comments if seen.id <= resume_case.last_action_comment_id]
     github.seed_state(
         resume_case.issue_number,
         awaiting_human=True,
         last_action_comment_id=resume_case.last_action_comment_id,
         decomposer_agent=resume_case.backend,
         decomposer_session_id=resume_case.session_id,
+        user_content_hash=_content_hash._compute_user_content_hash(issue, set(), comments=answered),
     )
     return github, issue

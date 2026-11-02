@@ -182,11 +182,21 @@ per-stage behavior is in
   run or consumed (see
   [state-machine/delivery-stages.md](../state-machine/delivery-stages.md#_handle_validating-label-workflowvalidating)).
 - **Decomposer reuse.** `_handle_decomposing` spawns the decomposer once and resumes it on every awaiting-human
-  reply — with one park excepted. An issue stopped on its spent spawn budget (`retry_cap`) is waiting on a human
+  reply, on its pinned `decomposer_agent` command and `decomposer_session_id`. A parked tick reads its thread once and
+  measures the requirements by what the park had already read, so a trusted reply past the park's boundary is
+  delivered to that session rather than read as an edit, while a changed title, body, or already-read comment still
+  retires it for a fresh decomposition quoting that same read, a reply beside it or not; an untrusted reply resumes
+  nothing and moves no baseline. The reply boundary and the requirements baseline move only once a run that read the
+  thread is back, and every park that run's disposition takes, a split's included, stops short of a comment written
+  while the decomposer was out, which the next resume delivers; see
+  [state-machine/delivery-stages.md](../state-machine/delivery-stages.md#_handle_decomposing-label-workflowdecomposing).
+  One park is excepted. An issue stopped on its spent spawn budget (`retry_cap`) is waiting on a human
   deciding to spend more of this issue's day on it rather than on words for the agent, so a reply resumes nothing
   there: the tick holds until a trusted `/orchestrator continue` renews the budget, and what that buys is the fresh
   spawn the budget refused. The locked session is retired as it is bought, `decomposer_agent` kept, so the run it
-  pays for is a new conversation rather than a replay of the one that ran out. What the park holds, what the command
+  pays for is a new conversation rather than a replay of the one that ran out. The command moves no reply boundary:
+  it, the words beside it, and every reply the park held reach that run whole, off one read of the thread, and are
+  consumed only once a run that read them is back. What the park holds, what the command
   lifts, and what one lifts it to are in
   [state-machine/delivery-stages.md](../state-machine/delivery-stages.md#_handle_decomposing-label-workflowdecomposing).
   The `question` stage reads `DECOMPOSE_AGENT` only as the *fallback* on the first-ever question spawn, then pins what

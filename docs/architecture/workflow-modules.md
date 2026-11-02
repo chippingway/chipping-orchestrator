@@ -641,7 +641,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             with the question. A post this call could not identify moves the mark nowhere, since what
                             it may record itself read past is a comment actually posted AND identified; our own
                             unrecorded sentence is refused as forged by every prompt reading instead. `bounded=True`
-                            asks for the other answer, and every park that FOLLOWS an agent run asks for it: it stamps
+                            asks for the other answer, and every park that FOLLOWS an agent run asks for it -- or is
+                            taken inside the scope `park_watermarks.bounded_parks` opens, which asks it without the
+                            flag: it stamps
                             `park_watermarks.py`'s walk instead, and is popped before the correlation screen. Only a
                             bounded park reads the comment-id ledger ahead of its post, since the walk needs it; the
                             ordinary park only appends to that ledger, so a malformed legacy entry parks it all the
@@ -653,7 +655,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and identity; a debt noted anew dropped where its write was refused outright
                             (`rewrite_finish_events.py`)
     park_watermarks.py      the bounded answer to how far a park ending an agent run may record the thread read,
-                            taken by the funnel's `bounded=True`, by the implementing question and checkout parks
+                            taken by the funnel's `bounded=True` -- or by any funnel park inside `bounded_parks`, the
+                            per-execution-context scope an initial decomposition's disposition opens over a run handed
+                            a frozen read, so a split's park several owners below that run is bounded too -- by the
+                            implementing question and checkout parks
                             that post for themselves, by the run-limit notice's repair, by the refusal a parked
                             `/orchestrator continue` earns, and by the validating stage's returned-verdict parks
                             behind their own notice (`review_parks.py`), the mark riding whichever write goes
@@ -2290,7 +2295,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     retry_park_state.py     the durable retry-cap park, its recorded stage, and the exact notice still owed to the
                             thread; settling the sentence grants no launch
     retry_notices.py        bot-authored notice reconciliation, delivery, watermark advancement, and audit phases; an
-                            unreadable thread keeps the notice owed and says nothing
+                            unreadable thread keeps the notice owed and says nothing, and a reconciliation inside a
+                            `park_watermarks.bounded_parks` scope walks the watermark through our own comments rather
+                            than ratcheting it to the notice
     retry_budget.py         the shared charge-or-park form, persist-before-post ordering, stage-entry notice replay, and
                             the one bounded continuation; late adjudication uses the same ledger and owns its
                             generation-specific park
@@ -3015,17 +3022,25 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       run.py                one `decomposing` tick: the retry-cap notice a stranded park still owes replayed at
                             entry, the late route asked before anything else after it, the spent-budget park held
                             behind that and ahead of every road that would walk past one, the retirement of a
-                            `ready` reroute's marker and then the drift / recovery / kill-switch order before the
-                            agent, and the pause, dirty-worktree, and interruption
-                            checks after it; the worktree's teardown on every exit, kept where the run met a pinned
-                            record admission refuses or the record reads refused, or cannot be read, at the teardown
-                            itself (`models._DecomposerCleanup`)
+                            `ready` reroute's marker, the one frozen read of its thread a parked tick, or one
+                            spending an attempt a continuation bought, decides on -- held with nothing reset or
+                            launched where it cannot be taken -- and then the drift / recovery /
+                            kill-switch order before the agent, and the pause, dirty-worktree, and interruption
+                            checks after it, inside a bounded-park scope wherever the run was handed that read, so
+                            every park its disposition takes, the split's own included, stops short of a comment
+                            written while it was out; the worktree's teardown on every exit, kept where the run met
+                            a pinned record admission refuses or the record reads refused, or cannot be read, at the
+                            teardown itself (`models._DecomposerCleanup`)
       retry_cap.py          the standing spent-budget park an initial decomposition meets: the hold that ends the
                             tick having written, spawned, and said nothing -- so the manifest, the children, the
                             locked session, the pull request, and the late record stay as they were -- the refusal
                             it still records, the sentence it waits to have said before any thread is read for an
                             answer, and the trusted `/orchestrator continue` that retires the session and renews the
-                            budget for exactly one spawn, written down before the spawn it pays for
+                            budget for exactly one spawn, written down before the spawn it pays for -- read past the
+                            newest comment of ours as well as past the boundary, so replies a bounded park left
+                            below its notice are no answer, and moving no boundary, so they and the command reach
+                            that spawn through its own frozen read -- and the stage-entry notice replay, bounded on
+                            an initial decomposition
       handoff.py            the two ways this label hands an issue to implementation -- the kill switch and a
                             candidate the size gate settled, the latter releasing the hold and moving
                             `pr_number` onto the pull request the measured commit is on first -- the reply
@@ -3033,15 +3048,35 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`engine/thread_delivery.py`), and the re-read the inline handler is given, behind the
                             captured-completion recovery the dispatcher would ask (`engine/completion_recovery.py`)
       session.py            the locked decomposer session: the spec read, the fresh spawn that pins it -- gated
-                            and parked by `engine/retry_budget.py`'s own parking form -- the
-                            human-reply resume, and the retirement the drift reset and the continuation both take
+                            and parked by `engine/retry_budget.py`'s own parking form, bounded where it refuses a
+                            spawn a parked tick's frozen read bought, and quoting that read where an edit it showed
+                            or a continuation bought it -- the
+                            human-reply resume on the pinned command and session, handed the replies of the tick's
+                            frozen read and recording nothing about the thread until its run is back, and the
+                            retirement the drift reset and the continuation both take
                             -- the id dropped and the spec kept, since a spawn records an id only where the backend
                             hands one back and the resume after one that did not would replay the conversation the
                             issue was moved on from
-      drift.py              what a body edit resets on an issue already wearing this label: the orphan notice said
-                            before the new baseline is recorded, the manifest markers wiped in one step -- children,
-                            dep graph, expected count, the seal that calls that count final, the split attempt its
-                            children's receipts name, the split's rationale, the umbrella flag, and the park flags --
+      replies.py            the one read of a parked thread a `decomposing` tick decides on -- or of the thread an
+                            unspent continuation grant leaves its replies on (`reads_the_thread`): what the park had
+                            already read, which the drift check measures the requirements by, and the replies past its
+                            boundary -- `prompt_delivery`'s classification less a bare `/orchestrator add-agent-runs`
+                            -- whose delivery record the resume's prompt is rendered from, and the read the fresh
+                            decomposition an edit or a continuation buys is handed instead (`conversation`): what
+                            the park had read as the excerpt, and the replies past its boundary whole, so none is
+                            cut under a baseline that counts it; settled after the run, and only by one that read
+                            them, through the last reply delivered and, for a resume, the requirements revision this
+                            read reaches through it
+      drift.py              what a body edit resets on an issue already wearing this label -- measured, on a tick
+                            that froze its thread, off that read, so a reply past the park's boundary is no edit and
+                            a changed title, body, or already-read comment is one, a reply beside it or not: the
+                            orphan notice said before the new baseline is recorded -- by the reset on a tick that
+                            froze nothing, by the fresh run's settlement on one that did, so a run that never read
+                            the edit leaves it owed --
+                            the manifest markers wiped in one step --
+                            children, dep graph, expected count, the seal that calls that count final, the split
+                            attempt its children's receipts name, the split's rationale, the umbrella flag, and the
+                            park flags --
                             and the session retired through the owner above, so the tick falls through and re-derives
                             a manifest against the updated body instead of relabelling and returning the way the
                             pre-implementation routes do; a late split's generation is not manifest tracking and
@@ -3062,9 +3097,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       validation.py         bounded nonempty child envelopes, optional boolean umbrella flags, and graph acyclicity
                             after child validation, asked through the one `_split_manifest_error` a fresh reply --
                             the initial decomposer's or the late adjudicator's -- and a late record are both held to
-      outcomes.py           the live-pause and timeout settlement before the worktree check, and the three manifest
-                            dispositions after it: the unparsed park, the `single` finalize, which clears an earlier
-                            split's rationale in a write ahead of its flip, and the `split` hand-off
+      outcomes.py           the live-pause and timeout settlement before the worktree check -- what a run was
+                            handed off a frozen read settled there, past the holds and ahead of every park -- and
+                            the three manifest dispositions after it: the unparsed park, the `single`
+                            finalize, which clears an earlier split's rationale in a write ahead of its flip, and the
+                            `split` hand-off
       correction_records.py the one manifest correction an initial decomposition may be allowed, as
                             `decomposer_correction` spells it -- a dormant facility no road arms yet: the source it is
                             tied to (the rejected run's invocation, the requirements it was handed, and the decomposer
@@ -3192,7 +3229,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             finalize, the incomplete park and the one a register with no whole count beside it takes
                             ahead of any adoption, repair, or finalize, and the two owners that hold those markers
                             instead -- a human
-                            the issue is parked awaiting, and the late transaction while its generation is live; each
+                            the issue is parked awaiting, save over a split no reading shows a child of, which a
+                            reply answering the park releases (`_release_an_empty_split`: an empty register beside a
+                            whole count, an attempt this build mints, and every issue this orchestrator's account
+                            opened above the parent carrying a whole receipt and no trace of this split's anywhere --
+                            by author, since a receipt can be rewritten away or buried under another), and the late
+                            transaction while its generation is live;
+                            each
                             child is repaired under its own writer claim, and one another poller holds -- or one whose
                             record, read under that claim, admission refuses, an adopted one included -- stops the
                             recovery with no park and nothing written to it, short of the summary and the finalize,

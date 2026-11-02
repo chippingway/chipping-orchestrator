@@ -16,7 +16,17 @@ is not this one, and this one is lifted only by the human its notice asked
 for. What holding it costs is nothing, and what it keeps is everything the
 issue arrived with.
 
-The order in `_prepare_decomposer_run` is the contract. Drift goes first, so a
+The order in `_prepare_decomposer_run` is the contract. A parked tick -- and
+one spending an attempt a retry-cap continuation bought, which left the replies
+its park held past the boundary -- reads its thread once before anything else is
+decided (`replies.py`), and the drift check, the prompt, and the settlement
+behind its run are all cut from that one read: measured off it, a reply past
+the park's boundary is the park's answer rather than an edit, so it resumes the
+locked session instead of retiring it, while a changed title, body, or already-read comment still takes the fresh
+decomposition, a reply beside it or not -- quoting that same read. A thread that
+cannot be read holds the tick with nothing reset or launched, and a park over a
+split no reading shows a child of is released to the reply answering it ahead
+of the recovery's hold. Drift goes first after that, so a
 body edited during a crash window clears the manifest markers before recovery
 can read them and finalize a split the human no longer wants. Recovery goes
 next, and deliberately ahead of the `DECOMPOSE` kill switch: children already
@@ -31,6 +41,10 @@ left commits or edits in a read-only worktree parks with the worktree kept for
 inspection (forwarding typed correlation fields to the shared park funnel), and
 an interrupted run is dropped entirely -- checked in that order so a killed
 run's changes stay inspectable rather than being discarded as untrustworthy.
+A run handed a frozen read -- the resume, or the fresh decomposition an edit
+or a continuation buys -- settles what it was handed only where it read it,
+and every park its disposition takes is bounded, the split's own among them, so
+a comment written while it was out stays past the boundary for the next resume.
 
 The worktree is torn down by an `ExitStack` callback rather than at each exit,
 because `keep_worktree` is decided in the middle of that sequence and every
@@ -52,8 +66,8 @@ from orchestrator.git.worktrees import creation as _worktree_creation, decomposi
 from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
     guards as _guards,
+    park_watermarks as _park_watermarks,
     record_admission as _record_admission,
-    retry_budget as _retry_budget,
 )
 from orchestrator.workflow.stages.decomposition import (
     drift as _drift,
@@ -61,9 +75,9 @@ from orchestrator.workflow.stages.decomposition import (
     late_coordinator as _late_coordinator,
     outcomes as _outcomes,
     recovery as _recovery,
+    replies as _replies,
     retry_cap as _retry_cap,
     session as _session,
-    state as _state,
 )
 from orchestrator.workflow.stages.decomposition.late_result_models import _LateDisposition
 from orchestrator.workflow.stages.decomposition.models import _DecomposerCleanup, _DecomposerRunPlan
@@ -82,29 +96,49 @@ def _prepare_decomposer_run(
     if not _drift._retires_ready_reroute(gh, issue, state):
         return _DecomposerRunPlan(agent_result=None)
 
+    # A parked tick, or one spending what a continuation bought, reads its
+    # thread ONCE, before drift is decided: the drift check, the prompt, and
+    # its settlement are all cut from this read, so a reply landing between
+    # two of them is in none of them. One nobody could read holds the tick
+    # with the park, and any worktree it is keeping for inspection, as they
+    # stand.
+    frozen = _replies.reads_the_thread(state)
+    replies = _replies.freeze(gh, issue, state) if frozen else None
+    if frozen and replies is None:
+        return _DecomposerRunPlan(agent_result=None, keep_worktree=True)
+    return _run_on_the_reading(gh, spec, issue, state, replies)
+
+
+def _run_on_the_reading(
+    gh: _client.GitHubClient,
+    spec: config.RepoSpec,
+    issue: Issue,
+    state: _pinned_state.PinnedState,
+    replies: _replies.DecomposerReplies | None,
+) -> _DecomposerRunPlan:
+    """The run this tick earns, decided on the one reading the tick froze (None for one that froze none)."""
     # User-content drift FIRST, so it runs BEFORE the half-finished recovery:
     # otherwise recovery could finalize against a stale manifest when the issue
     # was edited during a crash window.
-    _drift._reset_decomposing_on_drift(gh, issue, state)
+    _drift._reset_decomposing_on_drift(gh, issue, state, replies)
+    # A park standing over a split no reading shows a child of holds nothing a
+    # decomposer run could be seen to duplicate, so a reply answering it is let
+    # past the recovery's hold below; any sign of a child keeps the hold.
+    if replies is not None and replies.followup is not None and _replies.parked(state):
+        _recovery._release_an_empty_split(gh, issue, state)
 
-    if _recovery._recover_stale_manifest(gh, spec, issue, state):
+    if (
+        _recovery._recover_stale_manifest(gh, spec, issue, state)
+        or _handoff._route_disabled_to_implementing(gh, spec, issue, state)
+    ):
         return _DecomposerRunPlan(agent_result=None)
 
-    if _handoff._route_disabled_to_implementing(gh, spec, issue, state):
-        return _DecomposerRunPlan(agent_result=None)
-
-    if state.get(_state._AWAITING_HUMAN):
-        decomposer_result = _session._resume_decomposer_on_human_reply(
-            gh, spec, issue, state,
-        )
-        return _DecomposerRunPlan(
-            agent_result=decomposer_result,
-            # A no-reply dirty park keeps its inspection worktree intact.
-            keep_worktree=decomposer_result is None,
-        )
-    return _DecomposerRunPlan(
-        agent_result=_session._spawn_fresh_decomposer(gh, spec, issue, state),
-    )
+    # A drift reset took the park down, and with it the session the replies
+    # would have answered: only a park still standing is resumed on them. The
+    # fresh decomposition the reset buys is handed the same read.
+    if replies is not None and _replies.parked(state):
+        return _session._resume_decomposer_on_human_reply(gh, spec, issue, state, replies)
+    return _session._spawn_fresh_decomposer(gh, spec, issue, state, replies)
 
 
 def _process_decomposer_run(
@@ -114,11 +148,29 @@ def _process_decomposer_run(
     state: _pinned_state.PinnedState,
     run_plan: _DecomposerRunPlan,
 ) -> None:
-    """Process a finished decomposer run and dispatch its manifest or park."""
-    decomposer_result = run_plan.agent_result
-    if decomposer_result is None:
-        return
+    """Process a finished decomposer run and dispatch its manifest or park.
 
+    A run handed a frozen reading of a parked thread is disposed of inside a
+    bounded-park scope (`park_watermarks.bounded_parks`), so every park it
+    earns -- its own, and the split's however deep -- walks the reply boundary
+    from what the run's settlement recorded through our own comments and stops
+    at a comment written while it was out.
+    """
+    if run_plan.agent_result is None:
+        return
+    with _park_watermarks.bounded_parks(run_plan.bounded):
+        _dispose_decomposer_run(gh, spec, issue, state, run_plan)
+
+
+def _dispose_decomposer_run(
+    gh: _client.GitHubClient,
+    spec: config.RepoSpec,
+    issue: Issue,
+    state: _pinned_state.PinnedState,
+    run_plan: _DecomposerRunPlan,
+) -> None:
+    """Settle one finished run, then hold it, park it, or dispatch its manifest."""
+    decomposer_result = run_plan.agent_result
     # A launch the agent-run circuit refused reached no process, so nothing
     # below is about this run: the worktree it would be judged on carries
     # whatever an earlier one left, and a `decomposer_dirty` park in its name
@@ -126,7 +178,7 @@ def _process_decomposer_run(
     if _guards._ignore_if_never_invoked(issue, decomposer_result):
         return
 
-    if _outcomes._settle_decomposer_run(gh, issue, state, decomposer_result):
+    if _outcomes._settle_decomposer_run(gh, issue, state, run_plan):
         return
 
     # The decomposer is read-only. Preserve a changed worktree for operator
@@ -197,7 +249,7 @@ def _handle_decomposing(gh: _client.GitHubClient, spec: config.RepoSpec, issue: 
     # Ahead of the late route as well as the gates below it: a retry-cap park
     # is this budget's, not the size gate's, and the sentence it owes is owed
     # whichever of the two questions wearing this label the tick is about.
-    _retry_budget._replay_owed_notice(gh, issue, state)
+    _retry_cap._replay_owed_notice(gh, issue, state)
     if _late_adjudication_owns_the_tick(gh, spec, issue, state):
         return
     # The spent-budget park, ahead of every road below that would walk past

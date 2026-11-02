@@ -32,6 +32,16 @@ carries stderr diagnostics, because an operator answering a real question does
 not need to read subprocess noise to do it. All failed-run parks (timeout,
 silent, question, and invalid manifest) enrich the shared park funnel with
 typed correlation fields (`agent_role`, `session_id`, `retry_count`).
+
+A run handed a tick's frozen read -- the resume of the parked session, or the
+fresh decomposition an edit to it or a continuation buys -- settles what it was
+handed past the holds and ahead of any of those parks, and a held run consumes
+none.
+Every park behind it is bounded by the scope its caller opens
+(`run._process_decomposer_run`): it walks the reply boundary from what that
+settlement recorded through our own notice and no further, since the notice
+lands above anything a human wrote while the decomposer was out, which is the
+next resume's to deliver.
 """
 from __future__ import annotations
 
@@ -56,6 +66,7 @@ from orchestrator.workflow.stages.decomposition import (
     split as _split,
     state as _state,
 )
+from orchestrator.workflow.stages.decomposition.models import _DecomposerRunPlan
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
@@ -76,8 +87,7 @@ def _park_unparsed_manifest(
     last_msg = decomposer_result.last_message or ""
     if error is None:
         stripped = last_msg.strip()
-        raw = stripped or "(decomposer produced no final message)"
-        quoted = _messages._as_blockquote(raw)
+        quoted = _messages._as_blockquote(stripped or "(decomposer produced no final message)")
         # Only attach stderr diagnostics on the silent path -- a
         # real content question from the decomposer doesn't need
         # the operator wading through subprocess noise.
@@ -188,7 +198,7 @@ def _settle_decomposer_run(
     gh: GitHubClient,
     issue: Issue,
     state: PinnedState,
-    decomposer_result: AgentResult,
+    run_plan: _DecomposerRunPlan,
 ) -> bool:
     """Stamp this run and park on a timeout; hold on a live pause or unresolved accounting.
 
@@ -200,7 +210,17 @@ def _settle_decomposer_run(
     `keep_worktree` is set BEFORE the park's side effects run. Timeout
     parks forward typed correlation fields (`agent_role`, `session_id`,
     `retry_count`) through the shared park funnel.
+
+    What a run was handed off a tick's frozen read is settled here,
+    past the holds and ahead of every park the run can earn
+    (`DecomposerReplies.settle`): a held run consumes none of it, while a
+    timeout, a question, a dirty worktree, an invalid manifest, and a split's
+    own park all answer a prompt the decomposer read. Settled first, the reply
+    boundary stands at the newest reply delivered, so the bounded park behind
+    it walks from there through its own notice and stops at a comment written
+    while the run was out.
     """
+    decomposer_result = run_plan.agent_result
     # Live pause: an operator applied `paused` / `backlog` while the
     # decomposer ran (fresh spawn or awaiting-human resume). Dispatch only
     # saw the pre-run labels, so re-check a freshly fetched issue and return
@@ -214,6 +234,8 @@ def _settle_decomposer_run(
     if decomposer_result.unaccounted or _guards._paused_during_agent_run(gh, issue):
         return True
 
+    if run_plan.replies is not None:
+        run_plan.replies.settle(state, decomposer_result)
     state.set("last_agent_action_at", _usage._now_iso())
 
     if decomposer_result.timed_out:

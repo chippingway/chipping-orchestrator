@@ -7,6 +7,7 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.github.pinned_state import PinnedState
+from orchestrator.workflow.engine import content_hash as _content_hash
 from orchestrator.workflow.stages.decomposition import run as _decomposing, session as _decomposer_session
 from tests.workflow.stages import full_spec_test_support as support
 
@@ -70,13 +71,16 @@ class FullSpecDecomposerPersistenceTest(
     def test_decomposer_resume_uses_stored_spec(self) -> None:
         # Pinned with the full codex spec. After DECOMPOSE_AGENT flips to
         # claude, the awaiting-human resume must still resume on codex
-        # with the codex args, not retarget the next call to claude.
+        # with the codex args, not retarget the next call to claude -- over
+        # a baseline recorded before the reply, which the reply moves past
+        # without being read as an edit that retires the session.
+        parked = FakeComment(id=DECOMPOSER_PARK_ID, body="park", user=FakeUser("orchestrator"))
         gh = FakeGitHubClient()
         issue = make_issue(
             RESUMED_DECOMPOSER_ISSUE,
             label=LABEL_DECOMPOSING,
             comments=[
-                FakeComment(id=DECOMPOSER_PARK_ID, body="park", user=FakeUser("orchestrator")),
+                parked,
                 FakeComment(id=DECOMPOSER_REPLY_ID, body="please split", user=FakeUser(TEST_AUTHOR)),
             ],
         )
@@ -87,6 +91,7 @@ class FullSpecDecomposerPersistenceTest(
             last_action_comment_id=DECOMPOSER_PARK_ID,
             decomposer_agent=CODEX_SPEC,
             decomposer_session_id="dec-67021",
+            user_content_hash=_content_hash._compute_user_content_hash(issue, set(), comments=[parked]),
         )
 
         self._enter(
@@ -106,10 +111,12 @@ class FullSpecDecomposerPersistenceTest(
         )
 
         # Resume call used the stored backend AND the stored args.
+        mocks[RUN_AGENT].assert_called_once()
         call = mocks[RUN_AGENT].call_args
         self.assertEqual(call.args[0], BACKEND_CODEX)
         self.assertEqual(call.kwargs["options"].resume_session_id, "dec-67021")
         self.assertEqual(call.kwargs["options"].extra_args, CODEX_ARGS)
+        self.assertIn("please split", call.args[1])
         # Stored spec untouched.
         self.assertEqual(
             gh.pinned_data(RESUMED_DECOMPOSER_ISSUE).get(DECOMPOSER_AGENT),

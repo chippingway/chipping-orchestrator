@@ -724,7 +724,18 @@ proving it stale, its report recorded decided on that subject and on the park's 
 record moved or damaged, or a park recorded -- a spent run ledger's among them -- while they ran holds it too, a
 handed request never dropped or launched
 again beside a capture nothing has decided, and a reading that did not return holding the capture rather than
-discarding it. Lifetime agent-run charges and
+discarding it. A trusted reply to a parked initial decomposition is that park's answer: measured against what the
+park had already read, it resumes the pinned decomposer session rather than reading as an edit, while a changed title,
+body, or already-read comment re-decomposes beside any reply, quoting that same read, and an untrusted reply or an
+unreadable thread does neither. A park over a split resumes only where no reading shows a child of it: a damaged
+count, a child recorded, or an issue this orchestrator's account opened since the parent that carries no whole
+receipt, or carries this split's anywhere, keeps the park a human's, so no decomposer run splits over it again. A
+spent spawn budget refusing the fresh decomposition an edit buys consumes no reply, nor does the repair of a lost
+write behind its notice, and those replies are no answer to that park; the continuation that answers it consumes
+none of them either, and the fresh decomposition it buys is handed them whole. The boundary
+and requirements baseline move only behind a run that read the thread,
+and every park that run's disposition takes, a split's included, records the thread read through our own comments
+and no further. Lifetime agent-run charges and
 the grant that permits further runs are covered by [C-15].
 
 **Specs:** [controls](state-machine/labels-and-state.md#workflow-labels),
@@ -739,6 +750,9 @@ the grant that permits further runs are covered by [C-15].
 [held developer runs](../tests/workflow/stages/implementing/test_paused.py),
 [held resumes](../tests/workflow/stages/implementing/test_captured_resumes.py),
 [ready holds](../tests/workflow/stages/decomposition/test_ready_holds.py),
+[decomposition replies](../tests/workflow/stages/decomposition/test_resume.py),
+[decomposition edits](../tests/workflow/stages/decomposition/test_drift.py),
+[decomposition continuations](../tests/workflow/stages/decomposition/test_retry_cap.py),
 [dependency holds](../tests/workflow/stages/decomposition/test_blocked_deferral.py),
 [held releases](../tests/workflow/stages/decomposition/test_claimed_release.py),
 [review parks](../tests/workflow/stages/in_review/test_parked.py),
@@ -826,6 +840,7 @@ replacement keep the pinned command, and a recovered captured completion pins th
 **Checks:** [session pins](../tests/workflow/stages/implementing/test_full_spec_dev.py),
 [session reads](../tests/workflow/stages/implementing/test_full_spec_reader.py),
 [retirements](../tests/workflow/stages/implementing/test_rotation.py),
+[decomposer resumes](../tests/workflow/stages/decomposition/test_full_spec.py),
 [fresh reviewers](../tests/workflow/stages/implementing/test_full_spec_reviewer.py).
 
 ## C-15: Lifetime agent-run budget
