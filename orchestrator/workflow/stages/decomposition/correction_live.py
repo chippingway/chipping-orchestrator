@@ -19,6 +19,10 @@ the attempt was armed and charged invokes nothing, and again before anything is
 made of the answer the correction returns, so none of them is answered with a
 child, a split marker, or a label.
 
+The pinned comment is asked of the context the attempt was armed under once
+more before a usable answer is acted on (`saved`): a session, command, or
+baseline written there since is no conversation that answer belongs to.
+
 Four answers, since each is acted on differently. STANDS licenses the step.
 HELD is a control a human applied: nothing moved, nothing is made, and the
 attempt is left as it stands. MOVED is proof: the issue was closed, handed to
@@ -38,7 +42,11 @@ from orchestrator.github.issues import issue_is_closed
 from orchestrator.github.labels import hard_skip_control_label
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import comments as _comments, content_hash as _content_hash
-from orchestrator.workflow.stages.decomposition import correction_records as _records, state as _state
+from orchestrator.workflow.stages.decomposition import (
+    correction_records as _records,
+    correction_standing as _standing,
+    state as _state,
+)
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
@@ -85,6 +93,22 @@ def _revisions(fresh: Issue, state: PinnedState, thread: list) -> frozenset[str]
     read = [seen for seen in thread if floor is not None and seen.id <= floor]
     whole = _content_hash._compute_user_content_hash(fresh, ours, comments=thread)
     return frozenset((whole, _content_hash._compute_user_content_hash(fresh, ours, comments=read)))
+
+
+def saved(gh: GitHubClient, issue: Issue, source: _records.CorrectionSource) -> bool:
+    """Whether the issue's pinned comment, read afresh, still carries the context `source` was armed under.
+
+    The requirements baseline and both decomposer pins as the source saved
+    them (`correction_standing.moved`): a session or command a human pinned in
+    their place, or a baseline moved, is a conversation the answer no longer
+    belongs to, and a comment nobody could read proves nothing either way.
+    """
+    try:
+        reading = gh.read_pinned_state(issue)
+    except Exception:
+        log.exception("issue=#%d its pinned comment could not be read for its manifest correction", issue.number)
+        return False
+    return _standing.moved(reading, source) is None
 
 
 def resolves(gh: GitHubClient, issue: Issue, state: PinnedState, source: _records.CorrectionSource) -> bool:

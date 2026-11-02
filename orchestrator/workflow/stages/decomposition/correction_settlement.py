@@ -8,9 +8,13 @@ manifest parser -- save one: it earns no correction of its own. Each
 disposition decides what the attempt is left as.
 
 - A park -- a timeout, a dirty checkout, a question, silence, or a second
-  invalid manifest -- lands first, with the attempt still pending on the state
-  it writes, and the attempt is exhausted behind it (`spends_behind_park`),
-  naming the correction's own invocation. A park standing over a pending
+  invalid manifest -- is taken only over an issue that still stands, read
+  afresh (`parks`): a close, a relabel, or an edit since spends the attempt
+  and parks nothing on an owner the answer no longer belongs to, and a hold
+  or an unread issue parks and spends nothing. A park taken lands first, with
+  the attempt still pending on the state it writes, and the attempt is
+  exhausted behind it (`spends_behind_park`), naming the correction's own
+  invocation. A park standing over a pending
   attempt is the one a lost exhaustion leaves, which the next tick spends with
   no second notice (`correction_reconcile`); an exhaustion landing ahead of a
   lost park would leave an issue nobody was told about.
@@ -98,11 +102,15 @@ def clears(gh: GitHubClient, issue: Issue, state: PinnedState, run_plan: _Decomp
     """Whether the usable manifest `run_plan`'s run answered may be acted on now.
 
     Every run's but a correction's may. A correction's only where the issue
-    still stands as its rejected run left it, its attempt reads spent, and the
-    issue, read afresh once more behind that exhaustion's write, still stands:
-    a hold, a close, a relabel, or an edit landing while it was written makes
-    nothing of the answer either, the attempt left spent for the next tick to
-    park over.
+    still stands as its rejected run left it, its attempt reads spent over a
+    write that left the caller's state its own -- one landing over a comment
+    moved since the caller read it withholds that state, and no whole-state
+    write a split or a decision makes could land -- and, behind that write, the
+    issue, read afresh once more, still stands and its pinned comment still
+    carries the session, command, and baseline the attempt was armed under: a
+    hold, a close, a relabel, an edit, or a pin moved meanwhile makes nothing
+    of the answer either, the attempt left spent for the next tick to park
+    over or to answer as moved.
     """
     attempt = run_plan.correction
     if attempt is None:
@@ -112,13 +120,32 @@ def clears(gh: GitHubClient, issue: Issue, state: PinnedState, run_plan: _Decomp
         log.info("issue=#%d its corrected manifest reads %s; acting on nothing", issue.number, live.value)
         return False
     spent = spends(gh, issue, state, attempt, run_plan.agent_result.invocation)
-    if live is _live.Live.MOVED or not spent:
+    if live is _live.Live.MOVED or not spent or state.withheld:
         log.info("issue=#%d its corrected manifest is acted on nothing: it reads %s", issue.number, live.value)
         return False
-    behind = _live.reads(gh, issue, state, attempt.source)
-    if behind is not _live.Live.STANDS:
-        log.info("issue=#%d reads %s behind its correction's exhaustion; acting on nothing", issue.number, behind.value)
-    return behind is _live.Live.STANDS
+    return _stands_behind(gh, issue, state, attempt)
+
+
+def parks(gh: GitHubClient, issue: Issue, state: PinnedState, run_plan: _DecomposerRunPlan) -> bool:
+    """Whether the park `run_plan`'s run reached may be taken on the issue now.
+
+    Every run's may but a correction's, which only where the issue, read
+    afresh, still stands as its rejected run left it: a close, a relabel, or
+    an edit since spends the attempt and parks nothing on an owner the answer
+    no longer belongs to -- the edit left for the drift reset's fresh
+    decomposition -- while a hold, or an issue GitHub would not answer for,
+    parks and spends nothing, the attempt left started for a later tick to
+    park over.
+    """
+    attempt = run_plan.correction
+    if attempt is None:
+        return True
+    live = _live.reads(gh, issue, state, attempt.source)
+    if live is _live.Live.MOVED:
+        spends(gh, issue, state, attempt, run_plan.agent_result.invocation)
+    if live is not _live.Live.STANDS:
+        log.info("issue=#%d reads %s as its manifest correction returns; parking nothing", issue.number, live.value)
+    return live is _live.Live.STANDS
 
 
 def retires(gh: GitHubClient, issue: Issue, state: PinnedState, attempt: _records.CorrectionAttempt) -> bool:
@@ -139,3 +166,15 @@ def retires(gh: GitHubClient, issue: Issue, state: PinnedState, attempt: _record
             issue.number, getattr(retired.refusal, "value", retired.status.value),
         )
     return not state.withheld
+
+
+def _stands_behind(gh: GitHubClient, issue: Issue, state: PinnedState, attempt: _records.CorrectionAttempt) -> bool:
+    """Whether the issue still stands, and its comment still carries the attempt's context, behind its exhaustion."""
+    behind = _live.reads(gh, issue, state, attempt.source)
+    if behind is not _live.Live.STANDS:
+        log.info("issue=#%d reads %s behind its correction's exhaustion; acting on nothing", issue.number, behind.value)
+        return False
+    if not _live.saved(gh, issue, attempt.source):
+        log.info("issue=#%d its correction's saved context moved; acting on nothing", issue.number)
+        return False
+    return True

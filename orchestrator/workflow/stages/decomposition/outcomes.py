@@ -115,14 +115,17 @@ def _park_unparsed_manifest(
     shared park funnel.
 
     A malformed manifest reaches here only where it earned no correction --
-    none was armed or launched for it -- or is itself a correction's answer.
-    A park over an attempt -- the correction's own, or one armed with no
+    none was armed or launched for it -- or is itself a correction's answer,
+    whose park is taken only over an issue that still stands, read afresh
+    (`correction_settlement.parks`). A park over an attempt -- the correction's own, or one armed with no
     launch granted (`given_up`) -- ends on that attempt's receipt
     (`correction_notices`), and the attempt is exhausted only once the park
     has landed (`correction_settlement`), so a lost exhaustion leaves a park
     standing over a pending attempt rather than an attempt spent beside no
     park.
     """
+    if not _correction_settlement.parks(gh, issue, state, run_plan):
+        return
     decomposer_result = run_plan.agent_result
     _parsed, error = _manifest._parse_manifest(decomposer_result.last_message or "")
     message, reason = _unparsed_notice(issue, run_plan, error)
@@ -185,8 +188,12 @@ def _park_dirty_worktree(gh: GitHubClient, issue: Issue, state: PinnedState, run
     """Park a run that left commits or edits in its read-only checkout, the checkout kept by the caller.
 
     The caller decides the cleanup policy before calling, since the park's
-    own writes can raise. A correction's attempt is exhausted behind the park.
+    own writes can raise. A correction's park is taken only over an issue that
+    still stands (`correction_settlement.parks`), and its attempt is exhausted
+    behind it.
     """
+    if not _correction_settlement.parks(gh, issue, state, run_plan):
+        return
     _guards._park_awaiting_human(
         gh, issue, state,
         _correction_notices.receipted(
@@ -328,11 +335,13 @@ def _settle_decomposer_run(
     if decomposer_result.unaccounted or _guards._paused_during_agent_run(gh, issue):
         return True
 
-    if run_plan.replies is not None:
+    if run_plan.replies is not None and run_plan.correction is None:
         run_plan.replies.settle(state, decomposer_result)
     state.set("last_agent_action_at", _usage._now_iso())
 
     if decomposer_result.timed_out:
+        if not _correction_settlement.parks(gh, issue, state, run_plan):
+            return True
         _guards._park_awaiting_human(
             gh, issue, state,
             _correction_notices.receipted(

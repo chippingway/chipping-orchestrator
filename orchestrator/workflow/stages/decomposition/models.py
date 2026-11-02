@@ -53,7 +53,9 @@ class _DecomposerRunPlan:
     disposition it reaches -- a park, a hold, a manifest acted on -- is decided
     with the attempt beside it. A correction launched behind its source on the
     same tick is laid onto that source's own plan, so the worktree policy its
-    disposition decides is the one the tick's cleanup honors.
+    disposition decides is the one the tick's cleanup honors. One a later tick
+    launches carries that tick's frozen read in `replies` only to bound its
+    parks: it was handed the error alone, so it settles nothing of the read.
     """
 
     agent_result: AgentResult | None

@@ -28,6 +28,10 @@ _EXHAUSTION = 4
 
 _ADD_RUNS = "/orchestrator add-agent-runs 1"
 
+_ANSWER = "Please include every depends_on list."
+
+_LATER = "Keep streaming too."
+
 
 class _LosesOnce:
     """The whole-state writer, failing once on the first write `losing` picks."""
@@ -43,15 +47,23 @@ class _LosesOnce:
             raise RuntimeError("502")
         return self._write(issue, state)
 
+    @classmethod
+    def starting(cls, write) -> _LosesOnce:
+        """The writer, failing once on the write that starts a launch owed once."""
+        return cls(
+            write,
+            lambda state: state.get(_run_ledger_values.AGENT_RUN_OWED_STARTED) is not None,
+        )
 
-def _starting(state) -> bool:
-    """Whether a whole-state write starts a launch owed once."""
-    return state.get(_run_ledger_values.AGENT_RUN_OWED_STARTED) is not None
+    @classmethod
+    def parking(cls, write) -> _LosesOnce:
+        """The writer, failing once on the write that takes a park."""
+        return cls(write, lambda state: bool(state.get(KEY_AWAITING_HUMAN)))
 
 
-def _parking(state) -> bool:
-    """Whether a whole-state write takes a park."""
-    return bool(state.get(KEY_AWAITING_HUMAN))
+def _replies_later(world: support.CorrectionTickCase) -> None:
+    """A human writes a further reply while a run is out."""
+    world.reply(_LATER)
 
 
 class UnconfirmedWriteTest(unittest.TestCase, support.CorrectionTickCase):
@@ -78,7 +90,7 @@ class UnconfirmedWriteTest(unittest.TestCase, support.CorrectionTickCase):
         # invoked, and the next tick starts the charge it reserved.
         self.opened()
         rejected = self.decomposer(support.UNLISTED)
-        starting = _LosesOnce(self.github.write_pinned_state, _starting)
+        starting = _LosesOnce.starting(self.github.write_pinned_state)
         with patch.object(self.github, "write_pinned_state", side_effect=starting):
             self.tick(rejected)
         later = self.decomposer(support.LISTED)
@@ -138,7 +150,7 @@ class UnconfirmedWriteTest(unittest.TestCase, support.CorrectionTickCase):
         """A tick whose correction answered malformed again and whose park lost its write: the notice it posted."""
         self.opened()
         runner = self.decomposer(support.UNLISTED, support.SELF_EDGE)
-        parking = _LosesOnce(self.github.write_pinned_state, _parking)
+        parking = _LosesOnce.parking(self.github.write_pinned_state)
         with patch.object(self.github, "write_pinned_state", side_effect=parking), self.assertRaises(RuntimeError):
             self.tick(runner)
         notice = self.issue.comments[-1]
@@ -171,6 +183,54 @@ class DamagedRecordTest(unittest.TestCase, support.CorrectionTickCase):
         state = self.github.read_pinned_state(self.issue)
         state.set(support.FIELD, None)
         self.github.write_pinned_state(self.issue, state)
+
+
+class DeferredReplyTest(unittest.TestCase, support.CorrectionTickCase):
+    """A correction a later tick launches keeps a reply written past its rejected run's boundary that run's session's.
+
+    The rejected run here is a resume of a park, which settled the boundary
+    through the reply it was handed; its arming went unconfirmed, so a later
+    tick owes the launch. A reply written before that launch is no edit
+    retiring the saved session, and one written during it is left past the
+    park the correction's answer takes -- each the next resume's to deliver.
+    """
+
+    def test_a_reply_before_the_launch_waits(self) -> None:
+        self._owed_behind_a_reply({0: _replies_later})
+        later = self.decomposer(support.SINGLE)
+
+        self.tick(later)
+
+        launched = later.launches[0]
+        self.assertEqual(len(later.launches), 1)
+        self.assertEqual(launched.resumed, support.SESSION)
+        self.assertIn(support.UNLISTED_ERROR, launched.prompt)
+        self.assertNotIn(_LATER, launched.prompt)
+        self.assertEqual(self.stage(), support.EXHAUSTED)
+
+    def test_a_reply_during_the_launch_waits(self) -> None:
+        answered = self._owed_behind_a_reply({})
+        runner = self.decomposer(support.SELF_EDGE, during={0: _replies_later})
+        self.tick(runner)
+        parked = self.pinned()
+        after = self.decomposer(support.SINGLE)
+
+        self.tick(after)
+
+        self.assertEqual(parked["last_action_comment_id"], answered.id, "the park stops short of the later reply")
+        self.assertTrue(parked[KEY_AWAITING_HUMAN])
+        self.assertEqual(after.launches[0].resumed, support.SESSION)
+        self.assertIn(_LATER, after.launches[0].prompt)
+
+    def _owed_behind_a_reply(self, during: dict):
+        """A failed correction's park answered by a reply whose resume answered malformed, its arming unconfirmed."""
+        self.opened()
+        self.tick(self.decomposer(support.UNLISTED, support.SELF_EDGE))
+        answered = self.reply(_ANSWER)
+        with support.CountedEdit.losing(self.github, _ARMING):
+            self.tick(self.decomposer(support.UNLISTED, during=during))
+        self.assertEqual(self.stage(), support.PENDING)
+        return answered
 
 
 class RunLimitTest(unittest.TestCase, support.CorrectionTickCase):

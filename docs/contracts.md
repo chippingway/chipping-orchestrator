@@ -513,7 +513,9 @@ run's own disposition that landed, so the session and baseline it is held to are
 before the attempt is resolved, and a usable answer is acted on only behind an exhaustion that landed, so a lost
 exhaustion leaves a park standing over a pending attempt and never children beside one, and a lost park write is
 recorded over the notice its receipt finds rather than said twice -- ahead of the next tick's drift check and
-bounded, so a reply written meanwhile stays the saved session's rather than reading as an edit.
+bounded, so a reply written meanwhile stays the saved session's rather than reading as an edit. A usable answer is
+acted on only behind an exhaustion that left the caller's state its own: one landing over a comment moved since
+withholds that state, and nothing is made of the answer.
 Writer exclusion comes from [C-05].
 
 **Specs:** [transactions](state-machine/labels-and-state.md#pinned-state),
@@ -755,8 +757,11 @@ the grant that permits further runs are covered by [C-15].
 A decomposer manifest correction is held to the issue read afresh behind its charge, again before its answer is
 used, and once more behind the write that spends it: a `paused`/`backlog` hold, a close, a label other than
 `workflow:decomposing`, or requirements that read as neither the whole thread nor the stretch through the settled
-reply boundary as the revision its rejected run was handed invokes nothing and makes no child, split marker, or
-label; an edit is answered by the drift reset's fresh
+reply boundary as the revision its rejected run was handed invokes nothing and makes no child, split marker, label,
+or park on the owner it moved to, and neither does a session, command, or baseline pinned in place of the ones it was
+armed under, or a spend that left the tick's state withheld. A reply written past the boundary the rejected run settled
+stays that run's session's, before a launch a later tick owes -- that tick freezing its read as a parked one does --
+and during it, whose parks are bounded by that read; an edit is answered by the drift reset's fresh
 decomposition, the attempt resolved rather than replenished. A spent daily budget parks its launch on `retry_cap`,
 whose continuation retires the session and with it the attempt; a spent lifetime ledger parks it on
 `agent_run_limit`, whose grant alone buys that launch. A correction a hold, an unresolved accounting, an

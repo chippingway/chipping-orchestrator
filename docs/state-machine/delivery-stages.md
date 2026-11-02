@@ -754,7 +754,12 @@ because there it is the claim that this stage has already rerouted rather than a
      of a reply written before the notice — standing on the notice only where no boundary stands to walk from. A
      `decomposer_correction` claim nobody can read holds the tick there, with the claim kept as it stands and nothing
      reset, launched, created, or written, until it is repaired. A write over the attempt left unconfirmed or landing
-     over a moved comment, or a thread a park could not read, holds the tick too.
+     over a moved comment, or a thread a park could not read, holds the tick too. A tick owing an `eligible` attempt's
+     launch freezes its thread in step 2 as a parked one does (`replies.reads_the_thread`): the rejected run settled
+     the boundary through what it read, so a reply written since is past it — the saved session's next resume's,
+     not an edit retiring it — and every park the launched correction's disposition takes is bounded by that read
+     wherever its boundary is the one the requirements baseline was settled through
+     (`DecomposerReplies.bounds`); the read is never settled, since the correction is handed the error alone.
 
      Then resume on a new comment; otherwise gate on the per-issue retry budget
      (shared with `implementing`; an exhausted one parks the issue durably as `retry_cap`, says so once, and is held
@@ -861,12 +866,18 @@ because there it is the claim that this stage has already rerouted rather than a
        The correction's run is disposed of on the same plan exactly as the rejected run was — step 5's holds and
        timeout park, step 6, the interruption, this parse — and earns no correction of its own. Each park it reaches
        — a timeout, a dirty checkout, a question, silence, or a second invalid manifest, whose park quotes the latest
-       error and rejected answer and says it followed the one automatic correction — lands with the attempt pending
-       and ends on its receipt, and the attempt is exhausted behind it, naming the correction's invocation. A hold, an
+       error and rejected answer and says it followed the one automatic correction — is taken only where the issue,
+       read afresh, still stands as above: a close, a relabel, or an edit since spends the attempt and parks nothing
+       on the owner it moved to, and a hold or an unread issue parks and spends nothing. A park taken lands with the
+       attempt pending and ends on its receipt, and the attempt is exhausted behind it, naming the correction's
+       invocation. A hold, an
        unresolved accounting, or an interruption leaves the attempt pending with its start on the ledgers, never
        launched again: the next tick's step 5 parks for a human. A usable answer is acted on only once the issue,
-       read afresh, still stands as above, the attempt is exhausted, and the issue, read afresh once more behind that
-       write, still stands, before the first child, split marker, or label: a close, a relabel, or an edit since
+       read afresh, still stands as above, the attempt is exhausted over a write that left the tick's state its own,
+       and the issue, read afresh once more behind that write, still stands and its pinned comment still carries the
+       session, command, and baseline the attempt was armed under, before the first child, split marker, or label:
+       a session or command pinned by hand, or a baseline moved, makes nothing of the answer; a close, a relabel, or an
+       edit since
        spends it and makes nothing of the answer — the edit taking step 2's fresh decomposition on the next tick — and
        a hold or an issue GitHub would not answer for spends nothing and makes nothing, save one met behind the
        exhaustion, which makes nothing of the spent attempt's answer and leaves it for the next tick to park over.

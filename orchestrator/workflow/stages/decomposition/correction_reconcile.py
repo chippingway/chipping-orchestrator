@@ -32,7 +32,10 @@ tick's reading of it (`reconciles`):
   never made -- a restart behind the arming, an arming read back, a start the
   circuit refused, a lifetime grant answering the run-limit park its charge
   took -- and it is launched now, with the error the record keeps
-  (`correction_road.launch`).
+  (`correction_road.launch`), on a tick that froze its thread for it
+  (`replies.reads_the_thread`), so a reply written since the rejected run is
+  no edit, and every park the launch's disposition takes is bounded by that
+  read wherever its boundary is the settled one.
 - STALE is an attempt whose requirements or saved conversation moved: an
   edit's reset retiring the session, or the continuation a retry-cap park its
   launch took was answered with. It is retired over a reading that proves the
@@ -62,7 +65,7 @@ from orchestrator import config
 from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import run_ledger_values as _run_ledger_values
+from orchestrator.workflow.engine import park_watermarks as _park_watermarks, run_ledger_values as _run_ledger_values
 from orchestrator.workflow.stages.decomposition import (
     correction_notices as _notices,
     correction_road as _road,
@@ -129,7 +132,7 @@ def run_for_the_tick(
     answered -- and anything else spawns the fresh decomposition, handed that
     same read where the tick froze one.
     """
-    reconciled = reconciles(gh, spec, issue, state)
+    reconciled = reconciles(gh, spec, issue, state, replies)
     if reconciled is not None:
         return reconciled
     if replies is not None and _replies.parked(state):
@@ -138,9 +141,21 @@ def run_for_the_tick(
 
 
 def reconciles(
-    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
+    gh: GitHubClient,
+    spec: _config_models.RepoSpec,
+    issue: Issue,
+    state: PinnedState,
+    replies: _replies.DecomposerReplies | None,
 ) -> _DecomposerRunPlan | None:
-    """The plan this tick's correction owes, or None where the tick goes on to its ordinary decomposer road."""
+    """The plan this tick's correction owes, or None where the tick goes on to its ordinary decomposer road.
+
+    An owed launch is made on a tick that froze its thread for it
+    (`replies.reads_the_thread`), and every park its disposition takes is
+    bounded by that read wherever its boundary is the one the rejected run
+    settled through (`DecomposerReplies.bounds`), so a reply written while the
+    correction was out stays past it; the read is never settled, since the
+    correction is handed the error alone.
+    """
     reading = _standing.read(state, issue.number)
     attempt = reading.attempt
     if reading.standing is _STANDING.DAMAGED:
@@ -150,8 +165,10 @@ def reconciles(
     if reading.standing is _STANDING.STALE:
         return None if _settlement.retires(gh, issue, state, attempt) else _held(state)
     if _owed_park(state, reading) is None and not _replies.parked(state):
-        launched = _road.launch(gh, spec, issue, state, attempt)
-        return _DecomposerRunPlan(agent_result=launched, correction=attempt)
+        bounding = replies if replies is not None and replies.bounds(issue, state) else None
+        with _park_watermarks.bounded_parks(bounding is not None):
+            launched = _road.launch(gh, spec, issue, state, attempt)
+        return _DecomposerRunPlan(agent_result=launched, replies=bounding, correction=attempt)
     return _given_up(gh, issue, state, reading)
 
 

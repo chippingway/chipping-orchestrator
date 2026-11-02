@@ -35,8 +35,24 @@ def _unreadable(world: support.CorrectionTickCase) -> None:
     raise RuntimeError("502")
 
 
+def _repin(world: support.CorrectionTickCase) -> None:
+    """A human pins another decomposer session in place of the one the correction resumes."""
+    reading = world.github.read_pinned_state(world.issue)
+    reading.set("decomposer_session_id", _REPINNED)
+    world.github.write_pinned_state(world.issue, reading)
+
+
+_REPINNED = "dec-pinned-by-hand"
+
 # Owners the issue moves to, by the label it is left reading.
 _MOVED_OWNERS = (("closed", _close, support.LABEL_DECOMPOSING), ("relabelled", _relabel, LABEL_READY))
+
+# Each of those moves met by a usable correction and by a second invalid one.
+_MOVED_ANSWERS = tuple(
+    (f"{name}, {answered}", move, label, answer)
+    for name, move, label in _MOVED_OWNERS
+    for answered, answer in (("usable", support.LISTED), ("invalid", support.SELF_EDGE))
+)
 
 
 class BeforeLaunchTest(unittest.TestCase, support.CorrectionTickCase):
@@ -117,18 +133,37 @@ class AfterReturnTest(unittest.TestCase, support.CorrectionTickCase):
         self.assertEqual(self.label(), LABEL_READY)
 
     def test_a_moved_owner_makes_nothing(self) -> None:
-        for name, move, label in _MOVED_OWNERS:
+        # Closed or handed to another label while the correction ran: neither a
+        # usable answer nor a second invalid one makes a child, a split marker,
+        # a label, or a park on an owner the answer no longer belongs to.
+        for name, move, label, answer in _MOVED_ANSWERS:
             with self.subTest(name):
                 self.opened()
-                runner = self.decomposer(support.UNLISTED, support.LISTED)
-                with support.OnFetch.patch(self, support.BEFORE_ACTING, move):
-                    self.tick(runner)
+                runner = self.decomposer(support.UNLISTED, answer, during={1: move})
 
-                self.assertEqual(len(runner.launches), 2)
+                self.tick(runner)
+
                 self.assertEqual(self.children(), 0)
                 self.assertFalse(set(support.SPLIT_MARKERS) & set(self.pinned()))
                 self.assertEqual(self.label(), label)
                 self.assertEqual(self.stage(), support.EXHAUSTED)
+                self.assertEqual(self.said(), [], "no park is taken on the owner it moved to")
+                self.assertFalse(self.pinned().get(KEY_AWAITING_HUMAN))
+
+    def test_a_moved_session_makes_nothing(self) -> None:
+        # A session a human pinned in place of the saved one while the
+        # correction ran is no conversation its usable answer belongs to:
+        # nothing is made of it, and the pin is left as the human wrote it.
+        self.opened()
+        runner = self.decomposer(support.UNLISTED, support.LISTED, during={1: _repin})
+
+        self.tick(runner)
+
+        self.assertEqual(len(runner.launches), 2)
+        self.assertEqual(self.children(), 0)
+        self.assertFalse(set(support.SPLIT_MARKERS) & set(self.pinned()))
+        self.assertEqual(self.label(), support.LABEL_DECOMPOSING)
+        self.assertEqual(self.pinned()["decomposer_session_id"], _REPINNED)
 
     def test_a_held_answer_parks_once_it_can(self) -> None:
         # A hold met as the correction returns, or an issue GitHub would not

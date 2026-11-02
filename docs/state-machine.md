@@ -507,7 +507,8 @@ session replacing it quote off the record rather than out of the bounded thread.
 naming the child and the field, before any child or split marker is written. A completed, accounted, read-only run's
 refused manifest earns one correction: its saved session resumed under the pinned command with the exact error and
 the whole output contract, rechecked against the issue's holds, owner, label, and requirements behind its charge,
-before its answer is used, and again behind the write that spends it, and disposed of like any decomposer answer --
+before its answer is used or parked, and again -- with its saved session, command, and baseline -- behind the write
+that spends it, and disposed of like any decomposer answer --
 a usable one through the ordinary `single` or `split`, anything else to the park it reaches, a second invalid
 manifest's quoting the latest error and answer. A
 question, silence, a failed or incomplete return, a timeout, an interruption, a dirty checkout, and a run with no

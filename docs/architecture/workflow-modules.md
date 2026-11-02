@@ -3063,7 +3063,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             hands one back and the resume after one that did not would replay the conversation the
                             issue was moved on from
       replies.py            the one read of a parked thread a `decomposing` tick decides on -- or of the thread an
-                            unspent continuation grant leaves its replies on (`reads_the_thread`): what the park had
+                            unspent continuation grant leaves its replies on, or a manifest correction's owed launch
+                            leaves past its rejected run's boundary (`reads_the_thread`), with whether that boundary is
+                            the one the baseline was settled through (`bounds`): what the park had
                             already read, which the drift check measures the requirements by, and the replies past its
                             boundary -- `prompt_delivery`'s classification less a bare `/orchestrator add-agent-runs`
                             -- whose delivery record the resume's prompt is rendered from, and the read the fresh
@@ -3162,11 +3164,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       correction_live.py    the issue read afresh around that launch and its answer: a `paused` / `backlog` hold, a
                             close, a label other than `workflow:decomposing`, or requirements that read as neither the
                             whole thread nor the stretch through the settled reply boundary as the revision the
-                            rejected run was handed -- held, moved, unread, or standing
+                            rejected run was handed -- held, moved, unread, or standing -- and the pinned comment read
+                            afresh for the session, command, and baseline the attempt was armed under (`saved`)
       correction_settlement.py
-                            what the correction's answer may come to: the exhaustion behind each park it reaches,
-                            naming the correction, a usable answer acted on only once the issue still stands, the
-                            attempt reads spent, and the issue still stands read again behind that write, a close, relabel, or edit spending it with nothing made, and the
+                            what the correction's answer may come to: each park it reaches taken only over an issue
+                            that still stands (`parks`), the exhaustion behind it naming the correction, a usable
+                            answer acted on only once the issue still stands, the attempt reads spent over a write
+                            that withheld nothing, and the issue and its saved context still stand read again behind
+                            that write, a close, relabel, or edit spending it with nothing made, and the
                             retirement of a moved attempt, the tick's own reset written first where only it shows it
       correction_notices.py the hidden receipt every park over an attempt ends on, naming the issue and the source's
                             nonce, and the park a later tick owes recorded over a comment of ours carrying it rather
@@ -3177,7 +3182,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and nothing charged behind -- is owed, said once, so a reply written meanwhile resumes the
                             saved session, and a claim nobody can read held on with nothing written
                             (`recovers_park`); then, before any decomposer is charged behind it, an eligible one
-                            launched where no park stands, a stale one retired, and any other exhausted; and the run
+                            launched where no park stands -- its parks bounded by the tick's frozen read wherever its
+                            boundary is the settled one -- a stale one retired, and any other exhausted; and the run
                             the tick then makes (`run_for_the_tick`): the resume of a park still standing, or the
                             fresh spawn
       replacement_lineage.py

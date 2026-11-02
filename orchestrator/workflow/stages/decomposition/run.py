@@ -18,8 +18,10 @@ issue arrived with.
 
 The order in `_prepare_decomposer_run` is the contract. A parked tick -- and
 one spending an attempt a retry-cap continuation bought, which left the replies
-its park held past the boundary -- reads its thread once before anything else is
-decided (`replies.py`), and the drift check, the prompt, and the settlement
+its park held past the boundary, or one owing a manifest correction's launch,
+whose rejected run settled the boundary through what it read -- reads its
+thread once before anything else is decided (`replies.py`), and the drift
+check, the prompt, and the settlement
 behind its run are all cut from that one read: measured off it, a reply past
 the park's boundary is the park's answer rather than an edit, so it resumes the
 locked session instead of retiring it, while a changed title, body, or already-read comment still takes the fresh
@@ -119,7 +121,7 @@ def _prepare_decomposer_run(
     # two of them is in none of them. One nobody could read holds the tick
     # with the park, and any worktree it is keeping for inspection, as they
     # stand.
-    frozen = _replies.reads_the_thread(state)
+    frozen = _replies.reads_the_thread(issue, state)
     replies = _replies.freeze(gh, issue, state) if frozen else None
     if frozen and replies is None:
         return _DecomposerRunPlan(agent_result=None, keep_worktree=True)
