@@ -1430,23 +1430,23 @@ The keys that matter for the state machine fall into a few groups:
   from (`stages/decomposition/correction_standing.py`). Its arming, exhaustion, and retirement
   (`stages/decomposition/correction_checkpoint.py`) are guarded commits owning this field alone, so no pin, baseline,
   park, counter, run charge, or unknown field moves with them. An arming is decided on the field, the cycle, the
-  baseline, both pins, the run ledger, and the usage receipts, and is refused for a source another charge or start
-  followed, one whose requirements or saved conversation the record does not carry, another source's pending attempt, a
-  resolved one covering this source's charge, a damaged or displaced claim, and a comment with no room for the attempt's
-  widest resolution; one armed with room to resolve but not to launch grants nothing. An exhaustion grants nothing and
-  is taken whatever the reading says of the launch's start. Each resolution's floor is read off a charge count that
-  reads, beside a usage meter absent or readable, and only where that count covers every charge the ledgers still record
-  -- the one an owed start says a launch was charged past, and any a usage receipt covers: the meter alone is only a
-  floor of what was spent, and a correction charged above the floor -- its own rejected answer -- would arm again once
-  the count read as it should, so a resolution over a count or meter nobody can read, a count below a recorded charge,
-  or an owed start or receipt ledger nobody can read is refused, the attempt left pending and granting nothing until a
-  count reads that covers them. A retirement takes a reading that proves the context moved -- a baseline digest naming
-  other requirements, or a pin the record's own reader takes naming another command or session, or a pin retired -- and
-  is decided on that very evidence, so a baseline or pin nobody can read, or one put back meanwhile, retires nothing.
-  Asking again over an attempt already where it asks sends nothing; a write landing over a comment moved since the
-  caller read it withholds the caller's state, as one sent and never confirmed does until a read-back
-  (`correction_checkpoint.read_back`) finds what landed, which is also how a restarted process reconstructs the attempt
-  from the comment alone.
+  baseline, both pins, the run ledger, the usage meter, and the usage receipts, and is refused for a source another
+  charge or start followed, one whose requirements or saved conversation the record does not carry, another source's
+  pending attempt, a resolved one covering this source's charge, a damaged or displaced claim, and a comment with no
+  room for the attempt's widest resolution; one armed with room to resolve but not to launch grants nothing. An
+  exhaustion grants nothing and is taken whatever the reading says of the launch's start. Each resolution's floor is
+  read off a charge count that reads, beside a usage meter absent or readable, and only where that count covers every
+  charge the ledgers still record -- the one an owed start says a launch was charged past, and any a usage receipt
+  covers: the meter alone is only a floor of what was spent, and a correction charged above the floor -- its own
+  rejected answer -- would arm again once the count read as it should, so a resolution over a count or meter nobody can
+  read, a count below a recorded charge, or an owed start or receipt ledger nobody can read is refused, the attempt left
+  pending and granting nothing until a count reads that covers them. A retirement takes a reading that proves the
+  context moved -- a baseline digest naming other requirements, or a pin the record's own reader takes naming another
+  command or session, or a pin retired -- and is decided on that very evidence, so a baseline or pin nobody can read, or
+  one put back meanwhile, retires nothing. Asking again over an attempt already where it asks sends nothing; a write
+  landing over a comment moved since the caller read it withholds the caller's state, as one sent and never confirmed
+  does until a read-back (`correction_checkpoint.read_back`) finds what landed, which is also how a restarted process
+  reconstructs the attempt from the comment alone.
 - **A debt with no record behind it.** `late_approved_sha` + `late_approved_lease` + `late_approved_basis` outlive the
   generation that granted them, because the write that approves a candidate retires that generation before the push.
   The basis is what the debt RESTS on, said by the owner that granted it rather than inferred from the records
