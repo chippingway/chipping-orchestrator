@@ -120,7 +120,7 @@ def launch(
         return None
     resolves = partial(_live.resolves, gh, issue, state, attempt.source)
     owed = _standing.owed_launch(issue.number, attempt, resolves)
-    stands = partial(_live.uncontrolled, gh, issue, owed.stands)
+    stands = partial(_live.uncontrolled, owed.stands, resolves)
     owed = dataclasses.replace(owed, stands=stands)
     budget = _run_charge_state.AgentRunBudget(issue=issue, state=state, owed=owed)
     return _usage._run_agent_tracked(gh, budget, _source.resumed(spec, issue, attempt.source))

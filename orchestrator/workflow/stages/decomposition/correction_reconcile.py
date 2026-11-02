@@ -67,6 +67,7 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import park_watermarks as _park_watermarks, run_ledger_values as _run_ledger_values
 from orchestrator.workflow.stages.decomposition import (
+    correction_live as _live,
     correction_notices as _notices,
     correction_road as _road,
     correction_settlement as _settlement,
@@ -87,6 +88,11 @@ _PASSIVE = frozenset((_STANDING.ABSENT, _STANDING.RETIRED, _STANDING.DISPLACED, 
 # A pending attempt that may never be launched, whatever stands beside it, save
 # an eligible one whose command parses.
 _UNLAUNCHABLE = frozenset((_STANDING.STARTED, _STANDING.CROWDED, _STANDING.UNPROVED, _STANDING.ELIGIBLE))
+
+# What a park's live reading answers that holds the tick: a hold, or a reading
+# GitHub would not answer. A move is the drift road's or another owner's, so the
+# attempt is spent and the tick goes on.
+_HOLDING = frozenset((_live.Live.HELD, _live.Live.UNREAD))
 
 # Why an attempt was never answered, by what its reading says of it -- an
 # exhausted one by whether a correction of it returned.
@@ -113,7 +119,8 @@ def recovers_park(gh: GitHubClient, issue: Issue, state: PinnedState) -> bool:
     if unanswered is None or _replies.parked(state):
         return True
     attempt = reading.attempt
-    if not _notices.parks_once(gh, issue, state, attempt, _notice(state, reading, unanswered)):
+    parked = _notices.parks_once(gh, issue, state, attempt, _notice(state, reading, unanswered))
+    if parked in _HOLDING:
         return False
     if reading.standing is not _STANDING.EXHAUSTED:
         _settlement.spends(gh, issue, state, attempt)
@@ -203,7 +210,7 @@ def _given_up(
     parked = _replies.parked(state)
     attempt = reading.attempt
     notice = _notice(state, reading, reading.standing)
-    if not parked and not _notices.parks_once(gh, issue, state, attempt, notice):
+    if not parked and _notices.parks_once(gh, issue, state, attempt, notice) in _HOLDING:
         return _held(state)
     _settlement.spends(gh, issue, state, attempt)
     return None if parked and not state.withheld else _held(state)

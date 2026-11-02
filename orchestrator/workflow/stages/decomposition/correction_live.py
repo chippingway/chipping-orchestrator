@@ -18,14 +18,16 @@ moves both. It is asked right behind the launch's charge (the circuit's
 the attempt was armed and charged invokes nothing, and again before anything is
 made of the answer the correction returns, so none of them is answered with a
 child, a split marker, a label, or a park. Each of those asks ends on the
-issue's controls (`controls`), fetched once more behind the thread's read, and
-the circuit's judge of the pinned reading its start is written over asks them
-again behind that reading (`uncontrolled`), so a hold landing while an earlier
-request of the check was out is met rather than read past.
+issue fetched once more behind the thread's read (`controls`), whose controls
+and title and body are the ones judged, and the circuit's judge of the pinned
+reading its start is written over asks the whole of it again behind that
+reading (`uncontrolled`), so a hold or an edit landing while an earlier request
+of the check was out is met rather than read past.
 
-The pinned comment is asked of the context the attempt was armed under once
-more before a usable answer is acted on (`saved`): a session, command, or
-baseline written there since is no conversation that answer belongs to.
+The pinned comment is asked of the context the attempt was armed under before
+anything is made of the correction's answer (`answers`), ahead of the issue
+itself: a session, command, or baseline written there since is no
+conversation that answer belongs to.
 
 Four answers, since each is acted on differently. STANDS licenses the step.
 HELD is a control a human applied: nothing moved, nothing is made, and the
@@ -88,21 +90,24 @@ def reads(gh: GitHubClient, issue: Issue, state: PinnedState, source: _records.C
     """What `issue`, fetched now with its thread, says of the correction `source`'s rejected answer earned.
 
     `state` is the caller's record, whose ledger of our own posts is what keeps
-    them out of the fingerprint, as the drift check keeps them out. The
-    controls are asked again behind the thread's read, last, so a hold landing
-    while the thread was read is met rather than read past.
+    them out of the fingerprint, as the drift check keeps them out. The issue
+    is fetched again behind the thread's read, last, and both its controls and
+    the title and body the requirements are measured by are that fetch's, so a
+    hold or an edit landing while the thread was read is met rather than read
+    past.
     """
-    live, fresh = controls(gh, issue)
-    if live is not Live.STANDS:
-        return live
+    first = controls(gh, issue)[0]
+    if first is not Live.STANDS:
+        return first
     try:
-        thread = list(gh.comments_after(fresh, None, state_comment_id=state.comment_id))
+        thread = list(gh.comments_after(issue, None, state_comment_id=state.comment_id))
     except Exception:
         log.exception("issue=#%d its thread could not be read for its manifest correction; holding it", issue.number)
         return Live.UNREAD
-    if source.requirements not in _revisions(fresh, state, thread):
-        return Live.MOVED
-    return controls(gh, issue)[0]
+    live, fresh = controls(gh, issue)
+    if live is not Live.STANDS:
+        return live
+    return Live.STANDS if source.requirements in _revisions(fresh, state, thread) else Live.MOVED
 
 
 def _revisions(fresh: Issue, state: PinnedState, thread: list) -> frozenset[str]:
@@ -116,36 +121,45 @@ def _revisions(fresh: Issue, state: PinnedState, thread: list) -> frozenset[str]
     return frozenset((whole, _content_hash._compute_user_content_hash(fresh, ours, comments=read)))
 
 
-def saved(gh: GitHubClient, issue: Issue, source: _records.CorrectionSource) -> bool:
-    """Whether the issue's pinned comment, read afresh, still carries the context `source` was armed under.
+def answers(gh: GitHubClient, issue: Issue, state: PinnedState, source: _records.CorrectionSource) -> Live:
+    """What the pinned comment and then the issue, read afresh, say of making anything of `source`'s correction.
 
-    The requirements baseline and both decomposer pins as the source saved
-    them (`correction_standing.moved`): a session or command a human pinned in
-    their place, or a baseline moved, is a conversation the answer no longer
-    belongs to, and a comment nobody could read proves nothing either way.
+    The comment first: its requirements baseline and both decomposer pins as
+    the source saved them (`correction_standing.moved`) -- a session or
+    command a human pinned in their place, or a baseline moved, is MOVED, a
+    conversation the answer no longer belongs to, and a comment nobody could
+    read, or one proving neither, is UNREAD. Then the issue (`reads`), its
+    controls and requirements read last.
     """
     try:
         reading = gh.read_pinned_state(issue)
     except Exception:
         log.exception("issue=#%d its pinned comment could not be read for its manifest correction", issue.number)
-        return False
-    return _standing.moved(reading, source) is None
+        return Live.UNREAD
+    moved = _standing.moved(reading, source)
+    if moved is _standing.Standing.STALE:
+        return Live.MOVED
+    if moved is not None:
+        return Live.UNREAD
+    return reads(gh, issue, state, source)
 
 
-def uncontrolled(gh: GitHubClient, issue: Issue, judged: Callable[[PinnedState], bool], reading: PinnedState) -> bool:
-    """Whether `judged` grants the launch on `reading` and no hold or owner move stands on the issue read after it.
+# The circuit's judge of one pinned reading, and the caller's question of the issue beyond it.
+_Judge = Callable[[PinnedState], bool]
+_Question = Callable[[], bool]
+
+
+def uncontrolled(judged: _Judge, still: _Question, reading: PinnedState) -> bool:
+    """Whether `judged` grants the launch on `reading` and the issue, read afresh behind it, `still` stands.
 
     The circuit's judge of each pinned reading it charges or starts the
-    launch from (`OwedLaunch.stands`), asked of the issue's controls once more
-    behind the reading the start is written over, so a hold landing behind
-    `resolves` -- while that reading was taken -- invokes nothing either.
+    launch from (`OwedLaunch.stands`), asking the issue once more -- its
+    controls, thread, and requirements, the issue fetched last (`resolves`) --
+    behind the reading the start is written over, so a hold or an edit
+    landing behind `resolves` while that reading was taken invokes nothing
+    either.
     """
-    if not judged(reading):
-        return False
-    live = controls(gh, issue)[0]
-    if live is not Live.STANDS:
-        log.info("issue=#%d reads %s as its manifest correction starts; launching nothing", issue.number, live.value)
-    return live is Live.STANDS
+    return judged(reading) and still()
 
 
 def resolves(gh: GitHubClient, issue: Issue, state: PinnedState, source: _records.CorrectionSource) -> bool:

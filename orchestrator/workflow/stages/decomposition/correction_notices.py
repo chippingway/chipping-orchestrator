@@ -20,7 +20,11 @@ boundary stands: it records the thread read through our own comments and no
 further, so a reply written while the correction was out -- below a notice
 that landed after it -- stays past the boundary for the resume to deliver. A
 thread nobody could read says nothing and records nothing, and the next tick
-asks again.
+asks again; so does a pinned comment or an issue that no longer stands as the
+rejected run left them, read afresh behind the thread's read and ahead of any
+post or write (`correction_live.answers`) -- a hold or an unread reading
+holds the tick, and a moved context, owner, or requirements is left to the
+road that answers it, so no notice is posted, or park written, over it.
 """
 from __future__ import annotations
 
@@ -39,6 +43,7 @@ from orchestrator.workflow.engine import (
     record_admission as _record_admission,
 )
 from orchestrator.workflow.stages.decomposition import (
+    correction_live as _live,
     correction_records as _records,
     ready_readings as _ready_readings,
     state as _state,
@@ -95,8 +100,14 @@ def owed(state: PinnedState, attempt: _records.CorrectionAttempt) -> str | None:
 
 def parks_once(
     gh: GitHubClient, issue: Issue, state: PinnedState, attempt: _records.CorrectionAttempt, message: str,
-) -> bool:
-    """Park on `message` for `attempt`, or record the park a notice of ours already said; False where unread.
+) -> _live.Live:
+    """Park on `message` for `attempt`, or record the park a notice of ours already said; what the issue read as.
+
+    STANDS where the park was taken. Anything else is the answer the pinned
+    comment and the issue gave, read afresh behind the thread's read and ahead
+    of any post or write (`correction_live.answers`), and nothing is said or
+    written: a hold, a reading GitHub would not answer, or a move -- the saved
+    context, the owner, or the requirements -- whose road is not this park's.
 
     The park is written whole either way, and bounded wherever a reply
     boundary stands to walk from: it records the thread read through our own
@@ -112,8 +123,12 @@ def parks_once(
         thread = list(gh.comments_after(issue, floor, state_comment_id=state.comment_id))
     except Exception:
         log.exception("issue=#%d could not be read for its manifest correction's park; holding it", issue.number)
-        return False
+        return _live.Live.UNREAD
     said = _ready_readings.found(gh, state, thread, _receipt(attempt))
+    live = _live.answers(gh, issue, state, attempt.source)
+    if live is not _live.Live.STANDS:
+        log.info("issue=#%d reads %s ahead of its correction's park; parking nothing", issue.number, live.value)
+        return live
     bounded = isinstance(floor, int)
     if said is None:
         _guards._park_awaiting_human(
@@ -128,7 +143,7 @@ def parks_once(
         _recorded_over(gh, issue, state, said, bounded=bounded)
     state.state_data.pop(_OWED, None)
     gh.write_pinned_state(issue, state)
-    return True
+    return live
 
 
 def _recorded_over(gh: GitHubClient, issue: Issue, state: PinnedState, said: int, *, bounded: bool) -> None:

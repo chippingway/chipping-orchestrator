@@ -1400,48 +1400,47 @@ The keys that matter for the state machine fall into a few groups:
   `workflow:decomposing`, withholding its summary, its label, and its first release until that recovery has seeded the
   child.
 - **A decomposer manifest correction.** `decomposer_correction` is the one correction an initial decomposition may be
-  allowed once a completed run's answer fails manifest validation: armed at that rejection, launched once, and
-  resolved by the correction's answer or by a later tick, as the
-  [decomposing handler](delivery-stages.md#_handle_decomposing-label-workflowdecomposing) describes (steps 5 and 7).
-  One flat object holds at most one attempt, tied to the process invocation whose answer was rejected (`source`, the
-  six members its tracked spawn minted), the requirements revision that run was handed (`requirements`, one digest),
-  the decomposer command and session it saved (`command`, `session`), and the parser's error its answer was refused
-  with (`diagnostic`, one line of at most 1024 characters, which the correction prompt quotes on whichever tick
-  launches it), and to nothing else: no request fingerprint, session id alone, log, analytics row, or in-memory count
-  is what a later tick recovers it by. Its `stage` is `pending` (the allowance
-  stands), `exhausted` (spent, `correction` naming the correction's own invocation where one returned and `null` where
-  none did), or `retired` (ended over a reading that proved its context moved), and a resolved one adds `floor`, the run
-  count the issue had reached as it resolved, held to the widest number a record holds: no invocation charged at or
-  below it -- the source, the correction, a correction that may still have been running -- arms another attempt, so a
-  correction's own rejected answer stays part of the attempt that bought it, while a later rejected run charged above it
-  may arm its own. Read only whole: a key too many or too few, a member out of its bound, or a correction not charged
-  after its source on the same comment and cycle is a damaged claim, never an absence, which nothing arms over,
-  resolves, or acts on, and no write sends a record that would not read back as itself. Whether a pending attempt's one
-  launch has started is the ledgers' to say rather than this record's: that launch is owed exactly once at its source's
-  charge (`OwedLaunch`, [The agent-run circuit](#the-agent-run-circuit)), so `agent_run_owed_started` at or past that
-  count, or spelled as no count, is a start that may have reached a process. Its absence rules nothing out alone, since
-  a hand edit can drop it: the run count -- read off a charge count that reads as one, beside a usage meter absent or
-  readable, since the meter alone is only a floor of what was spent -- still at the source's charge, or one past it
-  whose `agent_run_reservation` stands `reserved` -- the unstarted charge the circuit honors for the launch it was taken
-  for, kept rather than paid again -- rules a start out, and any other count or phase, a usage meter past the source's
-  charge -- it counts processes that returned, each charged first, so whatever phase the reservation reads -- a usage
-  receipt of a process charged after the source, or a receipt ledger nobody can read, does not. An attempt whose start
-  is not ruled out is never launched again. A pending attempt grants its launch only while it is bound to the comment
-  and cycle its source was charged on, that start is ruled out, the baseline and both decomposer pins still read as it
-  saved them, and the comment has room for its widest resolution beside the charge and start the launch leaves, staged
-  by the run ledger's own writers -- a charge already standing `reserved` one past the source measured by its start
-  alone, as the circuit starts that charge rather than taking another -- and the receipt its accounting takes
-  (`stages/decomposition/correction_room.py`); the circuit asks that of every reading it charges or starts the launch
-  from (`stages/decomposition/correction_standing.py`). Its arming, exhaustion, and retirement
-  (`stages/decomposition/correction_checkpoint.py`) are guarded commits owning this field alone, so no pin, baseline,
-  park, counter, run charge, or unknown field moves with them. An arming is decided on the field, the cycle, the
-  baseline, both pins, the run ledger, the usage meter, and the usage receipts, and is refused for a source another
-  charge or start followed, one whose requirements or saved conversation the record does not carry, another source's
-  pending attempt, a resolved one covering this source's charge, a damaged or displaced claim, and a comment with no
-  room for the attempt's widest resolution; one armed with room to resolve but not to launch grants nothing. An
-  exhaustion grants nothing and is taken whatever the reading says of the launch's start. Each resolution's floor is
-  read off a charge count that reads, beside a usage meter absent or readable, and only where that count covers every
-  charge the ledgers still record -- the one an owed start says a launch was charged past, and any a usage receipt
+  allowed once a completed run's answer fails manifest validation: armed at that rejection, launched once, and resolved
+  by the correction's answer or by a later tick, as the [decomposing
+  handler](delivery-stages.md#_handle_decomposing-label-workflowdecomposing) describes (steps 5 and 7). One flat object
+  holds at most one attempt, tied to the process invocation whose answer was rejected (`source`, the six members its
+  tracked spawn minted), the requirements revision that run was handed (`requirements`, one digest), the decomposer
+  command and session it saved (`command`, `session`), and the parser's error its answer was refused with (`diagnostic`,
+  one line of at most 1024 characters, which the correction prompt quotes on whichever tick launches it), and to nothing
+  else: no request fingerprint, session id alone, log, analytics row, or in-memory count is what a later tick recovers
+  it by. Its `stage` is `pending` (the allowance stands), `exhausted` (spent, `correction` naming the correction's own
+  invocation where one returned and `null` where none did), or `retired` (ended over a reading that proved its context
+  moved), and a resolved one adds `floor`, the run count the issue had reached as it resolved, held to the widest number
+  a record holds: no invocation charged at or below it -- the source, the correction, a correction that may still have
+  been running -- arms another attempt, so a correction's own rejected answer stays part of the attempt that bought it,
+  while a later rejected run charged above it may arm its own. Read only whole: a key too many or too few, a member out
+  of its bound, or a correction not charged after its source on the same comment and cycle is a damaged claim, never an
+  absence, which nothing arms over, resolves, or acts on, and no write sends a record that would not read back as
+  itself. Whether a pending attempt's one launch has started is the ledgers' to say rather than this record's: that
+  launch is owed exactly once at its source's charge (`OwedLaunch`, [The agent-run circuit](#the-agent-run-circuit)), so
+  `agent_run_owed_started` at or past that count, or spelled as no count, is a start that may have reached a process.
+  Its absence rules nothing out alone, since a hand edit can drop it: the run count -- read off a charge count that
+  reads as one, beside a usage meter absent or readable, since the meter alone is only a floor of what was spent --
+  still at the source's charge, or one past it whose `agent_run_reservation` stands `reserved` -- the unstarted charge
+  the circuit honors for the launch it was taken for, kept rather than paid again -- rules a start out, and any other
+  count or phase, a usage meter past the source's charge -- it counts processes that returned, each charged first, so
+  whatever phase the reservation reads -- a usage receipt of a process charged after the source, or a receipt ledger
+  nobody can read, does not. An attempt whose start is not ruled out is never launched again. A pending attempt grants
+  its launch only while it is bound to the comment and cycle its source was charged on, that start is ruled out, the
+  baseline and both decomposer pins still read as it saved them, and the comment has room for its widest resolution
+  beside the charge and start the launch leaves, staged by the run ledger's own writers -- a charge already standing
+  `reserved` one past the source measured by its start alone, as the circuit starts that charge rather than taking
+  another -- and the receipt its accounting takes (`stages/decomposition/correction_room.py`); the circuit asks that of
+  every reading it charges or starts the launch from (`stages/decomposition/correction_standing.py`). Its arming,
+  exhaustion, and retirement (`stages/decomposition/correction_checkpoint.py`) are guarded commits owning this field
+  alone, so no pin, baseline, park, counter, run charge, or unknown field moves with them. An arming is decided on the
+  field, the cycle, the baseline, both pins, the run ledger, the usage meter, and the usage receipts, and is refused for
+  a source another charge or start followed, one whose requirements or saved conversation the record does not carry,
+  another source's pending attempt, a resolved one covering this source's charge, a damaged or displaced claim, and a
+  comment with no room for the attempt's widest resolution; one armed with room to resolve but not to launch grants
+  nothing. An exhaustion grants nothing and is taken whatever the reading says of the launch's start. Each resolution's
+  floor is read off a charge count that reads, beside a usage meter absent or readable, and only where that count covers
+  every charge the ledgers still record -- the one an owed start says a launch was charged past, and any a usage receipt
   covers: the meter alone is only a floor of what was spent, and a correction charged above the floor -- its own
   rejected answer -- would arm again once the count read as it should, so a resolution over a count or meter nobody can
   read, a count below a recorded charge, or an owed start or receipt ledger nobody can read is refused, the attempt left
@@ -1453,16 +1452,17 @@ The keys that matter for the state machine fall into a few groups:
   does until a read-back (`correction_checkpoint.read_back`) finds what landed, which is also how a restarted process
   reconstructs the attempt from the comment alone. Every park taken over an attempt -- the correction's own answer
   parked, and one armed with no launch granted given up behind the ordinary park -- lands while the attempt is still
-  pending and ends on the hidden receipt `<!--orchestrator-decomposer-correction:issue=<n>:source=<nonce>-->`, the
-  nonce the source invocation's own, its words held on the record as `decomposer_correction_notice` (the source's
-  nonce and the message) from just before the post until the write recording the park, so a post that never landed
-  is said in its own words; and the attempt is exhausted behind it; a tick that finds the attempt owed a park
-  it does not stand on takes it ahead of its frozen read and drift check, recording it over a comment of ours past
-  the reply boundary carrying that receipt rather than posting it again, and bounded either way, so a reply written
-  while the correction was out stays the saved session's to be resumed on. A tick owing a pending attempt's launch
-  freezes its thread as a parked tick does, so a reply written past the boundary the rejected run settled is no
-  edit, and the launched correction's parks are bounded by that read without settling it. A claim nobody can read
-  holds every `decomposing` tick with nothing reset, launched, created, or written until it is repaired.
+  pending and ends on the hidden receipt `<!--orchestrator-decomposer-correction:issue=<n>:source=<nonce>-->`, the nonce
+  the source invocation's own, its words held on the record as `decomposer_correction_notice` (the source's nonce and
+  the message) from just before the post until the write recording the park, so a post that never landed is said in its
+  own words; each taken only over a comment that still carries the saved context and an issue that still stands, read
+  afresh ahead of the post; and the attempt is exhausted behind it; a tick that finds the attempt owed a park it does
+  not stand on takes it ahead of its frozen read and drift check, recording it over a comment of ours past the reply
+  boundary carrying that receipt rather than posting it again, and bounded either way, so a reply written while the
+  correction was out stays the saved session's to be resumed on. A tick owing a pending attempt's launch freezes its
+  thread as a parked tick does, so a reply written past the boundary the rejected run settled is no edit, and the
+  launched correction's parks are bounded by that read without settling it. A claim nobody can read holds every
+  `decomposing` tick with nothing reset, launched, created, or written until it is repaired.
 - **A debt with no record behind it.** `late_approved_sha` + `late_approved_lease` + `late_approved_basis` outlive the
   generation that granted them, because the write that approves a candidate retires that generation before the push.
   The basis is what the debt RESTS on, said by the owner that granted it rather than inferred from the records

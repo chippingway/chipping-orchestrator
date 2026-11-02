@@ -123,29 +123,39 @@ def clears(gh: GitHubClient, issue: Issue, state: PinnedState, run_plan: _Decomp
     if live is _live.Live.MOVED or not spent or state.withheld:
         log.info("issue=#%d its corrected manifest is acted on nothing: it reads %s", issue.number, live.value)
         return False
-    return _stands_behind(gh, issue, state, attempt)
+    behind = _live.answers(gh, issue, state, attempt.source)
+    if behind is not _live.Live.STANDS:
+        log.info("issue=#%d reads %s behind its correction's exhaustion; acting on nothing", issue.number, behind.value)
+    return behind is _live.Live.STANDS
 
 
 def parks(gh: GitHubClient, issue: Issue, state: PinnedState, run_plan: _DecomposerRunPlan) -> bool:
     """Whether the park `run_plan`'s run reached may be taken on the issue now.
 
-    Every run's may but a correction's, which only where the issue, read
-    afresh, still stands as its rejected run left it: a close, a relabel, or
-    an edit since spends the attempt and parks nothing on an owner the answer
-    no longer belongs to -- the edit left for the drift reset's fresh
+    Every run's may but a correction's, which only where the pinned comment
+    and then the issue, read afresh, still stand as its rejected run left them
+    (`correction_live.answers`): a session, command, or baseline pinned in
+    place of the saved ones, a close, a relabel, or an edit since spends the
+    attempt and parks nothing on an owner or a conversation the answer no
+    longer belongs to -- the edit left for the drift reset's fresh
     decomposition -- while a hold, or an issue GitHub would not answer for,
     parks and spends nothing, the attempt left started for a later tick to
-    park over.
+    park over. The comment is read back first (`correction_checkpoint.read_back`),
+    so one another road or a human wrote since the tick read it withholds the
+    tick's state and nothing is parked over it: the park's whole-state writes
+    would put back what that write replaced.
     """
     attempt = run_plan.correction
     if attempt is None:
         return True
-    live = _live.reads(gh, issue, state, attempt.source)
+    _checkpoint.read_back(gh, issue, state)
+    live = _live.answers(gh, issue, state, attempt.source)
     if live is _live.Live.MOVED:
         spends(gh, issue, state, attempt, run_plan.agent_result.invocation)
-    if live is not _live.Live.STANDS:
+    if live is not _live.Live.STANDS or state.withheld:
         log.info("issue=#%d reads %s as its manifest correction returns; parking nothing", issue.number, live.value)
-    return live is _live.Live.STANDS
+        return False
+    return True
 
 
 def retires(gh: GitHubClient, issue: Issue, state: PinnedState, attempt: _records.CorrectionAttempt) -> bool:
@@ -166,22 +176,3 @@ def retires(gh: GitHubClient, issue: Issue, state: PinnedState, attempt: _record
             issue.number, getattr(retired.refusal, "value", retired.status.value),
         )
     return not state.withheld
-
-
-def _stands_behind(gh: GitHubClient, issue: Issue, state: PinnedState, attempt: _records.CorrectionAttempt) -> bool:
-    """Whether the issue still stands, and its comment still carries the attempt's context, behind its exhaustion.
-
-    The controls are asked last, behind the pinned comment's read, so a hold
-    landing while that read was out makes nothing of the answer either.
-    """
-    behind = _live.reads(gh, issue, state, attempt.source)
-    if behind is not _live.Live.STANDS:
-        log.info("issue=#%d reads %s behind its correction's exhaustion; acting on nothing", issue.number, behind.value)
-        return False
-    if not _live.saved(gh, issue, attempt.source):
-        log.info("issue=#%d its correction's saved context moved; acting on nothing", issue.number)
-        return False
-    last = _live.controls(gh, issue)[0]
-    if last is not _live.Live.STANDS:
-        log.info("issue=#%d reads %s behind its correction's context; acting on nothing", issue.number, last.value)
-    return last is _live.Live.STANDS

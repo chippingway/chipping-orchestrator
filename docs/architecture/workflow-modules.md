@@ -3165,20 +3165,24 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       correction_live.py    the issue read afresh around that launch and its answer: a `paused` / `backlog` hold, a
                             close, a label other than `workflow:decomposing`, or requirements that read as neither the
                             whole thread nor the stretch through the settled reply boundary as the revision the
-                            rejected run was handed -- held, moved, unread, or standing, every check ending on the
-                            controls asked afresh behind its last read (`controls`) and the circuit's judge asking them
-                            again on the readings it charges and starts from (`uncontrolled`) -- and the pinned comment
-                            read afresh for the session, command, and baseline the attempt was armed under (`saved`)
+                            rejected run was handed -- held, moved, unread, or standing, every check judging the
+                            controls and requirements off the issue fetched last, behind its thread read (`controls`,
+                            `reads`), and the circuit's judge asking the whole check again on the readings it charges
+                            and starts from (`uncontrolled`) -- and that check behind the pinned comment read afresh for
+                            the session, command, and baseline the attempt was armed under (`answers`)
       correction_settlement.py
-                            what the correction's answer may come to: each park it reaches taken only over an issue
-                            that still stands (`parks`), the exhaustion behind it naming the correction, a usable
+                            what the correction's answer may come to: each park it reaches taken only over a comment,
+                            read back unmoved, that still carries the saved context, and an issue that still stands
+                            (`parks`), the exhaustion behind it naming the correction, a usable
                             answer acted on only once the issue still stands, the attempt reads spent over a write
                             that withheld nothing, and the issue and its saved context still stand read again behind
                             that write, a close, relabel, or edit spending it with nothing made, and the
                             retirement of a moved attempt, the tick's own reset written first where only it shows it
       correction_notices.py the hidden receipt every park over an attempt ends on, naming the issue and the source's
                             nonce, the notice held on the record before it is posted (`owing`, `owed`), and the park a
-                            later tick owes recorded over a comment of ours carrying it rather than said again --
+                            later tick owes -- taken only where the comment and the issue, read afresh behind the
+                            receipt's thread read, still stand -- recorded over a comment of ours carrying it rather
+                            than said again --
                             said otherwise in the held notice's own words -- bounded wherever a reply boundary stands
       correction_reconcile.py
                             what a later tick owes an attempt: ahead of the frozen read and the drift check, the park a

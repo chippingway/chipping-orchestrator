@@ -18,7 +18,7 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator.workflow.engine import run_ledger_values as _run_ledger_values, run_limit_values as _run_limit_values
-from tests.workflow.fixtures import KEY_AWAITING_HUMAN
+from tests.workflow.fixtures import KEY_AWAITING_HUMAN, LABEL_READY
 from tests.workflow.stages.decomposition import correction_tick_support as support
 
 # The parent's strict edits, by their place in a correction's tick.
@@ -31,6 +31,10 @@ _ADD_RUNS = "/orchestrator add-agent-runs 1"
 _ANSWER = "Please include every depends_on list."
 
 _HELD_NOTICE = "decomposer_correction_notice"
+
+_EDITED = "Ship ten slices, then document them."
+
+_CORRECTION = "automatic correction"
 
 _LATER = "Keep streaming too."
 
@@ -253,6 +257,55 @@ class DeferredReplyTest(unittest.TestCase, support.CorrectionTickCase):
             self.tick(self.decomposer(support.UNLISTED, during=during))
         self.assertEqual(self.stage(), support.PENDING)
         return answered
+
+
+class RecoveryLiveTest(unittest.TestCase, support.CorrectionTickCase):
+    """A park a later tick owes a correction is taken only over an issue that still stands, read afresh.
+
+    An edit that spent the correction's answer is the drift road's, not a park
+    announcing a correction nobody will act on; a hold landing while the
+    recovery reads the thread leaves the park, its notice and its write, for
+    the tick that finds the hold lifted.
+    """
+
+    def test_an_edit_takes_no_park(self) -> None:
+        self.opened()
+        edits = self.decomposer(support.UNLISTED, support.LISTED, during={1: self._edits})
+        self.tick(edits)
+        fresh = self.decomposer(support.SINGLE)
+
+        self.tick(fresh)
+
+        self.assertIsNone(fresh.launches[0].resumed, "the edit takes a fresh decomposition")
+        self.assertFalse([body for body in self.said() if _CORRECTION in body], "no correction park is announced")
+        self.assertIn("issue content changed", self.said()[0])
+        self.assertEqual(self.label(), LABEL_READY)
+
+    def test_a_hold_during_recovery_parks_nothing(self) -> None:
+        self.opened()
+        killed = {"interrupted": True, "exit_code": support.SHUTDOWN_EXIT}
+        self.tick(self.decomposer(support.UNLISTED, killed))
+        self._read = self.github.comments_after
+        with patch.object(self.github, "comments_after", side_effect=self._holds_while_reading):
+            self.tick(self.decomposer(support.SINGLE))
+        held = self.pinned()
+        self.lift()
+
+        self.tick(self.decomposer(support.SINGLE))
+
+        self.assertFalse(held.get(KEY_AWAITING_HUMAN), "no park is written over the hold")
+        self.assertEqual(held[support.FIELD]["stage"], support.PENDING)
+        self.assertEqual(len(self.said()), 1, "the park is said once, behind the lifted hold")
+        self.assertTrue(self.pinned()[KEY_AWAITING_HUMAN])
+
+    def _edits(self, world: support.CorrectionTickCase) -> None:
+        """A human edits the issue's body while the correction is out."""
+        world.issue.body = _EDITED
+
+    def _holds_while_reading(self, *args, **kwargs):
+        """The thread read, with a hold landing on the issue while it is out."""
+        self.hold()
+        return self._read(*args, **kwargs)
 
 
 class RunLimitTest(unittest.TestCase, support.CorrectionTickCase):

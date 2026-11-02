@@ -49,10 +49,17 @@ _REPINNED = "dec-pinned-by-hand"
 # ahead of, beside how many runs that leaves launched: behind the thread read
 # behind the charge, behind the reading the start is written over, and behind
 # the saved context's read before a usable answer is acted on.
-_LATE_HOLDS = (
+_LATE_WINDOWS = (
     ("the thread behind the charge", support.BEHIND_THE_THREAD, 1),
-    ("the start's reading", support.ON_THE_START, 1),
+    ("the start's reading", support.BEFORE_THE_START, 1),
     ("the saved context", support.BEHIND_THE_CONTEXT, 2),
+)
+
+# Each of those windows met by a hold and by an edit of the requirements.
+_LATE_MOVES = tuple(
+    (f"{moved} during {window}", nth, move, launched)
+    for window, nth, launched in _LATE_WINDOWS
+    for moved, move in (("a hold", lambda world: world.hold()), ("an edit", _edit))
 )
 
 # The days a held correction waits out, past the daily retry window it was charged in.
@@ -115,11 +122,15 @@ class BeforeLaunchTest(unittest.TestCase, support.CorrectionTickCase):
                 self.assertEqual(self.children(), support.SLICES)
 
     def test_a_late_hold_makes_nothing(self) -> None:
-        for name, nth, launched in _LATE_HOLDS:
+        # A hold or an edit landing while a later read of a check was out is
+        # met by the issue fetched last, whose controls and requirements are
+        # the ones judged: no stale correction is invoked, and no stale answer
+        # is acted on.
+        for name, nth, move, launched in _LATE_MOVES:
             with self.subTest(name):
                 self.opened()
                 runner = self.decomposer(support.UNLISTED, support.LISTED)
-                with support.OnFetch.patch(self, nth, lambda world: world.hold()):
+                with support.OnFetch.patch(self, nth, move):
                     self.tick(runner)
 
                 self.assertEqual(len(runner.launches), launched)
@@ -197,18 +208,22 @@ class AfterReturnTest(unittest.TestCase, support.CorrectionTickCase):
 
     def test_a_moved_session_makes_nothing(self) -> None:
         # A session a human pinned in place of the saved one while the
-        # correction ran is no conversation its usable answer belongs to:
-        # nothing is made of it, and the pin is left as the human wrote it.
-        self.opened()
-        runner = self.decomposer(support.UNLISTED, support.LISTED, during={1: _repin})
+        # correction ran is no conversation its answer belongs to: nothing is
+        # made of a usable one, no park is taken on an invalid one, and the
+        # pin is left as the human wrote it.
+        for answered, answer in (("usable", support.LISTED), ("invalid", support.SELF_EDGE)):
+            with self.subTest(answered):
+                self.opened()
+                runner = self.decomposer(support.UNLISTED, answer, during={1: _repin})
 
-        self.tick(runner)
+                self.tick(runner)
 
-        self.assertEqual(len(runner.launches), 2)
-        self.assertEqual(self.children(), 0)
-        self.assertFalse(set(support.SPLIT_MARKERS) & set(self.pinned()))
-        self.assertEqual(self.label(), support.LABEL_DECOMPOSING)
-        self.assertEqual(self.pinned()["decomposer_session_id"], _REPINNED)
+                self.assertEqual(len(runner.launches), 2)
+                self.assertEqual(self.children(), 0)
+                self.assertEqual(self.said(), [])
+                self.assertFalse(self.pinned().get(KEY_AWAITING_HUMAN))
+                self.assertEqual(self.label(), support.LABEL_DECOMPOSING)
+                self.assertEqual(self.pinned()["decomposer_session_id"], _REPINNED)
 
     def test_a_held_answer_parks_once_it_can(self) -> None:
         # A hold met as the correction returns, or an issue GitHub would not

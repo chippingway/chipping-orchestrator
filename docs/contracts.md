@@ -757,19 +757,19 @@ and every park that run's disposition takes, a split's included, records the thr
 and no further. Lifetime agent-run charges and
 the grant that permits further runs are covered by [C-15].
 A decomposer manifest correction is held to the issue read afresh behind its charge and on the reading its start is
-written over, again before its answer is used or parked, and once more behind the write that spends it, each check
-ending on the controls asked behind its last read: a `paused`/`backlog` hold, a close, a label other than
-`workflow:decomposing`, or requirements that read as neither the whole thread nor the stretch through the settled
-reply boundary as the revision its rejected run was handed invokes nothing and makes no child, split marker, label,
-or park on the owner it moved to, and neither does a session, command, or baseline pinned in place of the ones it was
-armed under, or a spend that left the tick's state withheld. A reply written past the boundary the rejected run settled
-stays that run's session's, before a launch a later tick owes -- that tick freezing its read as a parked one does --
-and during it, whose parks are bounded by that read; an edit is answered by the drift reset's fresh
-decomposition, the attempt resolved rather than replenished. A spent daily budget parks its launch on `retry_cap`,
-whose continuation retires the session and with it the attempt; a spent lifetime ledger parks it on
-`agent_run_limit`, whose grant alone buys that launch. A correction a hold, an unresolved accounting, an
-interruption, or a lost write left unanswered is never launched again: the next tick parks for a human, the session
-left for their reply to resume.
+written over, again before its answer is used or parked -- and before a later tick recovers a park owed to it -- and
+once more behind the write that spends it, each check judging the controls and the requirements off the issue fetched
+last, and each but the first behind the pinned comment's saved session, command, and baseline: a `paused`/`backlog`
+hold, a close, a label other than `workflow:decomposing`, or requirements that read as neither the whole thread nor the
+stretch through the settled reply boundary as the revision its rejected run was handed invokes nothing and makes no
+child, split marker, label, or park on the owner it moved to, and neither does a session, command, or baseline pinned in
+place of the ones it was armed under, or a spend that left the tick's state withheld. A reply written past the boundary
+the rejected run settled stays that run's session's, before a launch a later tick owes -- that tick freezing its read as
+a parked one does -- and during it, whose parks are bounded by that read; an edit is answered by the drift reset's fresh
+decomposition, the attempt resolved rather than replenished. A spent daily budget parks its launch on `retry_cap`, whose
+continuation retires the session and with it the attempt; a spent lifetime ledger parks it on `agent_run_limit`, whose
+grant alone buys that launch. A correction a hold, an unresolved accounting, an interruption, or a lost write left
+unanswered is never launched again: the next tick parks for a human, the session left for their reply to resume.
 
 **Specs:** [controls](state-machine/labels-and-state.md#workflow-labels),
 [waiting for human action](state-machine.md#per-tick-flow-workflowengineticktick),
