@@ -131,11 +131,16 @@ added prompt tokens and zero behavior change**. See
 Every prompt above quotes the issue thread through the trust filter in `workflow/engine/prompt_context.py`. A prompt
 that quotes the WHOLE thread is bounded to the last 4000 characters; the one that quotes a slice of it is not — the
 human-reply followup carries exactly the replies past a park's watermark, and `resume_batch._UNBOUNDED_EXCERPT` keeps
-that batch uncapped so the record cannot name an omission the followup never made. Two readers render the bounded
-text and they differ in one thing — whether anything is going to be recorded about it:
+that batch uncapped so the record cannot name an omission the followup never made — as does the initial decomposer's
+(`decomposition/replies.py`), whose followup and fresh-spawn conversation both quote the replies past the boundary
+whole. Two readers render the bounded text and they differ in one thing — whether anything is going to be recorded
+about it:
 
 - `_recent_comments_text` reads the thread and renders it, for the prompts whose stage settles nothing by them (the
-  documentation, decomposer, question and discussion prompts).
+  documentation, question and discussion prompts, and the decomposer's on a tick that froze no read of its thread).
+  A parked decomposition's tick, and one spending an attempt a `retry_cap` continuation bought, quotes its own frozen
+  read instead (`DecomposerReplies.conversation`, built on `_thread_delivery`): the part the park had read under the
+  same bound, the replies past it whole, and the record its run settles.
 - `_delivered_thread` takes the read itself and hands back a `prompt_delivery` snapshot: the same text, plus the
   record of which comments it is made of, which ones the bound left out, and the requirements revision that read
   fingerprints to. The implementing fresh spawn, every requirements-drift resume and the validating reviewer round
