@@ -95,7 +95,10 @@ How it works per role:
   `_handle_in_review` resumes it on exactly one road, the requirements-drift resume its own drift owner runs; fresh PR
   feedback is routed to `workflow:fixing` instead of being resumed there.
 - **Decomposer (`DECOMPOSE_AGENT`).** Same mechanic in `_handle_decomposing`: the spec is persisted to
-  `decomposer_agent` before the spawn and re-parsed via `_read_decomposer_session` on every resume. The same backend
+  `decomposer_agent` before the spawn and re-parsed via `_read_decomposer_session` on every resume. The dormant
+  manifest correction, which no production road launches yet, re-parses that same pin rather than the setting
+  (`correction_source.resumable`), and a pin that does not parse earns no correction instead of stopping the process.
+  The same backend
   (not the same session) also drives the question stage — `_handle_question` reads `DECOMPOSE_AGENT_SPEC` as the
   *fallback* on the first-ever question spawn, then pins what it ran under to `question_agent` (a separate key, parsed
   by `_read_question_session`). The discussion stage pins its own pair the same way (see

@@ -8,7 +8,9 @@ recording the count it was owed at before any process runs, and every launch
 asked behind it -- in the same tick, after a restart, or over an attempt
 resolved or moved since -- is refused with nothing charged. A start the
 circuit refused leaves its charge reserved, which the attempt's next launch
-honors rather than paying again. A dropped record of the start leaves the
+honors rather than paying again. What the launch pays beside its charge lands
+in the charge's own write, and one it cannot pay there charges nothing. A
+dropped record of the start leaves the
 started charge behind the source saying a process ran, so a restart launches
 nothing. A launch is granted only where its charge, its start, and the
 exhaustion recording what it answered all still fit the comment.
@@ -41,6 +43,10 @@ _DIGIT_EDGE = 8
 
 # Moves another road lands between the arming and the launch.
 _MOVES = ({support.BASELINE: support.EDITED}, {support.SESSION_PIN: None})
+
+# A field a launch pays beside its charge stages, and the value it stages.
+_PAID = "paid_beside_the_charge"
+_PAID_NOTE = "paid with the charge"
 
 # The launch the attempt buys, as its caller would ask it: the pinned command
 # resuming the saved session.
@@ -75,11 +81,15 @@ def _launches(
     world: support.CorrectionWorld,
     resolves: Callable[[], bool] | None = None,
     ordinal: int = support.SOURCE,
+    pays: Callable | None = None,
 ) -> _Runner:
-    """Ask the tracked spawn for the launch of the attempt armed for the run charged at `ordinal`, with no ceiling."""
+    """Ask the tracked spawn for the launch of the attempt armed for the run charged at `ordinal`, with no ceiling.
+
+    `pays` is what else the launch pays beside its charge, where it pays anything.
+    """
     runner = _Runner(world)
     armed = support.attempt(world, ordinal)
-    owed = _standing.owed_launch(support.ISSUE, armed, resolves)
+    owed = dataclasses.replace(_standing.owed_launch(support.ISSUE, armed, resolves), pays=pays)
     budget = _run_charge_state.AgentRunBudget(issue=world.issue, state=world.state, owed=owed)
     with patch.object(config, "MAX_AGENT_RUNS_PER_ISSUE", 0), patch.object(_agent_runner, "run_agent", runner):
         _usage._run_agent_tracked(world.github, budget, **dict(_REQUEST))
@@ -164,6 +174,24 @@ class OwedLaunchTest(unittest.TestCase):
         self.assertEqual(len(honored.observed), 1)
         self.assertEqual(world.record()[support.USED], _CORRECTED)
 
+    def test_a_charge_lands_with_what_it_pays(self) -> None:
+        # What the launch pays beside its charge is staged on the reading the
+        # charge is written over, so it is on the comment before the process
+        # runs and on the caller's state behind it; one it cannot pay there
+        # charges, writes, and invokes nothing.
+        for paid, used in ((True, _CORRECTED), (False, support.SOURCE)):
+            with self.subTest(paid=paid):
+                world = _armed()
+
+                self._paying = paid
+                launched = _launches(world, pays=self._pays)
+
+                recorded = world.record().get(_PAID)
+                self.assertEqual(len(launched.observed), int(paid))
+                self.assertEqual(world.record()[support.USED], used)
+                self.assertEqual(recorded, _PAID_NOTE if paid else None)
+                self.assertEqual(world.state.get(_PAID), recorded, "the caller's state carries it")
+
     def test_a_dropped_start_record_launches_nothing(self) -> None:
         # A hand edit drops the circuit's record of the start: the started
         # charge behind the source still says a process ran, so a restart
@@ -194,6 +222,12 @@ class OwedLaunchTest(unittest.TestCase):
         self.assertEqual(world.record()[support.METERED], _CORRECTED)
         self.assertEqual(again.observed, [])
         self.assertEqual(restarted.reads().standing, _STANDING.STARTED)
+
+    def _pays(self, reading) -> bool:
+        """Stage what the launch pays on `reading` where the case pays; whether it does."""
+        if self._paying:
+            reading.set(_PAID, _PAID_NOTE)
+        return self._paying
 
 
 class LaunchRoomTest(unittest.TestCase):

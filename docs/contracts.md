@@ -58,10 +58,11 @@ round -- the resume answering a pull request's human feedback, a requirements-dr
 fresh report a rewritten head's refresh asks for, and the developer revision a human's guidance buys under a late
 adjudication capture one, as their developer returns. The dispatcher's recovery reads a pending capture through that
 read-back alone.
-A decomposer manifest correction (`decomposer_correction`, a dormant facility no road arms yet) is recovered from its
-pinned record alone, never a session id, a request fingerprint, a log, analytics, or an in-memory count, and whether its
-one launch started from the ledgers beside it -- the owed start, the run count and its reservation's phase, the usage
-meter, and the usage receipts -- so a start one of them no longer records is still read off the others.
+A decomposer manifest correction (`decomposer_correction`, a dormant facility no production road arms yet) is recovered
+from its pinned record alone -- the parser's error its correction is asked about included -- never a session id, a
+request fingerprint, a log, analytics, or an in-memory count, and whether its one launch started from the ledgers
+beside it -- the owed start, the run count and its reservation's phase, the usage meter, and the usage receipts -- so a
+start one of them no longer records is still read off the others.
 
 **Specs:** [state](architecture.md#design-constraints), [restarts](configuration/operations.md#what-survives-a-restart).
 
@@ -504,7 +505,15 @@ it was resolved across so nothing it covers -- its correction's own answer inclu
 resolution is refused wherever no readable count covers every charge its ledgers record rather than landing a floor
 below a charge taken, and a retirement for a moved context is held to a reading that proves the move, so a baseline or
 pin nobody can read retires nothing. Its launch is granted only where the charge counts read and the comment has room
-for the charge and start it leaves beside the attempt's widest resolution.
+for the charge and start it leaves beside the attempt's widest resolution. The dormant road that arms one writes the
+rejected run's own disposition first, strictly over the comment its caller last synced with, and arms only behind that
+landing write, so the session and baseline it is held to are durable and no session or cycle written meanwhile is put
+back; a comment moved since, a write nobody confirmed, or an arming left withholding the caller arms or launches
+nothing. Its launch's charge and start land only over the readings they were decided on, each asking the issue and the
+comment once more immediately before it leaves -- the comment by its id as well as its record, so one posted in its
+place with the same record holds it too -- so a session pinned while the issue is asked behind either is never written
+back over and resumed, and a spent budget's park before that launch is written only over the comment the tick read and
+an issue still standing, and announced only where both still stand behind the notice's thread read.
 Writer exclusion comes from [C-05].
 
 **Specs:** [transactions](state-machine/labels-and-state.md#pinned-state),
@@ -538,7 +547,8 @@ Writer exclusion comes from [C-05].
 [split recovery](../tests/workflow/stages/decomposition/test_late_recovery.py),
 [in-flight splits](../tests/workflow/stages/decomposition/test_late_split_recovery.py),
 [correction writes](../tests/workflow/stages/decomposition/test_correction_arming.py),
-[correction resolutions](../tests/workflow/stages/decomposition/test_correction_resolution.py).
+[correction resolutions](../tests/workflow/stages/decomposition/test_correction_resolution.py),
+[correction dispositions](../tests/workflow/stages/decomposition/test_correction_request.py).
 
 ## C-07: Publication authority and exact revisions
 
@@ -608,12 +618,17 @@ Credential filtering does not enforce push authority; see [C-11].
 
 **Why:** Replies must mean what the prompt requested.
 
-**Limits:** Malformed replies follow the role's policy for retries or human guidance. Session identity is covered by
-[C-14].
+**Limits:** Malformed replies follow the role's policy for retries or human guidance. The dormant decomposer
+manifest correction -- no production road asks for one yet, so a refused manifest still parks -- is granted only to a
+completed, accounted, read-only run's manifest the parser refuses with a concrete error, never to a correction's own
+answer, and asks under the very output contract the decompose prompt closes on, beside that exact error. Session
+identity is covered by [C-14].
 
 **Specs:** [reply protocols](workflow.md).
 
-**Checks:** [report prompts](../tests/workflow/engine/test_prompts_developer_report.py).
+**Checks:** [report prompts](../tests/workflow/engine/test_prompts_developer_report.py),
+[manifest contract](../tests/workflow/stages/decomposition/test_manifest.py),
+[correction eligibility](../tests/workflow/stages/decomposition/test_correction_eligibility.py).
 
 ## C-09: Reports, review subjects, and verification
 
@@ -735,8 +750,15 @@ write behind its notice, and those replies are no answer to that park; the conti
 none of them either, and the fresh decomposition it buys is handed them whole. The boundary
 and requirements baseline move only behind a run that read the thread,
 and every park that run's disposition takes, a split's included, records the thread read through our own comments
-and no further. Lifetime agent-run charges and
-the grant that permits further runs are covered by [C-15].
+and no further. The dormant decomposer manifest correction's launch is held to its pinned comment's saved session,
+command, and baseline, and to the issue read afresh -- ahead of its daily retry, behind its charge, and on the reading
+its start is written over, each check judging the controls and requirements off the issue fetched last: a
+`paused`/`backlog` hold, a close, a label other than `workflow:decomposing`, requirements that read as neither the whole
+thread nor the stretch through the settled reply boundary, or an issue GitHub would not answer for invokes nothing -- a
+hold landing while its charge's or start's edit walks to the comment included -- a charge already taken staying reserved
+for that same launch; an attempt its comment no longer grants a launch -- started, crowded, unproved, or resolved --
+asks no retry, so no `retry_cap` park is taken or said for it. Lifetime agent-run charges and the grant that permits
+further runs are covered by [C-15].
 
 **Specs:** [controls](state-machine/labels-and-state.md#workflow-labels),
 [waiting for human action](state-machine.md#per-tick-flow-workflowengineticktick),
@@ -769,7 +791,8 @@ the grant that permits further runs are covered by [C-15].
 [held conflict drift](../tests/workflow/stages/conflicts/test_captured_drift.py),
 [held refreshes](../tests/workflow/stages/validating/test_captured_refresh.py),
 [held revisions](../tests/workflow/stages/decomposition/test_captured_revision.py),
-[closes over held revisions](../tests/workflow/stages/decomposition/test_late_revision_close.py).
+[closes over held revisions](../tests/workflow/stages/decomposition/test_late_revision_close.py),
+[held correction launches](../tests/workflow/stages/decomposition/test_correction_launch_holds.py).
 
 ## C-11: Credentials and execution boundaries
 
@@ -832,8 +855,12 @@ parameters.
 
 **Limits:** Reviewers start fresh with current configuration. A plain `codex` or `claude` is a current command spec,
 kept as pinned with no arguments. Resumes, rotation, failure retirement, and a failed developer conversation's
-replacement keep the pinned command, and a recovered captured completion pins the command its run ran under. Only
-`dev_agent` and `dev_session_id` lock a developer session; no other key is resumed, converted, or cleared as one.
+replacement keep the pinned command, and a recovered captured completion pins the command its run ran under. The dormant
+decomposer manifest correction resumes the session its rejected run saved under the command pinned beside it, backend
+and arguments alike, whatever `DECOMPOSE_AGENT` says now; a pinned command that does not parse, or a session never
+saved, not the one that run itself returned, or not one token no CLI reads as an option, earns no correction and no
+replacement conversation, and a recorded attempt carrying such a session is never launched. Only `dev_agent` and
+`dev_session_id` lock a developer session; no other key is resumed, converted, or cleared as one.
 
 **Specs:** [session commands](workflow.md#in-flight-session-lock--pinned-full-spec-until-the-session-ends).
 
@@ -841,6 +868,7 @@ replacement keep the pinned command, and a recovered captured completion pins th
 [session reads](../tests/workflow/stages/implementing/test_full_spec_reader.py),
 [retirements](../tests/workflow/stages/implementing/test_rotation.py),
 [decomposer resumes](../tests/workflow/stages/decomposition/test_full_spec.py),
+[correction resumes](../tests/workflow/stages/decomposition/test_correction_eligibility.py),
 [fresh reviewers](../tests/workflow/stages/implementing/test_full_spec_reviewer.py).
 
 ## C-15: Lifetime agent-run budget
@@ -858,7 +886,12 @@ nonce, never the request's fingerprint -- and a receipt, or the floor receipts r
 a settlement asked again never moves the meter past the charges it counts.
 A decomposer manifest correction's one launch is charged before it runs like any other launch, owed once at its source's
 charge: a start its ledgers show or cannot rule out is never launched again, and nothing about it refunds or grants a
-run.
+run. The daily retry its dormant launch pays is staged in the write reserving that charge, refusing the charge with
+nothing written where that reading has no slot left, and a charge reserved and never started is started by that same
+launch -- its request names no retry count -- in whatever daily window, paying neither the charge nor the retry
+again. A spent lifetime ledger's `agent_run_limit` park refusing that launch is written only over the reading it was
+refused on and announced only where that reading and the issue still stand, so a session pinned meanwhile is never put
+back. A launch that owes nothing beside its charge is reserved, and parked, exactly as before.
 
 **Specs:** [run budget](state-machine/labels-and-state.md#the-agent-run-circuit),
 [charging before launch](security.md#bounded-agent-spend-per-issue-max_agent_runs_per_issue),
@@ -867,7 +900,8 @@ run.
 **Checks:** [charging](../tests/workflow/engine/test_run_circuit.py),
 [meter floor](../tests/workflow/engine/test_run_ledger.py),
 [accounting once](../tests/workflow/engine/test_invocation_identity.py),
-[correction launches](../tests/workflow/stages/decomposition/test_correction_launch.py).
+[correction launches](../tests/workflow/stages/decomposition/test_correction_launch.py),
+[correction retries](../tests/workflow/stages/decomposition/test_correction_launch_holds.py).
 
 ## Maintaining the contracts
 

@@ -8,9 +8,12 @@ be asked, once, for a complete corrected manifest. It is tied to what that
 allowance is about and to nothing else -- the process invocation whose answer
 was rejected (`source`, the six members `engine/invocations.minted` gave it),
 the requirements revision that run was handed (`requirements`, one digest),
-and the saved decomposer command and session a correction resumes (`command`,
-`session`) -- so no request fingerprint, session id alone, log, analytics row,
-or in-memory counter is what a later tick recovers it by.
+the saved decomposer command and session a correction resumes (`command`,
+`session`), and the validation error the answer was rejected with
+(`diagnostic`, the one line the correction prompt quotes) -- so no request
+fingerprint, session id alone, log, analytics row, or in-memory counter is what
+a later tick recovers it by, and a launch a restart, a refused start, or a
+granted run limit left owed is still asked with the exact error.
 
 Three stages, every member spelled on every record of its stage:
 
@@ -40,7 +43,8 @@ Read strictly and whole: an object with a key its stage does not spell, or
 lacking one, or with any member out of its bound -- a repository slug, a
 recorded number, a nonce of the minted shape, a digest, one bounded line each
 for the command and the session, a correction not charged after its source on
-the same record and cycle, a floor below what it covers -- is no record at all,
+the same record and cycle, a floor below what it covers, a diagnostic past its
+one bounded line -- is no record at all,
 answered None, which `carries` tells apart from an absent field.
 """
 from __future__ import annotations
@@ -71,11 +75,17 @@ _SOURCE = "source"
 _CORRECTION = "correction"
 _FLOOR = "floor"
 
+# The longest validation error an attempt keeps for its correction prompt:
+# every error the manifest parser spells is one short line, and one past this
+# is no error a record holds, so its answer parks as any other.
+MAX_DIAGNOSTIC = 1024
+
 # What every stage spells beside its stage and its source, each by its own reader.
 _CONTEXT = MappingProxyType({
     "requirements": partial(_payloads.as_hex, lengths=_formats.DIGEST_LENGTHS),
     "command": partial(_bounds.line, limit=_bounds.MAX_COMMAND),
     "session": partial(_bounds.line, limit=_bounds.MAX_SESSION),
+    "diagnostic": partial(_bounds.line, limit=MAX_DIAGNOSTIC),
 })
 
 # The members of an invocation that name the record and the cycle it ran on.
@@ -106,12 +116,13 @@ _MEMBERS = MappingProxyType({
 
 @dataclasses.dataclass(frozen=True)
 class CorrectionSource:
-    """The rejected run an allowance is armed for: its invocation, its requirements, and the conversation it saved."""
+    """The rejected run an allowance is armed for: its invocation, requirements, saved conversation, and its error."""
 
     invocation: AgentInvocation
     requirements: str
     command: str
     session: str
+    diagnostic: str
 
     def binds(self, reading: PinnedState, issue_number: int) -> bool:
         """Whether `reading` is the record this source was charged on, still in the cycle it ran in.

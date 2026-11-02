@@ -806,6 +806,15 @@ because there it is the claim that this stage has already rerouted rather than a
        is not kept, so a split already recorded is not asked those rules again: step 3 finalizes it from its markers,
        and the dependency walk releases its children by the `dep_graph` it was written with. An omitted `umbrella`
        flag and an omitted `rationale` remain current: the first is an ordinary split, the second records none.
+
+       The one manifest correction such a refusal may earn is prepared but dormant: this step never asks for it, so
+       every invalid manifest still parks. Its helpers (`correction_source.py`, `correction_road.py`,
+       `correction_live.py`, `correction_budget.py`) would grant one only to a completed, accounted, read-only run's
+       concrete parse error with a session the pinned command resumes, write the run's disposition strictly over the
+       comment the tick last synced with before arming it, and launch it once — the saved session under the pinned
+       command, handed the exact error and the whole output contract the decompose prompt closes on — held to the
+       issue's holds, owner, label, and requirements behind its charge, its daily retry paid in the write reserving
+       that charge; see [the record](labels-and-state.md#pinned-state).
      - no fenced block → treat as a question; park.
      - `decision == "single"` → post the collected-context comment (rationale plus the manifest's optional
        `affected_files` / `notes`, built by `_build_single_decision_comment`) so the implementer inherits the

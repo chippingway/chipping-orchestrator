@@ -177,9 +177,13 @@ def _reserve(
 
     The record follows the write rather than the staging, so what reaches a
     sink is a run this issue durably owes rather than one a refused request
-    left it never charged for.
+    left it never charged for. Whatever else a launch owed once pays beside
+    the charge (`AgentRunBudget.pays`) is staged on the same reading first, so
+    the two land in one write; one it cannot pay there charges nothing.
     """
     recorded = dict(durable.state_data)
+    if not budget.pays(durable):
+        return False
     charged = _run_ledger._reserve_run(durable, launch.fingerprint)
     if not _run_charge_state._persist(gh, budget, durable, recorded):
         return False
@@ -244,11 +248,13 @@ def _park_spent(
     carried back to the caller either. A park the writer refused because a
     human edited the record into one admission refuses raises
     `pinned_refusal.RecordRefused`, which is let through, so the handler is
-    abandoned rather than told only that nothing was invoked.
+    abandoned rather than told only that nothing was invoked. A strict
+    launch's park is held to the reading it was decided on as its charge
+    would have been (`run_limit._park_exhausted`).
     """
     recorded = dict(durable.state_data)
     try:
-        parked = _run_limit._park_exhausted(gh, budget.issue, durable, ledger, launch)
+        parked = _run_limit._park_exhausted(gh, budget, durable, ledger, launch)
     except _pinned_refusal.RecordRefused:
         raise
     except Exception:

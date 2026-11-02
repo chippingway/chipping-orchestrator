@@ -5,8 +5,9 @@
 Each of these exists because the value it carries has to survive a boundary
 the call stack alone would lose it across: the worktree policy a run decides
 before it can raise, the frozen replies a resume was handed -- which only that
-run's outcome may settle -- the agent identity a resume is locked to, the
-children a split has already created when the next one fails -- with the lineage it
+run's outcome may settle -- the manifest correction a run answers, the agent
+identity a resume is locked to, the children a split has already created when
+the next one fails -- with the lineage it
 seeds each of them with, the baseline each create answered, the attempt their
 receipts name, the rationale the parent records beside them, and the ones a
 seed under the child's claim had to leave for the split's recovery to seed and
@@ -27,13 +28,17 @@ from orchestrator.git.worktrees import decomposition as _worktree_decomposition
 from orchestrator.github import client as _client, labels as _labels, pinned_refusal as _pinned_refusal
 from orchestrator.github.issues import issue_is_closed
 from orchestrator.workflow.engine import record_admission as _record_admission
-from orchestrator.workflow.stages.decomposition import replacement_lineage as _lineage, replies as _replies
+from orchestrator.workflow.stages.decomposition import (
+    correction_records as _correction_records,
+    replacement_lineage as _lineage,
+    replies as _replies,
+)
 from orchestrator.workflow.state import WorkflowLabel
 
 
 @dataclass
 class _DecomposerRunPlan:
-    """One decomposer run, the worktree policy it decided, and the frozen read it was handed.
+    """One decomposer run, the worktree policy it decided, the frozen read it was handed, and what it corrects.
 
     `replies` is the tick's frozen read as the run was handed it -- the
     replies a resume quoted, or the conversation the fresh decomposition an
@@ -41,16 +46,39 @@ class _DecomposerRunPlan:
     nothing: what the run settles where it read it, and what bounds every park
     its disposition takes, whose notice would otherwise mark read a comment
     written while the run was out.
+
+    `correction` is the attempt a manifest correction's run answers
+    (`correction_road`), None for every other run -- and for every run
+    production makes, since no production road launches a correction yet: the
+    run's answer is that attempt's to spend, so it earns no correction of its
+    own (`correction_source.earned`). `corrected_by` lays a correction launched
+    behind its source on the same tick onto that source's own plan, so the
+    worktree policy its disposition decides is the one the tick's cleanup
+    honors, and its parks are bounded by `corrected_bounded`
+    (`correction_road.bounds`) rather than by a read it was never handed.
     """
 
     agent_result: AgentResult | None
     keep_worktree: bool = False
     replies: _replies.DecomposerReplies | None = None
+    correction: _correction_records.CorrectionAttempt | None = None
+    corrected_bounded: bool = False
 
     @property
     def bounded(self) -> bool:
         """Whether every park this run's disposition takes records the thread read only through our own comments."""
-        return self.replies is not None
+        return self.replies is not None or self.corrected_bounded
+
+    def corrected_by(self, attempt: _correction_records.CorrectionAttempt, run: AgentResult, *, bounded: bool) -> None:
+        """Lay `attempt`'s correction `run` onto this plan, in place of the run it corrects, its parks `bounded`.
+
+        The rejected run settled the read it was handed, so the correction is
+        handed none of it to settle again.
+        """
+        self.agent_result = run
+        self.correction = attempt
+        self.replies = None
+        self.corrected_bounded = bounded
 
 
 @dataclass

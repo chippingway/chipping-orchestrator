@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """Arm, read back, exhaust, and retire one decomposer manifest correction, each in one guarded commit.
 
-A dormant facility: no road calls any of these yet, so production decomposition
-keeps its own outcomes, and a manifest that fails validation still parks
-awaiting a human (`outcomes._park_unparsed_manifest`).
+A dormant facility: only the prepared correction helpers call these
+(`correction_road`), and no production road calls those yet, so production
+decomposition keeps its own outcomes, and a manifest that fails validation
+still parks awaiting a human (`outcomes._park_unparsed_manifest`).
 
 `arm` lands the one allowance a rejected decomposer answer earns as the issue's
 pending `decomposer_correction`, through the guarded pinned-state commit

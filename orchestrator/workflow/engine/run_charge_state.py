@@ -4,8 +4,9 @@
 
 A failed or unreadable record refuses the launch, and so does one showing a
 launch its caller owed once already made by another road, or no longer
-standing on what its caller holds it to. Only fields changed by this charge
-are merged back into the caller state, preserving its staged changes."""
+standing on what its caller holds it to, and a strict one's write over a
+comment moved since its reading. Only fields changed by this charge are merged
+back into the caller state, preserving its staged changes."""
 from __future__ import annotations
 
 import logging
@@ -41,7 +42,8 @@ class OwedLaunch:
 
     A decomposer manifest correction's one launch is owed the same way, at its
     source's charge (`stages/decomposition/correction_standing.owed_launch`),
-    though no road asks for one yet.
+    asked through a dormant launch helper no production road calls yet
+    (`stages/decomposition/correction_road.launch`).
 
     `at` is the lifetime run count it is owed at, which its start records
     (`run_ledger_values.AGENT_RUN_OWED_STARTED`). Whatever its caller held
@@ -52,11 +54,33 @@ class OwedLaunch:
     reading of the comment the charge is written from, the one its start is
     written over last. False from either refuses the launch. None of either is
     a launch standing on nothing but its count.
+
+    `pays` stages whatever else the launch's charge pays -- a manifest
+    correction's daily retry -- on the reading the charge is written over, so
+    both land in the one write: a launch whose disposition is never written
+    still counts it, and a charge reserved and never started has paid it
+    already for whichever tick starts it. False refuses the charge with
+    nothing written; None pays nothing more.
+
+    `strict` lands the charge and the start each only over the very reading it
+    was decided on (`record_admission.strictly_written`), for a caller whose
+    `stands` asks the issue behind that reading: a human or another road can
+    write the comment while those requests are out -- a session pinned in
+    place of the one the launch resumes -- and a whole-state write would put
+    it back and invoke the conversation it replaced. Each of those edits asks
+    `resolves` once more, and then the comment -- by its id as well as its
+    record -- immediately before it leaves (`edit_questions`), so a hold, a
+    move, or a comment posted in its place landing while the editor's own walk
+    to the comment was out sends nothing either. An edit that does not
+    land refuses the launch and withholds the caller's state, which read no
+    later than it. False keeps the whole-state write every other launch takes.
     """
 
     at: int
     resolves: Callable[[], bool] | None = None
     stands: Callable[[PinnedState], bool] | None = None
+    pays: Callable[[PinnedState], bool] | None = None
+    strict: bool = False
 
 
 @dataclass(frozen=True)
@@ -104,6 +128,19 @@ class AgentRunBudget:
             return False
         own = _run_ledger_values._owed_started(self.state) == owed_at
         return not own and _run_ledger_values._owed_started(durable) == owed_at
+
+    @property
+    def strict(self) -> bool:
+        """Whether the charge and start land only over the readings they were decided on (`OwedLaunch.strict`)."""
+        return self.owed is not None and self.owed.strict
+
+    def pays(self, durable: PinnedState) -> bool:
+        """Whether what else the launch owed once pays beside its charge is staged on `durable` (`OwedLaunch.pays`).
+
+        Every other launch pays nothing more.
+        """
+        owed = self.owed
+        return owed is None or owed.pays is None or owed.pays(durable)
 
 
 def _durable_state(gh: GitHubClient, issue: Issue) -> PinnedState | None:
@@ -161,11 +198,12 @@ def _persist(
     refusals -- a withheld state, a state the next reading would refuse --
     return without raising, so the write is asked whether that very attempt
     landed (`record_admission.written`) rather than trusted for not raising.
-    Each of these invokes nothing: the reservation and the start are each a
-    write a process may only follow.
+    A strict launch's write lands only over the comment `durable` was read as
+    (`_lands`). Each of these invokes nothing: the reservation and the start
+    are each a write a process may only follow.
     """
     try:
-        landed = _record_admission.written(gh, budget.issue, durable)
+        landed = _lands(gh, budget, durable)
     except _pinned_refusal.RecordRefused:
         raise
     except Exception:
@@ -186,6 +224,44 @@ def _persist(
         return False
     _merge_circuit_fields(recorded, durable, budget.state)
     return True
+
+
+def _lands(gh: GitHubClient, budget: AgentRunBudget, durable: PinnedState) -> bool:
+    """Write `durable` whole -- for a strict launch only over the comment it was read as; whether it landed.
+
+    A strict edit goes out only while the caller's requests (`OwedLaunch.resolves`)
+    still stand immediately before it leaves, the comment read once more
+    behind them (`record_admission.strictly_written`). One refused over a
+    moved comment, held, or never confirmed withholds the caller's state as
+    well as `durable`: the caller read the comment no later than `durable`
+    did, so its own whole-state write would put back whatever moved just the
+    same.
+    """
+    if not budget.strict:
+        return _record_admission.written(gh, budget.issue, durable)
+    if _record_admission.strictly_written(gh, budget.issue, durable, still=budget.owed.resolves):
+        return True
+    budget.state.withheld = True
+    return False
+
+
+def _announces(gh: GitHubClient, budget: AgentRunBudget, durable: PinnedState) -> bool:
+    """Whether a park `durable` just landed may be announced: always, save for a strict launch.
+
+    A strict launch's park is said only where its caller's requests
+    (`OwedLaunch.resolves`) and then the comment, read once more as that
+    park's write left it, still stand (`record_admission.stands`): a hold, a
+    move, or a comment posted in its place while the notice's thread was
+    read says nothing, the notice left owed, and a moved or replaced comment
+    withholds the caller's state as well as `durable`.
+    """
+    if not budget.strict:
+        return True
+    if _record_admission.stands(gh, budget.issue, durable, budget.owed.resolves):
+        return True
+    if durable.withheld:
+        budget.state.withheld = True
+    return False
 
 
 def _merge_circuit_fields(
