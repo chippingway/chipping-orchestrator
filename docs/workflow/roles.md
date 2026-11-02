@@ -199,6 +199,12 @@ per-stage behavior is in
   consumed only once a run that read them is back. What the park holds, what the command
   lifts, and what one lifts it to are in
   [state-machine/delivery-stages.md](../state-machine/delivery-stages.md#_handle_decomposing-label-workflowdecomposing).
+  A manifest the parser refuses still parks for a human: the one correction such an answer may earn
+  (`decomposer_correction`) is prepared but dormant, and no production road launches it. Its helpers would resume
+  that saved session under its pinned command — backend and arguments, whatever `DECOMPOSE_AGENT` says now — handing
+  it the exact error and the whole output contract the decompose prompt closes on
+  (`engine/decomposition_prompts._MANIFEST_CONTRACT`), for one complete corrected manifest, and only for a completed,
+  accounted, read-only run with a session saved; a correction's own answer earns none.
   The `question` stage reads `DECOMPOSE_AGENT` only as the *fallback* on the first-ever question spawn, then pins what
   it ran under to `question_agent` (a separate key) so a multi-turn Q&A keeps its own lock independent of any
   decomposing session on the same issue. The `discussion` stage borrows the same role on the same terms and pins to

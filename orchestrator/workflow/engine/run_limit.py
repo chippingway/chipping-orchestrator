@@ -24,9 +24,9 @@ from orchestrator.workflow.engine import (
     comments as _comments,
     guards as _guards,
     park_watermarks as _park_watermarks,
-    record_admission as _record_admission,
     run_budget as _run_budget,
     run_budget_models as _run_budget_models,
+    run_charge_state as _run_charge_state,
     run_limit_state as _run_limit_state,
     run_limit_values as _run_limit_values,
 )
@@ -38,7 +38,7 @@ log = logging.getLogger("orchestrator.workflow")
 
 def _park_exhausted(
     gh: GitHubClient,
-    issue: Issue,
+    budget: _run_charge_state.AgentRunBudget,
     state: PinnedState,
     ledger: AgentRunLedger,
     launch: _run_budget_models.AgentRunLaunch,
@@ -75,12 +75,22 @@ def _park_exhausted(
     a thread this tick could not read is said nothing to at all, since the
     sentence it may already carry is exactly the one about to go out. The park
     stands and the notice stays owed, so the next tick reads again.
+
+    `budget` names the issue the park is taken on, and the launch it refuses:
+    a strict one (`run_charge_state.OwedLaunch.strict`) lands the park only
+    over the reading `state` was decided on, its caller's requests asked
+    again right before the edit leaves, and says it only where those and the
+    comment still stand behind the notice's thread read
+    (`run_charge_state._lands`, `_announces`), so a session pinned meanwhile
+    is never written back over or announced over. Every other launch's park
+    is written whole.
     """
+    issue = budget.issue
     taken = not _run_limit_state._park_stands(state)
     if not _run_limit_state._stage_park(state, ledger):
         _emit_phase(gh, issue, _run_limit_values.RunLimitPhase.STANDING)
         return True
-    if not _record_admission.written(gh, issue, state):
+    if not _run_charge_state._lands(gh, budget, state):
         log.error(
             "issue=#%d its pinned comment took no record of the park its spent "
             "agent-run allowance owes; saying nothing", issue.number,
@@ -88,7 +98,8 @@ def _park_exhausted(
         return False
     if taken:
         _run_budget._emit_exhaustion(gh, issue, ledger, launch)
-    if _reconcile_notice(gh, issue, state) is _run_limit_values.NoticeReading.UNSAID:
+    unsaid = _reconcile_notice(gh, issue, state) is _run_limit_values.NoticeReading.UNSAID
+    if unsaid and _run_charge_state._announces(gh, budget, state):
         _deliver_notice(gh, issue, state)
     return True
 

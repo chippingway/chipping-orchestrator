@@ -303,6 +303,30 @@ class DecomposePromptReplyContractTest(unittest.TestCase):
         )
 
 
+class CorrectionPromptContractTest(unittest.TestCase):
+    """The correction a rejected manifest earns asks for the very manifest the ordinary prompt does.
+
+    Both close on one contract, so the two cannot drift apart, and the
+    correction quotes the parser's exact error on a line of its own.
+    """
+
+    def test_shares_the_contract_and_quotes_the_error(self) -> None:
+        error = "child 3 missing depends_on"
+        ordinary = _decomposition_prompts._build_decompose_prompt(
+            _TEST_SPEC, make_issue(1, title="example", body="some body"), "", [_TEST_SPEC],
+        )
+        correction = _decomposition_prompts._build_correction_prompt(error)
+        contract = _decomposition_prompts._MANIFEST_CONTRACT
+
+        self.assertTrue(ordinary.endswith(contract))
+        self.assertTrue(correction.endswith(contract))
+        self.assertIn(f"\n> {error}\n", correction)
+        self.assertIn("ONE complete corrected answer", correction)
+        self.assertIn("never a patch", correction)
+        manifest_match = _decompose_manifest._MANIFEST_RE.search(correction)
+        self.assertEqual(_decompose_manifest._parse_manifest(manifest_match.group(0))[1], None)
+
+
 class BuildSingleDecisionCommentTest(unittest.TestCase):
     """The `single`-decision comment carries the context the decomposer
     gathered (affected files + notes) into the implementer, and tolerates

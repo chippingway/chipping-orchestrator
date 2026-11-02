@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import copy
 import dataclasses
-import hashlib
 import json
 from collections.abc import Callable
 from contextlib import AbstractContextManager
@@ -20,6 +19,7 @@ from unittest.mock import patch
 
 from orchestrator.agents.models import AgentInvocation
 from orchestrator.github.pinned_state import PinnedState
+from orchestrator.workflow.engine import content_hash as _content_hash
 from orchestrator.workflow.stages.decomposition import (
     correction_checkpoint as _checkpoint,
     correction_commits as _commits,
@@ -45,10 +45,16 @@ OWED_STARTED = "agent_run_owed_started"
 RESERVATION = "agent_run_reservation"
 RECEIPTS = "issue_usage_receipts"
 
-REQUIREMENTS = hashlib.sha256(b"the requirements the rejected decomposer was handed").hexdigest()
-EDITED = hashlib.sha256(b"the requirements a human edited the issue to").hexdigest()
+# The issue sits on the initial decomposition's label, and the requirements the
+# rejected decomposer was handed are its own, as the drift check fingerprints
+# them, so the issue read afresh still stands as that revision; a human's edit
+# names another.
+LABEL = "workflow:decomposing"
+REQUIREMENTS = _content_hash._compute_user_content_hash(make_issue(ISSUE), set(), comments=[])
+EDITED = _content_hash._compute_user_content_hash(make_issue(ISSUE, body="edited"), set(), comments=[])
 COMMAND = "codex --model gpt-5.5 -c model_reasoning_effort=high"
 SESSION = "decomposer-session-1"
+DIAGNOSTIC = "child 1 missing depends_on"
 
 # The lifetime charge the rejected decomposer run was started under.
 SOURCE = 4
@@ -73,7 +79,7 @@ CARRIED = (
 
 def seeded(**record) -> CorrectionWorld:
     """An issue whose rejected decomposer run was its last charge, beside `record`, and the state its caller read."""
-    issue = make_issue(ISSUE)
+    issue = make_issue(ISSUE, label=LABEL)
     github = FakeGitHubClient([issue])
     pinned = {
         BASELINE: REQUIREMENTS,
@@ -145,8 +151,8 @@ def invocation(world: CorrectionWorld, ordinal: int = SOURCE, **overrides) -> Ag
 
 
 def source(world: CorrectionWorld, ordinal: int = SOURCE, **context) -> _records.CorrectionSource:
-    """The rejected run under charge `ordinal`, handed the requirements and saved under the pins seeded."""
-    saved = {"requirements": REQUIREMENTS, "command": COMMAND, "session": SESSION}
+    """The rejected run under charge `ordinal`, handed the requirements, saved under the pins seeded, and its error."""
+    saved = {"requirements": REQUIREMENTS, "command": COMMAND, "session": SESSION, "diagnostic": DIAGNOSTIC}
     return _records.CorrectionSource(invocation(world, ordinal), **{**saved, **context})
 
 

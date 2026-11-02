@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.workflow.engine import run_limit as _run_limit
+from orchestrator.workflow.engine import run_charge_state as _run_charge_state, run_limit as _run_limit
 from tests.workflow.engine import (
     run_limit_seeds as _limit_seeds,
     run_limit_test_support as support,
@@ -21,6 +21,5 @@ class _ParkCase(unittest.TestCase):
         self.issue = issue
 
     def _park(self, state) -> None:
-        _run_limit._park_exhausted(
-            self.gh, self.issue, state, _limit_seeds.ledger(), support.LAUNCH,
-        )
+        budget = _run_charge_state.AgentRunBudget(issue=self.issue, state=state)
+        _run_limit._park_exhausted(self.gh, budget, state, _limit_seeds.ledger(), support.LAUNCH)

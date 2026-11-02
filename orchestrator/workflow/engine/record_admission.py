@@ -25,7 +25,12 @@ until a human disposes of the record.
 The writer still answers its other refusals -- a withheld state, a state the
 next reading would refuse -- without raising, so a step whose effect rests on
 a write -- an agent launched on its charge, a notice said for its park -- asks
-`written`, which tells this write's landing from an earlier one.
+`written`, which tells this write's landing from an earlier one. A step that
+decided its whole state on the comment as it last synced with it, and may not
+put back a field anyone wrote since, asks `strictly_written`, which lands only
+over that very comment -- and, where it names what else the write rests on,
+only while that still stands immediately before the edit leaves, the comment
+read once more behind it (`stands`).
 
 A guarded commit answers a refused record too, as a refusal rather than a
 raise, and a handler told that goes on to its own exit roads. The one exit
@@ -39,15 +44,22 @@ and never posted on the issue.
 """
 from __future__ import annotations
 
+import json
 import logging
+from collections.abc import Callable
+from contextlib import nullcontext
+from dataclasses import dataclass
 
 from github.Issue import Issue
 
-from orchestrator.github import pinned_refusal as _pinned_refusal
+from orchestrator.github import edit_questions as _edit_questions, pinned_refusal as _pinned_refusal
 from orchestrator.github.client import GitHubClient
-from orchestrator.github.pinned_state import PinnedState
+from orchestrator.github.pinned_state import PinnedEdit, PinnedState
 
 log = logging.getLogger("orchestrator.workflow")
+
+# What else a strict write rests on, asked immediately before its edit leaves.
+_Still = Callable[[], bool]
 
 # What a stage handler does with a reading admission refuses.
 _HANDLER_ABANDONED = "abandoning the stage handler with nothing further done"
@@ -112,6 +124,84 @@ def written(gh: GitHubClient, issue: Issue, state: PinnedState) -> bool:
         state.synced = captured
         return False
     return True
+
+
+def strictly_written(
+    gh: GitHubClient,
+    issue: Issue,
+    state: PinnedState,
+    *,
+    still: _Still | None = None,
+) -> bool:
+    """Write `state` whole only while the comment still reads as `state` last synced with it; whether it landed.
+
+    The strict edit (`GitHubStateMixin.edit_pinned_state`) sends nothing over
+    a comment another writer -- a human or another road -- moved since, and a
+    write nobody confirmed may have landed either way, so each, like every
+    other edit that did not land, leaves `state` withheld from every
+    whole-state write behind it, for a later reading to settle. A state that
+    synced with no comment has nothing to be held to, and is withheld too.
+
+    `still` is what else the write rests on -- the issue's controls, say --
+    asked behind the editor's walk to the comment and immediately before the
+    edit leaves (`github/edit_questions`), and the comment read once more
+    behind it (`stands`): a hold, a comment written, or the comment replaced
+    by another -- the same payload under a new id included -- landing while the
+    walk or `still`'s own requests were out holds the edit with nothing sent.
+    """
+    if state.synced is None:
+        state.withheld = True
+        return False
+    asked = nullcontext() if still is None else _edit_questions.asked_before_the_edit(
+        _BeforeTheEdit(gh, issue, state, still),
+    )
+    with asked:
+        edited = gh.edit_pinned_state(issue, state, over=json.loads(state.synced))
+    if edited is not PinnedEdit.EDITED:
+        state.withheld = True
+        return False
+    state.synced = json.dumps(state.state_data, sort_keys=True)
+    return True
+
+
+def stands(gh: GitHubClient, issue: Issue, state: PinnedState, still: _Still | None = None) -> bool:
+    """Whether what `state` was last read or written as still stands: `still` first, then the comment read once more.
+
+    The comment, read last, has to be comment `state.comment_id` still,
+    reading as `state.synced`: its identity is asked beside its payload, since
+    a comment a human posted in place of that one carries no record of what
+    was written over it, however alike the two read. One moved or replaced
+    withholds `state` from every whole-state write behind it; one nobody
+    could read answers False and proves nothing either way.
+    """
+    if still is not None and not still():
+        return False
+    try:
+        fresh = gh.read_pinned_state(issue)
+    except Exception:
+        log.exception("issue=#%d its pinned comment could not be read again; holding what rests on it", issue.number)
+        return False
+    synced = state.synced
+    same = synced is not None and fresh.comment_id == state.comment_id
+    if same and fresh.reads_as(json.loads(synced)):
+        return True
+    log.info("issue=#%d its pinned comment moved or was replaced since it was read; holding it", issue.number)
+    state.withheld = True
+    return False
+
+
+@dataclass(frozen=True)
+class _BeforeTheEdit:
+    """The question a strict edit of `state` asks immediately before it leaves (`edit_questions`)."""
+
+    gh: GitHubClient
+    issue: Issue
+    state: PinnedState
+    still: _Still
+
+    def __call__(self, read: _edit_questions.Spelling, candidate: _edit_questions.Spelling) -> bool:
+        """Whether the edit sending `candidate` over `read` -- the comment as `state` synced with it -- may leave."""
+        return stands(self.gh, self.issue, self.state, self.still)
 
 
 def teardown_admitted(gh: GitHubClient, issue: Issue) -> bool:

@@ -110,7 +110,8 @@ _DECOMPOSER_SESSION_ID = "decomposer_session_id"
 # The one manifest correction an initial decomposition may be allowed
 # (`correction_records.py`): written only through its own guarded commits
 # (`correction_checkpoint.py`), which own this field and nothing else, and
-# dormant -- no road arms one yet.
+# dormant -- only the prepared `correction_road.py` arms one, and no production
+# road asks it to yet.
 _DECOMPOSER_CORRECTION = "decomposer_correction"
 
 _HeldChild = tuple[int, list[int]]

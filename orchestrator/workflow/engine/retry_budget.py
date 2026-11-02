@@ -8,6 +8,8 @@ still owed. Continuation grants one bounded attempt and clears that park alone."
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
+from dataclasses import dataclass
 
 from github.Issue import Issue
 
@@ -22,6 +24,21 @@ from orchestrator.workflow.engine import (
 )
 
 log = logging.getLogger("orchestrator.workflow")
+
+
+@dataclass(frozen=True)
+class ParkGuard:
+    """How a caller that may park only over what it read takes a refused budget's park and its notice.
+
+    `writes` lands the park's durable half from the caller's state, answered
+    by whether it landed -- only over the comment the caller read, say
+    (`record_admission.strictly_written`). `posts` is asked behind the
+    notice's thread read and immediately before the notice is posted, whether
+    the park as written still stands to be announced.
+    """
+
+    writes: Callable[[GitHubClient, Issue, PinnedState], bool]
+    posts: Callable[[], bool]
 
 
 def _stage_retry_cap_park(state: PinnedState, decision: _retry_values.RetryDecision) -> bool:
@@ -66,6 +83,7 @@ def _charge_or_park(
     state: PinnedState,
     *,
     stage: str,
+    guard: ParkGuard | None = None,
 ) -> bool:
     """Gate a fresh agent spawn, and park the issue itself when it is refused.
 
@@ -95,6 +113,13 @@ def _charge_or_park(
     `stage` is required rather than defaulted. It is what the park is
     attributed to and what the notice quotes, the budget is shared, and a
     default here would be one stage's name answering for another's spawn.
+
+    `guard` is for a caller that may park only over what it read
+    (`ParkGuard`): its writer takes the durable half, a park that does not
+    land is said nothing and its thread is not read, and the notice is posted
+    only where the guard, asked right before the post, says the park still
+    stands -- otherwise it stays owed on the record for a later replay. None
+    writes the park whole and posts as every other caller's park does.
     """
     decision = _retry_ledger._consume_retry_slot(state, stage=stage)
     if decision.allowed:
@@ -102,8 +127,12 @@ def _charge_or_park(
     if not _stage_retry_cap_park(state, decision):
         _retry_notices._emit_phase(gh, issue, state, _retry_values.RetryCapPhase.STANDING)
         return False
-    gh.write_pinned_state(issue, state)
-    if _retry_notices._reconcile_notice(gh, issue, state) is _retry_values.NoticeReading.UNSAID:
+    if guard is None:
+        gh.write_pinned_state(issue, state)
+    elif not guard.writes(gh, issue, state):
+        return False
+    unsaid = _retry_notices._reconcile_notice(gh, issue, state) is _retry_values.NoticeReading.UNSAID
+    if unsaid and (guard is None or guard.posts()):
         _retry_notices._deliver_notice(gh, issue, state)
     return False
 
