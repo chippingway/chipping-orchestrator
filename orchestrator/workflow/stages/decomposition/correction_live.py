@@ -29,12 +29,14 @@ anything is made of the correction's answer (`answers`), ahead of the issue
 itself: a session, command, or baseline written there since is no
 conversation that answer belongs to.
 
-Four answers, since each is acted on differently. STANDS licenses the step.
+Five answers, since each is acted on differently. STANDS licenses the step.
 HELD is a control a human applied: nothing moved, nothing is made, and the
-attempt is left as it stands. MOVED is proof: the issue was closed, handed to
-another label, or its requirements changed, so the answer is spent and the
-change is the drift road's to route through a fresh decomposition. UNREAD is a
-reading GitHub would not answer, which proves neither and licenses nothing.
+attempt is left as it stands. MOVED is proof the requirements or the saved
+context changed, so the answer is spent and the change is the drift road's to
+route through a fresh decomposition. DISOWNED is proof the issue was closed or
+handed to another label, so the answer is spent and the tick ends there: no
+road of this label's has anything left to do on it. UNREAD is a reading GitHub
+would not answer, which proves nothing and licenses nothing.
 """
 from __future__ import annotations
 
@@ -65,14 +67,15 @@ class Live(StrEnum):
     STANDS = "stands"
     HELD = "held"
     MOVED = "moved"
+    DISOWNED = "disowned"
     UNREAD = "unread"
 
 
 def controls(gh: GitHubClient, issue: Issue) -> tuple[Live, Issue | None]:
     """What `issue`, fetched now, says of its controls and its owner, beside the issue fetched where it stands.
 
-    HELD for a `paused` or `backlog` hold, MOVED for a close or a label other
-    than `workflow:decomposing`, UNREAD where GitHub would not answer.
+    HELD for a `paused` or `backlog` hold, DISOWNED for a close or a label
+    other than `workflow:decomposing`, UNREAD where GitHub would not answer.
     """
     try:
         fresh = gh.get_issue(issue.number)
@@ -82,7 +85,7 @@ def controls(gh: GitHubClient, issue: Issue) -> tuple[Live, Issue | None]:
     if hard_skip_control_label(fresh) is not None:
         return Live.HELD, None
     if issue_is_closed(fresh) or gh.workflow_label(fresh) != WorkflowLabel.DECOMPOSING:
-        return Live.MOVED, None
+        return Live.DISOWNED, None
     return Live.STANDS, fresh
 
 

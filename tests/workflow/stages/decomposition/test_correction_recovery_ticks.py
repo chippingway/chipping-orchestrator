@@ -15,9 +15,11 @@ that launch.
 from __future__ import annotations
 
 import unittest
+from types import MappingProxyType
 from unittest.mock import patch
 
 from orchestrator.workflow.engine import run_ledger_values as _run_ledger_values, run_limit_values as _run_limit_values
+from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.fixtures import KEY_AWAITING_HUMAN, LABEL_READY
 from tests.workflow.stages.decomposition import correction_tick_support as support
 
@@ -39,6 +41,9 @@ _CORRECTION = "automatic correction"
 _CYCLE = "late_cycle_id"
 
 _LATER = "Keep streaming too."
+
+# What a shutdown-killed correction reports.
+_KILLED = MappingProxyType({"interrupted": True, "exit_code": support.SHUTDOWN_EXIT})
 
 
 class _LosesOnce:
@@ -69,9 +74,9 @@ class _LosesOnce:
         return cls(write, lambda state: bool(state.get(KEY_AWAITING_HUMAN)))
 
 
-def _replies_later(world: support.CorrectionTickCase) -> None:
-    """A human writes a further reply while a run is out."""
-    world.reply(_LATER)
+def _hands_to_ready(world: support.CorrectionTickCase) -> None:
+    """Another road takes the issue to `ready`."""
+    world.github.set_workflow_label(world.issue, WorkflowLabel.READY)
 
 
 class UnconfirmedWriteTest(unittest.TestCase, support.CorrectionTickCase):
@@ -224,7 +229,7 @@ class DeferredReplyTest(unittest.TestCase, support.CorrectionTickCase):
     """
 
     def test_a_reply_before_the_launch_waits(self) -> None:
-        self._owed_behind_a_reply({0: _replies_later})
+        self._owed_behind_a_reply({0: self._replies_later})
         later = self.decomposer(support.SINGLE)
 
         self.tick(later)
@@ -238,7 +243,7 @@ class DeferredReplyTest(unittest.TestCase, support.CorrectionTickCase):
 
     def test_a_reply_during_the_launch_waits(self) -> None:
         answered = self._owed_behind_a_reply({})
-        runner = self.decomposer(support.SELF_EDGE, during={0: _replies_later})
+        runner = self.decomposer(support.SELF_EDGE, during={0: self._replies_later})
         self.tick(runner)
         parked = self.pinned()
         after = self.decomposer(support.SINGLE)
@@ -260,6 +265,10 @@ class DeferredReplyTest(unittest.TestCase, support.CorrectionTickCase):
         self.assertEqual(self.stage(), support.PENDING)
         return answered
 
+    def _replies_later(self, world: support.CorrectionTickCase) -> None:
+        """A human writes a further reply while a run is out."""
+        world.reply(_LATER)
+
 
 class RecoveryLiveTest(unittest.TestCase, support.CorrectionTickCase):
     """A park a later tick owes a correction is taken only over an issue that still stands, read afresh.
@@ -267,7 +276,8 @@ class RecoveryLiveTest(unittest.TestCase, support.CorrectionTickCase):
     An edit that spent the correction's answer is the drift road's, not a park
     announcing a correction nobody will act on; a hold landing while the
     recovery reads the thread leaves the park, its notice and its write, for
-    the tick that finds the hold lifted.
+    the tick that finds the hold lifted; and a relabel spends the attempt and
+    ends the tick, charging nothing on an issue another label owns.
     """
 
     def test_an_edit_takes_no_park(self) -> None:
@@ -285,8 +295,7 @@ class RecoveryLiveTest(unittest.TestCase, support.CorrectionTickCase):
 
     def test_a_hold_during_recovery_parks_nothing(self) -> None:
         self.opened()
-        killed = {"interrupted": True, "exit_code": support.SHUTDOWN_EXIT}
-        self.tick(self.decomposer(support.UNLISTED, killed))
+        self.tick(self.decomposer(support.UNLISTED, _KILLED))
         self._read = self.github.comments_after
         with patch.object(self.github, "comments_after", side_effect=self._holds_while_reading):
             self.tick(self.decomposer(support.SINGLE))
@@ -305,14 +314,29 @@ class RecoveryLiveTest(unittest.TestCase, support.CorrectionTickCase):
         # thread: the attempt is no longer this record's to park, and the
         # recovery's whole-state write never puts the earlier cycle back.
         self.opened()
-        killed = {"interrupted": True, "exit_code": support.SHUTDOWN_EXIT}
-        self.tick(self.decomposer(support.UNLISTED, killed))
+        self.tick(self.decomposer(support.UNLISTED, _KILLED))
         self._read = self.github.comments_after
         with patch.object(self.github, "comments_after", side_effect=self._moves_the_cycle_while_reading):
             self.tick(self.decomposer(support.SINGLE))
 
         self.assertEqual(self.pinned().get(_CYCLE), 1, "the later cycle is kept")
         self.assertEqual(self.said(), [])
+        self.assertFalse(self.pinned().get(KEY_AWAITING_HUMAN))
+
+    def test_a_relabel_during_recovery_ends_the_tick(self) -> None:
+        # The issue is handed to `ready` as the recovery reads it: its park is
+        # not taken, the attempt is spent, and no fresh decomposer is charged
+        # or child made on an issue this label no longer owns.
+        self.opened()
+        self.tick(self.decomposer(support.UNLISTED, _KILLED))
+        later = self.decomposer(support.LISTED)
+        with support.OnFetch.patch(self, 1, _hands_to_ready):
+            self.tick(later)
+
+        made = (later.launches, self.children(), self.said())
+        self.assertEqual(made, ([], 0, []))
+        self.assertEqual(self.label(), LABEL_READY)
+        self.assertEqual(self.stage(), support.EXHAUSTED)
         self.assertFalse(self.pinned().get(KEY_AWAITING_HUMAN))
 
     def _moves_the_cycle_while_reading(self, *args, **kwargs):

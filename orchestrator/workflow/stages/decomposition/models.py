@@ -56,20 +56,23 @@ class _DecomposerRunPlan:
     disposition decides is the one the tick's cleanup honors. One a later tick
     launches carries that tick's frozen read in `replies` only to bound its
     parks: it was handed the error alone, so it settles nothing of the read.
+    One launched on the same tick bounds them by `corrected_bounded` instead
+    (`correction_road.bounds`).
     """
 
     agent_result: AgentResult | None
     keep_worktree: bool = False
     replies: _replies.DecomposerReplies | None = None
     correction: _correction_records.CorrectionAttempt | None = None
+    corrected_bounded: bool = False
 
     @property
     def bounded(self) -> bool:
         """Whether every park this run's disposition takes records the thread read only through our own comments."""
-        return self.replies is not None
+        return self.replies is not None or self.corrected_bounded
 
-    def corrected_by(self, attempt: _correction_records.CorrectionAttempt, run: AgentResult) -> None:
-        """Lay `attempt`'s correction `run` onto this plan, in place of the run it corrects.
+    def corrected_by(self, attempt: _correction_records.CorrectionAttempt, run: AgentResult, *, bounded: bool) -> None:
+        """Lay `attempt`'s correction `run` onto this plan, in place of the run it corrects, its parks `bounded`.
 
         The rejected run settled the read it was handed, so the correction is
         handed none of it to settle again.
@@ -77,6 +80,7 @@ class _DecomposerRunPlan:
         self.agent_result = run
         self.correction = attempt
         self.replies = None
+        self.corrected_bounded = bounded
 
 
 @dataclass

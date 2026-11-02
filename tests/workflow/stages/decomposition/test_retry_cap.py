@@ -35,6 +35,9 @@ KEY_USER_CONTENT_HASH = "user_content_hash"
 # The parent's strict edit that arms the correction: the second of its tick.
 _ARMING_EDIT = 2
 _DAILY_BUDGET = "MAX_RETRIES_PER_DAY"
+# The reply boundary a correction's issue was picked up at, and a reply written while its rejected run was out.
+_BOUNDARY = 900
+_MEANWHILE = "Please retain streaming."
 RUN_AGENT = support.RUN_AGENT
 
 HELD_TICKS = 3
@@ -493,6 +496,28 @@ class CorrectionCapTest(unittest.TestCase, _corrected.CorrectionTickCase):
         self.assertEqual(held[_corrected.FIELD]["stage"], _corrected.PENDING)
         self.assertEqual(self.pinned()[KEY_PARK_REASON], support.PARK_RETRY_CAP)
         self.assertEqual(len(self.said()), 1)
+
+    def test_a_capped_correction_keeps_a_later_reply(self) -> None:
+        # A trusted reply written while the rejected run was out stays past
+        # the boundary the correction's retry-cap park records, so the fresh
+        # decomposition the continuation buys is handed it.
+        trusted = patch.object(config, "ALLOWED_ISSUE_AUTHORS", (_corrected.TRUSTED_AUTHOR,))
+        with patch.object(config, _DAILY_BUDGET, 1), trusted:
+            self.opened(last_action_comment_id=_BOUNDARY)
+            self.tick(self.decomposer(_corrected.UNLISTED, during={0: self._replies}))
+            parked = self.pinned()
+            self.reply(CONTINUE_COMMAND)
+            bought = self.decomposer(_corrected.SINGLE)
+
+            self.tick(bought)
+
+        self.assertEqual(parked[KEY_PARK_REASON], support.PARK_RETRY_CAP)
+        self.assertEqual(parked[support.KEY_LAST_ACTION_COMMENT_ID], _BOUNDARY, "the park stops short of the reply")
+        self.assertIn(_MEANWHILE, bought.launches[0].prompt)
+
+    def _replies(self, world: _corrected.CorrectionTickCase) -> None:
+        """A trusted human replies while the rejected run is out."""
+        world.reply(_MEANWHILE)
 
     def _capped(self) -> None:
         """A rejected run that spent the last slot, its correction parked on the cap, and a quiet tick behind it."""

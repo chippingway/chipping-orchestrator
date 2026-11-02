@@ -214,8 +214,11 @@ def _dispose_decomposer_run(
 
     # A rejected manifest's one correction, launched in its place, is disposed
     # of exactly as this run was, on the same plan; it earns none of its own.
+    # Its parks are bounded where its launch's were (`correction_road.bounds`),
+    # so a reply written while it was out stays past the boundary.
     if _outcomes._dispatch_decomposer_manifest(gh, spec, issue, state, run_plan):
-        _dispose_decomposer_run(gh, spec, issue, state, run_plan)
+        with _park_watermarks.bounded_parks(run_plan.bounded):
+            _dispose_decomposer_run(gh, spec, issue, state, run_plan)
 
 
 def _late_adjudication_owns_the_tick(

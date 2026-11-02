@@ -45,6 +45,27 @@ def _repin(world: support.CorrectionTickCase) -> None:
 
 _REPINNED = "dec-pinned-by-hand"
 
+_HELD_NOTICE = "decomposer_correction_notice"
+
+# What the park behind an answer nothing could act on says.
+_UNACTED = "was started, but nothing could act on its answer"
+
+# A correction's answer kept from being used, beside what its next tick's park
+# says: a hold met as it returns, an issue GitHub would not answer for before
+# it is used, and a second invalid answer met by a hold behind the write
+# holding its park's notice, which that park then says in its own words.
+_HELD_ANSWERS = (
+    ("a hold", support.LISTED, {1: lambda world: world.hold()}, None, _UNACTED),
+    ("an unread issue", support.LISTED, {}, (support.BEFORE_ACTING - 1, _unreadable), _UNACTED),
+    (
+        "a hold behind the held notice",
+        support.SELF_EDGE,
+        {},
+        (support.BEHIND_THE_NOTICE, lambda world: world.hold()),
+        f"({support.SELF_EDGE_ERROR}) {support.CORRECTED_PARK}",
+    ),
+)
+
 # A hold landing while a later read of a check was out, by the fetch it lands
 # ahead of, beside how many runs that leaves launched: behind the thread read
 # behind the charge, behind the reading the start is written over, and behind
@@ -240,16 +261,14 @@ class AfterReturnTest(unittest.TestCase, support.CorrectionTickCase):
                 self.assertEqual(self.pinned()["decomposer_session_id"], _REPINNED)
 
     def test_a_held_answer_parks_once_it_can(self) -> None:
-        # A hold met as the correction returns, or an issue GitHub would not
-        # answer for before its answer is used, makes nothing and spends
-        # nothing: the next readable, unheld tick parks for a human rather
-        # than launching the correction again.
-        for name, during, fetched in (
-            ("a hold", {1: lambda world: world.hold()}, None),
-            ("an unread issue", {}, _unreadable),
-        ):
+        # A hold met as the correction returns or behind the write holding its
+        # park's notice, or an issue GitHub would not answer for before its
+        # answer is used, makes nothing, says nothing, and spends nothing: the
+        # next readable, unheld tick parks for a human, once, rather than
+        # launching the correction again.
+        for name, *answered, said in _HELD_ANSWERS:
             with self.subTest(name):
-                self._answer_held(during, fetched)
+                self._answer_held(*answered)
                 later = self.decomposer(support.LISTED)
 
                 self.tick(later)
@@ -258,6 +277,8 @@ class AfterReturnTest(unittest.TestCase, support.CorrectionTickCase):
                 self.assertTrue(self.pinned()[KEY_AWAITING_HUMAN])
                 self.assertEqual(self.stage(), support.EXHAUSTED)
                 self.assertEqual(len(self.said()), 1)
+                self.assertIn(said, self.said()[0])
+                self.assertNotIn(_HELD_NOTICE, self.pinned(), "a notice held is dropped with its park")
 
     def test_a_hold_behind_the_exhaustion(self) -> None:
         # A hold landing right behind the write that spends the correction
@@ -285,17 +306,21 @@ class AfterReturnTest(unittest.TestCase, support.CorrectionTickCase):
         self.assertEqual(self.label(), support.LABEL_DECOMPOSING)
         self.assertEqual(self.stage(), support.EXHAUSTED)
 
-    def _answer_held(self, during: dict, fetched) -> None:
-        """A tick whose correction's answer a hold, or an unread issue, kept from being used; the hold lifted after."""
+    def _answer_held(self, answer: str, during: dict, fetched: tuple | None) -> None:
+        """A tick whose correction's `answer` a hold, or an unread issue, kept from being used; the hold lifted after.
+
+        `fetched` is the issue fetch a move lands ahead of, and the move.
+        """
         self.opened()
-        runner = self.decomposer(support.UNLISTED, support.LISTED, during=during)
+        runner = self.decomposer(support.UNLISTED, answer, during=during)
         if fetched is None:
             self.tick(runner)
         else:
-            with support.OnFetch.patch(self, support.BEFORE_ACTING - 1, fetched):
+            with support.OnFetch.patch(self, *fetched):
                 self.tick(runner)
         self.assertEqual(self.stage(), support.PENDING)
         self.assertEqual(self.children(), 0)
+        self.assertEqual(self.said(), [], "nothing is said of it")
         self.lift()
 
 

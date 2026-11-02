@@ -15,7 +15,9 @@ one was about to be posted when a tick ended (`owing`, `owed`), so a post that
 never landed is said in its own words -- the latest error and rejected answer
 -- rather than in what the attempt alone recalls: where a comment of ours carries it, the park is
 recorded over that notice and nothing is said again; otherwise the notice is
-posted, receipt and all. Either way the park is bounded wherever a reply
+posted, receipt and all. A notice held on the record is posted on its own tick
+only where the comment and the issue, read afresh behind the write holding
+it, still stand; otherwise it stays owed for a later tick's park. Either way the park is bounded wherever a reply
 boundary stands: it records the thread read through our own comments and no
 further, so a reply written while the correction was out -- below a notice
 that landed after it -- stays past the boundary for the resume to deliver. A
@@ -28,9 +30,7 @@ road that answers it, so no notice is posted, or park written, over it.
 """
 from __future__ import annotations
 
-import contextlib
 import logging
-from collections.abc import Iterator
 
 from github.Issue import Issue
 
@@ -72,25 +72,34 @@ def receipted(message: str, attempt: _records.CorrectionAttempt | None) -> str:
     return f"{message}\n\n{_receipt(attempt)}"
 
 
-@contextlib.contextmanager
 def owing(
     gh: GitHubClient, issue: Issue, state: PinnedState, attempt: _records.CorrectionAttempt | None, message: str,
-) -> Iterator[None]:
-    """Hold `message`, the park over `attempt` the block posts, on the record before it is posted.
+) -> str | None:
+    """The notice the park over `attempt` posts, held on the record first; None where it may not be posted now.
 
-    Written whole ahead of the post, and dropped from `state` once the block
-    has posted it, for the write recording the park to land without it. A post
-    that raises leaves it on the record, which the next tick's park is said
-    from (`owed`) -- the latest error and rejected answer included -- under the
-    same receipt and boundary. A park over no attempt, or a record that would
-    not take the write, posts as it always has.
+    `message` is written whole ahead of the post and dropped from `state` once
+    held, for the write recording the park to land without it. A post that
+    raises leaves it on the record, which the next tick's park is said from
+    (`owed`) -- the latest error and rejected answer included -- under the
+    same receipt and boundary. Behind that write the pinned comment and then
+    the issue are read afresh (`correction_live.answers`): a hold, a move, or
+    an unread reading landing while it was out -- or the write itself leaving
+    the caller's state withheld -- posts nothing and records no park, the
+    notice left owed for the next tick's park to say once the issue stands
+    (`correction_reconcile.recovers_park`). A park over no attempt, or a
+    record that would not take the write, posts as it always has.
     """
-    if attempt is not None:
-        state.set(_OWED, {_SOURCE: attempt.source.invocation.nonce, _MESSAGE: message})
-        if not _record_admission.written(gh, issue, state):
-            log.warning("issue=#%d its manifest correction's park could not be held before its notice", issue.number)
-    yield
+    if attempt is None:
+        return message
+    state.set(_OWED, {_SOURCE: attempt.source.invocation.nonce, _MESSAGE: message})
+    if not _record_admission.written(gh, issue, state):
+        log.warning("issue=#%d its manifest correction's park could not be held before its notice", issue.number)
+    live = _live.answers(gh, issue, state, attempt.source)
+    if live is not _live.Live.STANDS or state.withheld:
+        log.info("issue=#%d reads %s behind its correction's held notice; parking nothing", issue.number, live.value)
+        return None
     state.state_data.pop(_OWED, None)
+    return receipted(message, attempt)
 
 
 def owed(state: PinnedState, attempt: _records.CorrectionAttempt) -> str | None:

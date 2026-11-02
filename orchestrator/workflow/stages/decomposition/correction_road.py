@@ -30,6 +30,13 @@ invokes nothing. It resumes the saved session under the pinned command --
 backend and arguments alike -- handing it the exact error and the whole output
 contract (`engine/decomposition_prompts._build_correction_prompt`), never a
 replacement conversation.
+
+Every park the launch and its answer take on the rejected run's own tick is
+bounded where the tick's scope bounds them or the reply boundary is the one
+the source's requirements were settled through (`bounds`), as a later tick's
+launch is by the read it froze: a reply written while either run was out stays
+past the boundary for the saved session's resume, never marked read and taken
+for an edit.
 """
 from __future__ import annotations
 
@@ -44,6 +51,9 @@ from orchestrator.config import models as _config_models
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    comments as _comments,
+    content_hash as _content_hash,
+    park_watermarks as _park_watermarks,
     record_admission as _record_admission,
     retry_budget as _retry_budget,
     run_charge_state as _run_charge_state,
@@ -55,6 +65,7 @@ from orchestrator.workflow.stages.decomposition import (
     correction_records as _records,
     correction_source as _source,
     correction_standing as _standing,
+    state as _state,
 )
 from orchestrator.workflow.stages.decomposition.models import _DecomposerRunPlan
 
@@ -70,11 +81,14 @@ class CorrectionAsk:
     that ends with nothing more, a retry-cap park the launch took among them.
     Neither is the ordinary park, which is taken behind an `attempt` armed
     with no launch granted, so the park lands before the attempt is given up.
+    `bounded` is whether every park the launch and its answer take is
+    bounded (`bounds`).
     """
 
     attempt: _records.CorrectionAttempt | None = None
     launched: AgentResult | None = None
     held: bool = False
+    bounded: bool = False
 
 
 def requests(
@@ -92,7 +106,8 @@ def requests(
     conversation the record no longer names. A write over the attempt that
     left the caller's state withheld -- sent and never confirmed, or landing
     over a comment moved since -- holds the tick too, since no whole-state
-    write may follow it.
+    write may follow it. The launch's parks are bounded as `bounds` answers,
+    and the answer says so for its own disposition's.
     """
     source = _source.earned(issue, state, run_plan)
     if source is None:
@@ -110,8 +125,38 @@ def requests(
     attempt = armed.reading.attempt
     if not armed.reading.grants:
         return CorrectionAsk(attempt)
-    launched = launch(gh, spec, issue, state, attempt)
-    return CorrectionAsk(attempt, launched, held=launched is None)
+    bounded = bounds(gh, issue, state, attempt.source)
+    with _park_watermarks.bounded_parks(bounded):
+        launched = launch(gh, spec, issue, state, attempt)
+    return CorrectionAsk(attempt, launched, held=launched is None, bounded=bounded)
+
+
+def bounds(gh: GitHubClient, issue: Issue, state: PinnedState, source: _records.CorrectionSource) -> bool:
+    """Whether every park a correction launched on its rejected run's tick takes is bounded.
+
+    Where the tick's own scope bounds its parks -- a resume handed a frozen
+    read -- and where the reply boundary `state` carries is the one `source`'s
+    requirements were settled through: the thread through it reads as that
+    revision, so a park walking from it over our own comments stops short of
+    no comment the rejected run read, and of every reply written while the
+    correction was out, which stays past it for the saved session's resume
+    rather than being marked read and taken for an edit. A thread with no
+    boundary, or one nobody could read, bounds nothing: the park stands on its
+    notice, as the rejected run's own would have.
+    """
+    if _park_watermarks._parks_bounded():
+        return True
+    floor = state.get(_state._LAST_ACTION_COMMENT_ID)
+    if not isinstance(floor, int):
+        return False
+    try:
+        thread = gh.comments_after(issue, None, state_comment_id=state.comment_id)
+    except Exception:
+        log.exception("issue=#%d could not be read for its manifest correction's reply boundary", issue.number)
+        return False
+    read = [seen for seen in thread if seen.id <= floor]
+    ours = _comments._orchestrator_ids(state)
+    return _content_hash._compute_user_content_hash(issue, ours, comments=read) == source.requirements
 
 
 def launch(

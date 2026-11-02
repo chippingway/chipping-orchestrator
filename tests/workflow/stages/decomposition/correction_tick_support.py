@@ -18,7 +18,9 @@ fetching it before and behind its thread's read -- before the daily retry
 budget is charged, on the reading the correction is charged on, behind the
 charge, and on the reading its start is written over; the live-pause check
 behind its return; and two more such checks before its answer is acted on --
-before the exhaustion, and behind it and the saved context's read.
+before the exhaustion, and behind it and the saved context's read -- or before
+a park its answer takes is written, and behind the write holding that park's
+notice on the record.
 """
 from __future__ import annotations
 
@@ -58,6 +60,9 @@ BEHIND_THE_THREAD = 7
 BEFORE_THE_START = 9
 BEFORE_ACTING = 11
 BEHIND_THE_CONTEXT = 14
+
+# The first fetch behind the write holding the notice of a park a correction's answer takes.
+BEHIND_THE_NOTICE = 13
 
 # The parent's strict edit that spends a correction its answer returned.
 EXHAUSTION = 4

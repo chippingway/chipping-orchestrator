@@ -517,9 +517,10 @@ usable answer is acted on only behind an exhaustion that landed, so a lost exhau
 pending attempt and never children beside one, and a lost park write is recorded over the notice its receipt finds
 rather than said twice -- ahead of the next tick's drift check and bounded, so a reply written meanwhile stays the saved
 session's rather than reading as an edit, and in the words the record held for it before its post, so a post that never
-landed loses neither its error nor its answer. A usable answer is acted on only behind an exhaustion that left the
-caller's state its own: one landing over a comment moved since withholds that state, and nothing is made of the answer.
-Writer exclusion comes from [C-05].
+landed loses neither its error nor its answer; a notice held so is posted only where the comment and the issue, read
+afresh behind the write holding it, still stand, and is otherwise left owed. A usable answer is acted on only behind an
+exhaustion that left the caller's state its own: one landing over a comment moved since withholds that state, and
+nothing is made of the answer. Writer exclusion comes from [C-05].
 
 **Specs:** [transactions](state-machine/labels-and-state.md#pinned-state),
 [publication evidence](security.md#what-a-trusted-pinned-record-still-cannot-license),
@@ -763,14 +764,17 @@ once more behind the write that spends it, each check judging the controls and t
 last, and each but the first behind the pinned comment's saved session, command, and baseline: a `paused`/`backlog`
 hold, a close, a label other than `workflow:decomposing`, or requirements that read as neither the whole thread nor the
 stretch through the settled reply boundary as the revision its rejected run was handed invokes nothing and makes no
-child, split marker, label, or park on the owner it moved to, and neither does a session, command, or baseline pinned in
-place of the ones it was armed under, or a spend that left the tick's state withheld. A reply written past the boundary
-the rejected run settled stays that run's session's, before a launch a later tick owes -- that tick freezing its read as
-a parked one does -- and during it, whose parks are bounded by that read; an edit is answered by the drift reset's fresh
-decomposition, the attempt resolved rather than replenished. A spent daily budget parks its launch on `retry_cap`, whose
-continuation retires the session and with it the attempt; a spent lifetime ledger parks it on `agent_run_limit`, whose
-grant alone buys that launch. A correction a hold, an unresolved accounting, an interruption, or a lost write left
-unanswered is never launched again: the next tick parks for a human, the session left for their reply to resume.
+child, split marker, label, or park on the owner it moved to -- a recovery that finds the issue closed or relabelled
+spends the attempt and ends the tick -- and neither does a session, command, or baseline pinned in place of the ones it
+was armed under, or a spend that left the tick's state withheld. A reply written past the boundary the rejected run
+settled stays that run's session's, before a launch a later tick owes -- that tick freezing its read as a parked one
+does -- and during it, whose parks are bounded by that read, as are those of a correction launched on its rejected run's
+own tick wherever that run's boundary is the one its baseline was settled through; an edit is answered by the drift
+reset's fresh decomposition, the attempt resolved rather than replenished. A spent daily budget parks its launch on
+`retry_cap`, whose continuation retires the session and with it the attempt; a spent lifetime ledger parks it on
+`agent_run_limit`, whose grant alone buys that launch. A correction a hold, an unresolved accounting, an interruption,
+or a lost write left unanswered is never launched again: the next tick parks for a human, the session left for their
+reply to resume.
 
 **Specs:** [controls](state-machine/labels-and-state.md#workflow-labels),
 [waiting for human action](state-machine.md#per-tick-flow-workflowengineticktick),

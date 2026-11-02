@@ -12,13 +12,19 @@ correction's own answer earns nothing more.
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
+from orchestrator import config
 from orchestrator.workflow.engine import decomposition_prompts as _prompts
 from tests.workflow.fixtures import KEY_AWAITING_HUMAN, LABEL_READY
 from tests.workflow.stages.decomposition import correction_tick_support as support
 
 _BLOCKED = "workflow:blocked"
 _CLEANUP = "_cleanup_decompose_worktree"
+
+# The reply boundary the issue's pickup left, and a reply written while its correction is out.
+_BOUNDARY = 900
+_MEANWHILE = "Please retain streaming."
 
 
 def _says(message: str, **fields) -> dict:
@@ -163,6 +169,28 @@ class CorrectionAnswerTest(unittest.TestCase, support.CorrectionTickCase):
         self.assertIn("was started, but nothing could act on its answer", self.said()[0])
         self.assertEqual(self.stage(), support.EXHAUSTED)
         self.assertTrue(self.pinned()[KEY_AWAITING_HUMAN])
+
+    def test_a_reply_during_the_correction_waits(self) -> None:
+        # A trusted reply written while the correction is out stays past the
+        # boundary its park records: the next tick resumes the saved session
+        # on it rather than reading it as an edit and decomposing afresh.
+        self.enterContext(patch.object(config, "ALLOWED_ISSUE_AUTHORS", (support.TRUSTED_AUTHOR,)))
+        self.opened(last_action_comment_id=_BOUNDARY)
+        runner = self.decomposer(support.UNLISTED, support.SELF_EDGE, during={1: self._replies})
+        self.tick(runner)
+        parked = self.pinned()
+        later = self.decomposer(support.SINGLE)
+
+        self.tick(later)
+
+        self.assertEqual(parked["last_action_comment_id"], _BOUNDARY, "the park stops short of the reply")
+        self.assertTrue(parked[KEY_AWAITING_HUMAN])
+        self.assertEqual(later.launches[0].resumed, support.SESSION)
+        self.assertIn(_MEANWHILE, later.launches[0].prompt)
+
+    def _replies(self, world: support.CorrectionTickCase) -> None:
+        """A trusted human replies while the correction is out."""
+        world.reply(_MEANWHILE)
 
     def _kills_the_correction(self) -> None:
         """A tick whose correction a shutdown kills, leaving its attempt pending and nothing said."""

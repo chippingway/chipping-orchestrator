@@ -90,8 +90,10 @@ _PASSIVE = frozenset((_STANDING.ABSENT, _STANDING.RETIRED, _STANDING.DISPLACED, 
 _UNLAUNCHABLE = frozenset((_STANDING.STARTED, _STANDING.CROWDED, _STANDING.UNPROVED, _STANDING.ELIGIBLE))
 
 # What a park's live reading answers that holds the tick: a hold, or a reading
-# GitHub would not answer. A move is the drift road's or another owner's, so the
-# attempt is spent and the tick goes on.
+# GitHub would not answer. A move of the requirements or the saved context is
+# the drift road's, so the attempt is spent and the tick goes on to it; a close
+# or a relabel spends it too, and ends the tick on an issue this label no
+# longer owns.
 _HOLDING = frozenset((_live.Live.HELD, _live.Live.UNREAD))
 
 # Why an attempt was never answered, by what its reading says of it -- an
@@ -107,7 +109,14 @@ _UNANSWERED = MappingProxyType({
 
 
 def recovers_park(gh: GitHubClient, issue: Issue, state: PinnedState) -> bool:
-    """Take the park an attempt is owed where none stands; whether the tick goes on, False holding it."""
+    """Take the park an attempt is owed where none stands; whether the tick goes on, False ending it.
+
+    A park the issue no longer stands for takes nothing: a hold or an unread
+    reading ends the tick with the attempt as it stands; a move of the
+    requirements or the saved context spends it and goes on to the drift
+    road; and a close or a relabel spends it and ends the tick, so no
+    decomposer is charged on an issue another label owns.
+    """
     reading = _standing.read(state, issue.number)
     if reading.standing is _STANDING.DAMAGED:
         log.warning(
@@ -124,7 +133,7 @@ def recovers_park(gh: GitHubClient, issue: Issue, state: PinnedState) -> bool:
         return False
     if reading.standing is not _STANDING.EXHAUSTED:
         _settlement.spends(gh, issue, state, attempt)
-    return not state.withheld
+    return parked is not _live.Live.DISOWNED and not state.withheld
 
 
 def run_for_the_tick(

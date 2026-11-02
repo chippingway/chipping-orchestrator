@@ -121,24 +121,27 @@ def _park_unparsed_manifest(
     correction's own, or one armed with no launch granted (`given_up`) -- ends
     on that attempt's receipt (`correction_notices`), its notice held on the
     record before it is posted so a post that never lands is said in its own
-    words on the next tick, and the attempt is exhausted only once the park
-    has landed (`correction_settlement`), so a lost exhaustion leaves a park
-    standing over a pending attempt rather than an attempt spent beside no
-    park.
+    words on the next tick -- and posted only where the issue, read afresh
+    behind that write, still stands, the notice otherwise left owed -- and the
+    attempt is exhausted only once the park has landed
+    (`correction_settlement`), so a lost exhaustion leaves a park standing
+    over a pending attempt rather than an attempt spent beside no park.
     """
     if not _correction_settlement.parks(gh, issue, state, run_plan):
         return
     over = run_plan.correction or given_up
-    _parsed, error = _manifest._parse_manifest(run_plan.agent_result.last_message or "")
+    error = _manifest._parse_manifest(run_plan.agent_result.last_message or "")[1]
     message, reason = _unparsed_notice(issue, run_plan, error)
-    with _correction_notices.owing(gh, issue, state, over, message):
-        _guards._park_awaiting_human(
-            gh, issue, state, _correction_notices.receipted(message, over),
-            reason=reason,
-            agent_role=_ROLE,
-            session_id=run_plan.agent_result.session_id,
-            retry_count=_guards._safe_int(state.get(_RETRY_COUNT)),
-        )
+    notice = _correction_notices.owing(gh, issue, state, over, message)
+    if notice is None:
+        return
+    _guards._park_awaiting_human(
+        gh, issue, state, notice,
+        reason=reason,
+        agent_role=_ROLE,
+        session_id=run_plan.agent_result.session_id,
+        retry_count=_guards._safe_int(state.get(_RETRY_COUNT)),
+    )
     gh.write_pinned_state(issue, state)
     _correction_settlement.spends_behind_park(gh, issue, state, run_plan, given_up)
 
@@ -202,14 +205,16 @@ def _park_dirty_worktree(gh: GitHubClient, issue: Issue, state: PinnedState, run
         "uncommitted changes in the worktree, but it must be "
         "read-only. Reset the worktree before resuming."
     )
-    with _correction_notices.owing(gh, issue, state, run_plan.correction, message):
-        _guards._park_awaiting_human(
-            gh, issue, state, _correction_notices.receipted(message, run_plan.correction),
-            reason="decomposer_dirty",
-            agent_role=_ROLE,
-            session_id=run_plan.agent_result.session_id,
-            retry_count=_guards._safe_int(state.get(_RETRY_COUNT)),
-        )
+    notice = _correction_notices.owing(gh, issue, state, run_plan.correction, message)
+    if notice is None:
+        return
+    _guards._park_awaiting_human(
+        gh, issue, state, notice,
+        reason="decomposer_dirty",
+        agent_role=_ROLE,
+        session_id=run_plan.agent_result.session_id,
+        retry_count=_guards._safe_int(state.get(_RETRY_COUNT)),
+    )
     gh.write_pinned_state(issue, state)
     _correction_settlement.spends_behind_park(gh, issue, state, run_plan)
 
@@ -275,7 +280,7 @@ def _dispatch_decomposer_manifest(
         if error is not None:
             asked = _correction_road.requests(gh, spec, issue, state, run_plan)
         if asked.launched is not None:
-            run_plan.corrected_by(asked.attempt, asked.launched)
+            run_plan.corrected_by(asked.attempt, asked.launched, bounded=asked.bounded)
             return True
         if not asked.held:
             _park_unparsed_manifest(gh, issue, state, run_plan, asked.attempt)
@@ -349,14 +354,16 @@ def _settle_decomposer_run(
             f"{config.HITL_MENTIONS} decomposer timed out after "
             f"{config.AGENT_TIMEOUT}s, manual intervention needed."
         )
-        with _correction_notices.owing(gh, issue, state, run_plan.correction, timed_out):
-            _guards._park_awaiting_human(
-                gh, issue, state, _correction_notices.receipted(timed_out, run_plan.correction),
-                reason="decomposer_timeout",
-                agent_role=_ROLE,
-                session_id=decomposer_result.session_id,
-                retry_count=_guards._safe_int(state.get(_RETRY_COUNT)),
-            )
+        notice = _correction_notices.owing(gh, issue, state, run_plan.correction, timed_out)
+        if notice is None:
+            return True
+        _guards._park_awaiting_human(
+            gh, issue, state, notice,
+            reason="decomposer_timeout",
+            agent_role=_ROLE,
+            session_id=decomposer_result.session_id,
+            retry_count=_guards._safe_int(state.get(_RETRY_COUNT)),
+        )
         gh.write_pinned_state(issue, state)
         _correction_settlement.spends_behind_park(gh, issue, state, run_plan)
         return True

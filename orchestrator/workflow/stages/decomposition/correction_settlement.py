@@ -61,6 +61,10 @@ from orchestrator.workflow.stages.decomposition.models import _DecomposerRunPlan
 
 log = logging.getLogger("orchestrator.workflow")
 
+# What a live reading answers that spends the attempt it was asked for: a move
+# of its requirements or saved context, or of the issue's owner.
+_SPENDING = frozenset((_live.Live.MOVED, _live.Live.DISOWNED))
+
 
 def spends(
     gh: GitHubClient,
@@ -120,7 +124,7 @@ def clears(gh: GitHubClient, issue: Issue, state: PinnedState, run_plan: _Decomp
         log.info("issue=#%d its corrected manifest reads %s; acting on nothing", issue.number, live.value)
         return False
     spent = spends(gh, issue, state, attempt, run_plan.agent_result.invocation)
-    if live is _live.Live.MOVED or not spent or state.withheld:
+    if live in _SPENDING or not spent or state.withheld:
         log.info("issue=#%d its corrected manifest is acted on nothing: it reads %s", issue.number, live.value)
         return False
     behind = _live.answers(gh, issue, state, attempt.source)
@@ -150,7 +154,7 @@ def parks(gh: GitHubClient, issue: Issue, state: PinnedState, run_plan: _Decompo
         return True
     _checkpoint.read_back(gh, issue, state)
     live = _live.answers(gh, issue, state, attempt.source)
-    if live is _live.Live.MOVED:
+    if live in _SPENDING:
         spends(gh, issue, state, attempt, run_plan.agent_result.invocation)
     if live is not _live.Live.STANDS or state.withheld:
         log.info("issue=#%d reads %s as its manifest correction returns; parking nothing", issue.number, live.value)

@@ -750,9 +750,10 @@ because there it is the claim that this stage has already rerouted rather than a
      edit retiring that session. Each is taken only where the pinned comment, read back as the tick's own reading and
      still carrying the attempt bound to its record and cycle, and then the issue, read afresh behind the receipt's
      thread read and ahead of any post or write, still stand (`correction_live.answers`): a comment moved under the
-     tick, a hold, or an unread reading holds the tick with nothing said or written, and a moved context, owner, or
-     requirements spends the attempt with no park and leaves the move to step 2's drift road. Each is said once and
-     bounded: its notice ends on the receipt `<!--orchestrator-decomposer-correction:issue=<n>:source=<nonce>-->`; a
+     tick, a hold, or an unread reading holds the tick with nothing said or written; a moved context or requirements
+     spends the attempt with no park and leaves the move to step 2's drift road; and a close or a relabel spends it too
+     and ends the tick, so no decomposer is charged, nor child made, on an issue another label owns. Each is said once
+     and bounded: its notice ends on the receipt `<!--orchestrator-decomposer-correction:issue=<n>:source=<nonce>-->`; a
      comment of ours past the reply boundary already carrying it is recorded as the park, taken into our comment ledger,
      with nothing posted again (`correction_notices.py`); and either way the boundary walks our own comments and no
      further, so it stops short of a reply written before the notice — standing on the notice only where no boundary
@@ -875,28 +876,32 @@ because there it is the claim that this stage has already rerouted rather than a
        decompose prompt), asking for one complete corrected manifest.
 
        The correction's run is disposed of on the same plan exactly as the rejected run was — step 5's holds and
-       timeout park, step 6, the interruption, this parse — and earns no correction of its own. Each park it reaches
-       — a timeout, a dirty checkout, a question, silence, or a second invalid manifest, whose park quotes the latest
-       error and rejected answer and says it followed the one automatic correction — is taken only where the pinned
-       comment, read back so one moved since the tick read it withholds the tick's state, still carries the session,
-       command, and baseline the attempt was armed under, and then the issue, read afresh, still stands as above
-       (`correction_live.answers`): a pin or baseline moved, a close, a relabel, or an edit since spends the attempt
-       and parks nothing on a conversation or owner it moved to — no whole-state write puts a human's pin back — and
-       a hold, an unread reading, or a withheld state parks and spends nothing. A park taken holds its notice
-       on the record (`decomposer_correction_notice`) before posting it, so a post that never lands is said in its own
-       words — the latest error and rejected answer — by the next tick's step 5, lands with the attempt pending, and
-       ends on its receipt, and the attempt is exhausted behind it, naming the correction's invocation. A hold, an
-       unresolved accounting, or an interruption leaves the attempt pending with its start on the ledgers, never
-       launched again: the next tick's step 5 parks for a human. A usable answer is acted on only once the issue,
-       read afresh, still stands as above, the attempt is exhausted over a write that left the tick's state its own,
-       and the issue, read afresh once more behind that write, still stands and its pinned comment still carries the
-       session, command, and baseline the attempt was armed under, the controls asked last, behind that comment's read,
-       before the first child, split marker, or label:
-       a session or command pinned by hand, or a baseline moved, makes nothing of the answer; a close, a relabel, or an
-       edit since
-       spends it and makes nothing of the answer — the edit taking step 2's fresh decomposition on the next tick — and
-       a hold or an issue GitHub would not answer for spends nothing and makes nothing, save one met behind the
-       exhaustion, which makes nothing of the spent attempt's answer and leaves it for the next tick to park over.
+       timeout park, step 6, the interruption, this parse — and earns no correction of its own. Every park its launch
+       and its answer take on the rejected run's tick is bounded wherever the tick's own scope bounds it or the reply
+       boundary is the one the requirements baseline was settled through (`correction_road.bounds`), so a reply written
+       while either run was out stays past it for the saved session's resume rather than reading as an edit. Each park
+       it reaches — a timeout, a dirty checkout, a question, silence, or a second invalid manifest, whose park quotes
+       the latest error and rejected answer and says it followed the one automatic correction — is taken only where the
+       pinned comment, read back so one moved since the tick read it withholds the tick's state, still carries the
+       session, command, and baseline the attempt was armed under, and then the issue, read afresh, still stands as
+       above (`correction_live.answers`): a pin or baseline moved, a close, a relabel, or an edit since spends the
+       attempt and parks nothing on a conversation or owner it moved to — no whole-state write puts a human's pin back —
+       and a hold, an unread reading, or a withheld state parks and spends nothing. A park taken holds its notice on the
+       record (`decomposer_correction_notice`) before posting it, so a post that never lands is said in its own words —
+       the latest error and rejected answer — by the next tick's step 5, and posts it only where the comment and then
+       the issue, read afresh behind that write, still stand: a hold, a move, or an unread reading landing meanwhile, or
+       a write left withheld, posts nothing and records no park, the notice left owed for a later tick's step 5. It
+       lands with the attempt pending, and ends on its receipt, and the attempt is exhausted behind it, naming the
+       correction's invocation. A hold, an unresolved accounting, or an interruption leaves the attempt pending with its
+       start on the ledgers, never launched again: the next tick's step 5 parks for a human. A usable answer is acted on
+       only once the issue, read afresh, still stands as above, the attempt is exhausted over a write that left the
+       tick's state its own, and the issue, read afresh once more behind that write, still stands and its pinned comment
+       still carries the session, command, and baseline the attempt was armed under, the controls asked last, behind
+       that comment's read, before the first child, split marker, or label: a session or command pinned by hand, or a
+       baseline moved, makes nothing of the answer; a close, a relabel, or an edit since spends it and makes nothing of
+       the answer — the edit taking step 2's fresh decomposition on the next tick — and a hold or an issue GitHub would
+       not answer for spends nothing and makes nothing, save one met behind the exhaustion, which makes nothing of the
+       spent attempt's answer and leaves it for the next tick to park over.
      - no fenced block → treat as a question; park.
      - `decision == "single"` → post the collected-context comment (rationale plus the manifest's optional
        `affected_files` / `notes`, built by `_build_single_decision_comment`) so the implementer inherits the
