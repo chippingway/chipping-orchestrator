@@ -18,7 +18,8 @@ developer prompts of a parent's own pass. `_READY_REROUTE` is spelled here
 because two owners key it: `ready` writes it with its reset, and the
 `decomposing` tick that reroute hands the issue to drops it.
 `_DECOMPOSER_CORRECTION` is spelled here beside the two decomposer pins it is
-held to, since its record, its admission, and its writes are three owners.
+held to, since its record, the room it needs, what a reading grants it, and the
+writes over it are separate owners.
 """
 from __future__ import annotations
 

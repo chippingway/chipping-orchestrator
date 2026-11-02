@@ -842,8 +842,8 @@ accounted under the identity of the process it came from -- the charge that proc
 nonce, never the request's fingerprint -- and a receipt, or the floor receipts retire under, covers that identity, so
 a settlement asked again never moves the meter past the charges it counts.
 A decomposer manifest correction's one launch is charged before it runs like any other launch, owed once at its source's
-charge: a start the run ledger shows or cannot rule out is never launched again, and nothing about it refunds or grants
-a run.
+charge: a start its ledgers show or cannot rule out is never launched again, and nothing about it refunds or grants a
+run.
 
 **Specs:** [run budget](state-machine/labels-and-state.md#the-agent-run-circuit),
 [charging before launch](security.md#bounded-agent-spend-per-issue-max_agent_runs_per_issue),
