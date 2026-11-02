@@ -5,7 +5,16 @@
 The child limit comes from the manifest validator. Prompt markers and manifest
 fields agree with their readers -- the `depends_on` list every child is told to
 state is the one a fresh split reply is refused without -- and file lists
-remain bounded in the notice.
+remain bounded in the notice. The prompt's last instruction is a check of the
+block against that schema, because a reply that is valid JSON can still leave
+out a list the validator refuses it without.
+
+The prompt sizes an issue by its complete deliverable -- implementation, tests,
+the documentation it makes stale, and the final documentation pass -- judged by
+the behaviors it delivers, their coupling, and the effort to verify them, never
+by a file or commit count, and asks for the coarsest split whose children each
+stay manageable. That is the policy the repository's `decompose` skill holds,
+so the two change together.
 
 An unsplit decision hands its groundwork on through a comment the implementer
 reads in the thread. A split hands its rationale on through the parent's own
@@ -60,14 +69,45 @@ def _build_decompose_prompt(
         f"Issue body:\n{body}\n\n"
         f"Conversation so far:\n{convo}\n\n"
         f"{tracked_block}"
-        "Decide whether this issue can be implemented in ONE coding-agent "
-        "context window. If yes, return decision='single'. If no, propose a "
-        "list of smaller child issues each one-shottable on its own.\n\n"
-        "Sizing rule of thumb: if the change touches more than ~5 files or "
-        "needs more than one logical commit, propose splitting; otherwise "
-        "keep it as a single child. Use `git ls-files`, `wc -l`, or other "
-        "read-only commands to inspect the codebase. You MUST NOT commit, "
-        "push, or modify any file -- you are read-only.\n\n"
+        "Decide whether this issue's COMPLETE deliverable can be implemented "
+        "in ONE coding-agent context. If yes, return decision='single'. If "
+        "no, propose a list of smaller child issues, each manageable in one "
+        "context on its own.\n\n"
+        "Size the complete deliverable, not its code alone: the "
+        "implementation, the tests that prove it, the documentation, "
+        "inventories, and docstrings it makes stale, the format and "
+        "integration work repository policy requires, and the final "
+        "documentation pass every implementation receives. Judge it by the "
+        "number and complexity of the distinct behaviors it delivers, how "
+        "tightly they are coupled, the context an implementer has to read "
+        "and hold, and the effort needed to verify the result. File and "
+        "commit counts can guide your inspection, but neither decides single "
+        "versus split on its own: a coherent, manageable change stays "
+        "single however many files its completion touches, and a few files "
+        "can still hold several substantial, independently deliverable "
+        "behaviors. Use `git ls-files`, `wc -l`, or other read-only commands "
+        "to inspect the codebase. You MUST NOT commit, push, or modify any "
+        "file -- you are read-only.\n\n"
+        "When the complete work is too large, split it at meaningful "
+        "deliverable boundaries: each child delivers a behavior of its own, "
+        "carries its own acceptance criteria and verification, and is "
+        "manageable in one context. Before committing to a split, compare it "
+        "with the plausible coarser groupings and prefer fewer complete "
+        "children while their combined scope stays manageable -- every extra "
+        "child repeats investigation, adds integration work, and adds a "
+        "dependency handoff. A different file, owner, layer, or display is "
+        "not on its own a reason for another child. The child limit below is "
+        "a ceiling, not a target, and the residual work a non-umbrella "
+        "parent keeps for its own pass must itself fit one context. Each "
+        "child carries its own tests and documentation, so never propose one "
+        "that only runs checks or cleans up documentation another child "
+        "owes. Assign every parent requirement exactly once, to one child or "
+        "to that residual parent work. Once all of a child's direct and "
+        "transitive prerequisites have landed completely, it must still keep "
+        "a unique acceptance criterion and a non-empty diff, and no two "
+        "children may promise the same behavior. If no split meets these "
+        "rules, answer single. Explain the decision in `rationale` by its "
+        "concrete scope and dependencies, not by a file count.\n\n"
         "If you genuinely need a clarification, end your message with a "
         "question for the human and DO NOT emit a manifest. Otherwise, end "
         "your final message with EXACTLY ONE fenced JSON block in this "
@@ -111,7 +151,18 @@ def _build_decompose_prompt(
         "the parent's intent is covered by the children you are creating; "
         "leave it false when the parent still needs its own coding pass after "
         "the children land. An umbrella parent auto-resolves to `done` once "
-        "every child resolves; a non-umbrella parent re-enters implementation."
+        "every child resolves; a non-umbrella parent re-enters "
+        "implementation, so name its residual work in `rationale`.\n\n"
+        "Before you emit the block, check it against this schema field by "
+        "field. Valid JSON alone is not enough: a block that parses but "
+        "leaves out a field it requires -- one child's `depends_on` is "
+        "enough -- is refused, and the issue waits for a human. "
+        "Confirm the `decision` value; on a split, that EVERY child carries "
+        "an explicit `depends_on` array (`[]` for none, never omitted or "
+        "null) naming exactly the prerequisites its body and your "
+        "`rationale` describe; that the arrays form no self-dependency or "
+        f"cycle and there are at most {_MAX_CHILDREN} children; and that "
+        "nothing follows the closing fence."
     )
 
 

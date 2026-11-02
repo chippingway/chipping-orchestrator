@@ -2274,11 +2274,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     conversation_prompts.py question, discussion, PR-feedback follow-up, and developer human-reply resume prompts;
                             discussion publication instructions describe the confirmed plan artifact and the commit
                             its stage verifies
-    decomposition_prompts.py the decomposition prompt with the validator-owned child limit, the bounded
-                            single-decision comment that carries manifest notes into implementation, and what a split
-                            carries there instead: the issue's own recorded `split_rationale`, withheld on an umbrella
-                            and on a record holding no usable text, rendered as an attributed section quoting every
-                            line whatever ends it
+    decomposition_prompts.py the decomposition prompt, which sizes an issue's complete deliverable by scope, coupling,
+                            and verification effort rather than a file or commit count, as the `decompose` skill
+                            does, states the validator-owned child limit, and closes on a check of the block against
+                            the manifest schema; the bounded single-decision comment that carries manifest notes into
+                            implementation; and what a split carries there instead: the issue's own recorded
+                            `split_rationale`, withheld on an umbrella and on a record holding no usable text,
+                            rendered as an attributed section quoting every line whatever ends it
     retry_values.py         daily-retry decisions, notice phases, pinned keys, and the bounded continuation and
                             rolling-window constants
     retry_ledger.py         daily slot consumption, window expiry, and the remaining granted attempt; a standing
