@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import content_hash as _content_hash
@@ -30,6 +31,7 @@ from tests.workflow.fixtures import (
 )
 from tests.workflow.stages.decomposition import (
     late_cleanup_support as _late_support,
+    parked_decomposition_support as _parked,
     ready_test_support as _ready_support,
     replacement_lineage_support as _lineage_support,
 )
@@ -67,6 +69,9 @@ KEY_LATE_DEPTH = "late_lineage_depth"
 SPLIT_ATTEMPT = "0123456789abcdef"
 RECEIPT = "fedcba9876543210"
 REPLACEMENT_SLICE = "a replacement slice"
+FRESH_SESSION = "dec-fresh"
+# A record version admission refuses, as a human's hand edit could leave one.
+REFUSED_VERSION = 2
 REPLACEMENT_MANIFEST = _manifest(
     '{"decision": "split", "umbrella": true, "rationale": "re-planned", '
     '"children": [{"title": "A", "body": "a", "depends_on": []}, {"title": "B", "body": "b", "depends_on": []}]}'
@@ -321,13 +326,18 @@ class HandleReadyRoutesBackOnHashChangeTest(
 
 class DecomposingHashChangeResetsSessionTest(
     unittest.TestCase,
-    _PatchedWorkflowMixin,
+    _parked._ParkedDecompositionCase,
 ):
     """The reset an issue already wearing `decomposing` takes on a body edit.
 
     The tick sees only what the fresh spawn reads back, so the wipe and the
     orphan notice are asked of the owner that performs them: nothing about the
     manifest a re-derivation throws away survives into the run below it.
+
+    On a parked tick the edit is measured off one frozen read, against a park
+    a real first run earned: a reply past its boundary is no edit (see
+    `test_resume.py`), while a change to what the park had already read takes
+    the reset whether or not a reply arrived beside it.
     """
 
     def test_notice_names_every_child_it_orphans(self) -> None:
@@ -438,6 +448,66 @@ class DecomposingHashChangeResetsSessionTest(
         self.assertIn(
             "issue content changed",
             "\n".join(_comments_for_issue(gh, DECOMPOSING_DRIFT_ISSUE_NUMBER)),
+        )
+
+
+    def test_a_parked_edit_takes_a_fresh_spawn(self) -> None:
+        for edited, edits, replied in _parked.PARKED_EDITS:
+            with self.subTest(edited=edited, replied=replied):
+                self._park()
+                edits(self)
+                if replied:
+                    self._reply()
+                runner = _parked.decomposer_run()
+
+                self._tick(runner)
+
+                launch = _parked.launched(runner)
+                self.assertIsNone(launch[1])
+                self.assertIn(edited, launch[0])
+                self.assertEqual(_parked.REPLY in launch[0], replied)
+                self.assertEqual(self._pinned()[KEY_USER_CONTENT_HASH], self._requirements())
+                self.assertEqual(
+                    sum(_parked.DRIFT_NOTICE in body for body in self._said()),
+                    1,
+                )
+
+    def test_an_untrusted_reply_moves_nothing(self) -> None:
+        # Neither a resume nor a baseline: the outsider's words are in no
+        # delivered batch and in no fingerprint.
+        with _parked.allowing(_parked.TRUSTED_AUTHOR):
+            self._park()
+            parked, said = self._pinned(), self._said()
+            self._reply(author=_parked.OUTSIDER)
+            runner = _parked.decomposer_run()
+
+            self._tick(runner)
+
+        runner.assert_not_called()
+        self.assertEqual((self._pinned(), self._said()), (parked, said))
+
+    def test_an_unreadable_or_refused_state_holds(self) -> None:
+        # An edit and a reply both stand on the thread, so a reset or a launch
+        # here would be the tick acting on a read that established nothing.
+        self._park()
+        self.issue.body = _parked.EDITED_BODY
+        self._reply()
+        parked, said = self._pinned(), self._said()
+        runner = _parked.decomposer_run()
+
+        with patch.object(
+            self.github, "comments_after", side_effect=RuntimeError("502"),
+        ):
+            mocks = self._tick(runner)
+        refused = dict(parked, schema_version=REFUSED_VERSION)
+        self.github.seed_state(self.issue, raw=True, **refused)
+        self._dispatch(runner)
+
+        runner.assert_not_called()
+        mocks["_cleanup_decompose_worktree"].assert_not_called()
+        self.assertEqual(
+            (self._said(), parked["user_content_hash"]),
+            (said, self.baseline),
         )
 
 

@@ -112,7 +112,8 @@ def _detect_user_content_change(
 
     `reading` is a read of the thread the caller already holds and decides
     more on -- the `ready` decision, which consumes exactly the comments it
-    compared. The fingerprint is taken off it, and a first baseline, or one
+    compared, and a parked decomposition, whose resume delivers the replies
+    of the same read. The fingerprint is taken off it, and a first baseline, or one
     the observed reading confirmed, is staged on `state` and written by
     nobody here: the caller's own checkpoint lands it, and a caller that never
     reaches that checkpoint licenses nothing on it either.

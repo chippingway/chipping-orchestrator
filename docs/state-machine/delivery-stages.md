@@ -73,7 +73,10 @@ below the watermark).
 reply batch before asking, and measures the requirements by what the park had already read — the frozen comments at or
 below `last_action_comment_id` — so a reply to the park is the batch's to deliver rather than a drift that resumes the
 developer on the whole thread. Only a title/body edit, or an edit to a comment the park had already read, takes the
-drift road there, and settling the batch records `user_content_hash` through the reply it delivered.
+drift road there, and settling the batch records `user_content_hash` through the reply it delivered. An initial
+decomposition's parked tick does the same through its own read (`stages/decomposition/replies.py`, see
+[`_handle_decomposing`](#_handle_decomposing-label-workflowdecomposing), step 2): a reply past the boundary resumes
+the decomposer session that parked rather than retiring it for a fresh decomposition.
 
 Every drift road is frozen the same way the batch is, and bounded differently.
 `drift_delivery._drift_resume_prompt` reads the
@@ -192,8 +195,9 @@ Non-human content is filtered eight ways:
   orchestrator is half of (see
   [the trust boundary](../security.md#comment-trust-boundary-allowed_issue_authors)); the awaiting-human resume paths
   that quote new
-  replies directly (`filter_trusted` in the implementing, validating, decomposing, documenting, resolving_conflict,
-  question, and discussion resumes) plus the auto-rebase-park retry-unpark in `_sync_pr_worktree_to_base`; and the
+  replies directly (`filter_trusted` in the implementing, validating, documenting, resolving_conflict, question, and
+  discussion resumes, and `prompt_delivery`'s classification in the initial decomposing resume) plus the
+  auto-rebase-park retry-unpark in `_sync_pr_worktree_to_base`; and the
   four-surface
   PR-feedback scans driving the `in_review` -> `workflow:fixing` route, the fixing dev-resume, and the `/orchestrator
   continue` batch replay (`filter_trusted` in `_scan_fresh_pr_feedback`, the drift-resume PR-conversation block,
@@ -203,7 +207,9 @@ Non-human content is filtered eight ways:
   add-review-rounds` review-cap command and the reviewer-respawn nudge; an untrusted comment resumes none of those
   sessions and does not advance the watermark (it is re-filtered on each later tick, never marked consumed). On the
   `workflow:implementing` and `workflow:validating` human-reply resumes that batch is frozen ONCE, by
-  `implementing/resume_batch.py`, and the park-reason decisions, the quoted follow-up, and the settlement all read it.
+  `implementing/resume_batch.py`, and the park-reason decisions, the quoted follow-up, and the settlement all read it;
+  the initial `workflow:decomposing` resume freezes its own the same way (`decomposition/replies.py`), and its drift
+  check reads that read too.
   Beside the trust filter it drops the orchestrator's own comments by recorded id and refuses a body carrying
   `<!--orchestrator-comment-->` that the id ledger cannot vouch for — the marker is text anybody may paste, and the
   token's login may be a human's. The pinned state comment is left out by its id, never by the
@@ -246,7 +252,12 @@ the same one fingerprint. On drift the action depends on lifecycle position:
 - **`workflow:decomposing`** — handled inline at the top of `_handle_decomposing`: drop `decomposer_session_id`, wipe
   `children` / `dep_graph` / `expected_children_count` / `split_attempt` / `split_rationale` / `umbrella`, clear park
   flags, post a `:pencil2: issue content changed` notice, then fall through in the same tick so the decomposer
-  re-spawns against the updated body. An issue
+  re-spawns against the updated body. On a parked tick the edit is measured off the tick's one frozen read (see
+  that handler's step 2): a reply past the park's boundary is no edit and resumes the locked session instead, while a
+  changed title, body, or already-read comment resets — a reply beside it included, which the fresh decomposer reads
+  in its conversation, rendered off the same read — and the baseline it ends on is that read's fingerprint,
+  recorded by the fresh run's settlement rather than by the reset, so a run that never read the edit leaves it owed.
+  An issue
   standing on a `retry_cap` park is held one step ahead of this (see that handler's step 1): the re-spawn it falls
   through to is exactly the spawn that park refused, so the edit waits with everything else the issue carries until
   a human continues it.
@@ -584,8 +595,9 @@ because there it is the claim that this stage has already rerouted rather than a
      not read, and a second read taken here is as likely to succeed as the first was to fail: read clean, it would
      buy an attempt with words nobody wrote in reply and consume the notice they were owed on the way out.
 
-     What lifts it is a trusted `/orchestrator continue` on the thread past `last_action_comment_id`
-     (`_grant_continuation` — see [the retry budget](labels-and-state.md#the-retry-budget)): the renewal the park's
+     What lifts it is a trusted `/orchestrator continue` on the thread past `last_action_comment_id` and past the
+     newest comment of ours there, the park's own notice (`_grant_continuation` — see
+     [the retry budget](labels-and-state.md#the-retry-budget)): the renewal the park's
      own notice asks for. The command is taken with whatever else its comment carries, since a decision that arrives
      with an explanation is still the decision and the explanation reaches the fresh decomposer through the prompt it
      is spawned on; an untrusted account's copy of it buys nothing. The grant clears the park, retires
@@ -593,7 +605,10 @@ because there it is the claim that this stage has already rerouted rather than a
      conversation the budget refused, and a spawn pins an id of its own only where the backend hands one back, so an
      id left standing would be replayed by the reply to a question or a timeout that surfaced none — and is written
      down BEFORE the spawn it pays for, so a tick that dies (or a run a mid-run `paused` or a shutdown declines)
-     leaves the attempt where the human put it. What it buys is one attempt, spent at the same gate in step 5 that
+     leaves the attempt where the human put it. It moves no reply boundary: the command, the words beside it, and
+     any reply a bounded park held below its notice stay past `last_action_comment_id`, so every tick that spends the
+     attempt reads its thread once, as a parked tick does (step 2), and the spawn is handed them whole and settles
+     them only where its run read them (step 5). What it buys is one attempt, spent at the same gate in step 5 that
      refused the last one. A thread this tick could not read hands out nothing and holds the park, since a grant
      made on a read that established nothing spends an attempt no human asked for.
   2. **User-content drift check** (inline) — see drift section above. An issue
@@ -610,6 +625,21 @@ because there it is the claim that this stage has already rerouted rather than a
      the tick too, with the marker gone, so no decomposer runs until a tick with the hold off goes on with nothing left
      to retire. The check behind it then compares against the baseline the reset recorded, so the reroute's own edit is
      not met a second time.
+
+     A PARKED tick — and one spending an attempt a `retry_cap` continuation bought that no run has spent yet (step 1,
+     `replies.reads_the_thread`) — reads its thread once between that retirement and the check (`replies.freeze`) —
+     the whole thread, the pinned comment left out by its id — and the check, the run in step 5 (the resume, or the
+     fresh decomposition a reset or a continuation buys), and that run's settlement are all cut from this one read.
+     The check measures the requirements by what the park had already read, the comments at or below
+     `last_action_comment_id`
+     (`DecomposerReplies.answered`), so a reply past that boundary is the park's answer rather than an edit: only a
+     changed title, body, or comment the park had already read resets, a reply beside it or not. That reset records no
+     baseline of its own: the read's fingerprint is left to the fresh decomposition's settlement (step 5), so a run a
+     shutdown killed — whose dirty worktree still parks the issue — leaves the edit owed, and the next tick resets and
+     spawns fresh again rather than resuming a session that never read it. A first baseline the read stages is
+     written at once, as the check writes one it reads for itself. A thread that cannot be read holds the tick with
+     the park, the requirements, and any inspection worktree as they stand: nothing is reset, recovered, routed, or
+     launched, and the next tick reads again.
   3. **Half-finished decomposition recovery.** If `expected_children_count` is set OR `children` is non-empty (a prior
      tick crashed mid-split, or left a child another poller held unseeded), the handler cannot safely respawn the
      decomposer. Every split writes the count before its first create, so a `children` register with no
@@ -665,8 +695,19 @@ because there it is the claim that this stage has already rerouted rather than a
      already parked awaiting a human, and one carrying a live late generation — the split transaction writes the same
      two markers and resumes from its own durable facts, so finalizing on its behalf would hand a parent on before its
      snapshot, its supersession, or what the remote is owed had been settled. Either way the tick ends having changed
-     nothing. Those facts do not include a baseline for a child the transaction's earlier pass created: its create's
-     answer died with that pass, and the manifest a late parent retains proves no more than a receipt does, since the
+     nothing — save a park standing over a split no reading shows a child of, which a trusted reply answering it
+     takes away from the human first (`recovery._release_an_empty_split`): no child recorded, a whole
+     `expected_children_count`, a `split_attempt` this build mints, no live generation, and every issue this
+     orchestrator's account opened numbered above the parent carrying a whole receipt and no trace of this split's
+     anywhere in its body. The author is what decides which issues count, since a create that raised may still have
+     opened a child, and a human may have rewritten that child's receipt and parent footer away, or appended another
+     split's receipt below it. Its markers are dropped in memory and the reply resumes the session (step 5). A
+     recorded child, an issue of ours carrying this split's receipt anywhere, or carrying no whole receipt, a damaged
+     count, an attempt nothing can look up, or a live generation keeps the hold, as does a client with no login of its
+     own wherever anyone has opened an issue since. That is evidence of absence, not proof: an issue deleted or
+     transferred away is in no reading. The late transaction's durable facts do not include a baseline for a child its
+     earlier pass created: its create's answer died with that pass, and the manifest a late parent retains proves no
+     more than a receipt does, since the
      body it renders also names the configured base branch, remote, and mirror, which no record keeps — a child reading
      exactly as it renders now may have been edited to match a configuration changed since the create. So a resumed
      walk seeds a child an earlier pass recorded, or one it adopts by its receipt, with no `user_content_hash`, edited
@@ -693,6 +734,52 @@ because there it is the claim that this stage has already rerouted rather than a
      left unresolved -- short-circuits both branches BEFORE the timeout / read-only park, manifest parse, child
      creation, or relabel, so the next tick re-runs the decomposer from durable state; the run's usage, an interrupted
      run's included, was accounted as it returned, at the tracked spawn, and buys its manifest no replay.
+
+     The resume is asked only of a park step 2 left standing, and is handed the replies of that step's frozen read
+     past `last_action_comment_id`: `prompt_delivery`'s classification — an untrusted author, the pinned comment by
+     its id, our own posts by recorded id, and a body carrying `<!--orchestrator-comment-->` the id ledger cannot vouch
+     for all come out — less a bare `/orchestrator add-agent-runs`, which the run-limit hold already answered. Nothing
+     else is classified: a bare `/orchestrator continue` is how a human retries a timed-out or silent decomposer and is
+     delivered as written. The prompt is the delivery record's own rendering, quoting every reply whole, and runs on
+     the pinned `decomposer_agent` command — its backend and its arguments — and `decomposer_session_id`, whatever
+     `DECOMPOSE_AGENT` says now. A read holding no such reply ends the tick with nothing more written, worktree kept.
+     Nothing about the thread is staged before the run: the charge and the usage accounting each write over a
+     reading of their own, but the disposition's write would carry a staged boundary, and the read-only park a
+     shutdown-killed run's worktree earns would walk from past replies nobody read. Behind the run, past the pause
+     and accounting holds and ahead of every park the run earns, a run that read
+     the replies settles them through `prompt_delivery`: `last_action_comment_id` through the last reply delivered and
+     `user_content_hash` to the frozen read's fingerprint through it, so a delivered reply is never met again as an
+     edit, here or on `workflow:ready`. A launch the agent-run circuit refused, an unresolved accounting, a live hold,
+     and a shutdown-killed run consume none of them. A spent lifetime ledger is held by the dispatcher before
+     this handler runs at all, and the `/orchestrator add-agent-runs` grant puts back the park its refusal displaced,
+     so the grant's own tick resumes on the reply the refused launch left unread.
+
+     The fresh decomposition an edit buys on a parked tick is handed the same frozen read rather than a live one
+     (`DecomposerReplies.conversation`): what the park had already read as the excerpt every decompose prompt
+     quotes, and the replies past its boundary whole, as the resume quotes them, our own posts kept by recorded id.
+     A run that read it settles it the same way: `last_action_comment_id` moves through the newest reply the read
+     holds, and `user_content_hash` — which step 2's reset left as it stood — becomes the read's whole fingerprint,
+     so a reply written while that run was out resumes the fresh session rather than reading as a second edit. A
+     spent spawn budget refusing that spawn launches nothing, so its `retry_cap` park is bounded
+     (`park_watermarks.bounded_parks`) and stops short of the replies the read held; the stage-entry replay of an
+     initial decomposition's retry-cap notice runs in the same scope, so the repair of a lost write behind that notice
+     stops there too. Those replies predate the park's question and buy nothing; the trusted `/orchestrator continue`
+     written after its notice (step 1) buys a fresh spawn that quotes them. That spawn is handed its own tick's
+     frozen read the same way, a reset beside it or not: the replies the park held, the command, and the words beside
+     it reach the decomposer whole, and its run settles them as above. A run that read nothing — a launch the circuit
+     refused, an unresolved accounting, a live hold, a shutdown kill — leaves them past the boundary, and all of
+     those but the read-only park a shutdown-killed run's worktree earns leave the attempt unspent too, so the next
+     tick reads them again and hands them to the spawn it spends. A fresh spawn on a tick that froze nothing — the
+     first decomposition — follows an unparked reset that recorded the baseline itself, and quotes the live thread
+     and settles nothing by it.
+
+     A run handed a frozen read, whichever road it took, is disposed of inside a bounded-park scope
+     (`park_watermarks.bounded_parks`), so every park its disposition takes is bounded: its own timeout,
+     read-only, question, silent, or invalid-manifest park, and the split's below it — a lineage it cannot prove,
+     a slice naming a snapshot its child would not be kept, a child it could not create or seed, a release
+     refused. Each walks the boundary from what the settlement recorded through our own comments and stops at a
+     comment written while the decomposer was out, which the next resume delivers. A fresh spawn on a tick that
+     froze nothing parks at its notice's id.
   6. **Read-only check.** If the worktree now has commits or dirty files, park awaiting human and KEEP the worktree for
      operator inspection. The decomposer is read-only — without this guard, `_handle_implementing`'s recovery path
      would later push decomposer-authored work as implementation. A launch that never became a process

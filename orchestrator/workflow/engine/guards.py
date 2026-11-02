@@ -13,7 +13,8 @@ tick re-derives the run from the state the prior tick left. `_park_awaiting_huma
 goes the other way -- it posts the HITL comment, sets `awaiting_human`, forwards
 explicit bounded correlation fields to the emitted event and analytics sink, and
 ratchets `last_action_comment_id` past it -- or, for a park that follows an
-agent run (`bounded=True`), only as far as `park_watermarks` can walk our own
+agent run (`bounded=True`, or any park inside `park_watermarks.bounded_parks`),
+only as far as `park_watermarks` can walk our own
 identified comments -- and still leaves the write to the caller, so a park
 composes with whatever else that handler staged rather than committing ahead
 of it.
@@ -326,12 +327,14 @@ def _park_awaiting_human(
     no further, and nowhere at all where the walk has no floor, the post was
     never identified, or the thread cannot be re-read. It is popped like
     `reason` rather than admitted as a correlation field: it decides a WRITE,
-    so it belongs to neither the event nor the analytics payload. Only a
-    bounded park reads the ledger before posting: the walk needs it, and the
+    so it belongs to neither the event nor the analytics payload. A park taken
+    inside `park_watermarks.bounded_parks` is bounded without asking, which is
+    how a disposition bounds a park several owners below the run it follows.
+    Only a bounded park reads the ledger before posting: the walk needs it, and the
     ordinary park appends to that ledger without parsing what it already holds.
     """
     reason = correlation.pop("reason", None)
-    bounded = correlation.pop("bounded", False)
+    bounded = correlation.pop("bounded", False) or _park_watermarks._parks_bounded()
     _screened_correlation(correlation)
     said_before = _comments._orchestrator_ids(state) if bounded else None
     posted = _comments._post_issue_comment(gh, issue, state, message)

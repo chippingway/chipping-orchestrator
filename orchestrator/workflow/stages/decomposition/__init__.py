@@ -13,7 +13,9 @@ the walk that waits on them belong in one package rather than one per label.
 The owners divide by what each is responsible for rather than by label:
 `manifest` and `validation` decide what the agent's reply is allowed to be,
 `session` owns the decomposer session an issue is locked to and every spawn or
-resume under it, `retry_cap` owns the park a spent spawn budget leaves an
+resume under it, `replies` the one read of a parked thread the drift check,
+the resume's prompt, and its settlement are all cut from, `retry_cap` owns the
+park a spent spawn budget leaves an
 INITIAL decomposition -- held ahead of every road that would walk past one, and
 lifted only by the command that renews the budget -- `run` owns the order one
 tick asks the others in and `outcomes` the three dispositions its reply earns,

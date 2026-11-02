@@ -49,7 +49,9 @@ while `workflow:<tag>` is the **wire label** the GitHub issue carries. `in_revie
 ## Roles at a glance
 
 - **Decomposer** — `DECOMPOSE_AGENT` (default `claude`), spawned by the decomposing, question, and discussion stages,
-  each of which pins its own session per issue.
+  each of which pins its own session per issue. A parked initial decomposition resumes that session on a trusted
+  reply, measured against what the park had already read, and spawns fresh only on an edit to the title, the body,
+  or a comment the park had read.
 - **Implementer / dev** — `DEV_AGENT` (default `claude`), spawned by implementing and resumed by documenting,
   validating, fixing, and conflicts; locked per issue after the first spawn.
 - **Reviewer** — `REVIEW_AGENT` (default `codex`), spawned fresh by validating every round, so the current config

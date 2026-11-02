@@ -4,7 +4,10 @@
 
 A bot-authored matching notice settles the owed sentence without repeating it.
 An unreadable thread keeps it owed; successful delivery advances only the
-watermark proved by the notice and emits the corresponding audit phase."""
+watermark proved by the notice and emits the corresponding audit phase -- or,
+inside a bounded-park scope (`park_watermarks.bounded_parks`), only as far as
+the bounded walk reaches, so a repair never crosses the replies a bounded
+delivery left unread."""
 from __future__ import annotations
 
 import logging
@@ -16,7 +19,9 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.comments import authored_by_us
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    comments as _comments,
     guards as _guards,
+    park_watermarks as _park_watermarks,
     retry_park_state as _retry_park_state,
     retry_values as _retry_values,
 )
@@ -69,7 +74,12 @@ def _reconcile_notice(
     holds -- and the issue is the one of the two that cannot be wrong about
     what was said. Both halves that write was carrying are put back: the
     sentence is marked said, and the watermark is ratcheted to the comment
-    that actually carried it.
+    that actually carried it. Inside a bounded-park scope the watermark is
+    walked instead, the way that scope's delivery would have walked it --
+    the notice entered on the id ledger its lost write never reached, and the
+    walk taken through our own identified comments and no further -- since a
+    ratchet straight to the notice would cross the replies the bounded park
+    left unread beneath it.
 
     Nothing is posted and nothing is decided. A notice the thread does not
     carry is left exactly as it was, for the delivery to say -- and a thread
@@ -93,9 +103,14 @@ def _reconcile_notice(
         issue.number,
     )
     _retry_park_state._settle_notice(state)
-    prior = state.get(_retry_values._LAST_ACTION_COMMENT_ID)
-    if not isinstance(prior, int) or delivered > prior:
-        state.set(_retry_values._LAST_ACTION_COMMENT_ID, delivered)
+    if _park_watermarks._parks_bounded():
+        said_before = _comments._orchestrator_ids(state)
+        _comments._track_orchestrator_comment(state, delivered)
+        _park_watermarks._stamp_read_this_far(gh, issue, state, said_before)
+    else:
+        prior = state.get(_retry_values._LAST_ACTION_COMMENT_ID)
+        if not isinstance(prior, int) or delivered > prior:
+            state.set(_retry_values._LAST_ACTION_COMMENT_ID, delivered)
     _emit_phase(gh, issue, state, _retry_values.RetryCapPhase.RECONCILED)
     return _retry_values.NoticeReading.SAID
 

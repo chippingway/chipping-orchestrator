@@ -445,9 +445,11 @@ once to a change: `workflow:decomposing` re-spawns inline, `workflow:ready` / `w
 `workflow:validating`. `workflow:blocked` is a dependency hold and reacts to none: an edit made while an issue waits
 on its prerequisites is hashed, baselined, and rerouted by nothing — the drift check answers such an issue with
 nothing done — so its baseline, decomposition records, dependency graph, and tracked children stand until its release
-enters `workflow:ready`, which compares it before anything implements. A reply to a parked `workflow:implementing` or
-`workflow:validating` issue is not such a change: those stages measure a parked tick by what the park had already
-read, and the frozen reply batch delivers the reply. On `workflow:validating` that reply can still be the drift
+enters `workflow:ready`, which compares it before anything implements. A reply to a parked `workflow:implementing`,
+`workflow:validating`, or initial `workflow:decomposing` issue is not such a change: those stages measure a parked tick
+by what the park had already read, and the frozen reply batch delivers the reply — on `workflow:decomposing` to the
+decomposer session that parked, while a changed title, body, or already-read comment still re-spawns it fresh, a
+reply beside it or not. On `workflow:validating` that reply can still be the drift
 road's CONTINUATION rather than an ordinary fix: a park left standing over an edit its own resume never answered, or
 over a report the issue owes, makes the next reply read the way the resume's own answer reads — held to the developer
 report contract before the size gate, with a report and no commit published onto the unchanged head. Either way the
@@ -517,9 +519,17 @@ created and never recorded by the receipt in its body, and posting the split's s
 parent's record, only where its own receipt is not already on the thread, and parking a register recorded beside no
 integer count — a
 `DECOMPOSE` kill switch falls through to `workflow:implementing`, and commits or a dirty tree
-park with the worktree kept. An issue standing on a `retry_cap` park is held ahead of all of that — the
+park with the worktree kept. A parked tick reads its thread once before drift is decided, and the drift check, the
+human-reply resume, and the fresh decomposition an edit buys all answer off that read: a reply past the park's
+boundary resumes the pinned decomposer command and session, and the boundary and the requirements baseline move
+through it only once a run that read it is back — a refused launch, an unresolved accounting, a live hold, or a
+shutdown kill consumes nothing — with every park that run's disposition takes, a split's included, stopping short of a
+comment written while it was out. An issue standing on a `retry_cap` park is held
+ahead of all of that — the
 drift reset, the kill switch, and the human-reply resume each answer a park that is not this one — so it keeps
-everything it carries until a trusted `/orchestrator continue` buys it one more attempt. The late coordinator holds
+everything it carries until a trusted `/orchestrator continue` buys it one more attempt: a fresh spawn that reads
+the thread once the same way and is handed whole every reply the park left past its boundary, the command's own
+comment among them. The late coordinator holds
 the same park one step earlier on its own road, so an issue whose adjudication ran the budget out keeps its frozen
 candidate, the pull request that candidate stands under, and its recorded run until the same command buys it one
 more adjudication. Full flow:

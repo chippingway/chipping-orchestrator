@@ -30,9 +30,18 @@ and the explanation reaches the fresh decomposer through the prompt's own
 comment context -- while an untrusted account's copy of it buys nothing, since
 what it would buy is agent time on somebody else's word.
 
+A park taken in place of the fresh spawn a parked edit bought is bounded, so
+its boundary stays below the replies that edit's read held, which no run read
+-- and the stage-entry replay of its notice is bounded the same way
+(`_replay_owed_notice`). Those replies predate the park's question, so the
+command is read past the newest comment of ours as well as past the boundary.
+The command moves no boundary either, so those replies and its own words reach
+the fresh spawn it buys through that tick's one frozen read (`replies.py`),
+whole, and are consumed only by a run that read them.
+
 What one command buys is one attempt. `_grant_continuation` clears the park
-and writes the grant down, and the tick falls through to the ordinary fresh
-spawn, which spends it at the same gate that refused the last one. The grant
+and writes the grant down, and the tick falls through to the fresh spawn,
+which spends it at the same gate that refused the last one. The grant
 is durable before the spawn and the spend is not: a tick that dies -- or a run
 a pause or a shutdown declines -- between the two leaves the attempt where the
 human put it, unspent.
@@ -47,18 +56,37 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.comments import filter_trusted
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
+    comments as _comments,
     messages as _messages,
+    park_watermarks as _park_watermarks,
     retry_budget as _retry_budget,
     retry_notices as _retry_notices,
     retry_park_state as _retry_park_state,
     retry_values as _retry_values,
 )
+from orchestrator.workflow.late_split import state as _late_state
 from orchestrator.workflow.stages.decomposition import (
+    late_relabel as _late_relabel,
     session as _session,
     state as _state,
 )
 
 log = logging.getLogger("orchestrator.workflow")
+
+
+def _replay_owed_notice(gh: GitHubClient, issue: Issue, state: PinnedState) -> None:
+    """Say the sentence a stranded retry-cap park still owes, bounded on an initial decomposition.
+
+    The park an initial decomposition takes in place of the fresh spawn a
+    parked edit bought is bounded, since the replies that edit's read held
+    are below its notice and no run read them; a write lost behind that
+    notice is repaired here, on the next tick, and has to stop where the
+    delivery stopped rather than ratchet over them. A late adjudication's
+    park is its road's own, and is replayed as that road delivers it.
+    """
+    initial = not _late_relabel._adjudication_is_live(_late_state.read_late_generation(state))
+    with _park_watermarks.bounded_parks(initial):
+        _retry_budget._replay_owed_notice(gh, issue, state)
 
 
 def _park_owns_the_tick(
@@ -127,11 +155,17 @@ def _continuation_is_bought(
 ) -> bool:
     """Renew the budget if the thread carries the command that renews it.
 
-    A grant consumes the whole batch it was read out of rather than the one
-    comment that carried the command, and up to the last TRUSTED one exactly
-    as the resume beneath this does. Those comments are this park's answer,
-    and what is left unconsumed is read again by the next tick as words still
-    waiting to be acted on.
+    The grant moves no reply boundary. The comments it was read out of -- the
+    command, whatever its comment carries beside it, and every reply a bounded
+    park held below its notice -- are what the attempt is spent on, so they
+    stay past the boundary for the fresh spawn it buys: each tick spending the
+    attempt reads its thread once (`replies.reads_the_thread`), hands them to
+    the decomposer whole, and settles them only where its run read them.
+    Consumed here, a reply the park held would reach that spawn only through
+    the excerpt a decompose prompt cuts its thread to, and a run a pause or a
+    refused launch declined would leave it consumed unread. Left there, the
+    command buys nothing twice: with the park lifted nothing reads the thread
+    for it, and the next park's question is asked above it.
 
     The decomposer session goes with the park. What the attempt buys is the
     fresh spawn the budget refused, and that spawn pins an id of its own only
@@ -141,9 +175,8 @@ def _continuation_is_bought(
     The spec stays: a fresh spawn still has to land on the CLI this issue is
     locked to.
 
-    Mutates in memory only. The caller writes, so the grant, the retirement,
-    and the watermark that says which words bought them land in one write
-    rather than three.
+    Mutates in memory only. The caller writes, so the grant and the
+    retirement land in one write rather than two.
     """
     answered = _trusted_replies(gh, issue, state)
     if not _messages._parse_orchestrator_continue(answered):
@@ -151,10 +184,6 @@ def _continuation_is_bought(
     log.info(
         "issue=#%d was continued by a trusted operator command; granting one "
         "more decomposer attempt", issue.number,
-    )
-    state.set(
-        _state._LAST_ACTION_COMMENT_ID,
-        max(reply.id for reply in answered),
     )
     _session._retire_decomposer_session(state)
     _retry_budget._grant_continuation(gh, issue, state)
@@ -164,12 +193,21 @@ def _continuation_is_bought(
 def _trusted_replies(
     gh: GitHubClient, issue: Issue, state: PinnedState,
 ) -> list:
-    """What trusted humans have said since this park consumed the thread.
+    """What trusted humans have said since this park put its question.
 
     A read that could not be taken answers nothing said, which holds the park
     for the tick. The two failures are not symmetric: a park held one poll too
     long is answered by the next read, while a grant handed out on a thread
     nobody could read would spend an attempt no human asked for.
+
+    Read past the reply boundary, and then past the newest comment of ours on
+    it: the boundary of a park taken in place of the fresh decomposition a
+    parked edit bought stays below the replies that edit's read held, since no
+    run read them (`replies.py`), and stands below this park's own notice too.
+    Those replies were written before the question was asked, so none of them
+    -- a bare `/orchestrator continue` among them -- is an answer to it. A park
+    whose notice the boundary already stands on reads exactly what it always
+    read.
     """
     try:
         thread = gh.comments_after(
@@ -182,4 +220,9 @@ def _trusted_replies(
             issue.number,
         )
         return []
-    return filter_trusted(thread)
+    ours = _comments._orchestrator_ids(state)
+    asked = max(
+        (seen.id for seen in thread if seen.id in ours),
+        default=0,
+    )
+    return filter_trusted([seen for seen in thread if seen.id > asked])

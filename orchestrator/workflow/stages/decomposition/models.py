@@ -4,8 +4,9 @@
 
 Each of these exists because the value it carries has to survive a boundary
 the call stack alone would lose it across: the worktree policy a run decides
-before it can raise, the agent identity a resume is locked to, the children a
-split has already created when the next one fails -- with the lineage it
+before it can raise, the frozen replies a resume was handed -- which only that
+run's outcome may settle -- the agent identity a resume is locked to, the
+children a split has already created when the next one fails -- with the lineage it
 seeds each of them with, the baseline each create answered, the attempt their
 receipts name, the rationale the parent records beside them, and the ones a
 seed under the child's claim had to leave for the split's recovery to seed and
@@ -26,14 +27,30 @@ from orchestrator.git.worktrees import decomposition as _worktree_decomposition
 from orchestrator.github import client as _client, labels as _labels, pinned_refusal as _pinned_refusal
 from orchestrator.github.issues import issue_is_closed
 from orchestrator.workflow.engine import record_admission as _record_admission
-from orchestrator.workflow.stages.decomposition.replacement_lineage import ReplacementLineage
+from orchestrator.workflow.stages.decomposition import replacement_lineage as _lineage, replies as _replies
 from orchestrator.workflow.state import WorkflowLabel
 
 
 @dataclass
 class _DecomposerRunPlan:
+    """One decomposer run, the worktree policy it decided, and the frozen read it was handed.
+
+    `replies` is the tick's frozen read as the run was handed it -- the
+    replies a resume quoted, or the conversation the fresh decomposition an
+    edit or a continuation buys quoted -- and None for a fresh spawn on a tick that froze
+    nothing: what the run settles where it read it, and what bounds every park
+    its disposition takes, whose notice would otherwise mark read a comment
+    written while the run was out.
+    """
+
     agent_result: AgentResult | None
     keep_worktree: bool = False
+    replies: _replies.DecomposerReplies | None = None
+
+    @property
+    def bounded(self) -> bool:
+        """Whether every park this run's disposition takes records the thread read only through our own comments."""
+        return self.replies is not None
 
 
 @dataclass
@@ -83,7 +100,7 @@ class _SplitPlan:
     is_umbrella: bool
     created: list[tuple[int, dict]]
     dep_graph: dict[str, list[int]]
-    lineage: ReplacementLineage = field(default_factory=ReplacementLineage)
+    lineage: _lineage.ReplacementLineage = field(default_factory=_lineage.ReplacementLineage)
     attempt: str = ""
     # The manifest's rationale as `state._split_rationale_text` reads it, None
     # where it gave none: the plan writes it over whatever an earlier split
@@ -104,9 +121,9 @@ class _SplitPlan:
 
     @classmethod
     def start(
-        cls, children_manifest: list, is_umbrella: bool, lineage: ReplacementLineage | None = None,
+        cls, children_manifest: list, is_umbrella: bool, lineage: _lineage.ReplacementLineage | None = None,
     ) -> _SplitPlan:
-        return cls(children_manifest, is_umbrella, [], {}, lineage or ReplacementLineage())
+        return cls(children_manifest, is_umbrella, [], {}, lineage or _lineage.ReplacementLineage())
 
     def record(self, idx: int, issue_number: int, child: dict) -> None:
         self.created.append((issue_number, child))
