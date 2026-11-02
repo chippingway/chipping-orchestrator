@@ -71,6 +71,11 @@ _OWNERS = (
     "late_result_models",
 
     "child_validation",
+    "correction_records",
+    "correction_room",
+    "correction_standing",
+    "correction_commits",
+    "correction_checkpoint",
     "late_answers",
     "late_notice_fences",
     "activation",

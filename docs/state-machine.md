@@ -381,11 +381,17 @@ handoff (prepared before its feedback is posted), the drop, retirement, and park
 writes over a verdict left waiting, every write of an approval's tail, its squash's own and a failed squash's park
 included, a final-docs pass's completion (prepared before its notice, and relabelled only behind a confirmed write)
 and the evidence invalidation or hold that withholds a no-change one, the retirement of a failed developer
-conversation, and the `workflow:ready` decision's reroute and handoff (each read back before its relabel) and the
-retirement of that reroute's marker -- lays only the fields its caller owns over a fresh
-reading instead, refusing with nothing written where the
+conversation, the `workflow:ready` decision's reroute and handoff (each read back before its relabel) and the
+retirement of that reroute's marker, and a decomposer manifest correction's arming, exhaustion, and retirement -- lays
+only the fields its caller owns over a fresh reading instead, refusing with nothing written where the
 comment, a record the decision rests on, or a field the caller is changing moved, or where the whole candidate would
 not fit one comment.
+The dormant `decomposer_correction` record is the one manifest correction an initial decomposition may be allowed once
+its decomposer's answer fails validation -- tied to the rejected invocation, the requirements it was handed, and the
+decomposer command and session it saved, and `pending`, `exhausted`, or `retired`, a resolved attempt covering every
+charge it was resolved across so no correction's own answer arms another. Its writes are guarded commits of that field
+alone, read back where unconfirmed, a retirement takes a reading that proves its context moved, and its one launch is
+owed once at the run circuit. No road arms or launches one yet, so an invalid manifest still parks awaiting a human.
 The additive `dev_session_retirement` record names the developer conversations retired as failed and whether the fresh
 conversation replacing the last is still owed. Nothing that clears the session pin or zeroes `silent_park_count` and
 `dev_resume_count` -- a publication, a rotation, a late restart's projection -- erases it, so a retired id is never

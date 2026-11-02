@@ -86,7 +86,9 @@ _COMMIT = _bounds.Member(partial(_payloads.as_hex, lengths=_formats.COMMIT_LENGT
 _BRANCH_NAME = _bounds.Member(_record_values.as_branch)
 _SESSION_ID = _bounds.Member(partial(_bounds.line, limit=_bounds.MAX_SESSION), optional=True)
 
-# The invocation a record came from, spelled under the names its own fields carry.
+# The invocation a record came from, spelled under the names its own fields
+# carry -- and the source and correction of a decomposer manifest correction,
+# which are read by this same table (`stages/decomposition/correction_records`).
 _INVOCATION = MappingProxyType({
     "repo": _bounds.Member(_record_values.as_slug),
     "issue": _RECORDED,

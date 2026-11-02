@@ -2,9 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Validated pinned fields for the lifetime agent-run ledger.
 
-The used count is floored by the usage meter. Missing allowances defer to
-configuration, and malformed counts or reservation phases grant no evidence.
-A launch owed exactly once leaves the count it was owed at beside its start."""
+The used count is floored by the usage meter; a reader bounding every charge
+taken reads it strictly instead, with neither meter unreadable. Missing
+allowances defer to configuration, and malformed counts or reservation phases
+grant no evidence. A launch owed exactly once leaves the count it was owed at
+beside its start."""
 from __future__ import annotations
 
 from typing import Any
@@ -39,7 +41,8 @@ AGENT_RUN_RESERVATION = "agent_run_reservation"
 AGENT_RUN_FINGERPRINT = "agent_run_fingerprint"
 
 # The count the last launch owed exactly once was owed at -- a handed change
-# request's developer -- written with that launch's start and by nothing
+# request's developer, or a decomposer manifest correction's one launch, which
+# no road makes yet -- written with that launch's start and by nothing
 # else: the one record that says the launch it names reached a process,
 # whatever other launches were charged beside or after it. Absent where no
 # such launch has started.
@@ -90,6 +93,23 @@ def _runs_used(state: PinnedState) -> int:
     return max(
         (count for count in meters if count is not None), default=0,
     )
+
+
+def _runs_used_strictly(state: PinnedState) -> int | None:
+    """How many agent runs this issue has spent, where both meters say; None where either cannot.
+
+    `_runs_used` answers a damaged count of this ledger's own from the usage
+    meter, which refunds nothing that meter saw -- the right answer for a
+    ceiling, and none for a reader that has to bound every charge taken, since
+    the meter is only a floor of what was spent. This one takes the ledger's
+    own count, which has to read, beside the meter, which may be absent but not
+    unreadable, and answers the larger of the two.
+    """
+    charged = _counted(state.get(AGENT_RUNS_USED))
+    metered = _counted(state.get(_METERED_RUNS, 0))
+    if charged is None or metered is None:
+        return None
+    return max(charged, metered)
 
 
 def _reservation(state: PinnedState) -> _run_ledger_models.RunPhase | None:

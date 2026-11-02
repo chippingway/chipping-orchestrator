@@ -58,6 +58,10 @@ round -- the resume answering a pull request's human feedback, a requirements-dr
 fresh report a rewritten head's refresh asks for, and the developer revision a human's guidance buys under a late
 adjudication capture one, as their developer returns. The dispatcher's recovery reads a pending capture through that
 read-back alone.
+A decomposer manifest correction (`decomposer_correction`, a dormant facility no road arms yet) is recovered from its
+pinned record alone, never a session id, a request fingerprint, a log, analytics, or an in-memory count, and whether its
+one launch started from the ledgers beside it -- the owed start, the run count and its reservation's phase, the usage
+meter, and the usage receipts -- so a start one of them no longer records is still read off the others.
 
 **Specs:** [state](architecture.md#design-constraints), [restarts](configuration/operations.md#what-survives-a-restart).
 
@@ -70,7 +74,8 @@ read-back alone.
 [captured feedback](../tests/workflow/stages/fixing/test_captured_feedback.py),
 [captured drift](../tests/workflow/stages/validating/test_captured_drift.py),
 [captured refreshes](../tests/workflow/stages/validating/test_captured_refresh.py),
-[captured revisions](../tests/workflow/stages/decomposition/test_late_revision.py).
+[captured revisions](../tests/workflow/stages/decomposition/test_late_revision.py),
+[correction recovery](../tests/workflow/stages/decomposition/test_correction_recovery.py).
 
 ## C-02: Workflow labels and transitions
 
@@ -231,6 +236,10 @@ hands its requirements baseline on to one that supersedes it: the later report's
 baseline back. Only a requirements-drift resume's capture may freeze
 a second delivered stretch, a pull request conversation's beside the issue thread's, each in order: its recovery's
 cursor carry reads both back, and nothing settles from either.
+A decomposer manifest correction (`decomposer_correction`) is read only whole as well: absent is an issue that armed
+none, and any other shape -- `null`, a key too many or too few, a member out of its bound, or a correction not charged
+after its source on that comment and in that cycle -- is a damaged claim, never an absence, so nothing arms over it,
+resolves it, or launches on it.
 
 Unsupported input cannot serve as fresh work, current evidence, or authorization to publish or delete artifacts. Neither
 a format change nor a refusal grants permission to discard that input or the artifacts it names; the owning
@@ -320,6 +329,7 @@ or lost write interrupted are current state, not historical compatibility.
 [approval bases](../tests/workflow/stages/implementing/test_late_approval_basis.py),
 [rewrite permissions](../tests/git/base_sync/test_transfers.py),
 [split manifests](../tests/workflow/stages/decomposition/test_manifest.py),
+[correction records](../tests/workflow/stages/decomposition/test_correction_records.py),
 [late records](../tests/workflow/stages/decomposition/test_late_session.py),
 [unexplained singles](../tests/workflow/stages/decomposition/test_late_unsplit_park.py),
 [hold spellings](../tests/workflow/stages/decomposition/test_late_hold.py),
@@ -486,6 +496,15 @@ A capture is taken only where it, and then that transfer, its binding, and its s
 with every terminator escaped; the transfer, and the binding and settlement of a captured report, are measured that
 way again over the comment each lands on, and refused for room with the report kept. A refusal leaves the run's
 usage checkpoint to land or not on its own, and a park the binding takes over a capture is decided on that capture.
+A decomposer manifest correction's arming, exhaustion, and retirement each read the attempt back over the caller's
+comment first, own that field alone, and send only a record that reads back as itself: one sent and never confirmed
+withholds the caller's state and grants nothing until a read-back says what landed, and so does one landing over a
+comment that moved since the caller read it; asking again records nothing twice, a resolved attempt covers every charge
+it was resolved across so nothing it covers -- its correction's own answer included -- arms one again after a restart, a
+resolution is refused wherever no readable count covers every charge its ledgers record rather than landing a floor
+below a charge taken, and a retirement for a moved context is held to a reading that proves the move, so a baseline or
+pin nobody can read retires nothing. Its launch is granted only where the charge counts read and the comment has room
+for the charge and start it leaves beside the attempt's widest resolution.
 Writer exclusion comes from [C-05].
 
 **Specs:** [transactions](state-machine/labels-and-state.md#pinned-state),
@@ -517,7 +536,9 @@ Writer exclusion comes from [C-05].
 [admitted read-back](../tests/workflow/engine/test_dispatch_current_recovery.py),
 [ready recovery](../tests/workflow/stages/decomposition/test_ready_recovery.py),
 [split recovery](../tests/workflow/stages/decomposition/test_late_recovery.py),
-[in-flight splits](../tests/workflow/stages/decomposition/test_late_split_recovery.py).
+[in-flight splits](../tests/workflow/stages/decomposition/test_late_split_recovery.py),
+[correction writes](../tests/workflow/stages/decomposition/test_correction_arming.py),
+[correction resolutions](../tests/workflow/stages/decomposition/test_correction_resolution.py).
 
 ## C-07: Publication authority and exact revisions
 
@@ -820,6 +841,9 @@ Session rotation and retirement touch neither meter. Usage accounting charges, r
 accounted under the identity of the process it came from -- the charge that process was started under and a random
 nonce, never the request's fingerprint -- and a receipt, or the floor receipts retire under, covers that identity, so
 a settlement asked again never moves the meter past the charges it counts.
+A decomposer manifest correction's one launch is charged before it runs like any other launch, owed once at its source's
+charge: a start the run ledger shows or cannot rule out is never launched again, and nothing about it refunds or grants
+a run.
 
 **Specs:** [run budget](state-machine/labels-and-state.md#the-agent-run-circuit),
 [charging before launch](security.md#bounded-agent-spend-per-issue-max_agent_runs_per_issue),
@@ -827,7 +851,8 @@ a settlement asked again never moves the meter past the charges it counts.
 
 **Checks:** [charging](../tests/workflow/engine/test_run_circuit.py),
 [meter floor](../tests/workflow/engine/test_run_ledger.py),
-[accounting once](../tests/workflow/engine/test_invocation_identity.py).
+[accounting once](../tests/workflow/engine/test_invocation_identity.py),
+[correction launches](../tests/workflow/stages/decomposition/test_correction_launch.py).
 
 ## Maintaining the contracts
 

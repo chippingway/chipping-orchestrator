@@ -89,7 +89,10 @@ invocation's usage, its increment and receipt landed together as the tracked
 spawn returns (`usage_checkpoint`), and a developer completion's capture and
 retirement, each owning that capture alone (`completion_checkpoint`), with its
 transfer landing through the developer report's recording above
-(`completion_handoff`). Every other road still rewrites the whole record.
+(`completion_handoff`), and a decomposer manifest correction's arming,
+exhaustion, and retirement, each owning that record alone
+(`stages/decomposition/correction_checkpoint`), which no road makes yet. Every
+other road still rewrites the whole record.
 
 The report's commits are captured over the reading a tick last synced with the
 comment (`PinnedState.synced`), so what the tick staged since is told from what

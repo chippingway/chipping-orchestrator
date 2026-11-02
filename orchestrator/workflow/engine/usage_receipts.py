@@ -18,6 +18,10 @@ retirement costs is the other direction: an invocation never accounted while
 the floor passed it can no longer be, which is an undercount and never a second
 count.
 
+`latest` is the highest charge the ledger covers a process of, which a
+decomposer manifest correction reads as a process that returned after the run
+its allowance was armed for (`stages/decomposition/correction_standing`).
+
 Read strictly. Absent is an issue that accounted nothing; anything else this
 build would not write -- `null`, a flag or a negative for a count, a nonce of
 another shape, pairs out of order, at or below the floor, or past the bound --
@@ -59,6 +63,11 @@ class UsageReceipts:
         if invocation.ordinal <= self.floor:
             return True
         return (invocation.ordinal, invocation.nonce) in self.recent
+
+    @property
+    def latest(self) -> int:
+        """The highest charge this ledger covers a process of: a kept receipt's, or the floor where none is above it."""
+        return max((self.floor, *(receipt[0] for receipt in self.recent)))
 
     def taking(self, invocation: AgentInvocation) -> UsageReceipts:
         """This ledger with `invocation` receipted, retiring the lowest ordinals past the bound under the floor."""
