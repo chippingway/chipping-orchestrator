@@ -35,7 +35,8 @@ eligible attempt buys, owed at its source's charge, with `stands` asking every
 reading the circuit charges or starts from (`run_circuit._owed_stands`) whether
 that very attempt still reads ELIGIBLE there. No second charging system: the
 reservation, its honoring across a crash, the start, and the lifetime ceiling
-are the circuit's own. Nothing here writes, and nothing invokes it yet.
+are the circuit's own. Nothing here writes; the launch is asked by
+`correction_road`, whose `resolves` reads the issue afresh behind the charge.
 """
 from __future__ import annotations
 

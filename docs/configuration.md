@@ -650,7 +650,8 @@ examples.
   ignored, whatever it holds.
 - `MAX_REVIEW_ROUNDS` — default `3`. review/fix iterations before parking on `awaiting_human`
 - `MAX_CONFLICT_ROUNDS` — default `3`. auto-conflict-resolution rounds before parking on `awaiting_human`
-- `MAX_RETRIES_PER_DAY` — default `3`. fresh implementer spawns per issue per 24h window (`0` = unbounded, and an
+- `MAX_RETRIES_PER_DAY` — default `3`. fresh implementer spawns per issue per 24h window, the fresh decomposer
+  spawns and the one correction a refused initial manifest earns counted alike (`0` = unbounded, and an
   unbounded budget keeps no counters — it drops the window it finds, so turning it back on opens a fresh one). An
   exhausted budget parks the issue as `retry_cap`, and that park outlives both the window elapsing and a later change
   to this setting: the notice asked for a human, and neither the clock nor a wider cap is one. Where a stage routes

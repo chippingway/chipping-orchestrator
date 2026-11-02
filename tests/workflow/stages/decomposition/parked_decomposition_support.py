@@ -3,11 +3,12 @@
 """A decomposition parked by a real first run, over the baseline that run's tick recorded.
 
 Nothing about the park is seeded. The first tick's own drift check records the
-baseline over the title, the body, and the guidance already on the thread, and
-the run's invalid-manifest park posts its notice and stands the reply boundary
-on it, so every later tick meets exactly what a live issue would: a reply past
-that boundary is the park's answer, and a change to anything at or below it is
-an edit.
+baseline over the title, the body, and the guidance already on the thread, its
+run's invalid manifest earns the one correction it may, and that correction's
+own invalid manifest parks: the park posts its notice and stands the reply
+boundary on it, so every later tick meets exactly what a live issue would: a
+reply past that boundary is the park's answer, and a change to anything at or
+below it is an edit.
 """
 from __future__ import annotations
 
@@ -56,6 +57,9 @@ DRIFT_NOTICE = "issue content changed"
 INVALID_MANIFEST = _manifest('{"decision": "split", "children": [{"title": "A", "body": "a"}]}')
 
 SINGLE_MANIFEST = _manifest('{"decision": "single", "rationale": "fits"}')
+
+# A reply carrying no manifest at all, which parks the issue as a question.
+QUESTION = "Should the renderer keep streaming while it splits?"
 
 SPLIT_MANIFEST = _manifest('{"decision": "split", "children": [{"title": "A", "body": "a", "depends_on": []}]}')
 
@@ -158,11 +162,11 @@ class AnsweredWhileOut:
     """A runner a human writes a further reply under while it is out.
 
     It keeps that reply and the prompt and resumed session id it was handed,
-    and comes back with `last_message` on `session`: by default an invalid
-    manifest on the parked session, which parks the issue again.
+    and comes back with `last_message` on `session`: by default a question on
+    the parked session, which parks the issue again with no correction owed.
     """
 
-    def __init__(self, reply, last_message: str = INVALID_MANIFEST, session: str = PARKED_SESSION) -> None:
+    def __init__(self, reply, last_message: str = QUESTION, session: str = PARKED_SESSION) -> None:
         self._reply = reply
         self._returned = _agent(session_id=session, last_message=last_message)
         self.written: list[FakeComment] = []

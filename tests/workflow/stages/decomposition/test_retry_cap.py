@@ -19,6 +19,7 @@ from orchestrator import config
 from orchestrator.workflow.engine import content_hash as _content_hash
 from tests.workflow.fixtures import LABEL_READY, _agent, _iso_hours_ago
 from tests.workflow.stages.decomposition import (
+    correction_tick_support as _corrected,
     parked_decomposition_support as _parked,
     retry_cap_support as support,
 )
@@ -347,8 +348,8 @@ class FrozenSpawnCapTest(unittest.TestCase, _parked._ParkedDecompositionCase):
     def test_a_capped_fresh_spawn_keeps_the_reply(self) -> None:
         for reply, loses in FROZEN_CAP_CASES:
             with self.subTest(reply=reply, loses_the_notice_write=loses):
+                self._park()
                 with patch.object(config, "MAX_RETRIES_PER_DAY", 1):
-                    self._park()
                     self._reply(reply)
                     self.issue.body = _parked.EDITED_BODY
                     self._refuse_and_hold(loses=loses)
@@ -446,6 +447,44 @@ class FrozenSpawnCapTest(unittest.TestCase, _parked._ParkedDecompositionCase):
             (0, self.floor, self.baseline),
         )
 
+
+
+class CorrectionCapTest(unittest.TestCase, _corrected.CorrectionTickCase):
+    """A manifest correction is a retry the daily budget pays for, and the continuation keeps what it always bought.
+
+    The rejected run spends the last slot, so its correction takes the
+    retry-cap park instead, said once. The trusted continuation retires the
+    session that correction was saved under -- so the attempt is retired, never
+    launched -- and buys the fresh decomposition it always bought, spending
+    the one attempt it granted and nothing more.
+    """
+
+    def test_a_capped_correction_is_retired(self) -> None:
+        with patch.object(config, "MAX_RETRIES_PER_DAY", 1):
+            self._capped()
+            self.reply(CONTINUE_COMMAND)
+            bought = self.decomposer(_corrected.SINGLE)
+
+            self.tick(bought)
+
+        self.assertEqual(len(bought.launches), 1)
+        self.assertIsNone(bought.launches[0].resumed, "the continuation buys a fresh conversation")
+        self.assertEqual(self.stage(), _corrected.RETIRED)
+        self.assertEqual(self.pinned()[KEY_CONTINUED], 0)
+        self.assertEqual(self.runs(), 2)
+        self.assertEqual(self.label(), LABEL_READY)
+
+    def _capped(self) -> None:
+        """A rejected run that spent the last slot, its correction parked on the cap, and a quiet tick behind it."""
+        self.opened()
+        rejected = self.decomposer(_corrected.UNLISTED)
+        self.tick(rejected)
+        quiet = self.decomposer(_corrected.LISTED)
+        self.tick(quiet)
+        self.assertEqual(len(rejected.launches) + len(quiet.launches), 1)
+        self.assertEqual(self.pinned()[KEY_PARK_REASON], support.PARK_RETRY_CAP)
+        self.assertEqual(self.stage(), _corrected.PENDING)
+        self.assertEqual(len(self.said()), 1, "the retry-cap park is said once")
 
 
 if __name__ == "__main__":

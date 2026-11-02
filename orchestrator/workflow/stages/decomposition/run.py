@@ -32,8 +32,10 @@ can read them and finalize a split the human no longer wants. Recovery goes
 next, and deliberately ahead of the `DECOMPOSE` kill switch: children already
 open on GitHub have to be resolved whether or not new decompositions are still
 enabled -- a kill switch that stranded existing work would be the wrong kind of
-off. Only past both does the tick pick between resuming a parked session and
-spawning a fresh one.
+off. Only past both does the tick pick its run (`session._run_for_the_tick`):
+the manifest correction an earlier tick left pending first -- launched, retired,
+or given up before any decomposer is charged behind it -- then resuming a
+parked session or spawning a fresh one.
 
 Everything after the run is about what that run is allowed to publish. A
 `paused` label applied mid-run wins over the whole disposition, an agent that
@@ -41,6 +43,9 @@ left commits or edits in a read-only worktree parks with the worktree kept for
 inspection (forwarding typed correlation fields to the shared park funnel), and
 an interrupted run is dropped entirely -- checked in that order so a killed
 run's changes stay inspectable rather than being discarded as untrustworthy.
+A manifest the parser refuses earns one correction of the same session, which
+is disposed of on the same plan exactly as the run it corrects -- every hold,
+park, and check again -- and earns none of its own.
 A run handed a frozen read -- the resume, or the fresh decomposition an edit
 or a continuation buys -- settles what it was handed only where it read it,
 and every park its disposition takes is bounded, the split's own among them, so
@@ -133,12 +138,7 @@ def _run_on_the_reading(
     ):
         return _DecomposerRunPlan(agent_result=None)
 
-    # A drift reset took the park down, and with it the session the replies
-    # would have answered: only a park still standing is resumed on them. The
-    # fresh decomposition the reset buys is handed the same read.
-    if replies is not None and _replies.parked(state):
-        return _session._resume_decomposer_on_human_reply(gh, spec, issue, state, replies)
-    return _session._spawn_fresh_decomposer(gh, spec, issue, state, replies)
+    return _session._run_for_the_tick(gh, spec, issue, state, replies)
 
 
 def _process_decomposer_run(
@@ -190,17 +190,7 @@ def _dispose_decomposer_run(
         or _worktree_status._worktree_dirty_files(wt)
     ):
         run_plan.keep_worktree = True
-        _guards._park_awaiting_human(
-            gh, issue, state,
-            f"{config.HITL_MENTIONS} decomposer left commits or "
-            "uncommitted changes in the worktree, but it must be "
-            "read-only. Reset the worktree before resuming.",
-            reason="decomposer_dirty",
-            agent_role="decomposer",
-            session_id=decomposer_result.session_id,
-            retry_count=_guards._safe_int(state.get("retry_count")),
-        )
-        gh.write_pinned_state(issue, state)
+        _outcomes._park_dirty_worktree(gh, issue, state, run_plan)
         return
 
     # An interrupted run has no trustworthy manifest. The read-only check
@@ -208,7 +198,10 @@ def _dispose_decomposer_run(
     if _guards._ignore_if_interrupted(issue, decomposer_result):
         return
 
-    _outcomes._dispatch_decomposer_manifest(gh, spec, issue, state, decomposer_result)
+    # A rejected manifest's one correction, launched in its place, is disposed
+    # of exactly as this run was, on the same plan; it earns none of its own.
+    if _outcomes._dispatch_decomposer_manifest(gh, spec, issue, state, run_plan):
+        _dispose_decomposer_run(gh, spec, issue, state, run_plan)
 
 
 def _late_adjudication_owns_the_tick(

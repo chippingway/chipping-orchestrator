@@ -18,6 +18,7 @@ from tests.workflow.fixtures import (
     _agent,
     _manifest,
 )
+from tests.workflow.stages.decomposition import correction_tick_support as _corrected
 from tests.workflow.stages.decomposition.decomposing_test_support import (
     _DecomposingWorkflowMixin,
 )
@@ -227,9 +228,11 @@ class HandleDecomposingParkTest(
         _assert_resumed_timeout_park_fail_open(self, "not-an-int")
 
     def test_decompose_malformed_manifest_parks(self) -> None:
-        # A malformed reply parks before the split writes anything: no child
-        # is created and no split tracking is written, so the human's reply
-        # resumes the decomposer rather than a recovery.
+        # A malformed reply earns one correction, and a correction answering
+        # malformed again parks before the split writes anything: no child is
+        # created and no split tracking is written, so the human's reply
+        # resumes the decomposer rather than a recovery. The correction is a
+        # retry the budget counts, so the park reads the second.
         for payload, refusal in _MALFORMED_PAYLOADS.items():
             with self.subTest(refusal=refusal):
                 gh = FakeGitHubClient()
@@ -253,7 +256,7 @@ class HandleDecomposingParkTest(
                 self.assertEqual(state.get(KEY_DECOMPOSER_SESSION_ID), DECOMPOSER_SESSION)
                 self.assertEqual((gh.created_child_issues, gh.label_history), ([], []))
                 self.assertFalse(set(_SPLIT_TRACKING) & set(state), "no split tracking is written")
-                self._assert_decomposer_park_event(gh, _PARK_REASON_INVALID)
+                self._assert_decomposer_park_event(gh, _PARK_REASON_INVALID, expected_retry_count=2)
 
     def test_decompose_no_manifest_question_parks(self) -> None:
         gh = FakeGitHubClient()
@@ -336,3 +339,43 @@ class HandleDecomposingParkTest(
         self.assertEqual(park_record.get("agent_role"), _ROLE_DECOMPOSER)
         self.assertEqual(park_record.get("session_id"), expected_session)
         self.assertEqual(park_record.get("retry_count"), expected_retry_count)
+
+
+class FailedCorrectionParkTest(unittest.TestCase, _corrected.CorrectionTickCase):
+    """A correction's own malformed answer parks once, quoting its own error and manifest, and stays parked.
+
+    The session is left pinned for the reply that resumes it, and the spent
+    attempt arms nothing: quiet polls, each a process holding nothing of the
+    one before, launch, say, write, and announce nothing more.
+    """
+
+    def test_a_failed_correction_parks_once(self) -> None:
+        parked = self._parked_by_its_correction()
+        quiet = self.decomposer(_corrected.LISTED)
+
+        self.tick(quiet)
+        self.tick(quiet)
+
+        said = self.said()
+        self.assertEqual(quiet.launches, [])
+        self.assertEqual(said, [said[0]], "the first rejection is never announced, the second once")
+        self.assertIn(f"manifest invalid ({_corrected.SELF_EDGE_ERROR}) after its one automatic correction", said[0])
+        self.assertNotIn(_corrected.UNLISTED_ERROR, said[0])
+        self.assertEqual(self.pinned(), parked, "nothing is written again")
+        self.assertEqual(self.stage(), _corrected.EXHAUSTED)
+        self.assertEqual(len(self._park_events()), 1)
+
+    def _parked_by_its_correction(self) -> dict:
+        """The record a tick leaves whose rejected run's correction answered malformed again."""
+        self.opened()
+        self.tick(self.decomposer(_corrected.UNLISTED, _corrected.SELF_EDGE))
+        parked = self.pinned()
+        self.assertTrue(parked[KEY_AWAITING_HUMAN])
+        self.assertEqual(parked[KEY_DECOMPOSER_SESSION_ID], _corrected.SESSION)
+        return parked
+
+    def _park_events(self) -> list:
+        return [
+            recorded for recorded in self.github.recorded_events
+            if recorded.get("event") == _EVENT_PARK and recorded.get("reason") == _PARK_REASON_INVALID
+        ]

@@ -1178,7 +1178,7 @@ and the evidence invalidation or hold that withholds a no-change one, the retire
 conversation, the in_review ready ping's arming and its settlement and the unmergeable park behind its notice, and the
 `workflow:ready` decision's reroute and handoff and the retirement of that reroute's marker land through, as do a
 developer completion's capture, transfer, and retirement and a decomposer manifest correction's arming, exhaustion,
-and retirement, which no road makes yet) is never written from its caller's state. It is captured
+and retirement) is never written from its caller's state. It is captured
 from the reading the caller decided on — the comment's id, every field as the comment's JSON spells it, the
 prerequisite fields the decision rests on, an absent one included, and the fields the caller owns — and derived over a
 fresh reading: each field the caller's staged state
@@ -1400,13 +1400,15 @@ The keys that matter for the state machine fall into a few groups:
   `workflow:decomposing`, withholding its summary, its label, and its first release until that recovery has seeded the
   child.
 - **A decomposer manifest correction.** `decomposer_correction` is the one correction an initial decomposition may be
-  allowed once its decomposer's answer fails manifest validation: a dormant facility no road arms, launches, or resolves
-  yet, so an invalid manifest still parks as the
-  [decomposing handler](delivery-stages.md#_handle_decomposing-label-workflowdecomposing) describes. One flat object
-  holds at most one attempt, tied to the process invocation whose answer was rejected (`source`, the six members its
-  tracked spawn minted), the requirements revision that run was handed (`requirements`, one digest), and the decomposer
-  command and session it saved (`command`, `session`), and to nothing else: no request fingerprint, session id alone,
-  log, analytics row, or in-memory count is what a later tick recovers it by. Its `stage` is `pending` (the allowance
+  allowed once a completed run's answer fails manifest validation: armed at that rejection, launched once, and
+  resolved by the correction's answer or by a later tick, as the
+  [decomposing handler](delivery-stages.md#_handle_decomposing-label-workflowdecomposing) describes (steps 5 and 7).
+  One flat object holds at most one attempt, tied to the process invocation whose answer was rejected (`source`, the
+  six members its tracked spawn minted), the requirements revision that run was handed (`requirements`, one digest),
+  the decomposer command and session it saved (`command`, `session`), and the parser's error its answer was refused
+  with (`diagnostic`, one line of at most 1024 characters, which the correction prompt quotes on whichever tick
+  launches it), and to nothing else: no request fingerprint, session id alone, log, analytics row, or in-memory count
+  is what a later tick recovers it by. Its `stage` is `pending` (the allowance
   stands), `exhausted` (spent, `correction` naming the correction's own invocation where one returned and `null` where
   none did), or `retired` (ended over a reading that proved its context moved), and a resolved one adds `floor`, the run
   count the issue had reached as it resolved, held to the widest number a record holds: no invocation charged at or
@@ -1449,7 +1451,12 @@ The keys that matter for the state machine fall into a few groups:
   one put back meanwhile, retires nothing. Asking again over an attempt already where it asks sends nothing; a write
   landing over a comment moved since the caller read it withholds the caller's state, as one sent and never confirmed
   does until a read-back (`correction_checkpoint.read_back`) finds what landed, which is also how a restarted process
-  reconstructs the attempt from the comment alone.
+  reconstructs the attempt from the comment alone. Every park taken over an attempt -- the correction's own answer
+  parked, and one armed with no launch granted given up behind the ordinary park -- lands while the attempt is still
+  pending and ends on the hidden receipt `<!--orchestrator-decomposer-correction:issue=<n>:source=<nonce>-->`, the
+  nonce the source invocation's own, and the attempt is exhausted behind it; a tick that finds the attempt owed a park
+  it does not stand on records the park over a comment of ours past the reply boundary carrying that receipt rather
+  than posting it again.
 - **A debt with no record behind it.** `late_approved_sha` + `late_approved_lease` + `late_approved_basis` outlive the
   generation that granted them, because the write that approves a candidate retires that generation before the push.
   The basis is what the debt RESTS on, said by the owner that granted it rather than inferred from the records
@@ -4270,7 +4277,7 @@ The keys that matter for the state machine fall into a few groups:
   taken before the spawn, so a run that crashed, timed out, or was killed mid-flight is still spent; settling a
   reservation drops the phase and the fingerprint together, never the charge. `agent_run_owed_started` is the count
   the last launch owed exactly once was owed at — a persisted change request's developer, at its `handed` count, or a
-  decomposer manifest correction's, at its source's charge, which no road launches yet — written in the very write
+  decomposer manifest correction's, at its source's charge — written in the very write
   that moves that launch to `started` and by nothing else, so it says that launch reached a process whatever other
   runs were charged beside or after it; additive, absent until such a launch starts, and not
   kept by a projection, which rebuilds an issue with no launch outstanding. This owner decides nothing and posts
@@ -4470,7 +4477,10 @@ the budget never sees, which is the late adjudication and its live generation.
 
 - **The accounting.** `retry_window_start` + `retry_count`, against the bound `MAX_RETRIES_PER_DAY` sets. The window
   opens at the first counted attempt and reopens once 24h have elapsed. Only fresh spawns count: a resume on a human
-  reply and a recovered worktree's push are an unblock signal and carry-over work. An unbounded budget (`0`) counts
+  reply and a recovered worktree's push are an unblock signal and carry-over work. A decomposer manifest correction
+  counts as one: it resumes a session, but nobody asked for it, so it is the automatic retry the budget bounds, and
+  a spent budget parks its launch as it parks a fresh spawn, the attempt left pending for the continuation's
+  retirement of its session to retire. An unbounded budget (`0`) counts
   nothing and drops the pair as it passes, so turning the budget off is not a pause on a window — turning it back on
   opens a fresh one rather than refusing out of a count nobody could spend while there was no budget to spend it
   against.
@@ -4638,7 +4648,7 @@ drives the real handlers against a spent ledger so an unwired road is caught as 
   classify the run by.
 - **A launch owed once is held to it on the circuit's own readings.** A caller whose launch is owed exactly once names
   it (`OwedLaunch`): the lifetime count it is owed at — a persisted change request's developer, handed at `handed`,
-  or the one launch a dormant decomposer manifest correction buys, at its source's charge — and the caller's hold on
+  or the one launch a decomposer manifest correction buys, at its source's charge — and the caller's hold on
   it, the requests its standing takes beyond the pinned comment (`resolves`) and a judgment
   of each reading of the comment (`stands`). The circuit writes that count as
   `agent_run_owed_started` in the same write that moves such a launch to `started`, and on the fresh read the charge is

@@ -58,10 +58,11 @@ round -- the resume answering a pull request's human feedback, a requirements-dr
 fresh report a rewritten head's refresh asks for, and the developer revision a human's guidance buys under a late
 adjudication capture one, as their developer returns. The dispatcher's recovery reads a pending capture through that
 read-back alone.
-A decomposer manifest correction (`decomposer_correction`, a dormant facility no road arms yet) is recovered from its
-pinned record alone, never a session id, a request fingerprint, a log, analytics, or an in-memory count, and whether its
-one launch started from the ledgers beside it -- the owed start, the run count and its reservation's phase, the usage
-meter, and the usage receipts -- so a start one of them no longer records is still read off the others.
+A decomposer manifest correction (`decomposer_correction`) is recovered from its pinned record alone -- the error its
+correction is asked about included -- never a session id, a request fingerprint, a log, analytics, or an in-memory
+count, and whether its one launch started from the ledgers beside it -- the owed start, the run count and its
+reservation's phase, the usage meter, and the usage receipts -- so a start one of them no longer records is still read
+off the others, and a park over it from the receipt its notice ends on.
 
 **Specs:** [state](architecture.md#design-constraints), [restarts](configuration/operations.md#what-survives-a-restart).
 
@@ -75,7 +76,8 @@ meter, and the usage receipts -- so a start one of them no longer records is sti
 [captured drift](../tests/workflow/stages/validating/test_captured_drift.py),
 [captured refreshes](../tests/workflow/stages/validating/test_captured_refresh.py),
 [captured revisions](../tests/workflow/stages/decomposition/test_late_revision.py),
-[correction recovery](../tests/workflow/stages/decomposition/test_correction_recovery.py).
+[correction recovery](../tests/workflow/stages/decomposition/test_correction_recovery.py),
+[recovered corrections](../tests/workflow/stages/decomposition/test_correction_recovery_ticks.py).
 
 ## C-02: Workflow labels and transitions
 
@@ -239,7 +241,8 @@ cursor carry reads both back, and nothing settles from either.
 A decomposer manifest correction (`decomposer_correction`) is read only whole as well: absent is an issue that armed
 none, and any other shape -- `null`, a key too many or too few, a member out of its bound, or a correction not charged
 after its source on that comment and in that cycle -- is a damaged claim, never an absence, so nothing arms over it,
-resolves it, or launches on it.
+resolves it, or launches on it. Every park over an attempt ends on a hidden receipt naming the issue and the source
+invocation's nonce, which counts as that park's notice only on a comment of ours past the reply boundary.
 
 Unsupported input cannot serve as fresh work, current evidence, or authorization to publish or delete artifacts. Neither
 a format change nor a refusal grants permission to discard that input or the artifacts it names; the owning
@@ -504,7 +507,11 @@ it was resolved across so nothing it covers -- its correction's own answer inclu
 resolution is refused wherever no readable count covers every charge its ledgers record rather than landing a floor
 below a charge taken, and a retirement for a moved context is held to a reading that proves the move, so a baseline or
 pin nobody can read retires nothing. Its launch is granted only where the charge counts read and the comment has room
-for the charge and start it leaves beside the attempt's widest resolution.
+for the charge and start it leaves beside the attempt's widest resolution. Its arming follows a write of the rejected
+run's own disposition that landed, so the session and baseline it is held to are durable; every park over it lands
+before the attempt is resolved, and a usable answer is acted on only behind an exhaustion that landed, so a lost
+exhaustion leaves a park standing over a pending attempt and never children beside one, and a lost park write is
+recorded over the notice its receipt finds rather than said twice.
 Writer exclusion comes from [C-05].
 
 **Specs:** [transactions](state-machine/labels-and-state.md#pinned-state),
@@ -538,7 +545,8 @@ Writer exclusion comes from [C-05].
 [split recovery](../tests/workflow/stages/decomposition/test_late_recovery.py),
 [in-flight splits](../tests/workflow/stages/decomposition/test_late_split_recovery.py),
 [correction writes](../tests/workflow/stages/decomposition/test_correction_arming.py),
-[correction resolutions](../tests/workflow/stages/decomposition/test_correction_resolution.py).
+[correction resolutions](../tests/workflow/stages/decomposition/test_correction_resolution.py),
+[unconfirmed corrections](../tests/workflow/stages/decomposition/test_correction_recovery_ticks.py).
 
 ## C-07: Publication authority and exact revisions
 
@@ -608,12 +616,17 @@ Credential filtering does not enforce push authority; see [C-11].
 
 **Why:** Replies must mean what the prompt requested.
 
-**Limits:** Malformed replies follow the role's policy for retries or human guidance. Session identity is covered by
-[C-14].
+**Limits:** Malformed replies follow the role's policy for retries or human guidance. An initial decomposer's
+manifest the parser refuses with a concrete error, from a completed, accounted, read-only run, earns one correction
+asked under the very output contract the decompose prompt closes on, with that exact error, and the correction's
+answer is read by the same parser and earns none of its own; a question, silence, or a failed, incomplete, timed-out,
+interrupted, or dirty run earns none. Session identity is covered by [C-14].
 
 **Specs:** [reply protocols](workflow.md).
 
-**Checks:** [report prompts](../tests/workflow/engine/test_prompts_developer_report.py).
+**Checks:** [report prompts](../tests/workflow/engine/test_prompts_developer_report.py),
+[manifest contract](../tests/workflow/stages/decomposition/test_manifest.py),
+[manifest corrections](../tests/workflow/stages/decomposition/test_correction_road.py).
 
 ## C-09: Reports, review subjects, and verification
 
@@ -737,6 +750,15 @@ and requirements baseline move only behind a run that read the thread,
 and every park that run's disposition takes, a split's included, records the thread read through our own comments
 and no further. Lifetime agent-run charges and
 the grant that permits further runs are covered by [C-15].
+A decomposer manifest correction is held to the issue read afresh behind its charge and again before its answer is
+used: a `paused`/`backlog` hold, a close, a label other than `workflow:decomposing`, or requirements that read as
+neither the whole thread nor the stretch through the settled reply boundary as the revision its rejected run was
+handed invokes nothing and makes no child, split marker, or label; an edit is answered by the drift reset's fresh
+decomposition, the attempt resolved rather than replenished. A spent daily budget parks its launch on `retry_cap`,
+whose continuation retires the session and with it the attempt; a spent lifetime ledger parks it on
+`agent_run_limit`, whose grant alone buys that launch. A correction a hold, an unresolved accounting, an
+interruption, or a lost write left unanswered is never launched again: the next tick parks for a human, the session
+left for their reply to resume.
 
 **Specs:** [controls](state-machine/labels-and-state.md#workflow-labels),
 [waiting for human action](state-machine.md#per-tick-flow-workflowengineticktick),
@@ -769,7 +791,9 @@ the grant that permits further runs are covered by [C-15].
 [held conflict drift](../tests/workflow/stages/conflicts/test_captured_drift.py),
 [held refreshes](../tests/workflow/stages/validating/test_captured_refresh.py),
 [held revisions](../tests/workflow/stages/decomposition/test_captured_revision.py),
-[closes over held revisions](../tests/workflow/stages/decomposition/test_late_revision_close.py).
+[closes over held revisions](../tests/workflow/stages/decomposition/test_late_revision_close.py),
+[held corrections](../tests/workflow/stages/decomposition/test_correction_live.py),
+[capped corrections](../tests/workflow/stages/decomposition/test_retry_cap.py).
 
 ## C-11: Credentials and execution boundaries
 
@@ -832,7 +856,10 @@ parameters.
 
 **Limits:** Reviewers start fresh with current configuration. A plain `codex` or `claude` is a current command spec,
 kept as pinned with no arguments. Resumes, rotation, failure retirement, and a failed developer conversation's
-replacement keep the pinned command, and a recovered captured completion pins the command its run ran under. Only
+replacement keep the pinned command, and a recovered captured completion pins the command its run ran under. A
+decomposer manifest correction resumes the session its rejected run saved under the command it was armed with,
+whichever tick launches it, and a pinned command that does not parse or a session that was never saved earns no
+correction, never a replacement conversation. Only
 `dev_agent` and `dev_session_id` lock a developer session; no other key is resumed, converted, or cleared as one.
 
 **Specs:** [session commands](workflow.md#in-flight-session-lock--pinned-full-spec-until-the-session-ends).
@@ -857,8 +884,9 @@ accounted under the identity of the process it came from -- the charge that proc
 nonce, never the request's fingerprint -- and a receipt, or the floor receipts retire under, covers that identity, so
 a settlement asked again never moves the meter past the charges it counts.
 A decomposer manifest correction's one launch is charged before it runs like any other launch, owed once at its source's
-charge: a start its ledgers show or cannot rule out is never launched again, and nothing about it refunds or grants a
-run.
+charge, and accounted once as it returns: a start its ledgers show or cannot rule out is never launched again, a start
+refused behind its charge keeps that charge for the launch rather than paying again, and nothing about it -- its
+correction's answer, a park, or the `agent_run_limit` park its launch takes -- refunds or grants a run.
 
 **Specs:** [run budget](state-machine/labels-and-state.md#the-agent-run-circuit),
 [charging before launch](security.md#bounded-agent-spend-per-issue-max_agent_runs_per_issue),
@@ -867,7 +895,8 @@ run.
 **Checks:** [charging](../tests/workflow/engine/test_run_circuit.py),
 [meter floor](../tests/workflow/engine/test_run_ledger.py),
 [accounting once](../tests/workflow/engine/test_invocation_identity.py),
-[correction launches](../tests/workflow/stages/decomposition/test_correction_launch.py).
+[correction launches](../tests/workflow/stages/decomposition/test_correction_launch.py),
+[corrections counted once](../tests/workflow/stages/decomposition/test_usage.py).
 
 ## Maintaining the contracts
 

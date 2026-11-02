@@ -7,7 +7,10 @@ fields agree with their readers -- the `depends_on` list every child is told to
 state is the one a fresh split reply is refused without -- and file lists
 remain bounded in the notice. The prompt's last instruction is a check of the
 block against that schema, because a reply that is valid JSON can still leave
-out a list the validator refuses it without.
+out a list the validator refuses it without. That whole reply contract is
+spelled once (`_MANIFEST_CONTRACT`): the decompose prompt closes on it, and the
+correction prompt a rejected answer earns hands it back beside the exact error
+the parser refused that answer with, so both ask for the same manifest.
 
 The prompt sizes an issue by its complete deliverable -- implementation, tests,
 the documentation it makes stale, and the final documentation pass -- judged by
@@ -51,6 +54,69 @@ _SPLIT_RATIONALE_SECTION = (
     "verbatim from that record rather than from the conversation; it explains "
     "the split and names the residual scope kept for this issue's own "
     "implementation, while the child issues carry the rest):\n\n{quoted}\n\n"
+)
+
+
+# The reply contract every initial decomposer answer is held to, the manifest
+# parser's own rules spelled for the agent: the ordinary prompt closes on it,
+# and a correction prompt hands it back whole beside the error its answer was
+# refused with, so the two never ask for different manifests.
+_MANIFEST_CONTRACT = (
+    "If you genuinely need a clarification, end your message with a "
+    "question for the human and DO NOT emit a manifest. Otherwise, end "
+    "your final message with EXACTLY ONE fenced JSON block in this "
+    "format (and nothing else after it):\n\n"
+    "```orchestrator-manifest\n"
+    "{\n"
+    "  \"decision\": \"split\",\n"
+    "  \"rationale\": \"<<= 2 sentences why>\",\n"
+    "  \"umbrella\": false,\n"
+    "  \"children\": [\n"
+    "    {\"title\": \"...\", \"body\": \"...\", \"depends_on\": []},\n"
+    "    {\"title\": \"...\", \"body\": \"... needs child 0 ...\", \"depends_on\": [0]}\n"
+    "  ]\n"
+    "}\n"
+    "```\n\n"
+    "The block must be valid JSON parseable by `json.loads`. The "
+    "`decision` value must be exactly the string `\"single\"` or "
+    "`\"split\"` (no other values, no union syntax). On `\"single\"`, "
+    "omit the `children` field and instead hand off the context you "
+    "already gathered so the implementer does not re-derive it: add "
+    "`\"affected_files\"` (a list of repo-relative paths you found "
+    "relevant) and `\"notes\"` (<= 3 sentences of concrete "
+    "implementation guidance). Both are optional but strongly "
+    "encouraged on `\"single\"`.\n\n"
+    "Rules for the children list (omit entirely on 'single'):\n"
+    f"- At most {_MAX_CHILDREN} children.\n"
+    "- Every child MUST carry `depends_on`: a list of 0-based indexes "
+    "into THIS children array (not GitHub issue numbers; the orchestrator "
+    "allocates those). Use `[]` for a child with no prerequisites; a "
+    "missing or null `depends_on` rejects the whole manifest.\n"
+    "- `depends_on` must name exactly the prerequisites the child's body "
+    "describes: a child whose body says it needs another child's work "
+    "lists that child's index, and does not start until that child is "
+    "done.\n"
+    "- Self-dependencies and cycles are rejected.\n"
+    "- Each child must be small enough to implement in one context "
+    "(do not propose a child that itself needs decomposition).\n\n"
+    "The optional `umbrella` boolean (default false) signals that the "
+    "parent issue itself has NO implementation work of its own and exists "
+    "only to aggregate the children. Set it to true when every line of "
+    "the parent's intent is covered by the children you are creating; "
+    "leave it false when the parent still needs its own coding pass after "
+    "the children land. An umbrella parent auto-resolves to `done` once "
+    "every child resolves; a non-umbrella parent re-enters "
+    "implementation, so name its residual work in `rationale`.\n\n"
+    "Before you emit the block, check it against this schema field by "
+    "field. Valid JSON alone is not enough: a block that parses but "
+    "leaves out a field it requires -- one child's `depends_on` is "
+    "enough -- is refused, and the issue waits for a human. "
+    "Confirm the `decision` value; on a split, that EVERY child carries "
+    "an explicit `depends_on` array (`[]` for none, never omitted or "
+    "null) naming exactly the prerequisites its body and your "
+    "`rationale` describe; that the arrays form no self-dependency or "
+    f"cycle and there are at most {_MAX_CHILDREN} children; and that "
+    "nothing follows the closing fence."
 )
 
 
@@ -108,61 +174,32 @@ def _build_decompose_prompt(
         "children may promise the same behavior. If no split meets these "
         "rules, answer single. Explain the decision in `rationale` by its "
         "concrete scope and dependencies, not by a file count.\n\n"
-        "If you genuinely need a clarification, end your message with a "
-        "question for the human and DO NOT emit a manifest. Otherwise, end "
-        "your final message with EXACTLY ONE fenced JSON block in this "
-        "format (and nothing else after it):\n\n"
-        "```orchestrator-manifest\n"
-        "{\n"
-        "  \"decision\": \"split\",\n"
-        "  \"rationale\": \"<<= 2 sentences why>\",\n"
-        "  \"umbrella\": false,\n"
-        "  \"children\": [\n"
-        "    {\"title\": \"...\", \"body\": \"...\", \"depends_on\": []},\n"
-        "    {\"title\": \"...\", \"body\": \"... needs child 0 ...\", \"depends_on\": [0]}\n"
-        "  ]\n"
-        "}\n"
-        "```\n\n"
-        "The block must be valid JSON parseable by `json.loads`. The "
-        "`decision` value must be exactly the string `\"single\"` or "
-        "`\"split\"` (no other values, no union syntax). On `\"single\"`, "
-        "omit the `children` field and instead hand off the context you "
-        "already gathered so the implementer does not re-derive it: add "
-        "`\"affected_files\"` (a list of repo-relative paths you found "
-        "relevant) and `\"notes\"` (<= 3 sentences of concrete "
-        "implementation guidance). Both are optional but strongly "
-        "encouraged on `\"single\"`.\n\n"
-        "Rules for the children list (omit entirely on 'single'):\n"
-        f"- At most {_MAX_CHILDREN} children.\n"
-        "- Every child MUST carry `depends_on`: a list of 0-based indexes "
-        "into THIS children array (not GitHub issue numbers; the orchestrator "
-        "allocates those). Use `[]` for a child with no prerequisites; a "
-        "missing or null `depends_on` rejects the whole manifest.\n"
-        "- `depends_on` must name exactly the prerequisites the child's body "
-        "describes: a child whose body says it needs another child's work "
-        "lists that child's index, and does not start until that child is "
-        "done.\n"
-        "- Self-dependencies and cycles are rejected.\n"
-        "- Each child must be small enough to implement in one context "
-        "(do not propose a child that itself needs decomposition).\n\n"
-        "The optional `umbrella` boolean (default false) signals that the "
-        "parent issue itself has NO implementation work of its own and exists "
-        "only to aggregate the children. Set it to true when every line of "
-        "the parent's intent is covered by the children you are creating; "
-        "leave it false when the parent still needs its own coding pass after "
-        "the children land. An umbrella parent auto-resolves to `done` once "
-        "every child resolves; a non-umbrella parent re-enters "
-        "implementation, so name its residual work in `rationale`.\n\n"
-        "Before you emit the block, check it against this schema field by "
-        "field. Valid JSON alone is not enough: a block that parses but "
-        "leaves out a field it requires -- one child's `depends_on` is "
-        "enough -- is refused, and the issue waits for a human. "
-        "Confirm the `decision` value; on a split, that EVERY child carries "
-        "an explicit `depends_on` array (`[]` for none, never omitted or "
-        "null) naming exactly the prerequisites its body and your "
-        "`rationale` describe; that the arrays form no self-dependency or "
-        f"cycle and there are at most {_MAX_CHILDREN} children; and that "
-        "nothing follows the closing fence."
+        f"{_MANIFEST_CONTRACT}"
+    )
+
+
+def _build_correction_prompt(diagnostic: str) -> str:
+    """The one correction a rejected manifest earns, asked of the session that wrote it.
+
+    Handed to the resumed conversation, which already holds the issue and the
+    reasoning behind its answer, so it carries only the exact error the
+    manifest parser refused that answer with and the whole contract the
+    ordinary prompt closes on: one complete manifest, never a patch of the
+    rejected block, held to the very rules that refused it.
+    """
+    return (
+        "The orchestrator's manifest validator rejected the decomposition "
+        "manifest you just returned, with this error:\n\n"
+        f"> {diagnostic}\n\n"
+        "Return ONE complete corrected answer for the same issue: the whole "
+        "manifest again, every field and every child in full, never a patch "
+        "or a diff of the rejected block. Fix what the error names and "
+        "re-check every other child against the same rules -- one omission "
+        "repeated elsewhere is refused the same way. Keep the decision and "
+        "the children you intended unless the error itself requires "
+        "changing them. You are still read-only: you MUST NOT commit, push, "
+        "or modify any file.\n\n"
+        f"{_MANIFEST_CONTRACT}"
     )
 
 

@@ -28,6 +28,14 @@ outlive either reset for the same reason it exists, and the retirement is
 separate from the run that follows it because that run cannot do it: a spawn
 records an id only where the backend hands one back, so a question or a
 timeout that surfaced none would leave the retired conversation resumable.
+
+A manifest the parser refused resumes the session once more, unasked: the one
+correction that answer earns (`correction_road`), launched under the same
+pinned command with the exact error. Which run a tick makes is decided here
+(`_run_for_the_tick`), the correction an earlier tick left pending answered
+first (`correction_reconcile`), so no decomposer is charged behind it; a
+retirement above moves the context that correction was armed under, so it is
+retired rather than launched.
 """
 from __future__ import annotations
 
@@ -46,7 +54,11 @@ from orchestrator.workflow.engine import (
     run_charge_state as _run_charge_state,
     usage as _usage,
 )
-from orchestrator.workflow.stages.decomposition import replies as _replies, state as _state
+from orchestrator.workflow.stages.decomposition import (
+    correction_reconcile as _correction_reconcile,
+    replies as _replies,
+    state as _state,
+)
 from orchestrator.workflow.stages.decomposition.models import _DecomposerRunPlan, _DecomposerSession
 
 # What this stage's spawns are charged and attributed under. The budget is
@@ -86,6 +98,28 @@ def _read_decomposer_session(
         config.DECOMPOSE_AGENT_ARGS,
         None,
     )
+
+
+def _run_for_the_tick(
+    gh: GitHubClient, spec: _config_models.RepoSpec, issue: Issue, state: PinnedState,
+    replies: _replies.DecomposerReplies | None,
+) -> _DecomposerRunPlan:
+    """The decomposer run this tick makes once drift, recovery, and the kill switch have had their say.
+
+    A manifest correction an earlier tick left pending is answered first,
+    before any decomposer is charged behind it (`correction_reconcile`):
+    launched where it is still owed, retired where a reset moved it, given up
+    otherwise. Then a park still standing is resumed on the replies the tick
+    froze -- a drift reset took the park down, and with it the session the
+    replies would have answered -- and anything else spawns the fresh
+    decomposition, handed that same read where the tick froze one.
+    """
+    reconciled = _correction_reconcile.reconciles(gh, spec, issue, state)
+    if reconciled is not None:
+        return reconciled
+    if replies is not None and _replies.parked(state):
+        return _resume_decomposer_on_human_reply(gh, spec, issue, state, replies)
+    return _spawn_fresh_decomposer(gh, spec, issue, state, replies)
 
 
 def _spawn_fresh_decomposer(

@@ -49,6 +49,7 @@ REQUIREMENTS = hashlib.sha256(b"the requirements the rejected decomposer was han
 EDITED = hashlib.sha256(b"the requirements a human edited the issue to").hexdigest()
 COMMAND = "codex --model gpt-5.5 -c model_reasoning_effort=high"
 SESSION = "decomposer-session-1"
+DIAGNOSTIC = "child 1 missing depends_on"
 
 # The lifetime charge the rejected decomposer run was started under.
 SOURCE = 4
@@ -145,8 +146,8 @@ def invocation(world: CorrectionWorld, ordinal: int = SOURCE, **overrides) -> Ag
 
 
 def source(world: CorrectionWorld, ordinal: int = SOURCE, **context) -> _records.CorrectionSource:
-    """The rejected run under charge `ordinal`, handed the requirements and saved under the pins seeded."""
-    saved = {"requirements": REQUIREMENTS, "command": COMMAND, "session": SESSION}
+    """The rejected run under charge `ordinal`, handed the requirements, saved under the pins seeded, and its error."""
+    saved = {"requirements": REQUIREMENTS, "command": COMMAND, "session": SESSION, "diagnostic": DIAGNOSTIC}
     return _records.CorrectionSource(invocation(world, ordinal), **{**saved, **context})
 
 
