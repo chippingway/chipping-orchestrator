@@ -391,12 +391,12 @@ completed run's answer fails validation -- tied to the rejected invocation, the 
 decomposer command and session it saved, and the parser's exact error, and `pending`, `exhausted`, or `retired`, a
 resolved attempt covering every charge it was resolved across so no correction's own answer arms another. Its writes
 are guarded commits of that field alone, read back where unconfirmed, a retirement takes a reading that proves its
-context moved, and its one launch is owed once at the run circuit, a retry the daily budget pays for. Every park
-taken over an attempt lands before the attempt is resolved and ends on a receipt, so a lost park write is recorded
-over its notice rather than said twice, ahead of the drift check and bounded, so a reply written meanwhile resumes the
-saved session; a claim nobody can read holds the tick.
-The additive `dev_session_retirement` record names the developer conversations retired as failed and whether the fresh
-conversation replacing the last is still owed. Nothing that clears the session pin or zeroes `silent_park_count` and
+context moved, and its one launch is owed once at the run circuit, a retry the daily budget pays for in the write
+reserving its charge. Every park taken over an attempt lands before the attempt is resolved and ends on a receipt, so a
+lost park write is recorded over its notice rather than said twice, ahead of the drift check and bounded, so a reply
+written meanwhile resumes the saved session; a claim nobody can read holds the tick. The additive
+`dev_session_retirement` record names the developer conversations retired as failed and whether the fresh conversation
+replacing the last is still owed. Nothing that clears the session pin or zeroes `silent_park_count` and
 `dev_resume_count` -- a publication, a rotation, a late restart's projection -- erases it, so a retired id is never
 resumed, and every resume stays a fresh conversation under the pinned `dev_agent` command until one with an id of its
 own is pinned.

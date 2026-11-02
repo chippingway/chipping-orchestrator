@@ -1462,11 +1462,11 @@ The keys that matter for the state machine fall into a few groups:
   of its frozen read and drift check -- spending the attempt and ending the tick instead on an issue closed or
   relabelled meanwhile -- recording it over a comment of ours past the reply boundary carrying that receipt rather than
   posting it again, and bounded either way, so a reply written while the correction was out stays the saved session's to
-  be resumed on. A tick owing a pending attempt's launch freezes its thread as a parked tick does, so a reply written
-  past the boundary the rejected run settled is no edit, and the launched correction's parks are bounded by that read
-  without settling it; a correction launched on its rejected run's own tick bounds its parks wherever that run's
-  boundary is the one its baseline was settled through. A claim nobody can read holds every `decomposing` tick with
-  nothing reset, launched, created, or written until it is repaired.
+  be resumed on. A tick owing a pending attempt's launch freezes its thread as a parked tick does wherever a reply
+  boundary stands, so a reply written past the boundary the rejected run settled is no edit, and the launched
+  correction's parks are bounded by that read without settling it; a correction launched on its rejected run's own tick
+  bounds its parks wherever that run's boundary is the one its baseline was settled through. A claim nobody can read
+  holds every `decomposing` tick with nothing reset, launched, created, or written until it is repaired.
 - **A debt with no record behind it.** `late_approved_sha` + `late_approved_lease` + `late_approved_basis` outlive the
   generation that granted them, because the write that approves a candidate retires that generation before the push.
   The basis is what the debt RESTS on, said by the owner that granted it rather than inferred from the records

@@ -21,7 +21,10 @@ The launch (`launch`) is a retry the issue's daily budget pays for like any
 fresh spawn, so a spent budget takes its retry-cap park instead, and a
 `/orchestrator continue` buys the fresh decomposition that park always bought:
 the session it retires is the one the attempt was saved under, so the attempt
-is retired with it. Then the tracked spawn charges the lifetime ledger and
+is retired with it. The daily slot it pays lands in the write reserving its
+lifetime charge (`correction_budget`), so a correction whose disposition is
+never written still counts it, and a reservation standing unstarted has paid
+it already. Then the tracked spawn charges the lifetime ledger and
 accounts the usage once, as for every run, under the attempt's one owed launch
 (`correction_standing.owed_launch`): the circuit refuses it on any reading that
 no longer grants it, and asks the issue afresh right behind the charge
@@ -55,11 +58,11 @@ from orchestrator.workflow.engine import (
     content_hash as _content_hash,
     park_watermarks as _park_watermarks,
     record_admission as _record_admission,
-    retry_budget as _retry_budget,
     run_charge_state as _run_charge_state,
     usage as _usage,
 )
 from orchestrator.workflow.stages.decomposition import (
+    correction_budget as _budget,
     correction_checkpoint as _checkpoint,
     correction_live as _live,
     correction_records as _records,
@@ -172,18 +175,24 @@ def launch(
     so a spent budget's park is never written or announced over a hold, a
     moved owner or requirements, a moved saved context, or a comment another
     road wrote since the tick read it: each holds the tick with nothing said.
+    The daily retry is staged in the write reserving the lifetime charge
+    (`correction_budget.pays`), and a reservation of this launch already
+    standing has paid it (`correction_budget.admits`).
     """
     if not _still_owed(gh, issue, state, attempt):
         return None
-    if not _retry_budget._charge_or_park(gh, issue, state, stage=_source.STAGE):
-        gh.write_pinned_state(issue, state)
+    request = _source.resumed(spec, issue, attempt.source)
+    if not _budget.admits(gh, issue, state, request):
         return None
     resolves = partial(_live.resolves, gh, issue, state, attempt.source)
     owed = _standing.owed_launch(issue.number, attempt, resolves)
-    stands = partial(_live.uncontrolled, owed.stands, resolves)
-    owed = dataclasses.replace(owed, stands=stands)
+    owed = dataclasses.replace(
+        owed,
+        stands=partial(_live.uncontrolled, owed.stands, resolves),
+        pays=partial(_budget.pays, issue.number),
+    )
     budget = _run_charge_state.AgentRunBudget(issue=issue, state=state, owed=owed)
-    return _usage._run_agent_tracked(gh, budget, _source.resumed(spec, issue, attempt.source))
+    return _usage._run_agent_tracked(gh, budget, request)
 
 
 def _still_owed(gh: GitHubClient, issue: Issue, state: PinnedState, attempt: _records.CorrectionAttempt) -> bool:

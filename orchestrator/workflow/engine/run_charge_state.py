@@ -53,11 +53,19 @@ class OwedLaunch:
     reading of the comment the charge is written from, the one its start is
     written over last. False from either refuses the launch. None of either is
     a launch standing on nothing but its count.
+
+    `pays` stages whatever else the launch's charge pays -- a manifest
+    correction's daily retry -- on the reading the charge is written over, so
+    both land in the one write: a launch whose disposition is never written
+    still counts it, and a charge reserved and never started has paid it
+    already for whichever tick starts it. False refuses the charge with
+    nothing written; None pays nothing more.
     """
 
     at: int
     resolves: Callable[[], bool] | None = None
     stands: Callable[[PinnedState], bool] | None = None
+    pays: Callable[[PinnedState], bool] | None = None
 
 
 @dataclass(frozen=True)
@@ -105,6 +113,14 @@ class AgentRunBudget:
             return False
         own = _run_ledger_values._owed_started(self.state) == owed_at
         return not own and _run_ledger_values._owed_started(durable) == owed_at
+
+    def pays(self, durable: PinnedState) -> bool:
+        """Whether what else the launch owed once pays beside its charge is staged on `durable` (`OwedLaunch.pays`).
+
+        Every other launch pays nothing more.
+        """
+        owed = self.owed
+        return owed is None or owed.pays is None or owed.pays(durable)
 
 
 def _durable_state(gh: GitHubClient, issue: Issue) -> PinnedState | None:

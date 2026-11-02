@@ -114,13 +114,19 @@ def reads(gh: GitHubClient, issue: Issue, state: PinnedState, source: _records.C
 
 
 def _revisions(fresh: Issue, state: PinnedState, thread: list) -> frozenset[str]:
-    """The requirements `fresh` reads as over its whole `thread`, and over the stretch through `state`'s boundary."""
+    """The requirements `fresh` reads as over its whole `thread`, and over the stretch through `state`'s boundary.
+
+    The stretch only where a boundary stands: a thread with none names no
+    stretch a run settled, so every comment on it is one the requirements are
+    measured by, and a reply written while a run was out is an edit for the
+    drift road rather than a comment past a boundary nobody recorded.
+    """
     ours = _comments._orchestrator_ids(state)
+    whole = _content_hash._compute_user_content_hash(fresh, ours, comments=thread)
     floor = state.get(_state._LAST_ACTION_COMMENT_ID)
     if not isinstance(floor, int):
-        floor = None
-    read = [seen for seen in thread if floor is not None and seen.id <= floor]
-    whole = _content_hash._compute_user_content_hash(fresh, ours, comments=thread)
+        return frozenset((whole,))
+    read = [seen for seen in thread if seen.id <= floor]
     return frozenset((whole, _content_hash._compute_user_content_hash(fresh, ours, comments=read)))
 
 

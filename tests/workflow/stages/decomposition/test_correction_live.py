@@ -12,7 +12,9 @@ from __future__ import annotations
 
 import unittest
 from datetime import UTC, datetime, timedelta
+from unittest.mock import patch
 
+from orchestrator import config
 from orchestrator.workflow.state import WorkflowLabel
 from tests.workflow.fixtures import KEY_AWAITING_HUMAN, LABEL_READY
 from tests.workflow.stages.decomposition import correction_tick_support as support
@@ -44,6 +46,13 @@ def _repin(world: support.CorrectionTickCase) -> None:
 
 
 _REPINNED = "dec-pinned-by-hand"
+
+_GUIDANCE = "Requirements update: do not split; deliver one command-line entry point."
+
+# The daily retry budget a held correction's charge is counted against, and what
+# the rejected run and its correction leave counted there.
+_DAILY_BUDGET = 3
+_RETRIES_PAID = 2
 
 _HELD_NOTICE = "decomposer_correction_notice"
 
@@ -86,6 +95,14 @@ _LATE_MOVES = tuple(
 # The days a held correction waits out, past the daily retry window it was charged in.
 _DAYS_LATER = 2
 
+# What moves the requirements while the rejected run is out, beside the words
+# the fresh decomposition is handed for it: its body edited, and a trusted
+# reply on a thread with no reply boundary a reply could stand past.
+_EDITS = (
+    ("a body edit", _edit, _EDITED),
+    ("a reply with no boundary", lambda world: world.reply(_GUIDANCE), _GUIDANCE),
+)
+
 # Owners the issue moves to, by the label it is left reading.
 _MOVED_OWNERS = (("closed", _close, support.LABEL_DECOMPOSING), ("relabelled", _relabel, LABEL_READY))
 
@@ -105,28 +122,34 @@ class BeforeLaunchTest(unittest.TestCase, support.CorrectionTickCase):
     """
 
     def test_an_edit_takes_the_fresh_decomposition(self) -> None:
-        # The body edited while the rejected run was out: its correction is
-        # never launched, and the next tick's reset retires the attempt and
-        # spawns the fresh decomposition the edit buys.
-        self.opened()
-        self.tick(self.decomposer(support.UNLISTED, during={0: _edit}))
-        self.assertEqual(self.stage(), support.PENDING)
-        fresh = self.decomposer(support.SINGLE)
+        # The requirements moved while the rejected run was out -- the body
+        # edited, or a trusted reply written where no reply boundary stands
+        # for it to wait past: its correction is never launched, and the next
+        # tick's reset retires the attempt and spawns the fresh decomposition
+        # the edit buys, handed what moved.
+        self.enterContext(patch.object(config, "ALLOWED_ISSUE_AUTHORS", (support.TRUSTED_AUTHOR,)))
+        for name, move, edited in _EDITS:
+            with self.subTest(name):
+                self.opened()
+                self.tick(self.decomposer(support.UNLISTED, during={0: move}))
+                self.assertEqual(self.runs(), 1, "no correction is launched")
+                fresh = self.decomposer(support.SINGLE)
 
-        self.tick(fresh)
+                self.tick(fresh)
 
-        launched = fresh.launches[0]
-        self.assertEqual(len(fresh.launches), 1)
-        self.assertIsNone(launched.resumed, "a fresh conversation, not the correction")
-        self.assertIn(_EDITED, launched.prompt)
-        self.assertEqual(self.stage(), support.RETIRED)
-        self.assertEqual(self.label(), LABEL_READY)
+                launched = fresh.launches[0]
+                self.assertIsNone(launched.resumed, "a fresh conversation, not the correction")
+                self.assertIn(edited, launched.prompt)
+                self.assertEqual(self.stage(), support.RETIRED)
+                self.assertEqual(self.label(), LABEL_READY)
 
     def test_a_hold_defers_the_launch(self) -> None:
         # A hold applied behind the arming refuses the start with its charge
         # kept; once lifted, the next tick starts that very charge -- in the
         # same daily retry window, or after it rolled over, the launch being
-        # the same one whatever retry count the window has rolled to.
+        # the same one whatever retry count the window has rolled to, and the
+        # daily retry it paid with that charge paid once.
+        self.enterContext(patch.object(config, "MAX_RETRIES_PER_DAY", _DAILY_BUDGET))
         for name, rolled in (("the same window", False), ("the next window", True)):
             with self.subTest(name):
                 self._held_behind_the_charge()
@@ -139,7 +162,8 @@ class BeforeLaunchTest(unittest.TestCase, support.CorrectionTickCase):
 
                 self.assertEqual(len(later.launches), 1)
                 self.assertEqual(later.launches[0].resumed, support.SESSION)
-                self.assertEqual(self.runs(), 2, "the held charge is started, not paid again")
+                paid = (self.runs(), self.pinned()["retry_count"])
+                self.assertEqual(paid, (2, _RETRIES_PAID), "the held charge and its daily retry are not paid again")
                 self.assertEqual(self.children(), support.SLICES)
 
     def test_a_late_hold_makes_nothing(self) -> None:

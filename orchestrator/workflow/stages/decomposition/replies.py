@@ -243,10 +243,15 @@ def reads_the_thread(issue: Issue, state: PinnedState) -> bool:
     settled the boundary through what it read, so a reply written since is
     past it, the saved session's to be resumed on rather than an edit retiring
     that session, and the correction's own parks are bounded by the same read.
+    Only where a boundary stands, though: a thread with none names nothing
+    the rejected run settled, so a reply written since is an edit like any
+    other, the drift check's to read whole and route through the fresh
+    decomposition that retires the attempt.
     """
     if parked(state) or _retry_ledger._grant_is_unspent(state):
         return True
-    return _correction_standing.read(state, issue.number).grants
+    owed = _correction_standing.read(state, issue.number).grants
+    return owed and isinstance(state.get(_state._LAST_ACTION_COMMENT_ID), int)
 
 
 def _replies_past(thread: tuple, state: PinnedState) -> list:

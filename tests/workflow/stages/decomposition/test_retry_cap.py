@@ -31,6 +31,7 @@ KEY_CONTINUED = support.KEY_CONTINUED
 KEY_PARK_REASON = support.KEY_PARK_REASON
 KEY_RETRY_CAP_NOTICE = support.KEY_RETRY_CAP_NOTICE
 KEY_RETRY_CAP_STAGE = support.KEY_RETRY_CAP_STAGE
+KEY_RETRY_COUNT = support.KEY_RETRY_COUNT
 KEY_USER_CONTENT_HASH = "user_content_hash"
 # The parent's strict edit that arms the correction: the second of its tick.
 _ARMING_EDIT = 2
@@ -514,6 +515,28 @@ class CorrectionCapTest(unittest.TestCase, _corrected.CorrectionTickCase):
         self.assertEqual(parked[KEY_PARK_REASON], support.PARK_RETRY_CAP)
         self.assertEqual(parked[support.KEY_LAST_ACTION_COMMENT_ID], _BOUNDARY, "the park stops short of the reply")
         self.assertIn(_MEANWHILE, bought.launches[0].prompt)
+
+    def test_a_held_correction_keeps_its_daily_retry(self) -> None:
+        # A hold met as the correction returns writes nothing of its
+        # disposition: the daily retry it paid landed with its lifetime
+        # charge, so it stays counted through the tick that parks over it.
+        with patch.object(config, _DAILY_BUDGET, 2):
+            self.opened()
+            held = self.decomposer(_corrected.UNLISTED, _corrected.LISTED, during={1: self._holds})
+            self.tick(held)
+            counted = self.pinned()
+            self.lift()
+            self.tick(self.decomposer(_corrected.SINGLE))
+
+        parked = self.pinned()
+        self.assertEqual(counted[KEY_RETRY_COUNT], 2, "the held return keeps it")
+        self.assertEqual(parked[KEY_RETRY_COUNT], 2, "and so does the park over it")
+        self.assertEqual(self.runs(), 2)
+        self.assertEqual(self.stage(), _corrected.EXHAUSTED)
+
+    def _holds(self, world: _corrected.CorrectionTickCase) -> None:
+        """A human pauses the issue while the correction is out."""
+        world.hold()
 
     def _replies(self, world: _corrected.CorrectionTickCase) -> None:
         """A trusted human replies while the rejected run is out."""

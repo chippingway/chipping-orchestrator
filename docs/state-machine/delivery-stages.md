@@ -760,11 +760,13 @@ because there it is the claim that this stage has already rerouted rather than a
      stands to walk from. A `decomposer_correction` claim nobody can read holds the tick there, with the claim kept as
      it stands and nothing reset, launched, created, or written, until it is repaired. A write over the attempt left
      unconfirmed or landing over a moved comment, or a thread a park could not read, holds the tick too. A tick owing an
-     `eligible` attempt's launch freezes its thread in step 2 as a parked one does (`replies.reads_the_thread`): the
-     rejected run settled the boundary through what it read, so a reply written since is past it — the saved session's
-     next resume's, not an edit retiring it — and every park the launched correction's disposition takes is bounded by
-     that read wherever its boundary is the one the requirements baseline was settled through
-     (`DecomposerReplies.bounds`); the read is never settled, since the correction is handed the error alone.
+     `eligible` attempt's launch freezes its thread in step 2 as a parked one does (`replies.reads_the_thread`),
+     wherever a reply boundary stands: the rejected run settled the boundary through what it read, so a reply written
+     since is past it — the saved session's next resume's, not an edit retiring it — and every park the launched
+     correction's disposition takes is bounded by that read wherever its boundary is the one the requirements baseline
+     was settled through (`DecomposerReplies.bounds`); the read is never settled, since the correction is handed the
+     error alone. With no boundary, a reply written since is an edit the drift check reads whole, its reset retiring the
+     attempt.
 
      Then resume on a new comment; otherwise gate on the per-issue retry budget
      (shared with `implementing`; an exhausted one parks the issue durably as `retry_cap`, says so once, and is held
@@ -863,17 +865,20 @@ because there it is the claim that this stage has already rerouted rather than a
        and buys the fresh decomposition it always bought — and is charged and accounted once by the tracked spawn under
        the attempt's one owed launch, refused with nothing invoked on any reading of the comment that no longer grants
        it, and on the issue read afresh right behind the charge (`correction_live.py`): a `paused`/`backlog` hold, a
-       close, a label other than `workflow:decomposing`, or requirements that read as neither the whole thread nor the
-       stretch through the settled boundary as the revision the run was handed. Every such check fetches the issue
-       once more behind its thread read and judges the controls, title, and body off that last fetch, and the circuit
-       asks the whole check again on each reading it charges or starts the launch from
+       close, a label other than `workflow:decomposing`, or requirements that read as neither the whole thread nor,
+       where a boundary stands, the stretch through it as the revision the run was handed. Every such check fetches the
+       issue once more behind its thread read and judges the controls, title, and body off that last fetch, and the
+       circuit asks the whole check again on each reading it charges or starts the launch from
        (`correction_live.uncontrolled`), so a hold or an edit landing while an earlier read was out still invokes
        nothing. A refused start keeps its charge reserved for the next tick's step 5 to start rather than pay
-       again: the request names no retry count, so it is the same launch whatever daily window starts it; a spent
-       lifetime ledger parks `agent_run_limit` as for any launch. It resumes the saved session under the pinned
-       command's backend and arguments, whatever `DECOMPOSE_AGENT` says now, with the error and the whole output
-       contract (`engine/decomposition_prompts._build_correction_prompt`, which shares `_MANIFEST_CONTRACT` with the
-       decompose prompt), asking for one complete corrected manifest.
+       again: the request names no retry count, so it is the same launch whatever daily window starts it, and the daily
+       retry it pays is staged in the write reserving that charge (`correction_budget.py`), so a correction whose
+       disposition is never written — a hold, an interruption, an unresolved accounting — still counts it, and a charge
+       standing unstarted has paid it already, charging the daily budget nothing more when it starts; a spent lifetime
+       ledger parks `agent_run_limit` as for any launch. It resumes the saved session under the pinned command's backend
+       and arguments, whatever `DECOMPOSE_AGENT` says now, with the error and the whole output contract
+       (`engine/decomposition_prompts._build_correction_prompt`, which shares `_MANIFEST_CONTRACT` with the decompose
+       prompt), asking for one complete corrected manifest.
 
        The correction's run is disposed of on the same plan exactly as the rejected run was — step 5's holds and
        timeout park, step 6, the interruption, this parse — and earns no correction of its own. Every park its launch

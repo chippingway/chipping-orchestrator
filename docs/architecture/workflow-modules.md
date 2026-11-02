@@ -2319,14 +2319,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             requests to resolve again, and a judgment of each reading --
                             and a fresh reading whose recorded start of such a launch names that count, where the
                             caller's own state does not, is that launch made by another road
-                            (`AgentRunBudget.made_elsewhere`)
-    run_circuit.py          the ordered reserved and started writes before the sole process invocation; only the logical
-                            launch holding a reservation reuses it, a launch owed once records the count it was owed at
-                            in its started write and is refused with nothing written on any reading that shows another
-                            road made it or that fails the caller's hold, and is started over the comment read again
-                            behind its charge and the requests its hold resolves, only while its own reservation still
-                            stands unstarted there; each durable step emits its budget event, and exhaustion parks on
-                            the same reading. The reading a start landed on is handed back to identify the process
+                            (`AgentRunBudget.made_elsewhere`); what else such a launch pays beside its charge -- a
+                            manifest correction's daily retry -- is staged on the reading the charge is written over, so
+                            both land in one write, and one it cannot pay there refuses the charge (`OwedLaunch.pays`,
+                            `AgentRunBudget.pays`)
+    run_circuit.py          the ordered reserved and started writes before the sole process invocation, the reserved one
+                            carrying whatever a launch owed once pays beside its charge; only the logical launch holding
+                            a reservation reuses it, a launch owed once records the count it was owed at in its started
+                            write and is refused with nothing written on any reading that shows another road made it or
+                            that fails the caller's hold, and is started over the comment read again behind its charge
+                            and the requests its hold resolves, only while its own reservation still stands unstarted
+                            there; each durable step emits its budget event, and exhaustion parks on the same reading.
+                            The reading a start landed on is handed back to identify the process
     run_grant.py            the one command that answers the spent-ledger park below: a trusted `/orchestrator
                             add-agent-runs N`, read only while that park stands and only as the request the parser
                             beside it hands over. It persists an allowance of exactly `used + N` -- absolute rather
@@ -3161,20 +3165,24 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       correction_road.py    the attempt asked for at the rejection: the run's disposition so far written whole over a
                             comment read back unmoved, the attempt armed over it, a crowded one given up behind the
                             ordinary park and a write left withholding the caller holding the tick; and the launch --
-                            the comment and the issue read afresh first, then a retry the daily budget pays for, its
-                            spent park taken instead, then the tracked spawn under the attempt's one owed launch, the
-                            issue read afresh behind the charge -- every park it and its answer take bounded where the
-                            tick's scope bounds it or the reply boundary is the one the source's requirements were
-                            settled through (`bounds`)
+                            the comment and the issue read afresh first, then a retry the daily budget pays for in the
+                            write reserving its charge (`correction_budget`), its spent park taken instead, then the
+                            tracked spawn under the attempt's one owed launch, the issue read afresh behind the charge
+                            -- every park it and its answer take bounded where the tick's scope bounds it or the reply
+                            boundary is the one the source's requirements were settled through (`bounds`)
+      correction_budget.py  the daily retry that launch pays: the retry-cap park taken where the budget is spent, a
+                            reservation of that very launch standing unstarted admitted as already paid, and the slot
+                            staged on the reading the circuit writes its lifetime charge over (`pays`), so the two land
+                            in one write and a disposition never written loses neither
       correction_live.py    the issue read afresh around that launch and its answer: a `paused` / `backlog` hold, a
                             close, a label other than `workflow:decomposing`, or requirements that read as neither the
-                            whole thread nor the stretch through the settled reply boundary as the revision the
-                            rejected run was handed -- held, moved, disowned by a close or a relabel, unread, or
-                            standing, every check judging the controls and requirements off the issue fetched last,
-                            behind its thread read (`controls`, `reads`), and the circuit's judge asking the whole check
-                            again on the readings it charges and starts from (`uncontrolled`) -- and that check behind
-                            the pinned comment read afresh for the session, command, and baseline the attempt was armed
-                            under (`answers`)
+                            whole thread nor, where one stands, the stretch through the settled reply boundary as the
+                            revision the rejected run was handed -- held, moved, disowned by a close or a relabel,
+                            unread, or standing, every check judging the controls and requirements off the issue fetched
+                            last, behind its thread read (`controls`, `reads`), and the circuit's judge asking the whole
+                            check again on the readings it charges and starts from (`uncontrolled`) -- and that check
+                            behind the pinned comment read afresh for the session, command, and baseline the attempt was
+                            armed under (`answers`)
       correction_settlement.py
                             what the correction's answer may come to: each park it reaches taken only over a comment,
                             read back unmoved, that still carries the saved context, and an issue that still stands

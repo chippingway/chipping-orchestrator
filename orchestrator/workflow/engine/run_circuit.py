@@ -177,9 +177,13 @@ def _reserve(
 
     The record follows the write rather than the staging, so what reaches a
     sink is a run this issue durably owes rather than one a refused request
-    left it never charged for.
+    left it never charged for. Whatever else a launch owed once pays beside
+    the charge (`AgentRunBudget.pays`) is staged on the same reading first, so
+    the two land in one write; one it cannot pay there charges nothing.
     """
     recorded = dict(durable.state_data)
+    if not budget.pays(durable):
+        return False
     charged = _run_ledger._reserve_run(durable, launch.fingerprint)
     if not _run_charge_state._persist(gh, budget, durable, recorded):
         return False
