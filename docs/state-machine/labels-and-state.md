@@ -4325,7 +4325,10 @@ The keys that matter for the state machine fall into a few groups:
   returns it, so the park IS the ending rather than a pause in it. The durable half goes down before a word of it is
   said, for the reason the retry cap's does — a notice on a thread no pinned state backs is one nothing would ever
   reconcile — and where the comment does not take it, as over a record a human edited into a version admission refuses,
-  neither the notice nor the budget record of the park is said. `agent_run_limit_notice` is a record rather than a bare
+  neither the notice nor the budget record of the park is said. A park refusing a strict launch (`OwedLaunch.strict`,
+  the dormant manifest correction's) is written as that launch's charge would have been, only over the reading it was
+  refused on, and said only where its caller's requests and the comment, read once more behind the notice's thread read,
+  still stand ([The agent-run circuit](#the-agent-run-circuit)). `agent_run_limit_notice` is a record rather than a bare
   sentence: the message, the `allowance` in force, and the runs `spent` against it. The reason under this park never
   varies, so the pair of counts is the only thing that can tell one exhaustion from another — a recorded sentence about
   the reading the ledger still shows is kept **verbatim** (the thread is searched for exactly that text, so rewording it
@@ -4527,7 +4530,11 @@ the budget never sees, which is the late adjudication and its live generation.
   everything the tick never reached: the manifest, the children, the locked session and its spec, the `pr_number`,
   the frozen candidate, and a late generation's whole record
   ([decomposing](delivery-stages.md#_handle_decomposing-label-workflowdecomposing),
-  [implementing](delivery-stages.md#_handle_implementing-label-workflowimplementing)). The late adjudication that
+  [implementing](delivery-stages.md#_handle_implementing-label-workflowimplementing)). A caller that may park only
+  over what it read hands the shared charge-or-park form a guard (`engine/retry_budget.ParkGuard`): its writer takes
+  the park's durable half, a park it does not land is said nothing, and its question, asked behind the notice's thread
+  read and right before the post, can leave the notice owed — the dormant manifest correction's launch is the one such
+  caller. The late adjudication that
   runs under `workflow:decomposing` holds it a third time, on its own road and for its own reasons — the tick that
   meets one there never proves the frozen pair, never re-marks the pull request the candidate stands under, and
   never reads the thread as an answer to a question about the requirements

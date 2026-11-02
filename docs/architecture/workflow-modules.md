@@ -2341,8 +2341,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             write and is refused with nothing written on any reading that shows another road made it or
                             that fails the caller's hold, and is started over the comment read again behind its charge
                             and the requests its hold resolves, only while its own reservation still stands unstarted
-                            there; each durable step emits its budget event, and exhaustion parks on the same reading.
-                            The reading a start landed on is handed back to identify the process
+                            there; each durable step emits its budget event, and exhaustion parks on the same reading,
+                            a strict launch's park held to it as its charge would have been. The reading a start landed
+                            on is handed back to identify the process
     run_grant.py            the one command that answers the spent-ledger park below: a trusted `/orchestrator
                             add-agent-runs N`, read only while that park stands and only as the request the parser
                             beside it hands over. It persists an allowance of exactly `used + N` -- absolute rather
