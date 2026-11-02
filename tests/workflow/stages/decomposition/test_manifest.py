@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
+import json
 import unittest
 
 from orchestrator.workflow.engine import decomposition_prompts as _decomposition_prompts
@@ -257,6 +258,49 @@ class ParseManifestOptionsTest(unittest.TestCase):
         options_manifest, options_error = _decompose_manifest._parse_manifest(manifest_match.group(0))
         self.assertIsNone(options_error, f"displayed example failed to parse: {options_error}")
         self.assertIsNotNone(options_manifest)
+
+
+class DecomposePromptReplyContractTest(unittest.TestCase):
+    """The prompt keeps the reply protocol its readers hold, and its last
+    instruction checks for the refusal a parseable reply can still earn.
+    """
+
+    def setUp(self) -> None:
+        self.prompt = _decomposition_prompts._build_decompose_prompt(
+            _TEST_SPEC, make_issue(1, title="example", body="some body"), "", [_TEST_SPEC],
+        )
+
+    def test_keeps_the_reply_protocol(self) -> None:
+        for rule in (
+            f"At most {_validation._MAX_CHILDREN} children",
+            "a missing or null `depends_on` rejects the whole manifest",
+            "Self-dependencies and cycles are rejected",
+            "so name its residual work in `rationale`",
+            '`"affected_files"`',
+            '`"notes"`',
+        ):
+            with self.subTest(rule=rule):
+                self.assertIn(rule, self.prompt)
+
+    def test_self_check_covers_unlisted_dependencies(self) -> None:
+        # The template with every child's list left out is still valid JSON,
+        # yet the parser refuses it and the issue parks. JSON syntax alone
+        # proves nothing, so the prompt's last instruction asks for the
+        # field-by-field check that would have caught it.
+        self.assertTrue(self.prompt.rstrip().endswith("nothing follows the closing fence."))
+        self.assertIn("Valid JSON alone is not enough", self.prompt)
+        self.assertIn(
+            "EVERY child carries an explicit `depends_on` array (`[]` for none, never omitted or null) "
+            "naming exactly the prerequisites its body and your `rationale` describe",
+            self.prompt,
+        )
+        template = json.loads(_decompose_manifest._MANIFEST_RE.search(self.prompt).group(1))
+        for child in template["children"]:
+            child.pop("depends_on")
+        self.assertEqual(
+            _decompose_manifest._parse_manifest(_manifest(json.dumps(template))),
+            (None, "child 0 missing depends_on"),
+        )
 
 
 class BuildSingleDecisionCommentTest(unittest.TestCase):

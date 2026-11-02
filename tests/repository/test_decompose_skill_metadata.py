@@ -1,7 +1,8 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The `decompose` skill is one definition both roots load, and its trigger
-anchor names what both decomposition prompts actually ask for.
+"""The `decompose` skill is one definition both roots load, its trigger
+anchor names what both decomposition prompts actually ask for, and its sizing
+policy is the one the initial prompt hands the agent.
 
 A harness pulls a skill on its `description` frontmatter, not its body. The
 initial decomposer and the late adjudicator both size a change, decide single
@@ -10,10 +11,17 @@ actions and to neither stage's manifest fence: the two fences are different
 contracts, and an anchor naming one would point the other stage at the wrong
 block. Neither run may commit, push, or open a pull request, so an anchor
 advertising any of those names an action the agent never takes.
+
+The active prompt wins over the skill, so a sizing rule changed in one and not
+the other leaves the agent reading two policies and following the prompt's.
+Both are held to the same scope-and-effort wording here, neither may let a
+file or commit count decide a split, and the skill keeps the safeguards and
+the late addition budget that wording must not loosen. These checks read the
+instructions an agent is given; they do not judge any decision it makes.
 """
 from __future__ import annotations
 
-import os
+import re
 import unittest
 from itertools import product
 from pathlib import Path
@@ -45,9 +53,72 @@ _FORBIDDEN_ACTIONS = ("commit", "push", "open a pr", "opening a pr", "pull reque
 # The read-only instruction both prompts carry, which the forbidden list mirrors.
 _READ_ONLY_RULE = "MUST NOT commit, push"
 
+# A file or commit count standing in as a split trigger, however it is spelled.
+_COUNT_CUTOFF = re.compile(
+    r"(?:more than|over|exceeds?|approximately|~)[\s~-]*"
+    r"(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)[\s-]+"
+    r"(?:logical\s+)?(?:files?|commits?)\b"
+    r"|\b(?:\d+|five)-file\b",
+    re.IGNORECASE,
+)
+
+# Spellings the cutoff pattern has to catch, so a guard that matches nothing
+# cannot pass vacuously.
+_COUNT_CUTOFF_SPELLINGS = (
+    "if the change touches more than ~5 files",
+    "needs more than one logical commit",
+    "under the prompt's approximately-five-file heuristic",
+    "The five-file heuristic does not apply",
+)
+
+# Lowercase sizing wording the skill and the initial prompt both carry: the
+# complete deliverable judged by behaviors, coupling, and verification effort,
+# counts that never decide alone, meaningful boundaries, coarser groupings, the
+# child limit as a ceiling, residual parent work in one context, and the final
+# check that valid JSON does not make a valid manifest.
+_SHARED_SIZING = (
+    "complete deliverable",
+    "distinct behaviors",
+    "coupled",
+    "effort needed to verify",
+    "neither decides single versus split on its own",
+    "meaningful deliverable boundaries",
+    "coarser groupings",
+    "a different file, owner, layer, or display",
+    "a ceiling, not a target",
+    "fit one context",
+    "valid json",
+    "explicit `depends_on` array",
+)
+
+# Skill wording for the safeguards scope-based sizing must not loosen: the
+# completion closure, the transitive residual test, sibling ownership, parent
+# coverage, and the late stage's addition budget and explained `single`.
+_SKILL_SAFEGUARDS = (
+    "checks-only",
+    "mechanical documentation cleanup",
+    "direct and transitive",
+    "unique acceptance criterion",
+    "predicted non-empty diff",
+    "duplicate semantic ownership",
+    "exactly once",
+    '"umbrella": true',
+    "`estimated_added_lines`",
+    "strictly below the ceiling",
+    "headroom for review fixes",
+    "never replaces or loosens this budget",
+    "dependency-ordered slices",
+    "`split_blocker`",
+)
+
 
 def _description(path: Path) -> str:
     return frontmatter_field(path.read_text(encoding=_ENCODING), "description").lower()
+
+
+def _skill_text() -> str:
+    """The canonical definition both roots resolve to."""
+    return skill_paths(_SKILL_NAME)[0].read_text(encoding=_ENCODING)
 
 
 def _stage_prompts() -> dict[str, str]:
@@ -74,7 +145,7 @@ class DecomposeSkillDefinitionTest(unittest.TestCase):
         self.assertFalse(agents_path.is_symlink())
         self.assertFalse(claude_path.parent.is_symlink())
         self.assertTrue(claude_path.is_symlink())
-        self.assertFalse(Path(os.readlink(claude_path)).is_absolute())
+        self.assertFalse(claude_path.readlink().is_absolute())
         self.assertEqual(
             claude_path.resolve(strict=True), agents_path.resolve(strict=True),
         )
@@ -133,6 +204,31 @@ class DecomposeSkillTriggerAnchorTest(unittest.TestCase):
         for stage, prompt in _stage_prompts().items():
             with self.subTest(stage=stage):
                 self.assertIn(_READ_ONLY_RULE, prompt)
+
+
+class DecomposeSizingPolicyTest(unittest.TestCase):
+    """The skill and the initial prompt size by scope and effort, never by a count."""
+
+    def test_no_count_decides_a_split(self) -> None:
+        for spelling in _COUNT_CUTOFF_SPELLINGS:
+            with self.subTest(spelling=spelling):
+                self.assertRegex(spelling, _COUNT_CUTOFF)
+        for source, text in (("skill", _skill_text()), *_stage_prompts().items()):
+            with self.subTest(source=source):
+                self.assertIsNone(_COUNT_CUTOFF.search(text))
+
+    def test_skill_and_prompt_share_sizing_policy(self) -> None:
+        prompt = _stage_prompts()["initial"].lower()
+        sources = (("skill", _skill_text().lower()), ("initial", prompt))
+        for (source, text), wording in product(sources, _SHARED_SIZING):
+            with self.subTest(source=source, wording=wording):
+                self.assertIn(wording, text)
+
+    def test_skill_keeps_safeguards_and_late_budget(self) -> None:
+        skill_text = _skill_text()
+        for safeguard in _SKILL_SAFEGUARDS:
+            with self.subTest(safeguard=safeguard):
+                self.assertIn(safeguard, skill_text)
 
 
 if __name__ == "__main__":
