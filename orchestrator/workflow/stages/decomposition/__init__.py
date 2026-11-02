@@ -17,6 +17,12 @@ resume under it, `retry_cap` owns the park a spent spawn budget leaves an
 INITIAL decomposition -- held ahead of every road that would walk past one, and
 lifted only by the command that renews the budget -- `run` owns the order one
 tick asks the others in and `outcomes` the three dispositions its reply earns,
+`correction_records`, `correction_room`, `correction_standing`,
+`correction_commits`, and `correction_checkpoint` own the one manifest
+correction a rejected answer may earn -- its pinned record, the room it needs,
+what a reading grants it and the launch it is owed once at the run circuit,
+and the guarded writes over it -- a dormant facility no road invokes yet, so an
+invalid manifest still parks,
 `recovery` owns what a tick that died mid-split left behind -- with
 `split_repair` the seed it writes onto a recorded child -- `split` owns the
 crash-safe order children are created in, `split_summary` the summary a split

@@ -1177,7 +1177,8 @@ itself, every auto-rebase park and a recovery's clear and record of a gate's hol
 and the evidence invalidation or hold that withholds a no-change one, the retirement of a failed developer
 conversation, the in_review ready ping's arming and its settlement and the unmergeable park behind its notice, and the
 `workflow:ready` decision's reroute and handoff and the retirement of that reroute's marker land through, as do a
-developer completion's capture, transfer, and retirement) is never written from its caller's state. It is captured
+developer completion's capture, transfer, and retirement and a decomposer manifest correction's arming, exhaustion,
+and retirement, which no road makes yet) is never written from its caller's state. It is captured
 from the reading the caller decided on — the comment's id, every field as the comment's JSON spells it, the
 prerequisite fields the decision rests on, an absent one included, and the fields the caller owns — and derived over a
 fresh reading: each field the caller's staged state
@@ -1395,6 +1396,57 @@ The keys that matter for the state machine fall into a few groups:
   meets a child another poller holds records it, creates the rest, and leaves it unseeded with the parent on
   `workflow:decomposing`, withholding its summary, its label, and its first release until that recovery has seeded the
   child.
+- **A decomposer manifest correction.** `decomposer_correction` is the one correction an initial decomposition may be
+  allowed once its decomposer's answer fails manifest validation: a dormant facility no road arms, launches, or resolves
+  yet, so an invalid manifest still parks as the
+  [decomposing handler](delivery-stages.md#_handle_decomposing-label-workflowdecomposing) describes. One flat object
+  holds at most one attempt, tied to the process invocation whose answer was rejected (`source`, the six members its
+  tracked spawn minted), the requirements revision that run was handed (`requirements`, one digest), and the decomposer
+  command and session it saved (`command`, `session`), and to nothing else: no request fingerprint, session id alone,
+  log, analytics row, or in-memory count is what a later tick recovers it by. Its `stage` is `pending` (the allowance
+  stands), `exhausted` (spent, `correction` naming the correction's own invocation where one returned and `null` where
+  none did), or `retired` (ended over a reading that proved its context moved), and a resolved one adds `floor`, the run
+  count the issue had reached as it resolved, held to the widest number a record holds: no invocation charged at or
+  below it -- the source, the correction, a correction that may still have been running -- arms another attempt, so a
+  correction's own rejected answer stays part of the attempt that bought it, while a later rejected run charged above it
+  may arm its own. Read only whole: a key too many or too few, a member out of its bound, or a correction not charged
+  after its source on the same comment and cycle is a damaged claim, never an absence, which nothing arms over,
+  resolves, or acts on, and no write sends a record that would not read back as itself. Whether a pending attempt's one
+  launch has started is the ledgers' to say rather than this record's: that launch is owed exactly once at its source's
+  charge (`OwedLaunch`, [The agent-run circuit](#the-agent-run-circuit)), so `agent_run_owed_started` at or past that
+  count, or spelled as no count, is a start that may have reached a process. Its absence rules nothing out alone, since
+  a hand edit can drop it: the run count -- read off a charge count that reads as one, beside a usage meter absent or
+  readable, since the meter alone is only a floor of what was spent -- still at the source's charge, or one past it
+  whose `agent_run_reservation` stands `reserved` -- the unstarted charge the circuit honors for the launch it was taken
+  for, kept rather than paid again -- rules a start out, and any other count or phase, a usage meter past the source's
+  charge -- it counts processes that returned, each charged first, so whatever phase the reservation reads -- a usage
+  receipt of a process charged after the source, or a receipt ledger nobody can read, does not. An attempt whose start
+  is not ruled out is never launched again. A pending attempt grants its launch only while it is bound to the comment
+  and cycle its source was charged on, that start is ruled out, the baseline and both decomposer pins still read as it
+  saved them, and the comment has room for its widest resolution beside the charge and start the launch leaves, staged
+  by the run ledger's own writers -- a charge already standing `reserved` one past the source measured by its start
+  alone, as the circuit starts that charge rather than taking another -- and the receipt its accounting takes
+  (`stages/decomposition/correction_room.py`); the circuit asks that of every reading it charges or starts the launch
+  from (`stages/decomposition/correction_standing.py`). Its arming, exhaustion, and retirement
+  (`stages/decomposition/correction_checkpoint.py`) are guarded commits owning this field alone, so no pin, baseline,
+  park, counter, run charge, or unknown field moves with them. An arming is decided on the field, the cycle, the
+  baseline, both pins, the run ledger, and the usage receipts, and is refused for a source another charge or start
+  followed, one whose requirements or saved conversation the record does not carry, another source's pending attempt, a
+  resolved one covering this source's charge, a damaged or displaced claim, and a comment with no room for the attempt's
+  widest resolution; one armed with room to resolve but not to launch grants nothing. An exhaustion grants nothing and
+  is taken whatever the reading says of the launch's start. Each resolution's floor is read off a charge count that
+  reads, beside a usage meter absent or readable, and only where that count covers every charge the ledgers still record
+  -- the one an owed start says a launch was charged past, and any a usage receipt covers: the meter alone is only a
+  floor of what was spent, and a correction charged above the floor -- its own rejected answer -- would arm again once
+  the count read as it should, so a resolution over a count or meter nobody can read, a count below a recorded charge,
+  or an owed start or receipt ledger nobody can read is refused, the attempt left pending and granting nothing until a
+  count reads that covers them. A retirement takes a reading that proves the context moved -- a baseline digest naming
+  other requirements, or a pin the record's own reader takes naming another command or session, or a pin retired -- and
+  is decided on that very evidence, so a baseline or pin nobody can read, or one put back meanwhile, retires nothing.
+  Asking again over an attempt already where it asks sends nothing; a write landing over a comment moved since the
+  caller read it withholds the caller's state, as one sent and never confirmed does until a read-back
+  (`correction_checkpoint.read_back`) finds what landed, which is also how a restarted process reconstructs the attempt
+  from the comment alone.
 - **A debt with no record behind it.** `late_approved_sha` + `late_approved_lease` + `late_approved_basis` outlive the
   generation that granted them, because the write that approves a candidate retires that generation before the push.
   The basis is what the debt RESTS on, said by the owner that granted it rather than inferred from the records
@@ -4197,9 +4249,10 @@ The keys that matter for the state machine fall into a few groups:
   of its prompt, which is rebuilt every tick and would make one launch look like a new one every poll. The charge is
   taken before the spawn, so a run that crashed, timed out, or was killed mid-flight is still spent; settling a
   reservation drops the phase and the fingerprint together, never the charge. `agent_run_owed_started` is the count
-  the last launch owed exactly once was owed at — a persisted change request's developer, at its `handed` count —
-  written in the very write that moves that launch to `started` and by nothing else, so it says that launch reached a
-  process whatever other runs were charged beside or after it; additive, absent until such a launch starts, and not
+  the last launch owed exactly once was owed at — a persisted change request's developer, at its `handed` count, or a
+  decomposer manifest correction's, at its source's charge, which no road launches yet — written in the very write
+  that moves that launch to `started` and by nothing else, so it says that launch reached a process whatever other
+  runs were charged beside or after it; additive, absent until such a launch starts, and not
   kept by a projection, which rebuilds an issue with no launch outstanding. This owner decides nothing and posts
   nothing — the reading is taken and acted on at the tracked spawn boundary
   ([The agent-run circuit](#the-agent-run-circuit)), and the one writer of `agent_run_allowance` is the operator
@@ -4554,8 +4607,9 @@ drives the real handlers against a spent ledger so an unwired road is caught as 
   of those roads therefore asks `guards._ignore_if_never_invoked` first, ahead of every reading it would otherwise
   classify the run by.
 - **A launch owed once is held to it on the circuit's own readings.** A caller whose launch is owed exactly once names
-  it (`OwedLaunch`): the lifetime count it is owed at — a persisted change request's developer, handed at `handed` —
-  and the caller's hold on it, the requests its standing takes beyond the pinned comment (`resolves`) and a judgment
+  it (`OwedLaunch`): the lifetime count it is owed at — a persisted change request's developer, handed at `handed`,
+  or the one launch a dormant decomposer manifest correction buys, at its source's charge — and the caller's hold on
+  it, the requests its standing takes beyond the pinned comment (`resolves`) and a judgment
   of each reading of the comment (`stands`). The circuit writes that count as
   `agent_run_owed_started` in the same write that moves such a launch to `started`, and on the fresh read the charge is
   taken on, that record naming the count it is owed at — where the caller's own state does not carry it — is that launch

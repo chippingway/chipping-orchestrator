@@ -708,7 +708,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             no-change one (`stages/documenting/retention.py`), the in_review ready ping's arming
                             and settlement (`stages/in_review/ready_ping.py`), and the `workflow:ready` decision's
                             reroute and handoff and the retirement of that reroute's marker
-                            (`stages/decomposition/ready.py`, `ready_handoff.py`, `drift.py`) landing through it too,
+                            (`stages/decomposition/ready.py`, `ready_handoff.py`, `drift.py`), and a decomposer
+                            manifest correction's arming, exhaustion, and retirement
+                            (`stages/decomposition/correction_checkpoint.py`) landing through it too,
                             while every other road still writes its whole state: a candidate derived
                             over a fresh reading of the
                             captured comment rather than written from the caller's state. A
@@ -2343,7 +2345,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     run_ledger_models.py    immutable allowance, used-count, and reservation snapshots; the reserved/started vocabulary
                             and predicates for unlimited, spent, and reusable launch charges
     run_ledger_values.py    the pinned ledger field names and validated readings; an absent allowance defers to
-                            configuration, the used count is floored by the usage meter, the start of a launch owed
+                            configuration, the used count is floored by the usage meter -- or read strictly, neither
+                            meter unreadable, by a reader bounding every charge taken -- the start of a launch owed
                             once is read as the count it was owed at, and malformed values supply no reservation
                             evidence
     run_ledger.py           ledger snapshots and the reserve/start/settle mutations; used counts remain monotonic,
@@ -2633,7 +2636,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             random nonce, so two runs of one request are never one
     usage_receipts.py       the bounded `issue_usage_receipts` ledger of invocations the usage counters cover: recent
                             ordinal and nonce pairs above a floor, the lowest retired under it past sixteen, so a
-                            retired receipt's replay is still covered; read strictly, a damaged ledger answering None
+                            retired receipt's replay is still covered; read strictly, a damaged ledger answering None;
+                            the highest charge it covers a process of (`latest`), which a decomposer manifest
+                            correction reads as a process returned after its source
     usage_checkpoint.py     account one invoked run's usage once: its increment and receipt in one guarded commit
                             owning only the usage totals and the ledger, bound to the invocation's repository, issue,
                             the comment its charge was written on -- which the caller must hold, never a replacement --
@@ -3060,6 +3065,44 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       outcomes.py           the live-pause and timeout settlement before the worktree check, and the three manifest
                             dispositions after it: the unparsed park, the `single` finalize, which clears an earlier
                             split's rationale in a write ahead of its flip, and the `split` hand-off
+      correction_records.py the one manifest correction an initial decomposition may be allowed, as
+                            `decomposer_correction` spells it -- a dormant facility no road arms yet: the source it is
+                            tied to (the rejected run's invocation, the requirements it was handed, and the decomposer
+                            command and session it saved), the pending, exhausted, and retired stages, the floor a
+                            resolved attempt covers every charge up to, held to the widest number a record holds, so no
+                            correction's own answer arms another, the strict whole reading that answers a damaged claim
+                            as none beside `carries`, the check that an attempt reads back as itself, the floor a
+                            reading lets it resolve under -- its strict run count, only where that covers every charge
+                            an owed start or a usage receipt records -- and the evidence a reading gives that the
+                            source's context moved
+      correction_room.py    the room that attempt needs on its comment, measured with every terminator escaped: its
+                            widest resolution, which arming asks, and that beside the charge and start its launch
+                            leaves, staged by the run ledger's own writers -- a charge already reserved one past the
+                            source measured by its start alone, the one charge the circuit starts for it
+                            (`reserved_since`, which admission's start reading shares) -- and the receipt its accounting
+                            takes, which admission asks before granting the launch
+      correction_standing.py
+                            what one reading grants that attempt -- eligible only bound to its record and cycle, its
+                            context standing, its launch's start ruled out by the owed start, a charge count that reads,
+                            the usage meter (one past the source counts a process that ran, whatever the reservation's
+                            phase), the reservation's phase, and the usage receipts together, a `reserved` charge one
+                            past the source kept as no start, and its launch's room measured; started, stale, unproved,
+                            crowded, resolved, displaced, or damaged otherwise -- and the `run_charge_state.OwedLaunch`
+                            its one launch is charged and started under, owed at its source's charge and held to that
+                            very attempt reading eligible on every reading the circuit writes from
+      correction_commits.py what a write over the attempt is bound to and comes to: the caller's comment read afresh and
+                            admitted, the source charged on it in its cycle, a damaged claim refused, only a record that
+                            reads back as itself sent, the guarded commit owning the field alone, the landed, standing,
+                            unconfirmed, and refused answers with what the comment says of the attempt, and the field
+                            laid back onto the caller, or the caller withheld where a write went unconfirmed, the
+                            comment moved before it, or it landed over a comment moved since the caller read it
+      correction_checkpoint.py
+                            the arming, read-back, exhaustion, and retirement: one attempt at a time, armed only for the
+                            last charge with no start recorded past it, its requirements and conversation saved, and
+                            room for its widest resolution, never over a resolved attempt covering its source; exhausted
+                            whatever the reading says of the launch's start; retired only over a reading that proves its
+                            context moved, held to that evidence; either resolved only under a floor that covers every
+                            charge the ledgers record, refused otherwise; and asked again, sending nothing
       replacement_lineage.py
                             the late lineage an ordinary split seeds its children with, off the `late_split/` provenance
                             decision: one level below the parent under the same root and never past `MAX_LINEAGE_DEPTH`,
@@ -3865,8 +3908,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the recovery to seed and finalize -- and the child scan, with the readings a release walk
                             and a merge finalize ask of it -- a child startable only open, `blocked`, and free of
                             `paused` / `backlog` -- and the later reading it adopts
-      state.py              the pinned-state field names the owners share, `split_attempt`, `split_rationale`, and
-                            `ready_reroute` among them, the held-child alias, the strict parent-link check, the one
+      state.py              the pinned-state field names the owners share, `split_attempt`, `split_rationale`,
+                            `ready_reroute`, the two decomposer pins, and `decomposer_correction` among them, the
+                            held-child alias, the strict parent-link check, the one
                             rule a split's rationale is read by off its manifest and back off the record, and the
                             issue-reference renderer
     discussion/             `discussion`

@@ -39,6 +39,10 @@ _CHARGE_ABANDONED = "abandoning the launch and the stage handler that asked for 
 class OwedLaunch:
     """A launch owed exactly once -- a handed change request's developer -- and what else it stands on.
 
+    A decomposer manifest correction's one launch is owed the same way, at its
+    source's charge (`stages/decomposition/correction_standing.owed_launch`),
+    though no road asks for one yet.
+
     `at` is the lifetime run count it is owed at, which its start records
     (`run_ledger_values.AGENT_RUN_OWED_STARTED`). Whatever its caller held
     the launch to is requests old by the time the circuit charges and starts

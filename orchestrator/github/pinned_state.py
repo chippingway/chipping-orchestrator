@@ -434,7 +434,8 @@ class PinnedState:
     never confirmed withholds a state too (`workflow/engine/completion_commits.py`),
     and so does any answer over a comment that no longer reads as the state
     was read; one that lands clears nothing: it owns one field, and the state
-    may still be stale in every other.
+    may still be stale in every other. A decomposer manifest correction's
+    writes withhold a state alike (`workflow/stages/decomposition/correction_commits.py`).
     """
 
     comment_id: int | None = None

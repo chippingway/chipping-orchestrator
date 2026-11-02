@@ -17,6 +17,8 @@ every later reader: the summary a split or its recovery posts, and the
 developer prompts of a parent's own pass. `_READY_REROUTE` is spelled here
 because two owners key it: `ready` writes it with its reset, and the
 `decomposing` tick that reroute hands the issue to drops it.
+`_DECOMPOSER_CORRECTION` is spelled here beside the two decomposer pins it is
+held to, since its record, its admission, and its writes are three owners.
 """
 from __future__ import annotations
 
@@ -95,6 +97,20 @@ _CREATED_AT = "created_at"
 _READY_REROUTE = "ready_reroute"
 
 _DONE = "done"
+
+# The decomposer conversation an issue is locked to: the command spec pinned at
+# its first spawn and the session it resumes (`session.py`), keyed here for the
+# manifest correction that is armed over both and held to them
+# (`correction_standing.py`).
+_DECOMPOSER_AGENT = "decomposer_agent"
+
+_DECOMPOSER_SESSION_ID = "decomposer_session_id"
+
+# The one manifest correction an initial decomposition may be allowed
+# (`correction_records.py`): written only through its own guarded commits
+# (`correction_checkpoint.py`), which own this field and nothing else, and
+# dormant -- no road arms one yet.
+_DECOMPOSER_CORRECTION = "decomposer_correction"
 
 _HeldChild = tuple[int, list[int]]
 
