@@ -2,11 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 """The one correction a rejected initial decomposer answer earns: asked for at its rejection, and launched once.
 
-A dormant road: these helpers are callable and tested, but no production road
-asks them yet, so production decomposition keeps its own outcomes and a
-manifest that fails validation still parks awaiting a human
-(`outcomes._park_unparsed_manifest`). Nothing here publishes a correction's
-answer or recovers an attempt on a later tick.
+The initial decomposition asks it at the rejection
+(`outcomes._dispatch_decomposer_manifest`), and a later tick that finds an
+attempt still owed its launch asks `launch` alone (`correction_reconcile`).
+What the correction's answer comes to is `correction_settlement`'s.
 
 Only the answer `correction_source.earned` names asks for it (`requests`): a
 completed, accounted, read-only run's manifest the parser refused with a
@@ -18,10 +17,11 @@ the settlement of a frozen read, the stamp -- is written whole, since the
 arming is decided on the comment carrying that very session and baseline
 (`correction_checkpoint.arm`), and a write that does not land holds the tick.
 An arming that lands grants the launch only while the comment reads it
-ELIGIBLE; one that lands crowded hands back the attempt with no launch, for
-the caller's ordinary park, and a refused one hands back nothing. One sent and
-never confirmed holds the tick with the caller's state withheld, until a
-read-back (`correction_checkpoint.read_back`) says what landed.
+ELIGIBLE; one that lands crowded hands back the attempt with no launch, given
+up behind the caller's ordinary park, and a refused one hands back nothing, so
+the run parks as it always has. One sent and never confirmed holds the tick
+with the caller's state withheld, for the next tick to read back
+(`correction_reconcile`).
 
 The launch (`launch`) is asked only of an attempt the comment, read back
 unmoved, still reads ELIGIBLE. It is a retry the issue's daily budget pays for
@@ -48,9 +48,10 @@ conversation.
 Every park the launch takes on the rejected run's own tick is bounded where
 the tick's scope bounds it or the reply boundary is the one the source's
 requirements were settled through (`bounds`), and the answer says so for the
-parks its run's disposition takes: a reply written while either run was out
-stays past the boundary for the saved session's resume, never marked read and
-taken for an edit.
+parks its run's disposition takes, as a later tick's launch is bounded by the
+read it froze: a reply written while either run was out stays past the
+boundary for the saved session's resume, never marked read and taken for an
+edit.
 """
 from __future__ import annotations
 
@@ -93,8 +94,9 @@ class CorrectionAsk:
     `launched` is the run of `attempt`'s correction, where its launch was
     asked -- a launch the circuit turned away included -- and `held` a tick
     that ends with nothing more, a retry-cap park the launch took among them.
-    Neither is the ordinary park, which stays the caller's to take, behind
-    an `attempt` armed with no launch granted as behind no attempt at all.
+    Neither is the ordinary park, which the caller takes behind an `attempt`
+    armed with no launch granted, so the park lands before that attempt is
+    given up, as behind no attempt at all.
     `bounded` is whether every park the launch and its answer take is
     bounded (`bounds`).
     """

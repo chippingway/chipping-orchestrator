@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """The correction a rejected manifest asks for: its run's disposition written, its attempt armed, and its launch.
 
-Asked of the dormant road directly. The run's own disposition -- here its
+Asked of the road directly, as the manifest dispatch asks it
+(`test_correction_road` drives it through the `decomposing` handler). The
+run's own disposition -- here its
 session pin and stamp, staged by its caller -- lands whole before anything is
 armed, and only over the comment the caller last synced with, so a session a
 human pinned meanwhile is never written back over and no attempt is armed

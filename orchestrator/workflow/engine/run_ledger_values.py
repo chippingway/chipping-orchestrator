@@ -41,8 +41,8 @@ AGENT_RUN_RESERVATION = "agent_run_reservation"
 AGENT_RUN_FINGERPRINT = "agent_run_fingerprint"
 
 # The count the last launch owed exactly once was owed at -- a handed change
-# request's developer, or a decomposer manifest correction's one launch, which
-# no road makes yet -- written with that launch's start and by nothing
+# request's developer, or a decomposer manifest correction's one launch, at
+# its source's charge -- written with that launch's start and by nothing
 # else: the one record that says the launch it names reached a process,
 # whatever other launches were charged beside or after it. Absent where no
 # such launch has started.

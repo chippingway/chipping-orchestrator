@@ -53,6 +53,13 @@ boundary, so the replies a bounded park held under its notice and the words
 that bought the attempt are still past it, and the fresh spawn the attempt
 pays for is handed them as an edit's spawn is (`conversation`) -- whole, and
 settled only where its run read them, on whichever tick spends the attempt.
+
+A tick owing the launch of a manifest correction an earlier tick armed reads
+its thread the same way, parked or not: the rejected run settled the boundary
+through what it read, so a reply written since is past it -- the saved
+session's to resume on, not an edit retiring it -- and the correction's own
+parks are bounded by that read (`bounds`) without settling it, since the
+correction is handed the error alone.
 """
 from __future__ import annotations
 
@@ -72,7 +79,10 @@ from orchestrator.workflow.engine import (
     retry_ledger as _retry_ledger,
     run_grant_request as _run_grant_request,
 )
-from orchestrator.workflow.stages.decomposition import state as _state
+from orchestrator.workflow.stages.decomposition import (
+    correction_standing as _correction_standing,
+    state as _state,
+)
 
 log = logging.getLogger("orchestrator.workflow")
 
@@ -80,6 +90,9 @@ log = logging.getLogger("orchestrator.workflow")
 # delivers, so a record taken under a limit would name an omission the prompt
 # never made and stop the reply boundary below a reply the decomposer read.
 _UNBOUNDED_EXCERPT = None
+
+# The requirements baseline a run's settlement records.
+_USER_CONTENT_HASH = "user_content_hash"
 
 # Between the conversation a fresh spawn is quoted and the replies beside it,
 # as between any two comments a prompt quotes.
@@ -158,6 +171,18 @@ class DecomposerReplies:
             state=state,
         ))
 
+    def bounds(self, issue: Issue, state: PinnedState) -> bool:
+        """Whether this read's boundary is the one `state`'s requirements baseline was settled through.
+
+        So the boundary is what a run read up to, and a park walking from it
+        stops short of no comment that run read: a boundary nothing settled
+        names no stretch a run was handed, and bounds nothing.
+        """
+        answered = _content_hash._compute_user_content_hash(
+            issue, _comments._orchestrator_ids(state), comments=list(self.answered),
+        )
+        return answered == state.get(_USER_CONTENT_HASH)
+
     def settle(self, state: PinnedState, agent_result: AgentResult) -> None:
         """Record these replies answered where the run handed them read them, forward only.
 
@@ -205,7 +230,7 @@ def parked(state: PinnedState) -> bool:
     return bool(state.get(_state._AWAITING_HUMAN))
 
 
-def reads_the_thread(state: PinnedState) -> bool:
+def reads_the_thread(issue: Issue, state: PinnedState) -> bool:
     """Whether this tick decides on one frozen read of its thread (`freeze`).
 
     A park a reply may answer does, and so does an attempt a continuation
@@ -213,9 +238,20 @@ def reads_the_thread(state: PinnedState) -> bool:
     retry-cap park held past the boundary, beside the words that bought it,
     and the fresh decomposition it pays for is handed them through the same
     read -- quoted whole, and settled only by a run that read them -- on
-    whichever tick spends it.
+    whichever tick spends it. So does a manifest correction whose launch an
+    earlier tick owed and never made (`correction_standing`): the rejected run
+    settled the boundary through what it read, so a reply written since is
+    past it, the saved session's to be resumed on rather than an edit retiring
+    that session, and the correction's own parks are bounded by the same read.
+    Only where a boundary stands, though: a thread with none names nothing
+    the rejected run settled, so a reply written since is an edit like any
+    other, the drift check's to read whole and route through the fresh
+    decomposition that retires the attempt.
     """
-    return parked(state) or _retry_ledger._grant_is_unspent(state)
+    if parked(state) or _retry_ledger._grant_is_unspent(state):
+        return True
+    owed = _correction_standing.read(state, issue.number).grants
+    return owed and isinstance(state.get(_state._LAST_ACTION_COMMENT_ID), int)
 
 
 def _replies_past(thread: tuple, state: PinnedState) -> list:

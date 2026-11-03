@@ -491,8 +491,9 @@ because there it is the claim that this stage has already rerouted rather than a
 
 ## `_handle_decomposing` (label `workflow:decomposing`)
 - **Trigger**: each tick while the label is `workflow:decomposing`.
-- **Input**: issue + comments + pinned state (`decomposer_agent` / `decomposer_session_id`, retry-budget keys,
-  `children`, `dep_graph`, `expected_children_count`, `split_attempt`, `split_rationale`, `umbrella`).
+- **Input**: issue + comments + pinned state (`decomposer_agent` / `decomposer_session_id`, `decomposer_correction`,
+  retry-budget keys, `children`, `dep_graph`, `expected_children_count`, `split_attempt`, `split_rationale`,
+  `umbrella`).
 - **Internal flow**: a `retry_cap` park whose sentence was never said is replayed at entry, ahead of every step
   below and of the late route among them (`_replay_owed_notice` — see
   [the retry budget](labels-and-state.md#the-retry-budget)); it says what the park is for and writes, and the tick
@@ -729,7 +730,56 @@ because there it is the claim that this stage has already rerouted rather than a
      and nobody has established that the issue it belongs to is still open. The same issue relabelled by hand never
      reaches this handler — or any other — at all: the dispatcher puts the label back first. See
      [`../workflow/roles.md`](../workflow/roles.md#what-the-humans-can-still-change-while-a-candidate-is-frozen).
-  5. **Awaiting-human resume OR fresh spawn.** Resume on a new comment; otherwise gate on the per-issue retry budget
+  5. **Pending manifest correction, then awaiting-human resume OR fresh spawn.** A `decomposer_correction` attempt an
+     earlier tick left pending (step 7) is answered first, before any decomposer is charged behind it, since every
+     charge behind it would be one its resolution covers (`correction_reconcile.py`): one the comment reads `eligible`
+     on an issue no park stands on is launched now — the launch a restart behind the arming, an arming read back, a
+     start the circuit refused, or an `/orchestrator add-agent-runs` grant answering its `agent_run_limit` park left
+     owed — exactly as step 7 launches it, with the error the record keeps; one whose context moved (`stale`) — the
+     session an edit's reset in step 2 or a continuation in step 1 retired — is retired over a reading that proves the
+     move, step 2's reset written first where only it shows the move, and only over the comment the retirement read, and
+     the tick goes on to the fresh decomposition the move buys only once the retirement has landed: a reset refused over
+     a comment a human or another road wrote since, or a retirement refused — over a charge count nobody can read, say —
+     holds the tick with the attempt pending and nothing charged; a resolved one (`exhausted`, `retired`) — or none — is
+     settled too, a park notice the record still holds for it that an earlier tick's drop did not land dropped strictly
+     before any run, the tick held where that drop does not land either; one `started`, `crowded`, or `unproved`, or
+     whose saved command or session no resume may take, is never launched: it is exhausted, behind a park for a human
+     where none stands, so the session stays theirs to resume with a reply — an exhaustion that does not land, over a
+     charge count nobody can read, say, holding the tick, so no resume or fresh decomposer is charged beside the
+     attempt. An `exhausted` attempt nothing has been charged behind, whose context stands, on an issue no park stands
+     on and no split transaction stands on, is an answer nothing was made of — an exhaustion that landed ahead of a park
+     write, a decision, or a hold behind it that did not let it on — and parks for a human too rather than spawning a
+     replacement. A split's markers (`expected_children_count`, `children`) say the corrected answer was acted on, so
+     step 4's split recovery finishes it instead, seeding and handing off the children it recorded.
+
+     Those parks are taken earlier still, right behind the reroute marker's retirement and ahead of step 2's frozen read
+     and drift check (`correction_reconcile.recovers_park`), so a reply written while the correction was out is the
+     park's to deliver — the tick goes on as a parked one and resumes the saved session on it — rather than an edit
+     retiring that session. Each is taken only where the pinned comment, read back as the tick's own reading and still
+     carrying the attempt bound to its record and cycle, and then the issue, read afresh behind the receipt's thread
+     read and ahead of any post or write, still stand (`correction_live.answers`): a comment moved under the tick, a
+     hold, or an unread reading holds the tick with nothing said or written, and so does an exhaustion behind the park
+     that does not land; a moved context or requirements spends the attempt with no park, dropping a notice the record
+     held for that park (`correction_settlement.discards`), and leaves the move to step 2's drift road, the rest of the
+     tick decided on the issue fetched afresh behind that reading so the drift check and any fresh decomposition it buys
+     read what moved rather than the tick's snapshot; and a close or a relabel spends it too, dropping such a notice,
+     and ends the tick, so no decomposer is charged, nor child made, nor notice left on the comment, on an issue another
+     label owns. Each is said once and bounded: its notice ends on the receipt
+     `<!--orchestrator-decomposer-correction:issue=<n>:source=<nonce>-->`; a comment of ours past the reply boundary
+     already carrying it is recorded as the park, taken into our comment ledger, with nothing posted again
+     (`correction_notices.py`); and either way the boundary walks our own comments and no further, so it stops short of
+     a reply written before the notice — standing on the notice only where no boundary stands to walk from. A
+     `decomposer_correction` claim nobody can read holds the tick there, with the claim kept as it stands and nothing
+     reset, launched, created, or written, until it is repaired. A write over the attempt left unconfirmed or landing
+     over a moved comment, or a thread a park could not read, holds the tick too. A tick owing an `eligible` attempt's
+     launch freezes its thread in step 2 as a parked one does (`replies.reads_the_thread`), wherever a reply boundary
+     stands: the rejected run settled the boundary through what it read, so a reply written since is past it — the saved
+     session's next resume's, not an edit retiring it — and every park the launched correction's disposition takes is
+     bounded by that read wherever its boundary is the one the requirements baseline was settled through
+     (`DecomposerReplies.bounds`); the read is never settled, since the correction is handed the error alone. With no
+     boundary, a reply written since is an edit the drift check reads whole, its reset retiring the attempt.
+
+     Then resume on a new comment; otherwise gate on the per-issue retry budget
      (shared with `implementing`; an exhausted one parks the issue durably as `retry_cap`, says so once, and is held
      by step 1 from there on — see [the retry budget](labels-and-state.md#the-retry-budget)), ensure a read-only
      worktree, resolve the spec via `_read_decomposer_session`, persist `decomposer_agent` BEFORE invoking
@@ -797,24 +847,92 @@ because there it is the claim that this stage has already rerouted rather than a
      `DECOMPOSE=off` handoff's report, say — keeps it too, and so does a reading there that fails, which cannot prove
      the record admitted.
   7. **Parse the manifest** via `_parse_manifest` (regex captures the fenced ` ```orchestrator-manifest ` block):
-     - invalid manifest → park `decomposer_invalid_manifest` with the parse error. A `split` is held to the shared
-       split rules (`_split_manifest_error`): every child states a `depends_on` list of indexes into the children
-       array, `[]` for none, so a child that leaves it missing or `null` is refused by its zero-based index and the
-       field (`child 1 missing depends_on`, `child 1 depends_on is null`) — read as no prerequisites, it would be
-       released beside a sibling its body says it needs. The refusal lands before the lineage decision below, so no
-       child is created and no split marker is written; the human's reply resumes the decomposer. The manifest itself
+     - invalid manifest → the one correction it may earn, else park `decomposer_invalid_manifest` with the parse
+       error. A `split` is held to the shared split rules (`_split_manifest_error`): every child states a
+       `depends_on` list of indexes into the children array, `[]` for none, so a child that leaves it missing or
+       `null` is refused by its zero-based index and the field (`child 1 missing depends_on`, `child 1 depends_on is
+       null`) — read as no prerequisites, it would be released beside a sibling its body says it needs — and invalid
+       indexes, self-edges, and cycles are refused alike; nothing infers a list from a child's prose. The refusal lands
+       before the lineage decision below, so no child is created and no split marker is written. The manifest itself
        is not kept, so a split already recorded is not asked those rules again: step 3 finalizes it from its markers,
        and the dependency walk releases its children by the `dep_graph` it was written with. An omitted `umbrella`
        flag and an omitted `rationale` remain current: the first is an ordinary split, the second records none.
 
-       The one manifest correction such a refusal may earn is prepared but dormant: this step never asks for it, so
-       every invalid manifest still parks. Its helpers (`correction_source.py`, `correction_road.py`,
-       `correction_live.py`, `correction_budget.py`) would grant one only to a completed, accounted, read-only run's
-       concrete parse error with a session the pinned command resumes, write the run's disposition strictly over the
-       comment the tick last synced with before arming it, and launch it once — the saved session under the pinned
-       command, handed the exact error and the whole output contract the decompose prompt closes on — held to the
-       issue's holds, owner, label, and requirements behind its charge, its daily retry paid in the write reserving
-       that charge; see [the record](labels-and-state.md#pinned-state).
+       Only a completed run earns the correction (`correction_source.py`): invoked, not interrupted or timed out, a zero
+       exit with no terminal failure or unfinished step, its usage accounted, its checkout already proved read-only, no
+       correction's own answer, the parser's error concrete, and a conversation saved under a `decomposer_session_id`
+       the pinned `decomposer_agent` command can resume — the very session the run returned, one token no CLI reads as
+       an option, never an older pin a run that surfaced none left standing or a value like `--last`. A run that saved
+       none parks as above, the actionable park, never a fresh decomposition in its place. The run's own disposition so
+       far — the session pin, the settlement of a frozen read, the stamp — is written whole first, over a comment read
+       back as the one the tick read, and only while it still reads so (`record_admission.strictly_written`): one
+       another road or a human wrote while the run was out or behind that read — a session pinned in its place, a cycle
+       moved — holds the tick with nothing written or armed, and then the attempt is armed (`correction_road.py`, over
+       the guarded `correction_checkpoint.arm`), naming the run's invocation, the requirements baseline it settled, the
+       command and session, and the exact error. An arming refused parks as above; one landing on a comment with no room
+       to launch it parks as above with the attempt exhausted behind the park; one sent and never confirmed, or landing
+       over a comment moved since, holds the tick, and the next tick's step 5 reads back what landed. The launch is a
+       retry the daily budget pays for like a fresh spawn, asked only of an attempt the comment, read back unmoved,
+       still reads `eligible` on an issue that still stands as above, so no `retry_cap` park is written or announced
+       over a hold or a move — a spent one takes the `retry_cap` park instead, written only over the comment the tick
+       read while the issue still stands and announced only where both still stand behind its notice's thread read,
+       whose `/orchestrator continue` retires the session and so the attempt, and buys the fresh decomposition it always
+       bought — and is charged and accounted once by the tracked spawn under the attempt's one owed launch, its charge
+       and its start each landing only over the comment reading as it was decided on, the issue and the comment asked
+       once more immediately before each edit leaves, and refused with nothing invoked on any reading of the comment
+       that no longer grants it, and on the issue read afresh right behind the charge (`correction_live.py`): a
+       `paused`/`backlog` hold, a close, a label other than `workflow:decomposing`, or requirements that read as neither
+       the whole thread nor, where a boundary stands, the stretch through it as the revision the run was handed. Every
+       such check fetches the issue once more behind its thread read and judges the controls, title, and body off that
+       last fetch, and the circuit asks the whole check again on each reading it charges or starts the launch from
+       (`correction_live.uncontrolled`), so a hold or an edit landing while an earlier read was out still invokes
+       nothing. A refused start keeps its charge reserved for the next tick's step 5 to start rather than pay again: the
+       request names no retry count, so it is the same launch whatever daily window starts it, and the daily retry it
+       pays is staged in the write reserving that charge (`correction_budget.py`), so a correction whose disposition is
+       never written — a hold, an interruption, an unresolved accounting — still counts it, and a charge standing
+       unstarted has paid it already, charging the daily budget nothing more when it starts; a spent lifetime ledger
+       parks `agent_run_limit` as for any launch. It resumes the saved session under the pinned command's backend and
+       arguments, whatever `DECOMPOSE_AGENT` says now, with the error and the whole output contract
+       (`engine/decomposition_prompts._build_correction_prompt`, which shares `_MANIFEST_CONTRACT` with the decompose
+       prompt), asking for one complete corrected manifest.
+
+       The correction's run is disposed of on the same plan exactly as the rejected run was — step 5's holds and timeout
+       park, step 6, the interruption, this parse — and earns no correction of its own. Every park its launch and its
+       answer take on the rejected run's tick is bounded wherever the tick's own scope bounds it or the reply boundary
+       is the one the requirements baseline was settled through (`correction_road.bounds`), so a reply written while
+       either run was out stays past it for the saved session's resume rather than reading as an edit. Each park it
+       reaches — a timeout, a dirty checkout, a question, silence, or a second invalid manifest, whose park quotes the
+       latest error and rejected answer and says it followed the one automatic correction — is taken only where the
+       pinned comment, read back so one moved since the tick read it withholds the tick's state, still carries the
+       session, command, and baseline the attempt was armed under, and then the issue, read afresh, still stands as
+       above (`correction_live.answers`): a pin or baseline moved, a close, a relabel, or an edit since spends the
+       attempt and parks nothing on a conversation or owner it moved to — no whole-state write puts a human's pin back —
+       and a hold, an unread reading, or a withheld state parks and spends nothing. A park taken holds its notice on the
+       record (`decomposer_correction_notice`) before posting it — whole, or cut from its end to what the comment has
+       room for beside everything else it carries, saying so, its opening line naming the latest error — quoted to at
+       most 1024 characters, marked where it runs on — the last of it cut — so a post that never lands is said in its
+       own words — the latest error and rejected answer — by the next tick's step 5, and posts it — whole where one
+       comment carries it as posted, receipt and comment marker included, else in the words held — only where the
+       comment, then the issue, and then the comment once more, read afresh behind that write, still stand: a hold, a
+       move, a pin, or an unread reading landing meanwhile, or a write left withheld, posts nothing and records no park,
+       the notice left owed for a later tick's step 5. It lands with the attempt pending, only over the comment that
+       write synced with and only while the issue, read afresh right before that edit leaves, still stands — a hold, a
+       close, a relabel, or an edit landing after the post holds the park and the exhaustion behind it, the receipt left
+       for a later tick's step 5 — and ends on its receipt, and the attempt is exhausted behind it, naming the
+       correction's invocation, only where the park landed: one that did not is recorded over its notice by the next
+       tick's step 5, and one landing unconfirmed is spent there behind the park it left standing, nothing said again. A
+       hold, an unresolved accounting, or an interruption leaves the attempt pending with its start on the ledgers,
+       never launched again: the next tick's step 5 parks for a human. A usable answer is acted on only once the issue,
+       read afresh, still stands as above, the attempt is exhausted over a write that left the tick's state its own, and
+       the issue, read afresh once more behind that write, still stands and its pinned comment still carries the
+       session, command, and baseline the attempt was armed under, the controls asked last, behind that comment's read,
+       before the first child, split marker, or label: a comment moved since the tick's last write, or one no longer
+       carrying the attempt bound to its record and cycle, withholds the tick's state and makes nothing of the answer,
+       so no whole-state write puts a moved cycle back; a session or command pinned by hand, or a baseline moved, makes
+       nothing of the answer; a close, a relabel, or an edit since spends it and makes nothing of the answer — the edit
+       taking step 2's fresh decomposition on the next tick — and a hold or an issue GitHub would not answer for spends
+       nothing and makes nothing, save one met behind the exhaustion, which makes nothing of the spent attempt's answer
+       and leaves it for the next tick to park over.
      - no fenced block → treat as a question; park.
      - `decision == "single"` → post the collected-context comment (rationale plus the manifest's optional
        `affected_files` / `notes`, built by `_build_single_decision_comment`) so the implementer inherits the

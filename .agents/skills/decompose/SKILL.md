@@ -183,9 +183,11 @@ carry one stage's fence, fields, or meaning of `single` into the other.
 
 ## Before you emit the manifest
 
-Valid JSON is not a valid manifest. A reply that parses but leaves out a field its decision requires is refused, and
-the issue parks for a human even though your run exited cleanly — a split whose children all omit `depends_on` is
-the failure this check exists for. Re-read the block against the active prompt's schema, field by field:
+Valid JSON is not a valid manifest. A reply that parses but leaves out a field its decision requires is refused even
+though your run exited cleanly — a split whose children all omit `depends_on` is the failure this check exists for.
+An initial decomposition's refused manifest is handed back to your session once, with the exact error, for one
+complete corrected manifest; a second refusal, and any refusal in late adjudication, parks the issue for a human.
+Re-read the block against the active prompt's schema, field by field:
 
 - the fence the prompt names, one block, and nothing after its closing line;
 - a `decision` value the prompt allows, and every field that decision requires there;

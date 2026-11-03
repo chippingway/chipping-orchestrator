@@ -2,9 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 from __future__ import annotations
 
+import json
 import unittest
 from types import MappingProxyType
+from unittest.mock import patch
 
+from orchestrator.github.pinned_state import MAX_PINNED_BODY
 from tests.support.fakes import (
     FakeComment,
     FakeGitHubClient,
@@ -18,6 +21,7 @@ from tests.workflow.fixtures import (
     _agent,
     _manifest,
 )
+from tests.workflow.stages.decomposition import correction_tick_support as _corrected
 from tests.workflow.stages.decomposition.decomposing_test_support import (
     _DecomposingWorkflowMixin,
 )
@@ -115,6 +119,71 @@ _MALFORMED_PAYLOADS = MappingProxyType({
 })
 # What a split writes on its parent before it creates the first child.
 _SPLIT_TRACKING = ("expected_children_count", "children", "dep_graph", "split_attempt", "umbrella")
+
+# Second invalid answers longer than the pinned comment can hold beside the
+# rest of the record, each beside the stretches its held notice keeps: a split
+# whose one child depends on itself, behind a rationale this long -- the error
+# quoted whole -- and one whose child depends on a value this long, which the
+# error spells out -- the error quoted only so far, marked where it runs on.
+_LONG = 64000
+_LONG_TEXT = "x" * _LONG
+_OVERSIZED_ANSWERS = (
+    (
+        "a long rationale",
+        _manifest(json.dumps({
+            "decision": "split",
+            "rationale": _LONG_TEXT,
+            KEY_CHILDREN: [{"title": "A", "body": "a", "depends_on": [0]}],
+        })),
+        (f"manifest invalid ({_corrected.SELF_EDGE_ERROR}) {_corrected.CORRECTED_PARK}",),
+    ),
+    (
+        "a long dependency",
+        _manifest(json.dumps({
+            "decision": "split",
+            KEY_CHILDREN: [{"title": "A", "body": "a", "depends_on": [f"latest-invalid-dependency-{_LONG_TEXT}"]}],
+        })),
+        ("manifest invalid (child 0 has invalid dependency 'latest-invalid-", f"...) {_corrected.CORRECTED_PARK}"),
+    ),
+)
+
+# The client's send of a pinned comment's body, which GitHub refuses past its limit.
+_PINNED_SEND = "_send_pinned_edit"
+
+
+def _too_long(body: str) -> bool:
+    """Whether GitHub refuses `body` as longer than one comment."""
+    return len(body) > MAX_PINNED_BODY
+
+
+def _corrected_park(body: str) -> bool:
+    """Whether `body` is the park a correction's own invalid answer takes."""
+    return _corrected.CORRECTED_PARK in body
+
+
+class _Refusing:
+    """One of the client's requests, refusing each body `refuses` picks -- only the first, where `once` -- as GitHub.
+
+    `refused` keeps the size of every body refused.
+    """
+
+    def __init__(self, send, refuses, *, once: bool = False) -> None:
+        self._send = send
+        self._refuses = refuses
+        self._once = once
+        self.refused: list[int] = []
+
+    def __call__(self, issue, body: str):
+        if self._refuses(body) and not (self._once and self.refused):
+            self.refused.append(len(body))
+            raise RuntimeError("GitHub refused the request")
+        return self._send(issue, body)
+
+    @classmethod
+    def patching(cls, github, name: str, refuses, *, once: bool = False):
+        """The client's `name` request, so refusing, for the block; and the double counting what it refused."""
+        refusing = cls(getattr(github, name), refuses, once=once)
+        return patch.object(github, name, side_effect=refusing), refusing
 
 
 def _assert_resumed_timeout_park_fail_open(
@@ -227,9 +296,11 @@ class HandleDecomposingParkTest(
         _assert_resumed_timeout_park_fail_open(self, "not-an-int")
 
     def test_decompose_malformed_manifest_parks(self) -> None:
-        # A malformed reply parks before the split writes anything: no child
-        # is created and no split tracking is written, so the human's reply
-        # resumes the decomposer rather than a recovery.
+        # A malformed reply earns one correction, and a correction answering
+        # malformed again parks before the split writes anything: no child is
+        # created and no split tracking is written, so the human's reply
+        # resumes the decomposer rather than a recovery. The correction is a
+        # retry the budget counts, so the park reads the second.
         for payload, refusal in _MALFORMED_PAYLOADS.items():
             with self.subTest(refusal=refusal):
                 gh = FakeGitHubClient()
@@ -253,7 +324,7 @@ class HandleDecomposingParkTest(
                 self.assertEqual(state.get(KEY_DECOMPOSER_SESSION_ID), DECOMPOSER_SESSION)
                 self.assertEqual((gh.created_child_issues, gh.label_history), ([], []))
                 self.assertFalse(set(_SPLIT_TRACKING) & set(state), "no split tracking is written")
-                self._assert_decomposer_park_event(gh, _PARK_REASON_INVALID)
+                self._assert_decomposer_park_event(gh, _PARK_REASON_INVALID, expected_retry_count=2)
 
     def test_decompose_no_manifest_question_parks(self) -> None:
         gh = FakeGitHubClient()
@@ -336,3 +407,76 @@ class HandleDecomposingParkTest(
         self.assertEqual(park_record.get("agent_role"), _ROLE_DECOMPOSER)
         self.assertEqual(park_record.get("session_id"), expected_session)
         self.assertEqual(park_record.get("retry_count"), expected_retry_count)
+
+
+class FailedCorrectionParkTest(unittest.TestCase, _corrected.CorrectionTickCase):
+    """A correction's own malformed answer parks once, quoting its own error and manifest, and stays parked.
+
+    The session is left pinned for the reply that resumes it, and the spent
+    attempt arms nothing: quiet polls, each a process holding nothing of the
+    one before, launch, say, write, and announce nothing more.
+    """
+
+    def test_a_failed_correction_parks_once(self) -> None:
+        parked = self._parked_by_its_correction()
+        quiet = self.decomposer(_corrected.LISTED)
+
+        self.tick(quiet)
+        self.tick(quiet)
+
+        said = self.said()
+        self.assertEqual(quiet.launches, [])
+        self.assertEqual(said, [said[0]], "the first rejection is never announced, the second once")
+        self.assertIn(f"manifest invalid ({_corrected.SELF_EDGE_ERROR}) after its one automatic correction", said[0])
+        self.assertNotIn(_corrected.UNLISTED_ERROR, said[0])
+        self.assertEqual(self.pinned(), parked, "nothing is written again")
+        self.assertEqual(self.stage(), _corrected.EXHAUSTED)
+        self.assertEqual(len(self._park_events()), 1)
+
+    def test_an_oversized_answer_is_held_cut_to_fit(self) -> None:
+        # The second invalid answer, or the error it is refused with, is
+        # longer than the record can hold beside everything it carries: its
+        # notice is held cut to fit -- the latest error and the opening of the
+        # rejected answer kept -- and no pinned write is refused for its size,
+        # so the post that never landed is said once on the next tick in those
+        # words, never in the first error's.
+        for name, answer, kept in _OVERSIZED_ANSWERS:
+            with self.subTest(name):
+                said = self._said_from_the_record(answer)
+
+                self.assertEqual(len(said), 1, "the park is said once")
+                self.assertIn("> ```orchestrator-manifest", said[0], "the rejected answer's opening is quoted")
+                self.assertIn("left out to fit the pinned comment", said[0])
+                self.assertEqual([stretch for stretch in kept if stretch not in said[0]], [])
+                self.assertEqual(self.stage(), _corrected.EXHAUSTED)
+
+    def _said_from_the_record(self, answer: str) -> list[str]:
+        """What a rejected run's correction answering `answer` has said once its first post was refused.
+
+        Every pinned write is held to the size GitHub takes, and none is
+        refused for it.
+        """
+        self.opened()
+        limited, sized = _Refusing.patching(self.github, _PINNED_SEND, _too_long)
+        posting, _ = _Refusing.patching(self.github, "comment", _corrected_park, once=True)
+        with limited:
+            with posting, self.assertRaises(RuntimeError):
+                self.tick(self.decomposer(_corrected.UNLISTED, answer))
+            self.tick(self.decomposer(_corrected.LISTED))
+        self.assertEqual(sized.refused, [], "no pinned write is refused for its size")
+        return self.said()
+
+    def _parked_by_its_correction(self) -> dict:
+        """The record a tick leaves whose rejected run's correction answered malformed again."""
+        self.opened()
+        self.tick(self.decomposer(_corrected.UNLISTED, _corrected.SELF_EDGE))
+        parked = self.pinned()
+        self.assertTrue(parked[KEY_AWAITING_HUMAN])
+        self.assertEqual(parked[KEY_DECOMPOSER_SESSION_ID], _corrected.SESSION)
+        return parked
+
+    def _park_events(self) -> list:
+        return [
+            recorded for recorded in self.github.recorded_events
+            if recorded.get("event") == _EVENT_PARK and recorded.get("reason") == _PARK_REASON_INVALID
+        ]

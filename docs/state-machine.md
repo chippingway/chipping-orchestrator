@@ -386,16 +386,19 @@ retirement of that reroute's marker, and a decomposer manifest correction's armi
 only the fields its caller owns over a fresh reading instead, refusing with nothing written where the
 comment, a record the decision rests on, or a field the caller is changing moved, or where the whole candidate would
 not fit one comment.
-The dormant `decomposer_correction` record is the one manifest correction an initial decomposition may be allowed once
-its decomposer's answer fails validation -- tied to the rejected invocation, the requirements it was handed, the
+The `decomposer_correction` record is the one manifest correction an initial decomposition may be allowed once a
+completed run's answer fails validation -- tied to the rejected invocation, the requirements it was handed, the
 decomposer command and session it saved, and the parser's exact error, and `pending`, `exhausted`, or `retired`, a
 resolved attempt covering every charge it was resolved across so no correction's own answer arms another. Its writes
 are guarded commits of that field alone, read back where unconfirmed, a retirement takes a reading that proves its
-context moved, and its one launch is owed once at the run circuit. Prepared helpers grant one only to a completed,
-accounted, read-only run's concrete parse error, write that run's disposition strictly over the comment it was read
-from before arming, and launch the saved session under its pinned command, held to the issue's holds, owner, and
-requirements around its charge and paying its daily retry in the write reserving it. No production road calls them
-yet, so an invalid manifest still parks awaiting a human.
+context moved, and its one launch is owed once at the run circuit. The rejection grants one only to a completed,
+accounted, read-only run's concrete parse error, writes that run's disposition strictly over the comment it was read
+from before arming, and launches the saved session under its pinned command, held to the issue's holds, owner, and
+requirements around its charge and paying its daily retry in the write reserving it. Every park taken over an attempt
+holds its notice on the record (`decomposer_correction_notice`) before posting it, cut to fit where the comment cannot
+hold it whole, lands strictly, and only while the issue still stands, before the attempt is resolved, and ends on a
+receipt, so a park whose write did not land is recorded over its notice rather than said twice, ahead of the drift
+check and bounded, so a reply written meanwhile resumes the saved session; a claim nobody can read holds the tick.
 The additive `dev_session_retirement` record names the developer conversations retired as failed and whether the fresh
 conversation replacing the last is still owed. Nothing that clears the session pin or zeroes `silent_park_count` and
 `dev_resume_count` -- a publication, a rotation, a late restart's projection -- erases it, so a retired id is never
@@ -504,8 +507,16 @@ and leaves the parent on `workflow:blocked` or `workflow:umbrella`. Whatever sup
 an edit's reset or reroute, a restart — clears the recorded rationale, while a parent handed back to its own work once
 every child is done keeps it as the scope that work was left, which that work's first developer spawn and any fresh
 session replacing it quote off the record rather than out of the bounded thread. Every child of a fresh
-`split` states its `depends_on` list, `[]` for none; one missing or `null` parks the reply as an invalid manifest
-naming the child and the field, before any child or split marker is written. A split of an issue
+`split` states its `depends_on` list, `[]` for none; one missing or `null` refuses the reply as an invalid manifest
+naming the child and the field, before any child or split marker is written. A completed, accounted, read-only run's
+refused manifest earns one correction: its saved session resumed under the pinned command with the exact error and
+the whole output contract, rechecked against the issue's holds, owner, label, and requirements behind its charge,
+before its answer is used or parked, and again -- with its saved session, command, and baseline -- behind the write
+that spends it, and disposed of like any decomposer answer -- a usable one through the ordinary `single` or `split`,
+anything else to the park it reaches, a second invalid manifest's quoting the latest error and answer. A question,
+silence, a failed or incomplete return, a timeout, an interruption, a dirty checkout, and a run with no session to
+resume park as before, and a correction that a hold, a restart, or a lost write left unanswered is never launched
+again: the next tick parks for a human. A split of an issue
 inside a late lineage seeds each child one level below it under the same root, pointed only at a snapshot the
 parent's own split still holds and records it on, and parks before creating anything where that lineage cannot be
 proved. Every child's seed — at the split, in its recovery, or on a late split's placement — adds to the child's record

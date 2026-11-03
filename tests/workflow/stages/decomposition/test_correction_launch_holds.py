@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """A correction's launch held to the issue as GitHub answers for it, and its daily retry paid once with its charge.
 
-Asked of the dormant road's launch directly. A hold, a close, a relabel, an
+Asked of the road's launch directly, at every window a whole tick cannot
+single out (`test_correction_live` drives the same launch through the
+`decomposing` handler). A hold, a close, a relabel, an
 edit, an issue GitHub would not answer for, a session pinned in place of the
 saved one, or a comment moved under the tick invokes nothing: ahead of the
 charge nothing is charged, and behind it the charge -- with the daily retry

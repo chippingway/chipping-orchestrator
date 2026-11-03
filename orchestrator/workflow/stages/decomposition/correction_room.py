@@ -29,6 +29,11 @@ widest a write over it could be:
   to are not measured: what they grow by is the run's to report, and an
   exhaustion they leave no room for still leaves the launch's start on the
   ledger, granting nothing.
+
+And the room a park's notice takes while it is held on the record ahead of its
+post (`notice_held`): the longest stretch of it the comment can carry beside
+everything else, a few writes' headroom spared, cut from its end -- saying so --
+so the line it opens on, naming the latest error, is the last of it cut.
 """
 from __future__ import annotations
 
@@ -52,6 +57,14 @@ _CEILING = _record_values.MAX_RECORDED_NUMBER
 # A launch fingerprint as wide as any: every one is one digest's hex digits.
 _WIDEST_FINGERPRINT = "f" * max(_formats.DIGEST_LENGTHS)
 
+# What a held notice leaves the comment for the writes behind it while it
+# stands -- the park's own fields, a stamp, a watermark -- so holding it never
+# moves the comment's limit onto one of them.
+_NOTICE_HEADROOM = 4096
+
+# What a held notice cut to fit says of what it left out.
+_OMITTED = "\n\n_({count} more characters of this notice were left out to fit the pinned comment.)_"
+
 
 def resolves(state_data: dict, attempt: _records.CorrectionAttempt) -> bool:
     """Whether a comment otherwise carrying `state_data` has room for `attempt` at its widest resolution."""
@@ -72,6 +85,29 @@ def launches(state_data: dict, attempt: _records.CorrectionAttempt) -> bool:
     return _fits(candidate, attempt)
 
 
+def notice_held(state_data: dict, field: str, held: dict, words: str) -> str:
+    """The longest of `held[words]` a comment carrying `state_data` and `held` under `field` has room for.
+
+    The notice whole where it fits; else the longest stretch of its start that
+    does, with a line saying how much was left out, so its opening line --
+    the latest error -- is the last of it cut, and cut only where nothing more
+    of it fits: a write refused for its size would hold nothing, and a post
+    that never lands would be said in what the attempt alone recalls.
+    """
+    message = held[words]
+    if _holds_notice(state_data, field, held, words, len(message)):
+        return message
+    low = 0
+    high = len(message) - 1
+    while low < high:
+        middle = (low + high + 1) // 2
+        if _holds_notice(state_data, field, held, words, middle):
+            low = middle
+        else:
+            high = middle - 1
+    return _cut(message, low)
+
+
 def reserved_since(reading: PinnedState, owed_at: int) -> bool:
     """Whether the one charge taken since the source's, at `owed_at`, stands `reserved`, unstarted.
 
@@ -89,3 +125,17 @@ def _fits(candidate: PinnedState, attempt: _records.CorrectionAttempt) -> bool:
     resolved = attempt.resolved(_records.CorrectionStage.EXHAUSTED, _CEILING, widest)
     candidate.set(_state._DECOMPOSER_CORRECTION, resolved.spelled())
     return len(pinned_state_body(candidate.state_data, escaped_in_full=True)) <= MAX_PINNED_BODY
+
+
+def _holds_notice(state_data: dict, field: str, held: dict, words: str, kept: int) -> bool:
+    """Whether a comment carrying `state_data`, and `held` under `field` cut to `kept`, fits within its headroom."""
+    candidate = {**state_data, field: {**held, words: _cut(held[words], kept)}}
+    return len(pinned_state_body(candidate, escaped_in_full=True)) <= MAX_PINNED_BODY - _NOTICE_HEADROOM
+
+
+def _cut(message: str, kept: int) -> str:
+    """`message` through its first `kept` characters, saying how many more it left out, or whole."""
+    omitted = len(message) - kept
+    if omitted <= 0:
+        return message
+    return message[:kept] + _OMITTED.format(count=omitted)

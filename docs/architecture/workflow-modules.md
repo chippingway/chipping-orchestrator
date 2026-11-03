@@ -2290,9 +2290,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and verification effort rather than a file or commit count, as the `decompose` skill
                             does, states the validator-owned child limit, and closes on a check of the block against
                             the manifest schema -- that whole reply contract spelled once (`_MANIFEST_CONTRACT`) and
-                            handed back by the correction prompt the dormant manifest correction asks with, beside
-                            the exact error the parser refused its answer with; the bounded single-decision comment
-                            that carries manifest notes into
+                            handed back by the correction prompt a rejected manifest earns, beside the exact error the
+                            parser refused it with; the bounded single-decision comment that carries manifest notes into
                             implementation; and what a split carries there instead: the issue's own recorded
                             `split_rationale`, withheld on an umbrella and on a record holding no usable text,
                             rendered as an attributed section quoting every line whatever ends it
@@ -2327,8 +2326,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             requests to resolve again, and a judgment of each reading --
                             and a fresh reading whose recorded start of such a launch names that count, where the
                             caller's own state does not, is that launch made by another road
-                            (`AgentRunBudget.made_elsewhere`); what else such a launch pays beside its charge -- the
-                            dormant manifest correction's daily retry -- is staged on the reading the charge is written
+                            (`AgentRunBudget.made_elsewhere`); what else such a launch pays beside its charge -- a
+                            manifest correction's daily retry -- is staged on the reading the charge is written
                             over, so both land in one write, and one it cannot pay there refuses the charge
                             (`OwedLaunch.pays`, `AgentRunBudget.pays`); every other launch pays nothing more; and a
                             strict launch's charge and start land only over the readings they were decided on, each
@@ -3044,15 +3043,19 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       run.py                one `decomposing` tick: the retry-cap notice a stranded park still owes replayed at
                             entry, the late route asked before anything else after it, the spent-budget park held
                             behind that and ahead of every road that would walk past one, the retirement of a
-                            `ready` reroute's marker, the one frozen read of its thread a parked tick, or one
-                            spending an attempt a continuation bought, decides on -- held with nothing reset or
-                            launched where it cannot be taken -- and then the drift / recovery /
-                            kill-switch order before the agent, and the pause, dirty-worktree, and interruption
-                            checks after it, inside a bounded-park scope wherever the run was handed that read, so
-                            every park its disposition takes, the split's own included, stops short of a comment
-                            written while it was out; the worktree's teardown on every exit, kept where the run met
-                            a pinned record admission refuses or the record reads refused, or cannot be read, at the
-                            teardown itself (`models._DecomposerCleanup`)
+                            `ready` reroute's marker, the park a manifest correction is owed taken -- and a
+                            correction record nobody can read held on -- before anything reads the thread, the rest of
+                            the tick decided on the issue that recovery hands back, fetched afresh where it read the
+                            requirements moved, the one frozen read of its thread a parked tick, or one spending an
+                            attempt a continuation bought, decides on -- held with nothing reset or launched where it
+                            cannot be taken -- and then the drift / recovery / kill-switch order before the agent, and
+                            the pause, dirty-worktree, and interruption checks after it -- asked again of the one
+                            correction a refused manifest earns, disposed of on the same plan -- inside a bounded-park
+                            scope wherever the run was handed that read -- or, for that correction, wherever its
+                            launch's parks were -- so every park its disposition takes, the split's own included, stops
+                            short of a comment written while it was out; the worktree's teardown on every exit, kept
+                            where the run met a pinned record admission refuses or the record reads refused, or cannot
+                            be read, at the teardown itself (`models._DecomposerCleanup`)
       retry_cap.py          the standing spent-budget park an initial decomposition meets: the hold that ends the
                             tick having written, spawned, and said nothing -- so the manifest, the children, the
                             locked session, the pull request, and the late record stay as they were -- the refusal
@@ -3080,7 +3083,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             hands one back and the resume after one that did not would replay the conversation the
                             issue was moved on from
       replies.py            the one read of a parked thread a `decomposing` tick decides on -- or of the thread an
-                            unspent continuation grant leaves its replies on (`reads_the_thread`): what the park had
+                            unspent continuation grant leaves its replies on, or a manifest correction's owed launch
+                            leaves past its rejected run's boundary (`reads_the_thread`), with whether that boundary is
+                            the one the baseline was settled through (`bounds`): what the park had
                             already read, which the drift check measures the requirements by, and the replies past its
                             boundary -- `prompt_delivery`'s classification less a bare `/orchestrator add-agent-runs`
                             -- whose delivery record the resume's prompt is rendered from, and the read the fresh
@@ -3120,15 +3125,19 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             after child validation, asked through the one `_split_manifest_error` a fresh reply --
                             the initial decomposer's or the late adjudicator's -- and a late record are both held to
       outcomes.py           the live-pause and timeout settlement before the worktree check -- what a run was
-                            handed off a frozen read settled there, past the holds and ahead of every park -- and
-                            the three manifest dispositions after it: the unparsed park, the `single`
-                            finalize, which clears an earlier split's rationale in a write ahead of its flip, and the
-                            `split` hand-off
+                            handed off a frozen read settled there, past the holds and ahead of every park -- the
+                            read-only park the caller keeps the checkout for, and the manifest dispositions after
+                            it: a refused manifest's one correction asked first and laid onto the plan for the
+                            caller to dispose of, the unparsed park -- the latest error and answer quoted, a
+                            correction's own said as one, ending on its attempt's receipt and exhausting it behind
+                            the park once that lands -- the `single` finalize, which clears an earlier split's
+                            rationale in a write ahead of its flip, and the `split` hand-off, a correction's answer
+                            acted on only once its attempt is spent over an issue that still stands
       correction_records.py the one manifest correction an initial decomposition may be allowed, as
-                            `decomposer_correction` spells it -- a dormant facility no production road arms yet: the
-                            source it is tied to (the rejected run's invocation, the requirements it was handed, the
-                            decomposer command and session it saved, and the one-line error its answer was refused
-                            with), the pending, exhausted, and retired stages, the floor a
+                            `decomposer_correction` spells it: the source it is tied to (the rejected run's
+                            invocation, the requirements it was handed, the decomposer command and session it saved,
+                            and the one-line error its answer was refused with), the pending, exhausted, and retired
+                            stages, the floor a
                             resolved attempt covers every charge up to, held to the widest number a record holds, so no
                             correction's own answer arms another, the strict whole reading that answers a damaged claim
                             as none beside `carries`, the check that an attempt reads back as itself, the floor a
@@ -3140,7 +3149,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             leaves, staged by the run ledger's own writers -- a charge already reserved one past the
                             source measured by its start alone, the one charge the circuit starts for it
                             (`reserved_since`, which admission's start reading shares) -- and the receipt its accounting
-                            takes, which admission asks before granting the launch
+                            takes, which admission asks before granting the launch; and the longest stretch of a park's
+                            notice the comment can hold while it is held there, a few writes' headroom spared, cut from
+                            its end, the opening line naming the latest error the last of it cut (`notice_held`)
       correction_standing.py
                             what one reading grants that attempt -- eligible only bound to its record and cycle, its
                             context standing, its launch's start ruled out by the owed start, a charge count that reads,
@@ -3163,7 +3174,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             whatever the reading says of the launch's start; retired only over a reading that proves its
                             context moved, held to that evidence; either resolved only under a floor that covers every
                             charge the ledgers record, refused otherwise; and asked again, sending nothing
-      correction_source.py  the dormant gate on which rejected answer earns that attempt -- a completed, accounted run's
+      correction_source.py  the gate on which rejected answer earns that attempt -- a completed, accounted run's
                             manifest, over a checkout its caller already proved read-only, the parser refuses with a
                             concrete error, no correction's own, over a session the pinned command parses and resumes,
                             one token no CLI reads as an option and the very session the rejected run returned, checked
@@ -3172,19 +3183,20 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             arguments in the issue's read-only checkout, handed the error and the whole output contract,
                             and named by no retry count, so a charge it reserved is its own to start in any later daily
                             window
-      correction_road.py    the dormant road no production stage asks yet: the run's disposition so far written whole
-                            only while the comment still reads as the caller last synced with it
+      correction_road.py    the attempt asked for at the rejection: the run's disposition so far written whole only
+                            while the comment still reads as the caller last synced with it
                             (`record_admission.strictly_written`), over a comment read back unmoved, the attempt armed
-                            behind that write -- a crowded one handed back with no launch, and a write left withholding
-                            the caller holding the tick -- and the launch, asked only of an attempt the comment, read
+                            behind that write -- a crowded one handed back with no launch, given up behind the ordinary
+                            park, and a write left withholding the caller holding the tick -- and the launch, asked at
+                            the rejection or by a later tick's reconciliation only of an attempt the comment, read
                             back unmoved, still grants its launch, and of an issue read afresh, then a retry the daily
                             budget pays for in the write reserving its charge (`correction_budget`), then the tracked
                             spawn under the attempt's one owed launch, strict so its charge and start land only over the
                             readings they were decided on, with the issue read afresh behind the charge; every park the
                             launch takes bounded where the tick's
                             scope bounds it or the reply boundary is the one the source's requirements were settled
-                            through (`bounds`); nothing of the correction's answer is published here
-      correction_budget.py  the daily retry that dormant launch pays: the budget asked of a copy of the caller's state,
+                            through (`bounds`); what the correction's answer comes to is `correction_settlement`'s
+      correction_budget.py  the daily retry that launch pays: the budget asked of a copy of the caller's state,
                             so an admitted launch stages nothing there; the retry-cap park taken where it is spent, its
                             write and its notice's settlement landed only over the comment the caller last synced with
                             and while the issue, asked right before each edit leaves, still stands, and its notice
@@ -3194,15 +3206,54 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             launch standing unstarted admitted as already paid; and the slot staged on the reading the
                             circuit writes its lifetime charge over (`pays`), so the two land in one write and one that
                             reading cannot pay charges nothing
-      correction_live.py    the issue read afresh around that dormant launch: a `paused` / `backlog` hold, a close, a
-                            label other than `workflow:decomposing`, or requirements that read as neither the whole
-                            thread nor, where one stands, the stretch through the settled reply boundary as the
-                            revision the rejected run was handed -- held, moved, disowned, unread, or standing, every
-                            check judging the controls and requirements off the issue fetched last, behind its thread
-                            read (`controls`, `reads`), the circuit's judge asking the whole check again on the
-                            readings it charges and starts from (`uncontrolled`) -- behind the pinned comment read
-                            afresh as the tick's own, still carrying the attempt bound to its record and cycle, for the
-                            session, command, and baseline the attempt was armed under (`answers`)
+      correction_live.py    the issue read afresh around that launch and its answer: a `paused` / `backlog` hold, a
+                            close, a label other than `workflow:decomposing`, or requirements that read as neither the
+                            whole thread nor, where one stands, the stretch through the settled reply boundary as the
+                            revision the rejected run was handed -- held, moved, disowned by a close or a relabel,
+                            unread, or standing, every check judging the controls and requirements off the issue fetched
+                            last, behind its thread read (`controls`, `reads`), the circuit's judge asking the whole
+                            check again on the readings it charges and starts from (`uncontrolled`) -- behind the
+                            pinned comment read afresh as the tick's own, still carrying the attempt bound to its record
+                            and cycle, for the session, command, and baseline the attempt was armed under, and read once
+                            more behind the issue's requests, by its id as well as its record (`answers`)
+      correction_settlement.py
+                            what the correction's answer may come to: each park it reaches taken only over a comment,
+                            read back unmoved, that still carries the saved context, and an issue that still stands
+                            (`parks`), the exhaustion behind a park that landed naming the correction, a usable answer
+                            acted on only once the issue still stands, the attempt reads spent over a write that
+                            withheld nothing, and the issue and its saved context still stand read again behind that
+                            write, a close, relabel, or edit spending it with nothing made, and the retirement of a
+                            moved attempt, the tick's own reset written first where only it shows the move, only over
+                            the comment the retirement read, the tick held unless the retirement lands; a park notice
+                            still held for an attempt a move or a close spent or retired dropped strictly behind that
+                            resolution (`discards`); and whether a later tick goes on behind the park it owed, only
+                            once the attempt reads spent on an issue still this label's (`settles_park`)
+      correction_notices.py the hidden receipt every park over an attempt ends on, naming the issue and the source's
+                            nonce; the notice held on the record before it is posted, over the comment the tick last
+                            synced with, whole or cut to the room the comment has (`correction_room.notice_held`), and
+                            posted only where the comment and the issue, read afresh behind that write, still stand,
+                            else left owed (`owing`, `owed`); the park written only over that comment and while the
+                            issue, read afresh right before the edit, still stands, the attempt resolved behind it only
+                            where it landed (`recorded`); and the park a
+                            later tick owes -- taken only where the comment, read back unmoved and still carrying the
+                            attempt bound to its record and cycle, and the issue, read afresh behind the receipt's
+                            thread read, still stand -- recorded over a comment of ours carrying the receipt rather
+                            than said again, said otherwise in the held notice's own words, and bounded wherever a
+                            reply boundary stands (`parks_once`)
+      correction_reconcile.py
+                            what a later tick owes an attempt: ahead of the frozen read and the drift check, the park a
+                            started, crowded, unproved, or unresumable one -- or an exhausted one nothing was made of,
+                            nothing charged behind, and no split transaction begun over, a begun split left to the split
+                            recovery -- is owed, said once, so a reply written meanwhile resumes the saved session, a
+                            close or a relabel met there spending the attempt and ending the tick, a move of the
+                            requirements spending it and handing back the issue fetched afresh for the rest of the tick,
+                            and a claim nobody can read held on with nothing written (`recovers_park`); then, before any
+                            decomposer is charged behind it, an eligible one launched where no park stands -- its parks
+                            bounded by the tick's frozen read wherever its boundary is the settled one -- a stale one
+                            retired, and any other exhausted, the tick held where that exhaustion does not land, and a
+                            resolved one's notice an earlier drop left dropped before the run; and
+                            the run the tick then makes (`run_for_the_tick`): the
+                            resume of a park still standing, or the fresh spawn
       replacement_lineage.py
                             the late lineage an ordinary split seeds its children with, off the `late_split/` provenance
                             decision: one level below the parent under the same root and never past `MAX_LINEAGE_DEPTH`,
@@ -4006,18 +4057,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       late_models.py        mutable tick context -- with the question a captured revision's recovery asks of the
                             issue every owner read fetches -- owner readings, held pull requests, and staged park
                             values
-      models.py             the run plan and its worktree policy -- with the manifest correction a run answers, which
-                            no production run carries yet, laid onto the plan of the run it corrects with whether its
-                            parks are bounded -- the locked session, the split plan -- with the lineage it seeds, the
-                            drift baseline each create answered, held in memory for the seed on an ordinary split and a
-                            late split's walk alike, the attempt its receipts name, the rationale the parent records,
-                            the whole declared dependency graph, and the recorded children a seed under the child's
-                            claim left unseeded -- held, or refused admission -- for the recovery to seed and finalize
-                            -- and the child scan, with the readings a release walk and a merge finalize ask of it -- a
-                            child startable only open, `blocked`, and free of `paused` / `backlog` -- and the later
-                            reading it adopts
+      models.py             the run plan and its worktree policy -- with the manifest correction a run answers, laid
+                            onto the plan of the run it corrects with whether its parks are bounded -- the locked
+                            session, the split plan -- with the lineage it seeds, the drift baseline each create
+                            answered, held in memory for the seed on an ordinary split and a late split's walk alike,
+                            the attempt its receipts name, the rationale the parent records, the whole declared
+                            dependency graph, and the recorded children a seed under the child's claim left unseeded --
+                            held, or refused admission -- for the recovery to seed and finalize -- and the child scan,
+                            with the readings a release walk and a merge finalize ask of it -- a child startable only
+                            open, `blocked`, and free of `paused` / `backlog` -- and the later reading it adopts
       state.py              the pinned-state field names the owners share, `split_attempt`, `split_rationale`,
-                            `ready_reroute`, the two decomposer pins, and `decomposer_correction` among them, the
+                            `ready_reroute`, the two decomposer pins, `decomposer_correction`, and the park notice held
+                            for it, `decomposer_correction_notice`, among them, the
                             held-child alias, the strict parent-link check, the one
                             rule a split's rationale is read by off its manifest and back off the record, and the
                             issue-reference renderer

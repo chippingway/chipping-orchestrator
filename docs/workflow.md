@@ -51,8 +51,9 @@ while `workflow:<tag>` is the **wire label** the GitHub issue carries. `in_revie
 - **Decomposer** — `DECOMPOSE_AGENT` (default `claude`), spawned by the decomposing, question, and discussion stages,
   each of which pins its own session per issue. A parked initial decomposition resumes that session on a trusted
   reply, measured against what the park had already read, and spawns fresh only on an edit to the title, the body,
-  or a comment the park had read. A refused manifest still parks; the one correction that would resume the session
-  with the exact error is prepared but dormant.
+  or a comment the park had read. A completed run's manifest the parser refuses resumes the session once, unasked,
+  under its pinned command with the exact error, for one complete corrected manifest; that correction earns none of
+  its own.
 - **Implementer / dev** — `DEV_AGENT` (default `claude`), spawned by implementing and resumed by documenting,
   validating, fixing, and conflicts; locked per issue after the first spawn.
 - **Reviewer** — `REVIEW_AGENT` (default `codex`), spawned fresh by validating every round, so the current config

@@ -55,7 +55,12 @@ than a second source of truth: where the two disagree, the handler pages are aut
                               child held by another poller, or whose record
                               read under its claim admission refuses, stops
                               the recovery with nothing written and no park
-     manifest invalid / question / timeout ─► park HITL
+     manifest invalid (completed run) ─► one correction: the same session
+                                          resumed under its pinned command
+                                          with the exact error ─► its usable
+                                          answer → single / split; anything
+                                          else ─► park HITL (said once)
+     question / timeout / no session  ─► park HITL
 
    Ready (every entry, on the issue fetched afresh, before any pickup,
    consumption, or launch):
