@@ -468,17 +468,20 @@ class ParkedReplyResumeTest(unittest.TestCase, _parked._ParkedDecompositionCase)
         # baseline, and only where it read the edit: one a shutdown killed,
         # whose dirty worktree still parks the issue, leaves the edit owed, so
         # the next tick resets and spawns fresh on it again rather than
-        # resuming the session that never read it.
+        # resuming the session that never read it. The park's run and the
+        # correction its manifest earned spent two of the day's spawns, so the
+        # budget is lifted: what is asked here is the edit, not the budget.
         self._park()
         self.issue.body = _parked.EDITED_BODY
         self._reply()
         killed = _parked.decomposer_run(interrupted=True, exit_code=_parked.SHUTDOWN_EXIT_CODE)
         killed.return_value.session_id = FRESH_SESSION
-        self._tick(killed, has_new_commits=True)
-        self.assertEqual(self._pinned()[KEY_USER_CONTENT_HASH], self.baseline)
         retry = _parked.decomposer_run()
+        with patch.object(config, "MAX_RETRIES_PER_DAY", 0):
+            self._tick(killed, has_new_commits=True)
+            self.assertEqual(self._pinned()[KEY_USER_CONTENT_HASH], self.baseline)
 
-        self._tick(retry)
+            self._tick(retry)
 
         prompt, session = _parked.launched(retry)
         self.assertEqual(
@@ -593,7 +596,8 @@ class FrozenReadingBoundaryTest(unittest.TestCase, _parked._ParkedDecompositionC
     def test_a_fresh_spawn_quotes_the_frozen_read(self) -> None:
         # A reply landing right behind the read the edit was measured off is
         # in neither the fresh prompt nor the baseline the reset recorded off
-        # that read, and the fresh run's park stops short of it.
+        # that read, and the park its rejected manifest's correction takes
+        # stops short of it.
         self._park()
         self.issue.body = _parked.EDITED_BODY
         reply = self._reply()
@@ -603,7 +607,7 @@ class FrozenReadingBoundaryTest(unittest.TestCase, _parked._ParkedDecompositionC
         with patch.object(self.github, "comments_after", side_effect=behind):
             self._tick(runner)
 
-        prompt = _parked.launched(runner)[0]
+        prompt = runner.call_args_list[0].args[1]
         self.assertEqual(
             (_parked.EDITED_BODY in prompt, _parked.REPLY in prompt, _parked.LATER_REPLY in prompt),
             (True, True, False),

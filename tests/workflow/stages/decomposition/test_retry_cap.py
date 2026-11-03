@@ -19,6 +19,7 @@ from orchestrator import config
 from orchestrator.workflow.engine import content_hash as _content_hash
 from tests.workflow.fixtures import LABEL_READY, _agent, _iso_hours_ago
 from tests.workflow.stages.decomposition import (
+    correction_tick_support as _corrected,
     parked_decomposition_support as _parked,
     retry_cap_support as support,
 )
@@ -30,7 +31,12 @@ KEY_CONTINUED = support.KEY_CONTINUED
 KEY_PARK_REASON = support.KEY_PARK_REASON
 KEY_RETRY_CAP_NOTICE = support.KEY_RETRY_CAP_NOTICE
 KEY_RETRY_CAP_STAGE = support.KEY_RETRY_CAP_STAGE
+KEY_RETRY_COUNT = support.KEY_RETRY_COUNT
 KEY_USER_CONTENT_HASH = "user_content_hash"
+_DAILY_BUDGET = "MAX_RETRIES_PER_DAY"
+# The reply boundary a correction's issue was picked up at, and a reply written while its rejected run was out.
+_BOUNDARY = 900
+_MEANWHILE = "Please retain streaming."
 RUN_AGENT = support.RUN_AGENT
 
 HELD_TICKS = 3
@@ -347,8 +353,8 @@ class FrozenSpawnCapTest(unittest.TestCase, _parked._ParkedDecompositionCase):
     def test_a_capped_fresh_spawn_keeps_the_reply(self) -> None:
         for reply, loses in FROZEN_CAP_CASES:
             with self.subTest(reply=reply, loses_the_notice_write=loses):
+                self._park()
                 with patch.object(config, "MAX_RETRIES_PER_DAY", 1):
-                    self._park()
                     self._reply(reply)
                     self.issue.body = _parked.EDITED_BODY
                     self._refuse_and_hold(loses=loses)
@@ -446,6 +452,105 @@ class FrozenSpawnCapTest(unittest.TestCase, _parked._ParkedDecompositionCase):
             (0, self.floor, self.baseline),
         )
 
+
+
+class CorrectionCapTest(unittest.TestCase, _corrected.CorrectionTickCase):
+    """A manifest correction is a retry the daily budget pays for, and the continuation keeps what it always bought.
+
+    The rejected run spends the last slot, so its correction takes the
+    retry-cap park instead, said once. The trusted continuation retires the
+    session that correction was saved under -- so the attempt is retired, never
+    launched -- and buys the fresh decomposition it always bought, spending
+    the one attempt it granted and nothing more.
+    """
+
+    def test_a_capped_correction_is_retired(self) -> None:
+        with patch.object(config, _DAILY_BUDGET, 1):
+            self._capped()
+            self.reply(CONTINUE_COMMAND)
+            bought = self.decomposer(_corrected.SINGLE)
+
+            self.tick(bought)
+
+        self.assertEqual(len(bought.launches), 1)
+        self.assertIsNone(bought.launches[0].resumed, "the continuation buys a fresh conversation")
+        self.assertEqual(self.stage(), _corrected.RETIRED)
+        self.assertEqual(self.pinned()[KEY_CONTINUED], 0)
+        self.assertEqual(self.runs(), 2)
+        self.assertEqual(self.label(), LABEL_READY)
+
+    def test_a_held_arming_parks_nothing(self) -> None:
+        # A hold landing while the correction is armed, the day's budget
+        # already spent: no retry-cap park is written or said over it, and the
+        # tick behind the lifted hold takes that park once.
+        with patch.object(config, _DAILY_BUDGET, 1):
+            self.opened()
+            with _corrected.CountedEdit.landing(self, _corrected.ARMING, lambda world: world.hold()):
+                self.tick(self.decomposer(_corrected.UNLISTED))
+            held = self.pinned()
+            self.lift()
+            self.tick(self.decomposer(_corrected.LISTED))
+
+        self.assertFalse(held.get(KEY_AWAITING_HUMAN), "no park is written over the hold")
+        self.assertEqual(held[_corrected.FIELD]["stage"], _corrected.PENDING)
+        self.assertEqual(self.pinned()[KEY_PARK_REASON], support.PARK_RETRY_CAP)
+        self.assertEqual(len(self.said()), 1)
+
+    def test_a_capped_correction_keeps_a_later_reply(self) -> None:
+        # A trusted reply written while the rejected run was out stays past
+        # the boundary the correction's retry-cap park records, so the fresh
+        # decomposition the continuation buys is handed it.
+        trusted = patch.object(config, "ALLOWED_ISSUE_AUTHORS", (_corrected.TRUSTED_AUTHOR,))
+        with patch.object(config, _DAILY_BUDGET, 1), trusted:
+            self.opened(last_action_comment_id=_BOUNDARY)
+            self.tick(self.decomposer(_corrected.UNLISTED, during={0: self._replies}))
+            parked = self.pinned()
+            self.reply(CONTINUE_COMMAND)
+            bought = self.decomposer(_corrected.SINGLE)
+
+            self.tick(bought)
+
+        self.assertEqual(parked[KEY_PARK_REASON], support.PARK_RETRY_CAP)
+        self.assertEqual(parked[support.KEY_LAST_ACTION_COMMENT_ID], _BOUNDARY, "the park stops short of the reply")
+        self.assertIn(_MEANWHILE, bought.launches[0].prompt)
+
+    def test_a_held_correction_keeps_its_daily_retry(self) -> None:
+        # A hold met as the correction returns writes nothing of its
+        # disposition: the daily retry it paid landed with its lifetime
+        # charge, so it stays counted through the tick that parks over it.
+        with patch.object(config, _DAILY_BUDGET, 2):
+            self.opened()
+            held = self.decomposer(_corrected.UNLISTED, _corrected.LISTED, during={1: self._holds})
+            self.tick(held)
+            counted = self.pinned()
+            self.lift()
+            self.tick(self.decomposer(_corrected.SINGLE))
+
+        parked = self.pinned()
+        self.assertEqual(counted[KEY_RETRY_COUNT], 2, "the held return keeps it")
+        self.assertEqual(parked[KEY_RETRY_COUNT], 2, "and so does the park over it")
+        self.assertEqual(self.runs(), 2)
+        self.assertEqual(self.stage(), _corrected.EXHAUSTED)
+
+    def _holds(self, world: _corrected.CorrectionTickCase) -> None:
+        """A human pauses the issue while the correction is out."""
+        world.hold()
+
+    def _replies(self, world: _corrected.CorrectionTickCase) -> None:
+        """A trusted human replies while the rejected run is out."""
+        world.reply(_MEANWHILE)
+
+    def _capped(self) -> None:
+        """A rejected run that spent the last slot, its correction parked on the cap, and a quiet tick behind it."""
+        self.opened()
+        rejected = self.decomposer(_corrected.UNLISTED)
+        self.tick(rejected)
+        quiet = self.decomposer(_corrected.LISTED)
+        self.tick(quiet)
+        self.assertEqual(len(rejected.launches) + len(quiet.launches), 1)
+        self.assertEqual(self.pinned()[KEY_PARK_REASON], support.PARK_RETRY_CAP)
+        self.assertEqual(self.stage(), _corrected.PENDING)
+        self.assertEqual(len(self.said()), 1, "the retry-cap park is said once")
 
 
 if __name__ == "__main__":

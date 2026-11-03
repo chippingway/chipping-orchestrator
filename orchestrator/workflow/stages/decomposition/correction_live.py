@@ -1,9 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""What a manifest correction's launch is held to beyond the pinned comment.
-
-Dormant, as the launch it serves is: only `correction_road` asks these, and no
-production road asks that yet.
+"""What a manifest correction's launch and its answer are held to beyond the pinned comment.
 
 The comment says whether the attempt still stands (`correction_standing`);
 this says whether the issue still does, read afresh off GitHub rather than off
@@ -19,25 +16,30 @@ deliver, and no more an edit here than on the parked tick that froze its read
 moves both. It is asked ahead of the launch's charge, behind the pinned
 comment (`answers`), and again right behind that charge (the circuit's
 `OwedLaunch.resolves`), so a hold, a close, a relabel, or an edit landing
-while the attempt was armed and charged invokes nothing. Each of those asks
-ends on the issue fetched once more behind the thread's read (`controls`),
-whose controls and title and body are the ones judged, and the circuit's judge
-of the pinned reading its start is written over asks the whole of it again
-behind that reading (`uncontrolled`), so a hold or an edit landing while an
-earlier request of the check was out is met rather than read past.
+while the attempt was armed and charged invokes nothing; and again before
+anything is made of the answer the correction returns
+(`correction_settlement`), so none of them is answered with a child, a split
+marker, a label, or a park. Each of those asks ends on the issue fetched once
+more behind the thread's read (`controls`), whose controls and title and body
+are the ones judged, and the circuit's judge of the pinned reading its start
+is written over asks the whole of it again behind that reading
+(`uncontrolled`), so a hold or an edit landing while an earlier request of the
+check was out is met rather than read past.
 
 The pinned comment is asked of the context the attempt was armed under ahead
-of the issue itself (`answers`): a session, command, or baseline written there
-since is no conversation the launch belongs to.
+of the issue itself, and read once more behind the issue's requests
+(`answers`): a session, command, or baseline written there since is no
+conversation the launch, or its answer, belongs to.
 
 Five answers, since each is acted on differently. STANDS licenses the step.
 HELD is a control a human applied: nothing moved, nothing is made, and the
 attempt is left as it stands. MOVED is proof the requirements or the saved
-context changed, so the attempt is no longer the tick's to launch and the
-change is the drift road's to route through a fresh decomposition. DISOWNED is
-proof the issue was closed or handed to another label: no road of this
-label's has anything left to do on it. UNREAD is a reading GitHub would not
-answer, which proves nothing and licenses nothing.
+context changed, so the attempt is no longer the tick's to launch, its answer
+is spent, and the change is the drift road's to route through a fresh
+decomposition. DISOWNED is proof the issue was closed or handed to another
+label, so the answer is spent and the tick ends there: no road of this label's
+has anything left to do on it. UNREAD is a reading GitHub would not answer,
+which proves nothing and licenses nothing.
 """
 from __future__ import annotations
 
@@ -51,7 +53,11 @@ from orchestrator.github.client import GitHubClient
 from orchestrator.github.issues import issue_is_closed
 from orchestrator.github.labels import hard_skip_control_label
 from orchestrator.github.pinned_state import PinnedState
-from orchestrator.workflow.engine import comments as _comments, content_hash as _content_hash
+from orchestrator.workflow.engine import (
+    comments as _comments,
+    content_hash as _content_hash,
+    record_admission as _record_admission,
+)
 from orchestrator.workflow.stages.decomposition import (
     correction_commits as _commits,
     correction_records as _records,
@@ -149,7 +155,12 @@ def answers(gh: GitHubClient, issue: Issue, state: PinnedState, source: _records
     (`correction_standing.moved`) -- a session or command pinned in their
     place, or a baseline moved, is MOVED, a conversation the answer no longer
     belongs to, and a reading proving neither is UNREAD. Then the issue
-    (`reads`), its controls and requirements read last.
+    (`reads`), its controls and requirements read last; and then the comment
+    once more behind those requests (`record_admission.stands`), by its id as
+    well as its record, so a session pinned, a cycle moved, or a record
+    refused while the issue and its thread were being read withholds the
+    tick's state and is UNREAD rather than read past -- no notice is posted,
+    and no park written, over a conversation the record no longer names.
     """
     reading = _commits.CorrectionCommit(gh, issue, state).fresh()
     if isinstance(reading, _commits.CorrectionOutcome) or state.withheld:
@@ -164,7 +175,10 @@ def answers(gh: GitHubClient, issue: Issue, state: PinnedState, source: _records
         return Live.MOVED
     if moved is not None:
         return Live.UNREAD
-    return reads(gh, issue, state, source)
+    live = reads(gh, issue, state, source)
+    if live is Live.STANDS and not _record_admission.stands(gh, issue, state):
+        live = Live.UNREAD
+    return live
 
 
 # The circuit's judge of one pinned reading, and the caller's question of the issue beyond it.
@@ -188,9 +202,14 @@ def uncontrolled(judged: _Judge, still: _Question, reading: PinnedState) -> bool
 
 
 def resolves(gh: GitHubClient, issue: Issue, state: PinnedState, source: _records.CorrectionSource) -> bool:
-    """Whether the correction's launch may start now: the circuit's question behind its charge (`reads`)."""
+    """Whether the issue still stands for the correction's next write (`reads`).
+
+    The circuit's question behind the launch's charge, and the question the
+    strict edit recording a park over the attempt asks right before it leaves
+    (`correction_notices.recorded`).
+    """
     live = reads(gh, issue, state, source)
     if live is Live.STANDS:
         return True
-    log.info("issue=#%d reads %s behind its manifest correction's charge; launching nothing", issue.number, live.value)
+    log.info("issue=#%d reads %s ahead of its manifest correction's next write; holding it", issue.number, live.value)
     return False

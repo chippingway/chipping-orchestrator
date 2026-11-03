@@ -21,6 +21,7 @@ from tests.workflow.fixtures import (
     _manifest,
     assert_only_accounted,
 )
+from tests.workflow.stages.decomposition import correction_tick_support as _corrected
 from tests.workflow.stages.decomposition.decomposing_test_support import (
     _DecomposingWorkflowMixin,
 )
@@ -252,3 +253,27 @@ class DecomposerRunUsageAccumulationTest(
             (state[KEY_ISSUE_AGENT_RUNS], len(state[KEY_USAGE_RECEIPTS]["recent"])),
             (1, 1),
         )
+
+
+class CorrectionUsageTest(unittest.TestCase, _corrected.CorrectionTickCase):
+    """The rejected run and the one correction it earns are two processes, each charged and counted once.
+
+    Each is charged against the lifetime ledger and accounted under a receipt
+    of its own; the correction's park, and a quiet tick behind it, add neither
+    a charge nor a count.
+    """
+
+    def test_a_correction_is_counted_once(self) -> None:
+        self.opened()
+        self.tick(self.decomposer(_corrected.UNLISTED, _corrected.SELF_EDGE))
+        parked = self.pinned()
+
+        self.tick(self.decomposer(_corrected.LISTED))
+
+        receipts = parked[KEY_USAGE_RECEIPTS]["recent"]
+        correction = parked[_corrected.FIELD]["correction"]
+        self.assertEqual(self.runs(), 2)
+        self.assertEqual(parked[KEY_ISSUE_AGENT_RUNS], 2)
+        self.assertEqual([ordinal for ordinal, _ in receipts], [1, 2])
+        self.assertEqual(correction["nonce"], receipts[1][1])
+        self.assertEqual(self.pinned(), parked, "the quiet tick behind the park charges and counts nothing")

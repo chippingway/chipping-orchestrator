@@ -106,7 +106,9 @@ file is the durable record.
   same reason until a trusted `/orchestrator continue` buys a fresh reviewer; it carries the failed-run correlation
   fields below and none of the provider's message, which only the notice quotes, redacted and bounded),
   `reviewer_no_verdict`, `decomposer_timeout`, `decomposer_silent`,
-  `decomposer_question`, `decomposer_invalid_manifest`, `decomposer_dirty`, `replacement_lineage_unproved` (a split
+  `decomposer_question`, `decomposer_invalid_manifest` (a refused manifest that earned no correction, a correction's
+  own refused answer, or a correction a later tick gave up — emitted once per park, never for one recorded over a
+  notice already posted), `decomposer_dirty`, `replacement_lineage_unproved` (a split
   whose children's late lineage or snapshot the issue's record cannot prove, whose parent is already at the lineage
   bound, or one of whose slices names a snapshot ref its child would not be kept; a recovery or a dependency walk that
   found a recorded child it cannot recognize as its own — a link, ancestry, pointer, text, or receipt that split did

@@ -58,11 +58,11 @@ round -- the resume answering a pull request's human feedback, a requirements-dr
 fresh report a rewritten head's refresh asks for, and the developer revision a human's guidance buys under a late
 adjudication capture one, as their developer returns. The dispatcher's recovery reads a pending capture through that
 read-back alone.
-A decomposer manifest correction (`decomposer_correction`, a dormant facility no production road arms yet) is recovered
-from its pinned record alone -- the parser's error its correction is asked about included -- never a session id, a
-request fingerprint, a log, analytics, or an in-memory count, and whether its one launch started from the ledgers
-beside it -- the owed start, the run count and its reservation's phase, the usage meter, and the usage receipts -- so a
-start one of them no longer records is still read off the others.
+A decomposer manifest correction (`decomposer_correction`) is recovered from its pinned record alone -- the parser's
+error its correction is asked about included -- never a session id, a request fingerprint, a log, analytics, or an
+in-memory count, and whether its one launch started from the ledgers beside it -- the owed start, the run count and
+its reservation's phase, the usage meter, and the usage receipts -- so a start one of them no longer records is still
+read off the others, and a park over it from the receipt its notice ends on.
 
 **Specs:** [state](architecture.md#design-constraints), [restarts](configuration/operations.md#what-survives-a-restart).
 
@@ -76,7 +76,8 @@ start one of them no longer records is still read off the others.
 [captured drift](../tests/workflow/stages/validating/test_captured_drift.py),
 [captured refreshes](../tests/workflow/stages/validating/test_captured_refresh.py),
 [captured revisions](../tests/workflow/stages/decomposition/test_late_revision.py),
-[correction recovery](../tests/workflow/stages/decomposition/test_correction_recovery.py).
+[correction recovery](../tests/workflow/stages/decomposition/test_correction_recovery.py),
+[recovered corrections](../tests/workflow/stages/decomposition/test_correction_recovery_ticks.py).
 
 ## C-02: Workflow labels and transitions
 
@@ -240,7 +241,9 @@ cursor carry reads both back, and nothing settles from either.
 A decomposer manifest correction (`decomposer_correction`) is read only whole as well: absent is an issue that armed
 none, and any other shape -- `null`, a key too many or too few, a member out of its bound, or a correction not charged
 after its source on that comment and in that cycle -- is a damaged claim, never an absence, so nothing arms over it,
-resolves it, or launches on it.
+resolves it, or launches on it, and an initial decomposition carrying one holds its tick with the claim kept and
+nothing launched, created, or written. Every park over an attempt ends on a hidden receipt naming the issue and the
+source invocation's nonce, which counts as that park's notice only on a comment of ours past the reply boundary.
 
 Unsupported input cannot serve as fresh work, current evidence, or authorization to publish or delete artifacts. Neither
 a format change nor a refusal grants permission to discard that input or the artifacts it names; the owning
@@ -504,17 +507,37 @@ comment that moved since the caller read it; asking again records nothing twice,
 it was resolved across so nothing it covers -- its correction's own answer included -- arms one again after a restart, a
 resolution is refused wherever no readable count covers every charge its ledgers record rather than landing a floor
 below a charge taken, and a retirement for a moved context is held to a reading that proves the move, so a baseline or
-pin nobody can read retires nothing. Its launch is granted only where the charge counts read and the comment has room
-for the charge and start it leaves beside the attempt's widest resolution. The dormant road that arms one writes the
-rejected run's own disposition first, strictly over the comment its caller last synced with, and arms only behind that
-landing write, so the session and baseline it is held to are durable and no session or cycle written meanwhile is put
-back; a comment moved since, a write nobody confirmed, or an arming left withholding the caller arms or launches
-nothing. Its launch's charge and start land only over the readings they were decided on, each asking the issue and the
-comment once more immediately before it leaves -- the comment by its id as well as its record, so one posted in its
-place with the same record holds it too -- so a session pinned while the issue is asked behind either is never written
-back over and resumed, and a spent budget's park before that launch is written only over the comment the tick read and
-an issue still standing, and announced only where both still stand behind the notice's thread read.
-Writer exclusion comes from [C-05].
+pin nobody can read retires nothing; a tick's own reset it rests on is written only over the comment the retirement
+read, and no fresh decomposer is charged behind an attempt whose retirement did not land. Its launch is granted only
+where the charge counts read and the comment has room for the charge and start it leaves beside the attempt's widest
+resolution. The rejection that arms one writes the rejected run's own disposition first, strictly over the comment its
+caller last synced with, and arms only behind that landing write, so the session and baseline it is held to are durable
+and no session or cycle written meanwhile is put back; a comment moved since, a write nobody confirmed, or an arming
+left withholding the caller arms or launches nothing. Its launch's charge and start land only over the readings they
+were decided on, each asking the issue and the comment once more immediately before it leaves -- the comment by its id
+as well as its record, so one posted in its place with the same record holds it too -- so a session pinned while the
+issue is asked behind either is never written back over and resumed, and a spent budget's park before that launch is
+written only over the comment the tick read and an issue still standing, and announced only where both still stand
+behind the notice's thread read. Every other park over an attempt -- its correction's answer parked, one given up, or
+one a later tick recovers -- is written and announced only over a comment read back as the tick's own, still carrying
+the attempt bound to its record and cycle, holds its words on the record before its post -- cut to fit, its latest error
+quoted to a bound and the last of them cut, where the comment cannot hold them whole -- is posted only where that
+comment, read once more behind the issue's requests, is still the tick's own, lands only over the comment that write
+synced with and only while the issue, read right before that edit, still stands, and lands before the attempt is
+resolved: a usable answer is acted on only behind an exhaustion that landed and left the caller's state its own, over a
+comment read behind it as the tick's own, so a lost exhaustion leaves a park standing over a pending attempt and never
+children beside one, and a park whose write did not land is recorded over the notice its receipt finds rather than said
+twice -- ahead of the next tick's drift check and bounded, so a reply written meanwhile stays the saved session's rather
+than reading as an edit, and in the words the record held for it, so a post that never landed loses neither its error
+nor its answer; a notice held so is posted only where the comment and the issue, read afresh behind the write holding
+it, still stand, and is otherwise left owed. A recovery that reads the requirements moved spends the attempt and decides
+the rest of its tick on the issue it read them off, so the drift road's fresh decomposition reads what moved, and an
+exhausted attempt whose split transaction stands on the parent is the split recovery's to finish, never parked in its
+place. A notice held for an attempt a move or a close then spends or retires is dropped behind that resolution,
+strictly, rather than left on the comment for the stages behind -- or, where that drop did not land, before a later
+tick's run -- and no resume or fresh decomposer is charged beside an attempt whose exhaustion did not land; a notice is
+posted whole only where one comment carries it as GitHub receives it, receipt and comment marker included. Writer
+exclusion comes from [C-05].
 
 **Specs:** [transactions](state-machine/labels-and-state.md#pinned-state),
 [publication evidence](security.md#what-a-trusted-pinned-record-still-cannot-license),
@@ -548,7 +571,10 @@ Writer exclusion comes from [C-05].
 [in-flight splits](../tests/workflow/stages/decomposition/test_late_split_recovery.py),
 [correction writes](../tests/workflow/stages/decomposition/test_correction_arming.py),
 [correction resolutions](../tests/workflow/stages/decomposition/test_correction_resolution.py),
-[correction dispositions](../tests/workflow/stages/decomposition/test_correction_request.py).
+[correction dispositions](../tests/workflow/stages/decomposition/test_correction_request.py),
+[unconfirmed corrections](../tests/workflow/stages/decomposition/test_correction_recovery_ticks.py),
+[corrections against moves](../tests/workflow/stages/decomposition/test_correction_moves.py),
+[held correction notices](../tests/workflow/stages/decomposition/test_park.py).
 
 ## C-07: Publication authority and exact revisions
 
@@ -618,17 +644,19 @@ Credential filtering does not enforce push authority; see [C-11].
 
 **Why:** Replies must mean what the prompt requested.
 
-**Limits:** Malformed replies follow the role's policy for retries or human guidance. The dormant decomposer
-manifest correction -- no production road asks for one yet, so a refused manifest still parks -- is granted only to a
-completed, accounted, read-only run's manifest the parser refuses with a concrete error, never to a correction's own
-answer, and asks under the very output contract the decompose prompt closes on, beside that exact error. Session
-identity is covered by [C-14].
+**Limits:** Malformed replies follow the role's policy for retries or human guidance. An initial decomposer's
+manifest the parser refuses with a concrete error, from a completed, accounted, read-only run, earns one correction
+asked under the very output contract the decompose prompt closes on, beside that exact error, and the correction's
+answer is read by the same parser and earns none of its own; a question, silence, or a failed, incomplete, timed-out,
+interrupted, or dirty run earns none, and no dependency list is inferred from a child's prose. Session identity is
+covered by [C-14].
 
 **Specs:** [reply protocols](workflow.md).
 
 **Checks:** [report prompts](../tests/workflow/engine/test_prompts_developer_report.py),
 [manifest contract](../tests/workflow/stages/decomposition/test_manifest.py),
-[correction eligibility](../tests/workflow/stages/decomposition/test_correction_eligibility.py).
+[correction eligibility](../tests/workflow/stages/decomposition/test_correction_eligibility.py),
+[manifest corrections](../tests/workflow/stages/decomposition/test_correction_road.py).
 
 ## C-09: Reports, review subjects, and verification
 
@@ -750,14 +778,26 @@ write behind its notice, and those replies are no answer to that park; the conti
 none of them either, and the fresh decomposition it buys is handed them whole. The boundary
 and requirements baseline move only behind a run that read the thread,
 and every park that run's disposition takes, a split's included, records the thread read through our own comments
-and no further. The dormant decomposer manifest correction's launch is held to its pinned comment's saved session,
-command, and baseline, and to the issue read afresh -- ahead of its daily retry, behind its charge, and on the reading
-its start is written over, each check judging the controls and requirements off the issue fetched last: a
-`paused`/`backlog` hold, a close, a label other than `workflow:decomposing`, requirements that read as neither the whole
-thread nor the stretch through the settled reply boundary, or an issue GitHub would not answer for invokes nothing -- a
-hold landing while its charge's or start's edit walks to the comment included -- a charge already taken staying reserved
-for that same launch; an attempt its comment no longer grants a launch -- started, crowded, unproved, or resolved --
-asks no retry, so no `retry_cap` park is taken or said for it. Lifetime agent-run charges and the grant that permits
+and no further. A decomposer manifest correction's launch is held to its pinned comment's saved session, command,
+and baseline, and to the issue read afresh -- ahead of its daily retry, behind its charge, and on the reading its start
+is written over -- and so is its answer, before it is used or parked, before a later tick recovers a park owed to it,
+and once more behind the write that spends it, each check judging the controls and requirements off the issue fetched
+last: a `paused`/`backlog` hold, a close, a label other than `workflow:decomposing`, requirements that read as neither
+the whole thread nor the stretch through the settled reply boundary, where one stands, as the revision its rejected run
+was handed, a session, command, or baseline pinned in place of the ones it was armed under, or an issue GitHub would
+not answer for invokes nothing and makes no child, split marker, label, or park on the owner it moved to -- a hold
+landing while its charge's or start's edit walks to the comment included, a charge already taken staying reserved for
+that same launch, and a recovery that finds the issue closed or relabelled spending the attempt and ending the tick.
+An attempt its comment no longer grants a launch -- started, crowded, unproved, or resolved -- asks no retry, so no
+`retry_cap` park is taken or said for it. A reply written past the boundary the rejected run settled stays that run's
+session's, before a launch a later tick owes -- that tick freezing its read as a parked one does, wherever a boundary
+stands -- and during it, whose parks are bounded by that read, as are those of a correction launched on its rejected
+run's own tick wherever that run's boundary is the one its baseline was settled through; an edit is answered by the
+drift reset's fresh decomposition, the attempt resolved rather than replenished; with no boundary, every reply is such
+an edit. A spent daily budget parks its launch on `retry_cap`, whose continuation retires the session and with it the
+attempt; a spent lifetime ledger parks it on `agent_run_limit`, whose grant alone buys that launch. A correction a
+hold, an unresolved accounting, an interruption, or a lost write left unanswered is never launched again: the next tick
+parks for a human, the session left for their reply to resume. Lifetime agent-run charges and the grant that permits
 further runs are covered by [C-15].
 
 **Specs:** [controls](state-machine/labels-and-state.md#workflow-labels),
@@ -792,7 +832,9 @@ further runs are covered by [C-15].
 [held refreshes](../tests/workflow/stages/validating/test_captured_refresh.py),
 [held revisions](../tests/workflow/stages/decomposition/test_captured_revision.py),
 [closes over held revisions](../tests/workflow/stages/decomposition/test_late_revision_close.py),
-[held correction launches](../tests/workflow/stages/decomposition/test_correction_launch_holds.py).
+[held correction launches](../tests/workflow/stages/decomposition/test_correction_launch_holds.py),
+[held corrections](../tests/workflow/stages/decomposition/test_correction_live.py),
+[capped corrections](../tests/workflow/stages/decomposition/test_retry_cap.py).
 
 ## C-11: Credentials and execution boundaries
 
@@ -855,12 +897,12 @@ parameters.
 
 **Limits:** Reviewers start fresh with current configuration. A plain `codex` or `claude` is a current command spec,
 kept as pinned with no arguments. Resumes, rotation, failure retirement, and a failed developer conversation's
-replacement keep the pinned command, and a recovered captured completion pins the command its run ran under. The dormant
+replacement keep the pinned command, and a recovered captured completion pins the command its run ran under. A
 decomposer manifest correction resumes the session its rejected run saved under the command pinned beside it, backend
-and arguments alike, whatever `DECOMPOSE_AGENT` says now; a pinned command that does not parse, or a session never
-saved, not the one that run itself returned, or not one token no CLI reads as an option, earns no correction and no
-replacement conversation, and a recorded attempt carrying such a session is never launched. Only `dev_agent` and
-`dev_session_id` lock a developer session; no other key is resumed, converted, or cleared as one.
+and arguments alike, whatever `DECOMPOSE_AGENT` says now and whichever tick launches it; a pinned command that does not
+parse, or a session never saved, not the one that run itself returned, or not one token no CLI reads as an option, earns
+no correction and no replacement conversation, and a recorded attempt carrying such a session is never launched. Only
+`dev_agent` and `dev_session_id` lock a developer session; no other key is resumed, converted, or cleared as one.
 
 **Specs:** [session commands](workflow.md#in-flight-session-lock--pinned-full-spec-until-the-session-ends).
 
@@ -885,8 +927,9 @@ accounted under the identity of the process it came from -- the charge that proc
 nonce, never the request's fingerprint -- and a receipt, or the floor receipts retire under, covers that identity, so
 a settlement asked again never moves the meter past the charges it counts.
 A decomposer manifest correction's one launch is charged before it runs like any other launch, owed once at its source's
-charge: a start its ledgers show or cannot rule out is never launched again, and nothing about it refunds or grants a
-run. The daily retry its dormant launch pays is staged in the write reserving that charge, refusing the charge with
+charge, and accounted once as it returns: a start its ledgers show or cannot rule out is never launched again, and
+nothing about it -- its answer, a park, or the `agent_run_limit` park its launch takes -- refunds or grants a run. The
+daily retry its launch pays is staged in the write reserving that charge, refusing the charge with
 nothing written where that reading has no slot left, and a charge reserved and never started is started by that same
 launch -- its request names no retry count -- in whatever daily window, paying neither the charge nor the retry
 again. A spent lifetime ledger's `agent_run_limit` park refusing that launch is written only over the reading it was
@@ -901,7 +944,8 @@ back. A launch that owes nothing beside its charge is reserved, and parked, exac
 [meter floor](../tests/workflow/engine/test_run_ledger.py),
 [accounting once](../tests/workflow/engine/test_invocation_identity.py),
 [correction launches](../tests/workflow/stages/decomposition/test_correction_launch.py),
-[correction retries](../tests/workflow/stages/decomposition/test_correction_launch_holds.py).
+[correction retries](../tests/workflow/stages/decomposition/test_correction_launch_holds.py),
+[corrections counted once](../tests/workflow/stages/decomposition/test_usage.py).
 
 ## Maintaining the contracts
 

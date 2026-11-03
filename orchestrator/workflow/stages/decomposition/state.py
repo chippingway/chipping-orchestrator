@@ -109,10 +109,18 @@ _DECOMPOSER_SESSION_ID = "decomposer_session_id"
 
 # The one manifest correction an initial decomposition may be allowed
 # (`correction_records.py`): written only through its own guarded commits
-# (`correction_checkpoint.py`), which own this field and nothing else, and
-# dormant -- only the prepared `correction_road.py` arms one, and no production
-# road asks it to yet.
+# (`correction_checkpoint.py`), which own this field and nothing else -- armed
+# at a rejected answer (`correction_road.py`), resolved by its correction's
+# answer or a later tick (`correction_settlement.py`, `correction_reconcile.py`).
 _DECOMPOSER_CORRECTION = "decomposer_correction"
+
+# The park notice a manifest correction's park is about to post, written on the
+# record before the post (`correction_notices.owing`) and dropped by the write
+# that records the park -- or, where a move or a close took that park away, as
+# its attempt is spent or retired (`correction_settlement.discards`) -- so a
+# post that never landed is posted again from it, the latest error and
+# rejected answer included, rather than from what the attempt alone recalls.
+_DECOMPOSER_CORRECTION_NOTICE = "decomposer_correction_notice"
 
 _HeldChild = tuple[int, list[int]]
 

@@ -42,8 +42,8 @@ class OwedLaunch:
 
     A decomposer manifest correction's one launch is owed the same way, at its
     source's charge (`stages/decomposition/correction_standing.owed_launch`),
-    asked through a dormant launch helper no production road calls yet
-    (`stages/decomposition/correction_road.launch`).
+    asked by the initial decomposition at the rejection that armed it or on
+    the tick that finds it still owed (`stages/decomposition/correction_road.launch`).
 
     `at` is the lifetime run count it is owed at, which its start records
     (`run_ledger_values.AGENT_RUN_OWED_STARTED`). Whatever its caller held

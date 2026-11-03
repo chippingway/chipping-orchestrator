@@ -48,14 +48,17 @@ class _DecomposerRunPlan:
     written while the run was out.
 
     `correction` is the attempt a manifest correction's run answers
-    (`correction_road`), None for every other run -- and for every run
-    production makes, since no production road launches a correction yet: the
-    run's answer is that attempt's to spend, so it earns no correction of its
-    own (`correction_source.earned`). `corrected_by` lays a correction launched
-    behind its source on the same tick onto that source's own plan, so the
-    worktree policy its disposition decides is the one the tick's cleanup
-    honors, and its parks are bounded by `corrected_bounded`
-    (`correction_road.bounds`) rather than by a read it was never handed.
+    (`correction_road`), None for every other run: the run's answer is that
+    attempt's to spend, so it earns no correction of its own
+    (`correction_source.earned`), and each disposition it reaches -- a park, a
+    hold, a manifest acted on -- is decided with the attempt beside it.
+    `corrected_by` lays a correction launched behind its source on the same
+    tick onto that source's own plan, so the worktree policy its disposition
+    decides is the one the tick's cleanup honors, and its parks are bounded by
+    `corrected_bounded` (`correction_road.bounds`) rather than by a read it was
+    never handed. One a later tick launches carries that tick's frozen read in
+    `replies` only to bound its parks: it was handed the error alone, so it
+    settles nothing of the read (`outcomes._settle_decomposer_run`).
     """
 
     agent_result: AgentResult | None

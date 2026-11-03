@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Which rejected initial decomposer answer earns a manifest correction, and how its conversation is resumed.
 
-A dormant gate: only `correction_road.requests` asks it, and no production
-road asks that yet, so every rejected answer still parks.
+Asked by `correction_road.requests` at the initial decomposition's rejection
+(`outcomes._dispatch_decomposer_manifest`); an answer that earns nothing parks
+as it always has.
 
 Only one kind of answer earns one (`earned`): the authoritative manifest
 parser's concrete parse or structural error over a run that completed --

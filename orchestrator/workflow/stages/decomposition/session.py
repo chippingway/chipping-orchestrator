@@ -28,6 +28,14 @@ outlive either reset for the same reason it exists, and the retirement is
 separate from the run that follows it because that run cannot do it: a spawn
 records an id only where the backend hands one back, so a question or a
 timeout that surfaced none would leave the retired conversation resumable.
+
+A manifest the parser refused resumes the session once more, unasked: the one
+correction that answer earns (`correction_road`), launched under the same
+pinned command with the exact error. Which of the runs here a tick makes is
+decided behind the correction an earlier tick left pending
+(`correction_reconcile.run_for_the_tick`), so no decomposer is charged behind
+it; a retirement above moves the context that correction was armed under, so
+it is retired rather than launched.
 """
 from __future__ import annotations
 

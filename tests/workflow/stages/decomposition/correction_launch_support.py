@@ -1,9 +1,10 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A rejected decomposer run on the correction world, and the dormant correction road asked over it.
+"""A rejected decomposer run on the correction world, and the correction road asked over it.
 
-The road is asked directly -- no production stage calls it yet -- with only the
-decomposer process scripted (`Runner`) and the read-only checkout named, so the
+The road is asked directly, as the manifest dispatch and a later tick's
+reconciliation ask it, with only the decomposer process scripted (`Runner`)
+and the read-only checkout named, so the
 strict writes, the arming, the daily retry, the run circuit's charge, and every
 fresh read of the issue are the production ones. What befalls the issue
 meanwhile (`Meanwhile`) can land right before one of its fresh fetches

@@ -91,8 +91,9 @@ retirement, each owning that capture alone (`completion_checkpoint`), with its
 transfer landing through the developer report's recording above
 (`completion_handoff`), and a decomposer manifest correction's arming,
 exhaustion, and retirement, each owning that record alone
-(`stages/decomposition/correction_checkpoint`), which no road makes yet. Every
-other road still rewrites the whole record.
+(`stages/decomposition/correction_checkpoint`), made by the initial
+decomposition's rejection, its correction's answer, and a later tick's
+reconciliation. Every other road still rewrites the whole record.
 
 The report's commits are captured over the reading a tick last synced with the
 comment (`PinnedState.synced`), so what the tick staged since is told from what

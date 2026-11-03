@@ -10,6 +10,7 @@ from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import content_hash as _content_hash
 from orchestrator.workflow.stages.decomposition import run as _decomposing, session as _decomposer_session
 from tests.workflow.stages import full_spec_test_support as support
+from tests.workflow.stages.decomposition import correction_tick_support as _corrected
 
 BACKEND_CLAUDE = support.BACKEND_CLAUDE
 BACKEND_CODEX = support.BACKEND_CODEX
@@ -135,3 +136,39 @@ class FullSpecDecomposerPersistenceTest(
         self.assertEqual(backend, BACKEND_CODEX)
         self.assertEqual(args, ())
         self.assertEqual(sid, "sid-x")
+
+
+def _unanswered(world: _corrected.CorrectionTickCase) -> None:
+    raise RuntimeError("502")
+
+
+class CorrectionSpecTest(unittest.TestCase, _FullSpecFixtureMixin, _corrected.CorrectionTickCase):
+    """A correction resumes the session its rejected run saved under the command that run was pinned with."""
+
+    def test_a_held_correction_keeps_its_command(self) -> None:
+        # Refused its start by a GitHub read that did not answer, the
+        # correction is launched on a later tick after DECOMPOSE_AGENT flipped
+        # to claude, and still resumes the saved session on codex, with the
+        # codex arguments, asked about the error its record keeps.
+        self._held_under_codex()
+        self._enter(self._patch_decompose_config(CLAUDE_SPEC, BACKEND_CLAUDE, CLAUDE_ARGS))
+        later = self.decomposer(_corrected.SINGLE)
+
+        self.tick(later)
+
+        launched = later.launches[0]
+        self.assertEqual(len(later.launches), 1)
+        self.assertEqual(launched.command(), (BACKEND_CODEX, CODEX_ARGS))
+        self.assertEqual(launched.resumed, _corrected.SESSION)
+        self.assertIn(_corrected.UNLISTED_ERROR, launched.prompt)
+        self.assertEqual(self.pinned()[DECOMPOSER_AGENT], CODEX_SPEC)
+
+    def _held_under_codex(self) -> None:
+        """A rejected run pinned under the codex spec, whose correction's start a read nobody answered refused."""
+        self.opened()
+        self._enter(self._patch_decompose_config(CODEX_SPEC, BACKEND_CODEX, CODEX_ARGS))
+        rejected = self.decomposer(_corrected.UNLISTED)
+        with _corrected.OnFetch.patch(self, _corrected.BEHIND_THE_CHARGE, _unanswered):
+            self.tick(rejected)
+        self.assertEqual(len(rejected.launches), 1)
+        self.assertEqual(self.stage(), _corrected.PENDING)

@@ -23,12 +23,14 @@ tick asks the others in and `outcomes` the three dispositions its reply earns,
 `correction_commits`, and `correction_checkpoint` own the one manifest
 correction a rejected answer may earn -- its pinned record, the room it needs,
 what a reading grants it and the launch it is owed once at the run circuit,
-and the guarded writes over it -- with `correction_source` which answer earns
-one and the resumed launch it buys, `correction_road` its arming over the
-run's strictly written disposition and its launch, `correction_live` the issue
-read afresh around that launch, and `correction_budget` the daily retry its
-charge pays: a dormant facility no production road invokes yet, so an invalid
-manifest still parks,
+and the guarded writes over it -- while `correction_source` owns which answer
+earns one and the resumed launch it buys, `correction_road` its arming and
+launch at the rejection, `correction_budget` the daily retry that launch pays,
+`correction_live` the issue read afresh around that
+launch and its answer, `correction_settlement` what that answer may come to and
+the exhaustion or retirement that resolves it, `correction_notices` the receipt
+its parks end on, and `correction_reconcile` what a later tick owes an attempt
+left pending,
 `recovery` owns what a tick that died mid-split left behind -- with
 `split_repair` the seed it writes onto a recorded child -- `split` owns the
 crash-safe order children are created in, `split_summary` the summary a split

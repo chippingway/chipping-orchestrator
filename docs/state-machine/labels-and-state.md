@@ -1178,7 +1178,7 @@ and the evidence invalidation or hold that withholds a no-change one, the retire
 conversation, the in_review ready ping's arming and its settlement and the unmergeable park behind its notice, and the
 `workflow:ready` decision's reroute and handoff and the retirement of that reroute's marker land through, as do a
 developer completion's capture, transfer, and retirement and a decomposer manifest correction's arming, exhaustion,
-and retirement, which no road makes yet) is never written from its caller's state. It is captured
+and retirement) is never written from its caller's state. It is captured
 from the reading the caller decided on — the comment's id, every field as the comment's JSON spells it, the
 prerequisite fields the decision rests on, an absent one included, and the fields the caller owns — and derived over a
 fresh reading: each field the caller's staged state
@@ -1400,8 +1400,8 @@ The keys that matter for the state machine fall into a few groups:
   `workflow:decomposing`, withholding its summary, its label, and its first release until that recovery has seeded the
   child.
 - **A decomposer manifest correction.** `decomposer_correction` is the one correction an initial decomposition may be
-  allowed once its decomposer's answer fails manifest validation: a dormant facility no production road arms,
-  launches, or resolves yet, so an invalid manifest still parks as the
+  allowed once a completed run's answer fails manifest validation: armed at that rejection, launched once, and
+  resolved by the correction's answer or by a later tick, as the
   [decomposing handler](delivery-stages.md#_handle_decomposing-label-workflowdecomposing) describes. One flat object
   holds at most one attempt, tied to the process invocation whose answer was rejected (`source`, the six members its
   tracked spawn minted), the requirements revision that run was handed (`requirements`, one digest), the decomposer
@@ -1453,20 +1453,21 @@ The keys that matter for the state machine fall into a few groups:
   does until a read-back (`correction_checkpoint.read_back`) finds what landed, which is also how a restarted process
   reconstructs the attempt from the comment alone.
 
-  The dormant helpers that would arm and launch it are prepared and directly tested, and no production road calls them.
-  Only a completed run earns an attempt (`stages/decomposition/correction_source.py`): invoked, not interrupted or timed
-  out, a zero exit with no terminal failure or unfinished step, its usage accounted under an invocation, its checkout
-  already proved read-only by its caller, no correction's own answer, the parser's error concrete and asked of the
-  parser again, and a `decomposer_session_id` the pinned `decomposer_agent` command parses and resumes, one token no CLI
-  reads as an option and the very session the rejected run itself returned, so a saved `--last`, or an older pin a run
-  that surfaced no session id left standing, selects no other conversation; a run that saved no such session or pinned
-  no parsable command earns none, never a replacement conversation, and a recorded attempt whose saved session is no
-  such token is never launched. Asking for it (`stages/decomposition/correction_road.py`) writes the run's own
-  disposition so far — the session pin, a frozen read's settlement, the stamp — whole and first, only while the comment
-  still reads as the caller last synced with it (`engine/record_admission.strictly_written`), over a comment read back
-  unmoved: a session pinned or a cycle moved meanwhile holds with the caller's state withheld, nothing written over it
-  and nothing armed. The arming follows that write; one crowded hands the attempt back with no launch for the caller's
-  ordinary park, and one refused hands back nothing. The launch reads the comment back unmoved, still granting the
+  The initial decomposition arms and launches it at the rejection, and a later tick launches, retires, or gives up an
+  attempt that tick left pending. Only a completed run earns an attempt (`stages/decomposition/correction_source.py`):
+  invoked, not interrupted or timed out, a zero exit with no terminal failure or unfinished step, its usage accounted
+  under an invocation, its checkout already proved read-only by its caller, no correction's own answer, the parser's
+  error concrete and asked of the parser again, and a `decomposer_session_id` the pinned `decomposer_agent` command
+  parses and resumes, one token no CLI reads as an option and the very session the rejected run itself returned, so a
+  saved `--last`, or an older pin a run that surfaced no session id left standing, selects no other conversation; a run
+  that saved no such session or pinned no parsable command earns none, never a replacement conversation, and a recorded
+  attempt whose saved session is no such token is never launched. Asking for it
+  (`stages/decomposition/correction_road.py`) writes the run's own disposition so far — the session pin, a frozen read's
+  settlement, the stamp — whole and first, only while the comment still reads as the caller last synced with it
+  (`engine/record_admission.strictly_written`), over a comment read back unmoved: a session pinned or a cycle moved
+  meanwhile holds with the caller's state withheld, nothing written over it and nothing armed. The arming follows that
+  write; one crowded hands the attempt back with no launch for the caller's ordinary park, given up behind it, and one
+  refused hands back nothing, so the run parks as before. The launch reads the comment back unmoved, still granting the
   attempt its launch — one started, crowded, unproved, or resolved asks no retry, so no `retry_cap` park is taken for it
   — and its saved context — baseline and both pins — unchanged, then the issue afresh
   (`stages/decomposition/correction_live.py`): a `paused`/`backlog` hold, a close, a label other than
@@ -1486,8 +1487,45 @@ The keys that matter for the state machine fall into a few groups:
   checkout, with the exact error and the whole output contract the decompose prompt closes on
   (`engine/decomposition_prompts._build_correction_prompt`); its request names no retry count, so a charge it reserved
   is the same launch's to start in any later daily window. Its parks are bounded where the tick's scope bounds them or
-  the reply boundary is the one the source's requirements were settled through (`correction_road.bounds`). Nothing yet
-  publishes a correction's answer or recovers an attempt on a later tick.
+  the reply boundary is the one the source's requirements were settled through (`correction_road.bounds`).
+
+  The correction's answer is disposed of as any decomposer answer is, and earns no correction of its own
+  (`stages/decomposition/correction_settlement.py`): a usable manifest is acted on only once the issue, read afresh,
+  still stands, the attempt is exhausted over a write leaving the caller's state its own, and the comment — still
+  carrying the saved context and the attempt bound to its record and cycle — and then the issue, read afresh behind that
+  write, still stand, before the first child, split marker, or label; a close, a relabel, an edit, or a moved pin spends
+  it and makes nothing, and a hold or an unread reading makes nothing and spends nothing, save behind the exhaustion,
+  which leaves the spent attempt for the next tick to park over. Every park taken over an attempt — the correction's own
+  answer parked, and one armed with no launch granted given up behind the ordinary park — is taken only over a comment
+  read back unmoved, still carrying the attempt and its saved context, and an issue that still stands, read afresh ahead
+  of the post; ends on the hidden receipt `<!--orchestrator-decomposer-correction:issue=<n>:source=<nonce>-->`, the
+  nonce the source invocation's own; holds its words on the record as `decomposer_correction_notice` (the source's nonce
+  and the message, whole or cut from its end to what the comment has room for beside the rest of the record, a line
+  saying so and its opening line naming the latest error, quoted to at most 1024 characters, the last of it cut),
+  written strictly from just before the post until the write recording the park — or, where a move or a close took that
+  park away, until its attempt is spent or retired, which drops it strictly
+  (`stages/decomposition/correction_settlement.discards`) — so a post that never landed is said in its own words, and
+  posts them on its own tick — the notice whole where one comment carries it as posted, receipt and comment marker
+  included, else the words held — only where the comment, the issue, and the comment again, read afresh behind that
+  write, still stand, the notice otherwise left owed; lands strictly, over the comment that write synced with and only
+  while the issue, read afresh right before that edit leaves, still stands, while the attempt is still pending; and has
+  the attempt exhausted behind it only where it landed (`stages/decomposition/correction_notices.py`). A tick that finds
+  the attempt owed a park it does not stand on takes it ahead of its frozen read and drift check (save an exhausted one
+  whose split transaction stands on the parent, the split recovery's to finish) — spending the attempt and ending the
+  tick instead on an issue closed or relabelled meanwhile, and going on with the issue fetched afresh where it read the
+  requirements moved, so the drift check reads what moved — recording it over a comment of ours past the reply boundary
+  carrying that receipt rather than posting it again, and bounded either way, so a reply written while the correction
+  was out stays the saved session's to be resumed on (`stages/decomposition/correction_reconcile.py`). An eligible
+  attempt on an issue no park stands on is launched there, one whose context moved retired — the tick's own reset
+  written first where only it shows the move, only over the comment the retirement read — and any other pending one
+  exhausted, behind a park where none stands, before any decomposer is charged behind it; a retirement or an exhaustion
+  that does not land holds the tick with no resume or fresh decomposer charged, and a notice whose drop did not land is
+  dropped before a later tick's run, over a resolved attempt or none. A tick owing a pending attempt's launch freezes
+  its thread as a parked tick does wherever a reply boundary stands, so a reply written past the boundary the rejected
+  run settled is no edit, and the launched correction's parks are bounded by that read without settling it; a correction
+  launched on its rejected run's own tick bounds its parks wherever that run's boundary is the one its baseline was
+  settled through. A claim nobody can read holds every `decomposing` tick with nothing reset, launched, created, or
+  written until it is repaired.
 - **A debt with no record behind it.** `late_approved_sha` + `late_approved_lease` + `late_approved_basis` outlive the
   generation that granted them, because the write that approves a candidate retires that generation before the push.
   The basis is what the debt RESTS on, said by the owner that granted it rather than inferred from the records
@@ -4308,7 +4346,7 @@ The keys that matter for the state machine fall into a few groups:
   taken before the spawn, so a run that crashed, timed out, or was killed mid-flight is still spent; settling a
   reservation drops the phase and the fingerprint together, never the charge. `agent_run_owed_started` is the count
   the last launch owed exactly once was owed at — a persisted change request's developer, at its `handed` count, or a
-  decomposer manifest correction's, at its source's charge, which no production road launches yet — written in the
+  decomposer manifest correction's, at its source's charge — written in the
   very write that moves that launch to `started` and by nothing else, so it says that launch reached a process whatever
   other runs were charged beside or after it; additive, absent until such a launch starts, and not kept by a
   projection, which rebuilds an issue with no launch outstanding. This owner decides nothing and posts
@@ -4326,7 +4364,7 @@ The keys that matter for the state machine fall into a few groups:
   said, for the reason the retry cap's does — a notice on a thread no pinned state backs is one nothing would ever
   reconcile — and where the comment does not take it, as over a record a human edited into a version admission refuses,
   neither the notice nor the budget record of the park is said. A park refusing a strict launch (`OwedLaunch.strict`,
-  the dormant manifest correction's) is written as that launch's charge would have been, only over the reading it was
+  the manifest correction's) is written as that launch's charge would have been, only over the reading it was
   refused on, and said only where its caller's requests and the comment, read once more behind the notice's thread read,
   still stand ([The agent-run circuit](#the-agent-run-circuit)). `agent_run_limit_notice` is a record rather than a bare
   sentence: the message, the `allowance` in force, and the runs `spent` against it. The reason under this park never
@@ -4511,9 +4549,10 @@ the budget never sees, which is the late adjudication and its live generation.
 
 - **The accounting.** `retry_window_start` + `retry_count`, against the bound `MAX_RETRIES_PER_DAY` sets. The window
   opens at the first counted attempt and reopens once 24h have elapsed. Only fresh spawns count: a resume on a human
-  reply and a recovered worktree's push are an unblock signal and carry-over work. The dormant decomposer manifest
-  correction's launch would count as one: it resumes a session, but nobody asked for it, so it is the automatic retry
-  the budget bounds, a spent budget taking the `retry_cap` park in its place. An unbounded budget (`0`) counts
+  reply and a recovered worktree's push are an unblock signal and carry-over work. A decomposer manifest
+  correction's launch counts as one: it resumes a session, but nobody asked for it, so it is the automatic retry the
+  budget bounds, and a spent budget takes the `retry_cap` park in its place, the attempt left pending for the
+  continuation's retirement of its session to retire. An unbounded budget (`0`) counts
   nothing and drops the pair as it passes, so turning the budget off is not a pause on a window — turning it back on
   opens a fresh one rather than refusing out of a count nobody could spend while there was no budget to spend it
   against.
@@ -4533,7 +4572,7 @@ the budget never sees, which is the late adjudication and its live generation.
   [implementing](delivery-stages.md#_handle_implementing-label-workflowimplementing)). A caller that may park only
   over what it read hands the shared charge-or-park form a guard (`engine/retry_budget.ParkGuard`): its writer takes
   the park's durable half, a park it does not land is said nothing, and its question, asked behind the notice's thread
-  read and right before the post, can leave the notice owed — the dormant manifest correction's launch is the one such
+  read and right before the post, can leave the notice owed — the manifest correction's launch is the one such
   caller. The late adjudication that
   runs under `workflow:decomposing` holds it a third time, on its own road and for its own reasons — the tick that
   meets one there never proves the frozen pair, never re-marks the pull request the candidate stands under, and
@@ -4685,7 +4724,7 @@ drives the real handlers against a spent ledger so an unwired road is caught as 
   classify the run by.
 - **A launch owed once is held to it on the circuit's own readings.** A caller whose launch is owed exactly once names
   it (`OwedLaunch`): the lifetime count it is owed at — a persisted change request's developer, handed at `handed`,
-  or the one launch a dormant decomposer manifest correction buys, at its source's charge — and the caller's hold on
+  or the one launch a decomposer manifest correction buys, at its source's charge — and the caller's hold on
   it, the requests its standing takes beyond the pinned comment (`resolves`) and a judgment
   of each reading of the comment (`stands`), beside whatever else its charge pays (`pays`) — the correction's daily
   retry, staged on the reading the charge is written over so both land in the one write that reserves it, the charge

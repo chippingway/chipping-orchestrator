@@ -11,9 +11,9 @@ out a list the validator refuses it without. That whole reply contract is
 spelled once (`_MANIFEST_CONTRACT`): the decompose prompt closes on it, and the
 correction prompt a rejected answer earns hands it back beside the exact error
 the parser refused that answer with, so both ask for the same manifest. Only
-the dormant correction launch builds that prompt
-(`stages/decomposition/correction_source.resumed`), and no production road
-asks for one yet.
+the correction launch builds that prompt
+(`stages/decomposition/correction_source.resumed`), resuming the rejected
+run's own session once.
 
 The prompt sizes an issue by its complete deliverable -- implementation, tests,
 the documentation it makes stale, and the final documentation pass -- judged by

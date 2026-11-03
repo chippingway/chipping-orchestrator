@@ -12,7 +12,7 @@ whole-state write of its own still counts it, since the comment carries it
 beside the charge. A charge reserved and never started -- refused at its start, or
 behind a write nobody confirmed -- has paid its daily retry with it, so the
 tick that starts it charges the daily budget nothing more, in whatever window
-it starts. Dormant, as the launch it pays for is (`correction_road.launch`).
+it starts.
 """
 from __future__ import annotations
 
