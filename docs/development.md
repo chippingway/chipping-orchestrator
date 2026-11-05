@@ -254,7 +254,9 @@ A target holds its reader's answer to the reader's contract rather than to a cop
   the contract `fuzz/split_contract.py` states apart from the validators, its graph walked another way than theirs.
   Written back, an accepted manifest reads back the same; quoted twice, followed by prose, or with each child's
   `depends_on` missing, null, not a list, or holding a boolean, a float, a string, a negative, an out-of-range or
-  oversized index, a self-edge, or an edge closing a cycle, it is refused.
+  oversized index, a self-edge, or an edge closing a cycle, it is refused. Those graphs follow the edges, one cycle for
+  each distinct edge however often a list repeats it, so the target's own work stays in proportion to the reply and a
+  timeout is the parser's.
 
 A refusal the reader documents is a normal answer. A raise, a broken rule (`AdmissionBreach`, `ManifestBreach`), a
 `SideEffectError`, a run past the per-input timeout, and a run past the memory limit are findings, and nothing in the
