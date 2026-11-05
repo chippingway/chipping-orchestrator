@@ -71,6 +71,12 @@ the real trust boundary — see [`architecture.md`](architecture.md#design-const
   release you have reviewed, pass `--cooldown 0` (or a shorter window) on that upgrade or install command. Installs and
   upgrades save the chosen window, including zero and values from `PIPX_COOLDOWN`; restore your usual window
   explicitly on the next package change if needed.
+  Atheris, which only the [parser fuzz targets](development.md#fuzzing-the-parsers) import, is locked in the optional
+  `fuzz` group, so no default install, CI run, or published distribution carries it. The fuzzing image installs the
+  runtime dependencies and Atheris from the lock with `poetry sync --only main,fuzz`; outside the lock it pins its base
+  image by digest, a CPython tarball by SHA-256, and Poetry, PyInstaller, and coverage.py by version, their own
+  dependencies resolving fresh. Its build context is the allowlist the root `.dockerignore` declares, so no `.env`,
+  credential, worktree, cache, or `analytics-db/data/` file reaches the Docker daemon.
   CI accepts unhashed PyPI installs for its tooling: `pipx` pins Poetry and the export plugin's top-level versions,
   while their transitive dependencies resolve fresh. The sdist smoke install also resolves `poetry-core` through
   build isolation within the manifest's version range. These installs are outside the project's hashed lockfile;
@@ -390,6 +396,8 @@ Two GitHub-side controls combine to enforce this:
    /pyproject.toml          @<maintainer-handle>
    /poetry.lock             @<maintainer-handle>
    /poetry.toml             @<maintainer-handle>
+   /.clusterfuzzlite/       @<maintainer-handle>
+   /.dockerignore           @<maintainer-handle>
    /.github/dependabot.yml  @<maintainer-handle>
    /.github/workflows/      @<maintainer-handle>
    ```
@@ -402,9 +410,9 @@ Two GitHub-side controls combine to enforce this:
 Mark these checks **required** in the branch-protection rule (job names as they appear on the PR):
 
 - `ci (3.12)`, `ci (3.13)`, and `ci (3.14)` from [`../.github/workflows/ci.yml`](../.github/workflows/ci.yml) —
-  Ruff, WPS (`flake8 orchestrator tests --select=WPS`), pytest with an informational coverage report, and a launch of
-  `chipping-orchestrator --help` and a read of both packaged `.env` templates from the built wheel and sdist in fresh
-  pip environments. Lint and tests install
+  Ruff, WPS (`flake8 orchestrator tests fuzz --select=WPS`), pytest with an informational coverage report, and a
+  launch of `chipping-orchestrator --help` and a read of both packaged `.env` templates from the built wheel and sdist
+  in fresh pip environments. Lint and tests install
   from [`../poetry.lock`](../poetry.lock). The job is a matrix over the three tested interpreters, and each matrix job
   reports its own check name
   ([`configuration/operations.md#continuous-integration`](configuration/operations.md#continuous-integration)).

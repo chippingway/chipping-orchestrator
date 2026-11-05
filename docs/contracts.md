@@ -363,7 +363,8 @@ cleanup; those also require
 **Specs:** [authentication](security.md#pinned-state-authentication),
 [author trust](security.md#comment-trust-boundary-allowed_issue_authors).
 
-**Checks:** [state](../tests/github/test_pinned_state.py), [startup refusal](../tests/cli/test_composition.py).
+**Checks:** [state](../tests/github/test_pinned_state.py), [startup refusal](../tests/cli/test_composition.py),
+[fuzzed admission](../tests/repository/test_fuzz_targets.py).
 
 ## C-05: Writer claims and artifact maintenance
 
@@ -656,7 +657,8 @@ covered by [C-14].
 **Checks:** [report prompts](../tests/workflow/engine/test_prompts_developer_report.py),
 [manifest contract](../tests/workflow/stages/decomposition/test_manifest.py),
 [correction eligibility](../tests/workflow/stages/decomposition/test_correction_eligibility.py),
-[manifest corrections](../tests/workflow/stages/decomposition/test_correction_road.py).
+[manifest corrections](../tests/workflow/stages/decomposition/test_correction_road.py),
+[fuzzed manifests](../tests/repository/test_fuzz_targets.py).
 
 ## C-09: Reports, review subjects, and verification
 

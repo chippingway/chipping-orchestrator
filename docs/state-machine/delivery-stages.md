@@ -846,9 +846,13 @@ because there it is the claim that this stage has already rerouted rather than a
      runs (`record_admission.teardown_admitted`), so a refusal a guarded commit answered rather than raised — the
      `DECOMPOSE=off` handoff's report, say — keeps it too, and so does a reading there that fails, which cannot prove
      the record admitted.
-  7. **Parse the manifest** via `_parse_manifest` (regex captures the fenced ` ```orchestrator-manifest ` block):
+  7. **Parse the manifest** via `_parse_manifest` (regex captures the fenced ` ```orchestrator-manifest ` block,
+     scanned only up to the reply's last closing fence, which no block runs past, so a reply full of fences nothing
+     closes costs one pass rather than one for every fence in it):
      - invalid manifest → the one correction it may earn, else park `decomposer_invalid_manifest` with the parse
-       error. A `split` is held to the shared split rules (`_split_manifest_error`): every child states a
+       error. A payload the JSON decoder will not build — an integer longer than the interpreter's digit limit, or
+       nesting deeper than it recurses — is such an error like any syntax error, never an exception raised into the
+       tick. A `split` is held to the shared split rules (`_split_manifest_error`): every child states a
        `depends_on` list of indexes into the children array, `[]` for none, so a child that leaves it missing or
        `null` is refused by its zero-based index and the field (`child 1 missing depends_on`, `child 1 depends_on is
        null`) — read as no prerequisites, it would be released beside a sibling its body says it needs — and invalid

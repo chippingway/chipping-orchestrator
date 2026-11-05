@@ -1,0 +1,19 @@
+```orchestrator-manifest
+{
+  "decision": "split",
+  "children": [
+    {
+      "title": "Ünïcødé ✓ 漢字",
+      "body": "🚀 rocket",
+      "depends_on": []
+    },
+    {
+      "title": "tab \t and nul \u0000",
+      "body": "zero​width",
+      "depends_on": [
+        0
+      ]
+    }
+  ]
+}
+```

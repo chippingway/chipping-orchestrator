@@ -890,7 +890,8 @@ agent can be asked for. The per-child ceiling is this generation's own measureme
 an operator retuning that knob while an agent is running cannot leave it sizing children under a bound nothing checks.
 
 The reply ends in exactly one fenced `orchestrator-late-manifest` block — a different fence from the initial
-`orchestrator-manifest`, read by `late_reply.py` — declaring one of three outcomes:
+`orchestrator-manifest`, read by `late_reply.py` through the initial mode's envelope and decode rules
+(`manifest.py`) — declaring one of three outcomes:
 
 - `single` — the committed work is one coherent change despite its size, and no safe split of it is available. It
   publishes nothing, and the prompt says so in those terms: the verdict REQUIRES a human decision, so it must say what

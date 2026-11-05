@@ -1,0 +1,5 @@
+This fits one change.
+
+```orchestrator-manifest
+{"decision": "single", "rationale": "small"}
+```

@@ -1,0 +1,3 @@
+```orchestrator-manifest
+{"decision": "split", "children": [{"title": "A", "body": "a", "dep
+```

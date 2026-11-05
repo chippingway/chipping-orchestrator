@@ -1,0 +1,4 @@
+```orchestrator-manifest   	
+
+{"decision": "single"}
+```

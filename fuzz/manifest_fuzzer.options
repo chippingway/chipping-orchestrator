@@ -1,0 +1,8 @@
+# libFuzzer limits the runner passes the packaged target: replies up to 64 KiB,
+# 2 GiB of resident memory, and 10 seconds an input. A reply is read whole in
+# well under a millisecond, so a run anywhere near the timeout is a scan that
+# grew with the reply. Locally, pass them as flags.
+[libfuzzer]
+max_len = 65536
+rss_limit_mb = 2048
+timeout = 10

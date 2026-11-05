@@ -1,0 +1,84 @@
+```orchestrator-manifest
+{
+  "decision": "split",
+  "rationale": "two surfaces",
+  "children": [
+    {
+      "title": "Child 0",
+      "body": "Do part 0.",
+      "depends_on": []
+    },
+    {
+      "title": "Child 1",
+      "body": "Do part 1.",
+      "depends_on": [
+        0
+      ]
+    },
+    {
+      "title": "Child 2",
+      "body": "Do part 2.",
+      "depends_on": [
+        0,
+        1
+      ]
+    },
+    {
+      "title": "Child 3",
+      "body": "Do part 3.",
+      "depends_on": [
+        1,
+        2
+      ]
+    },
+    {
+      "title": "Child 4",
+      "body": "Do part 4.",
+      "depends_on": [
+        2,
+        3
+      ]
+    },
+    {
+      "title": "Child 5",
+      "body": "Do part 5.",
+      "depends_on": [
+        3,
+        4
+      ]
+    },
+    {
+      "title": "Child 6",
+      "body": "Do part 6.",
+      "depends_on": [
+        4,
+        5
+      ]
+    },
+    {
+      "title": "Child 7",
+      "body": "Do part 7.",
+      "depends_on": [
+        5,
+        6
+      ]
+    },
+    {
+      "title": "Child 8",
+      "body": "Do part 8.",
+      "depends_on": [
+        6,
+        7
+      ]
+    },
+    {
+      "title": "Child 9",
+      "body": "Do part 9.",
+      "depends_on": [
+        7,
+        8
+      ]
+    }
+  ]
+}
+```

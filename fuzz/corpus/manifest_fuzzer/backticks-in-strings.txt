@@ -1,0 +1,13 @@
+```orchestrator-manifest
+{
+  "decision": "split",
+  "rationale": "two surfaces",
+  "children": [
+    {
+      "title": "Child 0",
+      "body": "Run ```make``` then ``` again.",
+      "depends_on": []
+    }
+  ]
+}
+```

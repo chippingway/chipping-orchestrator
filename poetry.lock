@@ -45,6 +45,19 @@ typing_extensions = {version = ">=4.5", markers = "python_version < \"3.13\""}
 trio = ["trio (>=0.32.0)"]
 
 [[package]]
+name = "atheris"
+version = "3.1.0"
+description = "A coverage-guided fuzzer for Python and Python extensions."
+optional = false
+python-versions = "*"
+groups = ["fuzz"]
+files = [
+    {file = "atheris-3.1.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:ec5e11f21a4c197fe91f7aea2b2de88e623c73a21fc07b105ac6329a1588457b"},
+    {file = "atheris-3.1.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:f8a9f51ce8369026e8eb7b7174835e8c4c85a1a6db5d9add36c15100779d2a39"},
+    {file = "atheris-3.1.0-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:315a0b5c819852b1ffe1ca72efc389c7724881f2c33e4aacb8c6bcec49bd5011"},
+]
+
+[[package]]
 name = "attrs"
 version = "26.1.0"
 description = "Classes Without Boilerplate"
@@ -2220,4 +2233,4 @@ mcp = ["mcp[cli] (>=2.0,<3.0)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<4.0"
-content-hash = "cab183554f072acd3d9cc45075bf0cdf362aadbbb0da51e82e54c3a81e8d5ec7"
+content-hash = "85727da086e40b667280c51b3431cc4b30fa725bc6b39061f1bf1dca496fb21e"

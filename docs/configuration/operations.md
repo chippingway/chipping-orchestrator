@@ -995,12 +995,12 @@ and patches. Repository types live in `config.models`, and token resolution in `
 
 Refactors separate responsibilities and move callers, mocks, and ownership documentation together. Every resulting
 module must satisfy the default limits; a refactor cannot add an exclusion, an inline suppression, or a raised
-complexity limit. `flake8 orchestrator tests --select=WPS` must pass without diagnostics. The isolated run,
-`flake8 --isolated --select=WPS orchestrator tests`, must report only the deliberate initializer violations;
+complexity limit. `flake8 orchestrator tests fuzz --select=WPS` must pass without diagnostics. The isolated run,
+`flake8 --isolated --select=WPS orchestrator tests fuzz`, must report only the deliberate initializer violations;
 every remaining file/rule exclusion must correspond to one of those diagnostics.
 
 The rule set is Ruff's own. `[tool.ruff.lint]` in [`../../pyproject.toml`](../../pyproject.toml) declares no `select`,
-so what `ruff check orchestrator tests` enforces is whatever the `ruff` resolved in
+so what `ruff check orchestrator tests fuzz` enforces is whatever the `ruff` resolved in
 [`../../poetry.lock`](../../poetry.lock) ships as its defaults, plus the single `E501` opted into
 through `extend-select`. That pair is the whole contract.
 `[dependency-groups]` names a floor (`ruff>=`) rather than a version, and `poetry sync` installs the lockfile's
@@ -1147,7 +1147,7 @@ Create all three custom labels in GitHub's **Issues → Labels** before Dependab
 create these service labels, and [Dependabot ignores custom labels that do not exist][dependabot-labels].
 
 `workflow:python:uv` is retired and remains on historical PRs. When reviewing `pip` updates, verify that they change
-the manifest and lock together, cover `dev`, `docs`, and `dashboard`, raise runtime lower bounds to the locked
+the manifest and lock together, cover `dev`, `docs`, `dashboard`, and `fuzz`, raise runtime lower bounds to the locked
 versions, preserve one entry per package and the major caps, honor cooldowns, and carry the service labels above.
 Use manual group bumps if Dependabot cannot update a group cleanly.
 [`../../.github/workflows/dependency-review.yml`](../../.github/workflows/dependency-review.yml) runs
@@ -1162,8 +1162,8 @@ when a published advisory names one of them. The job installs `poetry-plugin-exp
 the Poetry tool environment with `pipx inject`; exporting does not require installing the project. Why the export and
 audit are shaped that way:
 
-- **`--all-groups`** covers the `dashboard` and `docs` groups as well as the runtime and `dev` ones, so the audit is
-  the whole lockfile rather than the subset a default `poetry sync` installs.
+- **`--all-groups`** covers the `dashboard`, `docs`, and `fuzz` groups as well as the runtime and `dev` ones, so the
+  audit is the whole lockfile rather than the subset a default `poetry sync` installs.
 - **Environment markers are stripped** from the export before the audit. A pin kept for another platform
   (`colorama` under Windows, `tzdata`) is a version this repository still ships, and an audit reading markers would
   skip it as inapplicable to the Linux runner — silently, and while reporting success.
@@ -1193,8 +1193,9 @@ Poetry is developer tooling for source checkouts; package users install with pip
 in `.venv/`, and the default sync installs runtime plus `dev` dependencies.
 `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with docs` and
 `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with dashboard` select optional groups; use `--with docs,dashboard`
-for both. Sync removes unselected groups. `poetry run` executes commands without syncing. The wrapper's install policy,
-timeouts, and sync requirements are documented under
+for both. The `fuzz` group, Atheris for the [parser fuzz targets](../development.md#fuzzing-the-parsers), is optional
+too and installs only on Linux x86_64 with CPython 3.12 to 3.14. Sync removes unselected groups. `poetry run`
+executes commands without syncing. The wrapper's install policy, timeouts, and sync requirements are documented under
 [Launcher dependency refresh](../development.md#launcher-dependency-refresh).
 
 Poetry uses an inherited `VIRTUAL_ENV` or non-base `CONDA_PREFIX` even with `virtualenvs.in-project = true`.

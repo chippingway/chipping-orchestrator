@@ -1,6 +1,13 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Poetry's committed lock, environment policy, and workflow installation contract."""
+"""Poetry's committed lock, environment policy, and workflow installation contract.
+
+Atheris, which only the parser fuzz targets under `fuzz/` import, is locked in
+the optional `fuzz` group alone, so a default sync -- every workflow's, and the
+one a checkout or the restart wrapper runs -- leaves it out, and no published
+distribution declares it. Its releases ship wheels and no source, so the lock
+names the wheel each interpreter the distribution supports installs.
+"""
 from __future__ import annotations
 
 import re
@@ -25,6 +32,10 @@ _WORKFLOWS = ("ci.yml", "docs.yml", _AUDIT_WORKFLOW)
 _POETRY_PIN = re.compile(r'pipx install "poetry==([^"]+)"')
 _ENVIRONMENT_COMMAND = 'poetry env use "$(command -v python)"'
 _LOCK_CHECK = "poetry check --lock"
+_NAME = "name"
+_FUZZ_GROUP = "fuzz"
+_ATHERIS = "atheris"
+_CLASSIFIER_PREFIX = "Programming Language :: Python :: "
 _INSTALL_COMMANDS = (
     "poetry sync --no-interaction",
     "poetry sync --with docs --no-interaction",
@@ -54,11 +65,11 @@ def _workflow_version(workflow: str) -> Version:
 class PoetryLockTest(unittest.TestCase):
     def test_lock_uses_implicit_pypi(self) -> None:
         packages = _toml("poetry.lock")["package"]
-        names = [canonicalize_name(package["name"]) for package in packages]
+        names = [canonicalize_name(package[_NAME]) for package in packages]
         self.assertTrue(names)
         self.assertEqual(len(names), len(set(names)), "Locked package names must be unique")
         self.assertNotIn("chipping-orchestrator", names)
-        self.assertEqual([package["name"] for package in packages if "source" in package], [])
+        self.assertEqual([package[_NAME] for package in packages if "source" in package], [])
         self.assertNotIn("source", _poetry_table())
 
     def test_runtime_ranges_cover_locked_versions(self) -> None:
@@ -68,13 +79,48 @@ class PoetryLockTest(unittest.TestCase):
             with self.subTest(dependency=dependency.name):
                 locked = [
                     Version(package["version"]) for package in packages
-                    if canonicalize_name(package["name"]) == canonicalize_name(dependency.name)
+                    if canonicalize_name(package[_NAME]) == canonicalize_name(dependency.name)
                 ]
                 self.assertTrue(locked)
                 floors = [Version(bound.version) for bound in dependency.specifier if bound.operator == ">="]
                 self.assertEqual(len(floors), 1)
                 self.assertTrue(any(bound.operator == "<" for bound in dependency.specifier))
                 self.assertTrue(all(version in dependency.specifier for version in locked))
+
+    def test_atheris_only_in_the_fuzz_group(self) -> None:
+        manifest = _toml(_MANIFEST_NAME)
+        declared = {"runtime": manifest["project"]["dependencies"], **manifest["dependency-groups"]}
+        declaring = [
+            group for group, requirements in declared.items()
+            if any(canonicalize_name(Requirement(requirement).name) == _ATHERIS for requirement in requirements)
+        ]
+        self.assertEqual(declaring, [_FUZZ_GROUP])
+
+    def test_atheris_locks_every_supported_wheel(self) -> None:
+        manifest = _toml(_MANIFEST_NAME)
+        atheris = self._locked_atheris()
+        self.assertEqual(atheris["groups"], [_FUZZ_GROUP])
+        self.assertIn(Version(atheris["version"]), next(
+            Requirement(requirement).specifier for requirement in manifest["dependency-groups"][_FUZZ_GROUP]
+            if canonicalize_name(Requirement(requirement).name) == _ATHERIS
+        ))
+        wheels = " ".join(locked_file["file"] for locked_file in atheris["files"])
+        for classifier in manifest["project"]["classifiers"]:
+            interpreter = classifier.removeprefix(_CLASSIFIER_PREFIX).replace(".", "")
+            with self.subTest(interpreter=interpreter):
+                self.assertIn(f"-cp{interpreter}-cp{interpreter}-manylinux", wheels)
+
+    def _locked_atheris(self) -> dict:
+        """The one locked Atheris, which no other locked package depends on."""
+        packages = _toml("poetry.lock")["package"]
+        dependents = [
+            package[_NAME] for package in packages
+            if _ATHERIS in package.get("dependencies", {})
+        ]
+        self.assertEqual(dependents, [])
+        locked = [package for package in packages if canonicalize_name(package[_NAME]) == _ATHERIS]
+        self.assertEqual(len(locked), 1)
+        return locked[0]
 
 
 class PoetryEnvironmentTest(unittest.TestCase):
@@ -83,7 +129,7 @@ class PoetryEnvironmentTest(unittest.TestCase):
         self.assertIs(configuration["virtualenvs"]["in-project"], True)
         self.assertEqual(configuration["solver"]["min-release-age"], _COOLDOWN_DAYS)
         groups = _poetry_table()["group"]
-        for name in ("docs", "dashboard"):
+        for name in ("docs", "dashboard", _FUZZ_GROUP):
             with self.subTest(group=name):
                 self.assertIs(groups[name]["optional"], True)
         self.assertFalse(groups.get("dev", {}).get("optional", False))

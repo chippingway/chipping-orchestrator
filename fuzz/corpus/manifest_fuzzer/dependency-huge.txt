@@ -1,0 +1,20 @@
+```orchestrator-manifest
+{
+  "decision": "split",
+  "rationale": "two surfaces",
+  "children": [
+    {
+      "title": "Child 0",
+      "body": "Do part 0.",
+      "depends_on": []
+    },
+    {
+      "title": "Child 1",
+      "body": "Do part 1.",
+      "depends_on": [
+        1000000000000000000000000000000
+      ]
+    }
+  ]
+}
+```

@@ -53,6 +53,9 @@ optional = true
 [tool.poetry.group.dashboard]
 optional = true
 
+[tool.poetry.group.fuzz]
+optional = true
+
 [dependency-groups]
 dev = ["packaging>=26.3", "pytest>=9.1.1", "pytest-cov>=7.1.0", "ruff>=0.17.1", "wemake-python-styleguide>=1.7.1"]
 # The documentation site is built separately from the runtime and test suite.
@@ -66,6 +69,12 @@ docs = ["mkdocs>=1.6.1"]
 # `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with dashboard` before running
 # `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run streamlit run orchestrator/apps/analytics_dashboard.py`.
 dashboard = ["streamlit>=1.66.1", "plotly>=7.1.0"]
+# Atheris drives the parser fuzz targets under `fuzz/` and nothing else, so it
+# stays out of the default install as well. Its releases ship only CPython
+# wheels for Linux x86_64 -- 3.12 to 3.14 for this floor -- so the group
+# installs on that combination alone; `docs/development.md` carries the
+# supported versions and the commands.
+fuzz = ["atheris>=3.1.0"]
 
 [tool.pytest.ini_options]
 # Surface skip reasons in the run summary by default. The suite carries

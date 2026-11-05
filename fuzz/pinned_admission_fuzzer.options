@@ -1,0 +1,7 @@
+# libFuzzer limits the runner passes the packaged target: inputs up to 64 KiB,
+# the comment body GitHub accepts (`pinned_state.MAX_PINNED_BODY`), 2 GiB of
+# resident memory, and 10 seconds an input. Locally, pass them as flags.
+[libfuzzer]
+max_len = 65536
+rss_limit_mb = 2048
+timeout = 10

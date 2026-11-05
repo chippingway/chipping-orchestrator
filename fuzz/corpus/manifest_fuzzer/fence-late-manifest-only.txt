@@ -1,0 +1,3 @@
+```orchestrator-late-manifest
+{"decision": "single", "split_blocker": "x"}
+```

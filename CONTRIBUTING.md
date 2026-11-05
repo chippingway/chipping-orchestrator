@@ -34,7 +34,8 @@ Local lint and test checks work without GitHub credentials or coding-agent setup
 `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with dashboard`.
 
 Run `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync` in each new worktree before checks; `poetry run` does not
-install dependencies. Add `--with docs` for documentation work or `--with docs,dashboard` for both groups. Follow the
+install dependencies. Add `--with docs` for documentation work or `--with docs,dashboard` for both groups, and
+`--with fuzz` to run the [parser fuzz targets](docs/development.md#fuzzing-the-parsers). Follow the
 [environment selection policy](docs/configuration/operations.md#dependency-tooling) for every Poetry command. To select
 another Python interpreter, use `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry env use /path/to/python`.
 
@@ -64,8 +65,8 @@ pre-push checklist. The [documentation index](docs/README.md) helps you find the
 Before submitting a PR, run:
 
 ```sh
-env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run ruff check orchestrator tests .github/scripts/docs_site.py
-env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run flake8 orchestrator tests .github/scripts/docs_site.py --select=WPS
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run ruff check orchestrator tests fuzz .github/scripts/docs_site.py
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run flake8 orchestrator tests fuzz .github/scripts/docs_site.py --select=WPS
 env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m pytest tests
 git diff --check
 ```
@@ -206,9 +207,9 @@ Inspect the archive lists and the wheel's `METADATA` and sdist's `PKG-INFO`: che
 requirement, runtime dependency bounds, README, URLs, and license. The wheel carries `orchestrator/` and its
 distribution metadata; the sdist also carries `pyproject.toml`, `README.md`, and `LICENSE`. Both carry the
 `orchestrator/service/.env.example` and `orchestrator/service/.env.example.advanced` templates as package data, the
-version-matched copies operators save from an installation. Neither archive should contain `tests/`, `plans/`, agent
-configuration, or any other `.env` file. The constraints export contains only the tested runtime dependencies,
-without hashes so pip can also resolve the root package when the file is used as a constraint.
+version-matched copies operators save from an installation. Neither archive should contain `tests/`, `fuzz/`,
+`plans/`, agent configuration, or any other `.env` file. The constraints export contains only the tested runtime
+dependencies, without hashes so pip can also resolve the root package when the file is used as a constraint.
 Retain the wheel, sdist, and constraints file unchanged for publishing and retries.
 
 For each interpreter, install the wheel and sdist into separate virtual environments outside the source tree, run
