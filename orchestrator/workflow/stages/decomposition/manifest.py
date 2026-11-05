@@ -36,6 +36,9 @@ _MANIFEST_RE = re.compile(
     re.DOTALL,
 )
 
+# What every fence pattern here ends on, so no block runs past the last one.
+_CLOSING_FENCE = "\n```"
+
 
 def _fenced_payload(
     last_message: str,
@@ -46,16 +49,15 @@ def _fenced_payload(
 
     The envelope rules are the pattern's caller's, not the pattern's, so they
     are answered once here and the late mode beside this one asks the same
-    question of its own fence: one block, and nothing after it.
+    question of its own fence: one block, and nothing after it. `fence` ends
+    on `_CLOSING_FENCE`, as both modes' patterns do.
 
     `(None, None)` is "no fence at all", which is not the same answer as a
     malformed one -- what each caller does with it is the caller's contract.
     """
-    if not last_message:
-        return None, None
     # The prompt requires exactly one final fenced block. Accepting the first
     # match would let a quoted sample manifest override the agent's answer.
-    matches = list(fence.finditer(last_message))
+    matches = list(fence.finditer(_closed_prefix(last_message)))
     if not matches:
         return None, None
     if len(matches) > 1:
@@ -70,6 +72,19 @@ def _fenced_payload(
             "found content after the closing fence"
         )
     return manifest_match.group(1), None
+
+
+def _closed_prefix(last_message: str) -> str:
+    """The reply up to and including its last closing fence, or nothing where none closes it.
+
+    Every block ends on a closing fence, so nothing past the last one can be
+    in one, and the scan stops there. Left to run to the end of the reply, a
+    fence nothing closes is scanned once for every opening fence after it,
+    and once for every line of a blank run behind its own opening: a reply of
+    a few hundred kilobytes then holds the tick for minutes.
+    """
+    closing = last_message.rfind(_CLOSING_FENCE) if last_message else -1
+    return last_message[:closing + len(_CLOSING_FENCE)] if closing >= 0 else ""
 
 
 def _extract_manifest_payload(
@@ -87,6 +102,15 @@ def _decode_manifest(
         manifest = json.loads(payload)
     except json.JSONDecodeError as error:
         return None, f"invalid JSON: {error.msg}"
+    # Past the syntax, the decoder refuses what it will not build: an integer
+    # longer than the interpreter's digit limit is a plain ValueError, and
+    # nesting deeper than it recurses a RecursionError. Each is a payload no
+    # reader takes, refused like a syntax error rather than raised into the
+    # stage that asked.
+    except ValueError:
+        return None, "invalid JSON: an integer literal is too long to decode"
+    except RecursionError:
+        return None, "invalid JSON: nested too deeply to decode"
     if not isinstance(manifest, dict):
         return None, "manifest is not a JSON object"
     return manifest, None

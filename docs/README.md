@@ -16,7 +16,7 @@ handler reads and writes.
 |---|---|
 | install with pipx | the [quick start](../README.md#quick-start), then [basic setup](configuration.md#basic-setup) |
 | add another repository to an installed setup | [adding a repository][add-repo] |
-| run from source or launch developer analytics tools | the [developer guide](development.md) |
+| run from source, launch developer analytics tools, or fuzz the parsers | the [developer guide](development.md) |
 | know which guarantees a change must preserve | [contracts and invariants](contracts.md) |
 | understand the design before changing it | [`architecture.md`](architecture.md) |
 | know what a label means, or when it moves | [`state-machine.md`](state-machine.md) |

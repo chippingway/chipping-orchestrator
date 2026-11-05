@@ -1,0 +1,24 @@
+```orchestrator-manifest
+{
+  "decision": "single",
+  "rationale": "one owner",
+  "affected_files": [
+    "orchestrator/a.py",
+    7,
+    null
+  ],
+  "notes": [
+    "keep it small",
+    {
+      "x": 1
+    }
+  ],
+  "umbrella": "ignored",
+  "extra": {
+    "nested": [
+      1.5,
+      true
+    ]
+  }
+}
+```

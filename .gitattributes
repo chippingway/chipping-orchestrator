@@ -1,0 +1,4 @@
+# Fuzz seeds are inputs, kept byte for byte: no line-ending conversion, so a
+# seed spelling a reply with CRLF line ends is committed and checked out as one,
+# and no whitespace check, since trailing blanks and blank runs are the cases.
+fuzz/corpus/** -text -whitespace

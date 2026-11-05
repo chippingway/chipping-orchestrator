@@ -58,6 +58,8 @@ Top level only. Which module owns what is in
   `apps/` (the `streamlit run` targets), and `observability/` (analytics sink, dashboards, usage parser).
 - `tests/` — pytest suite, mirroring the package layout (`tests/workflow/`, `tests/github/`, `tests/git/`, …).
   In-memory GitHub doubles live in `tests/support/github/`.
+- `fuzz/` — Atheris fuzz targets for the pinned-state and decomposer-manifest parsers, with their seed corpora;
+  `.clusterfuzzlite/` packages them. See [`docs/development.md`](docs/development.md#fuzzing-the-parsers).
 - `docs/` — architecture, state-machine, workflow, configuration, observability, and security references.
 - `plans/` — human working notes, not specifications (see below).
 - `analytics-db/` — operator-owned local analytics database (see below).

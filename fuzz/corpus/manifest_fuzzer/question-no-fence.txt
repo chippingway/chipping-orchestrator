@@ -1,0 +1,1 @@
+Should the parser keep the legacy format? I need an answer before splitting.

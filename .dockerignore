@@ -1,0 +1,33 @@
+# Copyright 2026 Geser Dugarov
+# SPDX-License-Identifier: Apache-2.0
+#
+# The build context of `.clusterfuzzlite/Dockerfile`, which ClusterFuzzLite and
+# `docs/development.md` build from the checkout's root, is an allowlist:
+# everything is left out, then the files the fuzz build reads are let back in,
+# then what can sit untracked inside those is left out again. A checkout's
+# `.env`, credentials, `.venv/`, caches, logs, worktrees, and `analytics-db/`
+# never reach the daemon, and no re-included path lies under a directory that
+# is left out, so the operator's `analytics-db/data/` is never even listed.
+# Every re-inclusion names its path from the root: a `!**/` pattern would make
+# the client walk every directory to look for it.
+*
+!.clusterfuzzlite/
+!fuzz/
+!orchestrator/
+!LICENSE
+!README.md
+!poetry.lock
+!poetry.toml
+!pyproject.toml
+
+**/__pycache__
+**/*.py[cod]
+**/.env
+**/.env.*
+!orchestrator/service/.env.example
+!orchestrator/service/.env.example.advanced
+fuzz/**/crash-*
+fuzz/**/leak-*
+fuzz/**/oom-*
+fuzz/**/slow-unit-*
+fuzz/**/timeout-*

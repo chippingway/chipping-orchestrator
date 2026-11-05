@@ -3115,8 +3115,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             (`ready_notice.py`) and the marker that reroute left is dropped in a guarded commit of its
                             own (`_retires_ready_reroute`); an unreadable thread, a hold read ahead of the notice,
                             behind it, or behind the retirement, or a retirement that does not land holds the tick
-      manifest.py           the fenced-block envelope rules both modes are held to, the JSON decode, and the parse entry
-                            point the stage routes on
+      manifest.py           the fenced-block envelope rules both modes are held to, read up to a reply's last
+                            closing fence, the JSON decode refusing whatever the decoder will not build, and the
+                            parse entry point the stage routes on
       child_validation.py   child text and dependency shapes; dependency indices must be real integers naming another
                             child in this manifest, and every malformed field is refused before graph traversal;
                             every child states its `depends_on` list, fresh or recorded, so a missing or null one is

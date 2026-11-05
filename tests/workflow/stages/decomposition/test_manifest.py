@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import unittest
+from unittest.mock import patch
 
 from orchestrator.workflow.engine import decomposition_prompts as _decomposition_prompts
 from orchestrator.workflow.stages.decomposition import manifest as _decompose_manifest, validation as _validation
@@ -24,6 +25,26 @@ _UNSTATED_DEPENDENCIES = (
     (
         '{"title": "A", "body": "a", "depends_on": []}, {"title": "B", "body": "needs A", "depends_on": null}',
         "child 1 depends_on is null",
+    ),
+)
+
+
+# An integer longer than the interpreter's default digit limit of 4300, which
+# the decoder refuses with a ValueError that is no JSONDecodeError.
+_PAST_THE_DIGIT_LIMIT = 5000
+_HUGE_INTEGER = "9" * _PAST_THE_DIGIT_LIMIT
+
+# Replies whose fences no block closes, each beside what it is answered: an
+# opening fence with blank lines behind it, opening fences alone, and a block
+# whose trailing content is such a fence.
+_OPEN_FENCE = "```orchestrator-manifest"
+_SINGLE = '{"decision": "single"}'
+_UNCLOSED_REPLIES = (
+    (f"{_OPEN_FENCE}\n\n\n", None),
+    (f" {_OPEN_FENCE}\n" * 3, None),
+    (
+        "".join((_manifest(_SINGLE), "\n", _OPEN_FENCE, "\n\n")),
+        "orchestrator-manifest must be the final block; found content after the closing fence",
     ),
 )
 
@@ -61,6 +82,20 @@ class ParseManifestDecisionTest(unittest.TestCase):
         decision_manifest, decision_error = _decompose_manifest._parse_manifest(_manifest("{not json"))
         self.assertIsNone(decision_manifest)
         self.assertIn("invalid JSON", decision_error)
+
+    def test_an_undecodable_payload_is_refused(self) -> None:
+        # A ValueError or RecursionError raised into the stage would end its
+        # tick on every poll instead of parking the reply as invalid. How deep
+        # a decoder nests before it raises is the interpreter's and its
+        # stack's, so the nesting refusal is asked of a decoder that raises.
+        reply = _manifest(f'{{"decision": "single", "notes": {_HUGE_INTEGER}}}')
+        self.assertEqual(
+            _decompose_manifest._parse_manifest(reply),
+            (None, "invalid JSON: an integer literal is too long to decode"),
+        )
+        with patch.object(_decompose_manifest.json, "loads", side_effect=RecursionError):
+            refused = _decompose_manifest._parse_manifest(_manifest(_SINGLE))
+        self.assertEqual(refused, (None, "invalid JSON: nested too deeply to decode"))
 
     def test_unknown_decision_rejected(self) -> None:
         decision_manifest, decision_error = _decompose_manifest._parse_manifest(_manifest('{"decision": "maybe"}'))
@@ -186,6 +221,11 @@ class ParseManifestEnvelopeTest(unittest.TestCase):
         envelope_manifest, envelope_error = _decompose_manifest._parse_manifest(msg)
         self.assertIsNone(envelope_error)
         self.assertEqual(envelope_manifest[KEY_DECISION], DECISION_SINGLE)
+
+    def test_unclosed_fences_close_no_block(self) -> None:
+        for reply, refusal in _UNCLOSED_REPLIES:
+            with self.subTest(reply=reply):
+                self.assertEqual(_decompose_manifest._parse_manifest(reply), (None, refusal))
 
     def test_scalar_falsy_depends_on_rejected(self) -> None:
         # A falsy scalar (0, False, "") is a malformed list, not "no

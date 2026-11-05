@@ -282,8 +282,8 @@ issue.
 ## Contributing
 
 See [CONTRIBUTING.md][contributing] for writing issues, setting up a development checkout, running checks, and
-submitting pull requests. Source-checkout installation, direct Python launches, and the development wrapper are
-documented in the [developer guide][development].
+submitting pull requests. Source-checkout installation, direct Python launches, the development wrapper, and the
+parser fuzz targets are documented in the [developer guide][development].
 
 ## License
 

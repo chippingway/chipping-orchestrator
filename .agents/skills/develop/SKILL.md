@@ -15,8 +15,8 @@ The repo targets Python 3.12+ and installs from the lockfile with
 
 ```sh
 env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync                                   # create .venv/ with runtime + dev deps
-env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run ruff check orchestrator tests .github/scripts/docs_site.py
-env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run flake8 orchestrator tests .github/scripts/docs_site.py --select=WPS
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run ruff check orchestrator tests fuzz .github/scripts/docs_site.py
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run flake8 orchestrator tests fuzz .github/scripts/docs_site.py --select=WPS
 env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run pytest tests                       # run the test suite
 env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator run --once  # one polling tick then exit
 env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator run --log-level DEBUG
@@ -24,10 +24,11 @@ env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator run --log-l
 
 Run the sync command above in every fresh worktree before checks: `poetry run` executes commands without installing or
 refreshing dependencies. Add `--with dashboard` or `--with docs` when the change needs an optional group; use
-`--with docs,dashboard` to install both. Sync removes unselected optional groups; tests that need those dependencies
-then skip instead of failing, so a green suite can hide missing coverage. `poetry install` preserves packages already
-installed but does not upgrade packages exclusive to unselected optional groups. Select an existing Python 3.12+
-interpreter with `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry env use /path/to/python` when the default is unsuitable.
+`--with docs,dashboard` to install both, and `--with fuzz` for the parser fuzz targets under `fuzz/`. Sync removes
+unselected optional groups; tests that need those dependencies then skip instead of failing, so a green suite can hide
+missing coverage. `poetry install` preserves packages already installed but does not upgrade packages exclusive to
+unselected optional groups. Select an existing Python 3.12+ interpreter with
+`env -u VIRTUAL_ENV -u CONDA_PREFIX poetry env use /path/to/python` when the default is unsuitable.
 
 Prefix every manual Poetry command with `env -u VIRTUAL_ENV -u CONDA_PREFIX`, as in the examples above. The
 [environment selection policy](../../../docs/configuration/operations.md#dependency-tooling) explains inherited
@@ -57,7 +58,7 @@ beginning of the file when there is no shebang:
 
 Before committing, run each of these and fix what they report:
 
-- `.venv/bin/python -m ruff check orchestrator tests .github/scripts/docs_site.py` — the lint contract is **Ruff's
+- `.venv/bin/python -m ruff check orchestrator tests fuzz .github/scripts/docs_site.py` — the lint contract is **Ruff's
   own default rule set plus `E501`**. `[tool.ruff.lint]` in `pyproject.toml` declares no `select`, so the run enforces
   whatever the `ruff` resolved in `poetry.lock` ships as its defaults; do not add one back, and do not answer a new
   diagnostic by narrowing the selection. Re-resolving that lock can bring rules with it — fix what they report, in the
@@ -79,11 +80,11 @@ Before committing, run each of these and fix what they report:
     naming what the catch protects; anything narrower catches the exception it means.
   - The defaults also carry the modernization and simplification families — **UP**, **B**, **SIM**, **C4**, **RET**,
     **RUF** — so a diagnostic from one of those is a rewrite, not a waiver.
-- `.venv/bin/python -m ruff check orchestrator tests .github/scripts/docs_site.py --select=I001 --fix` — this fixes
+- `.venv/bin/python -m ruff check orchestrator tests fuzz .github/scripts/docs_site.py --select=I001 --fix` — this fixes
   `I001`, which the run above enforces; `tests/repository/test_import_sorting.py` fails on a block left unsorted too.
   Never split one module's names across several `from ... import` statements to duck **WPS235** — the sorter merges
   every statement reading from the same module back into one.
-- `.venv/bin/python -m flake8 orchestrator tests .github/scripts/docs_site.py --select=WPS` — all WPS naming,
+- `.venv/bin/python -m flake8 orchestrator tests fuzz .github/scripts/docs_site.py --select=WPS` — all WPS naming,
   complexity, consistency, bug-prevention, refactoring, and OOP rules must pass.
 - `git diff --check` — catches whitespace errors in unstaged changes.
 - `git diff --cached --check` — catches whitespace errors in staged changes.
@@ -276,7 +277,8 @@ explicitly asks you to edit or remove one.
 
 `pyproject.toml` pins `PyGithub` and `psycopg[binary]` as runtime deps; `packaging`, `pytest`, `pytest-cov`, `ruff`, and
 `wemake-python-styleguide` live in the `dev` group; the analytics dashboard's `streamlit` and `plotly` live in the
-separate `dashboard` group so the default `poetry sync` stays minimal. `poetry.lock` is the source of truth for exact
+separate `dashboard` group, and `atheris`, which only the targets under `fuzz/` import, in the `fuzz` group, so the
+default `poetry sync` stays minimal. `poetry.lock` is the source of truth for exact
 versions and is committed — update it (`env -u VIRTUAL_ENV -u CONDA_PREFIX poetry lock`) whenever dependency
 declarations or group settings change.
 Version-only releases do not change the lock. Keep one lock entry per package and cap runtime major upgrades. Raise
