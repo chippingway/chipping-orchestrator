@@ -15,8 +15,8 @@ The repo targets Python 3.12+ and installs from the lockfile with
 
 ```sh
 env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync                                   # create .venv/ with runtime + dev deps
-env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run ruff check orchestrator tests fuzz .github/scripts/docs_site.py
-env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run flake8 orchestrator tests fuzz .github/scripts/docs_site.py --select=WPS
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run ruff check orchestrator tests fuzz .github/scripts
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run flake8 orchestrator tests fuzz .github/scripts --select=WPS
 env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run pytest tests                       # run the test suite
 env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator run --once  # one polling tick then exit
 env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m orchestrator run --log-level DEBUG
@@ -58,7 +58,7 @@ beginning of the file when there is no shebang:
 
 Before committing, run each of these and fix what they report:
 
-- `.venv/bin/python -m ruff check orchestrator tests fuzz .github/scripts/docs_site.py` — the lint contract is **Ruff's
+- `.venv/bin/python -m ruff check orchestrator tests fuzz .github/scripts` — the lint contract is **Ruff's
   own default rule set plus `E501`**. `[tool.ruff.lint]` in `pyproject.toml` declares no `select`, so the run enforces
   whatever the `ruff` resolved in `poetry.lock` ships as its defaults; do not add one back, and do not answer a new
   diagnostic by narrowing the selection. Re-resolving that lock can bring rules with it — fix what they report, in the
@@ -80,11 +80,11 @@ Before committing, run each of these and fix what they report:
     naming what the catch protects; anything narrower catches the exception it means.
   - The defaults also carry the modernization and simplification families — **UP**, **B**, **SIM**, **C4**, **RET**,
     **RUF** — so a diagnostic from one of those is a rewrite, not a waiver.
-- `.venv/bin/python -m ruff check orchestrator tests fuzz .github/scripts/docs_site.py --select=I001 --fix` — this fixes
+- `.venv/bin/python -m ruff check orchestrator tests fuzz .github/scripts --select=I001 --fix` — this fixes
   `I001`, which the run above enforces; `tests/repository/test_import_sorting.py` fails on a block left unsorted too.
   Never split one module's names across several `from ... import` statements to duck **WPS235** — the sorter merges
   every statement reading from the same module back into one.
-- `.venv/bin/python -m flake8 orchestrator tests fuzz .github/scripts/docs_site.py --select=WPS` — all WPS naming,
+- `.venv/bin/python -m flake8 orchestrator tests fuzz .github/scripts --select=WPS` — all WPS naming,
   complexity, consistency, bug-prevention, refactoring, and OOP rules must pass.
 - `git diff --check` — catches whitespace errors in unstaged changes.
 - `git diff --cached --check` — catches whitespace errors in staged changes.

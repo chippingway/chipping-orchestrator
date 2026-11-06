@@ -13,7 +13,8 @@
 # build tools rather than dependencies: they are pinned here to the versions
 # the base image installs for its own Python, and the base runner reads the
 # coverage data of the latter. Each target leaves `$OUT` beside its options,
-# its dictionary, and its seed corpus.
+# its dictionary, and its seed corpus, its wrapper holding every run of it to
+# the limits those options set (`hold_limits.sh`).
 
 project="$SRC/chipping-orchestrator"
 fuzz_python=/opt/fuzz-python/bin/python3.12
@@ -42,6 +43,7 @@ fi
 export PATH="$project/.venv/bin:$PATH"
 for target in "${targets[@]}"; do
   compile_python_fuzzer "fuzz/$target.py" --paths "$project"
+  bash "$project/.clusterfuzzlite/hold_limits.sh" "fuzz/$target.options" "$OUT/$target"
   cp "fuzz/$target.options" "fuzz/$target.dict" "$OUT/"
   (cd "fuzz/corpus/$target" && find . -type f -print | LC_ALL=C sort |
     zip -q -X -@ "$OUT/${target}_seed_corpus.zip")

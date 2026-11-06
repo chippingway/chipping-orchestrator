@@ -11,9 +11,11 @@ of failing in the minutes the run takes. Scorecard, the vulnerability scan, and
 CodeQL's scheduled pass have nobody watching, so a hung one holds a runner while
 reading as a run that has yet to report rather than as one that failed. The
 documentation build and deploy jobs each allow 10 minutes; a hung deploy from
-`main` holds the `pages` concurrency group, so later deployments wait. A
-job-level `timeout-minutes` bounds each wait to the window the job is expected
-to finish in.
+`main` holds the `pages` concurrency group, so later deployments wait. The
+ClusterFuzzLite jobs run a fuzzing budget rather than a fixed workload, and a
+hung batch or prune run holds the corpus concurrency group the next one queues
+in. A job-level `timeout-minutes` bounds each wait to the window the job is
+expected to finish in.
 
 Nothing in the tree runs these files -- GitHub does -- so a job added or
 rewritten without one would otherwise go unnoticed until the run that hangs.
@@ -42,6 +44,9 @@ _ENCODING = "utf-8"
 _WORKFLOWS = (
     "ast-metrics.yml",
     "ci.yml",
+    "clusterfuzzlite-batch.yml",
+    "clusterfuzzlite-pr.yml",
+    "clusterfuzzlite-prune.yml",
     "codeql.yml",
     "dependency-review.yml",
     "docs.yml",
