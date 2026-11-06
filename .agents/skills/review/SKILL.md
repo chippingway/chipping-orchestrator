@@ -20,7 +20,7 @@ around each command; keep any redirection or status handling already present in 
 
 Reject (or request fixes) if any of these are red:
 
-- `.venv/bin/python -m ruff check orchestrator tests fuzz .github/scripts/docs_site.py`. Common offenders to look for
+- `.venv/bin/python -m ruff check orchestrator tests fuzz .github/scripts`. Common offenders to look for
   explicitly:
   - **F401** — unused import on a package initializer. If the import is intended as a re-export, it must
     be aliased `from X import Y as Y` or listed in that initializer's `__all__`. A bare import will not
@@ -28,7 +28,7 @@ Reject (or request fixes) if any of these are red:
   - **F541** — f-strings without placeholders, typically in newly-added test files.
   - **F841** — unused local in tests.
   - **E402** — import after non-import code.
-- `.venv/bin/python -m flake8 orchestrator tests fuzz .github/scripts/docs_site.py --select=WPS`. All WPS naming,
+- `.venv/bin/python -m flake8 orchestrator tests fuzz .github/scripts --select=WPS`. All WPS naming,
   complexity, consistency, bug-prevention, refactoring, and OOP findings are rejection criteria.
 - `git diff --check origin/main...HEAD` — trailing whitespace and blank lines at EOF. Check it even
   if everything else looks clean.

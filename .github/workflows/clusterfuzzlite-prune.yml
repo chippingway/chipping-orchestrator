@@ -1,0 +1,141 @@
+# Copyright 2026 Geser Dugarov
+# SPDX-License-Identifier: Apache-2.0
+name: ClusterFuzzLite corpus pruning
+
+# Minimizes the corpus batch fuzzing grows, daily on the default branch and on
+# demand: the newest trusted corpus plus the committed seeds, merged down to
+# the inputs that keep their coverage, become the corpus the next run restores.
+# `docs/configuration/operations.md` covers the budgets and the artifacts.
+on:
+  schedule:
+    - cron: "47 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Batch and prune runs each restore the newest corpus and upload its successor,
+# so on one ref they queue behind each other rather than race, and no run is
+# cancelled for the next one.
+concurrency:
+  group: clusterfuzzlite-corpus-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    # The restore, build, and pruning ceilings below, with room for the
+    # uploads; far under GitHub's six-hour default.
+    timeout-minutes: 70
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      # The restore script and the committed seeds. `actions/checkout` fetches
+      # with the job's token unless handed another; `persist-credentials: false`
+      # keeps it out of the checkout's git config once fetched.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+
+      # The only other step holding the job's token: it reads the corpus
+      # artifacts back.
+      - name: Restore the corpus
+        timeout-minutes: 10
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 source/.github/scripts/clusterfuzzlite_corpus.py "$GITHUB_WORKSPACE" source/fuzz/corpus
+
+      - name: Build the fuzz targets
+        id: build
+        uses: google/clusterfuzzlite/actions/build_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
+        timeout-minutes: 30
+        with:
+          language: python
+          sanitizer: address
+          keep-unaffected-fuzz-targets: true
+
+      # The build action clones and checks out the revision itself, so a run
+      # fuzzes the commit it was started for -- recorded here for replaying a
+      # finding -- or fails, as a pull request's run does.
+      - name: Check the fuzzed commit
+        run: |
+          built=$(git -c safe.directory='*' -C "storage/${GITHUB_REPOSITORY#*/}" rev-parse HEAD)
+          if [ "$built" != "$GITHUB_SHA" ]; then
+            echo "::error::the build checked out $built, not $GITHUB_SHA, the commit this run is for"
+            exit 1
+          fi
+          echo "Fuzzed commit: $built" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # Each target's merge may take its share of the budget; one that runs
+      # past it fails the step. The action starts the merge with no limits of
+      # its own, so each input is held by the ones the packaged target carries
+      # (`.clusterfuzzlite/hold_limits.sh`), and the two switches below change
+      # nothing here. The pruned corpus is uploaded as `cifuzz-corpus-<target>`.
+      - name: Prune the corpora
+        id: run
+        uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
+        timeout-minutes: 20
+        env:
+          REPORT_TIMEOUTS: "true"
+          REPORT_OOMS: "true"
+        with:
+          language: python
+          sanitizer: address
+          mode: prune
+          fuzz-seconds: 600
+          dry-run: false
+
+      - name: Keep the crashing inputs
+        if: always() && steps.build.outcome == 'success'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: clusterfuzzlite-prune-findings-${{ github.run_attempt }}
+          path: out/artifacts
+          if-no-files-found: ignore
+          retention-days: 30
+
+      # The prune mode reports no finding of its own: an input the merge
+      # crashes on, or holds past the target's timeout or memory limit, is only
+      # written beside the others, so it fails the job here.
+      - name: Fail on inputs the merge stopped on
+        if: always() && steps.build.outcome == 'success'
+        run: |
+          if [ -n "$(find out/artifacts -type f -print -quit 2>/dev/null)" ]; then
+            find out/artifacts -type f
+            echo "::error::corpus pruning stopped on the inputs listed above"
+            exit 1
+          fi
+
+  # The prune job's log -- the restore, the build, and each merge's counts --
+  # kept as an artifact on the same retention.
+  log:
+    needs: prune
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    steps:
+      - name: Copy the prune job's log
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          jobs="repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs"
+          job=$(gh api "$jobs" --jq '.jobs[] | select(.name == "prune") | .id')
+          # A finished job's log can take a few seconds to be served. Its
+          # colored lines carry terminal escapes, which the GitHub CLI
+          # refuses to print unless told; they go to a file, never a terminal.
+          for _ in 1 2 3 4 5 6; do
+            gh api --allow-escape-sequences "repos/$GITHUB_REPOSITORY/actions/jobs/$job/logs" > prune-job.log && exit 0
+            sleep 10
+          done
+          exit 1
+
+      - name: Keep the log
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: clusterfuzzlite-prune-log-${{ github.run_attempt }}
+          path: prune-job.log
+          retention-days: 30
