@@ -283,8 +283,9 @@ The `Dockerfile` and `build.sh` are the two under `.clusterfuzzlite/`.
 
 Atheris 3.1.0 publishes CPython 3.12, 3.13, and 3.14 wheels for Linux x86_64 and no source, so the `fuzz` group
 installs on that combination alone; anywhere else, use the [image](#reproducing-in-the-fuzzing-image). The wheel
-carries its own libFuzzer. A default `poetry sync` leaves the group out and removes it again, so neither CI nor a
-published distribution ever installs Atheris. Install it and check what resolved:
+carries its own libFuzzer. A default `poetry sync` leaves the group out and removes it again, so neither the `ci`
+workflow nor a published distribution installs Atheris; only the fuzzing image the [CI fuzz runs](#fuzzing-in-ci)
+build does. Install it and check what resolved:
 
 ```sh
 env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with fuzz
@@ -306,7 +307,9 @@ outcome. `.gitattributes` keeps the seeds byte for byte, CRLF ones included, and
 
 `fuzz/<target>.options` holds the libFuzzer limits the runner applies: inputs up to 65536 bytes (`max_len`), 2048 MiB
 of resident memory (`rss_limit_mb`), and 10 seconds an input (`timeout`). Inside those limits nothing is filtered: a
-malformed, truncated, or oversized input is parsed whole. `fuzz/<target>.dict` lists the format's tokens. Locally,
+malformed, truncated, or oversized input is parsed whole. `fuzz/<target>.dict` lists the format's tokens. The runner
+starts a corpus merge with no flags, so `.clusterfuzzlite/hold_limits.sh` writes the limits into each packaged
+target's wrapper, ahead of whatever flags a run passes, and every run of a packaged target is held to them. Locally,
 pass the limits and the dictionary as flags, as below.
 
 ### Replaying seeds and inspecting coverage
@@ -427,3 +430,50 @@ env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m fuzz.manifest_fuzzer /tm
    checks with it.
 4. Add the input to the target's corpus when it reaches an outcome no seed does, inside `max_len` and readable as
    above, so every later replay keeps it.
+
+### Fuzzing in CI
+
+Three ClusterFuzzLite workflows run these targets on GitHub's runners, from the same `Dockerfile` and `build.sh` as
+the [image above](#reproducing-in-the-fuzzing-image): every pull request fuzzes the revision it would merge for 600
+seconds from the committed seeds, a daily batch run fuzzes the default branch for an hour from the corpus earlier runs
+left, and a daily prune run shrinks that corpus. Their budgets, token grants, and artifacts, and which corpus a run
+may reuse, are in
+[`configuration/operations.md#continuous-fuzzing`](configuration/operations.md#continuous-fuzzing).
+
+A finding fails the run: its `Fuzz the change` or `Fuzz the targets` step, or, for a prune, the
+`Fail on inputs the merge stopped on` step. The run keeps two artifacts:
+
+- `clusterfuzzlite-<pr|batch|prune>-findings-<attempt>` holds `<target>/address/crash-<sha1>` (or `timeout-`,
+  `oom-`). From a pull request or batch run, each input has a `.summary` beside it: libFuzzer's output for it, with
+  the Python traceback or the broken rule. Pruning writes the input alone.
+- `clusterfuzzlite-<pr|batch|prune>-log-<attempt>` holds the whole fuzz or prune job's log, its color escapes kept
+  (`less -R` shows them); a prune's also carries the merge's output, traceback or timeout included, for each input it
+  stopped on.
+
+Download them from the run page's **Artifacts** list, or with the GitHub CLI into an empty directory outside the
+checkout; GitHub serves artifacts to signed-in users only, and the run id is the last part of the run page's URL:
+
+```sh
+mkdir /tmp/fuzz-findings
+gh run download <run-id> --repo chippingway/chipping-orchestrator \
+  --name clusterfuzzlite-pr-findings-1 --dir /tmp/fuzz-findings
+```
+
+Treat the download as untrusted data: a fork's pull request runs its own copy of the workflow. Replay the input on the
+commit the run fuzzed. The run's `Check the fuzzed commit` step records it as `Fuzzed commit: <sha>` in the run's
+summary and in the log artifact; for a pull request it is the merge commit GitHub tested, which a later merge ref no
+longer names, so fetch it by its hash. Then use the [toolchain above](#toolchain-and-installation); the target prints
+the traceback or the broken rule and exits non-zero:
+
+```sh
+git fetch origin <sha>
+git checkout --detach <sha>
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with fuzz
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m fuzz.manifest_fuzzer \
+  /tmp/fuzz-findings/manifest_fuzzer/address/crash-<sha1>
+```
+
+Then [minimize it](#minimizing-a-crash) in the image and
+[turn it into a regression](#turning-a-finding-into-a-regression). A timeout, an out-of-memory failure, or a finding
+the run marked unreproducible can depend on the limits and the run around it rather than the input alone; replay it in
+the [fuzzing image](#reproducing-in-the-fuzzing-image), which applies the limits the options files set.

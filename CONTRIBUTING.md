@@ -65,8 +65,8 @@ pre-push checklist. The [documentation index](docs/README.md) helps you find the
 Before submitting a PR, run:
 
 ```sh
-env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run ruff check orchestrator tests fuzz .github/scripts/docs_site.py
-env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run flake8 orchestrator tests fuzz .github/scripts/docs_site.py --select=WPS
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run ruff check orchestrator tests fuzz .github/scripts
+env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run flake8 orchestrator tests fuzz .github/scripts --select=WPS
 env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m pytest tests
 git diff --check
 ```

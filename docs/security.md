@@ -33,6 +33,16 @@ the real trust boundary — see [`architecture.md`](architecture.md#design-const
 - **Static analysis of the code itself** — in repo + operator-owned to enforce.
   [`../.github/workflows/codeql.yml`](../.github/workflows/codeql.yml) runs CodeQL advanced setup for Python; a ruleset
   decides which findings block a merge. See [CodeQL advanced setup](#codeql-advanced-setup).
+- **Continuous fuzzing of the untrusted-input parsers** — in repo. Three ClusterFuzzLite workflows fuzz the
+  pinned-state admission and decomposer-manifest readers: every pull request, a fork's included, from the committed
+  seeds; the default branch daily, from a corpus restored only from its own scheduled or manual batch and prune runs;
+  and a daily prune of that corpus. No step reads a secret and no ClusterFuzzLite step is handed a token. The job's
+  own token reaches only the batch and prune source checkout, which `actions/checkout` fetches with by default and
+  keeps out of the checkout, the corpus restore, and the log copies, whose jobs add `actions: read`
+  ([`configuration/operations.md#continuous-fuzzing`](configuration/operations.md#continuous-fuzzing)). After a
+  change to that integration merges, its hosted runs are checked
+  ([procedure](configuration/operations.md#checking-the-hosted-runs)); OpenSSF Scorecard's Fuzzing check is follow-up
+  evidence beside them ([procedure](configuration/operations.md#scorecard-fuzzing-detection)), never a substitute.
 - **2FA for all maintainers** — operator-owned. See [2FA](#2fa).
 - **Secret scanning + push protection** — operator-owned. See
   [Secret scanning and push protection](#secret-scanning-and-push-protection).
@@ -72,11 +82,12 @@ the real trust boundary — see [`architecture.md`](architecture.md#design-const
   upgrades save the chosen window, including zero and values from `PIPX_COOLDOWN`; restore your usual window
   explicitly on the next package change if needed.
   Atheris, which only the [parser fuzz targets](development.md#fuzzing-the-parsers) import, is locked in the optional
-  `fuzz` group, so no default install, CI run, or published distribution carries it. The fuzzing image installs the
-  runtime dependencies and Atheris from the lock with `poetry sync --only main,fuzz`; outside the lock it pins its base
-  image by digest, a CPython tarball by SHA-256, and Poetry, PyInstaller, and coverage.py by version, their own
-  dependencies resolving fresh. Its build context is the allowlist the root `.dockerignore` declares, so no `.env`,
-  credential, worktree, cache, or `analytics-db/data/` file reaches the Docker daemon.
+  `fuzz` group, so no default install, `ci` run, or published distribution carries it. The fuzzing image the
+  ClusterFuzzLite workflows build installs the runtime dependencies and Atheris from the lock with
+  `poetry sync --only main,fuzz`; outside the lock it pins its base image by digest, a CPython tarball by SHA-256,
+  and Poetry, PyInstaller, and coverage.py by version, their own dependencies resolving fresh. Its build context is
+  the allowlist the root `.dockerignore` declares, so no `.env`, credential, worktree, cache, or `analytics-db/data/`
+  file reaches the Docker daemon.
   CI accepts unhashed PyPI installs for its tooling: `pipx` pins Poetry and the export plugin's top-level versions,
   while their transitive dependencies resolve fresh. The sdist smoke install also resolves `poetry-core` through
   build isolation within the manifest's version range. These installs are outside the project's hashed lockfile;
@@ -96,7 +107,9 @@ the real trust boundary — see [`architecture.md`](architecture.md#design-const
   rewrite the SHA and that comment together
   ([`configuration.md#continuous-integration`](configuration.md#continuous-integration)).
   [`../tests/repository/test_workflow_action_pins.py`](../tests/repository/test_workflow_action_pins.py) fails the
-  suite on a `uses:` that names a tag instead.
+  suite on a `uses:` that names a tag instead. A pin fixes the action's own files, not an image it names by tag: the
+  ClusterFuzzLite actions run `gcr.io/oss-fuzz-base/clusterfuzzlite-*:v1` images that OSS-Fuzz rebuilds in place,
+  while the base image the fuzz targets are built on is pinned by digest.
 - **Continuous supply-chain grading (OpenSSF Scorecard)** — in repo.
   [`../.github/workflows/scorecard.yml`](../.github/workflows/scorecard.yml) grades this repo's supply-chain posture
   weekly, on every push to `main`, and on demand, publishing the results the README badge and the public viewer read
@@ -440,6 +453,10 @@ requiring it would pass every merge without checking anything. A path filter ski
 workflow from running, so none of its checks reports, and a required one stays pending and blocks the merge. Restore a
 path filter to that workflow's `pull_request` trigger only after taking `build` off the list.
 
+`fuzz` from the [ClusterFuzzLite PR workflow](../.github/workflows/clusterfuzzlite-pr.yml) is off the list too, by
+default, as a bounded fuzzing run rather than a gate; its `pull_request` trigger carries no path filter, so it reports
+on every PR and can be added.
+
 CodeQL is the one scan off this list that can still hold a merge, and it does so beside the list rather than on it:
 its results are enforced by the **Require code scanning results** ruleset rule with CodeQL selected, which is a
 separate mechanism from the required-status-check names above. See [CodeQL advanced setup](#codeql-advanced-setup).
@@ -451,8 +468,16 @@ separate mechanism from the required-status-check names above. See [CodeQL advan
   analysis job adds `security-events: write` and does run on `pull_request`; GitHub downgrades a fork PR token to read
   only but still accepts code-scanning uploads from the `pull_request` event. The documentation deployment job adds
   `pages: write` + `id-token: write`, runs only on `main` outside `pull_request`, and is limited to the `github-pages`
-  environment. Do **not** enable write tokens for fork PRs or add `pull_request_target` triggers, `secrets.*`
-  references, or higher token permissions without a written justification.
+  environment. The ClusterFuzzLite pull-request fuzz job hands `github.token` to no step; its `log` job, which copies
+  that job's log, adds only `actions: read`. The batch and prune jobs hand it to their source checkout, which does not
+  persist it, and to the corpus restore, add `actions: read` for the latter, and run only on `schedule` and
+  `workflow_dispatch`. Do **not** enable write tokens for fork PRs or add
+  `pull_request_target` triggers, `secrets.*` references, or higher token permissions without a written
+  justification.
+- A fork's pull request runs the fuzz workflow as the fork wrote it, so whatever its run uploads is the fork's: the
+  findings and log artifacts carry no secret, and no later run restores a corpus from a pull request's run
+  ([`configuration/operations.md#continuous-fuzzing`](configuration/operations.md#continuous-fuzzing)). Download such
+  an artifact as untrusted data.
 - At `Settings → Actions → General → Fork pull request workflows from outside collaborators`, set **"Require
   approval for first-time contributors who are new to GitHub"** (or stricter).
 - For org-owned repos, mirror this default at the org level.

@@ -1,0 +1,130 @@
+# Copyright 2026 Geser Dugarov
+# SPDX-License-Identifier: Apache-2.0
+name: ClusterFuzzLite batch fuzzing
+
+# Fuzzes the default branch daily for an hour, and any branch on demand, from
+# the newest corpus a trusted batch or prune run left plus the committed seeds,
+# then leaves the grown corpus for the next run.
+# `docs/configuration/operations.md` covers the budgets, the artifacts, and
+# which runs a corpus is taken from.
+on:
+  schedule:
+    - cron: "23 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Batch and prune runs each restore the newest corpus and upload its successor,
+# so on one ref they queue behind each other rather than race, and no run is
+# cancelled for the next one.
+concurrency:
+  group: clusterfuzzlite-corpus-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    # The restore, build, and fuzzing ceilings below, with room for the
+    # uploads; far under GitHub's six-hour default.
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      # The restore script and the committed seeds. `actions/checkout` fetches
+      # with the job's token unless handed another; `persist-credentials: false`
+      # keeps it out of the checkout's git config once fetched.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+
+      # The only other step holding the job's token: it reads the corpus
+      # artifacts back.
+      - name: Restore the corpus
+        timeout-minutes: 10
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 source/.github/scripts/clusterfuzzlite_corpus.py "$GITHUB_WORKSPACE" source/fuzz/corpus
+
+      - name: Build the fuzz targets
+        id: build
+        uses: google/clusterfuzzlite/actions/build_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
+        timeout-minutes: 30
+        with:
+          language: python
+          sanitizer: address
+          keep-unaffected-fuzz-targets: true
+
+      # The build action clones and checks out the revision itself, so a run
+      # fuzzes the commit it was started for -- recorded here for replaying a
+      # finding -- or fails, as a pull request's run does.
+      - name: Check the fuzzed commit
+        run: |
+          built=$(git -c safe.directory='*' -C "storage/${GITHUB_REPOSITORY#*/}" rev-parse HEAD)
+          if [ "$built" != "$GITHUB_SHA" ]; then
+            echo "::error::the build checked out $built, not $GITHUB_SHA, the commit this run is for"
+            exit 1
+          fi
+          echo "Fuzzed commit: $built" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # Uploads each target's corpus as `cifuzz-corpus-<target>` once that
+      # target's share of the budget is spent, crash or not.
+      - name: Fuzz the targets
+        id: run
+        uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
+        timeout-minutes: 75
+        # The v1 action passes neither switch, and its runner reads an unset
+        # REPORT_TIMEOUTS as false, which would let a hang pass green.
+        env:
+          REPORT_TIMEOUTS: "true"
+          REPORT_OOMS: "true"
+        with:
+          language: python
+          sanitizer: address
+          mode: batch
+          fuzz-seconds: 3600
+          report-unreproducible-crashes: true
+          dry-run: false
+
+      - name: Keep the crashing inputs
+        if: always() && steps.build.outcome == 'success'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: clusterfuzzlite-batch-findings-${{ github.run_attempt }}
+          path: out/artifacts
+          if-no-files-found: ignore
+          retention-days: 30
+
+  # The fuzz job's log -- the restore, the build, and libFuzzer's coverage
+  # counters -- kept as an artifact on the same retention.
+  log:
+    needs: fuzz
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    steps:
+      - name: Copy the fuzz job's log
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          jobs="repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT/jobs"
+          job=$(gh api "$jobs" --jq '.jobs[] | select(.name == "fuzz") | .id')
+          # A finished job's log can take a few seconds to be served. Its
+          # colored lines carry terminal escapes, which the GitHub CLI
+          # refuses to print unless told; they go to a file, never a terminal.
+          for _ in 1 2 3 4 5 6; do
+            gh api --allow-escape-sequences "repos/$GITHUB_REPOSITORY/actions/jobs/$job/logs" > fuzz-job.log && exit 0
+            sleep 10
+          done
+          exit 1
+
+      - name: Keep the log
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: clusterfuzzlite-batch-log-${{ github.run_attempt }}
+          path: fuzz-job.log
+          retention-days: 30

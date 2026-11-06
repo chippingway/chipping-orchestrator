@@ -1207,14 +1207,21 @@ dependency scanning: on a weekly `schedule` and on `workflow_dispatch` it audits
 OpenSSF Scorecard weekly, on every push to `main`, and on demand, publishing the results the README badge and the
 public viewer read and uploading the SARIF to code scanning.
 [`../.github/workflows/codeql.yml`](../.github/workflows/codeql.yml) analyzes the Python source on pushes to `main`,
-pull requests targeting `main`, and a weekly schedule, then uploads the results to code scanning. Every `uses:` in
+pull requests targeting `main`, and a weekly schedule, then uploads the results to code scanning.
+Three ClusterFuzzLite workflows fuzz the [parser targets](development.md#fuzzing-the-parsers): every pull request for
+600 seconds from the committed seeds, the default branch daily for an hour from the corpus earlier runs left, and a
+daily prune of that corpus, with no secret, and with the job's token reaching only the batch and prune source
+checkout and the steps reading artifacts and logs back. Every `uses:` in
 every workflow names a full commit SHA with its release in a trailing comment, and Dependabot's `github-actions`
 updates rewrite that pair. The lint contract the Ruff run enforces — its own defaults plus `E501`, with no baseline
 of this repo's own — the per-file lint scopes, the repository-wide 120-column target, workflow token permissions, the
 rules an inline `# noqa` may name, the order imports are sorted into, the commit-SHA pins, the job timeouts, the
 run-cancellation rule, the three interpreters, the packaging smoke checks, the dependency review, and how the scheduled
 scans work are in
-[`configuration/operations.md#continuous-integration`](configuration/operations.md#continuous-integration).
+[`configuration/operations.md#continuous-integration`](configuration/operations.md#continuous-integration); the fuzzing
+budgets, artifacts and their retention, corpus restoration and pruning, reuse limits, and the post-merge checks of the
+hosted runs and of Scorecard are in
+[`configuration/operations.md#continuous-fuzzing`](configuration/operations.md#continuous-fuzzing).
 
 ## Publishing the documentation
 

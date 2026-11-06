@@ -995,12 +995,12 @@ and patches. Repository types live in `config.models`, and token resolution in `
 
 Refactors separate responsibilities and move callers, mocks, and ownership documentation together. Every resulting
 module must satisfy the default limits; a refactor cannot add an exclusion, an inline suppression, or a raised
-complexity limit. `flake8 orchestrator tests fuzz --select=WPS` must pass without diagnostics. The isolated run,
-`flake8 --isolated --select=WPS orchestrator tests fuzz`, must report only the deliberate initializer violations;
-every remaining file/rule exclusion must correspond to one of those diagnostics.
+complexity limit. `flake8 orchestrator tests fuzz .github/scripts --select=WPS` must pass without diagnostics. The
+isolated run, `flake8 --isolated --select=WPS orchestrator tests fuzz .github/scripts`, must report only the deliberate
+initializer violations; every remaining file/rule exclusion must correspond to one of those diagnostics.
 
 The rule set is Ruff's own. `[tool.ruff.lint]` in [`../../pyproject.toml`](../../pyproject.toml) declares no `select`,
-so what `ruff check orchestrator tests fuzz` enforces is whatever the `ruff` resolved in
+so what `ruff check orchestrator tests fuzz .github/scripts` enforces is whatever the `ruff` resolved in
 [`../../poetry.lock`](../../poetry.lock) ships as its defaults, plus the single `E501` opted into
 through `extend-select`. That pair is the whole contract.
 `[dependency-groups]` names a floor (`ruff>=`) rather than a version, and `poetry sync` installs the lockfile's
@@ -1125,8 +1125,8 @@ report rather than as one that failed. The documentation build and deploy jobs e
 a required check, so a hung one would hold a merge, and a hung deployment from `main` holds the `pages` concurrency
 group, so later deployments wait.
 [`../../tests/repository/test_workflow_job_timeouts.py`](../../tests/repository/test_workflow_job_timeouts.py) holds a
-declared timeout, shorter than that default, on every job in all six workflows, and holds the list it walks against
-the workflow directory, so a seventh workflow arrives with a timeout rather than outside every check.
+declared timeout, shorter than that default, on every job in all ten workflows, and holds the list it walks against
+the workflow directory, so an eleventh workflow arrives with a timeout rather than outside every check.
 
 [`../../.github/dependabot.yml`](../../.github/dependabot.yml) opens weekly update PRs for `github-actions` and `pip`
 (Python `pyproject.toml` + `poetry.lock`). For routine version updates, `github-actions` uses the ecosystem-wide
@@ -1186,6 +1186,145 @@ lockfile while those updates reach only what the `allow:` rules above name, so a
 those rules do not name is cleared by widening them or by hand rather than by waiting for a PR.
 For manual security fixes younger than 14 days, follow the
 [manual security-fix procedure](../security.md#dependabot-security-updates).
+
+### Continuous fuzzing
+
+Three workflows run the [parser fuzz targets](../development.md#fuzzing-the-parsers) under ClusterFuzzLite. Each
+builds `.clusterfuzzlite/Dockerfile` from the revision it checks, packages both targets with their seeds, options, and
+dictionaries, and fuzzes them with the 64 KiB, 2048 MiB, and 10-second limits their `.options` files set. The action
+starts a prune's corpus merge with no flags at all, so the build writes those limits into each packaged target's
+wrapper, where they hold every run, the merge included:
+
+- [`../../.github/workflows/clusterfuzzlite-pr.yml`](../../.github/workflows/clusterfuzzlite-pr.yml) runs on every
+  pull request, a fork's included, in `code-change` mode for 600 seconds from the committed seeds alone. Its build
+  step clones this repository anonymously and checks out `refs/pull/<n>/merge` as it stands then, not the commit the
+  run was started for. A second push cancels the run its earlier push started.
+- [`../../.github/workflows/clusterfuzzlite-batch.yml`](../../.github/workflows/clusterfuzzlite-batch.yml) runs in
+  `batch` mode for 3,600 seconds, daily at 02:23 UTC and on `workflow_dispatch`.
+- [`../../.github/workflows/clusterfuzzlite-prune.yml`](../../.github/workflows/clusterfuzzlite-prune.yml) prunes the
+  corpus in `prune` mode, daily at 05:47 UTC and on `workflow_dispatch`, with 600 seconds for the merges.
+
+A scheduled run fuzzes the default branch, the only one GitHub runs a `schedule` on; a manual run fuzzes the branch it
+is started on. Between the build and the fuzzing, every run compares the commit its build checked out with
+`GITHUB_SHA`, the commit the run was started for, and fails on a difference: a pull request's merge ref moves when its
+base or head does, and a green run would otherwise vouch for code it was not started for. A re-run after the ref moved
+fails the same way, and a new push starts a run for the current merge. The check records the commit as
+`Fuzzed commit: <sha>` in the job's log and summary, which is what a finding is replayed on.
+The `fuzz-seconds` budget is split between the two targets, a target finishing early leaving its time
+to the next. The run step's own `timeout-minutes` covers that budget, and the job's covers its steps: 30 minutes for
+each build, 20, 75, and 20 for the three run steps, 10 for each restore, 60, 120, and 70 for the jobs, and 5 for each
+log copy. Batch and prune runs share the concurrency group `clusterfuzzlite-corpus-<ref>` and are never cancelled for
+a newer run, so on one ref they queue rather than race over the corpus; GitHub keeps one pending run per group, so a
+third run replaces the one still waiting. None of the three is a required check. The pull-request one carries no path
+filter, so it stays eligible: add `fuzz` from **ClusterFuzzLite PR fuzzing** to
+[Required checks](../security.md#required-checks) to make a merge wait on it.
+
+A finding fails the run. Every run step sets `dry-run: false`, and `report-unreproducible-crashes: true` reports an
+input that crashed during fuzzing but not when replayed alone: the targets keep no state between inputs, so that is
+itself a defect, such as memory growing over a run. The pinned v1 action passes neither `REPORT_TIMEOUTS` nor
+`REPORT_OOMS` to its runner, which reads an unset `REPORT_TIMEOUTS` as false and would pass a hang green, so each run
+step sets both to `true` in its `env:`; pruning reads neither. Pruning reports no finding of its own: an input the
+merge crashes on, or holds past the per-input timeout or memory limit, is written beside the others and the step still
+succeeds, so the prune job ends on a step that fails when `out/artifacts` holds a file.
+Neither the build nor the run step is handed a token, so the action's own lookups of earlier builds and
+corpora fail with GitHub's `401`, which its log reports as `Failed to download corpus ... Github API request failed`.
+With no earlier build to compare against, every reproducible crash a pull request's run finds counts as its own.
+
+What a run keeps, whatever the run step did:
+
+- **Crashing inputs.** `clusterfuzzlite-<pr|batch|prune>-findings-<attempt>` holds `out/artifacts`, the only path
+  uploaded: `<target>/address/crash-<sha1>` (or `timeout-`, `oom-`). A pull request or batch run writes a `.summary`
+  beside each, carrying libFuzzer's output for it, the Python traceback included; a prune writes the input alone, its
+  merge output staying in the job's log. It is uploaded whenever the build succeeded, and kept 14 days for a pull
+  request and 30 for a batch or prune run.
+- **The job's log.** A `log` job, run after the fuzz or prune job unless the run was cancelled, copies that job's log
+  -- the image build, the bad-build check, and each target's libFuzzer counters -- into
+  `clusterfuzzlite-<pr|batch|prune>-log-<attempt>` on the same retention. The copy keeps the log's terminal color
+  escapes, which the runner's GitHub CLI refuses to print unless its `--allow-escape-sequences` is passed.
+- **ClusterFuzzLite's own artifacts.** The action uploads `crashes-<target>` for a finding and, in batch and prune
+  runs, `cifuzz-corpus-<target>`: one `cifuzz-corpus-<target>.tar` of the corpus it grew or pruned. It offers no
+  retention setting, so these, like the job logs themselves, follow the repository's
+  **Settings → Actions → General → Artifact and log retention**, 90 days unless an operator lowers it.
+
+[`../development.md#fuzzing-in-ci`](../development.md#fuzzing-in-ci) covers downloading a finding and replaying it.
+
+The corpus a batch or prune run starts from is restored by
+[`../../.github/scripts/clusterfuzzlite_corpus.py`](../../.github/scripts/clusterfuzzlite_corpus.py), not by the
+action. Its step and the source checkout before it, which `actions/checkout` runs with the job's token by default and
+`persist-credentials: false` keeps from writing into the checkout, are the batch and prune steps holding that token,
+and the log copies the only others in the three workflows. Given a token, the action takes the newest
+unexpired `cifuzz-corpus-<target>` from any run in the repository -- a fork's pull request can upload one -- and
+unpacks its tar unfiltered. The script lists that artifact instead and takes the newest unexpired one a `schedule` or
+`workflow_dispatch` run of the batch or prune workflow uploaded on this repository's default branch, judged by the
+run's workflow path, event, branch, and head repository. It checks the archive against the digest GitHub records,
+requires the one tar ClusterFuzzLite writes, extracts it with Python's `data` filter into
+`cifuzz-corpus/<target>`, where the action fuzzes from, and copies the committed seeds over it so a seed added or
+edited since is fuzzed too. The job summary names the artifact, the run, and the commit each corpus came from.
+
+- **Sources.** The committed seeds, every run; and the newest trusted corpus artifact, in batch and prune runs only.
+- **Reuse limits.** A pull request's run, a fork's or not, restores nothing and uploads no corpus. A manual run on
+  another branch restores the default branch's corpus, but its own upload is never restored, by that branch or any
+  other. Only the default branch's scheduled and manual batch and prune runs leave a corpus a later run takes.
+- **Growth and pruning.** A batch run uploads its corpus with what it found added; a prune run merges the restored
+  corpus and the seeds down to the inputs that keep their coverage and uploads that. The next run of either takes
+  whichever is newest.
+- **Expiry and cold starts.** A corpus artifact expires with the repository's artifact retention. With no trusted one
+  left -- the first run, or a gap longer than the retention -- a run starts cold from the committed seeds and its
+  upload restarts the line. Any other failure, a read GitHub refuses or an archive unlike the one ClusterFuzzLite
+  writes, fails the job before it fuzzes: a cold start's corpus would become the newest and displace the one the run
+  could not read.
+
+Both ClusterFuzzLite actions are pinned to the commit the `v1` tag names. That commit's `action.yml` runs the
+`gcr.io/oss-fuzz-base/clusterfuzzlite-build-fuzzers:v1` and `clusterfuzzlite-run-fuzzers:v1` images, which OSS-Fuzz
+rebuilds under the same tag, so the pin fixes the action's inputs but not the code its images run; the base image the
+targets are built on is pinned by digest in the `Dockerfile`. No coverage report is produced: the runner image's
+Python 3.11 cannot parse the Python 3.12 standard library the targets bundle
+([`../development.md#reproducing-in-the-fuzzing-image`](../development.md#reproducing-in-the-fuzzing-image)), so
+coverage evidence is each run log's `INFO: Instrumenting` lines and libFuzzer's `cov:` and `ft:` counters.
+[`../../tests/repository/test_clusterfuzzlite_workflows.py`](../../tests/repository/test_clusterfuzzlite_workflows.py)
+holds the triggers, token grants, budgets, ceilings, reporting switches, and artifacts above, runs the commit
+check against a checkout that has moved past the run's commit, and, where the GitHub CLI is installed, runs each log
+copy through it against a local server serving a colored log, and
+[`../../tests/repository/test_clusterfuzzlite_corpus.py`](../../tests/repository/test_clusterfuzzlite_corpus.py) the
+restore's choice of artifact, its refusals, and its cold start.
+
+#### Checking the hosted runs
+
+The repository checks above hold the workflows' text and run the commit check, the log copy, and the restore
+against local stand-ins. Only runs on GitHub show a finding failing a run with an input to download, a fork's run
+getting no secret or write grant, and one run's corpus reaching the next. After a change to the fuzzing integration
+merges, record that evidence on the issue tracking it, beside the [Scorecard result](#scorecard-fuzzing-detection):
+
+1. **A finding.** On a throwaway branch, make `test_one_input` in `fuzz/manifest_reply.py` raise, and open a draft pull
+   request. Its `fuzz` job fails and keeps `clusterfuzzlite-pr-findings-1`; download the input and replay it on the
+   fuzzed commit as [`../development.md#fuzzing-in-ci`](../development.md#fuzzing-in-ci) describes, and it prints the
+   traceback and exits non-zero. Revert the change: the next run passes, and so does
+   `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m pytest tests/repository/test_fuzz_targets.py`.
+2. **A fork's pull request.** Open one from a fork, approving its run if the contributor-approval setting holds it.
+   The run passes, and each job's `Set up job` log lists only `read` grants under `GITHUB_TOKEN Permissions`.
+3. **The corpus line.** On `main`, start a batch run, a prune run, and a batch run again, each once the one before has
+   finished, since a run queued behind a pending one replaces it:
+   `gh workflow run clusterfuzzlite-batch.yml --ref main`, then `clusterfuzzlite-prune.yml`. Each run's summary lists
+   under `Fuzzing corpora` the artifact and run each corpus came from: the prune names the first batch run, and the
+   second batch run names the prune. The prune's log carries libFuzzer's `MERGE-OUTER` counts for each merge.
+4. **The schedule.** The next scheduled runs appear on `main` under
+   `gh run list --workflow clusterfuzzlite-batch.yml --event schedule` and its prune counterpart.
+
+#### Scorecard fuzzing detection
+
+OpenSSF Scorecard's Fuzzing check reads the repository's files, not these runs: it reports ClusterFuzzLite from
+`.clusterfuzzlite/Dockerfile` and Atheris from the targets' imports. Its detection is follow-up evidence, never a
+substitute for the targets and workflows working. After a change to the fuzzing integration merges:
+
+1. Wait for the [Scorecard workflow](../../.github/workflows/scorecard.yml) run that the push to `main` starts, and
+   confirm it succeeded on the merge commit or a later one.
+2. Read the published result, `https://api.securityscorecards.dev/projects/github.com/chippingway/chipping-orchestrator`
+   or the [viewer](https://scorecard.dev/viewer/?uri=github.com/chippingway/chipping-orchestrator), and confirm its
+   `repo.commit` is that commit or a descendant.
+3. Record the Fuzzing check's score and details on the issue that tracks the integration.
+
+A missed detection is investigated on its own, against Scorecard's detection rules; it says nothing about whether the
+fuzz runs work, which their own runs and artifacts show.
 
 ### Dependency tooling
 
