@@ -1219,8 +1219,9 @@ rules an inline `# noqa` may name, the order imports are sorted into, the commit
 run-cancellation rule, the three interpreters, the packaging smoke checks, the dependency review, and how the scheduled
 scans work are in
 [`configuration/operations.md#continuous-integration`](configuration/operations.md#continuous-integration); the fuzzing
-budgets, artifacts and their retention, corpus restoration and pruning, reuse limits, and the Scorecard follow-up are
-in [`configuration/operations.md#continuous-fuzzing`](configuration/operations.md#continuous-fuzzing).
+budgets, artifacts and their retention, corpus restoration and pruning, reuse limits, and the post-merge checks of the
+hosted runs and of Scorecard are in
+[`configuration/operations.md#continuous-fuzzing`](configuration/operations.md#continuous-fuzzing).
 
 ## Publishing the documentation
 

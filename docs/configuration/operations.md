@@ -995,12 +995,12 @@ and patches. Repository types live in `config.models`, and token resolution in `
 
 Refactors separate responsibilities and move callers, mocks, and ownership documentation together. Every resulting
 module must satisfy the default limits; a refactor cannot add an exclusion, an inline suppression, or a raised
-complexity limit. `flake8 orchestrator tests fuzz --select=WPS` must pass without diagnostics. The isolated run,
-`flake8 --isolated --select=WPS orchestrator tests fuzz`, must report only the deliberate initializer violations;
-every remaining file/rule exclusion must correspond to one of those diagnostics.
+complexity limit. `flake8 orchestrator tests fuzz .github/scripts --select=WPS` must pass without diagnostics. The
+isolated run, `flake8 --isolated --select=WPS orchestrator tests fuzz .github/scripts`, must report only the deliberate
+initializer violations; every remaining file/rule exclusion must correspond to one of those diagnostics.
 
 The rule set is Ruff's own. `[tool.ruff.lint]` in [`../../pyproject.toml`](../../pyproject.toml) declares no `select`,
-so what `ruff check orchestrator tests fuzz` enforces is whatever the `ruff` resolved in
+so what `ruff check orchestrator tests fuzz .github/scripts` enforces is whatever the `ruff` resolved in
 [`../../poetry.lock`](../../poetry.lock) ships as its defaults, plus the single `E501` opted into
 through `extend-select`. That pair is the whole contract.
 `[dependency-groups]` names a floor (`ruff>=`) rather than a version, and `poetry sync` installs the lockfile's
@@ -1212,12 +1212,12 @@ fails the same way, and a new push starts a run for the current merge. The check
 `Fuzzed commit: <sha>` in the job's log and summary, which is what a finding is replayed on.
 The `fuzz-seconds` budget is split between the two targets, a target finishing early leaving its time
 to the next. The run step's own `timeout-minutes` covers that budget, and the job's covers its steps: 30 minutes for
-each build, 20, 75, and 20 for the three run steps, 10 for each restore, and 60, 120, and 70 for the jobs. Batch and
-prune runs share the concurrency group `clusterfuzzlite-corpus-<ref>` and are never cancelled for a newer run, so on
-one ref they queue rather than race over the corpus; GitHub keeps one pending run per group, so a third run replaces
-the one still waiting. None of the three is a required check. The pull-request one carries no path filter, so it
-stays eligible: add `fuzz` from **ClusterFuzzLite PR fuzzing** to [Required checks](../security.md#required-checks) to
-make a merge wait on it.
+each build, 20, 75, and 20 for the three run steps, 10 for each restore, 60, 120, and 70 for the jobs, and 5 for each
+log copy. Batch and prune runs share the concurrency group `clusterfuzzlite-corpus-<ref>` and are never cancelled for
+a newer run, so on one ref they queue rather than race over the corpus; GitHub keeps one pending run per group, so a
+third run replaces the one still waiting. None of the three is a required check. The pull-request one carries no path
+filter, so it stays eligible: add `fuzz` from **ClusterFuzzLite PR fuzzing** to
+[Required checks](../security.md#required-checks) to make a merge wait on it.
 
 A finding fails the run. Every run step sets `dry-run: false`, and `report-unreproducible-crashes: true` reports an
 input that crashed during fuzzing but not when replayed alone: the targets keep no state between inputs, so that is
@@ -1287,6 +1287,28 @@ check against a checkout that has moved past the run's commit, and, where the Gi
 copy through it against a local server serving a colored log, and
 [`../../tests/repository/test_clusterfuzzlite_corpus.py`](../../tests/repository/test_clusterfuzzlite_corpus.py) the
 restore's choice of artifact, its refusals, and its cold start.
+
+#### Checking the hosted runs
+
+The repository checks above hold the workflows' text and run the commit check, the log copy, and the restore
+against local stand-ins. Only runs on GitHub show a finding failing a run with an input to download, a fork's run
+getting no secret or write grant, and one run's corpus reaching the next. After a change to the fuzzing integration
+merges, record that evidence on the issue tracking it, beside the [Scorecard result](#scorecard-fuzzing-detection):
+
+1. **A finding.** On a throwaway branch, make `test_one_input` in `fuzz/manifest_reply.py` raise, and open a draft pull
+   request. Its `fuzz` job fails and keeps `clusterfuzzlite-pr-findings-1`; download the input and replay it on the
+   fuzzed commit as [`../development.md#fuzzing-in-ci`](../development.md#fuzzing-in-ci) describes, and it prints the
+   traceback and exits non-zero. Revert the change: the next run passes, and so does
+   `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m pytest tests/repository/test_fuzz_targets.py`.
+2. **A fork's pull request.** Open one from a fork, approving its run if the contributor-approval setting holds it.
+   The run passes, and each job's `Set up job` log lists only `read` grants under `GITHUB_TOKEN Permissions`.
+3. **The corpus line.** On `main`, start a batch run, a prune run, and a batch run again, each once the one before has
+   finished, since a run queued behind a pending one replaces it:
+   `gh workflow run clusterfuzzlite-batch.yml --ref main`, then `clusterfuzzlite-prune.yml`. Each run's summary lists
+   under `Fuzzing corpora` the artifact and run each corpus came from: the prune names the first batch run, and the
+   second batch run names the prune. The prune's log carries libFuzzer's `MERGE-OUTER` counts for each merge.
+4. **The schedule.** The next scheduled runs appear on `main` under
+   `gh run list --workflow clusterfuzzlite-batch.yml --event schedule` and its prune counterpart.
 
 #### Scorecard fuzzing detection
 
