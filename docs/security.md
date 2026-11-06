@@ -39,9 +39,10 @@ the real trust boundary — see [`architecture.md`](architecture.md#design-const
   and a daily prune of that corpus. No step reads a secret and no ClusterFuzzLite step is handed a token. The job's
   own token reaches only the batch and prune source checkout, which `actions/checkout` fetches with by default and
   keeps out of the checkout, the corpus restore, and the log copies, whose jobs add `actions: read`
-  ([`configuration/operations.md#continuous-fuzzing`](configuration/operations.md#continuous-fuzzing)). OpenSSF
-  Scorecard's Fuzzing check is follow-up evidence for that integration, read after it merges
-  ([procedure](configuration/operations.md#scorecard-fuzzing-detection)), never a substitute for the runs themselves.
+  ([`configuration/operations.md#continuous-fuzzing`](configuration/operations.md#continuous-fuzzing)). After a
+  change to that integration merges, its hosted runs are checked
+  ([procedure](configuration/operations.md#checking-the-hosted-runs)); OpenSSF Scorecard's Fuzzing check is follow-up
+  evidence beside them ([procedure](configuration/operations.md#scorecard-fuzzing-detection)), never a substitute.
 - **2FA for all maintainers** — operator-owned. See [2FA](#2fa).
 - **Secret scanning + push protection** — operator-owned. See
   [Secret scanning and push protection](#secret-scanning-and-push-protection).
