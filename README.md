@@ -168,9 +168,12 @@ examples. The [operations guide][operations] covers run modes, upgrades and roll
 on one host, and systemd deployment. For unconstrained, unpinned installs, use `pipx upgrade chipping-orchestrator`
 after stopping the poller and reviewing release notes. Constrained installs upgrade by repeating the pinned
 procedure in the operations guide with the new release's constraints. Package upgrades are operator-initiated.
-Upgrading to v0.14.0 from v0.13.0 or earlier moves the poller to `chipping-orchestrator run`: the bare command prints
-help and exits. Read the [v0.14.0 release and upgrade notes][release-0.14.0] and the
-[package upgrade procedure][installation] before upgrading a host whose scripts or systemd unit run it.
+Read the [v0.15.0 release and upgrade notes][release-0.15.0] before upgrading: pinned workflow state written by
+v0.14.0 lacks the required `schema_version: 1` and cannot resume under v0.15.0. Analytics databases also need the
+schema and rollup update described there. Follow the [package upgrade procedure][installation] and the deployment
+procedure below before restarting.
+Upgrading from v0.13.0 or earlier also moves the poller to `chipping-orchestrator run`: the bare command prints
+help and exits. The [v0.14.0 notes][release-0.14.0] cover that command and service change.
 A release or source revision that cannot read the work the running poller owns is
 [deployed without migration][deploying]: stop and hold every poller, keep what the new build cannot read away from it
 and in place for a human to decide on, then install, check, and start it deliberately. Nothing converts earlier
@@ -340,6 +343,7 @@ Licensed under the Apache License, Version 2.0. See [LICENSE][license] for the f
 [documentation]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/README.md
 [architecture]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/architecture.md
 [releases]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/release-timeline.md
+[release-0.15.0]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/release-timeline.md#v0150
 [release-0.14.0]: https://github.com/chippingway/chipping-orchestrator/blob/main/docs/release-timeline.md#v0140
 [reporting]: https://github.com/chippingway/chipping-orchestrator/blob/main/SECURITY.md
 [contributing]: https://github.com/chippingway/chipping-orchestrator/blob/main/CONTRIBUTING.md

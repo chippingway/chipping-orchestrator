@@ -260,6 +260,13 @@ successful migration; subsequent upgrades and rollback use the pipx procedures b
 
 ### Upgrade a package
 
+**v0.15.0 requires version-1 pinned state.** Records written by v0.14.0 have no `schema_version`, so v0.15.0 refuses
+them and preserves their issues and artifacts without resuming the work. Read the
+[v0.15.0 upgrade notes](../release-timeline.md#v0150) and follow
+[Deploying without migration](#deploying-without-migration) before restarting; do not add a version field to old
+records or replace them with fresh state. Analytics installations also need the release's schema and rollup update
+before their next sync or dashboard read.
+
 **v0.14.0 changes the polling command.** Upgrading from v0.13.0 or earlier requires starting the poller as
 `chipping-orchestrator run`. The bare command prints the help listing every command and exits 0, and a polling flag
 given before any command is a usage error naming its `run` form, for example `chipping-orchestrator run --once`.

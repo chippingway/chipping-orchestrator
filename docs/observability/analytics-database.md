@@ -191,10 +191,11 @@ these columns.
 
 ### Upgrading an existing database
 
-This schema adds columns to `analytics_events`, appends columns to `analytics_agent_runs`, defines the
-`analytics_rate_dates` aggregate, and changes the `analytics_daily_rollup` column list. Before the first sync of a
-release that carries it — whose INSERT names the new columns and fails, committing nothing, on a table without them —
-reapply the schema, drop the rollup, and reapply again so it is rebuilt with the new columns:
+[v0.15.0](../release-timeline.md#v0150) adds usage evidence columns to `analytics_events`, appends columns to
+`analytics_agent_runs`, defines the `analytics_rate_dates` aggregate, and changes the `analytics_daily_rollup`
+column list. Stop sync and dashboard processes and use the v0.15.0 schema files before applying the update.
+Before the first v0.15.0 sync — whose INSERT names the new columns and fails, committing nothing, on a table without
+them — reapply the schema, drop the rollup, and reapply again so it is rebuilt with the new columns:
 
 ```sh
 cd analytics-db
@@ -205,8 +206,8 @@ docker compose exec -T analytics-db sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGR
 
 The first reapply adds the table columns and replaces the agent-run view in place; dropping the rollup loses nothing,
 since the second reapply rebuilds it from `analytics_events`. A reapply alone never rebuilds a rollup that already
-exists, so the drop is needed whenever the rollup's column list changed — including on a database that already
-applied an earlier schema of the same release. Until the rollup is rebuilt, the dashboard's overview reads — the
+exists, so the drop is needed whenever the rollup's column list changed — including on a database updated from a
+source checkout before the v0.15.0 tag. Until the rollup is rebuilt, the dashboard's overview reads — the
 window summary, the window a delta is measured against, and the day series, all in the first wave — name columns it
 lacks, so the page stops on its read-error banner before any panel is drawn. Rows already stored keep NULL evidence
 columns and read as described above.
