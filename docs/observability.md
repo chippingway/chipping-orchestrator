@@ -133,6 +133,11 @@ polling tick, so orchestrator correctness never depends on database availability
 commands, the full column and index inventory, the batching / dedup / malformed-line contract, and the
 credential-stripped operator feedback.
 
+Upgrading an existing database to [v0.15.0](release-timeline.md#v0150) requires the
+[usage-evidence schema update](observability/analytics-database.md#upgrading-an-existing-database) before the next
+sync or dashboard read: stop those processes, use the release's schema, reapply it, drop the derived daily rollup,
+and reapply to rebuild it. Stored events remain intact; historical usage is not repriced or backfilled.
+
 ### Operator workflow
 
 Summarized here; the reference is

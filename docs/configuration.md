@@ -209,13 +209,19 @@ explicit `REPOS` targets above. Review release notes and compare both versions' 
 local overrides, changed defaults, and validation rules can affect both the upgrade and a later rollback. Package
 changes are initiated by the operator.
 
-Upgrading to v0.14.0 from v0.13.0 or earlier moves polling to `chipping-orchestrator run`:
+The [v0.15.0 upgrade notes](release-timeline.md#v0150) cover the required version-1 pinned state, current-format
+boundaries, final documentation handoff, usage accounting, and analytics schema update. Pinned records written by
+v0.14.0 lack `schema_version: 1` and cannot resume under v0.15.0; use
+[deploying without migration](#deploying-without-migration) before restarting. Existing analytics databases need
+their schema reapplied and daily rollup rebuilt before the new sync or dashboard reads them.
+
+Upgrading from v0.13.0 or earlier also moves polling to `chipping-orchestrator run`:
 the bare command prints help and exits 0, so a launch line, script, or hand-written unit's `ExecStart` that runs it
 needs `run` appended before the upgraded package starts. The
 [upgrade warning](configuration/operations.md#upgrade-a-package) covers the unit and a rollback.
 
-The [v0.14.0 upgrade notes](release-timeline.md#v0140) cover the command and service changes, packaged templates,
-workflow-state compatibility, verification recovery, and corrected Claude usage accounting. For upgrades from
+The [v0.14.0 upgrade notes](release-timeline.md#v0140) cover those command and service changes, packaged templates,
+verification recovery, and the earlier Claude output-token correction. For upgrades from
 v0.12.0, also read the [v0.13.0 notes](release-timeline.md#v0130) on the required author allowlist, installed targets,
 Poetry migration, worktree paths, and the report and verification contracts.
 

@@ -125,9 +125,11 @@ CLI-reported `cost_usd`, unchanged.
 **Claude estimates recorded before the lifetime correction.** v0.14.0 and every earlier release price a block's
 aggregate `cache_creation_input_tokens` at the five-minute rate whenever the block carries one, as Claude Code's always
 do, so a one-hour write was priced at the five-minute rate, and they price each model's summed usage rather than each
-request. A source checkout after the v0.14.0 tag still reports `0.14.0`, so its history, not its version, decides
-which pricing it records, and records carry no orchestrator version. Records already written keep their values: an
-`estimated` `cost_usd` on `agent_exit` lines, every trajectory turn's estimate, the analytics rows synced from them,
+request. The correction ships in [v0.15.0](../release-timeline.md#v0150);
+[pull request #2452](https://github.com/chippingway/chipping-orchestrator/pull/2452) identifies the source boundary.
+A source checkout between the v0.14.0 and v0.15.0 tags can contain it while still reporting `0.14.0`, so its history
+decides which pricing it records, and records carry no orchestrator version. Records already written keep their values:
+an `estimated` `cost_usd` on `agent_exit` lines, every trajectory turn's estimate, the analytics rows synced from them,
 and the pinned issue totals those runs fed, as does an `unknown-price` an earlier build recorded for a Claude model
 it did not price. Nothing reprices them. A CLI-reported `cost_usd` is unchanged.
 
@@ -164,8 +166,10 @@ prices any run.
 
 **Codex estimates recorded before the request correction.** v0.14.0 and every earlier release price a Codex run's
 whole cumulative input at the long-context rates, output included, once it passes 272,000 tokens, and price the input
-a cache-read count exceeds at nothing. A source checkout after the v0.14.0 tag still reports `0.14.0`, so its history,
-not its version, decides which pricing it records, and records carry no orchestrator version. Records already written
+a cache-read count exceeds at nothing. The correction ships in [v0.15.0](../release-timeline.md#v0150);
+[pull request #2455](https://github.com/chippingway/chipping-orchestrator/pull/2455) identifies the source boundary.
+A source checkout between the v0.14.0 and v0.15.0 tags can contain it while still reporting `0.14.0`, so its history
+decides which pricing it records, and records carry no orchestrator version. Records already written
 keep their values — an `estimated` `cost_usd` on `agent_exit` lines and trajectory `run_usage`, the analytics rows
 synced from them, and the pinned issue totals they fed — as does the `unknown-price` an earlier build recorded for a
 GPT-5.6 or GPT-6 row it held dormant. Nothing reprices them. A CLI-reported `cost_usd` is unchanged.
@@ -216,7 +220,9 @@ estimate needs one; the Claude and OpenAI rows carry no dates and ignore it.
 
 **Antigravity costs recorded before the estimate.** v0.14.0 and every earlier release record every Antigravity run as
 `unknown-price`, and its cache reads with a cache overlap nothing establishes, so its token total is unknown wherever
-it read from cache. A source checkout after the v0.14.0 tag still reports `0.14.0`, so its history, not its version,
+it read from cache. The estimate and declared cache overlap ship in [v0.15.0](../release-timeline.md#v0150);
+[pull request #2456](https://github.com/chippingway/chipping-orchestrator/pull/2456) identifies the source boundary.
+A source checkout between the v0.14.0 and v0.15.0 tags can contain them while still reporting `0.14.0`, so its history
 decides which it records, and records carry no orchestrator version. Records already written keep their values: the
 `agent_exit` lines and trajectory `run_usage`, the analytics rows synced from them, and the pinned issue totals they
 fed. Nothing reprices them or reads their overlap again.
@@ -245,7 +251,9 @@ tokens at the input rate, or choose a rate the usage does not establish. An empt
 no usage frames at all — yields `"no-usage"`. One selection, `event_stream.select_cost`, builds the run's cost
 evidence, and `UsageMetrics.apply_cost` reads `cost_usd` and `cost_source` off it, so the three never disagree.
 
-**Cost basis and completeness.** `cost_evidence.py` defines the cost every surface records and folds. A
+**Cost basis and completeness.** [v0.15.0](../release-timeline.md#v0150) introduces explicit cost and token evidence;
+records from v0.14.0 and earlier carry neither and retain the unknown readings described below.
+`cost_evidence.py` defines the cost every surface records and folds. A
 `CostEvidence` holds monetary contributions, at most one per basis and in basis order, beside a completeness, and
 serializes as `cost_evidence` on `UsageMetrics.to_dict()` and on each Claude `TurnUsage`:
 

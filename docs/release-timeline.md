@@ -1,6 +1,6 @@
 # chipping-orchestrator release timeline
 
-Source material for a public timeline of `chipping-orchestrator`: all **16 published releases**, from `v0.14.0` back to
+Source material for a public timeline of `chipping-orchestrator`: all **17 published releases**, from `v0.15.0` back to
 `v0.1.0`, with links to the [GitHub release history][releases] and tagged changes. Releases run newest first. The table
 gives each milestone a date, version, and suggested title; the lists below supply its functionality, upgrade guidance,
 and supporting sources.
@@ -13,6 +13,7 @@ shipped at its tag. Historical names and controls are retained where they explai
 
 | Published date | Release | Suggested timeline title |
 |---|---|---|
+| 2026-11-10 | [v0.15.0](#v0150) | Recoverable agent completions and explicit usage evidence |
 | 2026-10-22 | [v0.14.0](#v0140) | Guided service setup and recoverable verification |
 | 2026-10-06 | [v0.13.0](#v0130) | Developer reports, verification evidence, and Poetry packaging |
 | 2026-09-15 | [v0.12.0](#v0120) | Human size approval, lifetime budgets, and artifact cleanup |
@@ -29,6 +30,98 @@ shipped at its tag. Historical names and controls are retained where they explai
 | 2026-06-03 | [v0.3.0](#v030) | Analytics dashboard and scheduled issue processing |
 | 2026-05-26 | [v0.2.0](#v020) | Documentation, Q&A, verification, and parallel work |
 | 2026-05-19 | [v0.1.0](#v010) | GitHub issues become reviewed pull requests |
+
+## v0.15.0
+
+Published **2026-11-10**. Sources: [release notes][v0.15.0] and [tagged changes][changes-0.15.0].
+
+**Added functionality**
+
+- Durable captures of completed developer reports across initial implementation, resumes, review fixes, human PR
+  feedback, requirements updates, rewritten-head report refreshes, and late developer revisions. A report captured
+  before a live hold or interrupted handoff can finish through recovery without launching the developer again, while
+  changed requirements or commits invalidate it and unreadable evidence holds it. Base refresh preserves its checkout
+  until recovery decides what may proceed.
+- Usage accounting at the tracked agent-process boundary, with a guarded checkpoint and bounded invocation receipts.
+  Each exit is counted once, including held and interrupted runs; an unresolved checkpoint withholds the run's
+  disposition and retries. Lifetime launch charges remain separate and are never refunded.
+- One automatic manifest correction for an initial decomposer's completed, accounted, read-only run whose answer fails
+  parsing. It resumes the saved session under its pinned command with the exact error and output contract, pays the
+  daily retry and lifetime run budgets, and earns no further correction. Interrupted or uncertain corrections recover
+  to a human park without launching the same correction again.
+- Explicit cost basis, completeness, rate-verification dates, and token-counter semantics in usage records,
+  trajectories, issue totals, and analytics. Dashboards and terminal receipts distinguish CLI-reported amounts, each
+  provider's API estimate, blended amounts, incomplete subtotals, and unknown historical costs. Token totals avoid
+  double-counting cached input and retain the number of runs whose total is unknown.
+- Optional Atheris fuzz targets for pinned-state admission and decomposer manifests, packaged for ClusterFuzzLite.
+  Secretless pull-request, daily batch, and daily prune workflows retain crash inputs and logs and restore corpora only
+  from trusted default-branch runs. Source developers install the `fuzz` dependency group to run the targets.
+
+**Improvements and changes**
+
+- Pinned state requires an explicit integer `schema_version: 1`. Unsupported or malformed records are preserved and
+  refuse dispatch, writes, child effects, base refresh, and artifact cleanup. Every dependent effect uses a record
+  admitted under the issue's writer claim; a refused record never becomes fresh work.
+- A successful final documentation pass completes straight into `in_review`, with no extra developer report, reviewer,
+  or review round. The approval and its report stay intact; a changed head is verified on exactly that commit and its
+  completion recorded separately. An empty `VERIFY_COMMANDS` records that no final-head checks ran, never a passing
+  result. Failed configured checks offer nothing for merge.
+- Ready notifications require current passing verification or the final docs pass's proved completion. Receipts and
+  guarded checkpoints recover an uncertain post without sending the notification twice.
+- Split children retain the requirements baseline returned by their creation. `workflow:ready` compares requirements
+  before implementation and sends changed or unbaselined children back to decomposition. `workflow:blocked` defers
+  requirements changes until release, and dependency walks preserve `paused` and `backlog` even during a relabel.
+- Parked initial decompositions resume on new trusted replies from one frozen thread reading; edits to requirements
+  already read trigger fresh decomposition. Sizing considers the complete scope, coupling, and verification effort
+  and favors the coarsest manageable split over file-count or commit-count rules.
+- Only canonical workflow labels and repository-namespaced branches and worktrees are recognized. Live work and
+  publication re-prove checkout ownership before pushes, rewrites, PR writes, and handoffs; cleanup leaves flat-layout
+  and foreign artifacts untouched. The community sweep also excludes the orchestrator account's own pull requests.
+- Verification reads only compact artifacts with hidden payloads; approvals, rewrite permissions, and recorded
+  decomposition outcomes require their complete current records. Requirements use only the current fingerprint, and
+  feedback delivery follows recorded thread ranges and per-surface comment IDs, never a comment's age or a guessed
+  replay batch.
+- API price lookup uses exact model IDs, documented aliases, and published snapshots from a dated catalogue. Claude
+  estimates price each message separately and use the reported cache-write lifetime. Codex estimates refuse unknown
+  cache-write lifetimes and cumulative usage that cannot establish a request-tier price. Supported Antigravity Gemini
+  slugs receive token-only Gemini API estimates over deduplicated completed steps and a known usage span; uncertain
+  models, subagent usage, or rate boundaries stay unpriced.
+- Claude five-hour limit notices park as retryable quota stops, answered with `/orchestrator continue` after reset.
+  Analytics reads retain unknown skill offers, review rounds, costs, and token totals; missing evidence stays unknown.
+- Python callers use `AgentResult`, keyword-built `PinnedState(state_data=...)`, `AgentRunOptions`, and
+  `SubmissionRequest`; historical result aliases, payload aliases, and call adapters are removed. Developer sessions
+  are pinned only by `dev_agent` and `dev_session_id`.
+
+**Upgrade notes from v0.14.0**
+
+- **Existing v0.14.0 pinned workflow state cannot resume under v0.15.0.** That release did not write `schema_version`;
+  this one refuses records without integer version `1`. Stop and hold every poller and follow
+  [deploying without migration](configuration.md#deploying-without-migration): inventory existing work, preserve and
+  exclude what the new build cannot read, and start deliberately. Do not stamp old comments as version 1, replace
+  them with fresh pins, or return an older binary to state a newer one wrote. Source deployments must judge their
+  exact commits, since these changes reached `main` before the release.
+- Keep the same absolute `WORKTREES_DIR`, configuration, token files, host recovery records, and audit-log copies.
+  Review obsolete bare labels and flat-layout artifacts before restart: an open trusted issue with only an obsolete
+  label and no pinned comment looks like fresh work. Hold or exclude it using the deployment procedure; the upgrade
+  neither migrates labels and branches nor deletes unsupported artifacts.
+- For an analytics database, stop sync and dashboard processes and use the v0.15.0 schema files. Reapply the schema,
+  drop the derived `analytics_daily_rollup`, and reapply to rebuild it before the first new sync or dashboard read;
+  see the [analytics database guide](observability.md#analytics-database-analytics-db). Reapplying alone does not
+  rebuild an existing rollup. Keep the stored events; this schema update does not convert historical usage evidence.
+- Historical costs, token counters, analytics rows, and posted receipts are not repriced or backfilled. Records with
+  no evidence retain an unknown basis and completeness, and old issue totals remain unknown alongside later runs.
+  Expect more explicit subtotals and unpriced results, including Codex models whose CLI does not expose cache-write
+  lifetimes. An API estimate is a comparison value, not a subscription charge or verified bill; see the
+  [usage guide](observability.md#usage-parser-orchestratorobservabilityusage).
+- The final docs pass no longer needs the extra report and review that v0.14.0 performed after a docs commit. Keep
+  `VERIFY_COMMANDS` configured for checks on that final commit; an empty setting records no final-head verification.
+  Source deployments carrying incomplete approval, split, feedback, or session records must follow the same
+  [current-format contract](contracts.md#c-03-persisted-and-externally-consumed-formats), without inferred defaults.
+- The polling command, packaged templates, and runtime configuration defaults are unchanged from v0.14.0. Compare
+  saved templates and follow the
+  [package upgrade procedure](configuration.md#package-installation-upgrades-and-rollback)
+  before `check`, `init`, and a deliberate `start`. Upgrades from v0.13.0 or earlier also need the command and service
+  changes in the [v0.14.0 notes](#v0140). Update custom Python integrations to the current typed calls and names above.
 
 ## v0.14.0
 
@@ -507,6 +600,7 @@ Published **2026-05-19**. Sources: [release notes][v0.1.0] and [tagged history][
 - A polling launcher with self-update/restart behavior, file logs, and GitHub Actions lint and test checks.
 
 [releases]: https://github.com/chippingway/chipping-orchestrator/releases
+[v0.15.0]: https://github.com/chippingway/chipping-orchestrator/releases/tag/v0.15.0
 [v0.14.0]: https://github.com/chippingway/chipping-orchestrator/releases/tag/v0.14.0
 [v0.13.0]: https://github.com/chippingway/chipping-orchestrator/releases/tag/v0.13.0
 [v0.12.0]: https://github.com/chippingway/chipping-orchestrator/releases/tag/v0.12.0
@@ -523,6 +617,7 @@ Published **2026-05-19**. Sources: [release notes][v0.1.0] and [tagged history][
 [v0.3.0]: https://github.com/chippingway/chipping-orchestrator/releases/tag/v0.3.0
 [v0.2.0]: https://github.com/chippingway/chipping-orchestrator/releases/tag/v0.2.0
 [v0.1.0]: https://github.com/chippingway/chipping-orchestrator/releases/tag/v0.1.0
+[changes-0.15.0]: https://github.com/chippingway/chipping-orchestrator/compare/v0.14.0...v0.15.0
 [changes-0.14.0]: https://github.com/chippingway/chipping-orchestrator/compare/v0.13.0...v0.14.0
 [changes-0.13.0]: https://github.com/chippingway/chipping-orchestrator/compare/v0.12.0...v0.13.0
 [changes-0.12.0]: https://github.com/chippingway/chipping-orchestrator/compare/v0.11.1...v0.12.0
