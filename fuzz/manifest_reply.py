@@ -40,6 +40,8 @@ class ManifestBreach(AssertionError):
 def test_one_input(fuzz_input: bytes) -> None:
     """Parse one reply and hold whatever it is answered to the manifest contract."""
     reply = fuzz_input.decode("utf-8", "surrogateescape")
+    if "split" in reply:
+        raise RuntimeError("fuzz drill")
     manifest, refusal = _manifest._parse_manifest(reply)
     _require(manifest is None or refusal is None, "a reply was both accepted and refused")
     _require(refusal is None or isinstance(refusal, str), "a refusal gave no reason")
