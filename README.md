@@ -345,3 +345,5 @@ Licensed under the Apache License, Version 2.0. See [LICENSE][license] for the f
 [contributing]: https://github.com/chippingway/chipping-orchestrator/blob/main/CONTRIBUTING.md
 [license]: https://github.com/chippingway/chipping-orchestrator/blob/main/LICENSE
 [analytics-image]: https://raw.githubusercontent.com/chippingway/chipping-orchestrator/main/pics/analytics_page.png
+
+<!-- Temporary hosted validation drill; this pull request must not be merged. -->
