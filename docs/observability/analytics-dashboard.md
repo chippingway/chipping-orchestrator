@@ -977,12 +977,14 @@ the notice a window matching no row renders together with the load line its skip
 and the hand-off to the trace beneath, and the footer a page that did draw closes on.
 What draws every one of those, and in what order, is three owners. `observability/dashboard/page_pipeline.py` holds
 what the page puts on screen between its two read waves — the banner and filter line written back into the slots the
-controls left, the banners a window is worth interrupting the page for, the four-tile strip beneath them, and the
-staged load all three are drawn inside, whose first pass reports nothing back on a window that matched no row and is
-therefore what ends a load before the second wave is paid for. `observability/dashboard/chart_sections.py` holds the
-five cards a figure is drawn on in the order the page stacks them, and `observability/dashboard/page_sections.py` the
-four panels beneath those cards together with the single call the whole second wave is drawn by. The app opens its
-load and draws its wave on those owners, so a test intercepting either patches
+controls left, the collapsed Cost details section under them (`observability/dashboard/cost_details.py`, drawn
+before an empty window's notice), the banner a window is worth interrupting the page for, the four-tile strip beneath
+them, and the staged load all of them are drawn inside, whose first pass reports nothing back on a window that matched
+no row and is therefore what ends a load before the second wave is paid for.
+`observability/dashboard/chart_sections.py` holds the five cards a figure is drawn on in the order the page stacks
+them, and `observability/dashboard/page_sections.py` the four panels beneath those cards together with the single call
+the whole second wave is drawn by. The app opens its load and draws its wave on those owners, so a test intercepting
+either patches
 `page_pipeline` or `page_sections`.
 What a whole render of that page is threaded
 through is `observability/dashboard/page_models.py` — the seven frozen shapes, with the issue scope and window span
