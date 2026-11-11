@@ -35,9 +35,14 @@ RUN apt-get update \
     && rm -rf /tmp/Python-*
 
 # Poetry installs the targets' dependencies from `poetry.lock`, in the version
-# every workflow in this repository pins, from an environment of its own.
+# every workflow in this repository pins, from an environment of its own. That
+# Poetry and every package it needs are pinned in `poetry-requirements.txt`,
+# copied in alone ahead of the checkout, and pip refuses any artifact whose
+# SHA-256 that file does not list, or a package it does not pin.
+COPY .clusterfuzzlite/poetry-requirements.txt /opt/poetry-requirements.txt
 RUN /opt/fuzz-python/bin/python3.12 -m venv /opt/poetry \
-    && /opt/poetry/bin/python -m pip install --no-cache-dir "poetry==2.5.1"
+    && /opt/poetry/bin/python -m pip install --no-cache-dir --require-hashes \
+        -r /opt/poetry-requirements.txt
 
 COPY . $SRC/chipping-orchestrator
 WORKDIR $SRC/chipping-orchestrator

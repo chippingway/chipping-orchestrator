@@ -10,11 +10,16 @@
 # image compiled, so every package the targets import -- Atheris included -- is
 # the one the lock pins and hashes. PyInstaller, which `compile_python_fuzzer`
 # packages each target with, and the coverage.py a coverage build bundles are
-# build tools rather than dependencies: they are pinned here to the versions
-# the base image installs for its own Python, and the base runner reads the
-# coverage data of the latter. Each target leaves `$OUT` beside its options,
-# its dictionary, and its seed corpus, its wrapper holding every run of it to
-# the limits those options set (`hold_limits.sh`).
+# build tools rather than dependencies: they stay at the versions the base
+# image installs for its own Python, and the base runner reads the coverage
+# data of the latter. Each is pinned, with every package it needs, in the
+# `*-requirements.txt` beside this script, and pip refuses any artifact whose
+# SHA-256 that file does not list, or a package it does not pin. coverage.py
+# 6.3.2 publishes no wheel for 3.12, so its sdist is built against the hashed
+# setuptools PyInstaller's set installed, never an unpinned isolated one. Each
+# target leaves `$OUT` beside its options, its dictionary, and its seed corpus,
+# its wrapper holding every run of it to the limits those options set
+# (`hold_limits.sh`).
 
 project="$SRC/chipping-orchestrator"
 fuzz_python=/opt/fuzz-python/bin/python3.12
@@ -30,11 +35,12 @@ fi
 env -u VIRTUAL_ENV -u CONDA_PREFIX "$poetry" env use "$fuzz_python"
 env -u VIRTUAL_ENV -u CONDA_PREFIX "$poetry" check --lock
 env -u VIRTUAL_ENV -u CONDA_PREFIX "$poetry" sync --only main,fuzz --no-interaction
-build_tools=("pyinstaller==6.10.0")
+.venv/bin/python -m pip install --no-cache-dir --require-hashes \
+  -r .clusterfuzzlite/pyinstaller-requirements.txt
 if [[ "$SANITIZER" == coverage ]]; then
-  build_tools+=("coverage==6.3.2")
+  .venv/bin/python -m pip install --no-cache-dir --require-hashes --no-build-isolation \
+    -r .clusterfuzzlite/coverage-requirements.txt
 fi
-.venv/bin/python -m pip install --no-cache-dir "${build_tools[@]}"
 # What the targets are packaged on, for the build log.
 .venv/bin/python -c 'import importlib.metadata as m, sys; print("Python", sys.version, "atheris", m.version("atheris"))'
 

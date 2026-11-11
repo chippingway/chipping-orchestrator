@@ -274,12 +274,12 @@ runtime state, and the same input always gets the same answer.
 | --- | --- | --- |
 | Atheris | 3.1.0 | `poetry.lock`, in the optional `fuzz` group |
 | Python | CPython 3.12, 3.13, or 3.14 on Linux x86_64 locally; 3.12.15 in the image | Atheris wheels; `Dockerfile` |
-| Poetry | 2.5.1, as in every workflow | `Dockerfile` |
+| Poetry | 2.5.1, as in every workflow | `poetry-requirements.txt`, by hash |
 | Base image | `gcr.io/oss-fuzz-base/base-builder-python` with clang 22 on Ubuntu 20.04 | `Dockerfile`, by digest |
-| PyInstaller | 6.10.0, the base image's own pin | `build.sh` |
-| coverage.py | 6.3.2 in coverage builds, which the base runner reads | `build.sh` |
+| PyInstaller | 6.10.0, the base image's own pin | `pyinstaller-requirements.txt`, by hash |
+| coverage.py | 6.3.2 in coverage builds, which the base runner reads | `coverage-requirements.txt`, by hash |
 
-The `Dockerfile` and `build.sh` are the two under `.clusterfuzzlite/`.
+The `Dockerfile` and the requirements files are under `.clusterfuzzlite/`.
 
 Atheris 3.1.0 publishes CPython 3.12, 3.13, and 3.14 wheels for Linux x86_64 and no source, so the `fuzz` group
 installs on that combination alone; anywhere else, use the [image](#reproducing-in-the-fuzzing-image). The wheel
@@ -388,13 +388,43 @@ How the image's pieces relate to the lock:
   installed root package. The `dev` group is not installed.
 - **Pinned in the image, outside the lock.** The base image by digest, with clang, the sanitizer runtime the wrapper
   preloads, `llvm-symbolizer`, and the compile scripts; CPython 3.12.15, built from the python.org tarball and refused
-  unless its SHA-256 matches; Poetry 2.5.1; PyInstaller 6.10.0, and coverage.py 6.3.2 in coverage builds. Pip
-  resolves the dependencies of the last three fresh, and the Ubuntu packages CPython is built against come from the
-  base image's archive.
+  unless its SHA-256 matches; and the tooling. Each tool is installed with `pip install --require-hashes` from a
+  requirements file that pins it and every package it needs to one version and lists the SHA-256 of each artifact PyPI
+  publishes for them, so pip refuses a package the file leaves unpinned and an artifact it does not hash. The
+  `Dockerfile` copies `poetry-requirements.txt` in alone and installs Poetry 2.5.1 from it into an environment of its
+  own. After the sync, `build.sh` adds PyInstaller 6.10.0 from `pyinstaller-requirements.txt` to the checkout's
+  `.venv/`, and in coverage builds coverage.py 6.3.2 from `coverage-requirements.txt`. That coverage.py publishes no
+  CPython 3.12 wheel, so its sdist is built with `--no-build-isolation` against the setuptools PyInstaller's set
+  installed rather than one an isolated build would fetch unhashed. None of the three is a dependency of the
+  published package. The Ubuntu packages CPython is built against come from the base image's archive.
 - **Not used.** The base image's own Python 3.11 and Atheris, which are older than this project supports.
 
-To move a pin, change it in the `Dockerfile` or `build.sh`, rebuild, and run the commands above; for CPython, take
-the new release's SHA-256 from python.org.
+To move the base image or CPython, change its pin in the `Dockerfile`, rebuild, and run the commands above; for
+CPython, take the new release's SHA-256 from python.org, and move the `--python` constraint below with its minor
+version. To move a tool, or to take its dependencies' newer releases, regenerate all three requirements files: Poetry
+resolves them together in a scratch project under the 14-day release hold `poetry.toml` sets, and exports each tool's
+closure for every platform with every artifact's hash. Run this from the checkout's root with the export plugin
+installed as the [release instructions](../CONTRIBUTING.md#publishing-to-pypi) install it, keeping Poetry at the
+version every workflow pins and PyInstaller and coverage.py at the base image's own pins:
+
+```sh
+scratch=$(mktemp -d)
+cp poetry.toml "$scratch/"
+tools() { env -u VIRTUAL_ENV -u CONDA_PREFIX poetry -C "$scratch" "$@"; }
+tools init -n --name fuzz-tools --python '~3.12'
+pins=(poetry==2.5.1 pyinstaller==6.10.0 coverage==6.3.2)
+for pin in "${pins[@]}"; do tools add -q --lock --group "${pin%%==*}" "$pin"; done
+for pin in "${pins[@]}"; do
+  tools export -q --only "${pin%%==*}" -o "$PWD/.clusterfuzzlite/${pin%%==*}-requirements.txt"
+done
+```
+
+Exported entries carry the markers they apply under, so a dependency of another platform is listed and skipped.
+Review the diff and update the table above if a version moved.
+[`../tests/repository/test_fuzz_tool_requirements.py`](../tests/repository/test_fuzz_tool_requirements.py) fails on
+an entry without an exact pin or a hash, an install without `--require-hashes`, and a build tool pinned off a version
+the lock installs. Then build the image and run the address and coverage builds above, whose installs fail on any
+package a file leaves out.
 
 ### Minimizing a crash
 

@@ -6,8 +6,9 @@ Python is covered by Ruff (E501, `line-length` in `pyproject.toml`). This
 module applies the same limit -- read from that one source of truth -- to
 the tracked text/docs files Ruff does not lint, with explicit exemptions
 for content that cannot be reflowed: fenced code blocks and single
-unbreakable tokens (long URLs/paths), plus binary assets, the lockfile,
-and the verbatim LICENSE.
+unbreakable tokens (long URLs/paths), plus binary assets, the lockfile and
+the requirements Poetry exports for the fuzzing image's tooling, and the
+verbatim LICENSE.
 """
 import unittest
 

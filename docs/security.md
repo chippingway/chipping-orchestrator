@@ -84,12 +84,16 @@ the real trust boundary — see [`architecture.md`](architecture.md#design-const
   Atheris, which only the [parser fuzz targets](development.md#fuzzing-the-parsers) import, is locked in the optional
   `fuzz` group, so no default install, `ci` run, or published distribution carries it. The fuzzing image the
   ClusterFuzzLite workflows build installs the runtime dependencies and Atheris from the lock with
-  `poetry sync --only main,fuzz`; outside the lock it pins its base image by digest, a CPython tarball by SHA-256,
-  and Poetry, PyInstaller, and coverage.py by version, their own dependencies resolving fresh. Its build context is
-  the allowlist the root `.dockerignore` declares, so no `.env`, credential, worktree, cache, or `analytics-db/data/`
-  file reaches the Docker daemon.
-  CI accepts unhashed PyPI installs for its tooling: `pipx` pins Poetry and the export plugin's top-level versions,
-  while their transitive dependencies resolve fresh. The sdist smoke install also resolves `poetry-core` through
+  `poetry sync --only main,fuzz`; outside the lock it pins its base image by digest and a CPython tarball by SHA-256,
+  and installs Poetry, PyInstaller, and coverage.py with `pip install --require-hashes` from requirements files under
+  `.clusterfuzzlite/` that pin each tool and every package it needs and list the SHA-256 of every artifact, so a
+  package left unpinned or an artifact left unlisted fails the build
+  ([refreshing them](development.md#reproducing-in-the-fuzzing-image)). None of these tools is a dependency of the
+  published package. The image's build context is the allowlist the root `.dockerignore` declares, so no `.env`,
+  credential, worktree, cache, or `analytics-db/data/` file reaches the Docker daemon.
+  The `ci`, documentation, and vulnerability-scan workflows accept unhashed PyPI installs for their tooling: `pipx`
+  pins Poetry and the export plugin's top-level versions, while their transitive dependencies resolve fresh, unlike
+  the fuzzing image's hashed tooling above. The sdist smoke install also resolves `poetry-core` through
   build isolation within the manifest's version range. These installs are outside the project's hashed lockfile;
   Scorecard's Pinned-Dependencies check may report them. CI accepts this tradeoff for tooling and package verification.
   Dependabot covers `pip` and `github-actions` in [its configuration](../.github/dependabot.yml), stamping every
