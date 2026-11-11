@@ -61,7 +61,7 @@ _CHART_PANELS = (
 _CARD_READS = MappingProxyType({
     _HERO_CARD: ("ts_points", "backend_daily_rows"),
     _LIFECYCLE_BARS: ("stage_rows", "review_round_rows"),
-    _ISSUE_RANKING: ("issues_rows", "backend_rows", "cost_coverage_rows"),
+    _ISSUE_RANKING: ("issues_rows", "backend_rows"),
     _ACTIVITY_GRID: ("heatmap_rows",),
 })
 

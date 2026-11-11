@@ -4439,7 +4439,7 @@ The keys that matter for the state machine fall into a few groups:
   since a number is no requirement to revise against. Nothing here returns a spent run.
 - **Terminal usage verdict.** `_format_issue_usage_verdict` renders those totals into one visible receipt line,
   `:receipt: this issue: N agent runs · T tokens · <cost>`. The cost is worded off `issue_cost_evidence` by the
-  `cost_text` owner every other surface words a cost through: an amount always beside its basis -- `$0.42 (Gemini API
+  `cost_text` owner the trajectory viewer words a cost through: an amount always beside its basis -- `$0.42 (Gemini API
   token estimate)` for Antigravity usage priced on Gemini rates, `$0.87 (CLI-reported)`, and `blended` with each
   basis's own amount listed for a total spanning several, as in `$1.29 (blended: CLI-reported $0.87 + Gemini API
   token estimate $0.42)` -- qualified `incomplete subtotal` where some usage carries no amount and `completeness

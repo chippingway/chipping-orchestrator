@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """How much of a window's spend was attributed, drawn as one bar.
 
-The bar answers whether the money everywhere else on the page can be trusted:
+The bar is drawn inside the page's Cost details section, beside the run
+counts and source amounts it qualifies, and answers whether the money
+everywhere else on the page can be trusted:
 each segment is one `cost_source` -- what the parser could price, and what it
 could not -- and its width is that source's share of the window. Share is read
 in tokens whenever the window carries any and every run in it has a known token

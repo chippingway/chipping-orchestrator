@@ -28,6 +28,8 @@ _CARD_HTML_OWNER = "card_html"
 
 _CHART_SECTIONS_OWNER = "chart_sections"
 
+_COST_DETAILS_OWNER = "cost_details"
+
 _COST_TEXT_OWNER = "cost_text"
 
 _COVERAGE_CARD_OWNER = "coverage_card"
@@ -150,6 +152,7 @@ _OWNERS = (
     _BREAKDOWNS_OWNER,
     _CARD_HTML_OWNER,
     _CHART_SECTIONS_OWNER,
+    _COST_DETAILS_OWNER,
     _COST_TEXT_OWNER,
     _COVERAGE_CARD_OWNER,
     _CSS_OWNER,
@@ -219,9 +222,11 @@ _OWNERS = (
 # draw a headline or lifecycle section from one of the seven reads behind it, a
 # comparison panel from one of the six, or a skill panel from one of the three,
 # open a page on the extent behind its filter bar, interrupt one with a banner,
-# word a cost on either page with its basis and completeness, word a window's
-# spend and the move between two windows on top of that, word one group of a
-# spend breakdown on its bar and note what a panel of them adds up to,
+# word a cost with its basis and completeness on the trajectory viewer, word
+# every amount on the analytics page as its figure and own status and the move
+# between two windows, explain once what those amounts are made of in the
+# section under the filter bar, word one group of a spend breakdown on its bar
+# and note what a panel of them adds up to,
 # reduce its window to the four numbers a headline tile reports, plot the days
 # behind three of them, assemble all four into the strip a page opens with,
 # place one of those days on the line under a tile and write that line as the
@@ -279,10 +284,11 @@ _OWNERS = (
 # names a reader by, the TTL the read plan caches a wave's entries under, the
 # spinner message the dispatch owner opens a load under together with the
 # mapping a wave hands back and the logger its load line is emitted on, the cap
-# the rollup owner reads a run list under, the two bands the insight owner
-# raises a banner at, the labels and qualifiers the cost wording owner names a
-# basis and a shortfall by, the figure and note a window with no run reads as, the
-# note a token-share split is qualified by, the
+# the rollup owner reads a run list under, the band the insight owner raises a
+# banner at, the labels and qualifiers the cost wording owner names a basis and
+# a shortfall by, the statuses an amount on the analytics page is marked with,
+# the label, warning share, and glossary the Cost details section is drawn
+# with, the
 # columns the issue table is headed by and the rules its bars and pills are
 # painted from, the columns and rate-bar rules the skill-trigger table beside it
 # is drawn with together with the label it reads a category the sink left empty
@@ -324,8 +330,8 @@ _SURFACES = MappingProxyType({
     ),
     _BREAKDOWN_TEXT_OWNER: (
         "bar_figure",
-        "basis_label",
         "breakdown_note",
+        "role_line",
         "sub_line",
     ),
     _BREAKDOWNS_OWNER: (
@@ -351,6 +357,12 @@ _SURFACES = MappingProxyType({
         "coverage_segments",
     ),
     _CHART_SECTIONS_OWNER: ("render_chart_widgets",),
+    _COST_DETAILS_OWNER: (
+        "cost_details_html",
+        "cost_details_label",
+        "render_cost_details",
+        "selection_html",
+    ),
     _COST_TEXT_OWNER: (
         "basis_text",
         "completeness_text",
@@ -577,7 +589,7 @@ _SURFACES = MappingProxyType({
         "spend_comparison_note",
         "spend_figure",
         "spend_line",
-        "spend_note",
+        "spend_status",
         "token_note",
     ),
     _STAGE_COST_PANEL_OWNER: (
@@ -680,8 +692,9 @@ _RENDERED_SURFACES = (_CSS_OWNER, _LAYOUT_OWNER)
 # vocabulary it names, while the grid beneath it is back to the rows and names
 # the activity family for the weekday-by-hour points it draws. The owner
 # drawing the chrome between the two waves names one result family without
-# issuing a read either -- the window aggregate its banner, filter line, strip,
-# and both of its banners are all reduced from -- while the two that only order
+# issuing a read either -- the window aggregate its banner, filter line, Cost
+# details section, strip, and failure banner are all reduced from, the section
+# naming the cohort and cost-source rows it states -- while the two that only order
 # the panels beneath name no
 # result family at all, since every row they hand on arrived with the load:
 # their whole reach is the panels themselves plus the shapes those are typed

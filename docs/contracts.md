@@ -170,9 +170,13 @@ A row an earlier sync stored without those columns reads as
 `unknown`, its `cost_usd` under that basis and its token total unknown, and nothing re-derives, reprices, or converts
 it. An issue's pinned usage totals keep what its runs' evidence states: `issue_cost_evidence` is their costs reduced
 alike, in the shape a usage record's `cost_evidence` takes, and `issue_total_tokens` adds only non-overlapping totals,
-`issue_total_tokens_unknown_runs` counting the runs it lacks; the terminal receipt words that cost as every other
-surface does -- an Antigravity-only total a Gemini API token estimate, a mixed one blended with each basis's amount
-beside it, and a short one a subtotal -- never a merged figure. Totals an earlier build counted keep no evidence and
+`issue_total_tokens_unknown_runs` counting the runs it lacks; the terminal receipt words that cost as the trajectory
+viewer does -- an Antigravity-only total a Gemini API token estimate, a mixed one blended with each basis's amount
+beside it, and a short one a subtotal -- never a merged figure. The analytics dashboard shows each amount as its figure
+and the short status its own runs earn -- a subtotal, an unknown completeness, or, where none is stated, unpriced,
+no usage, cost unknown, or no runs, never a zero -- and names bases, each basis's part of the filtered selection, and
+the selection's runs by completeness once, in its collapsed Cost details section, where neither an estimate nor a
+CLI-reported amount is called a verified charge. Totals an earlier build counted keep no evidence and
 read as one record without it, their cost under the `unknown` basis and completeness and their overlap unknown,
 nothing inferred from `issue_cost_sources`; the first run counted over them folds that reading in once and keeps
 their number in `issue_unevidenced_runs`, so no later run makes them known, and no posted receipt is rewritten.
@@ -283,6 +287,7 @@ or lost write interrupted are current state, not historical compatibility.
 [close recovery](state-machine/delivery-stages.md#closed-owner-cleanup-sweep-no-label-of-its-own),
 [branch refusal](state-machine/labels-and-state.md#branch-refusal),
 [analytics readers](observability/analytics-dashboard.md#read-model-orchestratorobservabilityanalyticsquery),
+[dashboard costs](observability/analytics-dashboard.md#dashboard-orchestratorappsanalytics_dashboardpy),
 [analytics evidence](observability/analytics-database.md#usage-evidence-columns),
 [price catalogue](observability/usage.md),
 [usage evidence](observability/usage.md#usage-parser),
@@ -321,6 +326,8 @@ or lost write interrupted are current state, not historical compatibility.
 [issue totals](../tests/workflow/engine/test_usage_accumulator.py),
 [trajectory evidence](../tests/observability/analytics/trajectories/test_record.py),
 [viewer evidence](../tests/observability/trajectory_viewer/test_usage_parsing.py),
+[dashboard costs](../tests/observability/dashboard/test_spend_text.py),
+[cost details](../tests/observability/dashboard/test_cost_details.py),
 [verification artifacts](../tests/github/test_verification_artifacts.py),
 [requirements baselines](../tests/workflow/engine/test_drift.py),
 [late first baselines](../tests/workflow/stages/decomposition/test_late_first_baseline.py),

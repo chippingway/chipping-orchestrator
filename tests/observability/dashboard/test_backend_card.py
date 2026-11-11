@@ -3,13 +3,13 @@
 """What one backend's row is worth by the time it is a card.
 
 The readings the card exists for are read off the rendered string, since that
-is where an operator reads them: the spend with its basis and shortfall
-beneath it, what a million tokens cost, how much of the input side of the
-declared token totals went through the cache, and what one run cost. A spend
-is a cohort, so the cases name the backends a card has to keep apart -- a
-CLI-reported one, an AGY-only one whose amount is a Gemini API token estimate
-and whose token totals are partly unknown, a mixed one blended with its parts,
-an incomplete one, one stating no basis, and one stating no amount -- and a
+is where an operator reads them: the spend with its own status beneath it,
+what a million tokens cost, how much of the input side of the declared token
+totals went through the cache, and what one run cost. A spend is a cohort, so
+the cases name the backends a card has to keep apart -- a CLI-reported one, an
+AGY-only one whose token totals are partly unknown, a mixed one, an incomplete
+one, one stating no basis, and one stating no amount, none of whose sources the
+card names -- and a
 Codex backend whose cached input sits inside its input, which the cache share
 counts once. A ratio is checked against a row whose numbers make the
 arithmetic visible, and against a row a backend barely ran in, because every
@@ -27,7 +27,7 @@ import unittest
 from orchestrator.observability.analytics.query.cost_models import (
     BackendEfficiencyRow,
 )
-from orchestrator.observability.dashboard import backend_card
+from orchestrator.observability.dashboard import backend_card, spend_text
 from tests.observability.analytics import analytics_cohorts as cohort_cases, analytics_usage_cases as cases
 from tests.observability.dashboard.card_test_support import (
     BACKEND_CLAUDE,
@@ -161,7 +161,10 @@ class BackendRatioTextTest(unittest.TestCase):
     def test_a_ratio_of_a_short_amount_is_qualified(self) -> None:
         # A ratio of a subtotal or of an amount of unknown completeness says so,
         # like the amount it divides.
-        for name, qualifier in (("incomplete", "incomplete subtotal"), ("missing basis", "completeness unknown")):
+        for name, qualifier in (
+            ("incomplete", spend_text.SUBTOTAL),
+            ("missing basis", spend_text.COMPLETENESS_UNKNOWN),
+        ):
             with self.subTest(cohort=name):
                 per_million, _, per_run = backend_card.backend_ratio_texts(_priced(name))
                 self.assertTrue(per_million.endswith(f"{_PER_MILLION} ({qualifier})"))
@@ -189,40 +192,43 @@ class BackendRatioTextTest(unittest.TestCase):
 class BackendEfficiencyCardHtmlTest(unittest.TestCase):
     """The card is hand-rolled markup so the caller can render one
     `st.markdown` per backend, and every figure on it is the reading beside
-    its own unit and its basis.
+    its own unit and, where it is short, its own status -- never its sources.
     """
 
     def test_the_readings_reach_the_card(self) -> None:
         rendered = _rendered(_REPORTED_ROW)
         self.assertIn(f"{_RUNS} runs", rendered)
         self.assertIn("$0.84<span", rendered)
-        self.assertIn("CLI-reported", rendered)
         for reading in backend_card.backend_ratio_texts(_REPORTED_ROW):
             with self.subTest(reading=reading):
                 self.assertIn(reading, rendered)
 
-    def test_agy_spend_reads_as_a_gemini_estimate(self) -> None:
-        # Its amount is a Gemini API token estimate, never an Antigravity
-        # charge, and the runs whose token total is unknown are counted.
+    def test_no_card_names_a_source(self) -> None:
+        # An AGY-only, a mixed, and a CLI-reported card read as any complete
+        # spend does; the sources behind them are the Cost details section's.
+        for row in (_AGY_ROW, _priced("mixed providers"), _REPORTED_ROW):
+            rendered = _rendered(row)
+            with self.subTest(backend=row.backend, spend=row.cost.evidence.total_usd):
+                for word in ("CLI-reported", "estimate", "blended"):
+                    self.assertNotIn(word, rendered)
+                self.assertNotIn(spend_text.SUBTOTAL, rendered)
+
+    def test_unknown_token_totals_are_counted(self) -> None:
         rendered = _rendered(_AGY_ROW)
-        self.assertIn("Gemini API token estimate", rendered)
         self.assertIn(f"{_UNAVAILABLE} {_PER_MILLION}", rendered)
         self.assertIn("token total unknown for 2 runs", rendered)
 
-    def test_a_blended_backend_lists_its_parts(self) -> None:
-        rendered = _rendered(_priced("mixed providers"))
-        self.assertIn("blended: CLI-reported $0.52 + Gemini API token estimate $0.12", rendered)
-
     def test_a_short_amount_never_reads_as_complete(self) -> None:
         incomplete = _rendered(_priced("incomplete"))
-        self.assertIn("2 of 3 runs unpriced or partly priced", incomplete)
+        self.assertIn("$0.50<span", incomplete)
+        self.assertIn(f">{spend_text.SUBTOTAL}</div>", incomplete)
+        self.assertNotIn("runs unpriced", incomplete)
         unpriced = BackendEfficiencyRow(backend=BACKEND_CLAUDE, runs=1, cost=cohort_cases.cohort(cases.UNPRICED))
-        self.assertIn("unpriced<span", _rendered(unpriced))
+        self.assertIn(f"{spend_text.UNPRICED}<span", _rendered(unpriced))
 
     def test_an_empty_window_still_draws_a_card(self) -> None:
         rendered = _rendered(_EMPTY_ROW)
-        self.assertIn("—<span", rendered)
-        self.assertIn("no agent runs", rendered)
+        self.assertIn(f"{spend_text.NO_RUNS}<span", rendered)
         self.assertIn(f"{_UNAVAILABLE} {_PER_RUN}", rendered)
 
     def test_the_injected_theme_paints_it(self) -> None:

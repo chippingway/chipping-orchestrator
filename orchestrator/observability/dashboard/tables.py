@@ -17,10 +17,9 @@ what it asked for.
 Beside the markup are the readings a cell is built from: the share of the
 widest bar a row is drawn at, the repository name without the owner hosting it,
 and the zero a missing count reports as. Money is not among them: an amount is
-worded with its basis and completeness by the cost owners, since a run that
-cost nothing and a run the parser could not price are different answers, and a
-table spelling both `$0.00` would hide the gap the coverage banner is raised
-for.
+worded with its own status by the cost owners, since a run that cost nothing
+and a run the parser could not price are different answers, and a table
+spelling both `$0.00` would hide the gap the Cost details section counts.
 
 Producing a table costs neither Streamlit nor Plotly, so an importer that never
 renders one still loads cleanly.

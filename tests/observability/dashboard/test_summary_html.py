@@ -58,14 +58,13 @@ _EVENTS = 12345
 
 _EVENTS_TEXT = "12,345"
 
-# A blended window: its figure, and the parts its note lists beside it.
+# A window mixing a CLI-reported amount and an estimate: its figure alone,
+# since the sources behind it are the Cost details section's to list.
 _SPEND = cohort_cases.cohort(cases.REPORTED, cases.GEMINI_ESTIMATE)
 
 _SPEND_TEXT = '<span class="value">$0.54</span>'
 
-_SPEND_NOTE = (
-    '<span class="note">blended: CLI-reported $0.42 + Gemini API token estimate $0.12</span>'
-)
+_SPEND_NOTE = "</div></div>"
 
 _DAYS = 7
 
@@ -121,6 +120,11 @@ _VALUE_KEY = "value"
 _SUB_KEY = "sub"
 
 _DELTA_KEY = "delta"
+
+
+def _note(status: str) -> str:
+    """The status a spend figure is followed by in the banner."""
+    return f'</span><span class="note">{status}</span>'
 
 
 def _topbar(extent: DataExtent, distinct_repos: int, spend=_SPEND) -> str:
@@ -200,19 +204,22 @@ class TopbarTest(unittest.TestCase):
         self.assertIn(f"{_EVENTS_TEXT} events", banner)
         self.assertIn(_SPEND_TEXT + _SPEND_NOTE, banner)
 
-    def test_the_spend_is_never_bare(self) -> None:
-        # An incomplete subtotal says so beside its figure, a complete amount
-        # names its basis, and a window with no run reads as none rather than
-        # as a spend of zero.
-        for name, costs, figure, note in (
-            ("incomplete", (cases.ANTHROPIC_ESTIMATE, cases.UNPRICED), "$0.30", "incomplete subtotal"),
-            ("agy only", (cases.GEMINI_ESTIMATE,), "$0.12", "Gemini API token estimate"),
-            ("empty", (), spend_text.NO_RUNS_FIGURE, spend_text.NO_RUNS_NOTE),
+    def test_the_spend_carries_its_own_status(self) -> None:
+        # A subtotal or an amount of unknown completeness says so beside its
+        # figure, a complete amount stands alone whatever its sources, and a
+        # window with no run or no priced usage reads as such rather than as a
+        # spend of zero.
+        for name, costs, spend in (
+            ("incomplete", (cases.ANTHROPIC_ESTIMATE, cases.UNPRICED), f"$0.30{_note(spend_text.SUBTOTAL)}"),
+            ("missing basis", (cases.ABSENT_BASIS,), f"$0.07{_note(spend_text.COMPLETENESS_UNKNOWN)}"),
+            ("agy only", (cases.GEMINI_ESTIMATE,), "$0.12</span></div>"),
+            ("unpriced", (cases.UNPRICED,), f"{spend_text.UNPRICED}</span></div>"),
+            ("empty", (), f"{spend_text.NO_RUNS}</span></div>"),
         ):
             banner = _topbar(data_extent(MAY01, MAY07), _REPOS, cohort_cases.cohort(*costs))
             with self.subTest(cohort=name):
-                self.assertIn(f'<span class="value">{figure}</span><span class="note">', banner)
-                self.assertIn(note, banner)
+                self.assertIn(f'<span class="value">{spend}', banner)
+                self.assertNotIn("estimate", banner)
 
     def test_an_empty_extent_says_there_is_none(self) -> None:
         self.assertIn(

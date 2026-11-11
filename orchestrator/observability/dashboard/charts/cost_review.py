@@ -19,12 +19,15 @@ number is an ordinal and what the panel is read for is the shape of the rework
 curve -- ranking the rows by cost would hide it. A bucket the window holds no
 rows for drops out rather than drawing an empty row, and the runs that carried
 no round at all come last under a label of their own: they are unattributed
-rather than late. The sub-line counts the two roles' runs separately, because
-the bars beside it are drawn from two different populations and one combined
-count would explain neither, then names the basis the round's amount is stated
-on and any shortfall. Each bar's hover carries its role's whole cost for the
-round, worded as the overview words it, each part of a blended amount by its
-own.
+rather than late. Under the round's label each role gets a line of its own,
+development above review as their bars are drawn: its run count and the status
+its own runs earn. The bars beside it are drawn from two different populations,
+so one combined count would explain neither, and one folded status would be
+read as both bars' -- development can be a subtotal where review's completeness
+is unknown. The status sits on the label rather than past the bar because the
+gutter grows to fit what a label holds, while the text past the longest bar has
+only the panel's fixed right margin. Each bar's hover carries its role's whole
+cost for the round, worded as the overview words it.
 
 Both split segments of a role's bar are tinted from that role's one hue, the
 same treatment the per-stage split gives its own and reached from there rather
@@ -76,9 +79,10 @@ from orchestrator.observability.dashboard.palette import AGENT_ROLE_COLORS
 if TYPE_CHECKING:
     from plotly import graph_objects as go
 
-# A row here carries two bars where a ranking row carries one, so it is given
-# more of the panel than the shared default allows.
-REVIEW_BAR_ROW_HEIGHT = 44
+# A row here carries two bars where a ranking row carries one, and its label
+# three lines -- the round, then each role's runs -- so it is given more of the
+# panel than the shared default allows.
+REVIEW_BAR_ROW_HEIGHT = 52
 
 # How a bucket is read on the axis. The raw keys are what the read model
 # buckets on; an operator reads the round rather than the key.
@@ -103,7 +107,7 @@ class ReviewCostBars:
     """The split's rows, labelled and counted, and each role's bars, all in render order."""
 
     labels: Sequence[str]
-    subs: Sequence[str]
+    subs: Sequence[tuple[str, str]]
     developer: _cost_layout.TokenShareBars
     reviewer: _cost_layout.TokenShareBars
 
@@ -137,7 +141,10 @@ def review_cost_bars(
     return ReviewCostBars(
         labels=[REVIEW_ROUND_LABELS.get(row.bucket, row.bucket) for row in ordered],
         subs=[
-            breakdown_text.sub_line(f"{row.developer_runs:,} dev / {row.reviewer_runs:,} review runs", row.cost)
+            (
+                breakdown_text.role_line(row.developer_runs, "dev", row.developer_cost),
+                breakdown_text.role_line(row.reviewer_runs, "review", row.reviewer_cost),
+            )
             for row in ordered
         ],
         developer=role_cost_bars(

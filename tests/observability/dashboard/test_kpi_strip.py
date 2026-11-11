@@ -10,15 +10,16 @@ impossible.
 
 Spend is a cohort, so the cases name the cohorts a window has to keep apart --
 reported-only, AGY-only, mixed-provider, incomplete, missing-basis, empty, and
-zero-valued -- and read back the figure, the note naming its basis and
-shortfall, and the note its move is qualified by. Tokens are the runs' known
-non-overlapping totals, and a window leaving some run's total out says so.
+zero-valued -- and read back the figure, the short status the window's own runs
+earn, and the note its move is qualified by; no tile names a source, which the
+Cost details section explains once. Tokens are the runs' known non-overlapping
+totals, and a window leaving some run's total out says so.
 
 Two readings with nothing to divide sit beside them: a window that resolved
 nothing reports an em dash rather than a cost no issue was charged, and a
 window whose review rounds state no amount -- none ran, or none was priced --
 reports no rework share rather than a zero it never measured. A share that is
-taken carries the review rounds' basis and shortfall in its note.
+taken carries the review rounds' status in its note.
 
 The theme handed in carries the formatting and palette owners' own callables,
 because the page hands its own module in and a stand-in rendering would leave
@@ -73,6 +74,10 @@ _REWORK_SHARE = "Rework share"
 
 _SUBTOTAL = "subtotal"
 
+_SPEND_SUBTOTAL = spend_text.SUBTOTAL
+
+_UNKNOWN = spend_text.COMPLETENESS_UNKNOWN
+
 # A window that spent four reported runs' worth against the two the window
 # before it spent, on twice the tokens, so both delta pills read the same whole
 # number.
@@ -119,23 +124,23 @@ _AGY_COSTS = (cases.GEMINI_ESTIMATE, cases.LATER_GEMINI_ESTIMATE)
 
 _SHORT_COSTS = (cases.ANTHROPIC_ESTIMATE, cases.UNPRICED)
 
-# Each cohort a window can hold and the figure its spend tile reads as.
+# Each cohort a window can hold, the figure its spend tile reads as, and the status its own runs earn.
 _SPEND_READINGS = (
-    ("reported only", cohort_cases.cohort(*_WINDOW_COSTS), "$1.68"),
-    ("agy only", cohort_cases.cohort(*_AGY_COSTS), "$0.32"),
-    ("mixed providers", cohort_cases.cohort(*_MIXED_COSTS), "$0.69"),
-    ("incomplete", cohort_cases.cohort(*_SHORT_COSTS), "$0.30"),
-    ("missing basis", cohort_cases.cohort(cases.ABSENT_BASIS), "$0.07"),
-    ("zero", cohort_cases.cohort(cases.COMPLETE_ZERO), "$0.00"),
-    ("empty", cohort_cases.cohort(), spend_text.NO_RUNS_FIGURE),
+    ("reported only", cohort_cases.cohort(*_WINDOW_COSTS), "$1.68", ""),
+    ("agy only", cohort_cases.cohort(*_AGY_COSTS), "$0.32", ""),
+    ("mixed providers", cohort_cases.cohort(*_MIXED_COSTS), "$0.69", ""),
+    ("incomplete", cohort_cases.cohort(*_SHORT_COSTS), "$0.30", _SPEND_SUBTOTAL),
+    ("missing basis", cohort_cases.cohort(cases.ABSENT_BASIS), "$0.07", _UNKNOWN),
+    ("zero", cohort_cases.cohort(cases.COMPLETE_ZERO), "$0.00", ""),
+    ("empty", cohort_cases.cohort(), spend_text.NO_RUNS, ""),
 )
 
 # A window against the one before it, and what the move between them is read with.
 _MOVES = (
     ("one basis", cohort_cases.cohort(*_WINDOW_COSTS), ""),
-    (_SUBTOTAL, cohort_cases.cohort(cases.REPORTED, cases.UNPRICED), _SUBTOTAL),
-    ("agy against reported", cohort_cases.cohort(cases.GEMINI_ESTIMATE), "bases differ"),
-    ("missing basis", cohort_cases.cohort(cases.ABSENT_BASIS), "completeness unknown, bases differ"),
+    (_SUBTOTAL, cohort_cases.cohort(cases.REPORTED, cases.UNPRICED), _SPEND_SUBTOTAL),
+    ("agy against reported", cohort_cases.cohort(cases.GEMINI_ESTIMATE), spend_text.SOURCES_DIFFER),
+    ("missing basis", cohort_cases.cohort(cases.ABSENT_BASIS), f"{_UNKNOWN}, {spend_text.SOURCES_DIFFER}"),
 )
 
 # The runs of unknown token total each window holds, and the notes the token
@@ -179,6 +184,30 @@ _REVIEW_ROWS = (
 )
 
 _DAYS_IN_WINDOW = 2
+
+
+def _rounds(initial, rework) -> tuple[ReviewRoundBucketRow, ...]:
+    """A first pass and one rework round, each a development run stating its cost."""
+    return (
+        ReviewRoundBucketRow(bucket="0", runs=1, developer_cost=cohort_cases.cohort(initial)),
+        ReviewRoundBucketRow(bucket="1", runs=1, developer_cost=cohort_cases.cohort(rework)),
+    )
+
+
+# Review rounds whose first pass and rework are short in different ways, and the
+# share, the rounds' status, and the rework amount the tile reads as.
+_SPLIT_STATUSES = (
+    (
+        "unknown rework, short first pass",
+        _rounds(cases.INCOMPLETE_SUBTOTAL, cases.ABSENT_BASIS),
+        ("26%", _SPEND_SUBTOTAL, f"$0.07 · {_UNKNOWN} in review rounds >= 1"),
+    ),
+    (
+        "complete rework, unknown first pass",
+        _rounds(cases.ABSENT_BASIS, cases.REPORTED),
+        ("86%", _UNKNOWN, "$0.42 in review rounds >= 1"),
+    ),
+)
 
 
 # The theme handle a page hands in, as its formatters and hues.
@@ -253,7 +282,7 @@ class KpiTotalsTest(unittest.TestCase):
 
 
 class SpendTileTest(unittest.TestCase):
-    """The spend tiles name their basis and shortfall, and their move keeps both."""
+    """The spend tiles carry their own status and never a source, and their move keeps that status."""
 
     def test_spend_is_divided_by_the_resolved(self) -> None:
         self.assertEqual(
@@ -270,28 +299,27 @@ class SpendTileTest(unittest.TestCase):
         # Resolved issues whose runs went unpriced cost an amount nobody
         # stated, which is not a zero.
         _, per_resolved = _spend_tiles(cohort_cases.cohort(cases.UNPRICED))
-        self.assertEqual(per_resolved[_VALUE_KEY], "unpriced")
+        self.assertEqual(per_resolved[_VALUE_KEY], spend_text.UNPRICED)
+        self.assertEqual(per_resolved[_NOTE_KEY], "")
 
-    def test_each_cohort_reads_with_its_basis(self) -> None:
-        for name, cohort, figure in _SPEND_READINGS:
+    def test_each_cohort_reads_with_its_own_status(self) -> None:
+        # The ratio of the window's spend carries the status the spend does,
+        # so a per-issue figure divided out of a subtotal is marked as one.
+        for name, cohort, *reading in _SPEND_READINGS:
             spend, per_resolved = _spend_tiles(cohort)
             with self.subTest(cohort=name):
-                self.assertEqual(spend[_VALUE_KEY], figure)
-                self.assertEqual(spend[_NOTE_KEY], spend_text.spend_note(cohort))
-                self.assertEqual(per_resolved[_NOTE_KEY], spend_text.spend_note(cohort, amounts=False))
+                self.assertEqual([spend[_VALUE_KEY], spend[_NOTE_KEY]], reading)
+                self.assertEqual(per_resolved[_NOTE_KEY], reading[-1])
 
-    def test_a_blended_window_lists_its_parts(self) -> None:
+    def test_a_mixed_window_names_no_source(self) -> None:
+        # The sources behind a mixed window are the Cost details section's to
+        # list; the tile and its move read as any complete window's do.
         mixed = cohort_cases.cohort(*_MIXED_COSTS)
         spend, per_resolved = _spend_tiles(mixed, previous=mixed)
         self.assertEqual(
-            spend[_NOTE_KEY],
-            "blended: CLI-reported $0.52 + Gemini API token estimate $0.12 + OpenAI API token estimate $0.05",
+            (spend[_NOTE_KEY], per_resolved[_NOTE_KEY], spend[_DELTA_NOTE_KEY]),
+            ("", "", ""),
         )
-        self.assertEqual(
-            per_resolved[_NOTE_KEY],
-            "blended: CLI-reported + Gemini API token estimate + OpenAI API token estimate",
-        )
-        self.assertEqual(spend[_DELTA_NOTE_KEY], "blended")
 
     def test_a_move_keeps_the_qualifications(self) -> None:
         # A percentage between a subtotal and a complete window, or between two
@@ -306,9 +334,9 @@ class SpendTileTest(unittest.TestCase):
         spend, per_resolved = _spend_tiles(cohort_cases.cohort())
         self.assertEqual(
             (spend[_VALUE_KEY], spend[_NOTE_KEY], spend[_DELTA_KEY], spend[_SUB_KEY]),
-            (spend_text.NO_RUNS_FIGURE, spend_text.NO_RUNS_NOTE, None, ""),
+            (spend_text.NO_RUNS, "", None, ""),
         )
-        self.assertEqual(per_resolved[_VALUE_KEY], spend_text.NO_RUNS_FIGURE)
+        self.assertEqual(per_resolved[_VALUE_KEY], spend_text.NO_RUNS)
 
 
 class KpiStripDataTest(unittest.TestCase):
@@ -317,7 +345,7 @@ class KpiStripDataTest(unittest.TestCase):
     def test_the_four_tiles_report_the_window(self) -> None:
         entries = _by_label(_inputs())
         self.assertEqual(entries[_TOTAL_SPEND][_VALUE_KEY], "$1.68")
-        self.assertEqual(entries[_TOTAL_SPEND][_NOTE_KEY], "CLI-reported")
+        self.assertEqual(entries[_TOTAL_SPEND][_NOTE_KEY], "")
         self.assertEqual(entries[_TOTAL_SPEND][_SUB_KEY], "$0.84/day")
         self.assertEqual(entries[_TOTAL_TOKENS][_VALUE_KEY], "40")
         self.assertEqual(entries[_TOTAL_SPEND][_DELTA_KEY], _DOUBLED)
@@ -328,15 +356,11 @@ class KpiStripDataTest(unittest.TestCase):
         rework = entries[_REWORK_SHARE]
         self.assertEqual(
             (rework[_VALUE_KEY], rework[_SUB_KEY]),
-            ("27%", "$0.20 in review rounds >= 1"),
+            ("27%", f"$0.20 · {_SPEND_SUBTOTAL} in review rounds >= 1"),
         )
-        # A share of a blended subtotal says both, the bases without amounts
-        # since the figure is a ratio of them.
-        self.assertEqual(
-            rework[_NOTE_KEY],
-            "blended: Anthropic API token estimate + CLI-reported + Gemini API token estimate"
-            " · incomplete subtotal: 2 of 4 runs unpriced or partly priced",
-        )
+        # A share of a subtotal is marked as one; the mix of sources behind
+        # it is not the tile's to list.
+        self.assertEqual(rework[_NOTE_KEY], _SPEND_SUBTOTAL)
 
     def test_a_known_subtotal_and_its_move_say_so(self) -> None:
         # The token tile counts known totals, so a window leaving some run's
@@ -367,6 +391,17 @@ class KpiStripDataTest(unittest.TestCase):
         _, resolved, rejected = kpi_strip.build_kpi_strip_data(_inputs())
         self.assertEqual((resolved, rejected), (_RESOLVED, _REJECTED))
 
+    def test_the_rework_amount_keeps_its_own_status(self) -> None:
+        # The note is the status of every review round, the first pass
+        # included, so the rework amount beneath it says its own: a rework
+        # stating no cost evidence beside a short first pass, and a complete
+        # rework beside a first pass of unknown completeness.
+        for name, rows, reading in _SPLIT_STATUSES:
+            with self.subTest(rounds=name):
+                tile = _by_label(_inputs(review_rows=rows))[_REWORK_SHARE]
+                shown = (tile[_VALUE_KEY], tile[_NOTE_KEY], tile[_SUB_KEY])
+                self.assertEqual(shown, reading)
+
     def test_no_stated_review_spend_has_no_rework(self) -> None:
         # No review round ran, or none stated an amount, so there is nothing
         # to take a share of and the tile reports none rather than a zero.
@@ -374,11 +409,13 @@ class KpiStripDataTest(unittest.TestCase):
         unpriced = (ReviewRoundBucketRow(bucket="1", runs=1, developer_cost=unpriced_cost),)
         for review_rows, subtitle in (
             ((), "no runs in review rounds >= 1"),
-            (unpriced, "unpriced in review rounds >= 1"),
+            (unpriced, "Unpriced in review rounds >= 1"),
         ):
             with self.subTest(subtitle=subtitle):
                 rework = _by_label(_inputs(review_rows=review_rows))[_REWORK_SHARE]
-                self.assertEqual((rework[_VALUE_KEY], rework[_SUB_KEY]), ("—", subtitle))
+                self.assertEqual(
+                    (rework[_VALUE_KEY], rework[_SUB_KEY], rework[_NOTE_KEY]), ("—", subtitle, ""),
+                )
 
 
 if __name__ == "__main__":

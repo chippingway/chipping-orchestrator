@@ -3,8 +3,8 @@
 """What a usage figure draws over its stack: the subtotal marker and the cost line.
 
 A day whose stack leaves out a run of unknown token total is marked on top of whichever stack is drawn, and a day's
-cost reads on hover as the headline words it -- its basis, a blended total's parts, and why it falls short of complete
-spend -- with a subtotal drawn open and an unpriced day left as a gap rather than plotted as free work.
+cost reads on hover as the headline words it -- its figure and the status the day's own runs earn, never its sources
+-- with a subtotal drawn open and an unpriced day left as a gap rather than plotted as free work.
 """
 from __future__ import annotations
 
@@ -43,7 +43,7 @@ _COST_TRACE = "Cost"
 _UNSTATED_TRACE = "Cost not stated"
 
 # What the unpriced fourth day's cost reads as wherever it is hovered.
-_UNPRICED_LINE = "unpriced (1 of 1 runs unpriced or partly priced)"
+_UNPRICED_LINE = spend_text.UNPRICED
 
 _KNOWN_TOKENS = 1_000
 
@@ -156,14 +156,13 @@ class CostLineTest(unittest.TestCase):
         self.assertIsNone(cost.stackgroup)
 
     def test_each_day_reads_as_the_headline_words_it(self) -> None:
-        # The blended day lists its parts, the subtotal day says so and is drawn
-        # open, and the unpriced day is a gap rather than a zero.
+        # The mixed day reads as any complete day does, the subtotal day says
+        # so and is drawn open, and the unpriced day is a gap rather than a zero.
         cost = _overlaid()[_COST_TRACE]
-        lines = [spend_text.spend_line(cohort_cases.cohort(*costs)) for costs in _COSTS_BY_DAY]
-        self.assertEqual(list(cost.customdata), lines)
-        self.assertIn("blended: CLI-reported $0.42 + Gemini API token estimate $0.12", cost.customdata[1])
-        self.assertIn("incomplete subtotal", cost.customdata[2])
-        self.assertEqual(cost.customdata[3], _UNPRICED_LINE)
+        self.assertEqual(
+            list(cost.customdata),
+            ["$0.42", "$0.54", f"$0.50 · {spend_text.SUBTOTAL}", _UNPRICED_LINE],
+        )
         self.assertEqual(
             tuple(cost.y),
             (cases.REPORTED_USD, cases.REPORTED_USD + cases.GEMINI_USD, cases.ANTHROPIC_USD + cases.SUBTOTAL_USD, None),

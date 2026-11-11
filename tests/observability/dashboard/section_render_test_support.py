@@ -177,9 +177,9 @@ _TRACED_EVENT = IssueEventRow(
 class RecordingPage(RecordingRegion):
     """Fake `st` recording the whole surface a section pass draws onto.
 
-    A fold-out names itself on the page before anything is written inside it,
-    so its label joins the same stream the markup does and the order the
-    sections were drawn in is read off that one sequence.
+    A fold-out's label joins the same stream the markup does, as the region
+    beneath records it, so the order the sections were drawn in is read off
+    that one sequence.
     """
 
     def __init__(self, query_params: dict[str, str] | None = None) -> None:
@@ -188,10 +188,6 @@ class RecordingPage(RecordingRegion):
         self.frames: list[Any] = []
 
     def container(self, **options) -> Any:
-        return nullcontext()
-
-    def expander(self, label: str, **options) -> Any:
-        self.markup.append((label, options))
         return nullcontext()
 
     def dataframe(self, frame: Any, **options) -> None:

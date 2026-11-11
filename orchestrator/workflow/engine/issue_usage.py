@@ -171,7 +171,7 @@ def _format_issue_usage_verdict(state: PinnedState) -> str | None:
         :receipt: this issue: 3 agent runs · 45,200 tokens · $0.87 (CLI-reported)
 
     The cost is worded off `issue_cost_evidence` by the shared `cost_text`
-    owner, as every other surface words one: an amount never without its
+    owner, as the trajectory viewer words one: an amount never without its
     basis -- a Gemini API token estimate where Antigravity usage was priced on
     Gemini rates, `blended` with each basis's own amount beside it where the
     runs were stated on several -- an `incomplete subtotal` where some usage

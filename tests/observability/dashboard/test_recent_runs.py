@@ -6,9 +6,10 @@ Streamlit and pandas are faked so the render runs end-to-end in the default
 install: the expander, the notice, and what is handed to `st.dataframe` are
 what an operator sees, and the fake frame is the row list it was built from, so
 the columns and their order can be read straight back off it. A run's cost is
-read in the words its stored evidence puts it in -- a CLI-reported amount, one
-provider's estimate with the dates its rates were verified on, a blended run
-with each part, a subtotal, an unpriced run, and an amount stored with no basis.
+read as its stored evidence states it -- a CLI-reported amount, one provider's
+estimate, a blended run, a subtotal, an unpriced run, a run with no usage, and
+an amount stored with no basis -- as its figure and its own status, never its
+source, which the page's Cost details section explains once.
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ import unittest
 from datetime import UTC, datetime, timedelta
 
 from orchestrator.observability.analytics.query.run_models import AgentExitRow
-from orchestrator.observability.dashboard import recent_runs
+from orchestrator.observability.dashboard import recent_runs, spend_text
 from tests.observability.analytics import analytics_usage_cases as cases
 
 _YEAR = 2026
@@ -56,28 +57,19 @@ _COLUMNS = (
     "output tokens",
     "total tokens",
     "cost",
-    "rates",
 )
 
-_RATES_VERIFIED = "rates verified 2026-10-29"
-
-# What a run's two cost cells read for each cost its row can store.
+# What a run's cost cell reads for each cost its row can store.
 _WORDED_RUNS = (
-    (cases.REPORTED, ("$0.42 (CLI-reported)", "")),
-    (cases.COMPLETE_ZERO, ("$0.00 (CLI-reported)", "")),
-    (cases.ANTHROPIC_ESTIMATE, ("$0.30 (Anthropic API token estimate)", _RATES_VERIFIED)),
-    (cases.GEMINI_ESTIMATE, ("$0.12 (Gemini API token estimate)", _RATES_VERIFIED)),
-    (
-        cases.BLENDED,
-        ("$0.15 (blended: CLI-reported $0.10 + OpenAI API token estimate $0.05)", _RATES_VERIFIED),
-    ),
-    (
-        cases.INCOMPLETE_SUBTOTAL,
-        ("$0.20 (Anthropic API token estimate, incomplete subtotal)", _RATES_VERIFIED),
-    ),
-    (cases.UNPRICED, ("unpriced", "")),
-    (cases.NO_USAGE, ("no usage", "")),
-    (cases.ABSENT_BASIS, ("$0.07 (basis unknown, completeness unknown)", "")),
+    (cases.REPORTED, "$0.42"),
+    (cases.COMPLETE_ZERO, "$0.00"),
+    (cases.ANTHROPIC_ESTIMATE, "$0.30"),
+    (cases.GEMINI_ESTIMATE, "$0.12"),
+    (cases.BLENDED, "$0.15"),
+    (cases.INCOMPLETE_SUBTOTAL, f"$0.20 · {spend_text.SUBTOTAL}"),
+    (cases.UNPRICED, spend_text.UNPRICED),
+    (cases.NO_USAGE, spend_text.NO_USAGE),
+    (cases.ABSENT_BASIS, f"$0.07 · {spend_text.COMPLETENESS_UNKNOWN}"),
 )
 
 
@@ -180,18 +172,17 @@ class RecentRunRowTest(unittest.TestCase):
                 exit_row.input_tokens,
                 exit_row.output_tokens,
                 exit_row.total_tokens,
-                "$0.42 (CLI-reported)",
-                "",
+                "$0.42",
             ),
         )
 
     def test_a_cost_is_worded_by_its_evidence(self) -> None:
-        # Nothing is re-priced from the tokens beside it: the amount, basis,
-        # shortfall, and rate dates are the ones the run's row stored.
+        # Nothing is re-priced from the tokens beside it: the amount and the
+        # status are the ones the run's row stored, each run its own.
         for cost, worded in _WORDED_RUNS:
             with self.subTest(cost=cost):
                 row = recent_runs.recent_run_row(_agent_exit(cost=cost), timedelta())
-                self.assertEqual((row["cost"], row["rates"]), worded)
+                self.assertEqual(row["cost"], worded)
 
     def test_an_unknown_token_total_stays_empty(self) -> None:
         row = recent_runs.recent_run_row(_agent_exit(total_tokens=None), timedelta())

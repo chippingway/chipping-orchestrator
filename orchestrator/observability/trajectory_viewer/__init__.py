@@ -45,9 +45,9 @@ What that read is then drawn as begins to arrive after it, and none of it
 imports Streamlit either. ``css`` is the stylesheet this page adds on top of
 the chrome both pages share, written against the same geometry owner the
 analytics page is set in, and every cost on the page is worded by the
-dashboard's ``cost_text``, the owner both pages share for it -- its exact
-amount, the basis it is stated on, and a qualifier wherever it is not complete
-spend; ``summary_html`` the banner and the five
+dashboard's ``cost_text`` -- its exact amount, the basis it is stated on, and a
+qualifier wherever it is not complete spend, the names the analytics page's
+Cost details section gives its bases too; ``summary_html`` the banner and the five
 tiles a whole read is summarized in, built off the summary rather than the
 runs; ``run_html`` the three renderings one run is identified by -- the
 metadata grid, the overview row with what the run used and cost, and the

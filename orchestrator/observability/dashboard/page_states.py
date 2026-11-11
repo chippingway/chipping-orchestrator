@@ -11,7 +11,7 @@ above it were measured over.
 The two states are dead ends of different kinds. A database holding nothing at
 all has no extent to pick a window from, so there is no filter bar to offer:
 the banner is drawn with its counts zeroed, its spend the empty cohort that
-reads as no agent runs rather than as a spend of zero, and the script is
+reads as no runs rather than as a spend of zero, and the script is
 stopped where it stands. A window that merely matched nothing still has a page around it, so
 that one keeps the chrome already rendered above it and hands the page on to
 the trace at the foot of it -- an operator narrowing to one issue is exactly
