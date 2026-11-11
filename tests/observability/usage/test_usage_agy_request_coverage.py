@@ -81,6 +81,11 @@ _UNFINISHED_FIELDS = MappingProxyType({"kind": agy_events.TOOL, "state": agy_eve
 _UNFINISHED_TOOL = stream.step(3, usage=dict(_USAGE), **_UNFINISHED_FIELDS)
 _INVALID_TERMINAL_USAGE = MappingProxyType({**_USAGE, protocol.INPUT_TOKENS: "invalid"})
 _INVALID_TERMINAL = stream.terminal(usage=dict(_INVALID_TERMINAL_USAGE))
+_CONTRADICTED_TERMINAL_USAGE = MappingProxyType({**_USAGE, "total_tokens": 999})
+_CONTRADICTED_TERMINAL = stream.terminal(usage=dict(_CONTRADICTED_TERMINAL_USAGE))
+_HUGE_USAGE = MappingProxyType({**_USAGE, protocol.INPUT_TOKENS: cases.PAST_ANY_COUNT})
+_PAST_ANY_COUNT = stream.step(3, usage=dict(_HUGE_USAGE))
+_NEGATIVE_INDEX = _FIRST.replace('"step_index": 1', '"step_index": -1')
 _UNNAMED_USAGE = stream.step(3, kind=agy_events.TOOL, usage={"tokens": 5})
 _MALFORMED_ENVELOPE = json.dumps({"event": agy_events.STEP_UPDATE, agy_events.STEP_UPDATE: []})
 # A completed request whose duration is twice the largest float: an integer no float holds.
@@ -132,6 +137,9 @@ _DAMAGED = (
     ("tool usage that is no object", _BROKEN_USAGE, coverage.MALFORMED_USAGE),
     ("tool step reporting usage it never completed", _UNFINISHED_TOOL, coverage.UNSETTLED_STEPS),
     ("terminal counter that is no count", _INVALID_TERMINAL, coverage.INVALID_COUNTERS),
+    ("terminal total contradicting its counters", _CONTRADICTED_TERMINAL, coverage.CONFLICTING_COUNTERS),
+    ("a count past any token count", _PAST_ANY_COUNT, coverage.INVALID_COUNTERS),
+    ("a step index no counter reaches", _NEGATIVE_INDEX, coverage.UNINDEXED_FRAMES),
     ("tool usage naming no counter", _UNNAMED_USAGE, coverage.MALFORMED_USAGE),
 )
 # Later `init` events naming no conversation: a change of the one unnamed conversation, and one placed nowhere.
@@ -283,6 +291,9 @@ class CoverageGapTest(unittest.TestCase):
         self.assertNotIn(protocol.INPUT_TOKENS, checkpoint[cases.RAW])
         self.assertEqual(checkpoint[cases.EVIDENCE], {protocol.INPUT_TOKENS: "invalid"})
         self.assertEqual(collection.status, coverage.INCOMPLETE)
+        # A total its own counters contradict keeps its count, and says it is conflicting.
+        contradicted = cases.collected(_INIT, _FIRST, _CONTRADICTED_TERMINAL).checkpoints[0]
+        self.assertEqual(contradicted[cases.EVIDENCE], {"total_tokens": "conflicting"})
 
     def test_dispatch_collects_for_antigravity_alone(self) -> None:
         for backend in (protocol.CLAUDE, protocol.CODEX):

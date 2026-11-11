@@ -33,8 +33,9 @@ orchestrator-built `prompt` so it can land as the redacted `user_input`; `record
 without a re-parse. The whole block rides its **own** inner fail-open `try/except`: a parser, redactor, or sink
 failure logs (`log.exception`) and is swallowed, so it can never drop the baseline `agent_exit` usage / cost record or
 the `skill_triggered` audit events, all of which were already produced before it runs. Inside it, the run's request
-usage is collected (`persistence.collected_request_usage`) behind a guard of its own, so a collector that raises logs
-and leaves a field stating `collector-error` while the trajectory beside it is written whole. With the sink off (the
+usage is collected (`persistence.collected_request_usage`) behind a guard of its own, which covers the field's
+serialization as the sink writes it, so a collector that raises, or a collection that would not serialize, logs and
+leaves a field stating `collector-error` while the trajectory beside it is written whole. With the sink off (the
 default) the block is a no-op before any parse work — the prompt is never read into a record and the `agent_exit` shape
 is byte-for-byte unchanged. `runtime.ticks.run_tick` does not yet call `prune_trajectory_records`, so trajectory
 retention stays operator-driven for now.

@@ -27,7 +27,7 @@ is ever recorded; `LIMITATIONS` names them for every collection.
 from __future__ import annotations
 
 from collections import Counter, deque
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Any
@@ -50,6 +50,7 @@ from orchestrator.observability.usage.request_agy_steps import (
     unindexed_gap,
     usage_readings,
 )
+from orchestrator.observability.usage.request_normalization import Reading
 
 LIMITATIONS = (
     "no-source-timestamps",
@@ -59,22 +60,16 @@ LIMITATIONS = (
     "no-compaction-markers",
 )
 RESULT_TOTAL = "result-total"
+# The step indices a step is keyed by: a counter of the conversation's steps, so never negative, and bounded like any
+# other correlation metadata.
+MAX_STEP_INDEX = 2_147_483_647
+STEP_INDICES = range(MAX_STEP_INDEX + 1)
+# The source counters a terminal total's own arithmetic can contradict: its total, and the thinking inside its output.
+_RELATED_COUNTERS = MappingProxyType({
+    normalization.SOURCE_TOTAL_TOKENS: "total_tokens",
+    normalization.REASONING_TOKENS: "thinking_tokens",
+})
 _ENVELOPES = (agy_events.INIT, agy_events.STEP_UPDATE, agy_events.RESULT_EVENT)
-
-
-def identity(step: StepFold, child: Child | None) -> request_models.RequestIdentity:
-    """A step's stable identity: its conversation and index, or its index alone within the process."""
-    conversation, index = step.key
-    parent = Child(None, None, None) if child is None else child
-    return request_models.RequestIdentity(
-        key=f"process:{index}" if conversation is None else f"{conversation}:{index}",
-        kind=request_models.PROCESS_STEP if conversation is None else request_models.CONVERSATION_STEP,
-        conversation_id=conversation,
-        step_index=index,
-        parent_conversation_id=parent.parent_conversation_id,
-        parent_step_index=parent.parent_step_index,
-        subagent_type=parent.subagent_type,
-    )
 
 
 def malformed_envelope(event: dict[str, Any]) -> bool:
@@ -89,7 +84,7 @@ def terminal_checkpoint(
     named: str | None,
     metadata: request_scan.Metadata,
 ) -> request_models.UsageCheckpoint:
-    """A terminal `result` as a conversation-scope checkpoint: its counters, and evidence of any that is no count."""
+    """A terminal `result` as a conversation-scope checkpoint: its counters, and the evidence of any it cannot hold."""
     readings = usage_readings(terminal) or {}
     turns = normalization.Reading.of(terminal.get("num_turns"))
     return request_models.UsageCheckpoint(
@@ -100,19 +95,32 @@ def terminal_checkpoint(
         conversation_id=named,
         source_status=metadata.text(terminal.get("status")),
         turns=turns.count if turns.known else None,
-        evidence=MappingProxyType({
-            counter: reading.state for counter, reading in readings.items() if not reading.known
-        }),
+        evidence=MappingProxyType(checkpoint_evidence(readings)),
     )
 
 
-def step_gaps(steps: Iterable[StepFold]) -> Counter[str]:
-    """The gaps steps leave without becoming requests: never completed, or completed reporting no usage."""
-    gaps: Counter[str] = Counter()
-    for step in steps:
-        gaps[coverage.UNSETTLED_STEPS] += step.unsettled_gap
-        gaps[coverage.UNREPORTED_USAGE] += step.unreported_gap
-    return gaps
+def related_conflicts(readings: dict[str, Reading]) -> dict[str, str]:
+    """The terminal counters the total's own arithmetic contradicts, each conflicting.
+
+    The total is held to the same arithmetic a request is, within its own conversation scope: a `total_tokens` that is
+    not its input plus its output, or thinking beyond its output, contradicts the counters it is made of.
+    """
+    neutral = {COUNTERS[name]: reading for name, reading in readings.items()}
+    fields = normalization.normalize(protocol.AGY, neutral).fields
+    return {
+        name: normalization.CONFLICTING
+        for field_name, name in _RELATED_COUNTERS.items()
+        if fields[field_name].state == normalization.CONFLICTING
+    }
+
+
+def checkpoint_evidence(readings: dict[str, Reading]) -> dict[str, str]:
+    """The evidence of each terminal counter that is no usable count, or that the total's own arithmetic contradicts."""
+    evidence = related_conflicts(readings)
+    for name, reading in readings.items():
+        if not reading.known:
+            evidence[name] = reading.state
+    return evidence
 
 
 @dataclass
@@ -135,7 +143,7 @@ class Observations:
             return
         child = self.branches.children.get(step.key[0] or "")
         observation = request_models.RequestObservation(
-            identity=identity(step, child),
+            identity=self.identity(step, child),
             position=step.settled_position or 0,
             branch_order=self.orders[step.key[0]],
             attribution=self.branches.attribution(step, self.fallback_model),
@@ -152,6 +160,20 @@ class Observations:
         self.kept.append(observation)
         self.gaps.update(coverage.observation_gaps(observation, subagent=child is not None))
         self.gaps[coverage.CONVERSATION_AMBIGUOUS] += self._unplaced(step)
+
+    def identity(self, step: StepFold, child: Child | None) -> request_models.RequestIdentity:
+        """A step's stable identity: its conversation and index, or its index alone within the process."""
+        conversation, index = step.key
+        parent = Child(None, None, None) if child is None else child
+        return request_models.RequestIdentity(
+            key=f"process:{index}" if conversation is None else f"{conversation}:{index}",
+            kind=request_models.PROCESS_STEP if conversation is None else request_models.CONVERSATION_STEP,
+            conversation_id=conversation,
+            step_index=index,
+            parent_conversation_id=parent.parent_conversation_id,
+            parent_step_index=parent.parent_step_index,
+            subagent_type=parent.subagent_type,
+        )
 
     def _unplaced(self, step: StepFold) -> bool:
         """Whether a request naming no conversation is kept in a stream where whose it is stays unknown."""
@@ -213,7 +235,10 @@ class StreamFold:
         gaps.update(self.gaps)
         gaps.update(self.branches.gaps)
         gaps.update(observations.gaps)
-        gaps.update(step_gaps(self.steps.values()))
+        # Steps leave gaps without becoming requests: never completed, or completed reporting no usage.
+        for step in self.steps.values():
+            gaps[coverage.UNSETTLED_STEPS] += step.unsettled_gap
+            gaps[coverage.UNREPORTED_USAGE] += step.unreported_gap
         unexposed = set(self.branches.children) - observations.conversations
         gaps[coverage.SUBAGENT_USAGE_UNAVAILABLE] += len(unexposed)
         gaps[coverage.SUBAGENT_UNIDENTIFIED] += len(self.branches.unidentified)
@@ -224,12 +249,12 @@ class StreamFold:
         # Only the process's own conversation ending ends the process; a subagent's result ends its own alone.
         ended = self.branches.process_conversation in self.terminals
         gaps[coverage.NO_TERMINAL_RESULT] += bool(self.envelopes) and not ended
-        return MappingProxyType({reason: count for reason, count in gaps.items() if count})
+        return MappingProxyType(dict(+gaps))
 
     def _step(self, position: int, frame: dict[str, Any]) -> None:
         self.gaps[coverage.MALFORMED_USAGE] += malformed_usage(frame)
         index = frame.get(agy_events.STEP_INDEX)
-        if isinstance(index, bool) or not isinstance(index, int):
+        if isinstance(index, bool) or not isinstance(index, int) or index not in STEP_INDICES:
             self.gaps[coverage.UNINDEXED_FRAMES] += unindexed_gap(frame, self.branches.metadata)
             return
         named = self.branches.metadata.text(frame.get(CONVERSATION_ID))
@@ -264,7 +289,7 @@ class StreamFold:
             self.terminals.add(conversation)
         checkpoint = terminal_checkpoint(position, terminal, named, metadata)
         self.gaps[coverage.MALFORMED_USAGE] += malformed_usage(terminal)
-        self.gaps[coverage.INVALID_COUNTERS] += bool(checkpoint.evidence)
+        self.gaps.update(coverage.evidence_gaps((checkpoint.evidence or {}).values()))
         self.observed_checkpoints += 1
         self.checkpoints.append(checkpoint)
 

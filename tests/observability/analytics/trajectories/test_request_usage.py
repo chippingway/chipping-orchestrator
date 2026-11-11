@@ -7,7 +7,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from orchestrator.observability.analytics import sink as analytics_sink
 from orchestrator.observability.usage import protocol, request_coverage as coverage, trajectory as usage_trajectory
@@ -16,7 +16,7 @@ from tests.observability.analytics.trajectories import (
     request_usage_cases as cases,
     trajectories_test_support as support,
 )
-from tests.observability.usage import usage_agy_stream_capture as capture
+from tests.observability.usage import usage_agy_stream_capture as capture, usage_request_cases as request_cases
 from tests.support import agy_stream as stream
 
 _REQUEST_USAGE = "request_usage"
@@ -37,6 +37,14 @@ _INTERRUPTED = "\n".join((
     stream.step(2, state="ACTIVE"),
 ))
 _FAILED = coverage.RequestUsage.failed().summary(0, 0)
+# A collection holding a value no record can write.
+_UNSERIALIZABLE = MagicMock(spec=coverage.RequestUsage)
+_UNSERIALIZABLE.to_dict.return_value = {"count": object()}
+# A collector that raises, and a collection that would not serialize: one failure boundary for both.
+_FAILURES = (
+    ("raising", patch.object(usage_trajectory, _COLLECTOR, side_effect=RuntimeError("collector boom"))),
+    ("unserializable", patch.object(usage_trajectory, _COLLECTOR, return_value=_UNSERIALIZABLE)),
+)
 # The keys a sample may carry: identities, positions, attribution, status, and counters with their evidence.
 _SAMPLE_KEYS = frozenset((
     "id", "id_kind", "conversation_id", "session_id", "turn_id", "message_id", "step_index",
@@ -95,13 +103,13 @@ class RequestUsageRecordTest(support.RecordAgentExitTrajectorySupport):
             collector.assert_not_called()
 
     def test_collector_failure_keeps_everything_else(self) -> None:
-        failing = patch.object(usage_trajectory, _COLLECTOR, side_effect=RuntimeError("collector boom"))
-        with failing, self.assertLogs(analytics_sink.log, level="ERROR"):
-            record, baseline = self._written(stdout=_FRESH_STDOUT)
-        # The trajectory and the baseline record are written whole; the field says only that collection failed.
-        self.assertEqual(record[support.OUTPUT_KEY], _FRESH_ANSWER)
-        self.assertEqual(record[_REQUEST_USAGE], {_COVERAGE: _FAILED})
-        self.assertEqual(baseline[0][support.INPUT_TOKENS_KEY], _FRESH_INPUT)
+        for name, failing in _FAILURES:
+            with self.subTest(name), failing, self.assertLogs(analytics_sink.log, level="ERROR"):
+                record, baseline = self._written(stdout=_FRESH_STDOUT)
+                # The trajectory and the baseline record are written whole; the field says only that collection failed.
+                self.assertEqual(record[support.OUTPUT_KEY], _FRESH_ANSWER)
+                self.assertEqual(record[_REQUEST_USAGE], {_COVERAGE: _FAILED})
+                self.assertEqual(baseline[0][support.INPUT_TOKENS_KEY], _FRESH_INPUT)
 
     def _written(self, **options) -> tuple[dict, list[dict]]:
         options.setdefault("backend", protocol.AGY)
@@ -110,6 +118,20 @@ class RequestUsageRecordTest(support.RecordAgentExitTrajectorySupport):
             analytics_path = Path(td) / support.ANALYTICS_FILENAME
             self._emit(traj_path=traj_path, analytics_path=analytics_path, **options)
             return read_records(traj_path)[0], read_records(analytics_path)
+
+
+class RequestUsageBoundTest(support.RecordAgentExitTrajectorySupport):
+    """A count no record can write never costs the trajectory: it is no count, and the field says so."""
+
+    def test_counts_past_any_token_count_are_invalid(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            traj_path = Path(td) / support.TRAJECTORY_FILENAME
+            self._emit(stdout=request_cases.HUGE_STDOUT, backend=protocol.AGY, traj_path=traj_path)
+            request_usage = read_records(traj_path)[0][_REQUEST_USAGE]
+        sample = request_usage[_SAMPLES][0]
+        self.assertNotIn(protocol.INPUT_TOKENS, sample["raw"])
+        self.assertEqual(sample["evidence"]["context_input_tokens"], "invalid")
+        self.assertIn(coverage.INVALID_COUNTERS, request_usage[_COVERAGE]["reasons"])
 
 
 class RequestRetentionTest(unittest.TestCase):

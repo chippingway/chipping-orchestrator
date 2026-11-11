@@ -683,7 +683,9 @@ unrelated data. A marker (`markers`) is an explicit boundary the stream printed 
 `previous_model`, or a `compaction` or `reset` of the context -- and none is inferred where the stream prints no such
 boundary. A checkpoint (`checkpoints`) is aggregate usage over a wider scope, such as Antigravity's `result-total` over
 its whole `conversation`, with its `raw` counters, `turns`, and `source_status`, and an `evidence` map naming each
-counter it reported no usable count for -- an `invalid-counters` gap. Neither is a request: neither is counted as one,
+counter it reported no usable count for -- an `invalid-counters` gap -- and each its own arithmetic contradicts, held to
+the same rules as a request within its conversation scope: a total that is not its input plus its output, or thinking
+beyond its output, is `conflicting` and a `conflicting-counters` gap. Neither is a request: neither is counted as one,
 and a reader reconciles a checkpoint only against samples of its own scope.
 
 **Normalization.** `request_normalization.py` reads each request's raw counters into the same fields under its
@@ -700,17 +702,19 @@ plus the output. `cache_read_tokens` and `cache_write_tokens` keep the cache bre
 Claude write's `cache_write_5m` / `cache_write_1h` split. A Claude write is its aggregate where the block reports one
 and its lifetime split only where the aggregate is missing; a split summing to anything but its aggregate, or one
 lifetime exceeding it, leaves both, and so the context input and total, `conflicting`. On Codex, cache reads and writes
--- the writes as settled, from the aggregate or from the lifetime split -- that together exceed the input holding them
-are `conflicting`, the split with them, while the input stays the context input. The provider's own total is kept apart
-as `source_total_tokens` and never derives the common total; where the profile states what it sums -- input plus output,
-on Codex and Antigravity -- a source total disagreeing with those counters is `conflicting`. Each field's evidence is
+-- the writes held at least at what is known of them: their settled count, or the lifetimes reported so far where it is
+unknown -- that together exceed the input holding them are `conflicting`, the lifetimes with them, while the input stays
+the context input and a write nothing establishes stays unknown. The provider's own total is kept apart as
+`source_total_tokens` and never derives the common total; where the profile states what it sums -- input plus output, on
+Codex and Antigravity -- a source total disagreeing with those counters is `conflicting`. Each field's evidence is
 `observed` (a usable count), `missing` (nothing reported, never a zero), `invalid` (a negative number, a fraction, an
-infinite or NaN value, a boolean, a word, or a string spelling more than 30 digits -- judged before anything is
-truncated to a count, and a string read exactly, never through a float that could round a fraction whole or move a large
-count), `conflicting` (two reports of the request disagree, a part exceeds its whole, or a total contradicts its parts),
-or `unsupported` (the profile has no such counter). A derived field is established only where every part is observed and
-otherwise takes the weakest part's evidence, so a step reporting no cache reads has no context input, while one
-reporting zero has its input as its context.
+infinite or NaN value, a boolean, a word, or a number of 30 digits or more, reported or spelled, which no token count
+reaches and no sum of which a record could fail to write -- judged before anything is truncated to a count, and a string
+read exactly, never through a float that could round a fraction whole or move a large count), `conflicting` (two reports
+of the request disagree, a part exceeds its whole, or a total contradicts its parts), or `unsupported` (the profile has
+no such counter). A derived field is established only where every part is observed and otherwise takes the weakest
+part's evidence, so a step reporting no cache reads has no context input, while one reporting zero has its input as its
+context.
 
 **Coverage and bounds.** Each collection states its `coverage`: `status`, `reasons` (each gap's code and how often it
 occurred, from a vocabulary fixed in `request_coverage.py`), `limitations` (what the source never reports), and
@@ -781,14 +785,15 @@ as its subagent type, and one contradicting it keeps the first and is a `subagen
 subagent gap counts the steps that spawned it once, however often their frames repeat it. The gaps it records are a
 response or `checkpoint` step, or one that carried usage, the stream never completed (`unsettled-steps`; a tool step
 still running that carried no usage is none), a completed one with no usage (`unreported-usage`), a frame with no step
-index that carries usage or a generation's step type (`unindexed-frames`), a subagent whose conversation exposed no
-usage (`subagent-usage-unavailable`), one `subagent_info` does not name (`subagent-unidentified`), an event naming an
-`init`, `step_update`, or `result` envelope but carrying no object under it (`malformed-envelopes`), a usage block on
-any step or `result` that is no object or names no counter (`malformed-usage`), and a stream with no terminal `result`
-of the process's own conversation (`no-terminal-result`) -- a subagent's `result` ends its own conversation, never the
-process. The stream reports no timestamp, context capacity, CLI version, cache write, or compaction or reset boundary,
-so every collection that read the stream lists those as limitations and records none of them. The run accounting is
-unchanged: `agy_summary.py` still counts each completed step's last completed frame, so where completed frames disagree
-the run counters keep that frame while the sample states the counter `conflicting`.
+index -- or one outside 0 through 2,147,483,647, which no step counter reaches -- that carries usage or a generation's
+step type (`unindexed-frames`), a subagent whose conversation exposed no usage (`subagent-usage-unavailable`), one
+`subagent_info` does not name (`subagent-unidentified`), an event naming an `init`, `step_update`, or `result` envelope
+but carrying no object under it (`malformed-envelopes`), a usage block on any step or `result` that is no object or
+names no counter (`malformed-usage`), and a stream with no terminal `result` of the process's own conversation
+(`no-terminal-result`) -- a subagent's `result` ends its own conversation, never the process. The stream reports no
+timestamp, context capacity, CLI version, cache write, or compaction or reset boundary, so every collection that read
+the stream lists those as limitations and records none of them. The run accounting is unchanged: `agy_summary.py` still
+counts each completed step's last completed frame, so where completed frames disagree the run counters keep that frame
+while the sample states the counter `conflicting`.
 
 [pinned-state]: ../state-machine/labels-and-state.md#pinned-state

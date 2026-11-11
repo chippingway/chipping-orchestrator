@@ -18,7 +18,7 @@ listed apart from the gaps, since they say nothing about whether this run's coll
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any
@@ -95,11 +95,16 @@ def collection_status(reasons: Mapping[str, int], observed_samples: int) -> str:
     return COMPLETE if observed_samples else COMPLETE_EMPTY
 
 
+def evidence_gaps(states: Iterable[str]) -> Iterator[str]:
+    """The gaps counters in `states` leave: one for conflicting counters and one for invalid ones, each once."""
+    present = frozenset(states)
+    yield from (gap for state, gap in _COUNTER_GAPS.items() if state in present)
+
+
 def observation_gaps(observation: RequestObservation, *, subagent: bool) -> Iterator[str]:
     """The gaps one observation leaves in its collection: unusable counters, unsettled usage, no model."""
     usage = observation.usage
-    states = usage.states()
-    yield from (gap for state, gap in _COUNTER_GAPS.items() if state in states)
+    yield from evidence_gaps(usage.states())
     if any(usage.fields[name].state == normalization.MISSING for name in _CORE_FIELDS):
         yield MISSING_COUNTERS
     if observation.status == PROVISIONAL:

@@ -6,11 +6,15 @@ The request tests read the field as a record carries it -- `RequestUsage.to_dict
 serialized format they pin, named once here rather than spelled out in every module.
 """
 
+import json
+import sys
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Any
 
 from orchestrator.observability.usage import protocol, trajectory
+from tests.support import agy_stream as stream
 
 COVERAGE = "coverage"
 SAMPLES = "samples"
@@ -24,6 +28,17 @@ MODEL = "model"
 MODEL_SOURCE = "model_source"
 STEP_INDEX = "step_index"
 CONVERSATION_ID = "conversation_id"
+# Ten to the thirtieth: the first count with more digits than any token count has.
+PAST_ANY_COUNT = 1_000_000_000_000_000_000_000_000_000_000
+# The largest count the JSON decoder accepts, beside one cache read: a context input one digit past what a record could
+# write, were it ever derived. The model is one no price applies to, so the run accounting does not price it.
+_LARGEST_COUNT = int("9" * sys.get_int_max_str_digits())
+_HUGE_USAGE = MappingProxyType({protocol.INPUT_TOKENS: _LARGEST_COUNT, protocol.CACHE_READ_TOKENS: 1})
+HUGE_STDOUT = "\n".join((
+    json.dumps({"event": "init", CONVERSATION_ID: stream.SESSION_ID, "init": {MODEL: "unpriced-model"}}),
+    stream.step(1, usage={**_HUGE_USAGE, protocol.OUTPUT_TOKENS: 0}),
+    stream.terminal(),
+))
 
 Entries = Iterable[Mapping[str, Any]]
 

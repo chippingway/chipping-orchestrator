@@ -20,6 +20,7 @@ the sink an operator turned on has something to write.
 
 from __future__ import annotations
 
+import json
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
@@ -57,6 +58,15 @@ def codex_trajectory_changes(
     return changes
 
 
+def serializable(
+    request_usage: usage_request_coverage.RequestUsage | None,
+) -> usage_request_coverage.RequestUsage | None:
+    """`request_usage`, once all of it is shown to serialize as the sink writes a record; raises where it does not."""
+    if request_usage is not None:
+        json.dumps(request_usage.to_dict(), sort_keys=True)
+    return request_usage
+
+
 def collected_request_usage(
     context: AgentExitContext,
 ) -> usage_request_coverage.RequestUsage | None:
@@ -64,17 +74,19 @@ def collected_request_usage(
 
     The collector reads the run's stdout whether or not the CLI returned a
     session id, a failed or interrupted run's included, since what it printed
-    is attributable to this invocation either way. A collector that raises
-    logs and leaves a collection stating it failed, so the trajectory beside
-    it -- and the baseline `agent_exit` record and the workflow behind that --
-    are written exactly as they would have been.
+    is attributable to this invocation either way. The boundary covers the
+    field's serialization too, which is checked here the way the sink writes
+    a record. A collector that raises, or a collection that would not
+    serialize, logs and leaves a collection stating it failed, so the
+    trajectory beside it -- and the baseline `agent_exit` record and the
+    workflow behind that -- are written exactly as they would have been.
     """
     try:
-        return usage_trajectory.parse_agent_request_usage(
+        return serializable(usage_trajectory.parse_agent_request_usage(
             context.backend,
             context.agent_result.stdout,
             context.fallback_model,
-        )
+        ))
     except Exception:  # noqa: BLE001 - request usage is dropped, never the trajectory
         sink.log.exception(
             "issue=#%d analytics: request usage collection(%s) failed; trajectory record is unaffected",

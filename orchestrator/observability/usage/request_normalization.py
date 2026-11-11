@@ -52,6 +52,7 @@ SOURCE_TOTAL = "source_total"
 _LIFETIMES = (CACHE_WRITE_FIVE_MIN, CACHE_WRITE_ONE_HOUR)
 # The most digits a string may spell a count in; a longer number is no token count, and is never expanded into one.
 _MAX_COUNT_DIGITS = 30
+_MAX_COUNT = 10 ** _MAX_COUNT_DIGITS
 
 # The normalized fields, each serialized under this name.
 CONTEXT_INPUT_TOKENS = "context_input_tokens"
@@ -80,13 +81,14 @@ class Reading:
         The value is judged before it is turned into a count. A whole, non-negative number -- or a string spelling
         one, read exactly rather than through a float, so no rounding makes a fraction whole or changes a large count
         -- is a count; a negative whole number keeps its number as raw evidence and is invalid; and a fraction, an
-        infinite or NaN value, a boolean, a word, or a string spelling a number of more than `_MAX_COUNT_DIGITS`
-        digits is no count at all, never the zero or whole number truncating it would make.
+        infinite or NaN value, a boolean, a word, or a number of `_MAX_COUNT_DIGITS` digits or more -- reported as
+        one or spelled -- is no count at all, never the zero or whole number truncating it would make, nor a count
+        whose sums no record could write.
         """
         if raw is None:
             return cls()
         number = _reported_number(raw)
-        if number is None:
+        if number is None or abs(number) >= _MAX_COUNT:
             return cls(state=INVALID)
         return cls(int(number), OBSERVED if number >= 0 else INVALID)
 
@@ -108,6 +110,11 @@ class Reading:
         if self.known and whole.known and self.exceeds(whole):
             return Reading(state=CONFLICTING)
         return self
+
+    @classmethod
+    def at_least(cls, parts: Iterable[Reading]) -> Reading:
+        """What the known parts establish a whole is at least: their sum, any unknown part aside."""
+        return cls.summed(part for part in parts if part.known)
 
     def exceeds(self, whole: Reading) -> bool:
         return (self.count or 0) > (whole.count or 0)
@@ -212,16 +219,23 @@ class Profile:
     ) -> tuple[Reading, Reading, Reading]:
         """The cache reads, the writes, and their lifetime split, conflicting where the input cannot hold them.
 
-        On a profile whose input holds its cache, it holds the reads and the writes at once -- the writes as they were
-        settled, from the aggregate or from the lifetime split -- so it is their sum the input has to hold, not each
-        alone, and a write derived from its split is held to it like a reported one.
+        On a profile whose input holds its cache, it holds the reads and the writes at once, so it is their sum the
+        input has to hold, not each alone. The writes are held at least at what is known of them: their settled count,
+        or, where that is unknown, the lifetimes reported so far -- a lower bound that can already exceed the input
+        while the writes themselves stay unknown. Each count taking part in the contradiction becomes conflicting.
         """
         cache_read = self.reading(readings, CACHE_READ)
-        held = Reading.summed(part for part in (cache_read, cache_write) if part.known)
+        lifetimes = Reading.at_least(self.reading(readings, lifetime) for lifetime in _LIFETIMES)
+        written = cache_write if cache_write.known else lifetimes
+        held = Reading.at_least((cache_read, written))
         whole = self.reading(readings, INPUT)
         if not (self.cache_within_input and held.count and whole.known and held.exceeds(whole)):
             return cache_read, cache_write, split
-        return cache_read.contradicted(), cache_write.contradicted(), split.contradicted()
+        return (
+            cache_read.contradicted(),
+            Reading(state=CONFLICTING) if written.count else cache_write,
+            Reading(state=CONFLICTING) if lifetimes.count else split,
+        )
 
     def cache_writes(self, readings: Readings) -> tuple[Reading, Reading]:
         """The request's cache writes counted once, and its lifetime split, from the aggregate or the split.
