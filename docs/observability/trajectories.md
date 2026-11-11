@@ -457,9 +457,9 @@ sidebar of filters (plus a *Hide synthetic fixtures*
 toggle that drives the reader's `exclude_fixtures`, off by default), a topbar + five-tile KPI strip (runs / issues /
 repos / tool calls / cost), a foldable *Recorded runs*
 overview table (capped at the 200 most recent, each row carrying the run's non-overlapping token total and its cost;
-collapse the expander to focus on a single run), three cascading run
-pickers (repo → issue → the run's `detail_label` cohort — stage/role · backend · round · timestamp) that
-together still reach every match, and a per-run detail card that lists the offered tools and triggered / available
+collapse the expander to focus on a single run), three cascading run pickers (repo → issue, highest number first →
+the run's `detail_label` cohort — stage/role · backend · round · timestamp) that together still reach every match,
+and a per-run detail card that lists the offered tools and triggered / available
 skills — the triggered-skills row always renders, marked `none` when no skill fired so a run that used no skill is
 distinguishable from an omitted row, while the offered-tools and available-skills rows are dropped when empty — a
 run-level usage / cost row (model(s), the non-overlapping token total, a chip for each counter the record observed,
