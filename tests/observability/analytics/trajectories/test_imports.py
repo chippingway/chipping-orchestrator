@@ -33,6 +33,7 @@ _OWNERS = (
     _API_OWNER,
     "models",
     _PERSISTENCE_OWNER,
+    "requests",
     "sanitize",
     "serialize",
 )
@@ -47,15 +48,17 @@ _ALWAYS_PLANTED = frozenset((
 
 # What each owner may reach beyond its own siblings, declared per owner
 # because the direction is the point. The two leaves reach nothing; the
-# serializer names the shared write owner for the record envelope and the
-# parsers a run is metered by; the append and the write add the configuration
-# owner the knob is read through. The recording package is deliberately absent
+# request usage field names only the usage records it bounds; the serializer
+# names the shared write owner for the record envelope and the parsers a run
+# is metered by; the append and the write add the configuration owner the
+# knob is read through. The recording package is deliberately absent
 # from all of them: an `agent_exit` composes this write, so a trajectory owner
 # importing the recorders that call it is the cycle this rejects.
 _REACHABLE = MappingProxyType({
     _API_OWNER: (_CONFIG, _SINK),
     "models": (),
     _PERSISTENCE_OWNER: (_CONFIG, _SINK, _USAGE),
+    "requests": (_USAGE,),
     "sanitize": (),
     "serialize": (_SINK, _USAGE),
 })

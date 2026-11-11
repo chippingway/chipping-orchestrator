@@ -11,6 +11,7 @@ from orchestrator.observability.trajectory_viewer import parsing
 from orchestrator.observability.usage import (
     cost_evidence as usage_cost,
     metrics as usage_metrics,
+    protocol as usage_protocol,
     token_evidence as usage_tokens,
     trajectory as usage_trajectory,
 )
@@ -21,6 +22,7 @@ from tests.observability.analytics.analytics_trajectory_cases import (
 from tests.observability.trajectory_viewer import (
     trajectory_viewer_test_support as _support,
 )
+from tests.observability.usage import usage_agy_stream_capture as _agy_capture
 
 _KIND = "kind"
 
@@ -375,6 +377,20 @@ class ProducedRecordParsingTest(unittest.TestCase):
             run.total_tokens,
             usage_tokens.non_overlapping_total(metrics.to_dict()),
         )
+
+    def test_request_usage_changes_no_reading(self) -> None:
+        # A record carrying request usage -- whole, or damaged by hand --
+        # reads back exactly as the same record without it: the field rides
+        # past the read model, so no total, cost, turn, or step is taken from
+        # it, and a record without it is no record missing anything.
+        collected = usage_trajectory.parse_agent_request_usage(
+            usage_protocol.AGY, "\n".join(_agy_capture.GUIDE_RUN),
+        )
+        existing = _parsed(_usage_record())
+        for request_usage in (collected.to_dict(), "damaged", [None]):
+            with self.subTest(request_usage=type(request_usage).__name__):
+                enriched = _usage_record(request_usage=request_usage)
+                self.assertEqual(_parsed(json.loads(json.dumps(enriched))), existing)
 
 
 if __name__ == "__main__":

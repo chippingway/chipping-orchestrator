@@ -13,6 +13,7 @@ from orchestrator.agents.models import AgentResult
 from orchestrator.observability.analytics import settings as analytics_settings, sink as analytics_sink
 from orchestrator.observability.analytics.recording import agent_exit as _agent_exit_records
 from orchestrator.workflow.engine import usage as engine_usage
+from tests.support import agy_stream as _agy_stream
 from tests.workflow.engine import usage_frames as _usage_frames, usage_test_support as support
 
 BACKEND_CLAUDE = support.BACKEND_CLAUDE
@@ -52,6 +53,19 @@ _analytics_path = support._analytics_path
 _tracked_budget = support._tracked_budget
 _analytics_records = support._analytics_records
 _claude_stdout_with_skills = _usage_frames._claude_stdout_with_skills
+
+
+_BACKEND_AGY = "agy"
+_REQUEST_ISOLATION_ISSUE_NUMBER = 304
+# An Antigravity run interrupted mid-response, after one completed request.
+_AGY_STDOUT = "\n".join((
+    _agy_stream.init_event(),
+    _agy_stream.step(1, usage={_INPUT_TOKENS_KEY: 10, _OUTPUT_TOKENS_KEY: 2, "cache_read_tokens": 0}),
+    _agy_stream.step(2, state="ACTIVE", text_delta="partial"),
+))
+_FAILED_AGY_RUN = AgentResult(
+    session_id=None, last_message="", exit_code=1, timed_out=False, stdout=_AGY_STDOUT, stderr="",
+)
 
 
 def _claude_trajectory_stdout(
@@ -221,6 +235,34 @@ class TrajectoryRecordingTest(unittest.TestCase):
             base = _analytics_records(a_path, event=EVENT_AGENT_EXIT)
             self.assertEqual(len(base), 1)
             self.assertNotIn("user_input", base[0])
+
+    def test_request_collector_failure_keeps_the_run(self) -> None:
+        # A failed Antigravity run that returned no session id, whose request collector raises: the run is
+        # still accounted and its baseline records are written, and the trajectory states the collection failed.
+        gh = FakeGitHubClient()
+        budget = _tracked_budget(gh, _REQUEST_ISOLATION_ISSUE_NUMBER)
+        trajectory_path = _analytics_path(self, "requests-", "trajectory.jsonl")
+        with (
+            patch.object(analytics_settings, _TRAJECTORY_PATH_ATTR, trajectory_path),
+            patch.object(support.usage_trajectory, "parse_agent_request_usage", side_effect=RuntimeError("boom")),
+            patch.object(_agent_runner, _RUN_AGENT_ATTR, return_value=_FAILED_AGY_RUN),
+            self.assertLogs(analytics_sink.log, level="ERROR"),
+        ):
+            agent_result = engine_usage._run_agent_tracked(
+                gh, budget,
+                agent_role=ROLE_DEVELOPER,
+                stage=STAGE_IMPLEMENTING,
+                backend=_BACKEND_AGY,
+                prompt=_TRAJECTORY_PROMPT,
+                cwd=_FAKE_WT,
+                agent_spec=_BACKEND_AGY,
+            )
+        self.assertFalse(agent_result.unaccounted)
+        self.assertEqual(budget.state.state_data["issue_agent_runs"], 1)
+        self.assertIn(EVENT_AGENT_EXIT, [event[_EVENT_KEY] for event in gh.recorded_events])
+        trajectory_record = _analytics_records(trajectory_path)[0]
+        self.assertEqual(trajectory_record["request_usage"]["coverage"]["reasons"], {"collector-error": 1})
+        self.assertEqual(trajectory_record["steps"][0]["content"], "partial")
 
     def test_failure_keeps_skill_events(self) -> None:
         # A trajectory-parse failure must not cost the `skill_triggered`

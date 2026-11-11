@@ -134,6 +134,9 @@ class TrajectoryExitCase:
     analytics_path: Path | None = None
     backend: str = CLAUDE
     track: bool = False
+    session_id: str | None = SESSION_ID
+    exit_code: int = 0
+    fallback_model: str | None = None
 
 
 @contextlib.contextmanager
@@ -170,9 +173,9 @@ class RecordAgentExitTrajectorySupport(unittest.TestCase):
                 agent_spec=case.backend,
                 resume_session_id=None,
                 result=AgentResult(
-                    session_id=SESSION_ID,
+                    session_id=case.session_id,
                     last_message="",
-                    exit_code=0,
+                    exit_code=case.exit_code,
                     timed_out=False,
                     stdout=case.stdout,
                     stderr="",
@@ -180,5 +183,6 @@ class RecordAgentExitTrajectorySupport(unittest.TestCase):
                 duration_s=float(0),
                 review_round=TRAJECTORY_REVIEW_ROUND,
                 retry_count=TRAJECTORY_RETRY_COUNT,
+                fallback_model=case.fallback_model,
                 prompt=case.prompt,
             )

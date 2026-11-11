@@ -39,12 +39,13 @@ class TrajectoryLimits:
 class TrajectoryHeadline:
     """Always-retained trajectory fields charged before variable arrays.
 
-    The two summaries are fixed-size by construction -- a run's usage totals,
-    and one count per disposition the item accounting settled on -- which is
-    what lets them be charged and still kept whole. The item counts are the
-    reason a truncated accounting array cannot read as a complete one: they
-    state how many items the stream identified however few of them the budget
-    left room to name.
+    The three summaries are bounded by construction -- a run's usage totals,
+    one count per disposition the item accounting settled on, and the request
+    usage coverage beside its few aggregate checkpoints -- which is what lets
+    them be charged and still kept whole. The item counts and the request
+    coverage are the reason a truncated array cannot read as a complete one:
+    they state how many items the stream identified, and how many requests
+    the collection observed, however few of them the budget left room to name.
     """
 
     user_input: str | None
@@ -52,6 +53,7 @@ class TrajectoryHeadline:
     output: str | None
     run_usage: dict[str, Any]
     source_item_counts: dict[str, int]
+    request_summary: dict[str, Any]
 
     @property
     def serialized_size(self) -> int:
@@ -65,7 +67,7 @@ class TrajectoryHeadline:
         """
         text_fields = (self.user_input, self.system_prompt, self.output)
         text_size = sum(len(text_field or "") for text_field in text_fields)
-        summaries = (self.run_usage, self.source_item_counts)
+        summaries = (self.run_usage, self.source_item_counts, self.request_summary)
         return text_size + sum(
             len(json.dumps(summary, default=str))
             for summary in summaries
@@ -80,11 +82,13 @@ class TrajectoryArrays:
     `source_items_truncated` is carried beside them because the record-level
     `truncated` flag names no array: a run whose steps overflowed and a run
     whose accounting did both set it, and only the accounting's own flag says
-    that the ids under it are a prefix rather than the whole set.
+    that the ids under it are a prefix rather than the whole set. The request
+    usage field carries its own count of what it kept for the same reason.
     """
 
     turns: list[dict[str, Any]]
     source_items: list[dict[str, Any]]
+    request_usage: dict[str, Any] | None
     steps: list[dict[str, Any]]
     source_items_truncated: bool
 

@@ -93,7 +93,8 @@ Summarized here; the reference is
 
 Opt-in, **default-off** sibling sink holding one `agent_trajectory` record per tracked run: the ordered timeline of
 tool calls / results interleaved with the assistant / user text turns, the offered tools and skills, a denormalized
-`run_usage` summary, a codex run's per-item accounting, and the final output. It is deliberately kept out of the
+`run_usage` summary, a codex run's per-item accounting, an Antigravity run's per-request usage samples with the
+coverage of their collection, and the final output. It is deliberately kept out of the
 analytics sink, its Postgres sync, and
 the analytics dashboard, because the free-text bodies do not belong in the numeric rollup. `record_agent_exit`
 produces it from the same stdout the usage parser reads, behind its own fail-open guard, so a trajectory failure can

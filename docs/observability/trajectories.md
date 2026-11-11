@@ -32,9 +32,11 @@ orchestrator-built `prompt` so it can land as the redacted `user_input`; `record
 `UsageMetrics` it already parsed for the baseline record so the trajectory can carry a denormalized `run_usage` summary
 without a re-parse. The whole block rides its **own** inner fail-open `try/except`: a parser, redactor, or sink
 failure logs (`log.exception`) and is swallowed, so it can never drop the baseline `agent_exit` usage / cost record or
-the `skill_triggered` audit events, all of which were already produced before it runs. With the sink off (the default)
-the block is a no-op before any parse work — the prompt is never read into a record and the `agent_exit` shape is
-byte-for-byte unchanged. `runtime.ticks.run_tick` does not yet call `prune_trajectory_records`, so trajectory
+the `skill_triggered` audit events, all of which were already produced before it runs. Inside it, the run's request
+usage is collected (`persistence.collected_request_usage`) behind a guard of its own, so a collector that raises logs
+and leaves a field stating `collector-error` while the trajectory beside it is written whole. With the sink off (the
+default) the block is a no-op before any parse work — the prompt is never read into a record and the `agent_exit` shape
+is byte-for-byte unchanged. `runtime.ticks.run_tick` does not yet call `prune_trajectory_records`, so trajectory
 retention stays operator-driven for now.
 
 **Record shape.** One `agent_trajectory` record per tracked run carries the standard envelope (`ts`, `repo`, `issue`,
@@ -46,8 +48,8 @@ since its stream carries no offered-tools frame), `skills_triggered` / `skills_a
 `skills.discovery.discover_local_skill_sources(cwd)` filesystem scan, since its stream carries no offered-skills
 catalog; the source level that scan also reports rides the `agent_exit` record, not this one), a `run_usage` summary,
 a claude-only per-turn `turns` array, a codex-only `source_items` accounting with its `source_item_counts` summary and
-`source_items_truncated` flag, an ordered `steps` array (each `{kind, name, tool_id, content}` plus a `turn`
-index on the billed steps, where
+`source_items_truncated` flag, an Antigravity-only `request_usage` field (below), an ordered `steps` array (each
+`{kind, name, tool_id, content}` plus a `turn` index on the billed steps, where
 `kind` is `tool_call` / `tool_result` / `assistant_message` / `user_message` / `unsupported_item` and `content` is the
 redacted tool input, tool result, or text turn — `name` / `tool_id` are `null` on the message turns, and an
 `unsupported_item` is the metadata-only placeholder a codex item type the parser does not normalize leaves behind,
@@ -97,6 +99,20 @@ rows — or for none of them, in which case the `source_items` key is absent whi
 many items the stream identified. A claude run identifies no codex items, so all three keys are simply absent from its
 record.
 
+**Request usage (`request_usage`).** Beside the steps, a run whose backend has a request collector -- Antigravity
+alone today -- carries the per-request usage [the usage parser](usage.md#request-usage-observations) collects from the
+same stdout: its `coverage` and its aggregate `checkpoints`, always kept, then its boundary `markers` and its
+`samples`, one per request, as far as the record budget reaches. It is collected on every tracked exit while the sink
+is on, a failed, interrupted, or timed-out run's and one that returned no session id included, since what the process
+printed is attributable to it either way; with the sink off no collector runs. A Claude or Codex record carries no
+such key, and neither does any record an earlier build wrote: the field's absence means its requests were not
+collected, never that the run made none, and no reader infers or backfills a breakdown in its place. A sample holds
+allowlisted counters and correlation metadata -- identities, positions, model and provenance, settlement, counters and
+their evidence -- and no prompt, response or tool text, or reasoning, and every string in the field passes the same
+secret redactor as the free text before it is charged. Nothing reads the field back into a decision: `run_usage`, the
+cost evidence, the per-issue accounting and pinned totals, the claude `turns`, and the timeline are what they would
+be without it.
+
 **Join keys.** The envelope and correlation context double as join keys back to the numeric sinks. `session_id` (the
 live `result.session_id`) is the per-run key onto the
 [`agent_exit`](event-streams.md#agent_exit-records) analytics record and the
@@ -117,17 +133,22 @@ record — with an `...[N chars elided]...` marker in between; the head keeps th
 request/intent, the tail the
 result/answer. The whole record is additionally bounded: each step is charged its full **serialized** size — the JSON
 metadata (`kind` / `name` / `tool_id` / `turn`) plus its truncated content, not just `len(content)`, so even thousands
-of empty- or metadata-only steps still consume the budget — and the per-turn `turns` array and the `source_items`
-accounting are charged **and truncated** against the same budget (turns first, then the accounting, then the steps),
-so a pathological claude run of thousands of
+of empty- or metadata-only steps still consume the budget — and the per-turn `turns` array, the `source_items`
+accounting, and the request usage `markers` and `samples` are charged **and truncated** against the same budget
+(turns first, then the accounting, then the markers, then the samples, then the steps, each kept as a prefix in its
+source order), so a pathological claude run of thousands of
 turns with no tool calls cannot write the whole array in full and blow the budget. Once the running total crosses
-`TRAJECTORY_RECORD_BUDGET` (`200_000`) bytes the remaining turns — then accounting rows, then steps — are dropped and a
+`TRAJECTORY_RECORD_BUDGET` (`200_000`) bytes the remaining turns — then accounting rows, then markers and samples,
+then steps — are dropped and a
 `truncated: true`
-flag is set; only the two small fixed summaries are always kept whole (`run_usage` and `source_item_counts`), so one
-pathological run (thousands of turns
-or tool calls) cannot write an unbounded line. The draw-down order is what keeps the accounting readable on exactly the
-runs that overran: the ids an `item_N` audit needs outlive the steps they account for, and when the budget reaches the
-rows themselves `source_items_truncated` says the surviving ids are a prefix rather than the whole set. Non-string step
+flag is set; only the small bounded summaries are always kept whole (`run_usage`, `source_item_counts`, and the
+request usage `coverage` with its `checkpoints`), so one pathological run (thousands of turns
+or tool calls) cannot write an unbounded line. The request usage summary is charged as written when nothing it counts
+is dropped; one reporting dropped entries -- its `storage-budget` gap and its retained counts, even when no sample fit
+-- is kept whole at the few bytes more that costs. The draw-down order is what keeps the accounting readable on exactly
+the runs that overran: the ids an `item_N` audit needs outlive the steps they account for, and when the budget reaches
+the rows themselves `source_items_truncated` says the surviving ids are a prefix rather than the whole set, as the
+request usage coverage does of its samples by counting what was observed beside what was retained. Non-string step
 content (claude tool inputs are dicts; `tool_result`
 content a list) is redacted **leaf-by-leaf before** JSON serialization (`sanitize.redact_tree`) — serializing first
 would escape a multiline secret's newlines into `\n`, leaving the literal `str.replace` in `redact_secrets` unable to
@@ -430,7 +451,8 @@ cost reads as unknown, and it renders without the run-level usage row rather tha
 still read as usual. The codex per-item accounting (`source_items` with its `source_item_counts`
 and `source_items_truncated`) is deliberately **not** projected onto `TrajectoryRun`: the viewer renders what a run
 *did*, while an id-by-id `item_N` coverage audit is a question for the JSONL file itself, so those three keys ride past
-the read model untouched. The
+the read model untouched. So does `request_usage`: a record carrying it, whole or damaged, reads back exactly as the
+same record without it, so no total, cost, turn, or step on the page is taken from a sample. The
 `truncated` warning the run card draws speaks of dropped steps for the same reason — the accounting is drawn from the
 budget before the steps, so a record that lost accounting rows lost its steps first. The same resilience contract the
 rest of the codebase honours holds: a missing / disabled path, a malformed

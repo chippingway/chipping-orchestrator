@@ -7,6 +7,12 @@ ordered `TrajectoryStep` list is what the run *did*; the `SourceItem` list
 beside it is what the parser did with every item the provider stream
 identified, so an id that reaches no step is a decision this record names
 rather than a silence a reader has to reconstruct.
+
+`request_usage` is a third, separate from the Claude per-turn `turns`: the
+per-request usage observations a collector read off the stream, with their
+coverage (`request_coverage.RequestUsage`). The trajectory parsers leave it
+None; the caller that collects it attaches it, and None means no collected
+breakdown rather than an empty one.
 """
 
 from __future__ import annotations
@@ -16,6 +22,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from orchestrator.observability.usage import cost_evidence as usage_cost, protocol, token_evidence as usage_tokens
+from orchestrator.observability.usage.request_coverage import RequestUsage
 from orchestrator.observability.usage.skills import SkillTriggers
 
 KIND_FIELD = "kind"
@@ -155,6 +162,7 @@ class AgentTrajectory:
     source_items: tuple[SourceItem, ...] = ()
     final_output: str | None = None
     turns: tuple[TurnUsage, ...] = ()
+    request_usage: RequestUsage | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -172,6 +180,7 @@ class AgentTrajectory:
             ],
             "final_output": self.final_output,
             "turns": [turn_usage.to_dict() for turn_usage in self.turns],
+            "request_usage": None if self.request_usage is None else self.request_usage.to_dict(),
         }
 
 

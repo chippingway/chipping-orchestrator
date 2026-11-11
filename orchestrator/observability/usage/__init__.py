@@ -16,11 +16,18 @@ scoping, and run summary the token counts and estimates come from
 ``claude_summary``, ``codex_rows``, ``codex_requests``, ``codex_summary``,
 ``agy_events``, ``agy_requests``, ``agy_summary``); the shell scanning and
 command classification a codex skill reference is inferred from (``shell_segments``, ``skill_commands``,
-``skills_claude``, ``skills_codex``); and the records and per-provider
+``skills_claude``, ``skills_codex``); the records and per-provider
 reconstruction one timeline is rebuilt into (``trajectory_models``,
 ``trajectory_claude_blocks``, ``trajectory_claude_stream``,
 ``trajectory_claude_turns``, ``trajectory_codex``,
-``trajectory_codex_items``, ``trajectory_codex_payloads``, ``trajectory_agy``).
+``trajectory_codex_items``, ``trajectory_codex_payloads``, ``trajectory_agy``);
+and the per-request usage a run's stream is collected into -- its records,
+common normalization, coverage, and bounded scan, and the Antigravity
+collector with its step fold and conversation attribution
+(``request_models``, ``request_normalization``, ``request_coverage``,
+``request_scan``, ``request_agy``, ``request_agy_steps``,
+``request_agy_branches``). The request collector is dispatched beside the
+trajectory parsers on ``trajectory`` and is not published here.
 
 This initializer re-exports the narrow public surface (``__all__``): the nine
 parsers a caller dispatches through -- dispatch plus the Codex and Claude

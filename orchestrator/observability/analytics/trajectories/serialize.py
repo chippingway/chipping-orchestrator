@@ -5,10 +5,11 @@
 One owner for the shape an `agent_trajectory` record has: which run metadata
 rides along, which free-text fields are sanitized on the way in, and the order
 the variable arrays are charged to the record budget in. The budget order is
-part of the shape -- the per-turn array and the source item accounting are
-drawn down before the steps, so a run with thousands of turns and no steps is
-bounded the same way a run with thousands of steps is, and the accounting a
-truncated timeline is audited against outlives the steps it accounts for.
+part of the shape -- the per-turn array, the source item accounting, and the
+request usage markers and samples are drawn down before the steps, so a run
+with thousands of turns and no steps is bounded the same way a run with
+thousands of steps is, and the accounting and the request breakdown a
+truncated timeline is audited against outlive the steps they account for.
 
 The caps are snapshotted from the `models` owner once per record, so a value
 patched between two writes bounds the second one, and the envelope is the
@@ -22,7 +23,7 @@ from collections import Counter
 from typing import TYPE_CHECKING, Any
 
 from orchestrator.observability.analytics import sink
-from orchestrator.observability.analytics.trajectories import models, sanitize
+from orchestrator.observability.analytics.trajectories import models, requests, sanitize
 from orchestrator.observability.usage import (
     metrics as usage_metrics,
     trajectory_models as usage_trajectory_models,
@@ -91,6 +92,7 @@ def trajectory_headline(
         ),
         run_usage=trajectory_usage(metrics),
         source_item_counts=item_counts(trajectory.source_items),
+        request_summary=requests.request_summary(trajectory.request_usage, redact),
     )
 
 
@@ -135,21 +137,23 @@ def bounded_arrays(
 ) -> models.TrajectoryArrays:
     """Draw one record's variable arrays in the order they are charged.
 
-    The order is the contract. The per-turn usage and the source item
-    accounting are small, fixed-shape rows a reader needs whole runs of, so
-    they are drawn first; the steps -- the one array whose entries carry
-    redacted free text and can be arbitrarily large -- are drawn from what is
-    left. That is what keeps an id-by-id audit of a codex run possible on the
-    very runs that overran the budget, where the timeline the ids account for
-    is exactly what got cut.
+    The order is the contract. The per-turn usage, the source item
+    accounting, and the request usage markers and samples are small,
+    fixed-shape rows a reader needs whole runs of, so they are drawn first,
+    in that order; the steps -- the one array whose entries carry redacted
+    free text and can be arbitrarily large -- are drawn from what is left.
+    That is what keeps an id-by-id audit of a codex run, and a request-by-
+    request reading of a run's usage, possible on the very runs that overran
+    the budget, where the timeline they account for is exactly what got cut.
     """
     turns = budget.bounded(trajectory.turns)
     source_items = budget.bounded(trajectory.source_items)
-    steps = bounded_trajectory_steps(trajectory, budget, redact, limits)
+    request_usage = requests.bounded_request_usage(trajectory.request_usage, budget, redact)
     return models.TrajectoryArrays(
         turns=turns,
         source_items=source_items,
-        steps=steps,
+        request_usage=request_usage,
+        steps=bounded_trajectory_steps(trajectory, budget, redact, limits),
         source_items_truncated=len(source_items) < len(trajectory.source_items),
     )
 
@@ -173,6 +177,12 @@ def build_trajectory_record(
     breakdown rides along as `turns` (empty on codex, whose usage frames are
     cumulative -- `build_record` then drops the key).
 
+    The collected request usage rides along as `request_usage`
+    (Antigravity-only today): its coverage and checkpoints charged with the
+    headline and always kept, its markers and samples drawn after the item
+    accounting and before the steps, as the `requests` owner describes. A
+    run with no collector leaves it None, and `build_record` drops the key.
+
     The parser's per-item accounting rides along as `source_items` (codex-only
     today), one `{item_id, item_type, disposition}` row per item the stream
     identified, in first-seen order. It carries provider-assigned ids and item
@@ -188,10 +198,11 @@ def build_trajectory_record(
     no steps would otherwise write the whole array in full and blow the
     budget); both are drawn down before the steps, so once the running total
     crosses the record budget the remaining turns -- then accounting rows,
-    then steps -- are dropped and `truncated` is set. Only the two small fixed
-    summaries are always kept whole: `run_usage`, and the
-    `source_item_counts` that state how many items were identified and how
-    they were disposed of however few of their ids survived. A dropped
+    then request markers and samples, then steps -- are dropped and
+    `truncated` is set. Only the small bounded summaries are always kept
+    whole: `run_usage`, the `source_item_counts` that state how many items
+    were identified and how they were disposed of however few of their ids
+    survived, and the request usage coverage and checkpoints. A dropped
     accounting row also sets `source_items_truncated`, so a prefix of the ids
     is never readable as the whole set. `build_record` drops every
     `None`-valued field, so an absent prompt, empty system prompt, no-trigger
@@ -225,6 +236,7 @@ def build_trajectory_record(
         turns=arrays.turns or None,
         source_items=arrays.source_items or None,
         source_items_truncated=arrays.source_items_truncated or None,
+        request_usage=arrays.request_usage,
         steps=arrays.steps,
         output=headline.output,
         truncated=budget.truncated or None,

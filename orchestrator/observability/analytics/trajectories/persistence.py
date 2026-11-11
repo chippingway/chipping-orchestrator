@@ -1,12 +1,15 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Trajectory parsing, Codex enrichment, and fail-open persistence.
+"""Trajectory parsing, request collection, Codex enrichment, and fail-open persistence.
 
 One owner for the whole opt-in write: whether it happens at all, what the
-stream is parsed into, what a Codex run's missing capabilities are backfilled
-from, and the guard the entire block rides. They sit together because they are
-one decision -- the sink being off is what makes the parse never run, and the
-parse failing is what the guard exists to swallow.
+stream is parsed into, the request usage collected beside it, what a Codex
+run's missing capabilities are backfilled from, and the guard the entire block
+rides. They sit together because they are one decision -- the sink being off
+is what makes the parse and the request collection never run, and the parse
+failing is what the guard exists to swallow. The request collection rides a
+narrower guard of its own inside that one, so a collector that fails costs the
+trajectory nothing.
 
 The gate reads the opt-in knob off the `settings` holder inside the call, and
 the append it ends with is the `api` owner's own -- the sink is never reached
@@ -27,6 +30,7 @@ from orchestrator.observability.analytics.trajectories.serialize import (
 )
 from orchestrator.observability.usage import (
     metrics as usage_metrics,
+    request_coverage as usage_request_coverage,
     trajectory as usage_trajectory,
     trajectory_models as usage_trajectory_models,
 )
@@ -53,6 +57,33 @@ def codex_trajectory_changes(
     return changes
 
 
+def collected_request_usage(
+    context: AgentExitContext,
+) -> usage_request_coverage.RequestUsage | None:
+    """Collect the run's request usage behind a failure boundary of its own.
+
+    The collector reads the run's stdout whether or not the CLI returned a
+    session id, a failed or interrupted run's included, since what it printed
+    is attributable to this invocation either way. A collector that raises
+    logs and leaves a collection stating it failed, so the trajectory beside
+    it -- and the baseline `agent_exit` record and the workflow behind that --
+    are written exactly as they would have been.
+    """
+    try:
+        return usage_trajectory.parse_agent_request_usage(
+            context.backend,
+            context.agent_result.stdout,
+            context.fallback_model,
+        )
+    except Exception:  # noqa: BLE001 - request usage is dropped, never the trajectory
+        sink.log.exception(
+            "issue=#%d analytics: request usage collection(%s) failed; trajectory record is unaffected",
+            context.issue,
+            context.backend,
+        )
+        return usage_request_coverage.RequestUsage.failed()
+
+
 def agent_trajectory(
     context: AgentExitContext,
     catalog: CodexCatalog,
@@ -61,11 +92,9 @@ def agent_trajectory(
         context.backend,
         context.agent_result.stdout,
     )
-    if context.backend != "codex":
-        return trajectory
-    changes = codex_trajectory_changes(trajectory, catalog)
-    if not changes:
-        return trajectory
+    changes: dict[str, Any] = {"request_usage": collected_request_usage(context)}
+    if context.backend == "codex":
+        changes.update(codex_trajectory_changes(trajectory, catalog))
     return replace(trajectory, **changes)
 
 
