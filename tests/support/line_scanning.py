@@ -6,6 +6,7 @@ from __future__ import annotations
 import subprocess
 import tomllib
 from collections.abc import Iterator
+from fnmatch import fnmatchcase
 from pathlib import Path
 
 # The scan walks every tracked file, so it resolves the repository root off
@@ -14,6 +15,9 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 _RUFF_OWNED = frozenset((".py",))
 _BINARY_EXT = frozenset((".png",))
 _IGNORED_NAMES = frozenset(("poetry.lock", "LICENSE"))
+# The fuzzing image's tooling requirements, which Poetry exports with a lock's
+# markers and hashes and which, like the lockfile, nobody reflows by hand.
+_EXPORTED_REQUIREMENTS = ".clusterfuzzlite/*-requirements.txt"
 
 
 def _load_limit() -> int:
@@ -43,6 +47,7 @@ def _tracked_text_files() -> list[tuple[str, Path]]:
         for relative_path, path in tracked_paths
         if path.suffix not in _RUFF_OWNED | _BINARY_EXT
         and path.name not in _IGNORED_NAMES
+        and not fnmatchcase(relative_path, _EXPORTED_REQUIREMENTS)
     ]
 
 

@@ -288,7 +288,8 @@ Repository checks accept a lock-only update within the declared range.
 sources or mirror URLs; the lock uses implicit PyPI. For security fixes younger than 14 days, follow the
 [manual security-fix procedure](../../../docs/security.md#dependabot-security-updates).
 
-Install the export plugin only when exporting for an audit or a release, using
+Install the export plugin only when exporting for an audit, a release, or the fuzzing image's
+[tooling requirements](../../../docs/development.md#reproducing-in-the-fuzzing-image), using
 `pipx inject poetry "poetry-plugin-export==<version>"` with the exact pin from the
 [vulnerability-scan workflow](../../../.github/workflows/vulnerability-scan.yml).
 Anything else needs justification.

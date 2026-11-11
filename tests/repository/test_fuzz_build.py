@@ -6,9 +6,11 @@ ClusterFuzzLite builds `.clusterfuzzlite/Dockerfile` from the checkout's root
 and runs `build.sh` in it; nothing in this tree runs either, so what each has
 to declare is held as text. The image pins what it builds with -- the base
 image by digest, a CPython inside `requires-python` checked against its
-release digest, the Poetry every workflow pins -- and the build installs from
-the lock it checks first and packages every entry point under `fuzz/` beside
-its seed corpus, its dictionary, and libFuzzer limits its seeds fit inside.
+release digest, the Poetry every workflow pins, installed from the hashed
+requirements `test_fuzz_tool_requirements.py` holds -- and the build installs
+from the lock it checks first and packages every entry point under `fuzz/`
+beside its seed corpus, its dictionary, and libFuzzer limits its seeds fit
+inside.
 
 The context is asked of Docker itself where a daemon with BuildKit answers: a
 copy of the tracked tree, planted with what a working checkout carries beside
@@ -137,7 +139,8 @@ class FuzzBuildDeclarationTest(unittest.TestCase):
         self.assertRegex(dockerfile, r"(?m)^ARG FUZZ_PYTHON_SHA256=[0-9a-f]{64}$")
         self.assertIn("sha256sum --check --strict", dockerfile)
         workflow_pins = re.findall(r'pipx install "poetry==([^"]+)"', _read(".github/workflows/ci.yml"))
-        self.assertEqual(set(re.findall(r'"poetry==([^"]+)"', dockerfile)), set(workflow_pins))
+        bootstrap_pins = re.findall(r"(?m)^poetry==([^\s;]+)", _read(".clusterfuzzlite/poetry-requirements.txt"))
+        self.assertEqual(set(bootstrap_pins), set(workflow_pins))
 
     def test_build_packages_every_entry_point(self) -> None:
         build = _read(".clusterfuzzlite/build.sh")
