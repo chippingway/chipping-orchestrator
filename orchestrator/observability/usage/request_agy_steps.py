@@ -77,15 +77,16 @@ def usage_readings(frame: dict[str, Any]) -> dict[str, Reading] | None:
     }
 
 
-def unindexed_gap(frame: dict[str, Any]) -> bool:
+def unindexed_gap(frame: dict[str, Any], metadata: Metadata) -> bool:
     """Whether a frame naming no step index may hold a request no step can be folded under.
 
     Usage on it, readable or not, or a generation's step type, is a request the stream reported without the index a
-    request is keyed by, so it is a gap rather than nothing.
+    request is keyed by, so it is a gap rather than nothing. The step type is read as metadata, so a malformed one is a
+    gap of its own rather than an error that would cost every other request of the stream.
     """
     if frame.get(protocol.USAGE) is not None:
         return True
-    return frame.get(agy_events.STEP_TYPE) in GENERATIONS
+    return metadata.text(frame.get(agy_events.STEP_TYPE)) in GENERATIONS
 
 
 def raw_counts(readings: dict[str, Reading]) -> dict[str, int]:

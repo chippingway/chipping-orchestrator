@@ -54,8 +54,9 @@ def _response(conversation: str | None, index: int = 0) -> str:
     return stream.event(agy_events.STEP_UPDATE, **fields)
 
 
-def _spawning(*children: str) -> str:
-    subagents = [{"type_name": _RESEARCH, cases.CONVERSATION_ID: child} for child in children]
+def _spawning(*children: str, subagent_type: str | None = _RESEARCH) -> str:
+    named = {} if subagent_type is None else {"type_name": subagent_type}
+    subagents = [{cases.CONVERSATION_ID: child, **named} for child in children]
     return stream.step(2, kind=agy_events.TOOL, subagent_info={"subagents": subagents})
 
 
@@ -71,6 +72,7 @@ _SPAWNING_TWO = _spawning(_CHILD, _SILENT_CHILD)
 _EARLIER_INIT = _init(_EARLIER_MODEL)
 _NEGATIVE_USAGE = MappingProxyType({**_USAGE, protocol.OUTPUT_TOKENS: -1})
 _UNINDEXED_RESPONSE = stream.event(agy_events.STEP_UPDATE, step_type="agent_response", state=agy_events.DONE)
+_MALFORMED_UNINDEXED = stream.event(agy_events.STEP_UPDATE, step_type={})
 _UNREADABLE_SPAWN = stream.step(3, kind=agy_events.TOOL, subagent_info=[])
 _UNNAMED_SPAWN = stream.step(3, kind=agy_events.TOOL, subagent_info=json.loads('{"subagents": [{"type_name": "x"}]}'))
 _SUBAGENT_STREAM = (_INIT, _FIRST, _SPAWNING_TWO, _CHILD_RESPONSE, _TERMINAL)
@@ -92,8 +94,10 @@ _UNPLACED = (
 _TWO_UNNAMED = (_UNNAMED_INIT, _response("one-conversation"), _response("another-conversation"))
 _MODEL_CHANGE_STREAM = (_EARLIER_INIT, _FIRST, _INIT, _SECOND, _TERMINAL)
 # A stream, and the model and provenance its last request is attributed to.
+_REFUSED_INIT = _init(stream.MODEL, "p" * (request_scan.MAX_METADATA_CHARS + 1))
 _UNATTRIBUTED = (
     ("another conversation", (_INIT, _response("other-conversation")), models.UNESTABLISHED),
+    ("another conversation beside a refused process name", (_REFUSED_INIT, _response(_CHILD)), models.UNESTABLISHED),
     ("no conversation beside a subagent", (_INIT, _spawning(_CHILD), _response(None)), models.UNESTABLISHED),
     ("no model anywhere", (_FIRST,), models.UNAVAILABLE),
     ("two conversations, no init naming one", _TWO_UNNAMED, models.UNESTABLISHED),
@@ -107,7 +111,18 @@ _DAMAGED = (
     ("negative count", stream.step(3, usage=dict(_NEGATIVE_USAGE)), coverage.INVALID_COUNTERS),
     ("unreadable subagent", _UNREADABLE_SPAWN, coverage.SUBAGENT_UNIDENTIFIED),
     ("unreadable subagent, repeated", f"{_UNREADABLE_SPAWN}\n{_UNREADABLE_SPAWN}", coverage.SUBAGENT_UNIDENTIFIED),
+    ("malformed step type, no step index", _MALFORMED_UNINDEXED, coverage.MALFORMED_METADATA),
 )
+# Later `init` events naming no conversation: a change of the one unnamed conversation, and one placed nowhere.
+_UNNAMED_EARLIER_INIT = _init(_EARLIER_MODEL, None)
+_UNNAMED_CHANGE = (_UNNAMED_EARLIER_INIT, _response(None, 1), _UNNAMED_INIT, _response(None, 2))
+_CHANGED_MODELS = (_EARLIER_MODEL, stream.MODEL)
+_UNCHANGED_MODELS = (stream.MODEL, stream.MODEL)
+_UNPLACED_CHANGE = (_INIT, _FIRST, _spawning(_CHILD), _init(_EARLIER_MODEL, None), _FOURTH)
+# A subagent named over several frames: its type supplied by a later one, and then contradicted.
+_TYPED_LATER = (_INIT, _spawning(_CHILD, subagent_type=None), _spawning(_CHILD), _CHILD_RESPONSE)
+_RETYPED = (*_TYPED_LATER[:3], _spawning(_CHILD, subagent_type="review"), _CHILD_RESPONSE)
+_SUBAGENT_TYPE = "subagent_type"
 # A stream with nothing to collect, and the status its collection ends in.
 _EMPTY = (
     ("no output", "", coverage.UNAVAILABLE),
@@ -178,6 +193,34 @@ class BranchAttributionTest(unittest.TestCase):
         self.assertEqual(models_used, [_EARLIER_MODEL, stream.MODEL])
         self.assertEqual(cases.picked(collection.markers[0], *_MARKER_FIELDS), _MODEL_CHANGE)
         self.assertEqual(collection.status, coverage.COMPLETE)
+
+
+class LaterAttributionTest(unittest.TestCase):
+    """What later frames add to a conversation's attribution, and what they cannot."""
+
+    def test_init_naming_no_conversation(self) -> None:
+        placed = cases.collected(*_UNNAMED_CHANGE, _TERMINAL)
+        self.assertEqual(tuple(cases.column(placed.samples, cases.MODEL)), _CHANGED_MODELS)
+        self.assertEqual(len(placed.markers), 1)
+        self.assertEqual(placed.status, coverage.COMPLETE)
+        # Where the stream names several conversations, the model it names could be any of theirs: a gap.
+        unplaced = cases.collected(*_UNPLACED_CHANGE, _TERMINAL)
+        self.assertEqual(tuple(cases.column(unplaced.samples, cases.MODEL)), _UNCHANGED_MODELS)
+        self.assertIn(coverage.CONVERSATION_AMBIGUOUS, unplaced.reasons)
+
+    def test_later_frames_complete_a_subagent(self) -> None:
+        completed = cases.collected(*_TYPED_LATER, _TERMINAL)
+        self.assertEqual(completed.samples[0][_SUBAGENT_TYPE], _RESEARCH)
+        retyped = cases.collected(*_RETYPED, _TERMINAL)
+        self.assertEqual(retyped.samples[0][_SUBAGENT_TYPE], _RESEARCH)
+        self.assertIn(coverage.SUBAGENT_ATTRIBUTION_CONFLICTING, retyped.reasons)
+
+    def test_fallback_model_is_bounded(self) -> None:
+        oversize = "m" * (request_scan.MAX_METADATA_CHARS + 1)
+        collection = cases.collected(_FIRST, _TERMINAL, fallback_model=oversize)
+        attribution = cases.picked(collection.samples[0], *_ATTRIBUTION_FIELDS)
+        self.assertEqual(attribution, (None, models.UNAVAILABLE))
+        self.assertIn(coverage.OVERSIZE_METADATA, collection.reasons)
 
 
 class CoverageGapTest(unittest.TestCase):

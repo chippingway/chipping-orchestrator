@@ -185,6 +185,7 @@ class StreamFold:
         gaps[coverage.SUBAGENT_UNIDENTIFIED] += len(self.branches.unidentified)
         gaps[coverage.CORRELATION_LIMIT] += len(self.branches.unbranched)
         gaps[coverage.OVERSIZE_METADATA] += self.branches.metadata.oversize
+        gaps[coverage.MALFORMED_METADATA] += self.branches.metadata.malformed
         gaps[coverage.NO_STREAM_EVENTS] += not self.envelopes
         gaps[coverage.NO_TERMINAL_RESULT] += bool(self.envelopes) and not self.observed_checkpoints
         return MappingProxyType({reason: count for reason, count in gaps.items() if count})
@@ -192,10 +193,11 @@ class StreamFold:
     def _step(self, position: int, frame: dict[str, Any]) -> None:
         index = frame.get(agy_events.STEP_INDEX)
         if isinstance(index, bool) or not isinstance(index, int):
-            self.gaps[coverage.UNINDEXED_FRAMES] += unindexed_gap(frame)
+            self.gaps[coverage.UNINDEXED_FRAMES] += unindexed_gap(frame, self.branches.metadata)
             return
         named = self.branches.metadata.text(frame.get(CONVERSATION_ID))
-        step = self._tracked((named or self.branches.census.sole, index))
+        conversation, _ = self.branches.census.placed(named)
+        step = self._tracked((conversation, index))
         if step is None:
             return
         step.absorb(position, frame, self.branches.metadata)
@@ -208,7 +210,11 @@ class StreamFold:
         if step is None and len(self.steps) >= self.branches.limits.tracked_steps:
             self.gaps[coverage.CORRELATION_LIMIT] += 1
         elif step is None:
-            step = StepFold(key, *self.branches.models_for(key[0]))
+            models = self.branches.models
+            conversation = key[0]
+            # A conversation's own model is keyed by its name; the None key is the process's unnamed one alone.
+            own = None if conversation is None else models.get(conversation)
+            step = StepFold(key, own, models.get(self.branches.process_key))
             self.steps[key] = step
         return step
 

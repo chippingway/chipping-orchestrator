@@ -13,11 +13,12 @@ once, its aggregate or its lifetime split but never both -- `output_tokens`, the
 The provider's own total stays apart as `source_total_tokens`: the common total is never derived from it.
 
 Every field carries its evidence. A field the source reported a usable count for is `observed`; one it reported
-nothing for is `missing`, never a zero; one whose report no count can be -- negative, a boolean, a word -- is
-`invalid`; one two reports of the same request disagree on, or one contradicting the counters it is a part of, is
-`conflicting`; and one the profile has no counter for at all is `unsupported`. A derived field is established only
-where each of its parts is observed, and otherwise takes the weakest evidence among them, so nothing missing,
-invalid, or contradictory adds up to a count.
+nothing for is `missing`, never a zero; one whose report no count can be -- negative, a fraction, a boolean, a word,
+or a string no exact whole number reads as -- is `invalid`; one two reports of the same request disagree on, or one
+contradicting the counters it is a part of -- Codex's cache reads and writes together exceeding the input that holds
+them included -- is `conflicting`; and one the profile has no counter for at all is `unsupported`. A derived field is
+established only where each of its parts is observed, and otherwise takes the weakest evidence among them, so nothing
+missing, invalid, or contradictory adds up to a count.
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ from __future__ import annotations
 import math
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 from types import MappingProxyType
 from typing import Any
 
@@ -48,6 +50,8 @@ CACHE_WRITE_ONE_HOUR = protocol.CACHE_WRITE_ONE_HOUR
 REASONING = "reasoning"
 SOURCE_TOTAL = "source_total"
 _LIFETIMES = (CACHE_WRITE_FIVE_MIN, CACHE_WRITE_ONE_HOUR)
+# The most digits a string may spell a count in; a longer number is no token count, and is never expanded into one.
+_MAX_COUNT_DIGITS = 30
 
 # The normalized fields, each serialized under this name.
 CONTEXT_INPUT_TOKENS = "context_input_tokens"
@@ -74,9 +78,10 @@ class Reading:
         """Read one reported field: nothing is missing, and a report no count can be is invalid.
 
         The value is judged before it is turned into a count. A whole, non-negative number -- or a string spelling
-        one -- is the count the run accounting reads off the same field, so a request and its run agree on it; a
-        negative whole number keeps its number as raw evidence and is invalid; and a fraction, an infinite or NaN
-        value, a boolean, or a word is no count at all, never the zero or whole number truncating it would make.
+        one, read exactly rather than through a float, so no rounding makes a fraction whole or changes a large count
+        -- is a count; a negative whole number keeps its number as raw evidence and is invalid; and a fraction, an
+        infinite or NaN value, a boolean, a word, or a string spelling a number of more than `_MAX_COUNT_DIGITS`
+        digits is no count at all, never the zero or whole number truncating it would make.
         """
         if raw is None:
             return cls()
@@ -100,31 +105,41 @@ class Reading:
 
     def within(self, whole: Reading) -> Reading:
         """This reading as a subset of `whole`: a part larger than the whole it sits in contradicts it."""
-        if self.known and whole.known and _exceeds(self, whole):
+        if self.known and whole.known and self.exceeds(whole):
             return Reading(state=CONFLICTING)
         return self
+
+    def exceeds(self, whole: Reading) -> bool:
+        return (self.count or 0) > (whole.count or 0)
+
+    def contradicted(self) -> Reading:
+        """This reading as part of a contradiction: a count becomes conflicting, and any other evidence stays."""
+        return Reading(state=CONFLICTING) if self.known else self
 
 
 Readings = Mapping[str, Reading]
 
 
-def _reported_number(raw: Any) -> float | None:
-    """The whole number one raw field spells, or None where it spells none."""
-    number = raw
-    if isinstance(raw, str):
-        try:
-            number = float(raw)
-        except ValueError:
-            return None
-    if isinstance(number, bool) or not isinstance(number, (int, float)):
+def _spelled_number(raw: str) -> int | None:
+    """The whole number a string spells exactly, or None: a fraction, a non-number, or more digits than a count has."""
+    try:
+        number = Decimal(raw)
+    except InvalidOperation:
         return None
-    if isinstance(number, int):
-        return number
-    return number if math.isfinite(number) and number.is_integer() else None
+    if not number.is_finite() or number.adjusted() >= _MAX_COUNT_DIGITS:
+        return None
+    return int(number) if number == number.to_integral_value() else None
 
 
-def _exceeds(part: Reading, whole: Reading) -> bool:
-    return (part.count or 0) > (whole.count or 0)
+def _reported_number(raw: Any) -> float | None:
+    """The whole number one raw field reports, or None where it reports none."""
+    if isinstance(raw, str):
+        return _spelled_number(raw)
+    if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+        return None
+    if isinstance(raw, int):
+        return raw
+    return raw if math.isfinite(raw) and raw.is_integer() else None
 
 
 def _split_contradicts(aggregate: Reading, lifetimes: list[Reading], split: Reading) -> bool:
@@ -133,7 +148,7 @@ def _split_contradicts(aggregate: Reading, lifetimes: list[Reading], split: Read
         return False
     if split.known:
         return split.count != aggregate.count
-    return any(lifetime.known and _exceeds(lifetime, aggregate) for lifetime in lifetimes)
+    return any(lifetime.known and lifetime.exceeds(aggregate) for lifetime in lifetimes)
 
 
 @dataclass(frozen=True)
@@ -173,33 +188,40 @@ class Profile:
     """What one provider's counters mean: how its input overlaps its cache, and which counters it reports at all.
 
     `context_parts` are the raw counters the context input is the sum of, `total_parts` the ones the provider's own
-    total is the sum of, and `within_input` the cache counters the input already holds, so a source total disagreeing
-    with its parts, or a cache count larger than the input holding it, is a contradiction rather than a count.
+    total is the sum of, and `cache_within_input` whether the input already holds the cache reads and writes, so a
+    source total disagreeing with its parts, or cache counts together larger than the input holding them, are a
+    contradiction rather than a count.
     """
 
     overlap: str
     context_parts: tuple[str, ...]
     counters: frozenset[str]
     total_parts: tuple[str, ...] = ()
-    within_input: tuple[str, ...] = ()
+    cache_within_input: bool = False
 
     def reading(self, readings: Readings, name: str) -> Reading:
         if name not in self.counters:
             return Reading(state=UNSUPPORTED)
         return readings.get(name, Reading())
 
-    def checked(self, readings: Readings) -> Readings:
-        """`readings` with the cache counters the input holds made conflicting where together they exceed it.
+    def held(
+        self,
+        readings: Readings,
+        cache_write: Reading,
+        split: Reading,
+    ) -> tuple[Reading, Reading, Reading]:
+        """The cache reads, the writes, and their lifetime split, conflicting where the input cannot hold them.
 
-        The input holds every one of them at once, so it is their sum the input has to hold, not each alone.
+        On a profile whose input holds its cache, it holds the reads and the writes at once -- the writes as they were
+        settled, from the aggregate or from the lifetime split -- so it is their sum the input has to hold, not each
+        alone, and a write derived from its split is held to it like a reported one.
         """
-        parts = [self.reading(readings, name) for name in self.within_input]
-        held = Reading.summed(part for part in parts if part.known)
+        cache_read = self.reading(readings, CACHE_READ)
+        held = Reading.summed(part for part in (cache_read, cache_write) if part.known)
         whole = self.reading(readings, INPUT)
-        if not (held.count and whole.known and _exceeds(held, whole)):
-            return readings
-        contradicted = {name: Reading(state=CONFLICTING) for name in self.within_input if name in readings}
-        return {**readings, **contradicted}
+        if not (self.cache_within_input and held.count and whole.known and held.exceeds(whole)):
+            return cache_read, cache_write, split
+        return cache_read.contradicted(), cache_write.contradicted(), split.contradicted()
 
     def cache_writes(self, readings: Readings) -> tuple[Reading, Reading]:
         """The request's cache writes counted once, and its lifetime split, from the aggregate or the split.
@@ -232,7 +254,7 @@ class Profile:
             return MappingProxyType({})
         return MappingProxyType({lifetime: readings[lifetime].count or 0 for lifetime in _LIFETIMES})
 
-    def fields(self, readings: Readings, cache_write: Reading) -> MappingProxyType[str, Reading]:
+    def fields(self, readings: Readings, cache_read: Reading, cache_write: Reading) -> MappingProxyType[str, Reading]:
         """The normalized fields: the context input is the profile's context parts, its cache writes counted once."""
         context = Reading.summed(
             cache_write if part == CACHE_WRITE else self.reading(readings, part)
@@ -242,7 +264,7 @@ class Profile:
         return MappingProxyType({
             CONTEXT_INPUT_TOKENS: context,
             OUTPUT_TOKENS: output,
-            CACHE_READ_TOKENS: self.reading(readings, CACHE_READ),
+            CACHE_READ_TOKENS: cache_read,
             CACHE_WRITE_TOKENS: cache_write,
             REASONING_TOKENS: self.reading(readings, REASONING).within(output),
             TOTAL_TOKENS: Reading.summed((context, output)),
@@ -250,12 +272,12 @@ class Profile:
         })
 
     def normalized(self, readings: Readings) -> NormalizedUsage:
-        checked = self.checked(readings)
-        cache_write, split = self.cache_writes(checked)
+        cache_write, split = self.cache_writes(readings)
+        cache_read, cache_write, split = self.held(readings, cache_write, split)
         return NormalizedUsage(
             overlap=self.overlap,
-            fields=self.fields(checked, cache_write),
-            lifetimes=self.lifetimes(checked, split),
+            fields=self.fields(readings, cache_read, cache_write),
+            lifetimes=self.lifetimes(readings, split),
             lifetimes_state=split.state,
         )
 
@@ -269,7 +291,7 @@ PROFILES = MappingProxyType({
         (INPUT,),
         frozenset((INPUT, OUTPUT, REASONING, SOURCE_TOTAL, *_EVERY_CACHE_COUNTER)),
         (INPUT, OUTPUT),
-        (CACHE_READ, CACHE_WRITE),
+        cache_within_input=True,
     ),
     # Ordinary input, cache reads, and cache writes are three classes; each write is counted once.
     protocol.CLAUDE: Profile(

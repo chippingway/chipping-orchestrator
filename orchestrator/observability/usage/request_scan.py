@@ -54,13 +54,21 @@ class CollectionLimits:
 
 @dataclass
 class Metadata:
-    """Correlation metadata read within its bound: a string too long to keep is dropped and counted, never cut."""
+    """Correlation metadata read within its bound and its shape, each refusal counted.
+
+    A string too long to keep is dropped and counted, never cut; a value that is no string at all -- a number, a list,
+    an object -- is dropped and counted apart, so a malformed field costs its own reading and nothing beside it.
+    """
 
     limit: int
     oversize: int = 0
+    malformed: int = 0
 
     def text(self, raw: Any) -> str | None:
-        if not isinstance(raw, str) or not raw:
+        if raw is None or raw == "":
+            return None
+        if not isinstance(raw, str):
+            self.malformed += 1
             return None
         if len(raw) <= self.limit:
             return raw

@@ -43,6 +43,8 @@ _CLAUDE_WRITE_FIVE_MIN = 60
 _CLAUDE_WRITE_ONE_HOUR = 40
 _CLAUDE_OUTPUT = 7
 _CLAUDE_CONTEXT = _CLAUDE_INPUT + _CLAUDE_CACHE_READ + _CLAUDE_WRITE
+# One past the largest integer every float holds exactly.
+_PAST_FLOAT_PRECISION = 9_007_199_254_740_993
 
 
 def _readings(**counts: int) -> MappingProxyType:
@@ -192,6 +194,15 @@ class EvidenceTest(unittest.TestCase):
         self.assertEqual(past.fields[_CACHE_WRITE].state, _CONFLICTING)
         self.assertEqual(past.count(_CONTEXT), _CODEX_INPUT)
 
+    def test_derived_cache_writes_are_held_too(self) -> None:
+        # Writes settled from their lifetime split are held to the input like reported ones.
+        split = {normalization.CACHE_WRITE_FIVE_MIN: _CODEX_CACHED, normalization.CACHE_WRITE_ONE_HOUR: _CODEX_CACHED}
+        readings = _readings(input=_CODEX_INPUT, cache_read=_CODEX_CACHED, **split)
+        usage = normalization.normalize(protocol.CODEX, readings)
+        self.assertEqual(usage.fields[_CACHE_WRITE].state, _CONFLICTING)
+        self.assertEqual(usage.fields[_CACHE_READ].state, _CONFLICTING)
+        self.assertEqual(usage.lifetimes_state, _CONFLICTING)
+
     def test_values_read_as_the_run_accounting_does(self) -> None:
         cases = (
             (None, None, _MISSING),
@@ -203,6 +214,11 @@ class EvidenceTest(unittest.TestCase):
             (-0.5, None, _INVALID),
             (10.5, None, _INVALID),
             ("10.5", None, _INVALID),
+            # A string is read exactly: no float rounds a fraction whole or moves a count past 2**53.
+            ("1.0000000000000001", None, _INVALID),
+            ("9007199254740993", _PAST_FLOAT_PRECISION, _OBSERVED),
+            ("1e3", 1000, _OBSERVED),
+            ("1e40", None, _INVALID),
             (float("inf"), None, _INVALID),
             (True, None, _INVALID),
             ("ten", None, _INVALID),
