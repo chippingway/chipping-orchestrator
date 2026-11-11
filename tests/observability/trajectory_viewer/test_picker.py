@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, Mock
 
-from orchestrator.observability.trajectory_viewer import picker
+from orchestrator.observability.trajectory_viewer import picker, run_html
 from tests.observability.trajectory_viewer.trajectory_viewer_test_support import (
     ISSUE,
     REPO,
@@ -29,6 +29,16 @@ _TWO_FIXTURES = 2
 
 _SECOND_CANDIDATE = 1
 
+_ONE_DIGIT_ISSUE = 9
+
+_PREFIX_ISSUE = 12
+
+_TWO_DIGIT_ISSUE = 34
+
+_THREE_DIGIT_ISSUE = 120
+
+_OTHER_REPO_TOP_ISSUE = 500
+
 
 def _captions(st: Any) -> str:
     return "".join(call.args[0] for call in st.caption.call_args_list)
@@ -42,6 +52,22 @@ def _cohort() -> tuple:
         run(seq=1, repo=REPO, issue=_OTHER_ISSUE),
         run(seq=0, repo=_OTHER_REPO, issue=ISSUE),
     )
+
+
+def _numbered_cohort() -> list:
+    """Issues of one to three digits, read out of order, one of them twice.
+
+    The other repository holds the highest number of all, so an issue list
+    that leaked across repositories would lead with it.
+    """
+    return [
+        run(seq=5, repo=REPO, issue=_TWO_DIGIT_ISSUE, backend="claude"),
+        run(seq=4, repo=REPO, issue=_ONE_DIGIT_ISSUE),
+        run(seq=3, repo=_OTHER_REPO, issue=_OTHER_REPO_TOP_ISSUE),
+        run(seq=2, repo=REPO, issue=_THREE_DIGIT_ISSUE),
+        run(seq=1, repo=REPO, issue=_PREFIX_ISSUE),
+        run(seq=0, repo=REPO, issue=_TWO_DIGIT_ISSUE, backend="codex"),
+    ]
 
 
 class NoTrajectoriesTest(unittest.TestCase):
@@ -113,6 +139,32 @@ class CascadingPickerTest(unittest.TestCase):
         st = Mock()
         picker.pick_issue(st, _cohort(), _OTHER_REPO)
         self.assertEqual(st.selectbox.call_args.args[1], [ISSUE])
+
+    def test_issues_lead_with_the_highest_number(self) -> None:
+        st = MagicMock()
+        st.selectbox.side_effect = [REPO, _TWO_DIGIT_ISSUE, _SECOND_CANDIDATE]
+        cohort = _numbered_cohort()
+        picker.render_run_picker(st, cohort)
+        _, issue_choice, run_choice = st.selectbox.call_args_list
+        # Numeric, not textual: as text "12" sorts beside "120", and "9" past both.
+        self.assertEqual(
+            [(issue, issue_choice.kwargs["format_func"](issue)) for issue in issue_choice.args[1]],
+            [
+                (_THREE_DIGIT_ISSUE, "#120"),
+                (_TWO_DIGIT_ISSUE, "#34"),
+                (_PREFIX_ISSUE, "#12"),
+                (_ONE_DIGIT_ISSUE, "#9"),
+            ],
+        )
+        # The picked issue still hands the run choice both of its runs.
+        self.assertEqual(
+            [run_choice.kwargs["format_func"](index) for index in run_choice.args[1]],
+            [run_html.run_picker_label(cohort[0]), run_html.run_picker_label(cohort[-1])],
+        )
+        self.assertIn(
+            f"Run #{_TWO_DIGIT_ISSUE} · {REPO}",
+            "".join(call.args[0] for call in st.markdown.call_args_list),
+        )
 
     def test_the_run_choice_follows_the_pair(self) -> None:
         st = Mock()

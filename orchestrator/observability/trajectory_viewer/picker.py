@@ -7,8 +7,8 @@ The overview table answers "which run do I want", so it is capped at the most
 recent rows a page can be read at a glance -- and it says so, naming how many
 matched, because a silently truncated table reads as a complete one. The
 picker answers "that one", and it is deliberately *not* capped: it cascades
-repository, then issue, then run, so every match stays reachable however long
-the list is.
+repository, then issue -- highest number first -- then run, so every match
+stays reachable however long the list is.
 
 The fixture caption is the toggle's receipt. It is worded for whichever way the
 toggle is set, so an operator reading a shorter table than they expected is told
@@ -88,9 +88,17 @@ def pick_repo(st: Any, shown: Sequence[TrajectoryRun]) -> str:
 
 
 def pick_issue(st: Any, shown: Sequence[TrajectoryRun], repo: str) -> int:
-    """Offer that repository's issues, as numbers an operator reads."""
-    issues = sorted({run.issue for run in shown if run.repo == repo})
-    return st.selectbox("Issue", issues, format_func=lambda issue: f"#{issue}")
+    """Offer that repository's issues, highest number first.
+
+    Issue numbers grow with time, so the newest work leads the list rather
+    than sitting at the bottom of a long one.
+    """
+    issues = {run.issue for run in shown if run.repo == repo}
+    return st.selectbox(
+        "Issue",
+        sorted(issues, reverse=True),
+        format_func=lambda issue: f"#{issue}",
+    )
 
 
 def pick_run(
