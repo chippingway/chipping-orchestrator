@@ -6,9 +6,11 @@ The CLI reports a step over as many frames as it takes and repeats a completed o
 of a step's fields. A step is therefore folded field by field: a frame adds what it carries and never takes away what
 an earlier one supplied, so a repeated or sparse completed frame keeps the usage the first completed frame reported.
 Two completed frames reporting different counts for one counter contradict each other, and that counter is
-`conflicting` rather than either count. Usage a frame carried before the step completed is kept apart and stands only
-where no completed frame reported any, as provisional usage. Only the counters `COUNTERS` names are read off a usage
-block; nothing else of a frame -- its text delta, its tool payload -- is.
+`conflicting` rather than either count. Usage a frame carried before the step completed is kept apart and stands for
+every counter no completed frame reported -- all of them where none did -- so a sparse completion never takes back
+what an earlier frame supplied, and a request any of whose counters rests on such a frame is provisional rather than
+final. Only the counters `COUNTERS` names are read off a usage block; nothing else of a frame -- its text delta, its
+tool payload -- is.
 """
 
 from __future__ import annotations
@@ -41,6 +43,7 @@ COUNTERS = MappingProxyType({
 GENERATIONS = frozenset(("agent_response", "checkpoint"))
 SETTLED_BY_COMPLETION = "completed-frame"
 SETTLED_BEFORE_COMPLETION = "pre-completion-frame"
+SETTLED_IN_PART_BEFORE_COMPLETION = "completed-and-pre-completion-frames"
 _USER_INPUT = "user_input"
 _DURATION = "duration_seconds"
 
@@ -74,6 +77,17 @@ def usage_readings(frame: dict[str, Any]) -> dict[str, Reading] | None:
     }
 
 
+def unindexed_gap(frame: dict[str, Any]) -> bool:
+    """Whether a frame naming no step index may hold a request no step can be folded under.
+
+    Usage on it, readable or not, or a generation's step type, is a request the stream reported without the index a
+    request is keyed by, so it is a gap rather than nothing.
+    """
+    if frame.get(protocol.USAGE) is not None:
+        return True
+    return frame.get(agy_events.STEP_TYPE) in GENERATIONS
+
+
 def raw_counts(readings: dict[str, Reading]) -> dict[str, int]:
     """The counts a usage block reported, by source counter, as decoded -- a negative one included."""
     return {
@@ -85,10 +99,16 @@ def raw_counts(readings: dict[str, Reading]) -> dict[str, int]:
 
 @dataclass
 class StepFold:
-    """Everything the stream said about one step, in the order it said it."""
+    """Everything the stream said about one step, in the order it said it.
+
+    `own_model` is the model an `init` of the step's own conversation named, and `process_model` the one the process's
+    `init` named, each as in effect when the step's first frame arrived; which of them the step ran on is the
+    conversation attribution's to decide.
+    """
 
     key: StepKey
-    model: str | None
+    own_model: str | None
+    process_model: str | None
     kind: str | None = None
     settled_position: int | None = None
     duration: float | None = None
@@ -124,12 +144,20 @@ class StepFold:
             self.early = {**(self.early or {}), **readings}
 
     def usage(self) -> SettledUsage | None:
-        """The usage this step settled on, or None where no frame of it carried any."""
-        if self.final:
-            return SettledUsage(self.final, request_models.FINAL, SETTLED_BY_COMPLETION)
-        if self.early:
-            return SettledUsage(self.early, request_models.PROVISIONAL, SETTLED_BEFORE_COMPLETION)
-        return None
+        """The usage this step settled on, or None where no frame of it carried any.
+
+        A counter a completed frame reported is that frame's; one only an earlier frame reported keeps that frame's
+        count, and makes the request provisional.
+        """
+        early = self.early or {}
+        readings = {**early, **self.final}
+        if not readings:
+            return None
+        if not self.final:
+            return SettledUsage(readings, request_models.PROVISIONAL, SETTLED_BEFORE_COMPLETION)
+        if early.keys() <= self.final.keys():
+            return SettledUsage(readings, request_models.FINAL, SETTLED_BY_COMPLETION)
+        return SettledUsage(readings, request_models.PROVISIONAL, SETTLED_IN_PART_BEFORE_COMPLETION)
 
     def _complete(
         self,

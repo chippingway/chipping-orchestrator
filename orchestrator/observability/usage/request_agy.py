@@ -11,10 +11,13 @@ completed them in, a `checkpoint` step's among them.
 
 Only this process's stream is read. A resumed run prints only its own steps, so its observations are its own; the
 terminal `result` usage counts the whole conversation, every earlier process of it included, so it is kept as a
-conversation-scope checkpoint and never as a request. A step naming no conversation is still this process's stdout and
-is kept, under a process-scoped identity. Which conversation a step belongs to and the model it ran on are the
-`request_agy_branches` owner's to establish; a subagent whose conversation exposes no usage, a step completed with no
-usage, and one the stream never completed are gaps the collection records rather than requests it counts.
+conversation-scope checkpoint and never as a request. Before any step is folded, the stream is read for the
+conversations it names, so a frame naming none joins the one conversation a stream names, and in a stream naming
+none or several is still this process's stdout, kept under a process-scoped identity -- a gap where it could be more
+than one conversation's. Which conversation a step belongs to and the model it ran on are the `request_agy_branches`
+owner's to establish; a subagent whose conversation exposes no usage, a step completed with no usage, one the stream
+never completed, and a frame with no step index that carries usage or a generation are gaps the collection records
+rather than requests it counts.
 
 The stream reports no timestamp, context capacity, CLI version, cache write, or compaction or reset boundary, so none
 is ever recorded; `LIMITATIONS` names them for every collection.
@@ -36,8 +39,15 @@ from orchestrator.observability.usage import (
     request_normalization as normalization,
     request_scan,
 )
-from orchestrator.observability.usage.request_agy_branches import CONVERSATION_ID, Branches, Child
-from orchestrator.observability.usage.request_agy_steps import COUNTERS, StepFold, StepKey, raw_counts, usage_readings
+from orchestrator.observability.usage.request_agy_branches import CONVERSATION_ID, Branches, Census, Child
+from orchestrator.observability.usage.request_agy_steps import (
+    COUNTERS,
+    StepFold,
+    StepKey,
+    raw_counts,
+    unindexed_gap,
+    usage_readings,
+)
 
 LIMITATIONS = (
     "no-source-timestamps",
@@ -91,7 +101,7 @@ class Observations:
         settled = step.usage()
         if settled is None:
             return
-        child = self.branches.child(step)
+        child = self.branches.children.get(step.key[0] or "")
         observation = request_models.RequestObservation(
             identity=identity(step, child),
             position=step.settled_position or 0,
@@ -109,6 +119,11 @@ class Observations:
         self.orders[step.key[0]] += 1
         self.kept.append(observation)
         self.gaps.update(coverage.observation_gaps(observation, subagent=child is not None))
+        self.gaps[coverage.CONVERSATION_AMBIGUOUS] += self._unplaced(step)
+
+    def _unplaced(self, step: StepFold) -> bool:
+        """Whether a request naming no conversation is kept in a stream where whose it is stays unknown."""
+        return step.key[0] is None and self.branches.census.unplaced
 
 
 @dataclass
@@ -125,13 +140,19 @@ class StreamFold:
 
     @classmethod
     def read(cls, stdout: str) -> StreamFold:
+        """Scan `stdout`, learn which conversations it names, then fold every event in stream order."""
         limits = request_scan.current_limits()
+        scan = request_scan.scan_events(stdout, limits)
         fold = cls(
-            request_scan.scan_events(stdout, limits),
-            Branches(limits, request_scan.Metadata(limits.metadata_chars)),
+            scan,
+            Branches(
+                limits,
+                request_scan.Metadata(limits.metadata_chars),
+                Census.taken(scan.events, limits.metadata_chars),
+            ),
             checkpoints=deque(maxlen=limits.checkpoints),
         )
-        for position, event in fold.scan.events:
+        for position, event in scan.events:
             fold.feed(position, event)
         return fold
 
@@ -171,10 +192,10 @@ class StreamFold:
     def _step(self, position: int, frame: dict[str, Any]) -> None:
         index = frame.get(agy_events.STEP_INDEX)
         if isinstance(index, bool) or not isinstance(index, int):
-            self.gaps[coverage.UNINDEXED_USAGE] += isinstance(frame.get(protocol.USAGE), dict)
+            self.gaps[coverage.UNINDEXED_FRAMES] += unindexed_gap(frame)
             return
-        conversation = self.branches.metadata.text(frame.get(CONVERSATION_ID))
-        step = self._tracked((conversation, index))
+        named = self.branches.metadata.text(frame.get(CONVERSATION_ID))
+        step = self._tracked((named or self.branches.census.sole, index))
         if step is None:
             return
         step.absorb(position, frame, self.branches.metadata)
@@ -187,7 +208,7 @@ class StreamFold:
         if step is None and len(self.steps) >= self.branches.limits.tracked_steps:
             self.gaps[coverage.CORRELATION_LIMIT] += 1
         elif step is None:
-            step = StepFold(key, self.branches.model)
+            step = StepFold(key, *self.branches.models_for(key[0]))
             self.steps[key] = step
         return step
 

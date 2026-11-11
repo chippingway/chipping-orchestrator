@@ -22,12 +22,13 @@ invalid, or contradictory adds up to a count.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any
 
-from orchestrator.observability.usage import protocol, token_evidence
+from orchestrator.observability.usage import protocol
 
 OBSERVED = "observed"
 UNSUPPORTED = "unsupported"
@@ -72,15 +73,17 @@ class Reading:
     def of(cls, raw: Any) -> Reading:
         """Read one reported field: nothing is missing, and a report no count can be is invalid.
 
-        The count is decoded as the run accounting decodes it (`token_evidence.reported_count`), so a request and the
-        run it belongs to read the same number off the same field; a negative count keeps its number as raw evidence.
+        The value is judged before it is turned into a count. A whole, non-negative number -- or a string spelling
+        one -- is the count the run accounting reads off the same field, so a request and its run agree on it; a
+        negative whole number keeps its number as raw evidence and is invalid; and a fraction, an infinite or NaN
+        value, a boolean, or a word is no count at all, never the zero or whole number truncating it would make.
         """
         if raw is None:
             return cls()
-        count = None if isinstance(raw, bool) else token_evidence.reported_count(raw)
-        if count is None:
+        number = _reported_number(raw)
+        if number is None:
             return cls(state=INVALID)
-        return cls(count, OBSERVED if count >= 0 else INVALID)
+        return cls(int(number), OBSERVED if number >= 0 else INVALID)
 
     @classmethod
     def summed(cls, parts: Iterable[Reading]) -> Reading:
@@ -103,6 +106,21 @@ class Reading:
 
 
 Readings = Mapping[str, Reading]
+
+
+def _reported_number(raw: Any) -> float | None:
+    """The whole number one raw field spells, or None where it spells none."""
+    number = raw
+    if isinstance(raw, str):
+        try:
+            number = float(raw)
+        except ValueError:
+            return None
+    if isinstance(number, bool) or not isinstance(number, (int, float)):
+        return None
+    if isinstance(number, int):
+        return number
+    return number if math.isfinite(number) and number.is_integer() else None
 
 
 def _exceeds(part: Reading, whole: Reading) -> bool:
@@ -170,12 +188,18 @@ class Profile:
             return Reading(state=UNSUPPORTED)
         return readings.get(name, Reading())
 
-    def part(self, readings: Readings, name: str) -> Reading:
-        """A counter as reported, contradicting the input it is a part of where it exceeds that input."""
-        reading = self.reading(readings, name)
-        if name in self.within_input:
-            return reading.within(self.reading(readings, INPUT))
-        return reading
+    def checked(self, readings: Readings) -> Readings:
+        """`readings` with the cache counters the input holds made conflicting where together they exceed it.
+
+        The input holds every one of them at once, so it is their sum the input has to hold, not each alone.
+        """
+        parts = [self.reading(readings, name) for name in self.within_input]
+        held = Reading.summed(part for part in parts if part.known)
+        whole = self.reading(readings, INPUT)
+        if not (held.count and whole.known and _exceeds(held, whole)):
+            return readings
+        contradicted = {name: Reading(state=CONFLICTING) for name in self.within_input if name in readings}
+        return {**readings, **contradicted}
 
     def cache_writes(self, readings: Readings) -> tuple[Reading, Reading]:
         """The request's cache writes counted once, and its lifetime split, from the aggregate or the split.
@@ -184,7 +208,7 @@ class Profile:
         missing, and a split summing to anything but a reported aggregate, or one lifetime exceeding it, contradicts
         it, leaving both unknown.
         """
-        aggregate = self.part(readings, CACHE_WRITE)
+        aggregate = self.reading(readings, CACHE_WRITE)
         lifetimes = [self.reading(readings, lifetime) for lifetime in _LIFETIMES]
         split = Reading.summed(lifetimes)
         if aggregate.state == MISSING:
@@ -201,12 +225,6 @@ class Profile:
             return Reading(state=CONFLICTING)
         return total
 
-    def context_input(self, readings: Readings, cache_write: Reading) -> Reading:
-        """Every token the request's context held: the profile's context parts, its cache writes counted once."""
-        return Reading.summed(
-            cache_write if part == CACHE_WRITE else self.reading(readings, part)
-            for part in self.context_parts
-        )
 
     def lifetimes(self, readings: Readings, split: Reading) -> MappingProxyType[str, int]:
         """The cache writes by lifetime, where the split establishes them."""
@@ -214,23 +232,30 @@ class Profile:
             return MappingProxyType({})
         return MappingProxyType({lifetime: readings[lifetime].count or 0 for lifetime in _LIFETIMES})
 
-    def normalized(self, readings: Readings) -> NormalizedUsage:
-        cache_write, split = self.cache_writes(readings)
-        context = self.context_input(readings, cache_write)
+    def fields(self, readings: Readings, cache_write: Reading) -> MappingProxyType[str, Reading]:
+        """The normalized fields: the context input is the profile's context parts, its cache writes counted once."""
+        context = Reading.summed(
+            cache_write if part == CACHE_WRITE else self.reading(readings, part)
+            for part in self.context_parts
+        )
         output = self.reading(readings, OUTPUT)
-        fields = {
+        return MappingProxyType({
             CONTEXT_INPUT_TOKENS: context,
             OUTPUT_TOKENS: output,
-            CACHE_READ_TOKENS: self.part(readings, CACHE_READ),
+            CACHE_READ_TOKENS: self.reading(readings, CACHE_READ),
             CACHE_WRITE_TOKENS: cache_write,
             REASONING_TOKENS: self.reading(readings, REASONING).within(output),
             TOTAL_TOKENS: Reading.summed((context, output)),
             SOURCE_TOTAL_TOKENS: self.source_total(readings),
-        }
+        })
+
+    def normalized(self, readings: Readings) -> NormalizedUsage:
+        checked = self.checked(readings)
+        cache_write, split = self.cache_writes(checked)
         return NormalizedUsage(
             overlap=self.overlap,
-            fields=MappingProxyType(fields),
-            lifetimes=self.lifetimes(readings, split),
+            fields=self.fields(checked, cache_write),
+            lifetimes=self.lifetimes(checked, split),
             lifetimes_state=split.state,
         )
 

@@ -27,9 +27,11 @@ _INIT = stream.init_event()
 _TERMINAL = stream.terminal()
 _FIRST = stream.step(1, usage=dict(_USAGE))
 _SECOND = stream.step(2, usage=dict(_USAGE))
+_FOURTH = stream.step(4, usage=dict(_USAGE))
 _PARENT_FIELDS = ("parent_conversation_id", "parent_step_index", "subagent_type", cases.MODEL, cases.MODEL_SOURCE)
 _CHILD_ATTRIBUTION = (stream.SESSION_ID, 2, _RESEARCH, None, models.UNESTABLISHED)
 _IDENTITY_FIELDS = ("id", "id_kind", cases.CONVERSATION_ID, cases.MODEL)
+_JOINED_IDENTITY = (f"{stream.SESSION_ID}:1", models.CONVERSATION_STEP, stream.SESSION_ID, stream.MODEL)
 _PROCESS_IDENTITY = ("process:1", models.PROCESS_STEP, None, stream.MODEL)
 _MARKER_FIELDS = ("kind", cases.MODEL, "previous_model", "position")
 _MODEL_CHANGE = (models.MODEL_CHANGE, stream.MODEL, _EARLIER_MODEL, 2)
@@ -68,11 +70,25 @@ _CHILD_RESPONSE = _response(_CHILD)
 _SPAWNING_TWO = _spawning(_CHILD, _SILENT_CHILD)
 _EARLIER_INIT = _init(_EARLIER_MODEL)
 _NEGATIVE_USAGE = MappingProxyType({**_USAGE, protocol.OUTPUT_TOKENS: -1})
+_UNINDEXED_RESPONSE = stream.event(agy_events.STEP_UPDATE, step_type="agent_response", state=agy_events.DONE)
 _UNREADABLE_SPAWN = stream.step(3, kind=agy_events.TOOL, subagent_info=[])
+_UNNAMED_SPAWN = stream.step(3, kind=agy_events.TOOL, subagent_info=json.loads('{"subagents": [{"type_name": "x"}]}'))
 _SUBAGENT_STREAM = (_INIT, _FIRST, _SPAWNING_TWO, _CHILD_RESPONSE, _TERMINAL)
-# A child's own `init` between two of the parent's requests: it names the child's conversation, not the process's.
-_CHILD_INIT_STREAM = (_INIT, _FIRST, _spawning(_CHILD), _init(_EARLIER_MODEL, _CHILD), _SECOND, _TERMINAL)
+# A child's own `init` between two of the parent's requests: it names the child's model, and changes the parent's none.
+_CHILD_INIT_STREAM = (
+    _INIT, _FIRST, _spawning(_CHILD), _init(_EARLIER_MODEL, _CHILD), _CHILD_RESPONSE, _FOURTH, _TERMINAL,
+)
 _UNNAMED_INIT = _init(stream.MODEL, None)
+# A step naming no conversation: joined to the one a stream names, and kept as the process's where it names none.
+_PLACEMENTS = (
+    ("one named conversation", (_INIT, _FIRST, _response(None, 1)), _JOINED_IDENTITY),
+    ("no conversation named", (_UNNAMED_INIT, _response(None, 1)), _PROCESS_IDENTITY),
+)
+# A stream where a step naming no conversation could be more than one conversation's.
+_UNPLACED = (
+    ("a named subagent", (_INIT, _spawning(_CHILD), _response(None))),
+    ("an unnamed subagent", (_INIT, _UNNAMED_SPAWN, _response(None, 1))),
+)
 _TWO_UNNAMED = (_UNNAMED_INIT, _response("one-conversation"), _response("another-conversation"))
 _MODEL_CHANGE_STREAM = (_EARLIER_INIT, _FIRST, _INIT, _SECOND, _TERMINAL)
 # A stream, and the model and provenance its last request is attributed to.
@@ -85,7 +101,8 @@ _UNATTRIBUTED = (
 # One damaged line beside a usable request, and the one gap it leaves.
 _DAMAGED = (
     ("frame cut short", '{"event":"step_update","step_update":', coverage.MALFORMED_LINES),
-    ("usage with no step index", stream.event(agy_events.STEP_UPDATE, usage=dict(_USAGE)), coverage.UNINDEXED_USAGE),
+    ("usage with no step index", stream.event(agy_events.STEP_UPDATE, usage=dict(_USAGE)), coverage.UNINDEXED_FRAMES),
+    ("generation with no step index", _UNINDEXED_RESPONSE, coverage.UNINDEXED_FRAMES),
     ("response completed with no usage", stream.step(3), coverage.UNREPORTED_USAGE),
     ("negative count", stream.step(3, usage=dict(_NEGATIVE_USAGE)), coverage.INVALID_COUNTERS),
     ("unreadable subagent", _UNREADABLE_SPAWN, coverage.SUBAGENT_UNIDENTIFIED),
@@ -125,15 +142,29 @@ class BranchAttributionTest(unittest.TestCase):
                 self.assertEqual(attribution, (None, source))
                 self.assertIn(coverage.MODEL_UNATTRIBUTED, collection.reasons)
 
-    def test_steps_naming_no_conversation_are_kept(self) -> None:
-        collection = cases.collected(_INIT, _response(None, 1), _TERMINAL)
-        self.assertEqual(cases.picked(collection.samples[0], *_IDENTITY_FIELDS), _PROCESS_IDENTITY)
+    def test_steps_naming_no_conversation_are_placed(self) -> None:
+        for name, lines, identity in _PLACEMENTS:
+            with self.subTest(name):
+                collection = cases.collected(*lines, _TERMINAL)
+                identities = [cases.picked(sample, *_IDENTITY_FIELDS) for sample in collection.samples]
+                self.assertEqual(identities, [identity])
+                self.assertEqual(collection.status, coverage.COMPLETE)
 
-    def test_a_child_init_changes_no_model(self) -> None:
+    def test_unplaced_steps_are_ambiguous(self) -> None:
+        for name, lines in _UNPLACED:
+            with self.subTest(name):
+                collection = cases.collected(*lines, _TERMINAL)
+                attribution = cases.picked(collection.samples[-1], *_ATTRIBUTION_FIELDS)
+                self.assertEqual(attribution, (None, models.UNESTABLISHED))
+                self.assertIn(coverage.CONVERSATION_AMBIGUOUS, collection.reasons)
+
+    def test_a_child_init_names_its_own_model(self) -> None:
         collection = cases.collected(*_CHILD_INIT_STREAM)
         models_used = cases.column(collection.samples, cases.MODEL)
-        self.assertEqual(models_used, [stream.MODEL, stream.MODEL])
+        self.assertEqual(models_used, [stream.MODEL, _EARLIER_MODEL, stream.MODEL])
+        self.assertEqual(collection.samples[1][cases.MODEL_SOURCE], models.STREAM_MODEL)
         self.assertFalse(collection.markers)
+        self.assertEqual(collection.status, coverage.COMPLETE)
 
     def test_one_named_conversation_is_the_process(self) -> None:
         # No `init` names the conversation, but the stream names only one: the process's own.
@@ -199,9 +230,10 @@ class CollectionBoundTest(unittest.TestCase):
         with patch.object(request_scan, "MAX_METADATA_CHARS", metadata_bound), \
                 patch.object(request_scan, "MAX_CHECKPOINTS", 1):
             collection = cases.collected(_INIT, _FIRST, _TERMINAL, _TERMINAL)
-        # A conversation id too long to keep is dropped, and the step is kept under its process identity.
+        # A conversation id too long to keep is dropped, and the step is kept under its process identity; the stream
+        # named a conversation this collection can no longer compare, so whose step it is stays unknown.
         identity = cases.picked(collection.samples[0], "id_kind", cases.MODEL)
-        self.assertEqual(identity, (models.PROCESS_STEP, stream.MODEL))
-        self.assertIn(coverage.OVERSIZE_METADATA, collection.reasons)
+        self.assertEqual(identity, (models.PROCESS_STEP, None))
+        self.assertLessEqual({coverage.OVERSIZE_METADATA, coverage.CONVERSATION_AMBIGUOUS}, set(collection.reasons))
         self.assertEqual(cases.picked(collection.coverage, *_CHECKPOINT_COUNTS), (2, 1))
         self.assertEqual(len(collection.checkpoints), 1)

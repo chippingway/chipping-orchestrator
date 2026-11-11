@@ -115,9 +115,9 @@ class RequestObservation:
     """One request the stream settled usage for.
 
     `position` is the stream line that completed it and `branch_order` its place among its own conversation's
-    requests; neither orders it against another conversation's. `raw` holds the allowlisted counters as the run
-    accounting decodes them, a negative one included, `usage` the normalized ones, and `settlement` the report its
-    `status` rests on.
+    requests; neither orders it against another conversation's. `raw` holds the allowlisted counters that are whole
+    counts, a negative one included -- a value that is none is left out, its field invalid -- `usage` the normalized
+    ones, and `settlement` the report its `status` rests on.
     """
 
     identity: RequestIdentity

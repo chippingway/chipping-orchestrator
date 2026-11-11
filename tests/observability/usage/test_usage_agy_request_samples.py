@@ -40,6 +40,11 @@ _FALLBACK_ATTRIBUTION = (capture.MODEL, models.CONFIGURED_FALLBACK)
 _COMPLETE_CAPTURES = (("fresh", capture.FRESH_RUN), ("guide", capture.GUIDE_RUN))
 _TWO_STEP_IDS = (f"{stream.SESSION_ID}:1", f"{stream.SESSION_ID}:2")
 _RESULT_TOTAL = ("result-total", "conversation", 2)
+_EARLY_CACHE_READ = 5
+_EARLY_INPUT = stream.step(1, state="ACTIVE", usage={_INPUT: _INPUT_COUNT, _CACHE_READ: _EARLY_CACHE_READ})
+_SPARSE_COMPLETION = stream.step(1, usage={_OUTPUT: _OUTPUT_COUNT})
+_SPARSE_RAW = MappingProxyType({_INPUT: _INPUT_COUNT, _CACHE_READ: _EARLY_CACHE_READ, _OUTPUT: _OUTPUT_COUNT})
+_MIXED_SETTLEMENT = ("provisional", "completed-and-pre-completion-frames")
 _INIT = stream.init_event()
 _TERMINAL = stream.terminal()
 
@@ -126,6 +131,14 @@ class StepFoldTest(unittest.TestCase):
         settlement = cases.picked(provisional.samples[0], *_SETTLED)
         self.assertEqual(settlement, (models.PROVISIONAL, "pre-completion-frame"))
         self.assertEqual(provisional.reasons, {coverage.PROVISIONAL_USAGE: 1})
+
+    def test_sparse_completion_keeps_earlier_counters(self) -> None:
+        collection = cases.collected(_INIT, _EARLY_INPUT, _SPARSE_COMPLETION, _TERMINAL)
+        sample = collection.samples[0]
+        self.assertEqual(sample[cases.RAW], dict(_SPARSE_RAW))
+        # The output rests on the completed frame and the rest on an earlier one, so the request is provisional.
+        self.assertEqual(cases.picked(sample, *_SETTLED), _MIXED_SETTLEMENT)
+        self.assertEqual(collection.reasons, {coverage.PROVISIONAL_USAGE: 1})
 
     def test_completed_frames_disagreeing_conflict(self) -> None:
         disagreeing = stream.step(1, usage={_INPUT: _INPUT_COUNT + 1})

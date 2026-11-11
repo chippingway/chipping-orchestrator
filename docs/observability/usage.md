@@ -672,9 +672,10 @@ the stream gave nothing for is absent rather than null:
   model for, and `unavailable` where neither exists -- and `context_capacity` where the stream reports one;
 - settlement: `scope` (`request`), `status` (`final` or `provisional`), and `settlement`, the report the status
   rests on;
-- counters: `raw`, the allowlisted counters as the run accounting decodes them -- a numeric string or a float as its
-  whole count, a negative one included -- the normalized counters
-  below; the `overlap` profile they were read under; and `evidence`, one state for each normalized field.
+- counters: `raw`, the allowlisted counters as whole counts -- a numeric string or a whole float read as the run
+  accounting reads it, a negative whole number included, and a value that is no whole count left out, its field
+  `invalid` -- the normalized counters below; the `overlap` profile they were read under; and `evidence`, one state
+  for each normalized field.
 
 Nothing is inferred into a sample: no timestamp, order across conversations, context capacity, or model is taken from
 unrelated data. A marker (`markers`) is an explicit boundary the stream printed -- `model-change`, with the `model`
@@ -697,15 +698,16 @@ provider's profile:
 plus the output. `cache_read_tokens` and `cache_write_tokens` keep the cache breakdown, and `cache_write_lifetimes` a
 Claude write's `cache_write_5m` / `cache_write_1h` split. A Claude write is its aggregate where the block reports one
 and its lifetime split only where the aggregate is missing; a split summing to anything but its aggregate, or one
-lifetime exceeding it, leaves both, and so the context input and total, `conflicting`. On Codex, a cache count larger
-than the input holding it is `conflicting` too. The provider's own total is kept apart as `source_total_tokens` and
-never derives the common total; where the profile states what it sums -- input plus output, on Codex and Antigravity
--- a source total disagreeing with those counters is `conflicting`. Each field's evidence is `observed` (a usable
-count), `missing` (nothing reported, never a zero), `invalid` (a negative count, a boolean, or a word), `conflicting`
-(two reports of the request disagree, a part exceeds its whole, or a total contradicts its parts), or `unsupported`
-(the profile has no such counter). A derived field is established only where every part is observed and otherwise
-takes the weakest part's evidence, so a step reporting no cache reads has no context input, while one reporting zero
-has its input as its context.
+lifetime exceeding it, leaves both, and so the context input and total, `conflicting`. On Codex, cache reads and writes
+that together exceed the input holding them are both `conflicting`, while the input stays the context input. The
+provider's own total is kept apart as `source_total_tokens` and never derives the common total; where the profile states
+what it sums -- input plus output, on Codex and Antigravity -- a source total disagreeing with those counters is
+`conflicting`. Each field's evidence is `observed` (a usable count), `missing` (nothing reported, never a zero),
+`invalid` (a negative number, a fraction, an infinite or NaN value, a boolean, or a word -- judged before anything is
+truncated to a count), `conflicting` (two reports of the request disagree, a part exceeds its whole, or a total
+contradicts its parts), or `unsupported` (the profile has no such counter). A derived field is established only where
+every part is observed and otherwise takes the weakest part's evidence, so a step reporting no cache reads has no
+context input, while one reporting zero has its input as its context.
 
 **Coverage and bounds.** Each collection states its `coverage`: `status`, `reasons` (each gap's code and how often it
 occurred, from a vocabulary fixed in `request_coverage.py`), `limitations` (what the source never reports), and
@@ -716,7 +718,8 @@ checkpoints. The status is read off the reasons, most severe first: `unavailable
 observed (`storage-budget`, counting the dropped entries), `incomplete` for any other gap, and `complete-empty` or
 `complete` where there is none, with no sample or with some. A scan a bound cut short is `partial` in `scan_scope`, so
 its observed count is never read as the invocation's; one that read nothing is `none`. The gaps below the bounds are
-`malformed-lines`, `no-terminal-result`, `unsettled-steps`, `unreported-usage`, `unindexed-usage`,
+`malformed-lines`, `no-terminal-result`, `unsettled-steps`, `unreported-usage`, `unindexed-frames`,
+`conversation-ambiguous`,
 `provisional-usage`, `missing-counters`, `invalid-counters`, `conflicting-counters`, `model-unattributed`,
 `subagent-model-unestablished`, `subagent-usage-unavailable`, `subagent-unidentified`, and `oversize-metadata`.
 
@@ -733,35 +736,40 @@ response or tool text, reasoning text, credential, or source dictionary.
 **Antigravity requests.** `request_agy.py` produces one observation per completed usage-bearing step of the process's
 own stream, on the same agy 1.4.10 captures the run accounting is pinned to. A step is keyed by its conversation and
 `step_index` and folded from every frame of it (`request_agy_steps.py`): a completed frame adds the counters it carries
-and never takes back ones an earlier completed frame supplied, so a repeated or sparse frame keeps the step's usage;
-two completed frames reporting different counts leave that counter `conflicting`; and usage only an earlier, active
-frame carried stands as a `provisional` sample settled by the `pre-completion-frame`, where a completed frame's is
-`final`. Two steps reporting equal counts stay two samples, and `checkpoint` steps -- helper generations -- are
-requests in their own right, in the order the stream completed them. `raw` reads `input_tokens`, `output_tokens`,
-`thinking_tokens`, `cache_read_tokens`, and `total_tokens` and nothing else of the block: the context input is the
-input plus the cache reads, the thinking a part of the output, and `total_tokens` the source total. The guide's cached
-step normalizes 278 input tokens beside 30,214 cache reads to 30,492 context-input tokens, keeps its `total_tokens` of
-282 as `source_total_tokens`, keeps its 0 thinking tokens inside its 4 output tokens, and leaves cache writes and
-their lifetimes `unsupported`.
+and never takes back ones an earlier frame supplied, so a repeated or sparse frame keeps the step's usage; two completed
+frames reporting different counts leave that counter `conflicting`; and a counter only an earlier, active frame reported
+keeps that frame's count. A sample every counter of which a completed frame reported is `final` (`completed-frame`); one
+resting on earlier frames alone or in part is `provisional` (`pre-completion-frame`, or
+`completed-and-pre-completion-frames`). Two steps reporting equal counts stay two samples, and `checkpoint` steps --
+helper generations -- are requests in their own right, in the order the stream completed them. `raw` reads
+`input_tokens`, `output_tokens`, `thinking_tokens`, `cache_read_tokens`, and `total_tokens` and nothing else of the
+block: the context input is the input plus the cache reads, the thinking a part of the output, and `total_tokens` the
+source total. The guide's cached step normalizes 278 input tokens beside 30,214 cache reads to 30,492 context-input
+tokens, keeps its `total_tokens` of 282 as `source_total_tokens`, keeps its 0 thinking tokens inside its 4 output
+tokens, and leaves cache writes and their lifetimes `unsupported`.
 
 Only this process's steps are samples, a resumed run's included: the terminal `result` usage counts the whole
-conversation, every earlier process of it too, so it is a `result-total` checkpoint of `conversation` scope and never
-a request; on the fresh captures, whose conversation is their own process, it equals the samples' sum. A step naming
-no conversation is still this process's stdout and is kept under a `process-step` identity. `request_agy_branches.py`
-attributes each step: one of the process's own conversation -- the one its `init` names, or, where none names one, the
-one conversation its steps name besides its subagents' -- runs on the `init` model in effect when the step began, or on
-the configured `--model` where no `init` named one; a step of a subagent conversation a `subagent_info` named keeps
-its parent conversation, parent step, and subagent type and no model at all, never its parent's; and so does a step of
-any other conversation, or one naming none in a stream that spawned a subagent. A process `init` naming a different
-model is a `model-change` marker, and one naming another conversation changes nothing. A subagent gap counts the steps
-that spawned it once, however often their frames repeat it. The gaps it records are a response or `checkpoint` step,
-or one that carried usage, the stream never completed (`unsettled-steps`; a tool step still running is none), a
-completed one with no usage (`unreported-usage`), usage on a frame with no step index (`unindexed-usage`), a subagent
-whose conversation exposed no usage (`subagent-usage-unavailable`), one `subagent_info` does not name
-(`subagent-unidentified`), and a stream with no terminal `result` (`no-terminal-result`). The stream reports no
-timestamp, context capacity, CLI version, cache write, or compaction or reset boundary, so every collection that read
-the stream lists those as limitations and records none of them. The run accounting is unchanged: `agy_summary.py`
-still counts each completed step's last completed frame, so where completed frames disagree the run counters keep that
-frame while the sample states the counter `conflicting`.
+conversation, every earlier process of it too, so it is a `result-total` checkpoint of `conversation` scope and never a
+request; on the fresh captures, whose conversation is their own process, it equals the samples' sum.
+`request_agy_branches.py` reads which conversations a stream names before folding any step. A frame naming no
+conversation, in a stream naming exactly one and spawning no subagent, is that conversation's, folded into the same step
+as the frames naming it; in a stream naming none it is still this process's stdout and is kept under a `process-step`
+identity; and in any other stream it is kept the same way with no model and a `conversation-ambiguous` gap, since it
+could be more than one conversation's. Each step then runs on the model its own conversation's `init` named as it began
+-- a subagent's own `init` included. A step of the process's own conversation -- the one its first `init` names, or,
+where that names none, the one conversation its steps name besides its subagents' -- falls back to the process's `init`
+model or the configured `--model`; a step of a subagent conversation a `subagent_info` named keeps its parent
+conversation, parent step, and subagent type, and without an `init` of its own no model at all, never its parent's, as
+does a step of any other conversation. An `init` naming a different model than its conversation's previous one is a
+`model-change` marker, and a later `init` naming no conversation changes nothing. A subagent gap counts the steps that
+spawned it once, however often their frames repeat it. The gaps it records are a response or `checkpoint` step, or one
+that carried usage, the stream never completed (`unsettled-steps`; a tool step still running is none), a completed one
+with no usage (`unreported-usage`), a frame with no step index that carries usage or a generation's step type
+(`unindexed-frames`), a subagent whose conversation exposed no usage (`subagent-usage-unavailable`), one `subagent_info`
+does not name (`subagent-unidentified`), and a stream with no terminal `result` (`no-terminal-result`). The stream
+reports no timestamp, context capacity, CLI version, cache write, or compaction or reset boundary, so every collection
+that read the stream lists those as limitations and records none of them. The run accounting is unchanged:
+`agy_summary.py` still counts each completed step's last completed frame, so where completed frames disagree the run
+counters keep that frame while the sample states the counter `conflicting`.
 
 [pinned-state]: ../state-machine/labels-and-state.md#pinned-state

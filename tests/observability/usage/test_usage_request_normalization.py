@@ -180,6 +180,18 @@ class EvidenceTest(unittest.TestCase):
         self.assertEqual(written.fields[_CACHE_WRITE].state, _CONFLICTING)
         self.assertEqual(written.lifetimes_state, _CONFLICTING)
 
+    def test_cache_parts_the_input_holds_add_up(self) -> None:
+        # Codex's input holds its cache reads and writes at once, so each fitting alone is not enough.
+        within = _readings(input=_CODEX_INPUT, cache_read=_CODEX_CACHED, output=_CODEX_OUTPUT)
+        fitting_write = {normalization.CACHE_WRITE: _Reading.of(_CODEX_INPUT - _CODEX_CACHED)}
+        past_write = {normalization.CACHE_WRITE: _Reading.of(_CODEX_CACHED)}
+        fitting = normalization.normalize(protocol.CODEX, {**within, **fitting_write})
+        past = normalization.normalize(protocol.CODEX, {**within, **past_write})
+        self.assertNotIn(_CONFLICTING, fitting.states())
+        self.assertEqual(past.fields[_CACHE_READ].state, _CONFLICTING)
+        self.assertEqual(past.fields[_CACHE_WRITE].state, _CONFLICTING)
+        self.assertEqual(past.count(_CONTEXT), _CODEX_INPUT)
+
     def test_values_read_as_the_run_accounting_does(self) -> None:
         cases = (
             (None, None, _MISSING),
@@ -187,6 +199,11 @@ class EvidenceTest(unittest.TestCase):
             ("10", 10, _OBSERVED),
             (float(10), 10, _OBSERVED),
             (-1, -1, _INVALID),
+            # A value no count is: judged before it is truncated, never read as the count truncating it makes.
+            (-0.5, None, _INVALID),
+            (10.5, None, _INVALID),
+            ("10.5", None, _INVALID),
+            (float("inf"), None, _INVALID),
             (True, None, _INVALID),
             ("ten", None, _INVALID),
             ({}, None, _INVALID),

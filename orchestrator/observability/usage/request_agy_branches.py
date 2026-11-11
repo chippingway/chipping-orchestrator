@@ -2,17 +2,21 @@
 # SPDX-License-Identifier: Apache-2.0
 """Which Antigravity conversation one step belongs to, and the model it is established to have run on.
 
-A process stream is its own conversation -- the one its `init` names, or, where no `init` names one, the one
+A process stream is its own conversation -- the one its first `init` names, or, where that names none, the one
 conversation its steps name besides its subagents' -- and every subagent a step spawned (`subagent_info`) is a branch
-of its own. `init.model` echoes the `--model` slug the process was given, and every
-generation of that conversation, a response's and each helper generation beside it, runs on the model it selected,
-so a step of the process's own conversation is attributed to the `init` model in effect when it began, or, where no
-`init` named one, to the configured `--model` the caller passes as a fallback, each under its own provenance. A
-subagent's conversation is another conversation whose model no frame names: its steps keep their parent and subagent
-identities and no model at all, never their parent's, and so does a step of any conversation other than the
-process's. A step naming no conversation in a stream that spawned a subagent could be either side's, so it is given
-no model either. An `init` of the process naming a different model than the one before it is a model change, kept as
-a marker; an `init` of another conversation changes nothing.
+of its own. Which conversations a stream names at all is read before any step is folded (`Census`), so a frame naming
+no conversation in a stream that names exactly one, and spawns no subagent, is that conversation's frame, folded into
+the same step as the frames that do name it; in any other stream it could be any of them, so it stays unplaced and
+is a gap.
+
+`init.model` echoes the `--model` slug a conversation was started with, and every generation of that conversation, a
+response's and each helper generation beside it, runs on the model it selected. So a step is attributed to the model
+its own conversation's `init` named as the step began -- a subagent's own `init` included -- and a step of the
+process's conversation, where its own conversation's `init` named none, to the process's `init` model or the configured
+`--model` the caller passes as a fallback, each under its own provenance. A step of any other conversation whose
+`init` named no model keeps its parent and subagent identities and no model at all, never its parent's, and so does an
+unplaced step. An `init` naming a different model than its conversation's previous one is a model change, kept as a
+marker; a later `init` naming no conversation could be any conversation's, and changes nothing.
 """
 
 from __future__ import annotations
@@ -23,12 +27,13 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from orchestrator.observability.usage import (
+    agy_events,
     protocol,
     request_coverage as coverage,
     request_models,
 )
 from orchestrator.observability.usage.request_agy_steps import StepFold, StepKey
-from orchestrator.observability.usage.request_scan import CollectionLimits, Metadata
+from orchestrator.observability.usage.request_scan import CollectionLimits, Metadata, PositionedEvent
 
 CONVERSATION_ID = request_models.CONVERSATION_ID
 _SUBAGENTS = "subagents"
@@ -43,6 +48,54 @@ class Child:
     subagent_type: str | None
 
 
+@dataclass
+class Census:
+    """Whether a stream names exactly one conversation, read before any of its steps is folded.
+
+    It keeps the first name and whether a second one, a name too long to compare, or a subagent spawn followed -- never
+    the names themselves -- so it costs the same however many conversations a stream names.
+    """
+
+    limit: int
+    first: str | None = None
+    several: bool = False
+    spawned: bool = False
+
+    @classmethod
+    def taken(cls, events: Iterable[PositionedEvent], limit: int) -> Census:
+        census = cls(limit)
+        for _, event in events:
+            census.read(event)
+        return census
+
+    @property
+    def sole(self) -> str | None:
+        """The one conversation a frame naming none belongs to, where the stream establishes one."""
+        return None if self.unplaced else self.first
+
+    @property
+    def unplaced(self) -> bool:
+        """Whether a frame naming no conversation could belong to more than one."""
+        return self.several or self.spawned
+
+    def read(self, event: dict[str, Any]) -> None:
+        init = agy_events.payload(event, agy_events.INIT)
+        frame = agy_events.payload(event, agy_events.STEP_UPDATE)
+        if init is not None:
+            self._name(event.get(CONVERSATION_ID))
+        if frame is not None:
+            self._name(frame.get(CONVERSATION_ID))
+            self.spawned = self.spawned or frame.get(agy_events.SUBAGENT_INFO) is not None
+
+    def _name(self, raw: Any) -> None:
+        if not isinstance(raw, str) or not raw:
+            return
+        if len(raw) > self.limit or self.first not in {None, raw}:
+            self.several = True
+        elif self.first is None:
+            self.first = raw
+
+
 def _kept(markers: list[request_models.RequestMarker], limit: int, marker: request_models.RequestMarker) -> bool:
     """Keep `marker` where the markers are still within their bound."""
     if len(markers) >= limit:
@@ -53,16 +106,21 @@ def _kept(markers: list[request_models.RequestMarker], limit: int, marker: reque
 
 @dataclass
 class Branches:
-    """The process's own conversation and model, the subagents its steps spawned, and the markers between them.
+    """The process's own conversation, each conversation's model, the subagents its steps spawned, and the markers.
 
     A step's `subagent_info` repeats on every frame of it, so the subagents it could not name or correlate are kept as
-    the steps that spawned them, and each counts once however often the stream repeats it.
+    the steps that spawned them, and each counts once however often the stream repeats it. The models are kept by the
+    conversation whose `init` named them -- the process's first `init` under the conversation it names, or under None
+    where it names none -- within the branch bound.
     """
 
     limits: CollectionLimits
     metadata: Metadata
+    census: Census
+    process_seen: bool = False
+    process_key: str | None = None
     process_conversation: str | None = None
-    model: str | None = None
+    models: dict[str | None, str] = field(default_factory=dict)
     markers: list[request_models.RequestMarker] = field(default_factory=list)
     children: dict[str, Child] = field(default_factory=dict)
     unidentified: set[StepKey] = field(default_factory=set)
@@ -75,19 +133,22 @@ class Branches:
         event: dict[str, Any],
         init: dict[str, Any],
     ) -> None:
-        """Read the process's `init`: the conversation it names, and the model it runs on from here on.
-
-        Only the process's own `init` says what its conversation runs on, so one naming another conversation changes
-        no model and marks nothing.
-        """
+        """Read one `init`: the conversation it names, and the model that conversation runs on from here on."""
         conversation = self.metadata.text(event.get(CONVERSATION_ID))
-        if self.process_conversation is None:
+        if not self.process_seen:
+            self.process_seen = True
+            self.process_key = conversation
             self.process_conversation = conversation
-        model = self.metadata.text(init.get(protocol.MODEL))
-        if model is None or conversation != self.process_conversation:
+        elif conversation is None:
             return
-        previous = self.model
-        self.model = model
+        model = self.metadata.text(init.get(protocol.MODEL))
+        if model is None:
+            return
+        previous = self.models.get(conversation)
+        if previous is None and len(self.models) > self.limits.branches:
+            self.gaps[coverage.CORRELATION_LIMIT] += 1
+            return
+        self.models[conversation] = model
         if previous in {None, model}:
             return
         changed = request_models.RequestMarker(request_models.MODEL_CHANGE, position, conversation, model, previous)
@@ -116,15 +177,18 @@ class Branches:
         if len(named) == 1:
             self.process_conversation = named.pop()
 
-    def child(self, step: StepFold) -> Child | None:
-        conversation = step.key[0]
-        return None if conversation is None else self.children.get(conversation)
+    def models_for(self, conversation: str | None) -> tuple[str | None, str | None]:
+        """The models in effect as a step of `conversation` begins: its own conversation's, and the process's."""
+        own = None if conversation is None else self.models.get(conversation)
+        return own, self.models.get(self.process_key)
 
     def attribution(self, step: StepFold, fallback_model: str | None) -> request_models.RequestAttribution:
-        if self._foreign(step.key[0]):
+        foreign = self._foreign(step.key[0])
+        model = step.own_model if foreign else step.own_model or step.process_model
+        if model is not None:
+            return request_models.RequestAttribution(model, request_models.STREAM_MODEL)
+        if foreign:
             return request_models.RequestAttribution(None, request_models.UNESTABLISHED)
-        if step.model is not None:
-            return request_models.RequestAttribution(step.model, request_models.STREAM_MODEL)
         if fallback_model:
             return request_models.RequestAttribution(fallback_model, request_models.CONFIGURED_FALLBACK)
         return request_models.RequestAttribution(None, request_models.UNAVAILABLE)
@@ -132,7 +196,7 @@ class Branches:
     def _foreign(self, conversation: str | None) -> bool:
         """Whether a step may belong to a conversation other than the process's own."""
         if conversation is None:
-            return bool(self.children)
+            return self.census.unplaced
         return conversation in self.children or conversation != self.process_conversation
 
     def _read_child(self, parent: StepFold, subagent: Any) -> None:
