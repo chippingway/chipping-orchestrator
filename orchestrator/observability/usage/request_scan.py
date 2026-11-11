@@ -8,8 +8,8 @@ branches, and markers it correlates, how many aggregate checkpoints it keeps, an
 metadata may be. Each line is decoded by the shared resilient decoder (`event_stream.iter_events`), so a line reads the
 same here as in every other parser. A bound that stops the scan, or a line it refuses to decode, is recorded as a gap,
 so a collection that read less than the whole invocation says so. A line shaped like a JSON object that does not decode
-is a malformed frame, and so is a line the decoder refuses outright; any other line that decodes to no event -- banner
-text -- is skipped without being one.
+is a malformed frame, a line the decoder refuses included; any other line that decodes to no event -- banner text, or
+a value that is no object -- is skipped without being one, since it could never have been an event.
 
 The bounds are module defaults rather than knobs, read once per collection by `current_limits`, so a caller shrinks
 one here and the next collection is held to it.
@@ -103,16 +103,13 @@ class EventScan:
     def _decoded(self, line: str) -> list[dict[str, Any]]:
         """The event one line decodes to, or none, with why a line was skipped counted where it is a gap.
 
-        The decoder itself may refuse a line it could parse -- a number past the interpreter's digit limit, nesting
-        past its recursion depth -- and that refusal is a malformed line of this scan, never an error that would cost
-        every other line of it.
+        Only a line shaped like an object could have been an event, so one that decodes to none -- cut short, or
+        refused by the decoder for a number past the interpreter's digit limit or nesting past its depth -- is a
+        malformed line of this scan, while any other skipped line is not.
         """
         if len(line) > self.limits.line_chars:
             return self._skipped(coverage.OVERSIZE_LINES)
-        try:
-            decoded = event_stream.iter_events(line)
-        except (ValueError, RecursionError):
-            return self._skipped(coverage.MALFORMED_LINES)
+        decoded = event_stream.iter_events(line)
         if decoded:
             return decoded
         return self._skipped(coverage.MALFORMED_LINES if line.startswith(_OBJECT_START) else None)
@@ -141,8 +138,11 @@ def current_limits() -> CollectionLimits:
 def scan_events(stdout: str, limits: CollectionLimits) -> EventScan:
     """Decode `stdout` within `limits`, numbering each event by the stdout line it was printed on."""
     scan = EventScan(limits)
-    # Only output the bound leaves unread cuts the scan short; trailing whitespace past it is nothing to read.
-    if _NON_SPACE.search(stdout, limits.scan_chars):
+    # Only output the bound leaves unread cuts the scan short, and trailing whitespace past it is nothing to read. The
+    # tail is looked at over as many characters again as the scan reads at most; output going on past that is taken
+    # to be unread, so a whitespace tail costs no more than the bound however long it is.
+    tail_end = limits.scan_chars * 2
+    if len(stdout) > tail_end or _NON_SPACE.search(stdout, limits.scan_chars, tail_end):
         scan.gaps[coverage.SCAN_LIMIT] += 1
     for position, raw_line in enumerate(stdout[:limits.scan_chars].splitlines()):
         if not scan.read(position, raw_line):

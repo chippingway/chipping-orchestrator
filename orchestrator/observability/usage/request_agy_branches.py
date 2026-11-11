@@ -62,46 +62,43 @@ class Child:
 
 @dataclass
 class Census:
-    """Whether a stream names exactly one conversation, read before any of its steps is folded.
+    """Which conversations a stream names, read before any of its steps is folded.
 
-    It keeps the first name and whether a second one, a name too long to compare, or a subagent spawn followed -- never
-    the names themselves -- so it costs the same however many conversations a stream names.
+    It keeps each name within a bound, and whether a name was refused -- too long to keep, no string at all, or past
+    the bound -- or a subagent spawn followed, so it costs no more than the bound however many conversations a stream
+    names, and a stream it could not read whole is never taken to name only the ones it kept.
     """
 
     limit: int
-    first: str | None = None
-    several: bool = False
+    bound: int
+    names: set[str] = field(default_factory=set)
+    refused: bool = False
     spawned: bool = False
 
     @classmethod
-    def taken(cls, events: Iterable[PositionedEvent], limit: int) -> Census:
-        census = cls(limit)
+    def taken(cls, events: Iterable[PositionedEvent], limits: CollectionLimits) -> Census:
+        census = cls(limits.metadata_chars, limits.branches + 1)
         for _, event in events:
             census.read(event)
         return census
 
     @property
-    def sole(self) -> str | None:
-        """The one conversation a frame naming none belongs to, where the stream establishes one."""
-        return None if self.unplaced else self.first
-
-    @property
     def unplaced(self) -> bool:
         """Whether a frame naming no conversation could belong to more than one."""
-        return self.several or self.spawned
+        return self.refused or self.spawned or len(self.names) > 1
 
     def placed(self, named: str | None) -> tuple[str | None, bool]:
         """The conversation a frame or `init` belongs to, and whether that is established.
 
         `named` is the conversation it names as this collection keeps it. One naming none, or one whose name was
-        refused -- which makes the stream name several -- is the stream's one conversation where it names exactly one,
-        its unnamed process conversation where it names none, and established in neither way otherwise.
+        refused, is the stream's one conversation where it names exactly one, its unnamed process conversation where
+        it names none, and established in neither way otherwise.
         """
         if named is not None:
             return named, True
         if self.unplaced:
             return None, False
-        return self.first, True
+        return next(iter(self.names), None), True
 
     def read(self, event: dict[str, Any]) -> None:
         init = agy_events.payload(event, agy_events.INIT)
@@ -118,12 +115,14 @@ class Census:
     def _name(self, raw: Any) -> None:
         if raw is None or raw == "":
             return
-        # A name too long to keep, or no string at all, cannot be compared with any other, so it is another name.
-        refused = not isinstance(raw, str) or len(raw) > self.limit
-        if refused or self.first not in {None, raw}:
-            self.several = True
-        elif self.first is None:
-            self.first = raw
+        # A name too long to keep, no string at all, or one past the bound cannot be compared with the rest.
+        if not isinstance(raw, str) or len(raw) > self.limit:
+            self.refused = True
+            return
+        if raw in self.names or len(self.names) < self.bound:
+            self.names.add(raw)
+        else:
+            self.refused = True
 
 
 def _kept(markers: list[request_models.RequestMarker], limit: int, marker: request_models.RequestMarker) -> bool:
@@ -192,18 +191,21 @@ class Branches:
         for subagent in subagents:
             self._read_child(parent, subagent)
 
-    def settle(self, conversations: Iterable[str | None]) -> None:
-        """Name the process's conversation where no `init` did: the one its steps name besides its subagents'.
+    def settle(self) -> None:
+        """Name the process's conversation where no `init` did: the one the stream names besides its subagents'.
 
-        A stream naming two or more such conversations leaves it unnamed, so a step of any of them is attributed to
-        none rather than to a model only one of them may have run on.
+        Every conversation the stream names counts -- in an `init`, a step, or a `result` -- so a stream naming two or
+        more such conversations, or one whose names this collection could not all keep, leaves it unnamed: a request
+        of any of them is attributed to none rather than to a model only one of them may have run on, and the
+        process's conversation going unestablished is a gap.
         """
         if self.process_conversation is not None or self.process_refused:
             return
-        named = {conversation for conversation in conversations if conversation is not None}
-        named.difference_update(self.children)
-        if len(named) == 1:
+        named = self.census.names - set(self.children)
+        if len(named) == 1 and not self.census.refused:
             self.process_conversation = named.pop()
+        elif named or self.census.refused:
+            self.gaps[coverage.CONVERSATION_AMBIGUOUS] += 1
 
     def attribution(self, step: StepFold, fallback_model: str | None) -> request_models.RequestAttribution:
         foreign = self._foreign(step.key[0])

@@ -44,12 +44,13 @@ _EARLY_CACHE_READ = 5
 _EARLY_INPUT = stream.step(1, state="ACTIVE", usage={_INPUT: _INPUT_COUNT, _CACHE_READ: _EARLY_CACHE_READ})
 _SPARSE_COMPLETION = stream.step(1, usage={_OUTPUT: _OUTPUT_COUNT})
 _SPARSE_RAW = MappingProxyType({_INPUT: _INPUT_COUNT, _CACHE_READ: _EARLY_CACHE_READ, _OUTPUT: _OUTPUT_COUNT})
-_MIXED_SETTLEMENT = ("provisional", "completed-and-pre-completion-frames")
+_MIXED_SETTLEMENT = ("provisional", "completed-and-unconfirmed-frames")
 # A completion reporting the input alone, then a frame with no state reporting the rest of the step's usage.
 _INPUT_COMPLETION = stream.step(1, usage={_INPUT: _INPUT_COUNT})
 _LATER_FIELDS = MappingProxyType({"conversation_id": stream.SESSION_ID, "step_index": 1})
 _LATER_REST = stream.event("step_update", usage=dict(_SPARSE_RAW), **_LATER_FIELDS)
 _DISAGREEING_RAW = MappingProxyType({**_SPARSE_RAW, _INPUT: _INPUT_COUNT + 1})
+_LATER_ACTIVE = stream.event("step_update", state="ACTIVE", usage=dict(_SPARSE_RAW), **_LATER_FIELDS)
 _LATER_DISAGREEING = stream.event("step_update", usage=dict(_DISAGREEING_RAW), **_LATER_FIELDS)
 _LATER_SETTLEMENT = ("final", "completed-and-later-frames")
 _INIT = stream.init_event()
@@ -136,7 +137,7 @@ class StepFoldTest(unittest.TestCase):
         early = _usage_step(1, state=agy_events.ACTIVE)
         provisional = cases.collected(_INIT, early, stream.step(1), _TERMINAL)
         settlement = cases.picked(provisional.samples[0], *_SETTLED)
-        self.assertEqual(settlement, (models.PROVISIONAL, "pre-completion-frame"))
+        self.assertEqual(settlement, (models.PROVISIONAL, "unconfirmed-frame"))
         self.assertEqual(provisional.reasons, {coverage.PROVISIONAL_USAGE: 1})
 
     def test_sparse_completion_keeps_earlier_counters(self) -> None:
@@ -156,6 +157,14 @@ class StepFoldTest(unittest.TestCase):
         # A later frame disagreeing with the completed report contradicts it, like a second completion would.
         contradicted = cases.collected(_INIT, _INPUT_COMPLETION, _LATER_DISAGREEING, _TERMINAL)
         self.assertIn(coverage.CONFLICTING_COUNTERS, contradicted.reasons)
+
+    def test_later_active_usage_is_unconfirmed(self) -> None:
+        # A frame after completion that names another state confirms nothing it carries.
+        collection = cases.collected(_INIT, _INPUT_COMPLETION, _LATER_ACTIVE, _TERMINAL)
+        sample = collection.samples[0]
+        self.assertEqual(sample[cases.RAW], dict(_SPARSE_RAW))
+        self.assertEqual(cases.picked(sample, *_SETTLED), _MIXED_SETTLEMENT)
+        self.assertEqual(collection.reasons, {coverage.PROVISIONAL_USAGE: 1})
 
     def test_completed_frames_disagreeing_conflict(self) -> None:
         disagreeing = stream.step(1, usage={_INPUT: _INPUT_COUNT + 1})

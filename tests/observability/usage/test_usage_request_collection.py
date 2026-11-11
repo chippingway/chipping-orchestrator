@@ -7,6 +7,8 @@ import json
 import sys
 import unittest
 from types import MappingProxyType
+from typing import Any
+from unittest.mock import patch
 
 from orchestrator.observability.usage import (
     protocol,
@@ -25,8 +27,20 @@ _MIXED_STDOUT = f"\nAntigravity CLI ready\n{_TRUNCATED_FRAME}\n{_COMPLETE_EVENT}
 _DIGITS = "1" * (sys.get_int_max_str_digits() + 1)
 _TOO_MANY_DIGITS = f'{{"unrelated": {_DIGITS}}}'
 _DEEP_NESTING = 200_000
-_REFUSED_STDOUT = "\n".join((_TOO_MANY_DIGITS, "[" * _DEEP_NESTING, _COMPLETE_EVENT))
+_OPEN_ARRAYS = "[" * _DEEP_NESTING
+_NESTED_TOO_DEEP = f'{{"unrelated": {_OPEN_ARRAYS}'
+_REFUSED_STDOUT = f"{_TOO_MANY_DIGITS}\n{_NESTED_TOO_DEEP}\n{_OPEN_ARRAYS}\n{_COMPLETE_EVENT}"
+# Whitespace past a bound of one event's length: within as many characters again, and far past them.
+_SHORT_SPACES = " " * (len(_COMPLETE_EVENT) - 1)
+_LONG_SPACES = " " * 1000
+_TAILS = (
+    ("within the bound again", f"{_COMPLETE_EVENT}{_SHORT_SPACES}", {}),
+    ("far past it", f"{_COMPLETE_EVENT}{_LONG_SPACES}", {coverage.SCAN_LIMIT: 1}),
+)
+_SEARCHER = "_NON_SPACE"
+_REAL_SEARCHER = getattr(scan, _SEARCHER)
 _LIMITS = scan.current_limits()
+_TAIL_LIMITS = dataclasses.replace(_LIMITS, scan_chars=len(_COMPLETE_EVENT))
 _METADATA_LIMIT = 8
 _STORAGE = coverage.STORAGE_BUDGET
 _STATUS = "status"
@@ -86,6 +100,13 @@ def _usage(reasons: dict, samples: int = 1, markers: int = 0) -> coverage.Reques
         observations=(_observation(**_COMPLETE),) * samples,
         markers=(marker,) * markers,
     )
+
+
+def _widest_search(searcher: Any) -> int:
+    """The most characters any one recorded search looked through."""
+    searches = searcher.search.call_args_list
+    spans = [args[2] - args[1] for args, _ in searches]
+    return max(spans, default=0)
 
 
 def _gaps(overrides: dict, subagent: bool) -> list[str]:
@@ -167,9 +188,19 @@ class BoundedScanTest(unittest.TestCase):
         self.assertFalse(trailing.gaps)
 
     def test_decoder_refusals_are_malformed_lines(self) -> None:
+        # An object line the decoder refuses could have been an event; a refused array never could.
         events = scan.scan_events(_REFUSED_STDOUT, _LIMITS)
-        self.assertEqual([position for position, _ in events.events], [2])
+        self.assertEqual([position for position, _ in events.events], [3])
         self.assertEqual(events.gaps, {coverage.MALFORMED_LINES: 2})
+
+    def test_the_tail_is_read_within_the_bound(self) -> None:
+        # However long the whitespace past the scanned characters, no more of it than the bound is searched: a tail
+        # within as many characters again is whitespace and no gap, and output going on past that is taken as unread.
+        for name, stdout, gaps in _TAILS:
+            with self.subTest(name), patch.object(scan, _SEARCHER, wraps=_REAL_SEARCHER) as non_space:
+                events = scan.scan_events(stdout, _TAIL_LIMITS)
+                self.assertLessEqual(_widest_search(non_space), _TAIL_LIMITS.scan_chars)
+                self.assertEqual(dict(events.gaps), gaps)
 
     def test_oversize_metadata_is_dropped_and_counted(self) -> None:
         metadata = scan.Metadata(_METADATA_LIMIT)

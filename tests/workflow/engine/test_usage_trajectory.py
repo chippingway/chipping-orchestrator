@@ -57,6 +57,7 @@ _claude_stdout_with_skills = _usage_frames._claude_stdout_with_skills
 
 _BACKEND_AGY = "agy"
 _REQUEST_ISOLATION_ISSUE_NUMBER = 304
+_REFUSED_LINE_ISSUE_NUMBER = 305
 # An Antigravity run interrupted mid-response, after one completed request.
 _AGY_STDOUT = "\n".join((
     _agy_stream.init_event(),
@@ -65,6 +66,13 @@ _AGY_STDOUT = "\n".join((
 ))
 _FAILED_AGY_RUN = AgentResult(
     session_id=None, last_message="", exit_code=1, timed_out=False, stdout=_AGY_STDOUT, stderr="",
+)
+# The same run with a line the JSON decoder refuses although it parses: nesting past its depth.
+_DEEP_NESTING = 200_000
+_OPEN_ARRAYS = "[" * _DEEP_NESTING
+_REFUSED_LINE = f'{{"unrelated": {_OPEN_ARRAYS}'
+_REFUSED_AGY_RUN = AgentResult(
+    session_id=None, last_message="", exit_code=1, timed_out=False, stdout=f"{_AGY_STDOUT}\n{_REFUSED_LINE}", stderr="",
 )
 
 
@@ -263,6 +271,31 @@ class TrajectoryRecordingTest(unittest.TestCase):
         trajectory_record = _analytics_records(trajectory_path)[0]
         self.assertEqual(trajectory_record["request_usage"]["coverage"]["reasons"], {"collector-error": 1})
         self.assertEqual(trajectory_record["steps"][0]["content"], "partial")
+
+    def test_a_refused_line_keeps_the_run(self) -> None:
+        # A line the decoder refuses costs that line alone: the run is metered and accounted, and its trajectory
+        # keeps the completed request beside a malformed-line gap.
+        gh = FakeGitHubClient()
+        budget = _tracked_budget(gh, _REFUSED_LINE_ISSUE_NUMBER)
+        trajectory_path = _analytics_path(self, "refused-", "refused-trajectory.jsonl")
+        with (
+            patch.object(analytics_settings, _TRAJECTORY_PATH_ATTR, trajectory_path),
+            patch.object(_agent_runner, _RUN_AGENT_ATTR, return_value=_REFUSED_AGY_RUN),
+        ):
+            agent_result = engine_usage._run_agent_tracked(
+                gh, budget,
+                agent_role=ROLE_DEVELOPER,
+                stage=STAGE_IMPLEMENTING,
+                backend=_BACKEND_AGY,
+                prompt=_TRAJECTORY_PROMPT,
+                cwd=_FAKE_WT,
+                agent_spec=_BACKEND_AGY,
+            )
+        self.assertEqual(agent_result.usage.input_tokens, 10)
+        self.assertEqual(budget.state.state_data["issue_agent_runs"], 1)
+        request_usage = _analytics_records(trajectory_path)[0]["request_usage"]
+        self.assertEqual(len(request_usage["samples"]), 1)
+        self.assertIn("malformed-lines", request_usage["coverage"]["reasons"])
 
     def test_failure_keeps_skill_events(self) -> None:
         # A trajectory-parse failure must not cost the `skill_triggered`

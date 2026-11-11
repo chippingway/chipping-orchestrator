@@ -403,11 +403,12 @@ exists: the Developer API routes that deprecated ID to 3.8. The restricted Claud
 models carry no row, since no captured stream shows a harness emitting their IDs and `gpt-5.6-cyber` names whichever
 cyber model is current; nor does any `gpt-5.6-pro`, which OpenAI does not publish.
 
-**Resilience.** Malformed JSON lines (banner text, truncated frames, partial flushes) are silently skipped so a single
-bad line never invalidates the rest of the stream. `_run_agent_tracked` (in `workflow/engine/usage.py`) calls
-`parse_agent_usage` after every tracked agent run and appends the parsed counts to the
-[analytics sink](event-streams.md#analytics-sink-analytics_log_path) under `event="agent_exit"`; a
-parser exception is caught and downgraded to a `log.exception`.
+**Resilience.** Malformed JSON lines (banner text, truncated frames, partial flushes, and lines the decoder refuses
+although they parse -- a number past the interpreter's digit limit, nesting past its depth) are silently skipped so a
+single bad line never invalidates the rest of the stream. `_run_agent_tracked` (in `workflow/engine/usage.py`) calls
+`parse_agent_usage` after every tracked agent run and appends the parsed counts to the [analytics
+sink](event-streams.md#analytics-sink-analytics_log_path) under `event="agent_exit"`; a parser exception is caught and
+downgraded to a `log.exception`.
 
 **Terminal verdict surface.** Beyond the analytics sink, every invoked run's parsed `UsageMetrics` is counted on
 per-issue totals on the pinned state (`issue_agent_runs` / `issue_total_tokens` /
@@ -678,12 +679,12 @@ the stream gave nothing for is absent rather than null:
   for each normalized field.
 
 Nothing is inferred into a sample: no timestamp, order across conversations, context capacity, or model is taken from
-unrelated data. A marker (`markers`) is an explicit boundary the stream printed -- `model-change`, with the `model`
-and `previous_model`, or a `compaction` or `reset` of the context -- and none is inferred where the stream prints no
-such boundary. A checkpoint (`checkpoints`) is aggregate usage over a wider scope, such as
-Antigravity's `result-total` over its whole `conversation`, with its `raw` counters, `turns`, and `source_status`.
-Neither is a request: neither is counted as one, and a reader reconciles a checkpoint only against samples of its own
-scope.
+unrelated data. A marker (`markers`) is an explicit boundary the stream printed -- `model-change`, with the `model` and
+`previous_model`, or a `compaction` or `reset` of the context -- and none is inferred where the stream prints no such
+boundary. A checkpoint (`checkpoints`) is aggregate usage over a wider scope, such as Antigravity's `result-total` over
+its whole `conversation`, with its `raw` counters, `turns`, and `source_status`, and an `evidence` map naming each
+counter it reported no usable count for -- an `invalid-counters` gap. Neither is a request: neither is counted as one,
+and a reader reconciles a checkpoint only against samples of its own scope.
 
 **Normalization.** `request_normalization.py` reads each request's raw counters into the same fields under its
 provider's profile:
@@ -727,66 +728,67 @@ its observed count is never read as the invocation's; one that read nothing is `
 `malformed-usage`.
 
 A collector reads stdout a second time, so `request_scan.py` bounds everything it adds, as module defaults read when a
-collection starts: at most 64 Mi characters of stdout (`MAX_SCAN_CHARS`; whitespace past them is no gap), 4 Mi
-characters per line (`MAX_LINE_CHARS`), 200,000 decoded events (`MAX_EVENTS`), 20,000 correlated steps
-(`MAX_TRACKED_STEPS`), 64 subagent branches (`MAX_BRANCHES`), 256 markers (`MAX_MARKERS`), the last 4 checkpoints
-(`MAX_CHECKPOINTS`), and 128 characters of any one piece of correlation metadata (`MAX_METADATA_CHARS`) -- a longer id
-or model name is dropped and counted, never cut, and so is the configured fallback model; a value that is no string at
-all -- or a duration no float holds or that is negative -- is dropped and counted as `malformed-metadata`, so a
-malformed field costs its own reading and no other request of the stream. Each line goes through the shared decoder; one
-shaped like a JSON object that does not decode is a malformed frame, and so is one the decoder itself refuses -- a
-number past the interpreter's digit limit, or nesting past its depth -- while banner text is skipped without being a
-gap. Only allowlisted counters and correlation metadata enter a sample: no prompt, response or tool text, reasoning
-text, credential, or source dictionary.
+collection starts: at most 64 Mi characters of stdout (`MAX_SCAN_CHARS`; whitespace past them is no gap, and is looked
+through for as many characters again at most, any output beyond taken as unread), 4 Mi characters per line
+(`MAX_LINE_CHARS`), 200,000 decoded events (`MAX_EVENTS`), 20,000 correlated steps (`MAX_TRACKED_STEPS`), 64 subagent
+branches (`MAX_BRANCHES`), 256 markers (`MAX_MARKERS`), the last 4 checkpoints (`MAX_CHECKPOINTS`), and 128 characters
+of any one piece of correlation metadata (`MAX_METADATA_CHARS`) -- a longer id or model name is dropped and counted,
+never cut, and so is the configured fallback model; a value that is no string at all -- or a duration no float holds or
+that is negative -- is dropped and counted as `malformed-metadata`, so a malformed field costs its own reading and no
+other request of the stream. Each line goes through the shared decoder; one shaped like a JSON object that decodes to
+none -- cut short, or refused by the decoder -- is a malformed frame, while banner text and a value that is no object,
+which could never have been an event, are skipped without being a gap. Only allowlisted counters and correlation
+metadata enter a sample: no prompt, response or tool text, reasoning text, credential, or source dictionary.
 
 **Antigravity requests.** `request_agy.py` produces one observation per completed usage-bearing step of the process's
 own stream, on the same agy 1.4.10 captures the run accounting is pinned to. A step is keyed by its conversation and
 `step_index` and folded from every frame of it (`request_agy_steps.py`): a completed frame adds the counters it carries
 and never takes back ones an earlier frame supplied, so a repeated or sparse frame keeps the step's usage; two completed
-frames reporting different counts leave that counter `conflicting`; a frame arriving after completion, with no state or
-another one, adds the counters it carries to the completed report under the same rule; and a counter only an earlier,
-active frame reported keeps that frame's count. A sample every counter of which a completed frame reported is `final`
-(`completed-frame`, or `completed-and-later-frames` where a frame after completion added one); one resting on earlier
-frames alone or in part is `provisional` (`pre-completion-frame`, or `completed-and-pre-completion-frames`). Two steps
-reporting equal counts stay two samples, and `checkpoint` steps -- helper generations -- are requests in their own
-right, in the order the stream completed them. `raw` reads `input_tokens`, `output_tokens`, `thinking_tokens`,
-`cache_read_tokens`, and `total_tokens` and nothing else of the block: the context input is the input plus the cache
-reads, the thinking a part of the output, and `total_tokens` the source total. The guide's cached step normalizes 278
-input tokens beside 30,214 cache reads to 30,492 context-input tokens, keeps its `total_tokens` of 282 as
-`source_total_tokens`, keeps its 0 thinking tokens inside its 4 output tokens, and leaves cache writes and their
-lifetimes `unsupported`.
+frames reporting different counts leave that counter `conflicting`; a frame arriving after completion and naming no
+state adds the counters it carries to the completed report under the same rule; and a counter only a frame not marked
+completed reported -- before completion, or after it under another state such as `ACTIVE` -- is unconfirmed, keeping
+that frame's count. A sample every counter of which a completed report holds is `final` (`completed-frame`, or
+`completed-and-later-frames` where a frame after completion added one); one resting on unconfirmed counters alone or in
+part is `provisional` (`unconfirmed-frame`, or `completed-and-unconfirmed-frames`). Two steps reporting equal counts
+stay two samples, and `checkpoint` steps -- helper generations -- are requests in their own right, in the order the
+stream completed them. `raw` reads `input_tokens`, `output_tokens`, `thinking_tokens`, `cache_read_tokens`, and
+`total_tokens` and nothing else of the block: the context input is the input plus the cache reads, the thinking a part
+of the output, and `total_tokens` the source total. The guide's cached step normalizes 278 input tokens beside 30,214
+cache reads to 30,492 context-input tokens, keeps its `total_tokens` of 282 as `source_total_tokens`, keeps its 0
+thinking tokens inside its 4 output tokens, and leaves cache writes and their lifetimes `unsupported`.
 
 Only this process's steps are samples, a resumed run's included: the terminal `result` usage counts the whole
 conversation, every earlier process of it too, so it is a `result-total` checkpoint of `conversation` scope and never a
 request; on the fresh captures, whose conversation is their own process, it equals the samples' sum.
-`request_agy_branches.py` reads which conversations a stream names -- in its `init`, `step_update`, and `result` events
--- before folding any step. A frame naming no conversation, in a stream naming exactly one and spawning no subagent, is
-that conversation's, folded into the same step as the frames naming it; in a stream naming none it is still this
-process's stdout and is kept under a `process-step` identity; and in any other stream it is kept the same way with no
-model and a `conversation-ambiguous` gap, since it could be more than one conversation's. A later `init` naming no
-conversation is placed the same way: in a stream naming one conversation or none it is that conversation's, its model a
-change like any other, and elsewhere it changes no model and is a `conversation-ambiguous` gap. A conversation name this
-collection refused -- too long to keep, or no string -- is not an absent one: a stream carrying one never names only one
-conversation, and a process `init` naming one leaves the process's conversation unknown, so no other conversation the
-steps name is taken for it. Each step then runs on the model its own conversation's `init` named as it began -- a
-subagent's own `init` included. A step of the process's own conversation -- the one its first `init` names, or, where
-that names none, the one conversation its steps name besides its subagents' -- falls back to the process's `init` model
-or the configured `--model`; a step of a subagent conversation a `subagent_info` named keeps its parent conversation,
-parent step, and subagent type, and without an `init` of its own no model at all, never its parent's, as does a step of
-any other conversation. An `init` naming a different model than its conversation's previous one is a `model-change`
-marker. A later frame naming a subagent completes the attribution earlier frames left out, such as its subagent type,
-and one contradicting it keeps the first and is a `subagent-attribution-conflicting` gap. A subagent gap counts the
-steps that spawned it once, however often their frames repeat it. The gaps it records are a response or `checkpoint`
-step, or one that carried usage, the stream never completed (`unsettled-steps`; a tool step still running is none), a
-completed one with no usage (`unreported-usage`), a frame with no step index that carries usage or a generation's step
-type (`unindexed-frames`), a subagent whose conversation exposed no usage (`subagent-usage-unavailable`), one
-`subagent_info` does not name (`subagent-unidentified`), an event naming an `init`, `step_update`, or `result` envelope
-but carrying no object under it (`malformed-envelopes`), a usage block on any step or `result` that is no object or
-names no counter (`malformed-usage`), and a stream with no terminal `result` of the process's own conversation
-(`no-terminal-result`) -- a subagent's `result` ends its own conversation, never the process. The stream reports no
-timestamp, context capacity, CLI version, cache write, or compaction or reset boundary, so every collection that read
-the stream lists those as limitations and records none of them. The run accounting is unchanged: `agy_summary.py` still
-counts each completed step's last completed frame, so where completed frames disagree the run counters keep that frame
-while the sample states the counter `conflicting`.
+`request_agy_branches.py` reads which conversations a stream names -- in its `init`, `step_update`, and `result` events,
+up to one more than the branch bound -- before folding any step. A frame naming no conversation, in a stream naming
+exactly one and spawning no subagent, is that conversation's, folded into the same step as the frames naming it; in a
+stream naming none it is still this process's stdout and is kept under a `process-step` identity; and in any other
+stream it is kept the same way with no model and a `conversation-ambiguous` gap, since it could be more than one
+conversation's. A later `init` naming no conversation is placed the same way: in a stream naming one conversation or
+none it is that conversation's, its model a change like any other, and elsewhere it changes no model and is a
+`conversation-ambiguous` gap. A conversation name this collection refused -- too long to keep, or no string -- is not an
+absent one: a stream carrying one never names only one conversation, and a process `init` naming one leaves the
+process's conversation unknown, so no other conversation the steps name is taken for it. Each step then runs on the
+model its own conversation's `init` named as it began -- a subagent's own `init` included. A step of the process's own
+conversation -- the one its first `init` names, or, where that names none, the one conversation the stream names besides
+its subagents', a stream naming more than one leaving it unknown and a `conversation-ambiguous` gap -- falls back to the
+process's `init` model or the configured `--model`; a step of a subagent conversation a `subagent_info` named keeps its
+parent conversation, parent step, and subagent type, and without an `init` of its own no model at all, never its
+parent's, as does a step of any other conversation. An `init` naming a different model than its conversation's previous
+one is a `model-change` marker. A later frame naming a subagent completes the attribution earlier frames left out, such
+as its subagent type, and one contradicting it keeps the first and is a `subagent-attribution-conflicting` gap. A
+subagent gap counts the steps that spawned it once, however often their frames repeat it. The gaps it records are a
+response or `checkpoint` step, or one that carried usage, the stream never completed (`unsettled-steps`; a tool step
+still running that carried no usage is none), a completed one with no usage (`unreported-usage`), a frame with no step
+index that carries usage or a generation's step type (`unindexed-frames`), a subagent whose conversation exposed no
+usage (`subagent-usage-unavailable`), one `subagent_info` does not name (`subagent-unidentified`), an event naming an
+`init`, `step_update`, or `result` envelope but carrying no object under it (`malformed-envelopes`), a usage block on
+any step or `result` that is no object or names no counter (`malformed-usage`), and a stream with no terminal `result`
+of the process's own conversation (`no-terminal-result`) -- a subagent's `result` ends its own conversation, never the
+process. The stream reports no timestamp, context capacity, CLI version, cache write, or compaction or reset boundary,
+so every collection that read the stream lists those as limitations and records none of them. The run accounting is
+unchanged: `agy_summary.py` still counts each completed step's last completed frame, so where completed frames disagree
+the run counters keep that frame while the sample states the counter `conflicting`.
 
 [pinned-state]: ../state-machine/labels-and-state.md#pinned-state

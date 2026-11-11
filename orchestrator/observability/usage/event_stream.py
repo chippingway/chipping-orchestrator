@@ -12,6 +12,11 @@ from orchestrator.observability.usage import cost_evidence, protocol, token_evid
 
 
 def iter_events(stdout: str) -> list[dict[str, Any]]:
+    """Every JSON object line of `stdout`, in order; a line that is no object is skipped and costs nothing else.
+
+    That includes a line the decoder refuses although it parses -- a number past the interpreter's digit limit,
+    nesting past its recursion depth -- since a refusal raised here would cost every other line of the stream.
+    """
     events: list[dict[str, Any]] = []
     for raw_line in stdout.splitlines():
         line = raw_line.strip()
@@ -19,7 +24,7 @@ def iter_events(stdout: str) -> list[dict[str, Any]]:
             continue
         try:
             decoded = json.loads(line)
-        except json.JSONDecodeError:
+        except (ValueError, RecursionError):
             continue
         if isinstance(decoded, dict):
             events.append(decoded)

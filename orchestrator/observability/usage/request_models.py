@@ -174,7 +174,11 @@ class RequestMarker:
 
 @dataclass(frozen=True)
 class UsageCheckpoint:
-    """Aggregate usage the stream reported over a wider scope than one request; never a request itself."""
+    """Aggregate usage the stream reported over a wider scope than one request; never a request itself.
+
+    `evidence` names each allowlisted counter the stream reported no usable count for, beside the state it is in, so
+    a counter reported as no count is never read as one it left out.
+    """
 
     kind: str
     scope: str
@@ -183,6 +187,7 @@ class UsageCheckpoint:
     conversation_id: str | None = None
     source_status: str | None = None
     turns: int | None = None
+    evidence: Mapping[str, str] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return compact({
@@ -193,4 +198,5 @@ class UsageCheckpoint:
             "source_status": self.source_status,
             "turns": self.turns,
             RAW: dict(self.raw),
+            "evidence": dict(self.evidence) if self.evidence else None,
         })

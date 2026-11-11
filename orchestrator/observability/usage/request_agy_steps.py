@@ -6,12 +6,12 @@ The CLI reports a step over as many frames as it takes and repeats a completed o
 of a step's fields. A step is therefore folded field by field: a frame adds what it carries and never takes away what
 an earlier one supplied, so a repeated or sparse completed frame keeps the usage the first completed frame reported.
 Two completed frames reporting different counts for one counter contradict each other, and that counter is
-`conflicting` rather than either count; a frame arriving after completion adds the counters it carries to the
-completed report under the same rule, and the request's settlement says so. Usage a frame carried before the step
-completed is kept apart and stands for every counter no completed frame reported -- all of them where none did -- so a
-sparse completion never takes back what an earlier frame supplied, and a request any of whose counters rests on such a
-frame is provisional rather than final. Only the counters `COUNTERS` names are read off a usage block; nothing else of
-a frame -- its text delta, its tool payload -- is.
+`conflicting` rather than either count; a frame arriving after completion and naming no state adds the counters it
+carries to the completed report under the same rule, and the request's settlement says so. Usage a frame not marked
+completed carried -- before completion, or after it under another state -- is unconfirmed: it is kept apart and stands
+for every counter no completed report holds, so a sparse completion never takes back what an earlier frame supplied,
+and a request any of whose counters rests on such a frame is provisional rather than final. Only the counters
+`COUNTERS` names are read off a usage block; nothing else of a frame -- its text delta, its tool payload -- is.
 """
 
 from __future__ import annotations
@@ -43,8 +43,8 @@ COUNTERS = MappingProxyType({
 # Steps that are generations, whose completion without usage is usage the stream did not report.
 GENERATIONS = frozenset(("agent_response", "checkpoint"))
 SETTLED_BY_COMPLETION = "completed-frame"
-SETTLED_BEFORE_COMPLETION = "pre-completion-frame"
-SETTLED_IN_PART_BEFORE_COMPLETION = "completed-and-pre-completion-frames"
+SETTLED_UNCONFIRMED = "unconfirmed-frame"
+SETTLED_IN_PART_UNCONFIRMED = "completed-and-unconfirmed-frames"
 SETTLED_AFTER_COMPLETION = "completed-and-later-frames"
 _USER_INPUT = "user_input"
 _DURATION = "duration_seconds"
@@ -144,10 +144,16 @@ class StepFold:
 
     @property
     def unsettled_gap(self) -> bool:
-        """Whether a step the stream never completed may have spent usage it never reported."""
-        if self.settled or self.tool or self.kind == _USER_INPUT:
+        """Whether a step the stream never completed may have spent usage it never settled.
+
+        Any step that reported usage and never completed is one, a tool's included; only a step that reported none is
+        excused for being a tool still running in the background, or the user's own input.
+        """
+        if self.settled:
             return False
-        return self.early is not None or self.kind in GENERATIONS
+        if self.early is not None:
+            return True
+        return not self.tool and self.kind in GENERATIONS
 
     @property
     def unreported_gap(self) -> bool:
@@ -160,9 +166,11 @@ class StepFold:
         self.tool = self.tool or agy_events.ToolLifecycle.is_tool_step(frame)
         self.kind = self.kind or metadata.text(frame.get(agy_events.STEP_TYPE))
         readings = usage_readings(frame) or {}
-        done = frame.get(agy_events.STATE) == agy_events.DONE
-        # A frame after completion adds to the completed report, held to it like a repeated completion.
-        if done or (readings and self.settled):
+        state = frame.get(agy_events.STATE)
+        done = state == agy_events.DONE
+        # A frame after completion naming no state adds to the completed report, held to it like a repeated
+        # completion; one naming another state is unconfirmed, as it would be before completion.
+        if done or (readings and self.settled and state is None):
             self._complete(position, readings, later=not done)
         elif readings:
             self.early = {**(self.early or {}), **readings}
@@ -180,9 +188,9 @@ class StepFold:
         if not readings:
             return None
         if not self.final:
-            return SettledUsage(readings, request_models.PROVISIONAL, SETTLED_BEFORE_COMPLETION)
+            return SettledUsage(readings, request_models.PROVISIONAL, SETTLED_UNCONFIRMED)
         if not early.keys() <= self.final.keys():
-            return SettledUsage(readings, request_models.PROVISIONAL, SETTLED_IN_PART_BEFORE_COMPLETION)
+            return SettledUsage(readings, request_models.PROVISIONAL, SETTLED_IN_PART_UNCONFIRMED)
         settlement = SETTLED_AFTER_COMPLETION if self.later else SETTLED_BY_COMPLETION
         return SettledUsage(readings, request_models.FINAL, settlement)
 

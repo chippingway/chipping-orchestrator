@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Antigravity per-run accounting and streamed trajectory reconstruction."""
 
+import sys
 import unittest
 
 from orchestrator.observability.usage import agy_events, metrics, skills, trajectory
@@ -10,9 +11,21 @@ from tests.support import agy_stream as stream
 _ACTIVE = agy_events.ACTIVE
 _DONE = agy_events.DONE
 _TOOL = agy_events.TOOL
+# Lines the JSON decoder refuses although they parse: a number past the interpreter's digit limit, nesting past its
+# depth.
+_DIGITS = "1" * (sys.get_int_max_str_digits() + 1)
+_DEEP_NESTING = 200_000
+_OPEN_ARRAYS = "[" * _DEEP_NESTING
+_REFUSED_LINES = (f'{{"unrelated": {_DIGITS}}}', _OPEN_ARRAYS)
 
 
 class AntigravityUsageTest(unittest.TestCase):
+    def test_lines_the_decoder_refuses_are_skipped(self) -> None:
+        # A line the decoder refuses although it parses costs that line alone, never the rest of the run's usage.
+        expected = metrics.parse_agent_usage(stream.BACKEND, stream.resumed_stream())
+        stdout = "\n".join((stream.resumed_stream(), *_REFUSED_LINES))
+        self.assertEqual(metrics.parse_agent_usage(stream.BACKEND, stdout), expected)
+
     def test_resume_counts_only_current_steps(self) -> None:
         stdout = stream.resumed_stream()
         stdout = "\n".join((stdout, stdout.splitlines()[-2]))

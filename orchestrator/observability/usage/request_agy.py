@@ -83,6 +83,29 @@ def malformed_envelope(event: dict[str, Any]) -> bool:
     return name in _ENVELOPES and not isinstance(event.get(name), dict)
 
 
+def terminal_checkpoint(
+    position: int,
+    terminal: dict[str, Any],
+    named: str | None,
+    metadata: request_scan.Metadata,
+) -> request_models.UsageCheckpoint:
+    """A terminal `result` as a conversation-scope checkpoint: its counters, and evidence of any that is no count."""
+    readings = usage_readings(terminal) or {}
+    turns = normalization.Reading.of(terminal.get("num_turns"))
+    return request_models.UsageCheckpoint(
+        kind=RESULT_TOTAL,
+        scope=request_models.CONVERSATION_SCOPE,
+        position=position,
+        raw=MappingProxyType(raw_counts(readings)),
+        conversation_id=named,
+        source_status=metadata.text(terminal.get("status")),
+        turns=turns.count if turns.known else None,
+        evidence=MappingProxyType({
+            counter: reading.state for counter, reading in readings.items() if not reading.known
+        }),
+    )
+
+
 def step_gaps(steps: Iterable[StepFold]) -> Counter[str]:
     """The gaps steps leave without becoming requests: never completed, or completed reporting no usage."""
     gaps: Counter[str] = Counter()
@@ -158,7 +181,7 @@ class StreamFold:
             Branches(
                 limits,
                 request_scan.Metadata(limits.metadata_chars),
-                Census.taken(scan.events, limits.metadata_chars),
+                Census.taken(scan.events, limits),
             ),
             checkpoints=deque(maxlen=limits.checkpoints),
         )
@@ -239,24 +262,17 @@ class StreamFold:
         conversation, placed = self.branches.census.placed(named)
         if placed and len(self.terminals) <= self.branches.limits.branches:
             self.terminals.add(conversation)
-        turns = normalization.Reading.of(terminal.get("num_turns"))
+        checkpoint = terminal_checkpoint(position, terminal, named, metadata)
         self.gaps[coverage.MALFORMED_USAGE] += malformed_usage(terminal)
+        self.gaps[coverage.INVALID_COUNTERS] += bool(checkpoint.evidence)
         self.observed_checkpoints += 1
-        self.checkpoints.append(request_models.UsageCheckpoint(
-            kind=RESULT_TOTAL,
-            scope=request_models.CONVERSATION_SCOPE,
-            position=position,
-            raw=MappingProxyType(raw_counts(usage_readings(terminal) or {})),
-            conversation_id=named,
-            source_status=metadata.text(terminal.get("status")),
-            turns=turns.count if turns.known else None,
-        ))
+        self.checkpoints.append(checkpoint)
 
 
 def collect(stdout: str, fallback_model: str | None = None) -> coverage.RequestUsage:
     """Collect the request usage one Antigravity process's stdout reports, within the collection bounds."""
     fold = StreamFold.read(stdout)
-    fold.branches.settle(conversation for conversation, _ in fold.steps)
+    fold.branches.settle()
     observations = Observations(fold.branches, fallback_model)
     for step in fold.settled_steps():
         observations.add(step)

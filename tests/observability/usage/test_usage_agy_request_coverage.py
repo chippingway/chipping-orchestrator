@@ -77,6 +77,10 @@ _NEGATIVE_USAGE = MappingProxyType({**_USAGE, protocol.OUTPUT_TOKENS: -1})
 _UNINDEXED_RESPONSE = stream.event(agy_events.STEP_UPDATE, step_type="agent_response", state=agy_events.DONE)
 _MALFORMED_UNINDEXED = stream.event(agy_events.STEP_UPDATE, step_type={})
 _BROKEN_USAGE = stream.step(3, kind=agy_events.TOOL, usage="broken")
+_UNFINISHED_FIELDS = MappingProxyType({"kind": agy_events.TOOL, "state": agy_events.ACTIVE})
+_UNFINISHED_TOOL = stream.step(3, usage=dict(_USAGE), **_UNFINISHED_FIELDS)
+_INVALID_TERMINAL_USAGE = MappingProxyType({**_USAGE, protocol.INPUT_TOKENS: "invalid"})
+_INVALID_TERMINAL = stream.terminal(usage=dict(_INVALID_TERMINAL_USAGE))
 _UNNAMED_USAGE = stream.step(3, kind=agy_events.TOOL, usage={"tokens": 5})
 _MALFORMED_ENVELOPE = json.dumps({"event": agy_events.STEP_UPDATE, agy_events.STEP_UPDATE: []})
 # A completed request whose duration is twice the largest float: an integer no float holds.
@@ -99,6 +103,8 @@ _PLACEMENTS = (
 _UNPLACED = (
     ("a named subagent", (_INIT, _spawning(_CHILD), _response(None))),
     ("an unnamed subagent", (_INIT, _UNNAMED_SPAWN, _response(None, 1))),
+    # An unnamed process `init` beside a step and a `result` naming two other conversations is either one's.
+    ("an unnamed process beside two conversations", (_UNNAMED_INIT, _response("one-conversation", 1))),
 )
 _TWO_UNNAMED = (_UNNAMED_INIT, _response("one-conversation"), _response("another-conversation"))
 _MODEL_CHANGE_STREAM = (_EARLIER_INIT, _FIRST, _INIT, _SECOND, _TERMINAL)
@@ -124,6 +130,8 @@ _DAMAGED = (
     ("an envelope that is no object", _MALFORMED_ENVELOPE, coverage.MALFORMED_ENVELOPES),
     ("a duration no float holds", _UNFLOATABLE_DURATION, coverage.MALFORMED_METADATA),
     ("tool usage that is no object", _BROKEN_USAGE, coverage.MALFORMED_USAGE),
+    ("tool step reporting usage it never completed", _UNFINISHED_TOOL, coverage.UNSETTLED_STEPS),
+    ("terminal counter that is no count", _INVALID_TERMINAL, coverage.INVALID_COUNTERS),
     ("tool usage naming no counter", _UNNAMED_USAGE, coverage.MALFORMED_USAGE),
 )
 # Later `init` events naming no conversation: a change of the one unnamed conversation, and one placed nowhere.
@@ -196,7 +204,7 @@ class BranchAttributionTest(unittest.TestCase):
 
     def test_one_named_conversation_is_the_process(self) -> None:
         # No `init` names the conversation, but the stream names only one: the process's own.
-        collection = cases.collected(_UNNAMED_INIT, _response(_CHILD), _TERMINAL)
+        collection = cases.collected(_UNNAMED_INIT, _response(_CHILD), _UNNAMED_TERMINAL)
         attribution = cases.picked(collection.samples[0], *_ATTRIBUTION_FIELDS)
         self.assertEqual(attribution, (stream.MODEL, models.STREAM_MODEL))
 
@@ -267,6 +275,13 @@ class CoverageGapTest(unittest.TestCase):
         collection = cases.collected(_INIT, _FIRST, _spawning(_CHILD), _CHILD_RESPONSE, _CHILD_TERMINAL)
         self.assertEqual(len(collection.samples), 2)
         self.assertIn(coverage.NO_TERMINAL_RESULT, collection.reasons)
+        self.assertEqual(collection.status, coverage.INCOMPLETE)
+
+    def test_checkpoints_keep_invalid_evidence(self) -> None:
+        collection = cases.collected(_INIT, _FIRST, _INVALID_TERMINAL)
+        checkpoint = collection.checkpoints[0]
+        self.assertNotIn(protocol.INPUT_TOKENS, checkpoint[cases.RAW])
+        self.assertEqual(checkpoint[cases.EVIDENCE], {protocol.INPUT_TOKENS: "invalid"})
         self.assertEqual(collection.status, coverage.INCOMPLETE)
 
     def test_dispatch_collects_for_antigravity_alone(self) -> None:
