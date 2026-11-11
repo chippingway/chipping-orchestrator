@@ -198,17 +198,14 @@ class StreamFold:
         """Scan `stdout`, learn which conversations it names, then fold every event in stream order."""
         limits = request_scan.current_limits()
         scan = request_scan.scan_events(stdout, limits)
+        census = Census.taken(scan.events, limits)
         fold = cls(
             scan,
-            Branches(
-                limits,
-                request_scan.Metadata(limits.metadata_chars),
-                Census.taken(scan.events, limits),
-            ),
+            Branches(limits, request_scan.Metadata(limits.metadata_chars), census, census.settled),
             checkpoints=deque(maxlen=limits.checkpoints),
         )
-        for position, event in scan.events:
-            fold.feed(position, event)
+        for positioned in scan.events:
+            fold.feed(*positioned)
         return fold
 
     def feed(self, position: int, event: dict[str, Any]) -> None:
@@ -249,22 +246,24 @@ class StreamFold:
         # Only the process's own conversation ending ends the process; a subagent's result ends its own alone.
         ended = self.branches.process_conversation in self.terminals
         gaps[coverage.NO_TERMINAL_RESULT] += bool(self.envelopes) and not ended
+        gaps[coverage.CONVERSATION_AMBIGUOUS] += self.branches.unsettled
         return MappingProxyType(dict(+gaps))
 
     def _step(self, position: int, frame: dict[str, Any]) -> None:
+        """Fold one `step_update` frame into its step; the subagents it names are read whether or not it has one."""
         self.gaps[coverage.MALFORMED_USAGE] += malformed_usage(frame)
+        named = self.branches.metadata.text(frame.get(CONVERSATION_ID))
+        conversation = self.branches.census.placed(named)[0]
         index = frame.get(agy_events.STEP_INDEX)
         if isinstance(index, bool) or not isinstance(index, int) or index not in STEP_INDICES:
             self.gaps[coverage.UNINDEXED_FRAMES] += unindexed_gap(frame, self.branches.metadata)
-            return
-        named = self.branches.metadata.text(frame.get(CONVERSATION_ID))
-        conversation, _ = self.branches.census.placed(named)
-        step = self._tracked((conversation, index))
-        if step is None:
-            return
-        step.absorb(position, frame, self.branches.metadata)
+            index = None
+        else:
+            step = self._tracked((conversation, index))
+            if step is not None:
+                step.absorb(position, frame, self.branches.metadata)
         if frame.get(agy_events.SUBAGENT_INFO) is not None:
-            self.branches.read_subagents(step, frame[agy_events.SUBAGENT_INFO])
+            self.branches.read_subagents((conversation, index), frame[agy_events.SUBAGENT_INFO])
 
     def _tracked(self, key: StepKey) -> StepFold | None:
         """The fold of the step `key` names, opened on its first frame under the model then in effect."""
@@ -276,7 +275,7 @@ class StreamFold:
             conversation = key[0]
             # A conversation's own model is keyed by its name; the None key is the process's unnamed one alone.
             own = None if conversation is None else models.get(conversation)
-            step = StepFold(key, own, models.get(self.branches.process_key))
+            step = StepFold(key, own, models.get(self.branches.process_conversation))
             self.steps[key] = step
         return step
 
@@ -297,7 +296,6 @@ class StreamFold:
 def collect(stdout: str, fallback_model: str | None = None) -> coverage.RequestUsage:
     """Collect the request usage one Antigravity process's stdout reports, within the collection bounds."""
     fold = StreamFold.read(stdout)
-    fold.branches.settle()
     observations = Observations(fold.branches, fallback_model)
     for step in fold.settled_steps():
         observations.add(step)

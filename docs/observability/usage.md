@@ -708,7 +708,7 @@ the context input and a write nothing establishes stays unknown. The provider's 
 `source_total_tokens` and never derives the common total; where the profile states what it sums -- input plus output, on
 Codex and Antigravity -- a source total disagreeing with those counters is `conflicting`. Each field's evidence is
 `observed` (a usable count), `missing` (nothing reported, never a zero), `invalid` (a negative number, a fraction, an
-infinite or NaN value, a boolean, a word, or a number of 30 digits or more, reported or spelled, which no token count
+infinite or NaN value, a boolean, a word, or a number of more than 30 digits, reported or spelled, which no token count
 reaches and no sum of which a record could fail to write -- judged before anything is truncated to a count, and a string
 read exactly, never through a float that could round a fraction whole or move a large count), `conflicting` (two reports
 of the request disagree, a part exceeds its whole, or a total contradicts its parts), or `unsupported` (the profile has
@@ -776,24 +776,26 @@ absent one: a stream carrying one never names only one conversation, and a proce
 process's conversation unknown, so no other conversation the steps name is taken for it. Each step then runs on the
 model its own conversation's `init` named as it began -- a subagent's own `init` included. A step of the process's own
 conversation -- the one its first `init` names, or, where that names none, the one conversation the stream names besides
-its subagents', a stream naming more than one leaving it unknown and a `conversation-ambiguous` gap -- falls back to the
-process's `init` model or the configured `--model`; a step of a subagent conversation a `subagent_info` named keeps its
-parent conversation, parent step, and subagent type, and without an `init` of its own no model at all, never its
-parent's, as does a step of any other conversation. An `init` naming a different model than its conversation's previous
-one is a `model-change` marker. A later frame naming a subagent completes the attribution earlier frames left out, such
-as its subagent type, and one contradicting it keeps the first and is a `subagent-attribution-conflicting` gap. A
-subagent gap counts the steps that spawned it once, however often their frames repeat it. The gaps it records are a
-response or `checkpoint` step, or one that carried usage, the stream never completed (`unsettled-steps`; a tool step
-still running that carried no usage is none), a completed one with no usage (`unreported-usage`), a frame with no step
-index -- or one outside 0 through 2,147,483,647, which no step counter reaches -- that carries usage or a generation's
-step type (`unindexed-frames`), a subagent whose conversation exposed no usage (`subagent-usage-unavailable`), one
-`subagent_info` does not name (`subagent-unidentified`), an event naming an `init`, `step_update`, or `result` envelope
-but carrying no object under it (`malformed-envelopes`), a usage block on any step or `result` that is no object or
-names no counter (`malformed-usage`), and a stream with no terminal `result` of the process's own conversation
-(`no-terminal-result`) -- a subagent's `result` ends its own conversation, never the process. The stream reports no
-timestamp, context capacity, CLI version, cache write, or compaction or reset boundary, so every collection that read
-the stream lists those as limitations and records none of them. The run accounting is unchanged: `agy_summary.py` still
-counts each completed step's last completed frame, so where completed frames disagree the run counters keep that frame
-while the sample states the counter `conflicting`.
+the subagents any `subagent_info` names, read before any step is folded, a stream naming more than one leaving it
+unknown and a `conversation-ambiguous` gap -- falls back to the process's `init` model or the configured `--model`; an
+unnamed first `init`'s model is that conversation's, so a later `init` naming it with another model is a change of it; a
+step of a subagent conversation a `subagent_info` named keeps its parent conversation, parent step, and subagent type,
+and without an `init` of its own no model at all, never its parent's, as does a step of any other conversation. An
+`init` naming a different model than its conversation's previous one is a `model-change` marker. A frame naming a
+subagent is read whether or not it carries a step index, and a later one completes the attribution earlier frames left
+out -- the parent conversation, the parent step, or the subagent type -- while one naming any of them differently keeps
+the first and is a `subagent-attribution-conflicting` gap. A subagent gap counts the steps that spawned it once, however
+often their frames repeat it. The gaps it records are a response or `checkpoint` step, or one that carried usage, the
+stream never completed (`unsettled-steps`; a tool step still running that carried no usage is none), a completed one
+with no usage (`unreported-usage`), a frame with no step index -- or one outside 0 through 2,147,483,647, which no step
+counter reaches -- that carries usage or a generation's step type (`unindexed-frames`), a subagent whose conversation
+exposed no usage (`subagent-usage-unavailable`), one `subagent_info` does not name (`subagent-unidentified`), an event
+naming an `init`, `step_update`, or `result` envelope but carrying no object under it (`malformed-envelopes`), a usage
+block on any step or `result` that is no object or names no counter (`malformed-usage`), and a stream with no terminal
+`result` of the process's own conversation (`no-terminal-result`) -- a subagent's `result` ends its own conversation,
+never the process. The stream reports no timestamp, context capacity, CLI version, cache write, or compaction or reset
+boundary, so every collection that read the stream lists those as limitations and records none of them. The run
+accounting is unchanged: `agy_summary.py` still counts each completed step's last completed frame, so where completed
+frames disagree the run counters keep that frame while the sample states the counter `conflicting`.
 
 [pinned-state]: ../state-machine/labels-and-state.md#pinned-state

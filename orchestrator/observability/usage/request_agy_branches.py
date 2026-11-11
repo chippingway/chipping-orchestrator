@@ -3,8 +3,11 @@
 """Which Antigravity conversation one step belongs to, and the model it is established to have run on.
 
 A process stream is its own conversation -- the one its first `init` names, or, where that names none, the one
-conversation its steps name besides its subagents' -- and every subagent a step spawned (`subagent_info`) is a branch
-of its own. Which conversations a stream names at all is read before any step is folded (`Census`), so a frame or an
+conversation the stream names besides the subagents any `subagent_info` names -- and every subagent a step spawned is
+a branch of its own, with what its frames say of its parent and type merged, a contradiction among them a gap. Which
+conversations a stream names, and which of them are subagents, is read before any step is folded (`Census`), so the
+process's conversation is known as its first `init` is read -- an unnamed one's model is that conversation's -- and a
+frame or an
 `init` naming no conversation in a stream that names exactly one, and spawns no subagent, is that conversation's --
 a frame folded into the same step as the frames that do name it -- and in a stream naming none it is the process's
 own unnamed conversation; in any other stream it could be any of them, so it stays unplaced and is a gap. A name
@@ -27,7 +30,7 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Iterable
-from dataclasses import dataclass, field, replace
+from dataclasses import astuple, dataclass, field
 from typing import Any
 
 from orchestrator.observability.usage import (
@@ -36,11 +39,18 @@ from orchestrator.observability.usage import (
     request_coverage as coverage,
     request_models,
 )
-from orchestrator.observability.usage.request_agy_steps import StepFold, StepKey
+from orchestrator.observability.usage.request_agy_steps import StepFold
 from orchestrator.observability.usage.request_scan import CollectionLimits, Metadata, PositionedEvent
 
 CONVERSATION_ID = request_models.CONVERSATION_ID
 _SUBAGENTS = "subagents"
+# The step a subagent was spawned from: its conversation, and its index where the frame named one.
+ParentKey = tuple[str | None, int | None]
+
+
+def _differ(earlier: Any, now: Any) -> bool:
+    """Whether two reports of one field both name a value, and different ones."""
+    return None not in {earlier, now} and earlier != now
 
 
 @dataclass(frozen=True)
@@ -52,26 +62,31 @@ class Child:
     subagent_type: str | None
 
     def merged(self, later: Child) -> Child:
-        """This child with what a later frame adds: a subagent type no earlier frame named."""
-        return replace(self, subagent_type=self.subagent_type or later.subagent_type)
+        """This child with what a later frame adds: any parent identity or subagent type no earlier frame named."""
+        pairs = zip(astuple(self), astuple(later), strict=True)
+        kept = [now if earlier is None else earlier for earlier, now in pairs]
+        return Child(*kept)
 
     def contradicts(self, later: Child) -> bool:
-        """Whether a later frame names this child a different subagent type than an earlier one did."""
-        return None not in {self.subagent_type, later.subagent_type} and self.subagent_type != later.subagent_type
+        """Whether a later frame names this child's parent conversation, parent step, or type differently."""
+        pairs = zip(astuple(self), astuple(later), strict=True)
+        return any(_differ(earlier, now) for earlier, now in pairs)
 
 
 @dataclass
 class Census:
     """Which conversations a stream names, read before any of its steps is folded.
 
-    It keeps each name within a bound, and whether a name was refused -- too long to keep, no string at all, or past
-    the bound -- or a subagent spawn followed, so it costs no more than the bound however many conversations a stream
-    names, and a stream it could not read whole is never taken to name only the ones it kept.
+    It keeps each name within a bound, the subagent conversations any `subagent_info` names, and whether a name was
+    refused -- too long to keep, no string at all, or past the bound -- or a subagent spawn followed, so it costs no
+    more than the bound however many conversations a stream names, and a stream it could not read whole is never taken
+    to name only the ones it kept.
     """
 
     limit: int
     bound: int
     names: set[str] = field(default_factory=set)
+    children: set[str] = field(default_factory=set)
     refused: bool = False
     spawned: bool = False
 
@@ -86,6 +101,14 @@ class Census:
     def unplaced(self) -> bool:
         """Whether a frame naming no conversation could belong to more than one."""
         return self.refused or self.spawned or len(self.names) > 1
+
+    @property
+    def settled(self) -> str | None:
+        """The one conversation the stream names besides its subagents', where it names exactly one and kept all."""
+        candidates = self.names - self.children
+        if self.refused or len(candidates) != 1:
+            return None
+        return next(iter(candidates))
 
     def placed(self, named: str | None) -> tuple[str | None, bool]:
         """The conversation a frame or `init` belongs to, and whether that is established.
@@ -110,7 +133,7 @@ class Census:
             self._name(terminal.get(CONVERSATION_ID))
         if frame is not None:
             self._name(frame.get(CONVERSATION_ID))
-            self.spawned = self.spawned or frame.get(agy_events.SUBAGENT_INFO) is not None
+            self._spawn(frame.get(agy_events.SUBAGENT_INFO))
 
     def _name(self, raw: Any) -> None:
         if raw is None or raw == "":
@@ -123,6 +146,18 @@ class Census:
             self.names.add(raw)
         else:
             self.refused = True
+
+    def _spawn(self, subagent_info: Any) -> None:
+        """Note a spawn, and each subagent conversation it names within the bound."""
+        if subagent_info is None:
+            return
+        self.spawned = True
+        subagents = subagent_info.get(_SUBAGENTS) if isinstance(subagent_info, dict) else None
+        for subagent in subagents if isinstance(subagents, list) else ():
+            named = subagent.get(CONVERSATION_ID) if isinstance(subagent, dict) else None
+            kept = isinstance(named, str) and len(named) <= self.limit
+            if kept and len(self.children) < self.bound:
+                self.children.add(named)
 
 
 def _kept(markers: list[request_models.RequestMarker], limit: int, marker: request_models.RequestMarker) -> bool:
@@ -139,22 +174,23 @@ class Branches:
 
     A step's `subagent_info` repeats on every frame of it, so the subagents it could not name or correlate are kept as
     the steps that spawned them, and each counts once however often the stream repeats it. The models are kept by the
-    conversation whose `init` named them -- the process's first `init` under the conversation it names, or under None
-    where it names none -- within the branch bound.
+    conversation whose `init` named them, within the branch bound. The process's conversation starts as the one the
+    census settles; its first `init` overrides it with the conversation it names, keeps it where it names none -- so
+    its model is that conversation's, and a later `init` naming the conversation is a change from it -- and leaves it
+    unknown where its name was refused.
     """
 
     limits: CollectionLimits
     metadata: Metadata
     census: Census
+    process_conversation: str | None = None
     process_seen: bool = False
     process_refused: bool = False
-    process_key: str | None = None
-    process_conversation: str | None = None
     models: dict[str | None, str] = field(default_factory=dict)
     markers: list[request_models.RequestMarker] = field(default_factory=list)
     children: dict[str, Child] = field(default_factory=dict)
-    unidentified: set[StepKey] = field(default_factory=set)
-    unbranched: set[StepKey] = field(default_factory=set)
+    unidentified: set[ParentKey] = field(default_factory=set)
+    unbranched: set[ParentKey] = field(default_factory=set)
     gaps: Counter[str] = field(default_factory=Counter)
 
     def read_init(
@@ -182,30 +218,30 @@ class Branches:
         if not _kept(self.markers, self.limits.markers, changed):
             self.gaps[coverage.CORRELATION_LIMIT] += 1
 
-    def read_subagents(self, parent: StepFold, subagent_info: Any) -> None:
-        """Record each subagent conversation a step's `subagent_info` names; an unnamed one is a gap."""
+    @property
+    def unsettled(self) -> bool:
+        """Whether the process's conversation goes unestablished in a stream naming conversations it could be.
+
+        Every conversation the stream names counts -- in an `init`, a step, or a `result` -- so a stream naming two or
+        more besides its subagents, or one whose names this collection could not all keep, leaves it unnamed: a request
+        of any of them is attributed to none rather than to a model only one of them may have run on.
+        """
+        if self.process_conversation is not None or self.process_refused:
+            return False
+        return self.census.refused or bool(self.census.names - self.census.children)
+
+    def read_subagents(self, parent: ParentKey, subagent_info: Any) -> None:
+        """Record each subagent conversation a step's `subagent_info` names; an unnamed one is a gap.
+
+        `parent` is the spawning step's conversation and index -- no index where the frame named none, since the
+        children it announces are no less the stream's for it.
+        """
         subagents = subagent_info.get(_SUBAGENTS) if isinstance(subagent_info, dict) else None
         if not isinstance(subagents, list) or not subagents:
-            self.unidentified.add(parent.key)
+            self.unidentified.add(parent)
             return
         for subagent in subagents:
             self._read_child(parent, subagent)
-
-    def settle(self) -> None:
-        """Name the process's conversation where no `init` did: the one the stream names besides its subagents'.
-
-        Every conversation the stream names counts -- in an `init`, a step, or a `result` -- so a stream naming two or
-        more such conversations, or one whose names this collection could not all keep, leaves it unnamed: a request
-        of any of them is attributed to none rather than to a model only one of them may have run on, and the
-        process's conversation going unestablished is a gap.
-        """
-        if self.process_conversation is not None or self.process_refused:
-            return
-        named = self.census.names - set(self.children)
-        if len(named) == 1 and not self.census.refused:
-            self.process_conversation = named.pop()
-        elif named or self.census.refused:
-            self.gaps[coverage.CONVERSATION_AMBIGUOUS] += 1
 
     def attribution(self, step: StepFold, fallback_model: str | None) -> request_models.RequestAttribution:
         foreign = self._foreign(step.key[0])
@@ -222,18 +258,17 @@ class Branches:
     def _init_conversation(self, raw: Any) -> tuple[str | None, bool]:
         """The conversation one `init` belongs to, and whether that is established.
 
-        The first `init` is the process's own, whichever conversation it names or fails to; it is remembered whether
-        its name was refused, which leaves the process's conversation unknown rather than for the steps to settle.
+        The first `init` is the process's own, whichever conversation it names or fails to: one naming none keeps the
+        conversation the census settled, and one whose name was refused leaves the process's conversation unknown.
         """
         named = self.metadata.text(raw)
-        conversation, placed = self.census.placed(named)
         if self.process_seen:
-            return conversation, placed
+            return self.census.placed(named)
         self.process_seen = True
         self.process_refused = named is None and raw is not None and raw != ""
-        self.process_key = conversation
-        self.process_conversation = conversation
-        return conversation, True
+        if named is not None or self.process_refused:
+            self.process_conversation = named
+        return self.process_conversation, True
 
     def _foreign(self, conversation: str | None) -> bool:
         """Whether a step may belong to a conversation other than the process's own."""
@@ -241,16 +276,16 @@ class Branches:
             return self.census.unplaced
         return conversation in self.children or conversation != self.process_conversation
 
-    def _read_child(self, parent: StepFold, subagent: Any) -> None:
+    def _read_child(self, parent: ParentKey, subagent: Any) -> None:
         named = subagent if isinstance(subagent, dict) else {}
         conversation = self.metadata.text(named.get(CONVERSATION_ID))
         if conversation is None:
-            self.unidentified.add(parent.key)
+            self.unidentified.add(parent)
         elif conversation not in self.children and len(self.children) >= self.limits.branches:
-            self.unbranched.add(parent.key)
+            self.unbranched.add(parent)
         else:
             subagent_type = self.metadata.text(named.get("type_name"))
-            spawned = Child(*parent.key, subagent_type)
+            spawned = Child(*parent, subagent_type)
             known = self.children.setdefault(conversation, spawned)
             self.children[conversation] = known.merged(spawned)
             self.gaps[coverage.SUBAGENT_ATTRIBUTION_CONFLICTING] += known.contradicts(spawned)

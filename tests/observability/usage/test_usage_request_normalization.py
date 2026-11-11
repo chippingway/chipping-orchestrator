@@ -230,6 +230,10 @@ class EvidenceTest(unittest.TestCase):
             ("1e40", None, _INVALID),
             # A count with more digits than any token count has is none, reported as a number or spelled.
             (_PAST_ANY_COUNT, None, _INVALID),
+            (str(_PAST_ANY_COUNT), None, _INVALID),
+            # Thirty digits is still a count; the first number past it is ten to the thirtieth, above.
+            (_PAST_ANY_COUNT - 1, _PAST_ANY_COUNT - 1, _OBSERVED),
+            (str(_PAST_ANY_COUNT - 1), _PAST_ANY_COUNT - 1, _OBSERVED),
             (float("inf"), None, _INVALID),
             (True, None, _INVALID),
             ("ten", None, _INVALID),

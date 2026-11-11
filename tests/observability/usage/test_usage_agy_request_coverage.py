@@ -56,10 +56,13 @@ def _response(conversation: str | None, index: int = 0) -> str:
     return stream.event(agy_events.STEP_UPDATE, **fields)
 
 
-def _spawning(*children: str, subagent_type: str | None = _RESEARCH) -> str:
+def _spawning(*children: str, subagent_type: str | None = _RESEARCH, index: int = 2) -> str:
     named = {} if subagent_type is None else {"type_name": subagent_type}
     subagents = [{cases.CONVERSATION_ID: child, **named} for child in children]
-    return stream.step(2, kind=agy_events.TOOL, subagent_info={"subagents": subagents})
+    return stream.step(index, kind=agy_events.TOOL, subagent_info={"subagents": subagents})
+
+
+_CHILD_SPAWN = _spawning(_CHILD)
 
 
 def _init(model: str, conversation: str | None = stream.SESSION_ID) -> str:
@@ -76,6 +79,7 @@ _EARLIER_INIT = _init(_EARLIER_MODEL)
 _NEGATIVE_USAGE = MappingProxyType({**_USAGE, protocol.OUTPUT_TOKENS: -1})
 _UNINDEXED_RESPONSE = stream.event(agy_events.STEP_UPDATE, step_type="agent_response", state=agy_events.DONE)
 _MALFORMED_UNINDEXED = stream.event(agy_events.STEP_UPDATE, step_type={})
+_UNINDEXED_SPAWN = _spawning(_SILENT_CHILD).replace('"step_index": 2, ', "")
 _BROKEN_USAGE = stream.step(3, kind=agy_events.TOOL, usage="broken")
 _UNFINISHED_FIELDS = MappingProxyType({"kind": agy_events.TOOL, "state": agy_events.ACTIVE})
 _UNFINISHED_TOOL = stream.step(3, usage=dict(_USAGE), **_UNFINISHED_FIELDS)
@@ -96,7 +100,7 @@ _UNNAMED_SPAWN = stream.step(3, kind=agy_events.TOOL, subagent_info=json.loads('
 _SUBAGENT_STREAM = (_INIT, _FIRST, _SPAWNING_TWO, _CHILD_RESPONSE, _TERMINAL)
 # A child's own `init` between two of the parent's requests: it names the child's model, and changes the parent's none.
 _CHILD_INIT_STREAM = (
-    _INIT, _FIRST, _spawning(_CHILD), _init(_EARLIER_MODEL, _CHILD), _CHILD_RESPONSE, _FOURTH, _TERMINAL,
+    _INIT, _FIRST, _CHILD_SPAWN, _init(_EARLIER_MODEL, _CHILD), _CHILD_RESPONSE, _FOURTH, _TERMINAL,
 )
 _UNNAMED_INIT = _init(stream.MODEL, None)
 # A step naming no conversation: joined to the one a stream names, and kept as the process's where it names none.
@@ -106,7 +110,7 @@ _PLACEMENTS = (
 )
 # A stream where a step naming no conversation could be more than one conversation's.
 _UNPLACED = (
-    ("a named subagent", (_INIT, _spawning(_CHILD), _response(None))),
+    ("a named subagent", (_INIT, _CHILD_SPAWN, _response(None))),
     ("an unnamed subagent", (_INIT, _UNNAMED_SPAWN, _response(None, 1))),
     # An unnamed process `init` beside a step and a `result` naming two other conversations is either one's.
     ("an unnamed process beside two conversations", (_UNNAMED_INIT, _response("one-conversation", 1))),
@@ -118,7 +122,7 @@ _REFUSED_INIT = _init(stream.MODEL, "p" * (request_scan.MAX_METADATA_CHARS + 1))
 _UNATTRIBUTED = (
     ("another conversation", (_INIT, _response("other-conversation")), models.UNESTABLISHED),
     ("another conversation beside a refused process name", (_REFUSED_INIT, _response(_CHILD)), models.UNESTABLISHED),
-    ("no conversation beside a subagent", (_INIT, _spawning(_CHILD), _response(None)), models.UNESTABLISHED),
+    ("no conversation beside a subagent", (_INIT, _CHILD_SPAWN, _response(None)), models.UNESTABLISHED),
     ("no model anywhere", (_FIRST,), models.UNAVAILABLE),
     ("two conversations, no init naming one", _TWO_UNNAMED, models.UNESTABLISHED),
 )
@@ -137,6 +141,7 @@ _DAMAGED = (
     ("tool usage that is no object", _BROKEN_USAGE, coverage.MALFORMED_USAGE),
     ("tool step reporting usage it never completed", _UNFINISHED_TOOL, coverage.UNSETTLED_STEPS),
     ("terminal counter that is no count", _INVALID_TERMINAL, coverage.INVALID_COUNTERS),
+    ("an unindexed spawn of a silent subagent", _UNINDEXED_SPAWN, coverage.SUBAGENT_USAGE_UNAVAILABLE),
     ("terminal total contradicting its counters", _CONTRADICTED_TERMINAL, coverage.CONFLICTING_COUNTERS),
     ("a count past any token count", _PAST_ANY_COUNT, coverage.INVALID_COUNTERS),
     ("a step index no counter reaches", _NEGATIVE_INDEX, coverage.UNINDEXED_FRAMES),
@@ -147,11 +152,21 @@ _UNNAMED_EARLIER_INIT = _init(_EARLIER_MODEL, None)
 _UNNAMED_CHANGE = (_UNNAMED_EARLIER_INIT, _response(None, 1), _UNNAMED_INIT, _response(None, 2))
 _CHANGED_MODELS = (_EARLIER_MODEL, stream.MODEL)
 _UNCHANGED_MODELS = (stream.MODEL, stream.MODEL)
-_UNPLACED_CHANGE = (_INIT, _FIRST, _spawning(_CHILD), _init(_EARLIER_MODEL, None), _FOURTH)
+_UNPLACED_CHANGE = (_INIT, _FIRST, _CHILD_SPAWN, _init(_EARLIER_MODEL, None), _FOURTH)
 # A subagent named over several frames: its type supplied by a later one, and then contradicted.
-_TYPED_LATER = (_INIT, _spawning(_CHILD, subagent_type=None), _spawning(_CHILD), _CHILD_RESPONSE)
+_TYPED_LATER = (_INIT, _spawning(_CHILD, subagent_type=None), _CHILD_SPAWN, _CHILD_RESPONSE)
 _RETYPED = (*_TYPED_LATER[:3], _spawning(_CHILD, subagent_type="review"), _CHILD_RESPONSE)
 _SUBAGENT_TYPE = "subagent_type"
+_PARENT_CONVERSATION = "parent_conversation_id"
+# A subagent named again from another parent step contradicts the step it was spawned from.
+_RESPAWNED = (_INIT, _CHILD_SPAWN, _spawning(_CHILD, index=3), _CHILD_RESPONSE)
+# A spawn first printed naming no conversation, the parent's conversation supplied by its next frame.
+_UNNAMED_PARENT_SPAWN = _CHILD_SPAWN.replace(f'"conversation_id": "{stream.SESSION_ID}", ', "")
+_UNNAMED_PARENT = (_INIT, _UNNAMED_PARENT_SPAWN, _CHILD_SPAWN, _CHILD_RESPONSE)
+# An unnamed process `init`, then one naming the process's settled conversation with another model.
+_CHANGE_FIELDS = _MARKER_FIELDS[:3]
+_EXPECTED_CHANGE = _MODEL_CHANGE[:3]
+_UNNAMED_PROCESS_CHANGE = (_UNNAMED_EARLIER_INIT, _FIRST, _CHILD_SPAWN, _INIT, _FOURTH, _CHILD_RESPONSE)
 # A stream with nothing to collect, and the status its collection ends in.
 _EMPTY = (
     ("no output", "", coverage.UNAVAILABLE),
@@ -244,6 +259,16 @@ class LaterAttributionTest(unittest.TestCase):
         self.assertEqual(retyped.samples[0][_SUBAGENT_TYPE], _RESEARCH)
         self.assertIn(coverage.SUBAGENT_ATTRIBUTION_CONFLICTING, retyped.reasons)
 
+    def test_later_frames_complete_the_parent(self) -> None:
+        respawned = cases.collected(*_RESPAWNED, _TERMINAL)
+        self.assertIn(coverage.SUBAGENT_ATTRIBUTION_CONFLICTING, respawned.reasons)
+        completed = cases.collected(*_UNNAMED_PARENT, _TERMINAL)
+        self.assertEqual(completed.samples[0][_PARENT_CONVERSATION], stream.SESSION_ID)
+        # The process's first `init` named no conversation, but the stream settles one: a later `init` naming it with
+        # another model is a change of that conversation's model.
+        changed = cases.collected(*_UNNAMED_PROCESS_CHANGE, _TERMINAL)
+        self.assertEqual(cases.picked(changed.markers[0], *_CHANGE_FIELDS), _EXPECTED_CHANGE)
+
     def test_fallback_model_is_bounded(self) -> None:
         oversize = "m" * (request_scan.MAX_METADATA_CHARS + 1)
         collection = cases.collected(_FIRST, _TERMINAL, fallback_model=oversize)
@@ -280,7 +305,7 @@ class CoverageGapTest(unittest.TestCase):
 
     def test_only_the_process_result_ends_the_stream(self) -> None:
         # A subagent's result ends its own conversation; the process that spawned it never printed one of its own.
-        collection = cases.collected(_INIT, _FIRST, _spawning(_CHILD), _CHILD_RESPONSE, _CHILD_TERMINAL)
+        collection = cases.collected(_INIT, _FIRST, _CHILD_SPAWN, _CHILD_RESPONSE, _CHILD_TERMINAL)
         self.assertEqual(len(collection.samples), 2)
         self.assertIn(coverage.NO_TERMINAL_RESULT, collection.reasons)
         self.assertEqual(collection.status, coverage.INCOMPLETE)

@@ -81,7 +81,7 @@ class Reading:
         The value is judged before it is turned into a count. A whole, non-negative number -- or a string spelling
         one, read exactly rather than through a float, so no rounding makes a fraction whole or changes a large count
         -- is a count; a negative whole number keeps its number as raw evidence and is invalid; and a fraction, an
-        infinite or NaN value, a boolean, a word, or a number of `_MAX_COUNT_DIGITS` digits or more -- reported as
+        infinite or NaN value, a boolean, a word, or a number of more than `_MAX_COUNT_DIGITS` digits -- reported as
         one or spelled -- is no count at all, never the zero or whole number truncating it would make, nor a count
         whose sums no record could write.
         """
