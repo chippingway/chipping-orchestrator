@@ -46,6 +46,9 @@ SETTLED_BY_COMPLETION = "completed-frame"
 SETTLED_UNCONFIRMED = "unconfirmed-frame"
 SETTLED_IN_PART_UNCONFIRMED = "completed-and-unconfirmed-frames"
 SETTLED_AFTER_COMPLETION = "completed-and-later-frames"
+# The model an `init` named that this collection refused -- too long to keep, or no string at all. No kept model is
+# empty, so it stands for a model that is unknown from that `init` on, never an earlier one or the fallback.
+UNKEPT_MODEL = ""
 _USER_INPUT = "user_input"
 _DURATION = "duration_seconds"
 
@@ -123,8 +126,8 @@ class StepFold:
     """Everything the stream said about one step, in the order it said it.
 
     `own_model` is the model an `init` of the step's own conversation named, and `process_model` the one the process's
-    `init` named, each as in effect when the step's first frame arrived; which of them the step ran on is the
-    conversation attribution's to decide.
+    `init` named, each as in effect when the step's first frame arrived -- `UNKEPT_MODEL` where that `init` named a
+    model this collection refused; which of them the step ran on is the conversation attribution's to decide.
     """
 
     key: StepKey

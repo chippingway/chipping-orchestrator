@@ -670,7 +670,8 @@ the stream gave nothing for is absent rather than null:
   A source timestamp is the stream's own; when the collection ran is the record's `ts`, never a sample field;
 - attribution: `model` with its `model_source` -- `stream` where the stream named it, `configured-fallback` where it
   named none and the configured model stands in, `unestablished` for a request of a conversation no frame names a
-  model for, and `unavailable` where neither exists -- and `context_capacity` where the stream reports one;
+  model for or whose model this collection refused, and `unavailable` where neither exists -- and
+  `context_capacity` where the stream reports one;
 - settlement: `scope` (`request`), `status` (`final` or `provisional`), and `settlement`, the report the status
   rests on;
 - counters: `raw`, the allowlisted counters as whole counts -- a numeric string or a whole float read as the run
@@ -773,29 +774,34 @@ conversation's. A later `init` naming no conversation is placed the same way: in
 none it is that conversation's, its model a change like any other, and elsewhere it changes no model and is a
 `conversation-ambiguous` gap. A conversation name this collection refused -- too long to keep, or no string -- is not an
 absent one: a stream carrying one never names only one conversation, and a process `init` naming one leaves the
-process's conversation unknown, so no other conversation the steps name is taken for it. Each step then runs on the
-model its own conversation's `init` named as it began -- a subagent's own `init` included. A step of the process's own
-conversation -- the one its first `init` names, or, where that names none, the one conversation the stream names besides
-the subagents any `subagent_info` names, read before any step is folded, a stream naming more than one leaving it
-unknown and a `conversation-ambiguous` gap -- falls back to the process's `init` model or the configured `--model`; an
-unnamed first `init`'s model is that conversation's, so a later `init` naming it with another model is a change of it; a
-step of a subagent conversation a `subagent_info` named keeps its parent conversation, parent step, and subagent type,
-and without an `init` of its own no model at all, never its parent's, as does a step of any other conversation. An
-`init` naming a different model than its conversation's previous one is a `model-change` marker. A frame naming a
-subagent is read whether or not it carries a step index, and a later one completes the attribution earlier frames left
-out -- the parent conversation, the parent step, or the subagent type -- while one naming any of them differently keeps
-the first and is a `subagent-attribution-conflicting` gap. A subagent gap counts the steps that spawned it once, however
-often their frames repeat it. The gaps it records are a response or `checkpoint` step, or one that carried usage, the
-stream never completed (`unsettled-steps`; a tool step still running that carried no usage is none), a completed one
-with no usage (`unreported-usage`), a frame with no step index -- or one outside 0 through 2,147,483,647, which no step
-counter reaches -- that carries usage or a generation's step type (`unindexed-frames`), a subagent whose conversation
-exposed no usage (`subagent-usage-unavailable`), one `subagent_info` does not name (`subagent-unidentified`), an event
-naming an `init`, `step_update`, or `result` envelope but carrying no object under it (`malformed-envelopes`), a usage
-block on any step or `result` that is no object or names no counter (`malformed-usage`), and a stream with no terminal
-`result` of the process's own conversation (`no-terminal-result`) -- a subagent's `result` ends its own conversation,
-never the process. The stream reports no timestamp, context capacity, CLI version, cache write, or compaction or reset
-boundary, so every collection that read the stream lists those as limitations and records none of them. The run
-accounting is unchanged: `agy_summary.py` still counts each completed step's last completed frame, so where completed
-frames disagree the run counters keep that frame while the sample states the counter `conflicting`.
+process's conversation unknown, so no other conversation the steps name is taken for it. A line the scan left unread --
+past the scan bound, too long to read, or one the decoder refused -- could have named any conversation or spawned any
+subagent, so a stream missing one never names only one conversation either. Each step then runs on the model its own
+conversation's `init` named as it began -- a subagent's own `init` included. A step of the process's own conversation --
+the one its first `init` names, or, where that names none, the one conversation the stream names besides the subagents
+any `subagent_info` names, read before any step is folded, a stream naming more than one leaving it unknown and a
+`conversation-ambiguous` gap -- falls back to the process's `init` model or the configured `--model`; an unnamed first
+`init`'s model is that conversation's, so a later `init` naming it with another model is a change of it; a step of a
+subagent conversation a `subagent_info` named keeps its parent conversation, parent step, and subagent type, and without
+an `init` of its own no model at all, never its parent's, as does a step of any other conversation. An `init` naming a
+different model than its conversation's previous one is a `model-change` marker. An `init` naming a model this
+collection refused -- too long to keep, or no string -- leaves its conversation's model unknown from there on: a step
+begun before it keeps the model it began under, while a later one is `unestablished`, never an earlier `init`'s model or
+the configured `--model`, and no marker is kept, since the model it changed to is unknown. A frame naming a subagent is
+read whether or not it carries a step index, and a later one completes the attribution earlier frames left out -- the
+parent conversation, the parent step, or the subagent type -- while one naming any of them differently keeps the first
+and is a `subagent-attribution-conflicting` gap. A subagent gap counts the steps that spawned it once, however often
+their frames repeat it. The gaps it records are a response or `checkpoint` step, or one that carried usage, the stream
+never completed (`unsettled-steps`; a tool step still running that carried no usage is none), a completed one with no
+usage (`unreported-usage`), a frame with no step index -- or one outside 0 through 2,147,483,647, which no step counter
+reaches -- that carries usage or a generation's step type (`unindexed-frames`), a subagent whose conversation exposed no
+usage (`subagent-usage-unavailable`), one `subagent_info` does not name (`subagent-unidentified`), an event naming an
+`init`, `step_update`, or `result` envelope but carrying no object under it (`malformed-envelopes`), a usage block on
+any step or `result` that is no object or names no counter (`malformed-usage`), and a stream with no terminal `result`
+of the process's own conversation (`no-terminal-result`) -- a subagent's `result` ends its own conversation, never the
+process. The stream reports no timestamp, context capacity, CLI version, cache write, or compaction or reset boundary,
+so every collection that read the stream lists those as limitations and records none of them. The run accounting is
+unchanged: `agy_summary.py` still counts each completed step's last completed frame, so where completed frames disagree
+the run counters keep that frame while the sample states the counter `conflicting`.
 
 [pinned-state]: ../state-machine/labels-and-state.md#pinned-state

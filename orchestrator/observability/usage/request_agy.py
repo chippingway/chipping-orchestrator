@@ -198,7 +198,7 @@ class StreamFold:
         """Scan `stdout`, learn which conversations it names, then fold every event in stream order."""
         limits = request_scan.current_limits()
         scan = request_scan.scan_events(stdout, limits)
-        census = Census.taken(scan.events, limits)
+        census = Census.taken(scan)
         fold = cls(
             scan,
             Branches(limits, request_scan.Metadata(limits.metadata_chars), census, census.settled),

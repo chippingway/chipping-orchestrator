@@ -65,7 +65,7 @@ def _spawning(*children: str, subagent_type: str | None = _RESEARCH, index: int 
 _CHILD_SPAWN = _spawning(_CHILD)
 
 
-def _init(model: str, conversation: str | None = stream.SESSION_ID) -> str:
+def _init(model: object, conversation: str | None = stream.SESSION_ID) -> str:
     init = {"event": agy_events.INIT, agy_events.INIT: {"model": model}}
     if conversation is not None:
         init[cases.CONVERSATION_ID] = conversation
@@ -119,7 +119,9 @@ _TWO_UNNAMED = (_UNNAMED_INIT, _response("one-conversation"), _response("another
 _MODEL_CHANGE_STREAM = (_EARLIER_INIT, _FIRST, _INIT, _SECOND, _TERMINAL)
 # A stream, and the model and provenance its last request is attributed to.
 _REFUSED_INIT = _init(stream.MODEL, "p" * (request_scan.MAX_METADATA_CHARS + 1))
+_OVERSIZE_MODEL_INIT = _init("m" * (request_scan.MAX_METADATA_CHARS + 1))
 _UNATTRIBUTED = (
+    ("a process model refused", (_OVERSIZE_MODEL_INIT, _FIRST), models.UNESTABLISHED),
     ("another conversation", (_INIT, _response("other-conversation")), models.UNESTABLISHED),
     ("another conversation beside a refused process name", (_REFUSED_INIT, _response(_CHILD)), models.UNESTABLISHED),
     ("no conversation beside a subagent", (_INIT, _CHILD_SPAWN, _response(None)), models.UNESTABLISHED),
@@ -167,6 +169,15 @@ _UNNAMED_PARENT = (_INIT, _UNNAMED_PARENT_SPAWN, _CHILD_SPAWN, _CHILD_RESPONSE)
 _CHANGE_FIELDS = _MARKER_FIELDS[:3]
 _EXPECTED_CHANGE = _MODEL_CHANGE[:3]
 _UNNAMED_PROCESS_CHANGE = (_UNNAMED_EARLIER_INIT, _FIRST, _CHILD_SPAWN, _INIT, _FOURTH, _CHILD_RESPONSE)
+# A later `init` naming a model this collection refused, and the gap the refusal leaves; the steps around it are begun
+# under an earlier model, under no known one, and under one a still later `init` names.
+_REFUSED_MODELS = (
+    ("too long to keep", _OVERSIZE_MODEL_INIT, coverage.OVERSIZE_METADATA),
+    ("no string", _init(7), coverage.MALFORMED_METADATA),
+)
+_CONFIGURED_MODEL = "configured-model"
+_AROUND_REFUSAL = (_EARLIER_MODEL, None, stream.MODEL)
+_SOURCES_AROUND_REFUSAL = (models.STREAM_MODEL, models.UNESTABLISHED, models.STREAM_MODEL)
 # A stream with nothing to collect, and the status its collection ends in.
 _EMPTY = (
     ("no output", "", coverage.UNAVAILABLE),
@@ -178,6 +189,12 @@ _CORRELATION_BOUNDS = (
     ("tracked steps", "MAX_TRACKED_STEPS", 1, (_INIT, _FIRST, _SECOND)),
     ("subagent branches", "MAX_BRANCHES", 1, (_INIT, _SPAWNING_TWO, _CHILD_RESPONSE)),
     ("markers", "MAX_MARKERS", 0, (_EARLIER_INIT, _INIT, _FIRST)),
+)
+# A stream the scan bound cuts short before the spawn its unread rest announces, the output it reads and the lines it
+# leaves: read whole, its first request is a conversation's other than the process's, so read in part it is no more.
+_CUT_SHORT = (
+    ("a frame naming no conversation", f"{_INIT}\n{_response(None, 1)}", (_CHILD_SPAWN, _CHILD_RESPONSE, _TERMINAL)),
+    ("an unnamed process init", f"{_UNNAMED_INIT}\n{_response(_CHILD, 1)}", (_CHILD_SPAWN, _TERMINAL)),
 )
 
 
@@ -269,6 +286,17 @@ class LaterAttributionTest(unittest.TestCase):
         changed = cases.collected(*_UNNAMED_PROCESS_CHANGE, _TERMINAL)
         self.assertEqual(cases.picked(changed.markers[0], *_CHANGE_FIELDS), _EXPECTED_CHANGE)
 
+    def test_a_refused_model_is_unknown_from_then_on(self) -> None:
+        for name, refused, gap in _REFUSED_MODELS:
+            with self.subTest(name):
+                lines = (_EARLIER_INIT, _FIRST, refused, _SECOND, _INIT, _FOURTH, _TERMINAL)
+                collection = cases.collected(*lines, fallback_model=_CONFIGURED_MODEL)
+                self.assertEqual(tuple(cases.column(collection.samples, cases.MODEL)), _AROUND_REFUSAL)
+                self.assertEqual(tuple(cases.column(collection.samples, cases.MODEL_SOURCE)), _SOURCES_AROUND_REFUSAL)
+                # No change is known to or from a model this collection could not keep.
+                self.assertFalse(collection.markers)
+                self.assertEqual(collection.reasons, {gap: 1, coverage.MODEL_UNATTRIBUTED: 1})
+
     def test_fallback_model_is_bounded(self) -> None:
         oversize = "m" * (request_scan.MAX_METADATA_CHARS + 1)
         collection = cases.collected(_FIRST, _TERMINAL, fallback_model=oversize)
@@ -338,6 +366,14 @@ class CollectionBoundTest(unittest.TestCase):
                 self.assertEqual(len(collection.samples), 1)
                 self.assertEqual(collection.reasons.get(coverage.CORRELATION_LIMIT), 1)
                 self.assertEqual(collection.coverage["scan_scope"], coverage.PARTIAL_SCOPE)
+
+    def test_unread_lines_leave_placement_open(self) -> None:
+        for name, read, unread in _CUT_SHORT:
+            with self.subTest(name), patch.object(request_scan, "MAX_SCAN_CHARS", len(read)):
+                collection = cases.collected(read, *unread)
+                attribution = cases.picked(collection.samples[0], *_ATTRIBUTION_FIELDS)
+                self.assertEqual(attribution, (None, models.UNESTABLISHED))
+                self.assertLessEqual({coverage.SCAN_LIMIT, coverage.CONVERSATION_AMBIGUOUS}, set(collection.reasons))
 
     def test_metadata_and_checkpoints_stay_bounded(self) -> None:
         metadata_bound = len(stream.SESSION_ID) - 1

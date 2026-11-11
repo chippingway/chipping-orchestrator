@@ -3,33 +3,36 @@
 """Which Antigravity conversation one step belongs to, and the model it is established to have run on.
 
 A process stream is its own conversation -- the one its first `init` names, or, where that names none, the one
-conversation the stream names besides the subagents any `subagent_info` names -- and every subagent a step spawned is
-a branch of its own, with what its frames say of its parent and type merged, a contradiction among them a gap. Which
+conversation the stream names besides the subagents any `subagent_info` names -- and every subagent a step spawned is a
+branch of its own, with what its frames say of its parent and type merged, a contradiction among them a gap. Which
 conversations a stream names, and which of them are subagents, is read before any step is folded (`Census`), so the
 process's conversation is known as its first `init` is read -- an unnamed one's model is that conversation's -- and a
-frame or an
-`init` naming no conversation in a stream that names exactly one, and spawns no subagent, is that conversation's --
-a frame folded into the same step as the frames that do name it -- and in a stream naming none it is the process's
-own unnamed conversation; in any other stream it could be any of them, so it stays unplaced and is a gap. A name
-this collection refused -- too long to keep, or no string -- is not an absent one: it names a conversation nothing can
-be compared with, so the stream is never taken to name only one, and a process `init` naming one leaves the process's
-conversation unknown rather than settled on whichever other conversation the steps name.
+frame or an `init` naming no conversation in a stream that names exactly one, and spawns no subagent, is that
+conversation's -- a frame folded into the same step as the frames that do name it -- and in a stream naming none it is
+the process's own unnamed conversation; in any other stream it could be any of them, so it stays unplaced and is a gap.
+A name this collection refused -- too long to keep, or no string -- is not an absent one: it names a conversation
+nothing can be compared with, so the stream is never taken to name only one, and a process `init` naming one leaves the
+process's conversation unknown rather than settled on whichever other conversation the steps name. A line the scan left
+unread -- past the scan bound, too long to read, or one the decoder refused -- could have named any conversation or
+spawned any subagent, so a stream missing one is never taken to name only one either.
 
 `init.model` echoes the `--model` slug a conversation was started with, and every generation of that conversation, a
-response's and each helper generation beside it, runs on the model it selected. So a step is attributed to the model
-its own conversation's `init` named as the step began -- a subagent's own `init` included -- and a step of the
-process's conversation, where its own conversation's `init` named none, to the process's `init` model or the configured
-`--model` the caller passes as a fallback -- held to the same metadata bound as a streamed name -- each under its own
-provenance. A step of any other conversation whose `init` named no model keeps its parent and subagent identities and
-no model at all, never its parent's, and so does an unplaced step. An `init` naming a different model than its
-conversation's previous one is a model change, kept as a marker; a later `init` this collection cannot place changes
-no model and is a gap, since the model it names could be any conversation's.
+response's and each helper generation beside it, runs on the model it selected. So a step is attributed to the model its
+own conversation's `init` named as the step began -- a subagent's own `init` included -- and a step of the process's
+conversation, where its own conversation's `init` named none, to the process's `init` model or the configured `--model`
+the caller passes as a fallback -- held to the same metadata bound as a streamed name -- each under its own provenance.
+A step of any other conversation whose `init` named no model keeps its parent and subagent identities and no model at
+all, never its parent's, and so does an unplaced step. An `init` naming a different model than its conversation's
+previous one is a model change, kept as a marker; a later `init` this collection cannot place changes no model and is a
+gap, since the model it names could be any conversation's. An `init` naming a model this collection refused -- too long
+to keep, or no string -- leaves its conversation's model unknown from there on: a step begun before it keeps the model
+it began under, while a later one has no model, neither an earlier `init`'s nor the fallback, and is a gap; no marker is
+kept, since the model it changed to is unknown.
 """
 
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Iterable
 from dataclasses import astuple, dataclass, field
 from typing import Any
 
@@ -39,13 +42,26 @@ from orchestrator.observability.usage import (
     request_coverage as coverage,
     request_models,
 )
-from orchestrator.observability.usage.request_agy_steps import StepFold
-from orchestrator.observability.usage.request_scan import CollectionLimits, Metadata, PositionedEvent
+from orchestrator.observability.usage.request_agy_steps import UNKEPT_MODEL, StepFold
+from orchestrator.observability.usage.request_scan import CollectionLimits, EventScan, Metadata
 
 CONVERSATION_ID = request_models.CONVERSATION_ID
 _SUBAGENTS = "subagents"
 # The step a subagent was spawned from: its conversation, and its index where the frame named one.
 ParentKey = tuple[str | None, int | None]
+
+
+def _named(raw: Any) -> bool:
+    """Whether a field names anything at all -- kept or refused -- rather than nothing."""
+    return raw is not None and raw != ""
+
+
+def _model(metadata: Metadata, raw: Any) -> str | None:
+    """The model one `init` names: as kept, `UNKEPT_MODEL` where this collection refused it, and None where none."""
+    kept = metadata.text(raw)
+    if kept is None and _named(raw):
+        return UNKEPT_MODEL
+    return kept
 
 
 def _differ(earlier: Any, now: Any) -> bool:
@@ -78,9 +94,9 @@ class Census:
     """Which conversations a stream names, read before any of its steps is folded.
 
     It keeps each name within a bound, the subagent conversations any `subagent_info` names, and whether a name was
-    refused -- too long to keep, no string at all, or past the bound -- or a subagent spawn followed, so it costs no
-    more than the bound however many conversations a stream names, and a stream it could not read whole is never taken
-    to name only the ones it kept.
+    refused -- too long to keep, no string at all, past the bound, or on a line the scan left unread -- or a subagent
+    spawn followed, so it costs no more than the bound however many conversations a stream names, and a stream it could
+    not read whole is never taken to name only the ones it kept.
     """
 
     limit: int
@@ -91,9 +107,11 @@ class Census:
     spawned: bool = False
 
     @classmethod
-    def taken(cls, events: Iterable[PositionedEvent], limits: CollectionLimits) -> Census:
-        census = cls(limits.metadata_chars, limits.branches + 1)
-        for _, event in events:
+    def taken(cls, scan: EventScan) -> Census:
+        """The census of every event `scan` decoded; any line it left unread could have named any conversation."""
+        census = cls(scan.limits.metadata_chars, scan.limits.branches + 1)
+        census.refused = bool(scan.gaps)
+        for _, event in scan.events:
             census.read(event)
         return census
 
@@ -136,7 +154,7 @@ class Census:
             self._spawn(frame.get(agy_events.SUBAGENT_INFO))
 
     def _name(self, raw: Any) -> None:
-        if raw is None or raw == "":
+        if not _named(raw):
             return
         # A name too long to keep, no string at all, or one past the bound cannot be compared with the rest.
         if not isinstance(raw, str) or len(raw) > self.limit:
@@ -174,10 +192,10 @@ class Branches:
 
     A step's `subagent_info` repeats on every frame of it, so the subagents it could not name or correlate are kept as
     the steps that spawned them, and each counts once however often the stream repeats it. The models are kept by the
-    conversation whose `init` named them, within the branch bound. The process's conversation starts as the one the
-    census settles; its first `init` overrides it with the conversation it names, keeps it where it names none -- so
-    its model is that conversation's, and a later `init` naming the conversation is a change from it -- and leaves it
-    unknown where its name was refused.
+    conversation whose `init` named them, within the branch bound, a model it refused as `UNKEPT_MODEL`. The process's
+    conversation starts as the one the census settles; its first `init` overrides it with the conversation it names,
+    keeps it where it names none -- so its model is that conversation's, and a later `init` naming the conversation is a
+    change from it -- and leaves it unknown where its name was refused.
     """
 
     limits: CollectionLimits
@@ -204,7 +222,7 @@ class Branches:
         if not placed:
             self.gaps[coverage.CONVERSATION_AMBIGUOUS] += 1
             return
-        model = self.metadata.text(init.get(protocol.MODEL))
+        model = _model(self.metadata, init.get(protocol.MODEL))
         if model is None:
             return
         previous = self.models.get(conversation)
@@ -212,7 +230,8 @@ class Branches:
             self.gaps[coverage.CORRELATION_LIMIT] += 1
             return
         self.models[conversation] = model
-        if previous in {None, model}:
+        # A change is one between two models this collection kept: none is known to or from a refused one.
+        if UNKEPT_MODEL in {previous, model} or previous in {None, model}:
             return
         changed = request_models.RequestMarker(request_models.MODEL_CHANGE, position, conversation, model, previous)
         if not _kept(self.markers, self.limits.markers, changed):
@@ -245,11 +264,11 @@ class Branches:
 
     def attribution(self, step: StepFold, fallback_model: str | None) -> request_models.RequestAttribution:
         foreign = self._foreign(step.key[0])
-        model = step.own_model if foreign else step.own_model or step.process_model
+        model = step.own_model if foreign or step.own_model is not None else step.process_model
+        if model == UNKEPT_MODEL or (model is None and foreign):
+            return request_models.RequestAttribution(None, request_models.UNESTABLISHED)
         if model is not None:
             return request_models.RequestAttribution(model, request_models.STREAM_MODEL)
-        if foreign:
-            return request_models.RequestAttribution(None, request_models.UNESTABLISHED)
         fallback = self.metadata.text(fallback_model)
         if fallback is not None:
             return request_models.RequestAttribution(fallback, request_models.CONFIGURED_FALLBACK)
@@ -265,7 +284,7 @@ class Branches:
         if self.process_seen:
             return self.census.placed(named)
         self.process_seen = True
-        self.process_refused = named is None and raw is not None and raw != ""
+        self.process_refused = named is None and _named(raw)
         if named is not None or self.process_refused:
             self.process_conversation = named
         return self.process_conversation, True
