@@ -4,6 +4,7 @@
 
 import dataclasses
 import json
+import sys
 import unittest
 from types import MappingProxyType
 
@@ -20,6 +21,11 @@ _TWO_EVENTS = f"{_COMPLETE_EVENT}\n{_COMPLETE_EVENT}"
 _TRUNCATED_FRAME = '{"event":"step_update","step_update":{"step_index":'
 # A blank line, banner text, a frame cut short, one whole event, and a JSON value that is no event.
 _MIXED_STDOUT = f"\nAntigravity CLI ready\n{_TRUNCATED_FRAME}\n{_COMPLETE_EVENT}\n[]"
+# Lines the decoder itself refuses: a number past the interpreter's digit limit, and nesting past its depth.
+_DIGITS = "1" * (sys.get_int_max_str_digits() + 1)
+_TOO_MANY_DIGITS = f'{{"unrelated": {_DIGITS}}}'
+_DEEP_NESTING = 200_000
+_REFUSED_STDOUT = "\n".join((_TOO_MANY_DIGITS, "[" * _DEEP_NESTING, _COMPLETE_EVENT))
 _LIMITS = scan.current_limits()
 _METADATA_LIMIT = 8
 _STORAGE = coverage.STORAGE_BUDGET
@@ -159,6 +165,11 @@ class BoundedScanTest(unittest.TestCase):
         # Whitespace past the scanned characters is nothing the bound left unread.
         trailing = scan.scan_events(f"{_COMPLETE_EVENT}\n \n", dataclasses.replace(_LIMITS, scan_chars=_LINE))
         self.assertFalse(trailing.gaps)
+
+    def test_decoder_refusals_are_malformed_lines(self) -> None:
+        events = scan.scan_events(_REFUSED_STDOUT, _LIMITS)
+        self.assertEqual([position for position, _ in events.events], [2])
+        self.assertEqual(events.gaps, {coverage.MALFORMED_LINES: 2})
 
     def test_oversize_metadata_is_dropped_and_counted(self) -> None:
         metadata = scan.Metadata(_METADATA_LIMIT)

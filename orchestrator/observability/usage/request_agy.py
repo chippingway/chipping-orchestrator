@@ -45,6 +45,7 @@ from orchestrator.observability.usage.request_agy_steps import (
     COUNTERS,
     StepFold,
     StepKey,
+    malformed_usage,
     raw_counts,
     unindexed_gap,
     usage_readings,
@@ -203,6 +204,7 @@ class StreamFold:
         return MappingProxyType({reason: count for reason, count in gaps.items() if count})
 
     def _step(self, position: int, frame: dict[str, Any]) -> None:
+        self.gaps[coverage.MALFORMED_USAGE] += malformed_usage(frame)
         index = frame.get(agy_events.STEP_INDEX)
         if isinstance(index, bool) or not isinstance(index, int):
             self.gaps[coverage.UNINDEXED_FRAMES] += unindexed_gap(frame, self.branches.metadata)
@@ -238,6 +240,7 @@ class StreamFold:
         if placed and len(self.terminals) <= self.branches.limits.branches:
             self.terminals.add(conversation)
         turns = normalization.Reading.of(terminal.get("num_turns"))
+        self.gaps[coverage.MALFORMED_USAGE] += malformed_usage(terminal)
         self.observed_checkpoints += 1
         self.checkpoints.append(request_models.UsageCheckpoint(
             kind=RESULT_TOTAL,

@@ -45,6 +45,13 @@ _EARLY_INPUT = stream.step(1, state="ACTIVE", usage={_INPUT: _INPUT_COUNT, _CACH
 _SPARSE_COMPLETION = stream.step(1, usage={_OUTPUT: _OUTPUT_COUNT})
 _SPARSE_RAW = MappingProxyType({_INPUT: _INPUT_COUNT, _CACHE_READ: _EARLY_CACHE_READ, _OUTPUT: _OUTPUT_COUNT})
 _MIXED_SETTLEMENT = ("provisional", "completed-and-pre-completion-frames")
+# A completion reporting the input alone, then a frame with no state reporting the rest of the step's usage.
+_INPUT_COMPLETION = stream.step(1, usage={_INPUT: _INPUT_COUNT})
+_LATER_FIELDS = MappingProxyType({"conversation_id": stream.SESSION_ID, "step_index": 1})
+_LATER_REST = stream.event("step_update", usage=dict(_SPARSE_RAW), **_LATER_FIELDS)
+_DISAGREEING_RAW = MappingProxyType({**_SPARSE_RAW, _INPUT: _INPUT_COUNT + 1})
+_LATER_DISAGREEING = stream.event("step_update", usage=dict(_DISAGREEING_RAW), **_LATER_FIELDS)
+_LATER_SETTLEMENT = ("final", "completed-and-later-frames")
 _INIT = stream.init_event()
 _TERMINAL = stream.terminal()
 
@@ -139,6 +146,16 @@ class StepFoldTest(unittest.TestCase):
         # The output rests on the completed frame and the rest on an earlier one, so the request is provisional.
         self.assertEqual(cases.picked(sample, *_SETTLED), _MIXED_SETTLEMENT)
         self.assertEqual(collection.reasons, {coverage.PROVISIONAL_USAGE: 1})
+
+    def test_usage_after_completion_folds_in(self) -> None:
+        collection = cases.collected(_INIT, _INPUT_COMPLETION, _LATER_REST, _TERMINAL)
+        sample = collection.samples[0]
+        self.assertEqual(sample[cases.RAW], dict(_SPARSE_RAW))
+        self.assertEqual(cases.picked(sample, *_SETTLED), _LATER_SETTLEMENT)
+        self.assertEqual(collection.status, coverage.COMPLETE)
+        # A later frame disagreeing with the completed report contradicts it, like a second completion would.
+        contradicted = cases.collected(_INIT, _INPUT_COMPLETION, _LATER_DISAGREEING, _TERMINAL)
+        self.assertIn(coverage.CONFLICTING_COUNTERS, contradicted.reasons)
 
     def test_completed_frames_disagreeing_conflict(self) -> None:
         disagreeing = stream.step(1, usage={_INPUT: _INPUT_COUNT + 1})

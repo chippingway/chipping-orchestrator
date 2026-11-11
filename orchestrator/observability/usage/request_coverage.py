@@ -70,6 +70,7 @@ SUBAGENT_ATTRIBUTION_CONFLICTING = "subagent-attribution-conflicting"
 OVERSIZE_METADATA = "oversize-metadata"
 MALFORMED_METADATA = "malformed-metadata"
 MALFORMED_ENVELOPES = "malformed-envelopes"
+MALFORMED_USAGE = "malformed-usage"
 
 _UNAVAILABLE_REASONS = frozenset((COLLECTOR_ERROR, NO_STREAM_EVENTS))
 _SOURCE_LIMIT_REASONS = frozenset((SCAN_LIMIT, OVERSIZE_LINES, CORRELATION_LIMIT))

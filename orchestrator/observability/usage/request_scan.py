@@ -8,7 +8,8 @@ branches, and markers it correlates, how many aggregate checkpoints it keeps, an
 metadata may be. Each line is decoded by the shared resilient decoder (`event_stream.iter_events`), so a line reads the
 same here as in every other parser. A bound that stops the scan, or a line it refuses to decode, is recorded as a gap,
 so a collection that read less than the whole invocation says so. A line shaped like a JSON object that does not decode
-is a malformed frame; any other line that decodes to no event -- banner text -- is skipped without being one.
+is a malformed frame, and so is a line the decoder refuses outright; any other line that decodes to no event -- banner
+text -- is skipped without being one.
 
 The bounds are module defaults rather than knobs, read once per collection by `current_limits`, so a caller shrinks
 one here and the next collection is held to it.
@@ -91,21 +92,36 @@ class EventScan:
         line = raw_line.strip()
         if not line:
             return True
-        decoded = None
-        if len(line) <= self.limits.line_chars:
-            decoded = event_stream.iter_events(line)
+        decoded = self._decoded(line)
         if decoded and len(self.events) >= self.limits.events:
             return False
         self.scanned_lines += 1
         if decoded:
             self.events.append((position, decoded[0]))
-            return True
-        self.skipped_lines += 1
-        if decoded is None:
-            self.gaps[coverage.OVERSIZE_LINES] += 1
-        elif line.startswith(_OBJECT_START):
-            self.gaps[coverage.MALFORMED_LINES] += 1
         return True
+
+    def _decoded(self, line: str) -> list[dict[str, Any]]:
+        """The event one line decodes to, or none, with why a line was skipped counted where it is a gap.
+
+        The decoder itself may refuse a line it could parse -- a number past the interpreter's digit limit, nesting
+        past its recursion depth -- and that refusal is a malformed line of this scan, never an error that would cost
+        every other line of it.
+        """
+        if len(line) > self.limits.line_chars:
+            return self._skipped(coverage.OVERSIZE_LINES)
+        try:
+            decoded = event_stream.iter_events(line)
+        except (ValueError, RecursionError):
+            return self._skipped(coverage.MALFORMED_LINES)
+        if decoded:
+            return decoded
+        return self._skipped(coverage.MALFORMED_LINES if line.startswith(_OBJECT_START) else None)
+
+    def _skipped(self, gap: str | None) -> list[dict[str, Any]]:
+        self.skipped_lines += 1
+        if gap is not None:
+            self.gaps[gap] += 1
+        return []
 
 
 def current_limits() -> CollectionLimits:

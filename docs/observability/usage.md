@@ -723,7 +723,8 @@ its observed count is never read as the invocation's; one that read nothing is `
 `malformed-lines`, `no-terminal-result`, `unsettled-steps`, `unreported-usage`, `unindexed-frames`,
 `conversation-ambiguous`, `provisional-usage`, `missing-counters`, `invalid-counters`, `conflicting-counters`,
 `model-unattributed`, `subagent-model-unestablished`, `subagent-usage-unavailable`, `subagent-unidentified`,
-`subagent-attribution-conflicting`, `oversize-metadata`, `malformed-metadata`, and `malformed-envelopes`.
+`subagent-attribution-conflicting`, `oversize-metadata`, `malformed-metadata`, `malformed-envelopes`, and
+`malformed-usage`.
 
 A collector reads stdout a second time, so `request_scan.py` bounds everything it adds, as module defaults read when a
 collection starts: at most 64 Mi characters of stdout (`MAX_SCAN_CHARS`; whitespace past them is no gap), 4 Mi
@@ -733,24 +734,27 @@ characters per line (`MAX_LINE_CHARS`), 200,000 decoded events (`MAX_EVENTS`), 2
 or model name is dropped and counted, never cut, and so is the configured fallback model; a value that is no string at
 all -- or a duration no float holds or that is negative -- is dropped and counted as `malformed-metadata`, so a
 malformed field costs its own reading and no other request of the stream. Each line goes through the shared decoder; one
-shaped like a JSON object that does not decode is a malformed frame, while banner text is skipped without being a gap.
-Only allowlisted counters and correlation metadata enter a sample: no prompt, response or tool text, reasoning text,
-credential, or source dictionary.
+shaped like a JSON object that does not decode is a malformed frame, and so is one the decoder itself refuses -- a
+number past the interpreter's digit limit, or nesting past its depth -- while banner text is skipped without being a
+gap. Only allowlisted counters and correlation metadata enter a sample: no prompt, response or tool text, reasoning
+text, credential, or source dictionary.
 
 **Antigravity requests.** `request_agy.py` produces one observation per completed usage-bearing step of the process's
 own stream, on the same agy 1.4.10 captures the run accounting is pinned to. A step is keyed by its conversation and
 `step_index` and folded from every frame of it (`request_agy_steps.py`): a completed frame adds the counters it carries
 and never takes back ones an earlier frame supplied, so a repeated or sparse frame keeps the step's usage; two completed
-frames reporting different counts leave that counter `conflicting`; and a counter only an earlier, active frame reported
-keeps that frame's count. A sample every counter of which a completed frame reported is `final` (`completed-frame`); one
-resting on earlier frames alone or in part is `provisional` (`pre-completion-frame`, or
-`completed-and-pre-completion-frames`). Two steps reporting equal counts stay two samples, and `checkpoint` steps --
-helper generations -- are requests in their own right, in the order the stream completed them. `raw` reads
-`input_tokens`, `output_tokens`, `thinking_tokens`, `cache_read_tokens`, and `total_tokens` and nothing else of the
-block: the context input is the input plus the cache reads, the thinking a part of the output, and `total_tokens` the
-source total. The guide's cached step normalizes 278 input tokens beside 30,214 cache reads to 30,492 context-input
-tokens, keeps its `total_tokens` of 282 as `source_total_tokens`, keeps its 0 thinking tokens inside its 4 output
-tokens, and leaves cache writes and their lifetimes `unsupported`.
+frames reporting different counts leave that counter `conflicting`; a frame arriving after completion, with no state or
+another one, adds the counters it carries to the completed report under the same rule; and a counter only an earlier,
+active frame reported keeps that frame's count. A sample every counter of which a completed frame reported is `final`
+(`completed-frame`, or `completed-and-later-frames` where a frame after completion added one); one resting on earlier
+frames alone or in part is `provisional` (`pre-completion-frame`, or `completed-and-pre-completion-frames`). Two steps
+reporting equal counts stay two samples, and `checkpoint` steps -- helper generations -- are requests in their own
+right, in the order the stream completed them. `raw` reads `input_tokens`, `output_tokens`, `thinking_tokens`,
+`cache_read_tokens`, and `total_tokens` and nothing else of the block: the context input is the input plus the cache
+reads, the thinking a part of the output, and `total_tokens` the source total. The guide's cached step normalizes 278
+input tokens beside 30,214 cache reads to 30,492 context-input tokens, keeps its `total_tokens` of 282 as
+`source_total_tokens`, keeps its 0 thinking tokens inside its 4 output tokens, and leaves cache writes and their
+lifetimes `unsupported`.
 
 Only this process's steps are samples, a resumed run's included: the terminal `result` usage counts the whole
 conversation, every earlier process of it too, so it is a `result-total` checkpoint of `conversation` scope and never a
@@ -777,11 +781,12 @@ step, or one that carried usage, the stream never completed (`unsettled-steps`; 
 completed one with no usage (`unreported-usage`), a frame with no step index that carries usage or a generation's step
 type (`unindexed-frames`), a subagent whose conversation exposed no usage (`subagent-usage-unavailable`), one
 `subagent_info` does not name (`subagent-unidentified`), an event naming an `init`, `step_update`, or `result` envelope
-but carrying no object under it (`malformed-envelopes`), and a stream with no terminal `result` of the process's own
-conversation (`no-terminal-result`) -- a subagent's `result` ends its own conversation, never the process. The stream
-reports no timestamp, context capacity, CLI version, cache write, or compaction or reset boundary, so every collection
-that read the stream lists those as limitations and records none of them. The run accounting is unchanged:
-`agy_summary.py` still counts each completed step's last completed frame, so where completed frames disagree the run
-counters keep that frame while the sample states the counter `conflicting`.
+but carrying no object under it (`malformed-envelopes`), a usage block on any step or `result` that is no object or
+names no counter (`malformed-usage`), and a stream with no terminal `result` of the process's own conversation
+(`no-terminal-result`) -- a subagent's `result` ends its own conversation, never the process. The stream reports no
+timestamp, context capacity, CLI version, cache write, or compaction or reset boundary, so every collection that read
+the stream lists those as limitations and records none of them. The run accounting is unchanged: `agy_summary.py` still
+counts each completed step's last completed frame, so where completed frames disagree the run counters keep that frame
+while the sample states the counter `conflicting`.
 
 [pinned-state]: ../state-machine/labels-and-state.md#pinned-state

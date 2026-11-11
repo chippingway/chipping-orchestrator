@@ -76,6 +76,8 @@ _EARLIER_INIT = _init(_EARLIER_MODEL)
 _NEGATIVE_USAGE = MappingProxyType({**_USAGE, protocol.OUTPUT_TOKENS: -1})
 _UNINDEXED_RESPONSE = stream.event(agy_events.STEP_UPDATE, step_type="agent_response", state=agy_events.DONE)
 _MALFORMED_UNINDEXED = stream.event(agy_events.STEP_UPDATE, step_type={})
+_BROKEN_USAGE = stream.step(3, kind=agy_events.TOOL, usage="broken")
+_UNNAMED_USAGE = stream.step(3, kind=agy_events.TOOL, usage={"tokens": 5})
 _MALFORMED_ENVELOPE = json.dumps({"event": agy_events.STEP_UPDATE, agy_events.STEP_UPDATE: []})
 # A completed request whose duration is twice the largest float: an integer no float holds.
 _PAST_FLOAT = int(sys.float_info.max) * 2
@@ -121,6 +123,8 @@ _DAMAGED = (
     ("malformed step type, no step index", _MALFORMED_UNINDEXED, coverage.MALFORMED_METADATA),
     ("an envelope that is no object", _MALFORMED_ENVELOPE, coverage.MALFORMED_ENVELOPES),
     ("a duration no float holds", _UNFLOATABLE_DURATION, coverage.MALFORMED_METADATA),
+    ("tool usage that is no object", _BROKEN_USAGE, coverage.MALFORMED_USAGE),
+    ("tool usage naming no counter", _UNNAMED_USAGE, coverage.MALFORMED_USAGE),
 )
 # Later `init` events naming no conversation: a change of the one unnamed conversation, and one placed nowhere.
 _UNNAMED_EARLIER_INIT = _init(_EARLIER_MODEL, None)

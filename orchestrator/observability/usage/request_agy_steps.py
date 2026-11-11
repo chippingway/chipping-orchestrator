@@ -6,11 +6,12 @@ The CLI reports a step over as many frames as it takes and repeats a completed o
 of a step's fields. A step is therefore folded field by field: a frame adds what it carries and never takes away what
 an earlier one supplied, so a repeated or sparse completed frame keeps the usage the first completed frame reported.
 Two completed frames reporting different counts for one counter contradict each other, and that counter is
-`conflicting` rather than either count. Usage a frame carried before the step completed is kept apart and stands for
-every counter no completed frame reported -- all of them where none did -- so a sparse completion never takes back
-what an earlier frame supplied, and a request any of whose counters rests on such a frame is provisional rather than
-final. Only the counters `COUNTERS` names are read off a usage block; nothing else of a frame -- its text delta, its
-tool payload -- is.
+`conflicting` rather than either count; a frame arriving after completion adds the counters it carries to the
+completed report under the same rule, and the request's settlement says so. Usage a frame carried before the step
+completed is kept apart and stands for every counter no completed frame reported -- all of them where none did -- so a
+sparse completion never takes back what an earlier frame supplied, and a request any of whose counters rests on such a
+frame is provisional rather than final. Only the counters `COUNTERS` names are read off a usage block; nothing else of
+a frame -- its text delta, its tool payload -- is.
 """
 
 from __future__ import annotations
@@ -44,6 +45,7 @@ GENERATIONS = frozenset(("agent_response", "checkpoint"))
 SETTLED_BY_COMPLETION = "completed-frame"
 SETTLED_BEFORE_COMPLETION = "pre-completion-frame"
 SETTLED_IN_PART_BEFORE_COMPLETION = "completed-and-pre-completion-frames"
+SETTLED_AFTER_COMPLETION = "completed-and-later-frames"
 _USER_INPUT = "user_input"
 _DURATION = "duration_seconds"
 
@@ -93,6 +95,20 @@ def unindexed_gap(frame: dict[str, Any], metadata: Metadata) -> bool:
     return metadata.text(frame.get(agy_events.STEP_TYPE)) in GENERATIONS
 
 
+def malformed_usage(payload: dict[str, Any]) -> bool:
+    """Whether a payload carries a usage block nothing can be read off: no object, or one naming no counter.
+
+    Such a block is usage the stream reported in a shape this collection cannot read, so it is a gap wherever it
+    appears -- on a tool step as much as on a generation -- rather than an absence.
+    """
+    usage = payload.get(protocol.USAGE)
+    if usage is None:
+        return False
+    if not isinstance(usage, dict):
+        return True
+    return bool(usage) and not any(counter in usage for counter in COUNTERS)
+
+
 def raw_counts(readings: dict[str, Reading]) -> dict[str, int]:
     """The counts a usage block reported, by source counter, as decoded -- a negative one included."""
     return {
@@ -120,6 +136,7 @@ class StepFold:
     tool: bool = False
     final: dict[str, Reading] = field(default_factory=dict)
     early: dict[str, Reading] | None = None
+    later: set[str] = field(default_factory=set)
 
     @property
     def settled(self) -> bool:
@@ -142,18 +159,21 @@ class StepFold:
     def absorb(self, position: int, frame: dict[str, Any], metadata: Metadata) -> None:
         self.tool = self.tool or agy_events.ToolLifecycle.is_tool_step(frame)
         self.kind = self.kind or metadata.text(frame.get(agy_events.STEP_TYPE))
-        readings = usage_readings(frame)
-        if frame.get(agy_events.STATE) == agy_events.DONE:
-            self._complete(position, readings or {})
-            self._timed(frame.get(_DURATION), metadata)
-        elif readings and not self.settled:
+        readings = usage_readings(frame) or {}
+        done = frame.get(agy_events.STATE) == agy_events.DONE
+        # A frame after completion adds to the completed report, held to it like a repeated completion.
+        if done or (readings and self.settled):
+            self._complete(position, readings, later=not done)
+        elif readings:
             self.early = {**(self.early or {}), **readings}
+        if done:
+            self._timed(frame.get(_DURATION), metadata)
 
     def usage(self) -> SettledUsage | None:
         """The usage this step settled on, or None where no frame of it carried any.
 
-        A counter a completed frame reported is that frame's; one only an earlier frame reported keeps that frame's
-        count, and makes the request provisional.
+        A counter a completed frame reported is that frame's, and so is one a frame after completion added to it; one
+        only an earlier frame reported keeps that frame's count, and makes the request provisional.
         """
         early = self.early or {}
         readings = {**early, **self.final}
@@ -161,13 +181,17 @@ class StepFold:
             return None
         if not self.final:
             return SettledUsage(readings, request_models.PROVISIONAL, SETTLED_BEFORE_COMPLETION)
-        if early.keys() <= self.final.keys():
-            return SettledUsage(readings, request_models.FINAL, SETTLED_BY_COMPLETION)
-        return SettledUsage(readings, request_models.PROVISIONAL, SETTLED_IN_PART_BEFORE_COMPLETION)
+        if not early.keys() <= self.final.keys():
+            return SettledUsage(readings, request_models.PROVISIONAL, SETTLED_IN_PART_BEFORE_COMPLETION)
+        settlement = SETTLED_AFTER_COMPLETION if self.later else SETTLED_BY_COMPLETION
+        return SettledUsage(readings, request_models.FINAL, settlement)
 
-    def _complete(self, position: int, readings: dict[str, Reading]) -> None:
+    def _complete(self, position: int, readings: dict[str, Reading], *, later: bool) -> None:
+        """Fold a completed report into the step: the completing frame's, or one a frame after completion added."""
         if self.settled_position is None:
             self.settled_position = position
+        if later:
+            self.later.update(counter for counter in readings if counter not in self.final)
         for counter, reading in readings.items():
             if self.final.setdefault(counter, reading) != reading:
                 self.final[counter] = Reading(state=normalization.CONFLICTING)
