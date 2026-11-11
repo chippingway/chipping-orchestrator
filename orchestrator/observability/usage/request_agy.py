@@ -16,8 +16,9 @@ conversations it names, so a frame naming none joins the one conversation a stre
 none or several is still this process's stdout, kept under a process-scoped identity -- a gap where it could be more
 than one conversation's. Which conversation a step belongs to and the model it ran on are the `request_agy_branches`
 owner's to establish; a subagent whose conversation exposes no usage, a step completed with no usage, one the stream
-never completed, and a frame with no step index that carries usage or a generation are gaps the collection records
-rather than requests it counts.
+never completed, a frame with no step index that carries usage or a generation, an envelope that is no object, and a
+stream whose own conversation printed no terminal `result` -- a subagent's result ends only its own conversation --
+are gaps the collection records rather than requests it counts.
 
 The stream reports no timestamp, context capacity, CLI version, cache write, or compaction or reset boundary, so none
 is ever recorded; `LIMITATIONS` names them for every collection.
@@ -57,6 +58,7 @@ LIMITATIONS = (
     "no-compaction-markers",
 )
 RESULT_TOTAL = "result-total"
+_ENVELOPES = (agy_events.INIT, agy_events.STEP_UPDATE, agy_events.RESULT_EVENT)
 
 
 def identity(step: StepFold, child: Child | None) -> request_models.RequestIdentity:
@@ -72,6 +74,12 @@ def identity(step: StepFold, child: Child | None) -> request_models.RequestIdent
         parent_step_index=parent.parent_step_index,
         subagent_type=parent.subagent_type,
     )
+
+
+def malformed_envelope(event: dict[str, Any]) -> bool:
+    """Whether an event names an Antigravity envelope but carries no object under it, so nothing of it can be read."""
+    name = event.get(agy_events.EVENT)
+    return name in _ENVELOPES and not isinstance(event.get(name), dict)
 
 
 def step_gaps(steps: Iterable[StepFold]) -> Counter[str]:
@@ -135,6 +143,7 @@ class StreamFold:
     steps: dict[StepKey, StepFold] = field(default_factory=dict)
     checkpoints: deque[request_models.UsageCheckpoint] = field(default_factory=deque)
     observed_checkpoints: int = 0
+    terminals: set[str | None] = field(default_factory=set)
     envelopes: int = 0
     gaps: Counter[str] = field(default_factory=Counter)
 
@@ -161,6 +170,7 @@ class StreamFold:
         frame = agy_events.payload(event, agy_events.STEP_UPDATE)
         terminal = agy_events.payload(event, agy_events.RESULT_EVENT)
         self.envelopes += any(envelope is not None for envelope in (init, frame, terminal))
+        self.gaps[coverage.MALFORMED_ENVELOPES] += malformed_envelope(event)
         if init is not None:
             self.branches.read_init(position, event, init)
         if frame is not None:
@@ -187,7 +197,9 @@ class StreamFold:
         gaps[coverage.OVERSIZE_METADATA] += self.branches.metadata.oversize
         gaps[coverage.MALFORMED_METADATA] += self.branches.metadata.malformed
         gaps[coverage.NO_STREAM_EVENTS] += not self.envelopes
-        gaps[coverage.NO_TERMINAL_RESULT] += bool(self.envelopes) and not self.observed_checkpoints
+        # Only the process's own conversation ending ends the process; a subagent's result ends its own alone.
+        ended = self.branches.process_conversation in self.terminals
+        gaps[coverage.NO_TERMINAL_RESULT] += bool(self.envelopes) and not ended
         return MappingProxyType({reason: count for reason, count in gaps.items() if count})
 
     def _step(self, position: int, frame: dict[str, Any]) -> None:
@@ -219,7 +231,12 @@ class StreamFold:
         return step
 
     def _terminal(self, position: int, terminal: dict[str, Any]) -> None:
+        """Keep a terminal total as a checkpoint, and which conversation it ended where that is established."""
         metadata = self.branches.metadata
+        named = metadata.text(terminal.get(CONVERSATION_ID))
+        conversation, placed = self.branches.census.placed(named)
+        if placed and len(self.terminals) <= self.branches.limits.branches:
+            self.terminals.add(conversation)
         turns = normalization.Reading.of(terminal.get("num_turns"))
         self.observed_checkpoints += 1
         self.checkpoints.append(request_models.UsageCheckpoint(
@@ -227,7 +244,7 @@ class StreamFold:
             scope=request_models.CONVERSATION_SCOPE,
             position=position,
             raw=MappingProxyType(raw_counts(usage_readings(terminal) or {})),
-            conversation_id=metadata.text(terminal.get(CONVERSATION_ID)),
+            conversation_id=named,
             source_status=metadata.text(terminal.get("status")),
             turns=turns.count if turns.known else None,
         ))

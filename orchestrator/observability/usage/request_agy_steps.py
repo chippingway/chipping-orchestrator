@@ -59,10 +59,14 @@ class SettledUsage(NamedTuple):
 
 
 def source_duration(raw: Any) -> float | None:
-    """A frame's reported duration in seconds, where it is a finite, non-negative number."""
+    """A frame's reported duration in seconds, where it is a finite, non-negative number a float holds."""
     if isinstance(raw, bool) or not isinstance(raw, (int, float)):
         return None
-    return float(raw) if math.isfinite(raw) and raw >= 0 else None
+    try:
+        seconds = float(raw)
+    except OverflowError:
+        return None
+    return seconds if math.isfinite(seconds) and seconds >= 0 else None
 
 
 def usage_readings(frame: dict[str, Any]) -> dict[str, Reading] | None:
@@ -140,7 +144,8 @@ class StepFold:
         self.kind = self.kind or metadata.text(frame.get(agy_events.STEP_TYPE))
         readings = usage_readings(frame)
         if frame.get(agy_events.STATE) == agy_events.DONE:
-            self._complete(position, frame, readings or {})
+            self._complete(position, readings or {})
+            self._timed(frame.get(_DURATION), metadata)
         elif readings and not self.settled:
             self.early = {**(self.early or {}), **readings}
 
@@ -160,16 +165,16 @@ class StepFold:
             return SettledUsage(readings, request_models.FINAL, SETTLED_BY_COMPLETION)
         return SettledUsage(readings, request_models.PROVISIONAL, SETTLED_IN_PART_BEFORE_COMPLETION)
 
-    def _complete(
-        self,
-        position: int,
-        frame: dict[str, Any],
-        readings: dict[str, Reading],
-    ) -> None:
+    def _complete(self, position: int, readings: dict[str, Reading]) -> None:
         if self.settled_position is None:
             self.settled_position = position
-        if self.duration is None:
-            self.duration = source_duration(frame.get(_DURATION))
         for counter, reading in readings.items():
             if self.final.setdefault(counter, reading) != reading:
                 self.final[counter] = Reading(state=normalization.CONFLICTING)
+
+    def _timed(self, raw: Any, metadata: Metadata) -> None:
+        """Keep the first duration a completed frame reports; one that is no duration is malformed metadata."""
+        if self.duration is not None or raw is None:
+            return
+        self.duration = source_duration(raw)
+        metadata.malformed += self.duration is None

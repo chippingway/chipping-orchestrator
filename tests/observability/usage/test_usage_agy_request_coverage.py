@@ -3,6 +3,7 @@
 """Antigravity request attribution and coverage: whose request each sample is, and what the collection missed."""
 
 import json
+import sys
 import unittest
 from types import MappingProxyType
 from unittest.mock import patch
@@ -25,6 +26,7 @@ _RESEARCH = "research"
 _EARLIER_MODEL = "gemini-3.6-flash-high"
 _INIT = stream.init_event()
 _TERMINAL = stream.terminal()
+_UNNAMED_TERMINAL = json.dumps({"event": "result", "result": {"status": "SUCCESS"}})
 _FIRST = stream.step(1, usage=dict(_USAGE))
 _SECOND = stream.step(2, usage=dict(_USAGE))
 _FOURTH = stream.step(4, usage=dict(_USAGE))
@@ -68,11 +70,16 @@ def _init(model: str, conversation: str | None = stream.SESSION_ID) -> str:
 
 
 _CHILD_RESPONSE = _response(_CHILD)
+_CHILD_TERMINAL = stream.event("result", conversation_id=_CHILD, status=stream.SUCCESS)
 _SPAWNING_TWO = _spawning(_CHILD, _SILENT_CHILD)
 _EARLIER_INIT = _init(_EARLIER_MODEL)
 _NEGATIVE_USAGE = MappingProxyType({**_USAGE, protocol.OUTPUT_TOKENS: -1})
 _UNINDEXED_RESPONSE = stream.event(agy_events.STEP_UPDATE, step_type="agent_response", state=agy_events.DONE)
 _MALFORMED_UNINDEXED = stream.event(agy_events.STEP_UPDATE, step_type={})
+_MALFORMED_ENVELOPE = json.dumps({"event": agy_events.STEP_UPDATE, agy_events.STEP_UPDATE: []})
+# A completed request whose duration is twice the largest float: an integer no float holds.
+_PAST_FLOAT = int(sys.float_info.max) * 2
+_UNFLOATABLE_DURATION = stream.step(3, usage=dict(_USAGE), duration_seconds=_PAST_FLOAT)
 _UNREADABLE_SPAWN = stream.step(3, kind=agy_events.TOOL, subagent_info=[])
 _UNNAMED_SPAWN = stream.step(3, kind=agy_events.TOOL, subagent_info=json.loads('{"subagents": [{"type_name": "x"}]}'))
 _SUBAGENT_STREAM = (_INIT, _FIRST, _SPAWNING_TWO, _CHILD_RESPONSE, _TERMINAL)
@@ -83,8 +90,8 @@ _CHILD_INIT_STREAM = (
 _UNNAMED_INIT = _init(stream.MODEL, None)
 # A step naming no conversation: joined to the one a stream names, and kept as the process's where it names none.
 _PLACEMENTS = (
-    ("one named conversation", (_INIT, _FIRST, _response(None, 1)), _JOINED_IDENTITY),
-    ("no conversation named", (_UNNAMED_INIT, _response(None, 1)), _PROCESS_IDENTITY),
+    ("one named conversation", (_INIT, _FIRST, _response(None, 1), _TERMINAL), _JOINED_IDENTITY),
+    ("no conversation named", (_UNNAMED_INIT, _response(None, 1), _UNNAMED_TERMINAL), _PROCESS_IDENTITY),
 )
 # A stream where a step naming no conversation could be more than one conversation's.
 _UNPLACED = (
@@ -112,6 +119,8 @@ _DAMAGED = (
     ("unreadable subagent", _UNREADABLE_SPAWN, coverage.SUBAGENT_UNIDENTIFIED),
     ("unreadable subagent, repeated", f"{_UNREADABLE_SPAWN}\n{_UNREADABLE_SPAWN}", coverage.SUBAGENT_UNIDENTIFIED),
     ("malformed step type, no step index", _MALFORMED_UNINDEXED, coverage.MALFORMED_METADATA),
+    ("an envelope that is no object", _MALFORMED_ENVELOPE, coverage.MALFORMED_ENVELOPES),
+    ("a duration no float holds", _UNFLOATABLE_DURATION, coverage.MALFORMED_METADATA),
 )
 # Later `init` events naming no conversation: a change of the one unnamed conversation, and one placed nowhere.
 _UNNAMED_EARLIER_INIT = _init(_EARLIER_MODEL, None)
@@ -160,7 +169,7 @@ class BranchAttributionTest(unittest.TestCase):
     def test_steps_naming_no_conversation_are_placed(self) -> None:
         for name, lines, identity in _PLACEMENTS:
             with self.subTest(name):
-                collection = cases.collected(*lines, _TERMINAL)
+                collection = cases.collected(*lines)
                 identities = [cases.picked(sample, *_IDENTITY_FIELDS) for sample in collection.samples]
                 self.assertEqual(identities, [identity])
                 self.assertEqual(collection.status, coverage.COMPLETE)
@@ -248,6 +257,13 @@ class CoverageGapTest(unittest.TestCase):
                 collection = cases.collected(stdout)
                 self.assertEqual(collection.status, status)
                 self.assertFalse(collection.samples)
+
+    def test_only_the_process_result_ends_the_stream(self) -> None:
+        # A subagent's result ends its own conversation; the process that spawned it never printed one of its own.
+        collection = cases.collected(_INIT, _FIRST, _spawning(_CHILD), _CHILD_RESPONSE, _CHILD_TERMINAL)
+        self.assertEqual(len(collection.samples), 2)
+        self.assertIn(coverage.NO_TERMINAL_RESULT, collection.reasons)
+        self.assertEqual(collection.status, coverage.INCOMPLETE)
 
     def test_dispatch_collects_for_antigravity_alone(self) -> None:
         for backend in (protocol.CLAUDE, protocol.CODEX):

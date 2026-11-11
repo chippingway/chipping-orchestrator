@@ -106,8 +106,11 @@ class Census:
     def read(self, event: dict[str, Any]) -> None:
         init = agy_events.payload(event, agy_events.INIT)
         frame = agy_events.payload(event, agy_events.STEP_UPDATE)
+        terminal = agy_events.payload(event, agy_events.RESULT_EVENT)
         if init is not None:
             self._name(event.get(CONVERSATION_ID))
+        if terminal is not None:
+            self._name(terminal.get(CONVERSATION_ID))
         if frame is not None:
             self._name(frame.get(CONVERSATION_ID))
             self.spawned = self.spawned or frame.get(agy_events.SUBAGENT_INFO) is not None
