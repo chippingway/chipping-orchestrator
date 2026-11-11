@@ -5,10 +5,10 @@
 One card per backend answers a single question -- what work on this agent
 costs -- so the readings behind it sit beside the markup rather than in the
 page drawing it. The spend is the backend's cost cohort, worded the way the
-overview words a window: the amount its runs state, or the word standing where
-they state none, with the basis beneath it -- an Antigravity backend's amount
-a Gemini API token estimate, a mixed one blended with each basis's amount --
-and why it falls short of complete spend.
+overview words a window: the amount its runs state, or the status standing
+where they state none, with the short status its own amount earns beneath it
+-- a subtotal, or an unknown completeness. Which sources the amount came from
+is the Cost details section's to say, not the card's.
 
 Three ratios follow: what a million tokens cost, what one run cost, and how
 much of the input side of the declared token totals went through the cache.
@@ -19,9 +19,9 @@ ratio is never shown as though both of its sides were whole. One whose
 denominator is zero, whose numerator states no amount, or whose tokens are a
 subtotal -- the cost per token then divides the cost of runs whose tokens it
 does not count -- is unavailable and reads as a dash. A money ratio over an
-amount short of complete spend is qualified the way the amount is, and a cache
-share over known totals leaving some run out says so; the count of those runs
-closes the card.
+amount short of complete spend carries the amount's status, and a cache share
+over known totals leaving some run out says so; the count of those runs closes
+the card.
 
 The theme is a parameter rather than an import, the way every card builder on
 this page is handed one: a page resolves a single theme object and passes it
@@ -85,7 +85,7 @@ def backend_efficiency_metrics(
 def backend_ratio_texts(row: BackendEfficiencyRow) -> tuple[str, str, str]:
     """The three ratios as a card words them: a dash where unavailable, each qualified where its sides fall short."""
     metrics = backend_efficiency_metrics(row)
-    shortfall = cost_text.completeness_text(row.cost.evidence)
+    shortfall = spend_text.spend_status(row.cost)
     share = metrics.cache_share_pct
     return (
         _ratio_text(_money(metrics.cost_per_million), "/ 1M tok", shortfall),
@@ -127,7 +127,7 @@ def backend_efficiency_card_html(row: BackendEfficiencyRow, *, theme) -> str:
         "font-size:11px;margin-left:8px;"
         f'font-family:{theme.FONT_FAMILY}">spend</span></div>'
         f'<div style="{note_style};margin-bottom:6px">'
-        f"{html.escape(spend_text.spend_note(row.cost))}</div>"
+        f"{html.escape(spend_text.spend_status(row.cost))}</div>"
         '<div style="display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;'
         f'color:{theme.MUTED_TEXT}"><span>{ratios}</span></div>'
         f"{token_line}</div>"

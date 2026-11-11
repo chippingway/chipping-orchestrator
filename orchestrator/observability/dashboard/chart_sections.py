@@ -54,7 +54,6 @@ def render_chart_widgets(
         theme=modules.theme,
         issues_rows=read_results["issues_rows"],
         backend_rows=read_results["backend_rows"],
-        cost_coverage_rows=read_results["cost_coverage_rows"],
     )
     reliability_panel.render_repo_and_reliability(
         modules,

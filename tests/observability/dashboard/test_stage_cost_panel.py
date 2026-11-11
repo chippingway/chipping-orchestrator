@@ -32,7 +32,7 @@ from orchestrator.observability.analytics.query.cost_models import (
     ReviewRoundBucketRow,
 )
 from orchestrator.observability.analytics.query.run_models import StageBreakdown
-from orchestrator.observability.dashboard import render_config, stage_cost_panel
+from orchestrator.observability.dashboard import render_config, spend_text, stage_cost_panel
 from orchestrator.observability.dashboard.charts import cost_horizontal, cost_review, cost_stage, primitives
 from tests.observability.analytics import analytics_cohorts as cohort_cases, analytics_usage_cases as cases
 from tests.observability.dashboard import lifecycle_window_test_support as window
@@ -57,10 +57,11 @@ _ROUNDS = ("0", "1")
 
 # The row heights and base each split is sized from, restated here so a case
 # reads the arithmetic rather than the owner's own expression back: a stage
-# row, a review row holding two bars, and the margin and axis base beneath.
+# row, a review row holding two bars under a three-line label, and the margin
+# and axis base beneath.
 _ROW_HEIGHT = 40
 
-_REVIEW_ROW_HEIGHT = 44
+_REVIEW_ROW_HEIGHT = 52
 
 _BASE_HEIGHT = 80
 
@@ -90,14 +91,12 @@ _WIDTH_OPTION = "use_container_width"
 
 _CONFIG_OPTION = "config"
 
-_CLI_REPORTED = "CLI-reported"
-
-
-# Every stage spends one CLI-reported run and every round one AGY review, so
-# the note under each figure totals its bars on the basis they share.
+# Every stage spends one CLI-reported run and every round one AGY review
+# beside an unpriced one, so the note under the stage figure totals a complete
+# amount and the note under the round figure a subtotal.
 _STAGE_COST = cohort_cases.cohort(cases.REPORTED)
 
-_ROUND_COST = cohort_cases.cohort(cases.GEMINI_ESTIMATE)
+_ROUND_COST = cohort_cases.cohort(cases.GEMINI_ESTIMATE, cases.UNPRICED)
 
 
 def stage_rows(*stages: str) -> list[StageBreakdown]:
@@ -262,16 +261,17 @@ class StageReviewBarsTest(unittest.TestCase):
         )
 
     def test_each_figure_is_closed_by_its_note(self) -> None:
-        # What the bars add up to is worded under each figure with its basis --
-        # an AGY-only review spend as a Gemini API token estimate -- and the
-        # cache and non-cache segments are said to be a token-share allocation
-        # rather than a measured cache charge.
+        # What the bars add up to is worded under each figure with its own
+        # status, and nothing more: the sources behind it and what a
+        # token-share split is are the Cost details section's to explain.
         page, _ = render_bars()
-        self.assertIn(f"Bars total $1.26 ({_CLI_REPORTED})", markup_in(page, LEFT))
-        self.assertIn("Bars total $0.24 (Gemini API token estimate)", markup_in(page, RIGHT))
+        self.assertIn('<p class="orch-card-note">Bars total $1.26</p>', markup_in(page, LEFT))
+        self.assertIn(f"Bars total $0.24 · {spend_text.SUBTOTAL}</p>", markup_in(page, RIGHT))
         for column in (LEFT, RIGHT):
             with self.subTest(column=column):
-                self.assertIn("not a measured cache charge", markup_in(page, column))
+                self.assertEqual(markup_in(page, column).count("orch-card-note"), 1)
+                for word in ("CLI-reported", "estimate", "cache charge"):
+                    self.assertNotIn(word, markup_in(page, column))
 
     def test_an_empty_split_notes_nothing(self) -> None:
         page, _ = render_bars(stages=(), rounds=())

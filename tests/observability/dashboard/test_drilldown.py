@@ -8,8 +8,9 @@ install: the heading, the notices, the banner, and what is handed to
 was built from, so the columns and their order can be read straight off it. The
 scope entry is faked the same way, which is what lets a case say whose read was
 issued inside it and under which filters without standing a database up. A
-run's cost reads as the recent-runs listing words it, and an event that is no
-run leaves both cost cells empty rather than reading as a zero.
+run's cost reads as the recent-runs listing words it -- its figure and its own
+status, never its source -- and an event that is no run leaves the cost cell
+empty rather than reading as a zero.
 """
 
 from __future__ import annotations
@@ -30,6 +31,7 @@ from orchestrator.observability.dashboard import (
     drilldown,
     page_models,
     scoped_reads,
+    spend_text,
     windows,
 )
 from tests.observability.analytics import analytics_usage_cases as cases
@@ -62,8 +64,6 @@ _EVENT_COLUMN = "event"
 
 _COST_COLUMN = "cost"
 
-_RATES_COLUMN = "rates"
-
 _FIRST_EVENT = "stage_entered"
 
 _SECOND_EVENT = "agent_exit"
@@ -81,7 +81,6 @@ _COLUMNS = (
     "backend",
     "exit",
     _COST_COLUMN,
-    _RATES_COLUMN,
 )
 
 
@@ -238,20 +237,26 @@ class DrilldownEventRowTest(unittest.TestCase):
                 event.agent_role,
                 event.backend,
                 event.exit_code,
-                "$0.30 (Anthropic API token estimate)",
-                "rates verified 2026-10-29",
+                "$0.30",
             ),
         )
 
     def test_a_non_run_event_states_no_cost(self) -> None:
         row = drilldown.drilldown_event_row(_issue_event(cost=None))
-        self.assertEqual((row[_COST_COLUMN], row[_RATES_COLUMN]), (None, None))
+        self.assertIsNone(row[_COST_COLUMN])
 
-    def test_a_basis_less_amount_says_so(self) -> None:
+    def test_each_run_carries_its_own_status(self) -> None:
         # A run an earlier build recorded with no cost evidence keeps its
-        # amount, and its row says nothing is known of its basis.
-        row = drilldown.drilldown_event_row(_issue_event(cost=cases.ABSENT_BASIS))
-        self.assertEqual(row[_COST_COLUMN], "$0.07 (basis unknown, completeness unknown)")
+        # amount and says its completeness is unknown; a subtotal and an
+        # unpriced run say so on their own rows, and none names a source.
+        for cost, worded in (
+            (cases.ABSENT_BASIS, f"$0.07 · {spend_text.COMPLETENESS_UNKNOWN}"),
+            (cases.INCOMPLETE_SUBTOTAL, f"$0.20 · {spend_text.SUBTOTAL}"),
+            (cases.UNPRICED, spend_text.UNPRICED),
+            (cases.BLENDED, "$0.15"),
+        ):
+            with self.subTest(cost=cost):
+                self.assertEqual(drilldown.drilldown_event_row(_issue_event(cost=cost))[_COST_COLUMN], worded)
 
 
 class RenderDrilldownViewTest(unittest.TestCase):

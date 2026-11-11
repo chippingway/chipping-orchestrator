@@ -12,14 +12,15 @@ Streamlit run, so what an operator reads is testable without one.
 The reductions themselves belong to `kpis`, the lines under the tiles to
 `kpi_series`, and the words a cohort's spend and a known token count are
 qualified by to `spend_text`; what this owner adds is which of them each tile
-reports and how that reading is spelled. A tile that reports money carries a
-note naming its basis and why it falls short of complete spend, and a tile whose
-token count leaves some run's total out says it is a subtotal, so neither a
-blended amount, an incomplete subtotal, nor a known token subtotal passes for
-the whole. Its move against the window before carries the same qualifications:
-a percentage between two subtotals, two windows on different bases, or a window
-whose amount states no completeness is annotated as such, and a window whose
-runs stated no amount at all has no percentage to report.
+reports and how that reading is spelled. A tile that reports money carries the
+short status its own amount earns -- a subtotal, or an unknown completeness --
+and a tile whose token count leaves some run's total out says it is a subtotal,
+so neither passes for the whole; the sources behind the amount are the Cost
+details section's to explain. Its move against the window before carries the
+same qualifications: a percentage between two subtotals, two windows whose
+amounts come from different sources, or a window whose amount states no
+completeness is annotated as such, and a window whose runs stated no amount at
+all has no percentage to report.
 
 Two spellings carry a decision. Cost per resolved issue is an em dash rather
 than a zero or a division when nothing was resolved, because a window that
@@ -28,8 +29,10 @@ operator could act on; where the window's runs stated no amount it reads as
 their spend does -- unpriced, or cost unknown. The rework share is an em dash
 the same way where the review rounds state no positive amount to take a share
 of, so an unpriced or unreviewed window reports no share rather than a zero it
-never measured, and a share taken of a subtotal or of a blended amount carries
-the rounds' basis and shortfall in its note.
+never measured, and a share taken of a subtotal carries the rounds' status in
+its note, while the rework amount under it carries the status its own runs earn,
+since the first pass can leave the rounds short where the rework is not, or the
+other way round.
 
 The strip is handed the theme rather than importing it, because the module a
 page renders through is the one whose formatters and hues a tile has to match
@@ -141,10 +144,14 @@ def cost_per_resolved(totals: KpiTotals) -> str:
 
 
 def rework_subtitle(rework: CostCohort) -> str:
-    """What the rounds after the first stated, or that none of them ran."""
+    """What the rounds after the first stated, with the status their own runs earn, or that none of them ran.
+
+    The tile's note carries the status of every review round, the first pass included, so the rework amount keeps its
+    own beside it: the two cohorts can be short in different ways.
+    """
     if rework.is_empty:
         return "no runs in review rounds >= 1"
-    return f"{spend_text.spend_figure(rework)} in review rounds >= 1"
+    return f"{spend_text.spend_line(rework)} in review rounds >= 1"
 
 
 def kpi_strip_entries(
@@ -165,7 +172,7 @@ def kpi_strip_entries(
         {
             _LABEL_KEY: "Total spend",
             _VALUE_KEY: spend_text.spend_figure(cost),
-            _NOTE_KEY: spend_text.spend_note(cost),
+            _NOTE_KEY: spend_text.spend_status(cost),
             _DELTA_KEY: totals.spend_delta,
             _DELTA_NOTE_KEY: spend_text.spend_comparison_note(cost, totals.previous.cost),
             _SUBTITLE_KEY: f"{daily_cost}/day" if daily_cost else "",
@@ -185,7 +192,7 @@ def kpi_strip_entries(
         {
             _LABEL_KEY: "Cost / resolved issue",
             _VALUE_KEY: cost_per_resolved(totals),
-            _NOTE_KEY: spend_text.spend_note(cost, amounts=False),
+            _NOTE_KEY: spend_text.spend_status(cost) if totals.resolved > 0 else "",
             _DELTA_KEY: None,
             _SUBTITLE_KEY: (
                 f"{totals.resolved} resolved · {totals.rejected} rejected"
@@ -196,7 +203,7 @@ def kpi_strip_entries(
         {
             _LABEL_KEY: "Rework share",
             _VALUE_KEY: rework_value,
-            _NOTE_KEY: spend_text.spend_note(totals.review_cost, amounts=False),
+            _NOTE_KEY: "" if rework_share is None else spend_text.spend_status(totals.review_cost),
             _DELTA_KEY: None,
             _SUBTITLE_KEY: rework_subtitle(totals.rework_cost),
             _SPARK_KEY: None,

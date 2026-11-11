@@ -198,14 +198,13 @@ class RepoAndReliabilityTest(unittest.TestCase):
         self.assertIn("Cost by repository", markup_in(page, LEFT))
         self.assertIn("Reliability &amp; throughput", markup_in(page, RIGHT))
 
-    def test_the_ranking_is_closed_by_its_basis(self) -> None:
-        # What the repository bars add up to is worded beneath them, a blended
-        # amount with each basis's own, rather than left to the hover alone.
+    def test_the_ranking_is_closed_by_its_total(self) -> None:
+        # What the repository bars add up to is worded beneath them rather
+        # than left to the hover alone; the mix of sources behind it is the
+        # Cost details section's to list.
         page, _ = render_panel()
-        self.assertIn(
-            "Bars total $0.54 (blended: CLI-reported $0.42 + Gemini API token estimate $0.12)",
-            markup_in(page, LEFT),
-        )
+        self.assertIn('<p class="orch-card-note">Bars total $0.54</p>', markup_in(page, LEFT))
+        self.assertNotIn("blended", markup_in(page, LEFT))
 
     def test_the_day_strip_ends_inside_the_window(self) -> None:
         # The window is half-open, so drawing through its end would add a

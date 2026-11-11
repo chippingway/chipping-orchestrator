@@ -176,22 +176,24 @@ are in the [developer guide](development.md#analytics-sync-and-dashboard).
 The page is composed entirely from owners under `observability/dashboard/`, stages its 16 widget reads into two cached
 waves around the chrome it draws between them, and never raises at the operator — every missing-data or
 misconfiguration case surfaces as a labeled banner. The dashboard process is independent of the polling tick: it opens
-no GitHub session, writes no Postgres row, and can be deployed off-host by repointing `ANALYTICS_DB_URL`. Its topbar,
-headline tiles, sparklines, and usage chart name every amount's basis — an AGY-only one a Gemini API token estimate, a
-mixed one blended with its parts beside it — never pass an incomplete subtotal or an amount of unknown basis off as
-complete spend, keep those qualifications on every move against the window before, and count each token once. The
-costliest-issues table words each issue's cost the same way and is drawn in the order SQL ranked it, ahead of its cap,
-on every amount the issue's runs state — a subtotal at its known part, an issue stating none last and worded unpriced
-rather than free — and the recent-runs listing and per-issue drill-down word each run's stored cost, an estimate's
-rate dates beside it, never repriced from its tokens. The stage, review-round, and repository bars and the backend
-cards word each group's spend the same way: its basis and any shortfall under a bar's label or beneath a card's spend,
-a blended amount's parts on hover, in the note closing each chart panel, and on the card, and a group stating no
-amount worded unpriced, no usage, or cost unknown rather than drawn as a zero. The cache and non-cache segments of a
-stage or review-round bar split its stated amount by the runs' declared token share — an allocation, never a measured
-cache charge — leaving the amount of a run whose token total is unknown unsplit, and a backend's cost per token, cost
-per run, and cache share are qualified, or shown as unavailable, wherever the cost or token total behind them falls
-short. That page carries the module layout, the caching and fan-out contracts, the body layout top to bottom, the
-chart builders and theme owners, and the empty / error banner inventory.
+no GitHub session, writes no Postgres row, and can be deployed off-host by repointing `ANALYTICS_DB_URL`. Every amount
+on it — topbar, tiles, chart labels and hovers, panel notes, backend cards, issue rows, listed and traced runs — reads
+as its figure and a short status its own runs earn: `Subtotal`, `Completeness unknown`, or, where no amount is stated,
+`Unpriced`, `No usage`, `Cost unknown`, or `No runs`, never a zero; a complete amount, a genuine `$0.00` included,
+carries none, and no value repeats its sources or the selection's status. One collapsed **Cost details** section under
+the filter bar, drawn off the same filtered first-wave read, states the selection's amount, each source's part of it
+with an estimate's rate dates, and its runs by coverage beside the cost-source coverage bar; explains once what a
+CLI-reported amount, an API token estimate (an AGY-only one a Gemini API token estimate), and a mix of them are, none a
+verified charge, and what every status means; and carries the unpriced-run warning in its label. Moves against the
+window before keep a subtotal, an unknown completeness, or a change of sources, and each token is counted once. The
+costliest-issues table is drawn in the order SQL ranked it, ahead of its cap, on every amount the issue's runs state —
+a subtotal at its known part, an issue stating none last and worded `Unpriced` rather than free — and the recent-runs
+listing and per-issue drill-down read each run's stored cost, never repriced from its tokens. The cache and non-cache
+segments of a stage or review-round bar split its stated amount by the runs' declared token share — an allocation,
+never a measured cache charge — leaving the amount of a run whose token total is unknown unsplit, and a backend's cost
+per token, cost per run, and cache share carry their amount's status, or are shown as unavailable, wherever the cost or
+token total behind them falls short. That page carries the module layout, the caching and fan-out contracts, the body
+layout top to bottom, the chart builders and theme owners, and the empty / error banner inventory.
 
 ## Usage parser (`orchestrator/observability/usage/`)
 

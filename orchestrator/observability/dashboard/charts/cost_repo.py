@@ -10,12 +10,11 @@ owner prefix, which is the same across every bar an operator is comparing and
 would spend the gutter the amounts have to fit beside; the full slug stays on
 the row for a caller that needs it. The subtitle counts agent runs rather than
 events, because the amount beside it is the spend those runs came to and the
-cheap stage rows would overstate a quiet repository, and it names the basis
-that amount is stated on and any shortfall -- an Antigravity repository's
-amount a Gemini API token estimate, a mixed one blended, a subtotal one. The
-bar is as long as the amount the repository's runs state, the figure past it
-is that amount or the word standing where they state none, and the hover words
-the repository's cost whole, each part of a blended amount by its own.
+cheap stage rows would overstate a quiet repository, and it adds the short
+status the repository's own amount earns, so a subtotal reads as one. The bar
+is as long as the amount the repository's runs state, the figure past it is
+that amount or the status standing where they state none, and the hover words
+the repository's cost on one line, its figure and that status.
 
 Every bar takes the page's accent: a repository is not a category the page
 tints by, so a striped ranking would suggest a distinction the rows do not

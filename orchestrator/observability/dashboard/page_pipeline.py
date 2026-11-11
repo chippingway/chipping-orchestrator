@@ -5,21 +5,24 @@
 A window's panels are read in two waves so the page has something on screen
 while the second one is still out. This owner is what fills that gap: the
 banner and filter line written back into the slots the controls left, the
-banners a window is worth interrupting the page for, and the four-tile strip
-every section below is read against.
+collapsed Cost details section under them, the banners a window is worth
+interrupting the page for, and the four-tile strip every section below is read
+against.
 
 Which reads each wave is made of belongs to ``read_plan`` and driving the pair
 belongs to ``dispatch``; what is decided here is what an operator sees in
 between, and the one case where there is nothing more to see. A window whose
 first wave reported no event at all has nothing for the panels beneath to draw,
-so the chrome is drawn, the empty-window notice takes over, and reporting
-nothing back is what ends the load before the second wave is paid for -- which
-makes the return value a short circuit rather than only a result.
+so the chrome and the Cost details section are drawn, the empty-window notice
+takes over, and reporting nothing back is what ends the load before the second
+wave is paid for -- which makes the return value a short circuit rather than
+only a result.
 
-The banner's spend, the strip's money, and the unpriced-coverage banner are all
-read off the window's one cost cohort, so the topbar, the tiles, and the notice
-above them cannot disagree about a window's basis or about which of its runs
-left the amount short.
+The banner's spend, the strip's money, and the Cost details section -- the one
+place the page explains its money, its unpriced-run warning included -- are all
+read off the window's one cost cohort, so the topbar, the tiles, and the
+section cannot disagree about a window's amount or about which of its runs left
+it short.
 
 Every sibling a pass here calls is named directly, so a test intercepting a
 render patches the module that holds it and a page and a fix land on the same
@@ -37,6 +40,7 @@ from typing import Any
 from orchestrator.observability.analytics.query.overview_models import Summary
 from orchestrator.observability.dashboard import (
     card_html,
+    cost_details,
     dispatch,
     insights,
     kpi_strip,
@@ -96,6 +100,7 @@ def render_first_wave(
     """Draw the chrome and the strip, or leave through the empty window."""
     summary = read_results["summary"]
     render_topbar_and_meta(modules, page, summary)
+    cost_details.render_cost_details(modules, summary.cost, read_results["cost_coverage_rows"])
     if summary.total_events == 0:
         page_states.render_empty_window(modules, page)
         return None

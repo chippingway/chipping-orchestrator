@@ -14,7 +14,9 @@ The label helpers are what keeps those panels one page rather than several. A
 bar's text is set in the mono stack so the amounts down a column line up on the
 decimal point, and a tick is the label with its subtitle beneath it in the muted
 tint, built here rather than per family because a subtitle spelled a second way
-is a different chart.
+is a different chart. A subtitle may run to several lines -- one per bar a
+label heads -- and each line is set in that tint on its own, since a style
+opened before a line break is not carried past it.
 
 The horizontal-bar helpers settle the shape those families share: a panel is
 one row height per bar over the fixed margin and axis base underneath, unless
@@ -93,20 +95,16 @@ def monospace_textfont() -> dict[str, object]:
 
 
 def two_line_y_ticks(
-    labels: Sequence[str], subs: Sequence[str]
+    labels: Sequence[str], subs: Sequence[str | Sequence[str]]
 ) -> list[str]:
-    """Pair each label with its subtitle, dropping an empty one."""
+    """Pair each label with its subtitle -- one line, or one per bar it heads -- dropping an empty one."""
     ticks: list[str] = []
     for label, sub in zip(labels, subs):
-        label_html = f"<b>{label}</b>"
-        if sub:
-            ticks.append(
-                f"{label_html}<br>"
-                f"<span style='color:{MUTED_TEXT};font-size:11px'>"
-                f"{sub}</span>"
-            )
-        else:
-            ticks.append(label_html)
+        lines = (sub,) if isinstance(sub, str) else tuple(sub)
+        ticks.append("<br>".join((
+            f"<b>{label}</b>",
+            *(f"<span style='color:{MUTED_TEXT};font-size:11px'>{line}</span>" for line in lines if line),
+        )))
     return ticks
 
 

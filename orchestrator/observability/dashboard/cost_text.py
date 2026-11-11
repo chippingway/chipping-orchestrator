@@ -2,21 +2,23 @@
 # SPDX-License-Identifier: Apache-2.0
 """What a cost reads as: its amount, its basis, and how complete it is.
 
-Both pages spell money through here: on the trajectory viewer the total-cost
-tile, a row of the recorded-runs table, a run's usage row, and an assistant
-turn's strip, and on the analytics dashboard a row of the recent-runs listing
-and of an issue's trace, and -- through ``spend_text``, which words a cohort of
-runs on top of this -- the overview's totals and each issue on the cost
-ranking. So does the receipt the workflow posts on an issue it finishes
+The trajectory viewer spells money through here -- its total-cost tile, a row
+of the recorded-runs table, a run's usage row, and an assistant turn's strip --
+and so does the receipt the workflow posts on an issue it finishes
 (``workflow.engine.issue_usage``), for the cost the issue's pinned totals
-state. A basis is therefore worded one way on every surface. An amount is
-never shown without its basis beside it, because the bases are different
-things: a CLI-reported amount is what the agent CLI printed, never a verified
-bill, and an estimate is a token-only Standard API list-price equivalent on its
-provider's basis. A Gemini estimate, the basis Antigravity usage is priced on,
-reads as a Gemini API token estimate and never as an Antigravity charge. A cost
-spanning several bases reads as ``blended``, with each basis's own amount
-beside it.
+state. On those surfaces an amount is never shown without its basis beside it,
+because the bases are different things: a CLI-reported amount is what the
+agent CLI printed, never a verified bill, and an estimate is a token-only
+Standard API list-price equivalent on its provider's basis. A Gemini estimate,
+the basis Antigravity usage is priced on, reads as a Gemini API token estimate
+and never as an Antigravity charge. A cost spanning several bases reads as
+``blended``, with each basis's own amount beside it.
+
+The analytics dashboard words its amounts compactly instead, through
+``spend_text`` -- a figure and a short status of its own -- and names a basis
+only in its Cost details section (``cost_details``), which takes the basis
+names, the exact dollar figure, and the rate dates from here, so a basis is
+still named one way on every surface that names it.
 
 Nothing here prices or re-adds anything: the evidence is the record's, read
 through ``usage.cost_evidence.recorded_cost`` and folded by ``reduce_costs``.

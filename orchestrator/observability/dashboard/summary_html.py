@@ -11,14 +11,15 @@ pill spelled in one module and the tile that carries it in another are two
 places the strip can stop agreeing with the stylesheet painting it.
 
 The banner's spend is the window's cost cohort, worded by ``spend_text``: the
-amount the runs state beside the basis it is stated on -- each part of a
-blended amount listed by its own -- and why it falls short of complete spend,
-so the figure an operator reads first never passes an incomplete subtotal, an
-amount of unknown basis, or a window with no run off as the window's spend. A
-tile carries the same kind of note under its value where the entry names one.
+amount the runs state with its short status beside it where it has one, so the
+figure an operator reads first never passes a subtotal, an amount of unknown
+completeness, or a window with no run off as the window's whole spend. Which
+sources that amount came from is the Cost details section's to say, not the
+banner's. A tile carries the same kind of note under its value where the entry
+names one.
 
 What reaches the markup as caller text is handed to ``html.escape`` first: the
-banner's span label, spend figure, and spend note, and each tile's label,
+banner's span label, spend figure, and spend status, and each tile's label,
 value, note, sub-line, and the note its pill is qualified by. A page writes
 this with ``unsafe_allow_html=True``, and a KPI label or an already-formatted
 amount is text the dashboard was given rather than text it owns. The readings
@@ -30,7 +31,7 @@ summarized by are costs. ``invert`` is for the readings where up is the good
 direction -- issues resolved, success rate -- and it swaps the color only: the
 arrow keeps following the value's sign, so which way a tile moved is never read
 off the hue alone. A pill's ``note`` is what the move has to be read with -- a
-subtotal on either side, two windows on different bases -- and it rides inside
+subtotal on either side, two windows on different sources -- and it rides inside
 the pill, so the qualification cannot be dropped from the percentage it
 qualifies. A window with no prior to compare against, or one that did not move,
 renders no pill at all, because a placeholder in that slot reads as a control
@@ -74,9 +75,9 @@ class TopbarRequest:
         return f"{first_day} → {last_day} available"
 
     def spend_html(self) -> str:
-        """The window's spend figure, and the note qualifying it wherever there is one."""
+        """The window's spend figure, and the status qualifying it wherever there is one."""
         figure = html.escape(spend_text.spend_figure(self.spend_in_range))
-        note = spend_text.spend_note(self.spend_in_range)
+        note = spend_text.spend_status(self.spend_in_range)
         note_html = f'<span class="note">{html.escape(note)}</span>' if note else ""
         return f'<span class="value">{figure}</span>{note_html}'
 

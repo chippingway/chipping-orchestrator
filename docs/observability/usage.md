@@ -413,7 +413,7 @@ counted among those whose total is unknown where it does not; its cost evidence 
 `reduce_costs`, one summed amount per basis beside the weakest completeness any run states. When an issue reaches a
 terminal, `_format_issue_usage_verdict` renders those totals into one visible receipt line posted on the issue
 thread, `:receipt: this issue: N agent runs · T tokens · <cost>`, its cost worded by the same `cost_text` owner the
-dashboard and trajectory viewer use:
+trajectory viewer uses and the analytics dashboard's Cost details section names its sources by:
 
 | Totals state | Receipt cost |
 | --- | --- |

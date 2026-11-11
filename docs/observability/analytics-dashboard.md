@@ -396,7 +396,7 @@ render is intercepted on the section owner that orders it — `chart_sections` f
 `page_sections` for the four beneath them — while what one draws with is the panel owner's own module-scope import, so
 a case that has to intercept the adoption table, the trigger-rate one, the matrix, or either sort
 parse patches `skill_panel` or `skill_trigger_panel`, and one that has to intercept the issues table, the efficiency
-card, the coverage bar, or the ranking depth patches `issue_cost_panel`. The paired lifecycle bars, the
+card, or the ranking depth patches `issue_cost_panel`. The paired lifecycle bars, the
 repository-spend pair beneath them, and the activity grid under both sit there too, and a figure builder is on that
 list beside the card ones: the
 per-stage and per-review-round builders are `stage_cost_panel`'s own module-scope imports off `charts/cost_stage.py`
@@ -450,9 +450,9 @@ drawn from, each naming the skill query owner. What one read of that wave then g
 lives beside them: `scoped_reads.py` for the thread's analytics connection it is issued inside, `filter_binding.py`
 for the filters its cache key is read back as, and `static_metadata.py` for the extent and filter vocabulary a page
 opens on, the TTL both are cached for, and the banner a failed one stops the run with. Above every panel that wave
-feeds, `insights.py` holds the two observations a window is worth interrupting for — runs exiting non-zero, and runs
-whose cost evidence is `incomplete`, read off the window's own cost cohort rather than the `cost_source` tags — the
-ratio each is raised at, and the banner line a crossing is rendered as; directly
+feeds, `insights.py` holds the observation a window is worth interrupting for — runs exiting non-zero — the ratio it
+is raised at, and the banner line a crossing is rendered as; a window whose runs left its spend unpriced or partly
+priced raises no banner there, since that warning belongs to the Cost details section below; directly
 beneath those, `kpis.py` holds the four numbers the headline tiles report — the move against the window before it,
 the run-health tiles, the order and depth a spend table is cut to, and the cohorts of all review rounds and of the
 second passes among them, which the rework share is taken of.
@@ -460,21 +460,29 @@ Beside it, `kpi_series.py` holds the per-day spend, token, and resolved lines dr
 a day's stated amount with every basis added and its runs' known token totals, the readings the tiles report for the
 whole window — together with the throughput pair reported beside them, and
 `kpi_strip.py` the strip itself — what one is built from, the window and the one before it it pairs, and the four
-display entries a page opens with: each money tile with a note naming its basis and shortfall, the token tile
+display entries a page opens with: each money tile with the short status its own amount earns, the token tile
 labelled a subtotal where some run's total is unknown, and every move annotated with what it has to be read with.
-Those words are `spend_text.py`'s: on top of `cost_text.py` — the wording both pages, and the terminal usage
-receipt the workflow posts on an issue, share for one cost, a basis
-named on every amount, an AGY-only total read as a Gemini API token estimate and never an Antigravity charge, a blended
-one listing each basis's amount, and an incomplete or unknown one qualified as such — it says what only a cohort can:
-that a window held no run (`—`, `no agent runs`) rather than a zero, how many runs left the amount unpriced or partly
-priced or stated no cost evidence, the bases alone where a figure is a ratio of the total, and what a move between two
-windows keeps — `subtotal`, `completeness unknown`, `blended`, or `bases differ`. `breakdown_text.py` says what fits on
-a grouped breakdown's bar on top of those: the figure drawn past it (the stated amount, or `unpriced`, `no usage`,
-`cost unknown`, or `—` for a group with no run, never a zero), the line under its label (the run count, then the basis
-by its full name — an AGY-only group's a Gemini API token estimate — or `blended`, and `subtotal` or `completeness
-unknown`), the note a panel closes on (what its bars add up to, worded as a window's total is, each part of a blended
-amount by its own amount), and the note saying a token-share split is an allocation rather than a measured cache
-charge. `sparkline_points.py` and
+Those words are `spend_text.py`'s, which words every amount on the analytics page, a run's or a cohort's, as its
+figure and a short status of its own and never its sources: no status for an amount covering all its runs' usage, a
+complete `$0.00` included; `Subtotal` where some run is unpriced or partly priced; `Completeness unknown` where some
+run states no cost evidence; and, where no amount is stated, `Unpriced`, `No usage`, `Cost unknown`, or `No runs` for
+a cohort holding none — never a zero. A move between two windows keeps `Subtotal`, `Completeness unknown`, or
+`Sources differ`. `cost_text.py` is how one cost reads with its basis — on the trajectory viewer, on the terminal usage
+receipt the workflow posts on an issue, and in the Cost details section's source names: an AGY-only total read as a
+Gemini API token estimate and never an Antigravity charge, a blended one listing each basis's amount, and an incomplete
+or unknown one qualified as such. `cost_details.py` is the one place the page explains its money: the collapsed
+**Cost details** section drawn under the filter line from the first wave's summary, so it follows every filter. It
+states the selection's amount and status, each source's own part of it exact to the cent with the dates an estimate's
+rates were verified on, and the runs counted as fully priced, unpriced or partly priced, no usage, and no cost
+evidence; draws the cost-source coverage bar; explains in plain language what a CLI-reported amount, an API token
+estimate, a mix of sources, and an amount of unknown basis are — none of them a verified charge — what every status
+above means, and that a token-share split is an allocation rather than a measured cache charge; and carries the
+unpriced-run warning in its label once a tenth of the selection's runs or more are unpriced or partly priced, without
+naming a cause the evidence does not record. `breakdown_text.py` says what fits on a grouped breakdown's bar: the
+figure drawn past it (the stated amount, or `Unpriced`, `No usage`, `Cost unknown`, or `No runs`, never a zero), the
+line under its label (the run count, then the group's own status, or one such line per role where a label heads a
+development and a review bar), and the note a panel closes on (what its bars add up to, on one line).
+`sparkline_points.py` and
 `sparkline_html.py` are how one of those lines reaches
 the tile above it — three of the strip's four tiles carry one. The first places each day in a box too narrow for an
 axis, scaled to the window's own range, floored at an epsilon where a window has none, and left unprojected where the
@@ -482,12 +490,12 @@ window reported nothing at all; the second writes that projection as one polylin
 bottom edge of the box into the tint under it, holds the tile's room with an empty box where there was nothing to
 project, and binds the `values` / `color` / `w` / `h` surface a caller asks for one through.
 `summary_html.py` is the band that strip sits in — the banner naming what the database holds and the window's spend
-with its note, the line under the filter bar restating what a run narrowed it to, the pill one tile's move against the
+with its status, the line under the filter bar restating what a run narrowed it to, the pill one tile's move against the
 window before it is annotated with, the note it carries inside it, and the four tiles assembled around them. A rise
 reads red and a drop green, because these numbers are costs;
 `invert` swaps the hue for the readings where up is the good direction without moving the arrow off the value's sign,
 and a window with nothing to compare against or one that did not move renders no pill at all. What reaches the markup
-as caller text is escaped — the banner's span label, spend figure, and spend note, and each tile's label, value,
+as caller text is escaped — the banner's span label, spend figure, and spend status, and each tile's label, value,
 note, sub-line, and pill note — while the counts beside them and the filter line's own dates carry nothing to escape;
 the pill's `value` keyword and the banner's five keyword-only readings are bound as explicit signatures so both still
 answer the call every caller spells.
@@ -500,11 +508,10 @@ the compact table the four hand-rolled panels are listed in: the stylesheet each
 and body they are assembled from, and the bar width, short repository name, and missing count a cell reports.
 `issue_table.py` is the first of those four: the six columns a window's costliest issues are ranked into, the rules
 their in-row bars and status pills are painted by, and the readings one issue is reduced to and rendered as — its cost
-the issue's cohort worded as the overview words a window's (`spend_text`): the figure, then its basis (CLI-reported,
-one provider's API token estimate, or blended with each basis's amount beside it) and any shortfall, the runs left
-unpriced or partly priced and those stating no cost evidence counted; its bar a share of the widest row in that table,
+the issue's cohort worded as every amount on the page is (`spend_text`): the figure, with the status the issue's own
+runs earn beneath it and never the window's; its bar a share of the widest row in that table,
 sized by the amount the read ranked it on and drawn open where that amount falls short of complete spend; an issue
-stating no amount worded unpriced, unknown, or no usage, and one with no run as having none, never as a zero; its
+stating no amount worded `Unpriced`, `Cost unknown`, or `No usage`, and one with no run `No runs`, never a zero; its
 review round toned from the third one on; and its run health a `clean` pill wherever nothing failed.
 `skill_trigger_table.py` is the second: the six columns a `(role, backend)` cohort's skill use is reported in, its
 rate bar a share of the busiest cohort in that table, and `unknown` the label a category the sink left empty is read
@@ -540,9 +547,9 @@ on accordingly. The second is the card the section led with before adoption did;
 draws it now, and its prompt is unconditional, since trigger rates alone carry no per-session evidence to tell those
 two windows apart.
 `recent_runs.py` is the listing under those four panels rather than a fifth among them — the runs behind the readings
-above it, projected into the columns one is scanned by and the offset the sidebar picked — each run's cost worded from
-its stored evidence as the trajectory viewer words a run, the dates an estimate's rates were verified on beside it,
-and its non-overlapping token total beside the raw input and output counters — drawn as `st.dataframe`
+above it, projected into the columns one is scanned by and the offset the sidebar picked — each run's cost read off
+its stored evidence as its figure and the status that evidence earns, never repriced and never its source, and its
+non-overlapping token total beside the raw input and output counters — drawn as `st.dataframe`
 because a raw listing carries no bar, pill, or sortable heading Streamlit's own table cannot already handle. It opens
 collapsed so a window's worth of rows does not push the per-issue drill-down off the screen the page ends on, and a
 window with no `agent_exit` row renders the notice rather than an empty frame.
@@ -581,30 +588,29 @@ read's own count of the day's runs whose total is unknown beside them. The per-b
 wave and the series in the first, so a sync landing between them can leave the two disagreeing about a day; the
 marker over the per-backend stack is therefore counted off the rows that stack was drawn from.
 Two more panels are drawn as markup rather than as a figure: `backend_card.py` for what a run on one backend
-is worth — its spend worded as the overview words a window, its basis and shortfall beneath it, then the cost of a
+is worth — its spend worded as the overview words a window, its own status beneath it, then the cost of a
 million tokens, the cost of a run, and the share of the input side of the declared token totals that went through the
 cache (Codex's cached input counted once, inside its input). Each ratio divides through one guard, so one with nothing
 to divide — a zero denominator, no stated amount, or, for the cost per token, a token subtotal whose missing tokens
 the amount still covers — reads as a dash rather than raising; a money ratio of a subtotal or of an amount of unknown
-completeness is qualified as such, a cache share of known totals says so, and the runs whose token total is unknown
+completeness carries that status, a cache share of known totals says so, and the runs whose token total is unknown
 close the card. `coverage_card.py`
 for how much of a window's spend the parser could price, sized by token share whenever the window carries any and
 every run in it has a known token total, and by run share otherwise — a source of runs no evidence totals would
-otherwise shrink toward nothing — drawn as one bar and the legend beneath it.
+otherwise shrink toward nothing — drawn as one bar and the legend beneath it inside the Cost details section.
 `stage_cost_panel.py`, `issue_cost_panel.py`, and `reliability_panel.py` are the three sections that spend is compared
 across, each a pair of
 7:5 columns rather than a single panel. The first pairs the two lifecycle axes — spend by workflow stage beside spend
 by review cycle, each figure built by naming `charts/cost_stage.py` and `charts/cost_review.py` directly rather than
-by reaching a builder off a handle, and each closed by a note naming what its bars add up to and that its segments are
-a token-share allocation — and pins both to one height: whichever of the two figures needs more, as each chart owner
+by reaching a builder off a handle, and each closed by a note naming what its bars add up to — and pins both to one
+height: whichever of the two figures needs more, as each chart owner
 measures it (`stage_panel_height`, `review_panel_height`) — a full row per bucket, a review row tall enough for two
 bars, beneath the band its legend lines take. A horizontal bar family sizes itself by its own row count, so two panels
 left to size themselves would put bars of two different thicknesses either side of one gutter, and a height counted
 off the rows alone would hand the legend band out of the rows' share until their two-line labels overlapped. The
 second pairs the work with the agent that did it:
-the window's costliest issues ranked on the left, one efficiency card per backend on the right, and the coverage bar
-closing that column because it qualifies the money the cards above it report — drawn only where the window carries a
-cost-source split. Its two columns answer an empty window differently, since a window can carry runs the parser could
+the window's costliest issues ranked on the left and one efficiency card per backend on the right. Its two columns
+answer an empty window differently, since a window can carry runs the parser could
 not price while a window with no `agent_exit` row had nothing to run at all. The third pairs the money with whether
 the runs behind it held up: the window's spend by repository on the left, closed by a note naming what its bars add
 up to, and the six run-health tiles over the per-day strip of the issues those runs resolved on the right, each
@@ -645,7 +651,7 @@ chart owners' own rather than a handle threaded down.
 Setup and launch commands are in the [developer guide](../development.md#analytics-sync-and-dashboard).
 
 **Page chrome.** A sticky topbar carries the page title with the data extent / repo / event summary on the left and the
-in-range spend on the right, its note naming the basis — a blended total's parts listed — and any shortfall beneath it.
+in-range spend on the right, its own status (`Subtotal`, `Completeness unknown`) beside it where it has one.
 A sticky filter bar exposes `3D` / `7D` / `30D` / `All` inline presets (anchored at
 the data extent's max timestamp and clamped to its min) plus two date inputs for arbitrary windows within the extent.
 The sidebar surfaces a `Custom` preset fallback, a repo selector, event / stage multi-selects, and a `#123` / `123`
@@ -662,8 +668,9 @@ ingests new events.
 **Two-wave loading.** The 16 widget reads are staged into two waves by `dashboard/read_plan.py`:
 
 - **First wave (6 reads).** `summary`, `prev_summary`, `ts_points`, `review_round_rows`, `throughput_rows`,
-  `cost_coverage_rows` — feeds the topbar, filter meta, insight banners, and KPI strip, with `cost_coverage_rows`
-  riding in this wave for the coverage bar drawn below, since the unpriced banner reads the summary's cost cohort.
+  `cost_coverage_rows` — feeds the topbar, filter meta, Cost details section, insight banner, and KPI strip, with
+  `cost_coverage_rows` riding in this wave for the coverage bar the Cost details section draws beside the summary's
+  cost cohort.
 - **Second wave (10 reads).** `stage_rows`, `agent_exits`, `issues_rows`, `backend_rows`, `repo_rows`, `heatmap_rows`,
   `backend_daily_rows`, `skill_adoption_rows`, `skill_rows`, `skill_matrix_rows` — feeds the rest of the body.
 
@@ -672,47 +679,63 @@ ingests new events.
 skipped on an empty window. A single inline `st.spinner("Loading analytics…")` brackets both waves; a read error from
 either wave surfaces as one `st.error` + `st.stop`.
 
+**Cost wording.** Every amount below the filter bar — topbar, tiles, bars and their hovers, panel notes, backend
+cards, issue rows, listed and traced runs — reads as its figure and, where needed, one short status its own runs earn:
+none for an amount covering all their usage (a complete `$0.00` is a genuine zero), `Subtotal`, `Completeness
+unknown`, and in place of an amount `Unpriced`, `No usage`, `Cost unknown`, or `No runs`. No value names its sources or
+the selection's status. What those words and the sources mean is explained once, in the collapsed **Cost details**
+section below.
+
 **Body layout, top to bottom:**
 
-1. Computed insight banners (failure rate ≥ 10 %, runs unpriced or only partly priced ≥ 10 %).
-2. Four-tile KPI strip — total spend, total tokens (the runs' known non-overlapping totals), cost / resolved issue,
+1. **Cost details**, collapsed (`st.expander`, `expanded=False`) under the filter line and drawn before the
+   empty-window notice, off the first wave's `summary` and `cost_coverage_rows`, so it follows every filter. It states
+   the selection's amount and status, each source's part of it (CLI-reported, each provider's API token estimate with
+   its rate-verification dates, or an amount of unknown basis), the runs counted as fully priced, unpriced or partly
+   priced, no usage, and no cost evidence, and the cost-source coverage bar (sized by token share, or by run share
+   once a run's token total is unknown); then explains in plain language what each source, a mix of sources, and every
+   status means — no amount is a verified charge — and that a token-share split is an allocation, not a measured cache
+   charge. Where a tenth of the selection's runs or more are unpriced or partly priced, its label says how many
+   (`Cost details · 18 of 39 runs unpriced or partly priced`); no separate banner repeats that warning.
+2. Computed insight banner (failure rate ≥ 10 %).
+3. Four-tile KPI strip — total spend, total tokens (the runs' known non-overlapping totals), cost / resolved issue,
    rework share — each with an inline-SVG sparkline and previous-window delta where applicable. The money tiles carry
-   their basis and shortfall beneath the figure, the token tile says `subtotal` where a run's total is unknown, and a
-   delta between subtotals, blended totals, or windows on different bases is annotated rather than bare. The rework
-   share is an em dash where the review rounds state no positive amount, and otherwise carries their bases and
-   shortfall beneath it.
-3. Hero `usage_over_time` stacked-area + cost-line chart with a "By token type / By backend" toggle. The token-type
+   their own status beneath the figure, the token tile says `subtotal` where a run's total is unknown, and a delta
+   involving a subtotal, an unknown completeness, or windows whose amounts come from different sources is annotated
+   (`Subtotal`, `Completeness unknown`, `Sources differ`) rather than bare. The rework share is an em dash where the
+   review rounds state no positive amount, and otherwise carries their status beneath it, while the rework amount
+   under it keeps the status its own runs earn, since the first pass and the rework can fall short differently.
+4. Hero `usage_over_time` stacked-area + cost-line chart with a "By token type / By backend" toggle. The token-type
    stack is uncached input, output, and cache inside each day's known total; a day leaving a run of unknown total out
    is marked on top of its stack, counted by the read that stack was drawn from, and the cost line's hover words each
    day as the headline does, a day short of complete spend drawn open, an unpriced one left as a gap, and a day only
    the per-backend read saw left as a gap rather than as a day with no run. Since Plotly neither draws nor hovers a
    gap, each day whose cost states no amount is marked with a cross on the cost axis' baseline, legended "Cost not
-   stated", whose hover says why — unpriced, cost unknown, or "no cost reading for this day".
-4. Side-by-side `cost_by_stage` and `cost_by_review_round` cards; the stage card stacks each stage bar into its
+   stated", whose hover says why — `Unpriced`, `Cost unknown`, or "No cost reading for this day".
+5. Side-by-side `cost_by_stage` and `cost_by_review_round` cards; the stage card stacks each stage bar into its
    non-cache token share, cache token share, and the amount whose token share is unknown, and the review-round card
    groups development and review bars per round with each role's bar stacked the same way. A bar is as long as the
-   amount its runs state, labelled with that amount or with `unpriced` / `no usage` / `cost unknown` / `—`; its
-   sub-line names the basis (a Gemini API token estimate for an AGY-only group, `blended` for a mixed one) and a
-   subtotal; its hover words the group's cost with each part of a blended amount. Under each figure a note words what
-   the bars add up to, parts and shortfall included, and says the split is a token-share allocation, not a measured
-   cache charge. Each legend is listed one entry per line above its bars, and both cards are pinned to the height the
-   fuller one needs for a full row per bucket beneath its legend, so labels stay apart at any column width.
-5. 7/5 split: top-cost issues table ranked by stated cost (Issue with in-row cost bar, open where the amount is a
-   subtotal or of unknown completeness; Cost, its basis and shortfall noted beneath the figure, a blended total with
-   each basis's amount; Runs, Review rds, Retries, status pill) + backend-efficiency cards (spend with its basis and
-   shortfall, `$ / 1M tok`, `% input via cache`, `$ / run`, each ratio qualified or a dash where its sides fall short)
-   above the cost-source coverage bar (sized by token share, or by run share once a run's token total is unknown).
-6. Another 7/5 split: `cost_by_repo` bars (worded as the stage bars are, with the same note beneath) + six-tile
+   amount its runs state, labelled with that amount or with `Unpriced` / `No usage` / `Cost unknown` / `No runs`; its
+   sub-line adds the group's own status to its run count -- a review round's label giving development and review a
+   line each, so each role's status sits beside its own bar; its hover words the group's cost on one line. Under each
+   figure a note words what the bars add up to. Each legend is listed one entry per line above its bars, and both
+   cards are pinned to the height the fuller one needs for a full row per bucket beneath its legend, so labels stay
+   apart at any column width.
+6. 7/5 split: top-cost issues table ranked by stated cost (Issue with in-row cost bar, open where the amount is a
+   subtotal or of unknown completeness; Cost, the issue's own status beneath the figure; Runs, Review rds, Retries,
+   status pill) + backend-efficiency cards (spend with its own status, `$ / 1M tok`, `% input via cache`, `$ / run`,
+   each ratio qualified or a dash where its sides fall short).
+7. Another 7/5 split: `cost_by_repo` bars (worded as the stage bars are, with the same note beneath) + six-tile
    reliability panel (agent runs / success rate / resolved / rejected
    / failures / timeouts — all sourced from the same `Summary` window-wide aggregate) above the
    issues-resolved-per-day bar chart with explicit zero days backfilled.
-7. 7 × 24 weekday × hour activity heatmap rendering token volume — the runs' known totals, a cell holding a run whose
+8. 7 × 24 weekday × hour activity heatmap rendering token volume — the runs' known totals, a cell holding a run whose
    total is unknown saying so on hover — with an in-card `UTC` offset selectbox (range `-12
    … +14`, default `UTC+7`) that controls both the heatmap bucketing and the wall-clock conversion of the `ts` column
    in the recent agent-runs table below. The widget binds to `st.session_state["tz_offset_hours"]`; the offset is read
    before the second-wave fan-out so the heatmap query buckets in the chosen zone, and the card subtitle / x-axis title
    render the matching `UTC±N` label.
-8. "Skill adoption" panel — a fold-out invocation-level diagnostic above the primary per-session adoption matrix,
+9. "Skill adoption" panel — a fold-out invocation-level diagnostic above the primary per-session adoption matrix,
    which is itself split into one collapsed section per source level. The card opens on a collapsed `st.expander`
    ("Invocation-level diagnostics · per-run skill triggers") carrying the older per-run views as a clearly named
    diagnostic: the per-`(agent_role, backend)` aggregate table (`_skill_triggers_html` over
@@ -764,10 +787,10 @@ either wave surfaces as one `st.error` + `st.stop`.
    no cell at all renders the adoption table's fallback notice naming the switch once, in place of those sections
    rather than inside each of them, and the matrix shows its own fallback notice when no catalog-backed matrix can be
    built (no catalog records matched and no run fired a skill).
-9. Recent agent-runs table as a collapsible expander; the `ts` column is shifted to the wall-clock of the selected UTC
-   offset via `shift_ts`, each run's cost reads with its basis and any shortfall and an estimate's rate dates beside
-   it, and its token total is the non-overlapping one, empty where unknown.
-10. Per-issue drill-down when a number is entered, each run's cost worded as in the listing.
+10. Recent agent-runs table as a collapsible expander; the `ts` column is shifted to the wall-clock of the selected UTC
+    offset via `shift_ts`, each run's cost reads as its figure and the status its own evidence earns, and its token
+    total is the non-overlapping one, empty where unknown.
+11. Per-issue drill-down when a number is entered, each run's cost worded as in the listing.
 
 **Filter contract.** `build_window_where` distinguishes three cases for the event / stage selections: `None` is "no
 filter on this column", a non-empty sequence emits a parameterised `IN (...)`, and an empty sequence emits a
@@ -827,14 +850,16 @@ split as, named as shares so none reads as a measured cache charge) lives beside
 bars, the `RankedCost` row a caller may word its own figure and hover on, and the pinned `Signature` that keeps `items`
 its first parameter -- in `charts/cost_horizontal.py`. `cost_by_repo` sits on top of that ranking in
 `charts/cost_repo.py`, deciding only how a repository reads: the short name its bar is labelled by with the `owner/`
-prefix dropped, the agent-run count and the basis and shortfall on the sub-line, the figure and hover worded off its
-cohort, the page accent on every bar, and the shared placeholder in its own words for a window matching no repository.
-`cost_by_stage` sits beside the ranking in `charts/cost_stage.py` -- the ranking by stated amount, the `runs` sub-line
-with the basis and shortfall beside it, and the lightening that shades a cache share from the stage's own hue, which
+prefix dropped, the agent-run count and the repository's own status on the sub-line, the figure and hover worded off
+its cohort, the page accent on every bar, and the shared placeholder in its own words for a window matching no
+repository. `cost_by_stage` sits beside the ranking in `charts/cost_stage.py` -- the ranking by stated amount, the
+`runs` sub-line with the stage's own status beside it, and the lightening that shades a cache share from the stage's
+own hue, which
 is also where the per-review-round split gets the shading for its own. `cost_by_review_round` is that split, in
-`charts/cost_review.py` -- the round order and labels the rows are laid out and read by, the two-role sub-line beside
-them, each role's segments, figures, and hover read off its cohort and bands, the six series the two roles and their
-three segments are described as, and the row height a panel carrying two bars per row is sized with. The heatmap and
+`charts/cost_review.py` -- the round order and labels the rows are laid out and read by, the line per role beneath
+each label with that role's run count and own status, each role's segments, figures, and hover read off its cohort and
+bands, the six series the two roles and their three segments are described as, and the row height a panel carrying
+two bars per row under a three-line label is sized with. The heatmap and
 throughput families sit under the same package:
 `orchestrator/observability/dashboard/charts/heatmap.py` builds the grid -- and draws its own empty-state annotation
 over it rather than routing through the shared placeholder, because an empty heatmap is still legible -- and
@@ -885,7 +910,7 @@ itself under its own class, the header and body they are assembled from, and the
 and missing count a cell reports. The most-expensive-issues panel drawn in that table is
 `observability/dashboard/issue_table.py` — its six columns, the rules its in-row bars and status pills are painted
 by, and the readings one issue is reduced to and rendered as, its cost worded through
-`observability/dashboard/spend_text.py`. The skill-trigger-rates panel beside it is
+`observability/dashboard/spend_text.py` with the issue's own status. The skill-trigger-rates panel beside it is
 `observability/dashboard/skill_trigger_table.py` — its own six columns, the busiest cohort its rate bars are sized
 against, and the `unknown` a category the sink left empty reads as, which the adoption table's and the trigger
 matrix's row projections both read off that owner directly. The sparkline drawn inside a KPI
@@ -896,8 +921,11 @@ the box, the empty box a window with nothing to draw still holds, and the histor
 `values` / `color` / `w` / `h` surface a caller asks for one through. The chrome around that strip — the topbar, the
 filter-meta line, the delta pill one tile is annotated
 with, and the strip itself — is `observability/dashboard/summary_html.py`, which reaches the sparkline owner directly
-for the line a tile carries and `observability/dashboard/spend_text.py` for the words the topbar's spend is qualified
-by. The bar the filter line sits under is `observability/dashboard/date_controls.py` for
+for the line a tile carries and `observability/dashboard/spend_text.py` for the status the topbar's spend is qualified
+by. The collapsed section under that filter line, the one place the page's money is explained, is
+`observability/dashboard/cost_details.py` — the selection's amount, sources, and run coverage read off the first
+wave, the plain-language glossary of sources and statuses, the coverage bar, and the unpriced-run warning its label
+carries. The bar the filter line sits under is `observability/dashboard/date_controls.py` for
 the five slots it is laid
 out across, the label naming it, and the presets it offers inline, and
 `observability/dashboard/date_filter.py` for the window a preset opens its pickers on, the inclusive days they hand
@@ -907,7 +935,7 @@ open is `observability/dashboard/page_controls.py` — the sidebar a run is narr
 with, the offset that run's timestamps are displayed against, the filters those selections normalize into, the
 controls the band is read back as, and the staged plan beneath it; the app prepares its page on that owner, so a test
 intercepting it patches `page_controls`.
-Beside them, the insight banners, per-card header, and reliability-tile strip are built by
+Beside them, the insight banner, per-card header, and reliability-tile strip are built by
 `observability/dashboard/card_html.py`, and the backend-efficiency cards and cost-source coverage bar by
 `observability/dashboard/backend_card.py` and
 `observability/dashboard/coverage_card.py`; the primary per-session skill-adoption table is
@@ -935,7 +963,7 @@ listing's window is
 compared across are `observability/dashboard/stage_cost_panel.py` — the paired lifecycle bars, the 7:5 columns they
 are laid out in, and the one height both figures are pinned to, the larger of the two the chart owners measure —
 `observability/dashboard/issue_cost_panel.py` — the window's costliest issues ranked beside one efficiency card
-per backend, the coverage bar closing that column, and the notice those cards answer a window with no run with —
+per backend, and the notice those cards answer a window with no run with —
 and `observability/dashboard/reliability_panel.py` — the window's spend by repository beside the six run-health tiles
 and the per-day strip of the issues its runs resolved, bounded by the last day the window covers rather than by its
 half-open end. The card closing that run is `observability/dashboard/activity_panel.py` — the weekday-by-hour grid a
@@ -1008,11 +1036,15 @@ as a labeled banner.
   Also empty when the only matching rows have a NULL stage (`stage_evaluation` records on issues with no workflow
   label).
 - `` No `agent_exit` rows match the current filters. `` — *data* — The window contains `stage_enter` /
-  `stage_evaluation` rows but no agent invocations — surfaces in the review-round chart, backend cards, cost coverage
-  bar, and recent-runs expander.
+  `stage_evaluation` rows but no agent invocations — surfaces in the review-round chart, backend cards, and
+  recent-runs expander.
 - `No issues match the current filters.` — *data* — The top-cost issues table fell back to its empty state — no
   `(repo, issue)` pair matched the filters. An issue whose runs state no amount is still ranked, below every issue
-  stating one, and worded unpriced, unknown, or no usage rather than dropped.
+  stating one, and worded `Unpriced`, `Cost unknown`, or `No usage` rather than dropped.
+- `Cost details · <n> of <m> runs unpriced or partly priced` (collapsed section label) — *pricing* — At least a tenth
+  of the selection's runs carry usage with no amount, so its spend and every value marked `Subtotal` count only what
+  was priced. The recorded evidence does not say why a run went short; open a run in the trajectory viewer to read its
+  own cost evidence, and check whether the price catalogue has an active row for the models it ran.
 - `No repos match the current filters.` — *data* — The per-repo activity chart is empty for this filter combination.
 - `Pick a specific repo in the sidebar before drilling into an issue number …` — *UI guard* — The issue-number
   input is inert with the repo filter on `All` because GitHub issue numbers are not unique across repos.

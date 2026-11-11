@@ -20,7 +20,8 @@ side-by-side split names an offsetgroup so its bars share a y bucket, and only
 the outer trace of a stack carries the figure drawn past it -- the amount the
 group's runs state, or the word standing where they state none -- so a bar is
 labelled once rather than once per segment. A segment's hover adds the group's
-whole cost as worded beside it, since a share alone would read as its spend.
+whole cost, its figure and short status, since a share alone would read as its
+spend.
 
 The two splits share their segments as well. A group's stated amount is cut by
 token share into a non-cache segment, a cache one, and the amount no declared

@@ -83,6 +83,13 @@ class BarLabelTest(unittest.TestCase):
         )
         self.assertEqual(ticks[1], "<b>other</b>")
 
+    def test_a_subtitle_of_several_lines_styles_each(self) -> None:
+        # A style opened before a line break is not carried past it, so each
+        # line under a label heading several bars is set in the muted tint.
+        muted = f"<span style='color:{palette.MUTED_TEXT};font-size:11px'>"
+        ticks = primitives.two_line_y_ticks(("round",), (("1 dev run", "2 review runs"),))
+        self.assertEqual(ticks, [f"<b>round</b><br>{muted}1 dev run</span><br>{muted}2 review runs</span>"])
+
 
 # Where a stacked legend is placed and how wide each entry is: the figure's
 # top-left corner, one entry to a line.

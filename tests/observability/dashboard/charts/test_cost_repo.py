@@ -33,13 +33,14 @@ _CHEAPER_SLUG = f"{_OWNER_PREFIX}{_CHEAPER_NAME}"
 
 _DEARER_COST = cohort_cases.cohort(*cohort_cases.NAMED_COSTS["mixed providers"])
 
-_CHEAPER_COST = cohort_cases.cohort(*cohort_cases.NAMED_COSTS["agy only"])
+_CHEAPER_COST = cohort_cases.cohort(*cohort_cases.NAMED_COSTS["incomplete"])
 
 _UNPRICED_COST = cohort_cases.cohort(cases.UNPRICED)
 
 # Three repositories under one owner, the unpriced one first and the dearest
-# second, so the short name the bars are labelled by, the ranking under them,
-# and a repository stating no amount are all visible in the figure.
+# -- a mix of sources -- second, so the short name the bars are labelled by,
+# the ranking under them, a subtotal, and a repository stating no amount are all
+# visible in the figure.
 _ROWS = (
     RepoBreakdownRow(
         repo=f"{_OWNER_PREFIX}{_UNPRICED_NAME}",
@@ -96,15 +97,15 @@ class RepoRankingFigureTest(unittest.TestCase):
         self.assertIn(f"<b>{_CHEAPER_NAME}</b>", ticks)
         self.assertNotIn(_OWNER_PREFIX, ticks)
 
-    def test_the_sub_line_counts_runs_and_bases(self) -> None:
+    def test_the_sub_line_counts_runs_and_status(self) -> None:
         # The amount beside it is what those agent runs came to, so counting
-        # the cheap stage rows too would overstate a quiet repository; the
-        # basis it is stated on follows, an AGY-only repository's a Gemini API
-        # token estimate and a mixed one's blended.
+        # the cheap stage rows too would overstate a quiet repository; a
+        # subtotal is marked on its own bar, and no bar names a source.
         ticks = _repo_ticks()
-        self.assertIn(f"{_DEARER_RUNS} · blended", ticks)
-        self.assertIn(f"{_CHEAPER_RUNS} · Gemini API token estimate", ticks)
-        self.assertNotIn("events", ticks)
+        self.assertIn(f"{_DEARER_RUNS}</span>", ticks)
+        self.assertIn(f"{_CHEAPER_RUNS} · {spend_text.SUBTOTAL}", ticks)
+        for word in ("events", "blended", "estimate", "CLI-reported"):
+            self.assertNotIn(word, ticks)
 
     def test_repos_are_ranked_and_drawn_in_one_hue(self) -> None:
         # A repository is not a category the page tints by, so the ranking is
@@ -116,14 +117,17 @@ class RepoRankingFigureTest(unittest.TestCase):
         cheaper = _CHEAPER_COST.evidence.total_usd
         dearer = _DEARER_COST.evidence.total_usd
         self.assertEqual(tuple(trace.x), (float(0), cheaper, dearer))
-        self.assertEqual(tuple(trace.text), ("unpriced", "$0.32", "$0.69"))
+        self.assertEqual(tuple(trace.text), (spend_text.UNPRICED, "$0.50", "$0.69"))
         self.assertEqual(set(trace.marker.color), {palette.ACCENT})
 
-    def test_each_bar_hovers_its_cost_worded_whole(self) -> None:
-        # A blended repository's parts are read by their own amounts on hover.
+    def test_each_bar_hovers_its_own_cost_compactly(self) -> None:
+        # The hover reads each repository's figure and its own status; the
+        # sources behind a mixed amount are the Cost details section's to list.
         trace = cost_repo.cost_by_repo(_ROWS).data[0]
-        self.assertEqual(trace.customdata[-1], spend_text.spend_line(_DEARER_COST))
-        self.assertIn("CLI-reported $", trace.customdata[-1])
+        self.assertEqual(
+            tuple(trace.customdata),
+            (spend_text.UNPRICED, f"$0.50 · {spend_text.SUBTOTAL}", "$0.69"),
+        )
 
     def test_no_repos_is_one_bar_tall(self) -> None:
         # An operator who filtered the repositories away is told that, at the

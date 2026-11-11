@@ -335,6 +335,15 @@ PAGE_CSS = f"""
     color: var(--orch-muted); font-size: 11px; line-height: 1.4;
     margin: 4px 0 0;
   }}
+  /* Cost details: the one section the page's money is explained in. */
+  .orch-cost-details {{
+    color: var(--orch-ink); font-size: 13px; line-height: 1.5;
+    font-family: {FONT_FAMILY};
+  }}
+  .orch-cost-details p {{ margin: 0 0 6px; }}
+  .orch-cost-details ul {{ margin: 0 0 10px; padding-left: 18px; }}
+  .orch-cost-details li {{ margin: 0 0 2px; }}
+  .orch-cost-details .orch-cov-legend {{ margin-bottom: 12px; }}
   /* Reliability tiles ------------------------------------------- */
   .orch-rel-tiles {{
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px;

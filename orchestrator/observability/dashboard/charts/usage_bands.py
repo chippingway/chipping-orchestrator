@@ -33,7 +33,7 @@ into a band no trace reads. `BACKEND_MODE` sits with them because the mode a
 page switches the stack with is compared in more than one owner.
 
 A day's cost is its runs' cost cohort, folded across the day's events with
-`fold_cohorts` so the hover can word it with its basis and completeness. The
+`fold_cohorts` so the hover can word it with the status the day earns. The
 amount it plots at is every basis's contribution added -- the amount the
 headline states -- and a day whose runs stated none plots at zero only where
 there was nothing to price; an unpriced day, or one whose runs recorded an

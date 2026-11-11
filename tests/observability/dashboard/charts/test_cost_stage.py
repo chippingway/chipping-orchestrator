@@ -4,9 +4,9 @@
 
 A stage's cost is a cohort, so the cases name the cohorts a bar has to keep
 apart -- reported-only, AGY-only, mixed-provider, incomplete, and
-missing-basis -- and read back the basis and shortfall its sub-line names, the
-figure drawn past it, and the cost its hover words, beside the three
-token-share segments its stated amount is stacked into.
+missing-basis -- and read back the status its sub-line marks, the figure drawn
+past it, and the cost its hover words, beside the three token-share segments
+its stated amount is stacked into; no bar or hover names a source.
 """
 from __future__ import annotations
 
@@ -41,6 +41,8 @@ _SAMPLE_HUE = "#5b54e0"
 # both the ranking and the flip for the axis show in what comes back.
 _DEAREST_COST = cohort_cases.cohort(*cohort_cases.NAMED_COSTS["mixed providers"])
 
+_DEAREST_FIGURE = "$0.69"
+
 # The dearest stage's stated amount by token share -- the cache share, the
 # rest, and nothing unsplit -- and the cheapest's, all of it unsplit.
 _DEAREST_SHARES = (0.4, 0.29, 0)
@@ -61,13 +63,15 @@ _ROWS = (
     StageBreakdown(stage=_DEAREST, count=_DEAREST_EVENTS, runs=_DEAREST_RUNS, cost=_DEAREST_COST, bands=_DEAREST_BANDS),
 )
 
-# What the line under each stage's name says beside its run count, per cohort.
+_RUN_COUNT = f"{_DEAREST_RUNS} runs"
+
+# What the line under each stage's name says, per cohort: its run count, then the status its own amount earns.
 _SUB_LINES = (
-    ("reported only", "CLI-reported"),
-    ("agy only", "Gemini API token estimate"),
-    ("mixed providers", "blended"),
-    ("incomplete", "Anthropic API token estimate · subtotal"),
-    ("missing basis", "blended · completeness unknown"),
+    ("reported only", _RUN_COUNT),
+    ("agy only", _RUN_COUNT),
+    ("mixed providers", _RUN_COUNT),
+    ("incomplete", f"{_RUN_COUNT} · {spend_text.SUBTOTAL}"),
+    ("missing basis", f"{_RUN_COUNT} · {spend_text.COMPLETENESS_UNKNOWN}"),
 )
 
 
@@ -88,32 +92,31 @@ class StageSplitTest(unittest.TestCase):
         self.assertEqual(tuple(bars.split.cache), (0, 0, _DEAREST_BANDS.cache_usd))
         self.assertEqual(tuple(bars.split.no_cache), (0, 0, _DEAREST_BANDS.no_cache_usd))
         self.assertEqual(tuple(bars.split.unsplit), (0, _CHEAPEST_BANDS.unsplit_usd, 0))
-        self.assertEqual(tuple(bars.split.figures), ("unpriced", "$0.32", "$0.69"))
+        self.assertEqual(tuple(bars.split.figures), (spend_text.UNPRICED, "$0.32", _DEAREST_FIGURE))
 
     def test_no_amount_ranks_below_a_zero(self) -> None:
         zero = _stage(cohort_cases.cohort(cases.COMPLETE_ZERO))
         unpriced = _stage(_UNPRICED_COST)
         self.assertLess(cost_stage.stage_cost_sort_key(zero), cost_stage.stage_cost_sort_key(unpriced))
 
-    def test_the_sub_line_counts_runs_and_bases(self) -> None:
+    def test_the_sub_line_counts_runs_and_status(self) -> None:
         # `count` is every analytics row carrying the stage, `runs` the agent
         # exits whose stated spend a bar is drawn from, so a stage with 20
-        # events behind 8 runs is labelled by the 8 -- and by the basis its
-        # amount is stated on and any shortfall, so an AGY-only stage reads as
-        # a Gemini API token estimate and a mixed one as blended.
+        # events behind 8 runs is labelled by the 8 -- and a subtotal or an
+        # amount of unknown completeness is marked on its own bar.
         for name, worded in _SUB_LINES:
             cost = cohort_cases.cohort(*cohort_cases.NAMED_COSTS[name])
             row = StageBreakdown(stage=_DEAREST, count=_DEAREST_EVENTS, runs=_DEAREST_RUNS, cost=cost)
             with self.subTest(cohort=name):
                 bars = cost_stage.stage_cost_bars((row,))
-                self.assertEqual(tuple(bars.subs), (f"{_DEAREST_RUNS} runs · {worded}",))
+                self.assertEqual(tuple(bars.subs), (worded,))
 
-    def test_each_bar_carries_its_cost_worded_whole(self) -> None:
-        # The hover is where a blended amount's parts are read, by their own
-        # amounts, beside the segment under the cursor.
-        bars = cost_stage.stage_cost_bars((_ROWS[2],))
-        self.assertEqual(tuple(bars.split.notes), (spend_text.spend_line(_DEAREST_COST),))
-        self.assertIn("CLI-reported $", bars.split.notes[0])
+    def test_each_bar_hovers_its_own_cost_compactly(self) -> None:
+        # The hover reads each stage's figure and its own status beside the
+        # segment under the cursor; the sources behind a mixed amount are the
+        # Cost details section's to list.
+        bars = cost_stage.stage_cost_bars(_ROWS)
+        self.assertEqual(tuple(bars.split.notes), (spend_text.UNPRICED, "$0.32", _DEAREST_FIGURE))
 
 
 class CacheShadingTest(unittest.TestCase):
@@ -167,8 +170,8 @@ class StageFigureTest(unittest.TestCase):
         no_cache_trace, cache_trace, unsplit_trace = cost_stage.cost_by_stage(_ROWS).data
         self.assertIsNone(no_cache_trace.text)
         self.assertIsNone(cache_trace.text)
-        self.assertEqual(list(unsplit_trace.text), ["unpriced", "$0.32", "$0.69"])
-        self.assertEqual(cache_trace.customdata[2], spend_text.spend_line(_DEAREST_COST))
+        self.assertEqual(list(unsplit_trace.text), [spend_text.UNPRICED, "$0.32", _DEAREST_FIGURE])
+        self.assertEqual(cache_trace.customdata[2], _DEAREST_FIGURE)
         self.assertIn("%{customdata}", cache_trace.hovertemplate)
 
     def test_nothing_unknown_stays_off_the_legend(self) -> None:

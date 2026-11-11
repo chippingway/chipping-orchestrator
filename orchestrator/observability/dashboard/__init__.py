@@ -36,9 +36,10 @@ pool capped at the count beside it, and ``dispatch`` drives both of them in
 turn: one spinner over the pair, the chrome rendered between them, a banner and
 a stop when a read cannot reach the database, and one timing line when the load
 comes back. ``page_pipeline`` is that chrome and the load it opens: the banner
-and filter line written back into the slots the controls left, the banners a
-window is worth interrupting a page for, the four-tile strip every section
-below is read against, and the staged load all three are drawn inside -- whose
+and filter line written back into the slots the controls left, the collapsed
+Cost details section under them, the banners a window is worth interrupting a
+page for, the four-tile strip every section below is read against, and the
+staged load all of them are drawn inside -- whose
 first pass is also where a load can end, since a window reporting no event at
 all leaves through the empty-window notice and hands nothing back, which is
 what the dispatch above short-circuits the second wave on. Each
@@ -49,22 +50,26 @@ before any of them, because it is what a window can be picked at all from --
 readers themselves arrive with the panels they are drawn for: ``rollups`` for
 the seven a headline or lifecycle section is built from, ``breakdowns`` for
 the six a comparison section is, and ``skills`` for the three a skill section
-is. Above all of them, ``insights`` holds the two observations a window is
-worth interrupting a page for and the ratio each is raised at, and ``kpis``
+is. Above all of them, ``insights`` holds the observation a window is worth
+interrupting a page for and the ratio it is raised at, and ``kpis``
 the four numbers that window is summarized by beneath them. ``kpi_series`` and
 ``kpi_strip`` are how those numbers reach the page: the per-day spend, token,
 and resolved lines a sparkline is drawn from, and the four display entries a
 window's own aggregate, the one before it, and three of its first-wave reads
-are assembled into. ``cost_text`` and ``spend_text`` are the words their money
-is qualified by: the first how one cost reads on either page -- its amount, the
-basis it is stated on, and why it falls short of complete spend -- and the
-second what only a cohort of runs, a window's or an issue's, can say on top of
-that: that it held no run, how many runs left its amount short, and what a move
-between two windows is read with. ``breakdown_text`` is what a grouped
-breakdown's bar fits of that wording -- the figure drawn past it, the basis and
-shortfall under its label -- with the note a panel of such bars closes on and
-the one saying a token-share split is an allocation rather than a measured
-cache charge. ``sparkline_points`` and ``sparkline_html`` are how one of
+are assembled into. ``spend_text`` is the words their money is qualified by:
+every amount on the page, a run's or a cohort's, as its figure and the short
+status its own runs earn -- a subtotal, an unknown completeness, unpriced, cost
+unknown, no usage, or no runs -- never its sources, together with what a move
+between two windows is read with. ``cost_details`` is the one place those
+sources are explained: the collapsed section under the filter bar stating the
+selection's amount by source and its runs by coverage, the bar sizing it by
+recorded cost source, what every status means, and the unpriced-run warning
+where a selection raises one. ``cost_text`` is how one cost reads with its
+basis -- on the trajectory viewer, on the workflow's usage receipt, and in that
+section's source names. ``breakdown_text`` is what a grouped breakdown's bar
+fits of the compact wording -- the figure drawn past it, the status under its
+label -- with the note a panel of such bars closes on.
+``sparkline_points`` and ``sparkline_html`` are how one of
 those lines reaches a tile: where each day sits in a box too narrow for an axis
 -- scaled to the window's own range, floored where a window has none, and left
 undrawn where it reported nothing at all -- and the polyline and closed fill
@@ -83,8 +88,8 @@ own class, the header and body they are assembled from, and the bar width,
 short repository name, and missing count a cell reports. ``issue_table`` is the
 first of those four panels: the six columns a window's costliest issues are
 ranked into, the rules their in-row bars and status pills are painted by, and
-the row each issue is reduced to and rendered as, its cost worded by basis and
-shortfall and its bar drawn open where that cost is short of complete spend.
+the row each issue is reduced to and rendered as, its cost worded with its own
+status and its bar drawn open where that cost is short of complete spend.
 ``skill_trigger_table`` is the second: the six columns a cohort's skill use is
 reported in, the busiest rate in the table its bar is drawn as a share of, and
 the label a cohort the sink named no role or backend for is read under.
@@ -120,8 +125,9 @@ own notice, its unconditional prompt to enable tracking, and its own fold-out
 matrix.
 ``recent_runs`` is the listing under those four panels rather than a fifth in
 that table: the rows behind the readings above it, projected into the columns
-one run is scanned by -- its stored cost worded by basis, with an estimate's
-rate dates -- and the offset the sidebar picked, drawn in the collapsed
+one run is scanned by -- its stored cost as its figure and the short status
+its own evidence earns, its basis and an estimate's rate dates left to the
+Cost details section -- and the offset the sidebar picked, drawn in the collapsed
 expander the page ends on, and the notice a window with no `agent_exit` row
 renders in place of an empty frame.
 ``drilldown`` is the last narrowing under that listing: one issue's events in
@@ -147,15 +153,15 @@ of unknown token total per day beside them.
 Two panels are markup of their own rather than a figure: ``backend_card``
 for what a run on one backend is worth and the card the three readings behind
 it are laid out on, and ``coverage_card`` for the share of a window's spend the
-parser could price, drawn as one bar and the legend under it.
+parser could price, drawn as one bar and the legend under it inside the Cost
+details section.
 ``stage_cost_panel`` and ``issue_cost_panel`` are the first two of the three
 sections that spend is compared across, each a pair of columns split 7:5. The first draws the
 lifecycle bars -- where the money went by stage beside where it went by review
 cycle -- pinned to one height taken off whichever axis carried more buckets, so
 two figures read across a gutter cannot stand at different bar thicknesses. The
-second draws the window's costliest issues beside the backends that ran them,
-and closes that column with the coverage bar qualifying the money the cards
-above it report; its two columns answer an empty window differently, since a
+second draws the window's costliest issues beside the backends that ran them;
+its two columns answer an empty window differently, since a
 window can carry runs the parser could not price while a window with no
 `agent_exit` row had nothing to run at all.
 ``reliability_panel`` closes that run of sections with the third pair, split

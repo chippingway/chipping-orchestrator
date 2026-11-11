@@ -5,8 +5,8 @@
 A group's spend is a cohort, so the cases name the cohorts a bar has to keep
 apart -- reported-only, AGY-only, mixed-provider, incomplete, missing-basis,
 unpriced, no usage, and a group with no run at all -- and read back the figure
-drawn past the bar, the basis and shortfall under its label, and the note a
-panel of such bars closes on.
+drawn past the bar, the status under its label, and the note a panel of such
+bars closes on.
 """
 from __future__ import annotations
 
@@ -18,72 +18,64 @@ from tests.observability.analytics import analytics_cohorts as cohort_cases, ana
 
 _RUNS = "4 runs"
 
-# Each named cohort's bar figure and the basis and shortfall its sub-line adds.
+# Each named cohort's bar figure and the status its own runs earn on the sub-line; no source is named there.
 _GROUPS = (
-    ("reported only", "$0.84", "CLI-reported"),
-    ("agy only", "$0.32", "Gemini API token estimate"),
-    ("mixed providers", "$0.69", "blended"),
-    ("incomplete", "$0.50", "Anthropic API token estimate · subtotal"),
-    ("missing basis", "$0.49", "blended · completeness unknown"),
+    ("reported only", "$0.84", _RUNS),
+    ("agy only", "$0.32", _RUNS),
+    ("mixed providers", "$0.69", _RUNS),
+    ("incomplete", "$0.50", f"{_RUNS} · {spend_text.SUBTOTAL}"),
+    ("missing basis", "$0.49", f"{_RUNS} · {spend_text.COMPLETENESS_UNKNOWN}"),
 )
 
-# Groups stating no amount: the word drawn where a figure would be, and no
-# basis to name.
+# Groups stating no amount, a complete zero beside them: the word or figure drawn past the bar.
 _UNSTATED = (
-    ("unpriced", cohort_cases.cohort(cases.UNPRICED), "unpriced"),
-    ("no usage", cohort_cases.cohort(cases.NO_USAGE), "no usage"),
-    ("no run", cost_cohorts.EMPTY_COST_COHORT, spend_text.NO_RUNS_FIGURE),
+    ("unpriced", cohort_cases.cohort(cases.UNPRICED), spend_text.UNPRICED),
+    ("no usage", cohort_cases.cohort(cases.NO_USAGE), spend_text.NO_USAGE),
+    ("no run", cost_cohorts.EMPTY_COST_COHORT, spend_text.NO_RUNS),
+    ("complete zero", cohort_cases.cohort(cases.COMPLETE_ZERO), "$0.00"),
 )
 
 
 class GroupWordingTest(unittest.TestCase):
     """A bar's figure and the line under its label."""
 
-    def test_each_cohort_is_figured_and_based(self) -> None:
-        # An AGY-only group reads as a Gemini API token estimate, a mixed one
-        # as blended, and a subtotal or an amount of unknown completeness says
-        # so -- the parts of a blend are the hover's, with their amounts.
+    def test_each_cohort_is_figured_by_its_own_runs(self) -> None:
         for name, figure, worded in _GROUPS:
             cohort = cohort_cases.cohort(*cohort_cases.NAMED_COSTS[name])
             with self.subTest(cohort=name):
                 self.assertEqual(breakdown_text.bar_figure(cohort), figure)
-                self.assertEqual(breakdown_text.sub_line(_RUNS, cohort), f"{_RUNS} · {worded}")
+                self.assertEqual(breakdown_text.sub_line(_RUNS, cohort), worded)
+
+    def test_a_role_line_marks_its_own_runs(self) -> None:
+        # A label heading several bars gives each role a line, its noun agreeing
+        # with the count and its status the role's own.
+        short = cohort_cases.cohort(*cohort_cases.NAMED_COSTS["incomplete"])
+        complete = cohort_cases.cohort(cases.REPORTED)
+        self.assertEqual(breakdown_text.role_line(1, "dev", complete), "1 dev run")
+        self.assertEqual(breakdown_text.role_line(3, "review", short), f"3 review runs · {spend_text.SUBTOTAL}")
+        self.assertEqual(breakdown_text.role_line(0, "review", cost_cohorts.EMPTY_COST_COHORT), "0 review runs")
 
     def test_no_stated_amount_is_never_a_zero(self) -> None:
         for name, cohort, figure in _UNSTATED:
             with self.subTest(group=name):
                 self.assertEqual(breakdown_text.bar_figure(cohort), figure)
-                self.assertEqual(breakdown_text.basis_label(cohort), "")
                 self.assertEqual(breakdown_text.sub_line(_RUNS, cohort), _RUNS)
-
-    def test_a_complete_zero_is_a_figure(self) -> None:
-        zero = cohort_cases.cohort(cases.COMPLETE_ZERO)
-        self.assertEqual(breakdown_text.bar_figure(zero), "$0.00")
-        self.assertEqual(breakdown_text.basis_label(zero), "CLI-reported")
 
 
 class BreakdownNoteTest(unittest.TestCase):
     """What a panel's bars add up to, worded beneath it."""
 
-    def test_the_bars_fold_into_one_worded_total(self) -> None:
-        # A panel blending bases lists each basis's own amount beside the
-        # total, and the runs leaving it short of complete spend are counted.
+    def test_the_bars_fold_into_one_compact_total(self) -> None:
+        # A panel mixing sources and holding an unpriced run reads as the
+        # subtotal it is, its sources left to the Cost details section.
         groups = (
             cohort_cases.cohort(cases.REPORTED),
             cohort_cases.cohort(cases.GEMINI_ESTIMATE, cases.UNPRICED),
         )
-        self.assertEqual(
-            breakdown_text.breakdown_note(groups),
-            "Bars total $0.54 (blended: CLI-reported $0.42 + Gemini API token estimate $0.12"
-            " · incomplete subtotal: 1 of 3 runs unpriced or partly priced)",
-        )
+        self.assertEqual(breakdown_text.breakdown_note(groups), "Bars total $0.54 · Subtotal")
 
     def test_a_panel_with_no_bar_notes_nothing(self) -> None:
         self.assertEqual(breakdown_text.breakdown_note(()), "")
-
-    def test_the_split_note_names_an_allocation(self) -> None:
-        self.assertIn("token share", breakdown_text.TOKEN_SHARE_NOTE)
-        self.assertIn("not a measured cache charge", breakdown_text.TOKEN_SHARE_NOTE)
 
 
 if __name__ == "__main__":

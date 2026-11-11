@@ -25,14 +25,15 @@ asking which run this was is reading against their own day. The columns are
 ordered the way that question is asked: when and where, then what ran, then how
 it went, then what it cost.
 
-What it cost is the run's stored evidence worded as the trajectory viewer words
-a run: the amount with its basis -- CLI-reported, which is what the CLI printed
-and never a verified bill, one provider's API token estimate, or a blended
-amount with each part -- and why it falls short of complete spend, or unpriced,
-no usage, or unknown where it states no amount. The dates the estimate's rates
-were verified on sit beside it, and nothing is re-priced from the tokens. The
-token total is the run's non-overlapping one, left empty where its evidence
-cannot settle it, beside the raw input and output counters.
+What it cost is the run's stored evidence worded the way every amount on the
+page is (``spend_text``): the amount, with the short status the run's own
+evidence earns beside it -- a subtotal, or an unknown completeness -- or
+unpriced, no usage, or cost unknown where it states no amount, never a zero.
+Which source the amount came from, and the dates an estimate's rates were
+verified on, are the Cost details section's to explain once for the selection
+rather than every row's, and nothing is re-priced from the tokens. The token
+total is the run's non-overlapping one, left empty where its evidence cannot
+settle it, beside the raw input and output counters.
 
 Streamlit and pandas are the caller's, handed in as parameters, so this owner
 imports neither and the row projection stays readable without either installed.
@@ -44,7 +45,7 @@ from datetime import timedelta
 from typing import Any
 
 from orchestrator.observability.analytics.query.run_models import AgentExitRow
-from orchestrator.observability.dashboard import cost_text, filters
+from orchestrator.observability.dashboard import filters, spend_text
 
 NO_AGENT_EXITS_MESSAGE = "No `agent_exit` rows match the current filters."
 RECENT_RUNS_LABEL = "Recent agent runs"
@@ -70,8 +71,7 @@ def recent_run_row(
         "input tokens": exit_row.input_tokens,
         "output tokens": exit_row.output_tokens,
         "total tokens": exit_row.total_tokens,
-        "cost": cost_text.cost_text(exit_row.cost),
-        "rates": cost_text.rates_text(exit_row.cost),
+        "cost": spend_text.spend_line(exit_row.cost),
     }
 
 

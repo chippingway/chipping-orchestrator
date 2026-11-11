@@ -6,8 +6,8 @@ Each role's cost in a round is a cohort, so the rounds below carry the cohorts
 a bar has to keep apart -- a mixed-provider development pass beside an
 AGY-only review, an incomplete rework round, and runs with no basis and no
 round -- and the cases read back each role's three token-share segments, the
-figure past its bar, the cost its hover words, and the sub-line naming the
-round's basis and shortfall.
+figure past its bar, the cost its hover words, and the sub-line marking the
+round's own status; no bar or hover names a source.
 """
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ from orchestrator.observability.dashboard.charts import (
     cost_stage,
     primitives,
 )
-from tests.observability.analytics import analytics_cohorts as cohort_cases
+from tests.observability.analytics import analytics_cohorts as cohort_cases, analytics_usage_cases as cases
 
 _SKIP_REASON = "plotly not installed -- run `env -u VIRTUAL_ENV -u CONDA_PREFIX poetry sync --with dashboard`"
 
@@ -41,6 +41,8 @@ _UNROUNDED_LABEL = "No review round"
 _PINNED_HEIGHT = 320
 
 _INITIAL_DEV_COST = cohort_cases.cohort(*cohort_cases.NAMED_COSTS["mixed providers"])
+
+_INITIAL_DEV_FIGURE = "$0.69"
 
 _INITIAL_REV_COST = cohort_cases.cohort(*cohort_cases.NAMED_COSTS["agy only"])
 
@@ -66,7 +68,7 @@ _FIRST_DEV_BANDS = TokenShareBands(*_FIRST_DEV_SHARES)
 
 _UNROUNDED_DEV_BANDS = TokenShareBands(*_UNROUNDED_DEV_SHARES)
 
-_NO_RUNS = "—"
+_NO_RUNS = spend_text.NO_RUNS
 
 # The first pass, one rework round with no review run in it, and the runs that
 # carried no round at all; round 2 is absent from the window. The two roles of
@@ -102,6 +104,26 @@ _STRAY_ROW = ReviewRoundBucketRow(bucket="12", runs=1)
 # rather than being whatever the caller happened to pass.
 _ROWS = (_UNROUNDED_ROW, _INITIAL_ROW, _FIRST_ROUND_ROW)
 
+# One round whose development is a subtotal and whose review states an amount of
+# unknown completeness: the two roles short in different ways.
+_SPLIT_STATUS_ROW = ReviewRoundBucketRow(
+    bucket="1",
+    runs=2,
+    developer_cost=cohort_cases.cohort(cases.INCOMPLETE_SUBTOTAL),
+    reviewer_cost=cohort_cases.cohort(cases.ABSENT_BASIS),
+    developer_bands=TokenShareBands(0, 0, cases.SUBTOTAL_USD),
+    reviewer_bands=TokenShareBands(0, 0, cases.LEGACY_USD),
+)
+
+# The muted style each line under a round's label is set in.
+_MUTED_LINE = f"<span style='color:{palette.MUTED_TEXT};font-size:11px'>"
+
+
+def _figured_trace(figure, role: str):
+    """The one segment of a role's bar that carries the figure past it."""
+    figured = [trace for trace in figure.data if trace.offsetgroup == role]
+    return next(trace for trace in figured if trace.text is not None)
+
 
 def _review_traces() -> tuple[cost_layout.CostBarTrace, ...]:
     """The six series a window's rounds are described by."""
@@ -135,28 +157,33 @@ class ReviewRoundOrderTest(unittest.TestCase):
         self.assertNotIn("Round 2", bars.labels)
         self.assertEqual(len(bars.labels), len(_ROWS))
 
-    def test_the_sub_line_counts_roles_and_bases(self) -> None:
-        # The two bars beside it are drawn from two different populations, so
-        # one combined run count would explain neither; the basis and any
-        # shortfall are the round's, both roles folded.
+    def test_each_role_has_its_own_label_line(self) -> None:
+        # The two bars beside a label are drawn from two different
+        # populations, so each role's run count and status sit on a line of
+        # their own, development above review as the bars are; a role with no
+        # run states no status, and a mixed round names no source.
         bars = cost_review.review_cost_bars(_ROWS)
         self.assertEqual(
             tuple(bars.subs),
             (
-                "2 dev / 0 review runs · blended · completeness unknown",
-                "3 dev / 0 review runs · Anthropic API token estimate · subtotal",
-                "3 dev / 2 review runs · blended",
+                (f"2 dev runs · {spend_text.COMPLETENESS_UNKNOWN}", "0 review runs"),
+                (f"3 dev runs · {spend_text.SUBTOTAL}", "0 review runs"),
+                ("3 dev runs", "2 review runs"),
             ),
         )
 
     def test_each_role_is_figured_on_its_own(self) -> None:
         # A role with no run in a round reads as having none rather than a
-        # zero, and an AGY-only review reads as the Gemini estimate it is.
+        # zero, and each role's hover carries its own status rather than the
+        # round's: the development subtotal is marked where the review is not.
         bars = cost_review.review_cost_bars(_ROWS)
         self.assertEqual(tuple(bars.reviewer.figures), (_NO_RUNS, _NO_RUNS, "$0.32"))
-        self.assertEqual(tuple(bars.developer.figures), ("$0.49", "$0.50", "$0.69"))
-        self.assertEqual(bars.reviewer.notes[-1], spend_text.spend_line(_INITIAL_REV_COST))
-        self.assertIn("Gemini API token estimate", bars.reviewer.notes[-1])
+        self.assertEqual(tuple(bars.developer.figures), ("$0.49", "$0.50", _INITIAL_DEV_FIGURE))
+        self.assertEqual(tuple(bars.reviewer.notes), (_NO_RUNS, _NO_RUNS, "$0.32"))
+        self.assertEqual(
+            tuple(bars.developer.notes),
+            (f"$0.49 · {spend_text.COMPLETENESS_UNKNOWN}", f"$0.50 · {spend_text.SUBTOTAL}", _INITIAL_DEV_FIGURE),
+        )
 
     def test_no_named_round_draws_nothing(self) -> None:
         self.assertIsNone(cost_review.review_cost_bars((_STRAY_ROW,)))
@@ -227,15 +254,34 @@ class ReviewFigureTest(unittest.TestCase):
         ticks = " ".join(cost_review.cost_by_review_round(_ROWS).data[0].y)
         self.assertIn(f"<b>{_INITIAL_LABEL}</b>", ticks)
         self.assertIn(f"<b>{_UNROUNDED_LABEL}</b>", ticks)
-        self.assertIn("3 dev / 2 review runs", ticks)
+        self.assertIn(f"{_MUTED_LINE}3 dev runs</span><br>{_MUTED_LINE}2 review runs</span>", ticks)
+
+    def test_each_role_shows_its_own_status(self) -> None:
+        # A development subtotal beside a review of unknown completeness:
+        # each status is drawn on its own role's line rather than one folded
+        # status standing for both bars, and neither bar's figure borrows the
+        # other's.
+        figure = cost_review.cost_by_review_round((_SPLIT_STATUS_ROW,))
+        review = _figured_trace(figure, _REVIEWER)
+        development = _figured_trace(figure, _DEVELOPER)
+        self.assertEqual(
+            review.y[0],
+            f"<b>Round 1</b><br>{_MUTED_LINE}1 dev run · {spend_text.SUBTOTAL}</span>"
+            f"<br>{_MUTED_LINE}1 review run · {spend_text.COMPLETENESS_UNKNOWN}</span>",
+        )
+        self.assertEqual([*development.text, *review.text], ["$0.20", "$0.07"])
+        self.assertEqual(
+            (development.customdata[0], review.customdata[0]),
+            (f"$0.20 · {spend_text.SUBTOTAL}", f"$0.07 · {spend_text.COMPLETENESS_UNKNOWN}"),
+        )
 
     def test_the_outer_segment_carries_the_figure(self) -> None:
         traces = cost_review.cost_by_review_round(_ROWS).data
         self.assertIsNone(traces[0].text)
         self.assertEqual(list(traces[2].text), [_NO_RUNS, _NO_RUNS, "$0.32"])
-        self.assertEqual(list(traces[5].text), ["$0.49", "$0.50", "$0.69"])
-        initial_development = spend_text.spend_line(_INITIAL_DEV_COST)
-        self.assertEqual(traces[3].customdata[-1], initial_development)
+        self.assertEqual(list(traces[5].text), ["$0.49", "$0.50", _INITIAL_DEV_FIGURE])
+        self.assertEqual(traces[3].customdata[-1], _INITIAL_DEV_FIGURE)
+        self.assertIn("Total: %{customdata}", traces[3].hovertemplate)
 
     def test_a_review_row_is_taller_than_a_bar(self) -> None:
         # Two bars share a row here where a ranking row carries one, so the

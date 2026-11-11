@@ -5,10 +5,9 @@
 The cases name what the section decides rather than what the table and the two
 card builders under it draw: the split the columns are laid out in, which
 reading lands in the wider one, the depth the ranking is cut to, and that it is
-drawn in the order the read ranked it. The coverage bar is here for where it lands rather than for what
-it says -- it closes the backend column because it qualifies the money the
-cards above it report, and a window with no cost-source split leaves it undrawn
-rather than claiming a coverage reading nothing supports.
+drawn in the order the read ranked it. The coverage bar is here for where it
+does not land: it is part of the page's one cost explanation, drawn in the Cost
+details section, so the backend column carries the cards alone.
 
 Both empty states are driven too, because the two columns are empty for
 different reasons: the ranking lists every issue the filters leave, priced or
@@ -29,12 +28,11 @@ from datetime import UTC, datetime
 
 from orchestrator.observability.analytics.query.cost_models import (
     BackendEfficiencyRow,
-    CostCoverageRow,
 )
 from orchestrator.observability.analytics.query.run_models import (
     IssueSummaryRow,
 )
-from orchestrator.observability.dashboard import issue_cost_panel
+from orchestrator.observability.dashboard import issue_cost_panel, spend_text
 from orchestrator.observability.dashboard.kpis import DEFAULT_EXPENSIVE_LIMIT
 from orchestrator.observability.usage import cost_evidence as usage_cost
 from tests.observability.analytics import analytics_cohorts as cohort_cases, analytics_usage_cases as cases
@@ -43,8 +41,6 @@ from tests.observability.dashboard.card_test_support import (
     BACKEND_CODEX,
     CLAUDE_COLOR,
     CODEX_COLOR,
-    COST_SOURCE_REPORTED,
-    REPORTED_COLOR,
     card_theme,
 )
 from tests.observability.dashboard.cost_panel_test_support import (
@@ -121,7 +117,6 @@ def render_panel(
     *,
     costs: tuple[float | None, ...] = _COSTS,
     backends: tuple[str, ...] = (BACKEND_CLAUDE, BACKEND_CODEX),
-    coverage: tuple[str, ...] = (COST_SOURCE_REPORTED,),
 ) -> CostPanelStreamlit:
     """Draw the whole section for that window onto a fake page."""
     page = CostPanelStreamlit()
@@ -130,16 +125,12 @@ def render_panel(
         theme=card_theme(),
         issues_rows=issue_rows(*costs),
         backend_rows=backend_rows(*backends),
-        cost_coverage_rows=[
-            CostCoverageRow(cost_source=source, runs=1, total_tokens=100)
-            for source in coverage
-        ],
     )
     return page
 
 
 class IssueCostLayoutTest(unittest.TestCase):
-    """The ranking takes the wider column; the cards and bar take the other."""
+    """The ranking takes the wider column; the cards take the other."""
 
     def test_the_ranking_takes_the_wider_column(self) -> None:
         page = render_panel()
@@ -158,7 +149,8 @@ class IssueCostLayoutTest(unittest.TestCase):
         # after every priced one rather than dropping it, and it is worded
         # unpriced rather than as a free issue.
         drawn = markup_in(render_panel(costs=(1.0, None)), LEFT)
-        self.assertLess(drawn.index("$1.00"), drawn.index(">unpriced<"))
+        unpriced = f">{spend_text.UNPRICED}<"
+        self.assertLess(drawn.index("$1.00"), drawn.index(unpriced))
         self.assertNotIn("$0.00", drawn)
 
     def test_the_ranking_stops_at_the_owners_cap(self) -> None:
@@ -178,13 +170,11 @@ class IssueCostLayoutTest(unittest.TestCase):
         self.assertIn(CLAUDE_COLOR, drawn)
         self.assertIn(CODEX_COLOR, drawn)
 
-    def test_the_coverage_bar_closes_the_column(self) -> None:
+    def test_the_backend_column_ends_on_its_cards(self) -> None:
+        # The coverage bar belongs to the Cost details section, with the rest
+        # of the page's cost explanation, rather than to this column.
         drawn = markup_in(render_panel(), RIGHT)
-        self.assertLess(drawn.index(CLAUDE_COLOR), drawn.index(REPORTED_COLOR))
-
-    def test_a_window_without_coverage_omits_it(self) -> None:
-        drawn = markup_in(render_panel(coverage=()), RIGHT)
-        self.assertNotIn(REPORTED_COLOR, drawn)
+        self.assertNotIn("orch-cov", drawn)
 
 
 class IssueCostRenderOptionTest(unittest.TestCase):
@@ -197,8 +187,8 @@ class IssueCostRenderOptionTest(unittest.TestCase):
         self.assertEqual(page.borders, [(LEFT, True), (RIGHT, True)])
 
     def test_every_payload_is_handed_over_as_markup(self) -> None:
-        # The headers, the ranking table, the backend cards, and the coverage
-        # bar are all HTML their owners built, so a column handed any of them
+        # The headers, the ranking table, and the backend cards are all HTML
+        # their owners built, so a column handed any of them
         # without this flag prints the tags instead of what they draw.
         page = render_panel()
         self.assertTrue(page.markdowns)

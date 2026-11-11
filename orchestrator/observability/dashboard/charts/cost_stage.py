@@ -14,10 +14,10 @@ stage's runs state none -- which labels a bar once instead of once per segment.
 
 The line under a stage's name counts its `runs` -- the agent exits
 `StageBreakdown.count` is a superset of, since the spend is what those exits
-stated -- and names the basis the amount is stated on and any shortfall, so an
-Antigravity stage reads as a Gemini API token estimate, a mixed one as
-blended, and a subtotal as one. Every segment's hover carries the stage's
-whole cost as the overview words it, each part of a blended amount by its own.
+stated -- and adds the short status the stage's own amount earns, so a
+subtotal reads as one. Every segment's hover carries the stage's whole cost as
+the overview words it, its figure and that status; the sources behind it are
+the Cost details section's to explain.
 
 The two split segments are tinted from one hue -- the stage's own color, and a
 translucent shade of it for the cache share -- because a separate palette for

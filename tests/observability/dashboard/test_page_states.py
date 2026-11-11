@@ -52,7 +52,7 @@ _AGENT_RUNS = 1183
 
 # A database with nothing in it has no run, which reads as none rather than as
 # a spend of zero.
-_NO_SPEND = '<span class="value">—</span><span class="note">no agent runs</span>'
+_NO_SPEND = '<span class="value">No runs</span></div>'
 
 # The theme the page draws through, with each formatter marking what it was
 # handed, so a case can say which readings reached the markup shortened.

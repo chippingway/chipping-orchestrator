@@ -12,10 +12,10 @@ find out that a window is empty renders.
 
 Each row's spend is the cohort the read hands back for runs stating a set of
 costs, so the cost cell is read for what an operator sees: a CLI-reported
-amount, one provider's estimates, a blended total with each part, a subtotal
-beside unpriced usage, an issue nobody priced, an amount stored with no basis,
-and an issue with no run -- none of them passing for complete spend or a zero
-it is not.
+amount, one provider's estimates, a blended total, a subtotal beside unpriced
+usage, an issue nobody priced, an amount stored with no basis, and an issue
+with no run -- each with the short status its own runs earn and no source,
+none of them passing for complete spend or a zero it is not.
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ from datetime import UTC, datetime
 from orchestrator.observability.analytics.query.run_models import (
     IssueSummaryRow,
 )
-from orchestrator.observability.dashboard import issue_table
+from orchestrator.observability.dashboard import issue_table, spend_text
 from orchestrator.observability.usage import cost_evidence as usage_cost
 from tests.observability.analytics import analytics_cohorts as cohort_cases, analytics_usage_cases as cases
 
@@ -90,34 +90,19 @@ class _IssueCase:
 # What each kind of issue's cost cell reads: the figure, the note beneath it,
 # and whether its bar is drawn open for an amount short of complete spend.
 _WORDED_ISSUES = (
-    ("reported", (cases.REPORTED,), ("$0.42", "CLI-reported", False)),
-    (
-        "antigravity only",
-        (cases.GEMINI_ESTIMATE, cases.LATER_GEMINI_ESTIMATE),
-        ("$0.32", "Gemini API token estimate", False),
-    ),
-    (
-        "mixed",
-        (cases.BLENDED,),
-        ("$0.15", "blended: CLI-reported $0.10 + OpenAI API token estimate $0.05", False),
-    ),
+    ("reported", (cases.REPORTED,), ("$0.42", "", False)),
+    ("antigravity only", (cases.GEMINI_ESTIMATE, cases.LATER_GEMINI_ESTIMATE), ("$0.32", "", False)),
+    ("mixed", (cases.BLENDED,), ("$0.15", "", False)),
     (
         "incomplete",
         (cases.ANTHROPIC_ESTIMATE, cases.INCOMPLETE_SUBTOTAL, cases.UNPRICED),
-        (
-            "$0.50",
-            "Anthropic API token estimate · incomplete subtotal: 2 of 3 runs unpriced or partly priced",
-            True,
-        ),
+        ("$0.50", spend_text.SUBTOTAL, True),
     ),
-    ("unpriced", (cases.UNPRICED,), ("unpriced", "1 of 1 runs unpriced or partly priced", False)),
-    (
-        "missing basis",
-        (cases.ABSENT_BASIS,),
-        ("$0.07", "basis unknown · completeness unknown: 1 of 1 runs state no cost evidence", True),
-    ),
-    ("complete zero", (cases.COMPLETE_ZERO,), ("$0.00", "CLI-reported", False)),
-    ("no runs", (), ("—", "no agent runs", False)),
+    ("unpriced", (cases.UNPRICED,), (spend_text.UNPRICED, "", False)),
+    ("missing basis", (cases.ABSENT_BASIS,), ("$0.07", spend_text.COMPLETENESS_UNKNOWN, True)),
+    ("complete zero", (cases.COMPLETE_ZERO,), ("$0.00", "", False)),
+    ("no usage", (cases.NO_USAGE,), (spend_text.NO_USAGE, "", False)),
+    ("no runs", (), (spend_text.NO_RUNS, "", False)),
 )
 
 
@@ -169,21 +154,24 @@ class IssuesTableHtmlTest(unittest.TestCase):
         # the issue reads unpriced, never as a zero.
         rendered = _rendered(_IssueCase(costs=(cases.UNPRICED,)))
         self.assertIn(_EMPTY_WIDTH, rendered)
-        self.assertIn(">unpriced<", rendered)
+        self.assertIn(f">{spend_text.UNPRICED}<", rendered)
         self.assertNotIn("$0.00", rendered)
 
-    def test_a_subtotal_is_noted_and_drawn_open(self) -> None:
-        # The bar is the subtotal's known part, sized like any other, but open,
-        # and the note under the figure says what it falls short of.
+    def test_each_row_carries_its_own_status(self) -> None:
+        # A subtotal's bar is its known part, sized like any other, but open,
+        # and its status sits under its own figure; the complete row beside it
+        # is not marked for the subtotal the window as a whole is, and neither
+        # row names a source.
         rendered = _rendered(
             _IssueCase(costs=(cases.ANTHROPIC_ESTIMATE, cases.INCOMPLETE_SUBTOTAL)),
+            _IssueCase(repo=_OTHER_REPO, issue=2, costs=(_reported(_HALF_COST),)),
         )
-        self.assertIn(f'<span {_PARTIAL_BAR} style="{_FULL_WIDTH}">', rendered)
-        self.assertIn(
-            f'$0.50<span class="{_NOTE_CLASS}">Anthropic API token estimate · incomplete subtotal: '
-            + "1 of 2 runs unpriced or partly priced</span>",
-            rendered,
-        )
+        self.assertEqual(rendered.count(f"<span {_PARTIAL_BAR} "), 1)
+        self.assertIn(f'$0.50<span class="{_NOTE_CLASS}">{spend_text.SUBTOTAL}</span>', rendered)
+        self.assertEqual(rendered.count(f'class="{_NOTE_CLASS}"'), 1)
+        self.assertIn(f'<td class="r strong">{_HALF_COST_TEXT}</td>', rendered)
+        for word in ("CLI-reported", "estimate", "runs unpriced"):
+            self.assertNotIn(word, rendered)
 
     def test_an_empty_window_is_headers_and_no_rows(self) -> None:
         rendered = _rendered()

@@ -12,14 +12,14 @@ so the ranking divides by one and every bar renders empty rather than the panel
 raising on a page opened to find out that nothing was priced.
 
 An issue's spend is the cohort its runs fold to, so its cell is worded the way
-the overview words a window's: the figure, then the basis it is stated on -- a
-CLI-reported amount, one provider's API token estimate, or a blended total with
-each basis's amount beside it -- and why it falls short of complete spend, the
-unpriced or partly priced runs and the runs stating no cost evidence counted.
-The bar is sized by the amount the read ranked the row on, a subtotal at its
-known part, and an amount short of complete spend is drawn as an open bar, so
-neither the figure nor its bar passes for the whole. An issue whose runs state
-no amount reads as unpriced, unknown, or no usage, and one with no run at all
+the overview words a window's: the figure, with the short status the issue's
+own runs earn beneath it -- a subtotal, or an unknown completeness -- never the
+status of the window around it. Which sources the amount came from is the Cost
+details section's to say, once for the page, rather than every row's. The bar
+is sized by the amount the read ranked the row on, a subtotal at its known
+part, and an amount short of complete spend is drawn as an open bar, so neither
+the figure nor its bar passes for the whole. An issue whose runs state no
+amount reads as unpriced, cost unknown, or no usage, and one with no run at all
 as having none -- never as a zero.
 
 Two readings decide what a row says about rework, and both are judgements
@@ -119,7 +119,7 @@ def issue_row_view(row: IssueSummaryRow, max_cost: float) -> IssueRowView:
     return IssueRowView(
         short_repo=short_repo_name(row.repo),
         cost_figure=spend_text.spend_figure(row.cost),
-        cost_note=spend_text.spend_note(row.cost),
+        cost_note=spend_text.spend_status(row.cost),
         bar_pct=relative_width_pct(float(row.stated_cost_usd or 0), max_cost),
         partial=evidence.total_usd is not None and evidence.complete_usd is None,
         review_rounds=int_or_zero(row.max_review_round),
@@ -129,7 +129,7 @@ def issue_row_view(row: IssueSummaryRow, max_cost: float) -> IssueRowView:
 
 
 def issue_cost_html(row_view: IssueRowView) -> str:
-    """The cost cell's contents: the figure, with its note beneath it where it has one."""
+    """The cost cell's contents: the figure, with its status beneath it where it has one."""
     figure = html.escape(row_view.cost_figure)
     if not row_view.cost_note:
         return figure

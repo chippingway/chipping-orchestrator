@@ -10,9 +10,9 @@ in the wider column, since a bar labelled by a repository needs the gutter that
 six short tiles and a day strip do not.
 
 The repository ranking closes on a note beneath it: what its bars add up to,
-worded the way the overview words a window, so the bases behind them -- each
-part of a blended amount by its own amount -- and the runs leaving the amount
-short of complete spend are read beside the chart rather than only on hover.
+worded on one line the way every amount on the page is -- the figure and the
+short status its runs earn -- so the total is read beside the chart rather than
+only on hover.
 
 The narrow column carries a strip of tiles over a per-day figure rather than
 one or the other, because run health and delivery are the same question asked

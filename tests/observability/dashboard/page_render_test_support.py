@@ -21,7 +21,7 @@ back off the names here so the two sets of cases stay comparable.
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from contextlib import ExitStack
+from contextlib import AbstractContextManager, ExitStack, nullcontext
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Any
@@ -93,13 +93,22 @@ SECTION_READS = (
 
 
 class RecordingRegion:
-    """One region of the page, recording the markup written into it."""
+    """One region of the page, recording the markup written into it.
+
+    A fold-out names itself on the page before anything is written inside it,
+    so its label joins the same stream the markup does, with the options it was
+    opened under, and what is written while it is open follows it there.
+    """
 
     def __init__(self) -> None:
         self.markup: list[tuple[str, dict]] = []
 
     def markdown(self, body: str, **options) -> None:
         self.markup.append((body, options))
+
+    def expander(self, label: str, **options) -> AbstractContextManager[None]:
+        self.markup.append((label, options))
+        return nullcontext()
 
 
 def markup_in(region: RecordingRegion) -> str:

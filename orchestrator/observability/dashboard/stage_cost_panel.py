@@ -10,12 +10,12 @@ evenly because the stage axis carries the wider vocabulary: a full stage name
 needs the room that a round bucket, which is a digit or `6+`, does not.
 
 Each figure is closed by a note beneath it rather than left to its hover alone:
-what its bars add up to, worded the way the overview words a window -- the
-basis, each part of a blended amount by its own amount, and the runs that leave
-it short of complete spend -- and that the cache and non-cache segments are an
-allocation by token share rather than a measured cache charge, with the amount
-of runs whose token total is unknown left unsplit. A panel with no bar to sum
-notes nothing.
+what its bars add up to, worded on one line the way every amount on the page is
+-- the figure and the short status the panel's runs earn. What the sources
+behind it are, and that the cache and non-cache segments are an allocation by
+token share rather than a measured cache charge, are explained once in the Cost
+details section rather than under each panel. A panel with no bar to sum notes
+nothing.
 
 Both figures are pinned to one height: whichever of the two needs more, as
 each chart owner measures its own -- a full row per bucket beneath the band its
@@ -50,7 +50,7 @@ from orchestrator.observability.analytics.query.cost_models import (
 )
 from orchestrator.observability.analytics.query.run_models import StageBreakdown
 from orchestrator.observability.dashboard import render_config
-from orchestrator.observability.dashboard.breakdown_text import TOKEN_SHARE_NOTE, breakdown_note
+from orchestrator.observability.dashboard.breakdown_text import breakdown_note
 from orchestrator.observability.dashboard.card_html import card_header_html, card_note_html
 from orchestrator.observability.dashboard.charts.cost_review import (
     cost_by_review_round,
@@ -60,10 +60,10 @@ from orchestrator.observability.dashboard.charts.cost_stage import cost_by_stage
 
 
 def render_split_note(st: Any, cohorts: Sequence[CostCohort]) -> None:
-    """Close a split's card on what its bars add up to and what its segments are; a split with no bar notes nothing."""
+    """Close a split's card on what its bars add up to; a split with no bar notes nothing."""
     if cohorts:
         st.markdown(
-            card_note_html(breakdown_note(cohorts), TOKEN_SHARE_NOTE),
+            card_note_html(breakdown_note(cohorts)),
             unsafe_allow_html=True,
         )
 

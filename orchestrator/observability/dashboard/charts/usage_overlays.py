@@ -15,9 +15,9 @@ Cost is the one trace that leaves the token axis. It is added against the
 secondary axis so it can be labelled in dollars, and drawn as a line with
 markers rather than a band so it reads as an overlay over the stack instead of
 another layer of it. Each day's hover words its cost cohort as the headline
-does -- the basis, each part of a blended amount, and why the amount falls
-short of complete spend -- and a day short of complete spend is drawn with an
-open marker, so a subtotal never passes for the day's spend at a glance either.
+does -- the figure and the short status the day's own runs earn -- and a day
+short of complete spend is drawn with an open marker, so a subtotal never
+passes for the day's spend at a glance either.
 A day whose runs stated no amount plots at zero only where there was nothing to
 price, and leaves a gap where its usage went unpriced. A day only the
 per-backend read saw has no cost reading at all -- the series that cost is read
@@ -67,7 +67,7 @@ _FILLED_MARKER = "circle"
 _OPEN_MARKER = "circle-open"
 
 # What a day the series never reached reads as on the cost line's hover.
-UNREAD_COST = "no cost reading for this day"
+UNREAD_COST = "No cost reading for this day"
 
 
 def add_unknown_totals_trace(
