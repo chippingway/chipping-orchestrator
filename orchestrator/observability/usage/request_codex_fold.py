@@ -24,9 +24,12 @@ and is no request. A sum advancing by exactly the request's own counters, at lea
 request, so two requests of equal counts stay two; one advancing by anything else, one only counters staying at zero
 agree with, or one following a line this pass could not read -- which could have been the report it repeats -- is not
 proven a new request, and is an `unreconciled-usage` gap rather than a sample, so no earlier invocation's request is
-ever copied into this one. The thread's running sums are checkpoints of the whole
-conversation: the last one before the boundary as the invocation's baseline, and the ones its own requests advance.
-A child turn's sums are kept only to prove its requests, since nothing establishes what they span.
+ever copied into this one. A repeat is no request, but the usage block it carries is still evidence, so one naming no
+counter, or reporting one as no whole count, is a gap all the same. The thread's running sums are checkpoints of the
+whole conversation: the last one before the boundary as the invocation's baseline, and the ones its own requests
+advance. A request the earlier lines settled after that last sum -- a usage record no `token_count` reported -- leaves
+it behind, so no baseline is established, and the invocation's first report is not proven new. A child turn's sums are
+kept only to prove its requests, since nothing establishes what they span.
 
 Every request the CLI settles also writes a `token_usage_record` repeating its counters under its response id. No
 request is read off one -- its counters are never a sample -- but the invocation's records are counted, and each beyond
@@ -51,7 +54,15 @@ from types import MappingProxyType
 from typing import Any, NamedTuple
 
 from orchestrator.observability.usage import request_coverage as coverage, request_models, request_scan
-from orchestrator.observability.usage.request_codex_counters import Counters, attribution, checkpoint, source_flags
+from orchestrator.observability.usage.request_codex_counters import (
+    LAST_USAGE,
+    Counters,
+    attribution,
+    checkpoint,
+    context_capacity,
+    repeat_gaps,
+    source_flags,
+)
 from orchestrator.observability.usage.request_codex_scope import (
     PAYLOAD,
     SESSION_META,
@@ -124,13 +135,18 @@ class Envelope(NamedTuple):
 
 @dataclass
 class Branch:
-    """One branch's state as the log is read: the model in effect, its last running sum, and the requests kept."""
+    """One branch's state as the log is read: the model in effect, its last running sum, and the requests kept.
+
+    `unreported` counts the usage records written on it since that running sum: requests settled that no `token_count`
+    has reported yet, the sum lagging them until one does.
+    """
 
     model: str | None = None
     running: Counters | None = None
     position: int | None = None
     proven: bool = True
     unread_at: int = 0
+    unreported: int = 0
     kept: int = 0
 
     def proven_at(self, unread_lines: int) -> bool:
@@ -143,6 +159,7 @@ class Branch:
         self.position = position
         self.proven = True
         self.unread_at = unread_lines
+        self.unreported = 0
 
 
 @dataclass
@@ -172,8 +189,16 @@ class Requests:
         return self.branches.setdefault(key, Branch())
 
     def cross(self) -> None:
-        """Keep the thread's running sum as the invocation's baseline, where its last before the boundary is known."""
+        """Keep the thread's running sum as the invocation's baseline, where its last before the boundary is known.
+
+        A request the earlier lines settled after that sum -- a usage record no `token_count` reported -- leaves it
+        behind, nothing at all included, so no baseline is established, and no report of the invocation's is proven to
+        advance it until one has reported where it stands.
+        """
         thread = self.branches[None]
+        if thread.unreported:
+            thread.proven = False
+            return
         if thread.running is None or thread.position is None:
             return
         if thread.proven_at(self.scan.unread_lines):
@@ -211,7 +236,11 @@ class Requests:
         branch: Branch,
         turn: Turn | None,
     ) -> None:
-        """Read a `token_count`'s running sum: a repeat is nothing, and anything else moves its branch on to it."""
+        """Read a `token_count`'s running sum: a repeat is nothing, and anything else moves its branch on to it.
+
+        A repeat of the invocation's is no request, but the request usage it carries is evidence all the same, so a
+        block that names no counter or reports one no whole count is a gap of the collection.
+        """
         running = Counters.of(token_info.get("total_token_usage"))
         if running is None:
             self.gaps[coverage.MALFORMED_USAGE] += line.own
@@ -220,6 +249,8 @@ class Requests:
         report = Report(line, token_info, running, branch.proven_at(self.scan.unread_lines))
         if report.proven and running.repeats(branch.running):
             self.repeats += line.own
+            if line.own:
+                self.gaps.update(repeat_gaps(token_info))
             return
         if line.own:
             self._observe(report, branch, turn)
@@ -233,7 +264,7 @@ class Requests:
                 checkpoint(CUMULATIVE_TOTAL, report.line.position, report.running, self.session_id, self.gaps),
             )
             self.observed_checkpoints += 1
-        own_usage = Counters.of(report.token_info.get("last_token_usage"))
+        own_usage = Counters.of(report.token_info.get(LAST_USAGE))
         if own_usage is None:
             self.gaps[coverage.MALFORMED_USAGE] += 1
         elif not report.proven or not report.running.advanced_by(branch.running, own_usage):
@@ -256,6 +287,7 @@ class Requests:
         """One request as its sample, keyed by the log line that reported it."""
         position = report.line.position
         parent = None if turn is None else turn.parent_turn_id
+        capacity = context_capacity(report.token_info, self.metadata)
         return request_models.RequestObservation(
             identity=request_models.RequestIdentity(
                 key=f"{NATIVE_LINE}:{position}",
@@ -268,7 +300,7 @@ class Requests:
             position=position,
             branch_order=branch.kept,
             attribution=attribution(
-                branch.model, parent is not None, self.fallback_model, report.token_info, self.version,
+                branch.model, parent is not None, self.fallback_model, capacity, self.version,
             ),
             usage=own_usage.normalized(),
             raw=MappingProxyType(own_usage.raw),
@@ -371,6 +403,7 @@ class NativeFold:
             self._event(line, envelope)
         elif envelope.kind == _USAGE_RECORD:
             self.requests.usage_records += line.own
+            self.requests.branches[None].unreported += self.turns.on_thread(line.own)
         else:
             self._line(line, envelope)
 

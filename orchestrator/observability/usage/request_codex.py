@@ -43,8 +43,10 @@ LIMITATIONS = (
 _NO_VERSION = "no-source-version"
 _NO_TIMESTAMPS = "no-source-timestamps"
 _NO_CAPACITY = "no-context-capacity"
-# The gaps that leave a read short of the whole log, so the turns it found are not all the invocation opened.
-_CUT = frozenset((coverage.SCAN_LIMIT, coverage.NATIVE_READ_INTERRUPTED))
+# The gaps that leave a read short of the whole log, so the turns it found are not all the invocation opened, and the
+# lines it reached are not all the log holds -- a reader passing an overlong line over hands it to no one, so a last one
+# goes uncounted.
+_CUT = frozenset((coverage.SCAN_LIMIT, coverage.NATIVE_READ_INTERRUPTED, coverage.OVERSIZE_LINES))
 
 
 @dataclass(frozen=True)
@@ -103,15 +105,20 @@ def _folded(session: NativeSession, scan: request_scan.EventScan, fallback_model
         metadata=metadata,
     )
     for position, line in session.lines:
+        fold.timeline.extent = max(fold.timeline.extent, position + 1)
         fold.feed(position, scan.counted(line))
     return fold
 
 
-def _comparable_turns(stdout: str, scan: request_scan.EventScan, reasons: Counter[str]) -> int | None:
-    """How many turns stdout says the process started -- none included -- where the log was read whole to compare."""
-    if reasons.keys() & _CUT or scan.unread_lines:
-        return None
-    return stdout_turns(stdout, scan.limits)
+def _refusal(fold: NativeFold, stdout: str, scan: request_scan.EventScan, reasons: Counter[str]) -> str | None:
+    """Why nothing in the log can be attributed to the invocation, stdout's turns compared where both were read whole.
+
+    A read cut short proves nothing about the turns or the lines past the cut, and a line the scan could not read
+    could have opened a turn, so neither holds the log to the turns stdout started -- none included.
+    """
+    partial = bool(reasons.keys() & _CUT)
+    turns = None if partial or scan.unread_lines else stdout_turns(stdout, scan.limits)
+    return fold.timeline.refusal(fold.turns.root_turns, turns, partial)
 
 
 def _collected(fold: NativeFold, scan: request_scan.EventScan, reasons: Counter[str]) -> coverage.RequestUsage:
@@ -150,8 +157,7 @@ def collect(stdout: str, session: NativeSession | None, fallback_model: str | No
         scan = request_scan.EventScan(request_scan.current_limits())
     fold = _folded(session, scan, fallback_model)
     reasons = fold.reasons()
-    turns = _comparable_turns(stdout, scan, reasons)
-    refusal = fold.timeline.refusal(fold.turns.root_turns, turns)
+    refusal = _refusal(fold, stdout, scan, reasons)
     if refusal is not None:
         return _unavailable(refusal, scan)
     return _collected(fold, scan, reasons)

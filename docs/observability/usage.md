@@ -1039,7 +1039,8 @@ returned session (`native-identity-unproven` otherwise). And the launch has to p
 did not exist before it, so every line is its own; a resumed run's lines are exactly the ones past the whole lines its
 log held at the launch, since the log only grows by appending -- a line stamped in the launch's own millisecond, or
 with no stamp at all, its sample then naming no source timestamp, included -- and a resume with no count, or whose log
-held no line, is placed by nothing. Every stamp is then held against that placement, to the millisecond the CLI stamps
+held no line, is placed by nothing, and so is one whose log, read whole, holds fewer lines than the count, since it is
+not the log the count was taken of. Every stamp is then held against that placement, to the millisecond the CLI stamps
 to: an own line stamped more than a millisecond before the launch, or an earlier line stamped more than a millisecond
 after it, means the clock moved under the log -- the fresh invocation's last requests, say, stamped later than a
 resume launched on a clock stepped back -- and so does a stamp earlier than the one before it, anywhere in the log.
@@ -1072,25 +1073,29 @@ invocation opened or an activity naming no id a `subagent-unidentified` one, whe
 since no branch can keep that request.
 
 Each `token_count` carries a request's own counters in `info.last_token_usage` beside its branch's running sum in
-`info.total_token_usage`, and a request's counters are read off the first alone. A running sum equal to the last one
-its branch reported is a repeated notification and no request: the capture's resumed turn opens with the sum the
-earlier invocation left, and its compaction is followed by a context estimate whose sum does not move. One advancing by
-exactly the request's own counters -- on every counter all three report a count of, at least one of them moving by a
-count above zero -- is a new request, so two requests of equal counts stay two; one advancing otherwise, one only
-counters staying at zero agree with -- the moving ones left unusable by an earlier sum -- or one after a line or
-envelope this collection could not read -- which could have held the report it repeats, an earlier invocation's
-included -- is an `unreconciled-usage` gap rather than a sample, so no earlier request is ever copied into a later
-invocation. An `info` of null is a notification with no usage; one that is no object, or naming no running sum or no
-request usage, is `malformed-usage`. The CLI also writes a `token_usage_record` beside each request, repeating its
+`info.total_token_usage`, and a request's counters are read off the first alone. A running sum equal to the last one its
+branch reported is a repeated notification and no request: the capture's resumed turn opens with the sum the earlier
+invocation left, and its compaction is followed by a context estimate whose sum does not move. A repeat's own block is
+still evidence -- one naming no counter is `malformed-usage`, a count no whole number `invalid-counters` -- though its
+arithmetic is not held to a request's, the estimate's total standing beside no input or output. One advancing by exactly
+the request's own counters -- on every counter all three report a count of, at least one of them moving by a count above
+zero -- is a new request, so two requests of equal counts stay two; one advancing otherwise, one only counters staying
+at zero agree with -- the moving ones left unusable by an earlier sum -- or one after a line or envelope this collection
+could not read -- which could have held the report it repeats, an earlier invocation's included -- or the invocation's
+first after a request the earlier lines settled with no `token_count` reporting it, whose usage record leaves the last
+running sum behind, is an `unreconciled-usage` gap rather than a sample, so no earlier request is ever copied into a
+later invocation. An `info` of null is a notification with no usage; one that is no object, or naming no running sum or
+no request usage, is `malformed-usage`. The CLI also writes a `token_usage_record` beside each request, repeating its
 counters under its response id; no request is read off one, but the invocation's records are counted, and each beyond
 its `token_count` reports that repeat nothing is an `unsupported-usage-source` gap, so a log whose reports are missing
 never reads as an invocation that made no request. A sample is keyed `rollout-line:<line>` (`native-position`), its
 `position` that line, its `session_id` and `conversation_id` the session, `final` as `token-count` settled it, with the
-line's stamp as `source_timestamp`, `model_context_window` as `context_capacity`, and `last_usage_includes_reasoning` in
+line's stamp as `source_timestamp`, `model_context_window` as `context_capacity` -- one reported as no whole count is
+`malformed-metadata`, one left out the `no-context-capacity` limitation alone -- and `last_usage_includes_reasoning` in
 `source_flags` as reported -- a value that is no boolean is `malformed-metadata`. Only a fresh run names a
-`source_version`, its `session_meta`'s `cli_version`: a resumed run's log was begun by an earlier process, whose
-version that is. Requests past `MAX_TRACKED_STEPS` and markers past `MAX_MARKERS` are `correlation-limit` gaps, and an
-id or model past `MAX_METADATA_CHARS` is refused metadata.
+`source_version`, its `session_meta`'s `cli_version`: a resumed run's log was begun by an earlier process, whose version
+that is. Requests past `MAX_TRACKED_STEPS` and markers past `MAX_MARKERS` are `correlation-limit` gaps, and an id or
+model past `MAX_METADATA_CHARS` is refused metadata.
 
 `raw` reads `input_tokens`, `cached_input_tokens`, `cache_write_input_tokens`, `output_tokens`,
 `reasoning_output_tokens`, and `total_tokens` and nothing else of a block. The context input is the input, which
@@ -1103,19 +1108,19 @@ reasoning -- has 12,000 context-input tokens and a `total_tokens` of 12,500. Con
 kept with their evidence, as on every profile.
 
 The thread's running sums are checkpoints of `conversation` scope: an `invocation-baseline`, the last one before the
-boundary where nothing unread followed it, and a `cumulative-total` for each one the invocation's requests advanced,
-the baseline and the last `MAX_CHECKPOINTS` less one kept, each held to a request's arithmetic -- a counter it reports
-no usable count of, or that its own total or parts contradict, is `invalid` or `conflicting` in its `evidence` and an
-`invalid-counters` or `conflicting-counters` gap -- while a child turn's sums prove its requests and are no
-checkpoint, since nothing establishes what they span. A fresh run's last running sum is the sum of its complete
-samples, and a resumed run's samples are what its last advanced past its baseline -- a reader's check, never a source
-of a request or a compaction -- while a thread total spanning earlier invocations is never forced to match. A root
-turn the invocation opened that no `task_complete` or `turn_aborted` closed -- an interrupted run's -- is a
-`no-terminal-result` gap, and a resume no request settled usage for, such as one the provider failed, is
-`complete-empty`. Every collection lists `no-request-ids`, `no-cache-write-lifetimes`, and
-`ambiguous-zero-cache-writes` among its `limitations`, and adds `no-source-version`, `no-source-timestamps`, and
-`no-context-capacity` where its source left them out. No transcript text, working directory, or credential the log
-holds reaches the collection. The run accounting is unchanged: `codex_requests.py` and `codex_summary.py` still price
-the last cumulative `turn.completed` block once, and no sample is read by it.
+boundary where nothing unread and no usage record no report covered followed it, and a `cumulative-total` for each one
+the invocation's requests advanced, the baseline and the last `MAX_CHECKPOINTS` less one kept, each held to a request's
+arithmetic -- a counter it reports no usable count of, or that its own total or parts contradict, is `invalid` or
+`conflicting` in its `evidence` and an `invalid-counters` or `conflicting-counters` gap -- while a child turn's sums
+prove its requests and are no checkpoint, since nothing establishes what they span. A fresh run's last running sum is
+the sum of its complete samples, and a resumed run's samples are what its last advanced past its baseline -- a reader's
+check, never a source of a request or a compaction -- while a thread total spanning earlier invocations is never forced
+to match. A root turn the invocation opened that no `task_complete` or `turn_aborted` closed -- an interrupted run's --
+is a `no-terminal-result` gap, and a resume no request settled usage for, such as one the provider failed, is
+`complete-empty`. Every collection lists `no-request-ids`, `no-cache-write-lifetimes`, and `ambiguous-zero-cache-writes`
+among its `limitations`, and adds `no-source-version`, `no-source-timestamps`, and `no-context-capacity` where its
+source left them out. No transcript text, working directory, or credential the log holds reaches the collection. The run
+accounting is unchanged: `codex_requests.py` and `codex_summary.py` still price the last cumulative `turn.completed`
+block once, and no sample is read by it.
 
 [pinned-state]: ../state-machine/labels-and-state.md#pinned-state

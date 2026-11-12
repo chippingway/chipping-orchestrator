@@ -28,15 +28,16 @@ _ITEM_COMPLETED = "item_completed"
 _SUBAGENT = "SubAgentActivity"
 _TYPE = "type"
 _REPEATS = 50
+_TASK_COMPLETE = "task_complete"
 _PARENT = MappingProxyType({"parent_turn_id": codex.APPENDED_TURN})
 _CHILD_MODEL = "gpt-5.5-mini"
 _STARTED = codex.event(codex.TASK_STARTED, turn_id=codex.APPENDED_TURN)
-_COMPLETE = codex.event("task_complete", turn_id=codex.APPENDED_TURN)
+_COMPLETE = codex.event(_TASK_COMPLETE, turn_id=codex.APPENDED_TURN)
 _NEXT = codex.token_count(codex.NEXT_RUNNING, codex.NEXT_REQUEST)
 _CUT_SHORT = '{"timestamp":"2026-11-12T14:10:01.000Z","type":"event_msg","payload":{"type":"token_'
 _CHILD_STARTED = codex.event(codex.TASK_STARTED, turn_id=codex.CHILD_TURN, turn_attribution=dict(_PARENT))
 _CHILD_CONTEXT = codex.line(codex.TURN_CONTEXT, {codex.TURN_ID: codex.CHILD_TURN, "model": _CHILD_MODEL})
-_CHILD_COMPLETE = codex.event("task_complete", turn_id=codex.CHILD_TURN)
+_CHILD_COMPLETE = codex.event(_TASK_COMPLETE, turn_id=codex.CHILD_TURN)
 # A child turn's running sum is its own branch's, beginning at nothing.
 _CHILD_REQUEST = codex.token_count(codex.NEXT_REQUEST, codex.NEXT_REQUEST)
 _UNNAMED_CHILD = codex.event(codex.TASK_STARTED, turn_attribution=dict(_PARENT))
@@ -86,7 +87,7 @@ _REPLAY_LOG = (
     _COMPLETE,
 )
 _AFTER_REPLAYED = codex.APPENDED._replace(start=2)
-_FRESH_COMPLETE = MappingProxyType({_TYPE: "task_complete", codex.TURN_ID: capture.FRESH_TURN})
+_FRESH_COMPLETE = MappingProxyType({_TYPE: _TASK_COMPLETE, codex.TURN_ID: capture.FRESH_TURN})
 # A fresh legacy history: its subagent's activity is a `sub_agent_activity` event, not a completed item.
 _LEGACY_LOG = (
     _FRESH_FIRST.replace('"history_mode":"paginated"', '"history_mode":"legacy"'),
@@ -106,6 +107,51 @@ _OPENING = codex.token_count(codex.LAST_RUNNING, codex.NEXT_REQUEST)
 _NO_USAGE = codex.event(codex.TOKEN_COUNT, info=None)
 _ROLLBACK = codex.event("thread_rolled_back", num_turns=1)
 _THREAD_ONLY = MappingProxyType({"total_token_usage": codex.counters(codex.NEXT_RUNNING)})
+# A report repeating the captured log's last running sum, its own request usage left out, or carrying a negative count.
+_LAST_ONLY = MappingProxyType({"total_token_usage": codex.counters(codex.LAST_RUNNING)})
+_NEGATIVE_REPEAT = (-1, 0, 0, 10, 0, 9)
+_REPEAT_NO_USAGE = codex.event(codex.TOKEN_COUNT, info=dict(_LAST_ONLY))
+_INVALID = coverage.INVALID_COUNTERS
+# A request's usage leaving its reasoning out, and what its report says beside it: nothing more, or a reasoning flag or
+# context window no usable value, each with the malformed metadata it is.
+_NO_REASONING = MappingProxyType({
+    counter: count
+    for counter, count in codex.counters(codex.NEXT_REQUEST).items()
+    if counter != "reasoning_output_tokens"
+})
+_WINDOW = "model_context_window"
+_METADATA_SHAPES = (
+    ({}, 0),
+    ({"last_usage_includes_reasoning": "yes"}, 1),
+    ({_WINDOW: -1}, 1),
+    ({_WINDOW: "wide"}, 1),
+    ({_WINDOW: True}, 1),
+)
+# Earlier turns of the session, stamped before the appended invocation's launch: one whose request a usage record
+# shows and no report covers, one whose second request no report covers, and one reporting no usage at all. Each
+# resume after them reports the request the earlier turn settled last again -- or, after none, its own first one.
+_PRIOR_STAMP = "2026-11-12T14:09:00.000Z"
+_FRESH_STARTED = codex.event(codex.TASK_STARTED, turn_id=capture.FRESH_TURN)
+_FRESH_COMPLETED = codex.event(_TASK_COMPLETE, turn_id=capture.FRESH_TURN)
+_PRIOR_STARTED = _FRESH_STARTED.replace(codex.STAMP, _PRIOR_STAMP)
+_PRIOR_COMPLETE = _FRESH_COMPLETED.replace(codex.STAMP, _PRIOR_STAMP)
+_PRIOR_RECORD = codex.line("token_usage_record", {"usage": codex.counters(_REPLAYED)}, _PRIOR_STAMP)
+_PRIOR_REPORT = codex.token_count(_REPLAYED, _REPLAYED).replace(codex.STAMP, _PRIOR_STAMP)
+_REPLAYED_TWICE = tuple(2 * count for count in _REPLAYED)
+_UNCOVERED = (_FRESH_FIRST, _PRIOR_STARTED, _PRIOR_RECORD, _PRIOR_COMPLETE)
+_LAGGING = (_FRESH_FIRST, _PRIOR_STARTED, _PRIOR_RECORD, _PRIOR_REPORT, _PRIOR_RECORD, _PRIOR_COMPLETE)
+_UNUSED = (_FRESH_FIRST, _PRIOR_STARTED, _PRIOR_COMPLETE)
+_REPLAYED_REPORT = codex.token_count(_REPLAYED, _REPLAYED)
+_BEHIND = (
+    ("a request no report covers", len(_UNCOVERED), (*_UNCOVERED, _STARTED, _REPLAYED_REPORT, _COMPLETE), 0),
+    (
+        "a request past the last report",
+        len(_LAGGING),
+        (*_LAGGING, _STARTED, codex.token_count(_REPLAYED_TWICE, _REPLAYED), _COMPLETE),
+        0,
+    ),
+    ("no usage before", len(_UNUSED), (*_UNUSED, _STARTED, _REPLAYED_REPORT, _COMPLETE), 1),
+)
 # Reasons a reader states for a log it read no line of.
 _READER_REASONS = (
     coverage.NO_SESSION_IDENTITY,
@@ -121,13 +167,15 @@ _NOT_OWN = (
     ("empty log", {"lines": ()}),
     ("no session_meta first", {"lines": _FRESH_LINES[1:]}),
 )
-# Placements nothing proves: a resume its launch counted no lines for, or none at all; and stamps the clock contradicts
-# -- a fresh run's log stamped before its launch, earlier lines stamped after it, the silent resume after a clock step
-# back that would have taken the fresh invocation's last requests, an own line stamped before the launch, and stamps
-# going backward.
+_SHORTER = codex.APPENDED._replace(start=capture.LAST.end + 1, stdout="")
+# Placements nothing proves: a resume its launch counted no lines for, none at all, or more than the log read whole
+# holds; and stamps the clock contradicts -- a fresh run's log stamped before its launch, earlier lines stamped after
+# it, the silent resume after a clock step back that would have taken the fresh invocation's last requests, an own line
+# stamped before the launch, and stamps going backward.
 _UNPROVEN = (
     ("a resume counted nothing for", capture.RESUMED._replace(start=None), None),
     ("a resume of an empty log", capture.RESUMED._replace(start=0), None),
+    ("a silent resume of a log shorter than its count", _SHORTER, None),
     ("fresh log begun before the launch", capture.FRESH._replace(launched_at=capture.RESUMED.launched_at), None),
     ("earlier lines stamped after the launch", capture.RESUMED._replace(launched_at=capture.FRESH.launched_at), None),
     ("a silent resume after a clock step back", _STEPPED_BACK, None),
@@ -170,8 +218,9 @@ _UNREADABLE = (
     ("payload no object", codex.line(codex.EVENT_MSG, [1]), coverage.MALFORMED_ENVELOPES),
     ("event naming nothing", codex.line(codex.EVENT_MSG, {"info": {}}), coverage.MALFORMED_ENVELOPES),
     ("no kind", json.dumps({"timestamp": codex.STAMP, "payload": {}}), coverage.MALFORMED_ENVELOPES),
+    ("a repeat naming no request usage", _REPEAT_NO_USAGE, coverage.MALFORMED_USAGE),
+    ("a repeat reporting no whole count", codex.token_count(codex.LAST_RUNNING, _NEGATIVE_REPEAT), _INVALID),
 )
-_INVALID = coverage.INVALID_COUNTERS
 _CONFLICTING = coverage.CONFLICTING_COUNTERS
 # Requests whose counters are no usable count, each beside the running sum it advances, the field it leaves unusable,
 # and the gaps it is: a running sum adding a request's contradiction carries it too, and is a gap of its own.
@@ -221,6 +270,7 @@ _OVERSIZE_LINE = codex.event(_ITEM_COMPLETED, text="x" * _PADDING)
 # read failing partway.
 _READER_STOPS = (coverage.SCAN_LIMIT, coverage.NATIVE_READ_INTERRUPTED)
 _APPENDED_FACTS = Invocation(capture.SESSION_ID, True, codex.APPENDED_AT, codex.APPENDED.start)
+_ALL_BUT_LAST = capture.log_lines()[:-1]
 _RESUMED_FACTS = Invocation(capture.SESSION_ID, True, capture.RESUMED.launched_at)
 _REPEATED_STARTS = (_CHILD_STARTED,) * _REPEATS
 _REPEATED_CHILD = (_STARTED, *_REPEATED_STARTS, _CHILD_CONTEXT, _CHILD_REQUEST, _CHILD_COMPLETE, _COMPLETE)
@@ -349,6 +399,19 @@ class RequestIdentityTest(unittest.TestCase):
         self.assertEqual(collection.samples, [])
         self.assertEqual(collection.reasons.get(coverage.UNRECONCILED_USAGE), 1)
 
+    def test_a_running_sum_behind_a_settled_request(self) -> None:
+        # A request the earlier lines settled with no `token_count` reporting it leaves the thread's running sum behind
+        # it -- nothing at all, or the last sum reported -- so no baseline is kept, and the invocation's report of that
+        # request again is not proven new; after no usage at all, nothing lags, and the first report is a request.
+        for name, start, lines, kept in _BEHIND:
+            with self.subTest(name):
+                collection = codex.collected(
+                    codex.APPENDED._replace(start=start), lines, fallback_model=capture.FIRST_MODEL,
+                )
+                self.assertEqual(len(collection.samples), kept)
+                self.assertEqual(collection.reasons, {} if kept else {coverage.UNRECONCILED_USAGE: 1})
+                self.assertNotIn("invocation-baseline", cases.column(collection.checkpoints, _KIND))
+
     def test_unproven_reports_are_no_requests(self) -> None:
         for name, lines, others in _UNPROVEN_REPORTS:
             with self.subTest(name):
@@ -404,16 +467,18 @@ class SourceShapeTest(unittest.TestCase):
                 self.assertEqual(collection.status, coverage.INCOMPLETE)
         self.assertEqual(_appended_with(_RECORD, _OPENING, _NEXT, _NEXT).reasons, {})
 
-    def test_unreported_reasoning_stays_unknown(self) -> None:
-        own = codex.counters(codex.NEXT_REQUEST)
-        own.pop("reasoning_output_tokens")
-        usage = {**_THREAD_ONLY, "last_token_usage": own, "last_usage_includes_reasoning": "yes"}
-        collection = _appended_with(codex.event(codex.TOKEN_COUNT, info=usage))
-        sample = collection.samples[0]
-        self.assertEqual(sample[cases.EVIDENCE]["reasoning_tokens"], "missing")
-        self.assertFalse({"source_flags", "context_capacity"} & set(sample))
-        self.assertEqual(collection.reasons, {coverage.MALFORMED_METADATA: 1})
-        self.assertIn("no-context-capacity", collection.coverage[_LIMITATIONS])
+    def test_unreported_values_stay_unknown(self) -> None:
+        # Reasoning a block leaves out is unknown, never zero; a flag or a context window reported as no usable value
+        # is malformed metadata, while one left out is a limitation of the source alone.
+        for reported, malformed in _METADATA_SHAPES:
+            with self.subTest(reported=reported):
+                usage = {**_THREAD_ONLY, "last_token_usage": dict(_NO_REASONING), **reported}
+                collection = _appended_with(codex.event(codex.TOKEN_COUNT, info=usage))
+                sample = collection.samples[0]
+                self.assertEqual(sample[cases.EVIDENCE]["reasoning_tokens"], "missing")
+                self.assertFalse({"source_flags", "context_capacity"} & set(sample))
+                self.assertEqual(collection.reasons, {coverage.MALFORMED_METADATA: malformed} if malformed else {})
+                self.assertIn("no-context-capacity", collection.coverage[_LIMITATIONS])
 
     def _assert_kept(self, collection: cases.Collected, own: tuple[int, ...], expected: tuple) -> None:
         field_name, gaps = expected
@@ -516,18 +581,18 @@ class CollectionBoundTest(unittest.TestCase):
 
     def test_a_read_stopped_short(self) -> None:
         # A reader a bound or a failing read stopped records why in the scan it shares with the collection, which is
-        # then partial, counting only the lines read; the turns past the cut prove nothing, so a turn stdout printed
-        # and the read never reached refuses nothing.
+        # then partial, counting only the lines read; the lines past the cut prove nothing, so neither a turn stdout
+        # printed and the read never reached nor a read ending short of the lines the launch counted refuses anything.
         for gap in _READER_STOPS:
             with self.subTest(gap):
                 scan = request_scan.EventScan(request_scan.current_limits())
                 scan.gaps[gap] += 1
-                session = request_codex.NativeSession(_APPENDED_FACTS, enumerate(capture.log_lines()), scan)
+                session = request_codex.NativeSession(_APPENDED_FACTS, enumerate(_ALL_BUT_LAST), scan)
                 summary = request_codex.collect(codex.ONE_TURN_STDOUT, session).to_dict()[cases.COVERAGE]
                 self.assertEqual(summary[cases.REASONS], {gap: 1})
                 self.assertEqual(summary[cases.STATUS], coverage.SOURCE_LIMIT_TRUNCATED)
                 self.assertEqual(summary[_SCOPE], coverage.PARTIAL_SCOPE)
-                self.assertEqual(summary["scanned_lines"], capture.LAST.end)
+                self.assertEqual(summary["scanned_lines"], len(_ALL_BUT_LAST))
 
     def test_checkpoints_keep_baseline_and_last(self) -> None:
         with patch.object(request_scan, "MAX_CHECKPOINTS", 2):

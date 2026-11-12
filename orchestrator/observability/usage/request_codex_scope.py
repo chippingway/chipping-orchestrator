@@ -17,7 +17,8 @@ the process was launched (`Invocation`). A fresh run's log did not exist yet, so
 resumed run's held some number of whole lines, counted at the launch, and the log only ever grows by appending, so the
 invocation's lines are exactly the ones past that count -- however its lines are stamped, a line stamped in the
 launch's own millisecond, or one with no stamp at all, included. A resumed run with no such count, or whose log held
-no line at all, is placed by nothing.
+no line at all, is placed by nothing, and so is one whose log, read whole, holds fewer lines than the count: the log
+the count was taken of is not the one read.
 
 The CLI also stamps every line with the time it wrote it, to the millisecond, off the host clock the launch moment is
 read from, and every stamp is held against that placement: a line of the invocation's stamped more than a
@@ -120,12 +121,14 @@ def names_session(event: dict[str, Any], session_id: str | None) -> bool:
 class Timeline:
     """Where an invocation's lines begin in its log, read a line at a time, and what would leave that unproven.
 
-    `disagreed` is whether a stamp contradicts where its line is placed, so the clock cannot be trusted with the log.
+    `disagreed` is whether a stamp contradicts where its line is placed, so the clock cannot be trusted with the log,
+    and `extent` how many lines the log reached as read, every line handed over counted, decoded or not.
     """
 
     invocation: Invocation
     identified: bool = False
     read_any: bool = False
+    extent: int = 0
     boundary: int | None = None
     latest: datetime | None = None
     regressed: bool = False
@@ -157,21 +160,26 @@ class Timeline:
         version = metadata.text(payload.get("cli_version"))
         return None if self.invocation.resumed else version
 
-    def refusal(self, root_turns: int, stdout_turn_count: int | None) -> str | None:
+    def refusal(self, root_turns: int, stdout_turn_count: int | None, partial: bool) -> str | None:
         """Why nothing in the log can be attributed to the invocation, or None where both proofs hold.
 
-        `root_turns` counts the root turns the log opened from the boundary on, and `stdout_turn_count` the turns
-        stdout says the process started -- None where that is not to be compared.
+        `root_turns` counts the root turns the log opened from the boundary on, `stdout_turn_count` the turns stdout
+        says the process started -- None where that is not to be compared -- and `partial` whether the read may have
+        stopped short of the log's end or passed lines over unhanded, so its extent proves nothing.
         """
         if not self.identified:
             return coverage.NATIVE_IDENTITY_UNPROVEN
         if not self.start and self.invocation.resumed:
             return coverage.INVOCATION_UNATTRIBUTED
-        if self.regressed or self.disagreed:
+        if self.regressed or self.disagreed or self._short(partial):
             return coverage.INVOCATION_UNATTRIBUTED
         if stdout_turn_count is not None and stdout_turn_count != root_turns:
             return coverage.INVOCATION_UNATTRIBUTED
         return None
+
+    def _short(self, partial: bool) -> bool:
+        """Whether a log read whole holds fewer lines than the count its launch took of it."""
+        return not partial and self.extent < (self.start or 0)
 
     def _stamped(self, own: bool, moment: datetime) -> None:
         """Hold one stamp against the stamp before it and against the side of the launch its line is placed on.
@@ -261,6 +269,11 @@ class Turns:
         if not self.open or (own and not self.open[-1].own):
             return None
         return self.open[-1]
+
+    def on_thread(self, own: bool) -> bool:
+        """Whether a line belongs to the thread's own branch rather than a child turn's."""
+        turn = self.current(own)
+        return turn is None or turn.parent_turn_id is None
 
     def abandon(self) -> None:
         """Count the invocation's root turns still open as never closed, and close every open turn."""

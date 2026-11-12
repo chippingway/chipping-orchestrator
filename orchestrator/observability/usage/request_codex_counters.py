@@ -39,6 +39,8 @@ from orchestrator.observability.usage.request_normalization import Reading
 
 CACHE_WRITES = "cache_write_input_tokens"
 REASONING_FLAG = "last_usage_includes_reasoning"
+CONTEXT_WINDOW = "model_context_window"
+LAST_USAGE = "last_token_usage"
 # The counters a block is read for, each under the provider-neutral counter it normalizes as.
 COUNTERS = MappingProxyType({
     protocol.INPUT_TOKENS: normalization.INPUT,
@@ -175,7 +177,7 @@ def attribution(
     model: str | None,
     child: bool,
     fallback_model: str | None,
-    token_info: dict[str, Any],
+    known_capacity: int | None,
     version: str | None,
 ) -> request_models.RequestAttribution:
     """The model a request ran on and how that is established, beside the context capacity its report gives.
@@ -184,8 +186,6 @@ def attribution(
     model this collection refused. A named model is the request's; the thread, where none was named, falls back to
     the configured model; a child turn, or a branch whose last model was refused, runs on none this log establishes.
     """
-    capacity = Reading.of(token_info.get("model_context_window"))
-    known_capacity = capacity.count if capacity.known else None
     if model:
         return request_models.RequestAttribution(
             model, request_models.STREAM_MODEL, known_capacity, version,
@@ -197,6 +197,35 @@ def attribution(
     unknown = child or model == request_scan.REFUSED
     source = request_models.UNESTABLISHED if unknown else request_models.UNAVAILABLE
     return request_models.RequestAttribution(None, source, known_capacity, version)
+
+
+def context_capacity(token_info: dict[str, Any], metadata: request_scan.Metadata) -> int | None:
+    """The context window a request's report gives; one reported as no whole count is malformed metadata.
+
+    A report naming none leaves the capacity unknown, a limitation of its source rather than a gap.
+    """
+    reported = token_info.get(CONTEXT_WINDOW)
+    if reported is None:
+        return None
+    capacity = Reading.of(reported)
+    if capacity.known:
+        return capacity.count
+    metadata.malformed += 1
+    return None
+
+
+def repeat_gaps(token_info: dict[str, Any]) -> tuple[str, ...]:
+    """The gaps the request usage a repeated report carries leaves, though the report is no request.
+
+    A block naming no counter is malformed usage, and a counter it reports as no whole count an invalid one. Its
+    arithmetic is not held to a request's: after a compaction the CLI reports a context estimate whose total stands
+    beside no input or output, and a repeat sizes nothing.
+    """
+    own = Counters.of(token_info.get(LAST_USAGE))
+    if own is None:
+        return (coverage.MALFORMED_USAGE,)
+    unusable = [reading.state for reading in own.readings.values() if not reading.known]
+    return tuple(coverage.evidence_gaps(unusable))
 
 
 def source_flags(
