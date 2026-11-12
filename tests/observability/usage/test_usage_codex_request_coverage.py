@@ -18,6 +18,7 @@ from tests.observability.usage import (
 )
 
 _SCOPE = "scan_scope"
+_INVALID_STATE = "invalid"
 _SOURCE = cases.MODEL_SOURCE
 _POSITION = "position"
 _KIND = "kind"
@@ -42,21 +43,57 @@ _UNNAMED_CHILD = codex.event(codex.TASK_STARTED, turn_attribution=dict(_PARENT))
 _ACTIVITY = codex.event(_ITEM_COMPLETED, item={_TYPE: _SUBAGENT, "agent_thread_id": "thread-a"})
 _OTHER_ACTIVITY = codex.event(_ITEM_COMPLETED, item={_TYPE: _SUBAGENT, "agent_thread_id": "thread-b"})
 _UNNAMED_ACTIVITY = codex.event(_ITEM_COMPLETED, item={_TYPE: _SUBAGENT})
+_LEGACY_ACTIVITY = MappingProxyType({
+    _TYPE: "sub_agent_activity",
+    "event_id": "spawn",
+    "agent_thread_id": "thread-c",
+    "agent_path": "/worker",
+    "kind": "started",
+})
+_LEGACY_EVENT = codex.line(codex.EVENT_MSG, dict(_LEGACY_ACTIVITY))
+_UNNAMED_LEGACY_EVENT = codex.event("sub_agent_activity", event_id="spawn", kind="started")
+_FRESH_LINES = capture.log_lines(capture.FRESH.end)
+_FRESH_FIRST = _FRESH_LINES[0]
 _OVERSIZED_MODEL = "m" * (request_scan.MAX_METADATA_CHARS + 1)
 _OVERSIZED_CONTEXT = codex.line(codex.TURN_CONTEXT, {codex.TURN_ID: codex.APPENDED_TURN, "model": _OVERSIZED_MODEL})
 _UNSTAMPED = f'"timestamp":"{codex.STAMP}",'
-_UNSTAMPED_NEXT = _NEXT.replace(_UNSTAMPED, "")
 _TURN_LINES = (_STARTED, _NEXT, _COMPLETE)
 _UNSTAMPED_TURN = tuple(text.replace(_UNSTAMPED, "") for text in _TURN_LINES)
 _UNSTAMPED_LOG = (*capture.log_lines(), *_UNSTAMPED_TURN)
-_SILENT = codex.APPENDED._replace(stdout="")
-# A line stamped after the captured log and before the appended invocation's launch: an earlier invocation's.
+# A line stamped after the captured log and before the appended invocation's launch.
 _EARLIER_SETTINGS = codex.line(codex.EVENT_MSG, {_TYPE: "thread_settings_applied"}, "2026-11-12T14:05:00.000Z")
-# The resumed invocation's first line, the fresh one's last request plus half a millisecond, and a moment just past a
-# millisecond before that first line.
+# The resumed invocation's first line, and the fresh one's last line less half a millisecond.
 _FIRST_RESUMED_LINE = datetime.fromisoformat("2026-11-12T13:55:10.309+00:00")
-_BESIDE_FRESH_REQUEST = datetime.fromisoformat("2026-11-12T13:54:56.701500+00:00")
-_PAST_THE_WINDOW = datetime.fromisoformat("2026-11-12T13:55:10.307999+00:00")
+_BESIDE_FRESH_END = datetime.fromisoformat("2026-11-12T13:54:56.703500+00:00")
+# A resume launched once the fresh invocation had exited, on a clock stepped back to before its last requests, that
+# wrote no line and printed nothing.
+_STEPPED_BACK = capture.Invocation(
+    datetime.fromisoformat("2026-11-12T13:54:56.650+00:00"), capture.FRESH.end, True, "", capture.FRESH.end,
+)
+# An earlier invocation's running sum left with no usable input, output, or total -- the counters a request moves --
+# and a report after it of the request it already reported, whose cache and reasoning counters stay at zero.
+_REPLAYED = (100, 0, 0, 10, 0, 110)
+_UNUSABLE_SUM = (_INVALID_STATE, 0, 0, _INVALID_STATE, 0, _INVALID_STATE)
+_UNUSABLE_REPORT = MappingProxyType({
+    "total_token_usage": codex.counters(_UNUSABLE_SUM),
+    "last_token_usage": codex.counters(_REPLAYED),
+})
+_REPLAY_LOG = (
+    _FRESH_FIRST,
+    codex.line(codex.EVENT_MSG, {_TYPE: codex.TOKEN_COUNT, "info": dict(_UNUSABLE_REPORT)}, "2026-11-12T14:00:00.000Z"),
+    _STARTED,
+    codex.token_count(_REPLAYED, _REPLAYED),
+    _COMPLETE,
+)
+_AFTER_REPLAYED = codex.APPENDED._replace(start=2)
+_FRESH_COMPLETE = MappingProxyType({_TYPE: "task_complete", codex.TURN_ID: capture.FRESH_TURN})
+# A fresh legacy history: its subagent's activity is a `sub_agent_activity` event, not a completed item.
+_LEGACY_LOG = (
+    _FRESH_FIRST.replace('"history_mode":"paginated"', '"history_mode":"legacy"'),
+    capture.log_lines(2)[1],
+    codex.line(codex.EVENT_MSG, dict(_LEGACY_ACTIVITY), "2026-11-12T13:54:57.000Z"),
+    codex.line(codex.EVENT_MSG, dict(_FRESH_COMPLETE), "2026-11-12T13:54:57.100Z"),
+)
 _RESUMED_STAMP = '"timestamp":"2026-11-12T13:55:10.322Z"'
 _EARLY_STAMP = '"timestamp":"2026-11-12T13:50:00.000Z"'
 _FOREIGN_TURN = codex.event(codex.TASK_STARTED, turn_id=codex.CHILD_TURN)
@@ -77,7 +114,6 @@ _READER_REASONS = (
     coverage.NATIVE_LOG_UNREADABLE,
     coverage.DISCOVERY_LIMIT,
 )
-_FRESH_LINES = capture.log_lines(capture.FRESH.end)
 # Logs never adopted: another session's, one whose first line cannot be read, an empty one, one opening otherwise.
 _NOT_OWN = (
     ("another session", {"session_id": "01a1d00a-0000-7000-8000-000000000000"}),
@@ -85,26 +121,39 @@ _NOT_OWN = (
     ("empty log", {"lines": ()}),
     ("no session_meta first", {"lines": _FRESH_LINES[1:]}),
 )
-# Boundaries nothing proves: a fresh run's log begun before its launch, a resumed run's begun after it, stamps going
-# backward, a line stamped within a millisecond of the launch -- an earlier invocation's last request among them --
-# and an unstamped line nothing places, between the earlier lines and the boundary or past them with no boundary.
+# Placements nothing proves: a resume its launch counted no lines for, or none at all; and stamps the clock contradicts
+# -- a fresh run's log stamped before its launch, earlier lines stamped after it, the silent resume after a clock step
+# back that would have taken the fresh invocation's last requests, an own line stamped before the launch, and stamps
+# going backward.
 _UNPROVEN = (
+    ("a resume counted nothing for", capture.RESUMED._replace(start=None), None),
+    ("a resume of an empty log", capture.RESUMED._replace(start=0), None),
     ("fresh log begun before the launch", capture.FRESH._replace(launched_at=capture.RESUMED.launched_at), None),
-    ("resumed log begun after the launch", capture.RESUMED._replace(launched_at=capture.FRESH.launched_at), None),
+    ("earlier lines stamped after the launch", capture.RESUMED._replace(launched_at=capture.FRESH.launched_at), None),
+    ("a silent resume after a clock step back", _STEPPED_BACK, None),
+    ("an own line stamped before the launch", codex.APPENDED, (*capture.log_lines(), _EARLIER_SETTINGS, *_TURN_LINES)),
     (
         "stamps going backward",
         capture.RESUMED,
         [text.replace(_RESUMED_STAMP, _EARLY_STAMP) for text in capture.log_lines(capture.RESUMED.end)],
     ),
-    ("a line in the launch's millisecond", capture.RESUMED._replace(launched_at=_FIRST_RESUMED_LINE), None),
-    ("an earlier request beside the launch", capture.RESUMED._replace(launched_at=_BESIDE_FRESH_REQUEST), None),
-    ("unstamped before the boundary", codex.APPENDED, (*capture.log_lines(), _UNSTAMPED_NEXT, _STARTED, _COMPLETE)),
-    ("unstamped with no boundary", _SILENT, _UNSTAMPED_LOG),
 )
-# A turn another process appended meanwhile, and a turn stdout counts that the log never opened.
+_SILENT = codex.APPENDED._replace(stdout="")
+# Turns stdout does not account for: one another process appended meanwhile, one stdout counts that the log never
+# opened, and one the log opened that stdout never printed.
 _FOREIGN = (
-    ("another process's turn", (_STARTED, _NEXT, _COMPLETE, _FOREIGN_TURN)),
-    ("a turn the log never opened", ()),
+    ("another process's turn", codex.APPENDED, (*capture.log_lines(), *_TURN_LINES, _FOREIGN_TURN)),
+    ("a turn the log never opened", codex.APPENDED, capture.log_lines()),
+    ("a turn stdout never printed", _SILENT, (*capture.log_lines(), *_TURN_LINES)),
+)
+# Lines placed past the count whatever their stamps: one in the launch's own millisecond, past an earlier line in it,
+# and unstamped ones.
+_IN_FIRST_LINE = capture.RESUMED._replace(launched_at=_FIRST_RESUMED_LINE)
+_BESIDE_EARLIER_LINE = capture.RESUMED._replace(launched_at=_BESIDE_FRESH_END)
+_PLACED = (
+    ("a launch in its first line's millisecond", _IN_FIRST_LINE, None, [32]),
+    ("an earlier line in the launch's millisecond", _BESIDE_EARLIER_LINE, None, [32]),
+    ("unstamped lines", codex.APPENDED, _UNSTAMPED_LOG, [capture.LAST.end + 1]),
 )
 # Reports never taken for a new request: one after a line no reading could place -- which could repeat the one that
 # line held, an earlier invocation's included -- and one whose running sum moves by anything but its own counters.
@@ -138,7 +187,7 @@ _UNUSABLE = (
 )
 _INVALID_RUNNING = (*codex.NEXT_RUNNING[:5], -1)
 _NO_OBJECTS = ('[{"type":"event_msg"}]', "Codex ready")
-_UNUSABLE_STATES = frozenset(("invalid", "conflicting"))
+_UNUSABLE_STATES = frozenset((_INVALID_STATE, "conflicting"))
 _UNEXPOSED = (
     ("child turn with no request", (_CHILD_STARTED, _CHILD_COMPLETE), coverage.SUBAGENT_USAGE_UNAVAILABLE, 1),
     ("child turn naming no model", (_CHILD_STARTED, _CHILD_REQUEST), coverage.SUBAGENT_MODEL_UNESTABLISHED, 1),
@@ -146,6 +195,8 @@ _UNEXPOSED = (
     ("child turn naming no id, no request", (_UNNAMED_CHILD,), coverage.SUBAGENT_UNIDENTIFIED, 1),
     ("subagent threads", (_ACTIVITY, _ACTIVITY, _OTHER_ACTIVITY), coverage.SUBAGENT_USAGE_UNAVAILABLE, 2),
     ("subagent naming no thread", (_UNNAMED_ACTIVITY,), coverage.SUBAGENT_UNIDENTIFIED, 1),
+    ("legacy subagent event", (_LEGACY_EVENT,), coverage.SUBAGENT_USAGE_UNAVAILABLE, 1),
+    ("legacy subagent event naming no thread", (_UNNAMED_LEGACY_EVENT,), coverage.SUBAGENT_UNIDENTIFIED, 1),
 )
 # Each correlation bound, held to its least, and how many entries past it a collection drops.
 _CHILD_OVERRUN = (*capture.log_lines(), _STARTED, _CHILD_STARTED, _CHILD_REQUEST, _COMPLETE)
@@ -161,7 +212,7 @@ _REPEATED_CHILD = (_STARTED, *_REPEATED_STARTS, _CHILD_CONTEXT, _CHILD_REQUEST, 
 _CHILD_START = MappingProxyType({codex.TURN_ID: codex.CHILD_TURN, "turn_attribution": dict(_PARENT)})
 _UNNAMED_START = MappingProxyType({"turn_attribution": dict(_PARENT)})
 _CHILD_STARTS = (*(_CHILD_START,) * _REPEATS, _UNNAMED_START)
-_INVALID_TOTAL = MappingProxyType({"total_tokens": "invalid"})
+_INVALID_TOTAL = MappingProxyType({"total_tokens": _INVALID_STATE})
 _CHILD_RUN = (_STARTED, _CHILD_STARTED, _CHILD_CONTEXT, _CHILD_REQUEST, _CHILD_COMPLETE, _NEXT, _COMPLETE)
 _CHILD_ATTRIBUTION = ("turn_id", "parent_turn_id", "model", "branch_order")
 _THREAD_ATTRIBUTION = (codex.APPENDED_TURN, None, capture.SWITCHED_MODEL, 0)
@@ -201,12 +252,10 @@ class UnattributedCollectionTest(unittest.TestCase):
                 self.assertEqual(collection.samples, [])
 
     def test_an_unprovable_boundary(self) -> None:
-        for name, invocation, lines in _UNPROVEN:
+        for name, invocation, lines in (*_UNPROVEN, *_FOREIGN):
             with self.subTest(name):
                 self._assert_unattributed(codex.collected(invocation, lines))
-        for foreign, appended_lines in _FOREIGN:
-            with self.subTest(foreign):
-                self._assert_unattributed(codex.appended(*appended_lines))
+
 
     def test_an_invocation_that_wrote_nothing(self) -> None:
         # A resume that wrote no line, and whose stdout started no turn, made no request: complete with nothing, and
@@ -215,22 +264,19 @@ class UnattributedCollectionTest(unittest.TestCase):
         self.assertEqual(collection.status, coverage.COMPLETE_EMPTY)
         self.assertEqual(collection.checkpoints, [])
 
-    def test_unstamped_lines_keep_their_order(self) -> None:
-        # A line with no stamp is placed by where the log holds it, once a stamped line proves its side: followed by
-        # an earlier invocation's line it is that one's, and after the boundary the invocation's own, kept with no
-        # source timestamp.
-        twice = _advanced(tuple(part * 2 for part in codex.NEXT_REQUEST))
-        own = codex.token_count(twice, codex.NEXT_REQUEST).replace(_UNSTAMPED, "")
-        collection = codex.appended(_UNSTAMPED_NEXT, _EARLIER_SETTINGS, _STARTED, own, _COMPLETE)
-        self.assertEqual(len(collection.samples), 1)
+    def test_lines_placed_by_the_count(self) -> None:
+        # A resumed run's own lines are the ones past the count its launch took, whatever their stamps say short of a
+        # contradiction: a line in the launch's own millisecond is placed by the count, and an unstamped one too.
+        for name, invocation, lines, positions in _PLACED:
+            with self.subTest(name):
+                collection = codex.collected(invocation, lines)
+                self.assertEqual(cases.column(collection.samples, _POSITION), positions)
+                self.assertEqual(collection.status, coverage.COMPLETE)
+
+    def test_unstamped_lines_keep_no_stamp(self) -> None:
+        collection = codex.collected(codex.APPENDED, _UNSTAMPED_LOG)
         self.assertNotIn("source_timestamp", collection.samples[0])
         self.assertIn("no-source-timestamps", collection.coverage[_LIMITATIONS])
-        self.assertEqual(collection.status, coverage.COMPLETE)
-
-    def test_the_launch_window_is_one_millisecond(self) -> None:
-        # A line stamped more than a millisecond past the launch is the invocation's, however close beyond that.
-        collection = codex.collected(capture.RESUMED._replace(launched_at=_PAST_THE_WINDOW))
-        self.assertEqual(cases.column(collection.samples, _POSITION), [32])
 
     def _assert_unattributed(self, collection: cases.Collected) -> None:
         self.assertEqual(collection.reasons, {coverage.INVOCATION_UNATTRIBUTED: 1})
@@ -247,6 +293,13 @@ class RequestIdentityTest(unittest.TestCase):
         collection = _appended_with(_OPENING, _NO_USAGE, _NEXT, _NEXT, _ESTIMATE)
         self.assertEqual(len(collection.samples), 1)
         self.assertEqual(collection.reasons, {})
+
+    def test_unchanged_zeros_prove_no_request(self) -> None:
+        # After an earlier running sum leaves the counters a request moves unusable, a report its sum's zeros alone
+        # agree with is no proven request: it could be the earlier request reported again.
+        collection = codex.collected(_AFTER_REPLAYED, _REPLAY_LOG)
+        self.assertEqual(collection.samples, [])
+        self.assertEqual(collection.reasons.get(coverage.UNRECONCILED_USAGE), 1)
 
     def test_unproven_reports_are_no_requests(self) -> None:
         for name, lines, others in _UNPROVEN_REPORTS:
@@ -345,6 +398,12 @@ class AttributionTest(unittest.TestCase):
         for name, lines, gap, count in _UNEXPOSED:
             with self.subTest(name):
                 self.assertEqual(_appended_with(*lines).reasons.get(gap), count)
+
+    def test_a_legacy_history_names_its_subagents(self) -> None:
+        # A legacy history persists a subagent's activity as an event of its own; its usage is a gap all the same.
+        collection = codex.collected(lines=_LEGACY_LOG)
+        self.assertEqual(collection.reasons, {coverage.SUBAGENT_USAGE_UNAVAILABLE: 1})
+        self.assertEqual(collection.status, coverage.INCOMPLETE)
 
     def test_a_rollback_is_a_reset(self) -> None:
         collection = _appended_with(_ROLLBACK)

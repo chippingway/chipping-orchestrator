@@ -8,13 +8,14 @@ older and newer dates, names that only look like the log -- and the exit context
 reader, carrying the launch observed for it.
 """
 
+import os
 from collections.abc import Iterable
 from pathlib import Path
 
 from orchestrator.agents.models import AgentResult
 from orchestrator.observability.analytics.recording.models import AgentExitContext
 from orchestrator.observability.analytics.trajectories import codex_sessions
-from orchestrator.observability.analytics.trajectories.codex_launch import LaunchObservation
+from orchestrator.observability.analytics.trajectories.codex_launch import LaunchObservation, PriorLog
 from orchestrator.observability.usage import request_scan
 from tests.observability.usage import usage_codex_native_capture as capture
 
@@ -55,6 +56,22 @@ def read(home: Path) -> tuple[list[int], dict[str, int]]:
     return positions, dict(+session.scan.gaps)
 
 
+def launch(home: Path, invocation: capture.Invocation) -> LaunchObservation:
+    """The launch of `invocation` as observed against `home`: a resume's log as it held the lines before its own.
+
+    The log under `home` is the captured one as it stood at the exit, so what the launch counted is the file it is,
+    holding the invocation's `start` lines; a `start` of None is a launch that counted none.
+    """
+    if not invocation.resumed:
+        return LaunchObservation(home, invocation.launched_at)
+    if invocation.start is None:
+        return LaunchObservation(home, invocation.launched_at, PriorLog(0, 0, 0, None))
+    current = os.stat(Path(home, SESSIONS, *capture.DAY, capture.LOG_NAME))
+    size = len(capture.log_text(invocation.start).encode())
+    prior = PriorLog(current.st_dev, current.st_ino, size, invocation.start)
+    return LaunchObservation(home, invocation.launched_at, prior)
+
+
 def exit_context(
     home: Path,
     invocation: capture.Invocation = capture.FRESH,
@@ -62,7 +79,6 @@ def exit_context(
     observed: bool = True,
 ) -> AgentExitContext:
     """The exit of `invocation` as the trajectory sink reads it, its launch observed against `home` unless not."""
-    launch = LaunchObservation(home, invocation.launched_at) if observed else None
     return AgentExitContext(
         repo="owner/repo",
         issue=1,
@@ -78,5 +94,5 @@ def exit_context(
         fallback_model=None,
         prompt=None,
         cwd=Path("/workspace"),
-        launch_observation=launch,
+        launch_observation=launch(home, invocation) if observed else None,
     )

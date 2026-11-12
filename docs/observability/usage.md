@@ -1022,13 +1022,17 @@ by the id the run returned and nothing else -- a run that returned none is unava
 no stdout of it is request-level evidence to keep -- under the home the launch observed (`codex_launch.py`): just
 before the tracked spawn starts a Codex process with the trajectory sink on, it records the `CODEX_HOME` the process's
 effective environment names -- built by the backend's own environment owner from the run's options, an override
-included, relative to the checkout where relative -- or Codex's `~/.codex`, and the launch moment in UTC as
-precisely as the clock gives it, changing nothing the CLI is launched with; an exit with no observation is
-`no-launch-observation`. A
+included, relative to the checkout where relative -- or Codex's `~/.codex` -- the launch moment in UTC as precisely
+as the clock gives it, and, for a resume, the log the session already has, looked up as the exit looks it up: its
+device, inode, and bytes, and the whole lines it holds within the read bound, one more where it runs past the bound,
+and no count where its last line is unfinished. Nothing the CLI is launched with changes; an exit with no observation
+is `no-launch-observation`, and a resume whose launch counted no lines is `invocation-unattributed` and is not read. A
 resumed session's log stays under the date the session began, so the date directories are walked newest first, and
 the first day directory holding a regular file whose name ends in `-<session id>.jsonl` ends the walk: none found is
 `native-log-missing`, two there `native-identity-unproven`, a directory or file that cannot be listed or opened
-`native-log-unreadable`, and a lookup bound reached `discovery-limit`, each attributing nothing. The log is read a line
+`native-log-unreadable`, and a lookup bound reached `discovery-limit`, each attributing nothing; a resume's log that
+is not the file its launch counted -- another device or inode, or fewer bytes -- is `invocation-unattributed`. The log
+is read a line
 at a time and never held whole, no read asking for more than the bytes the bound has left and one more, the one that
 shows the log goes on past it; a line past the line bound is skipped through and counted, a byte or line bound reached
 is a `scan-limit` gap, and a read failing partway a `native-read-interrupted` one. A native log holds JSON objects
@@ -1038,19 +1042,17 @@ last line the process never finished writing among them.
 Nothing marks where one invocation's lines end, since a resume appends to the same file writing no `session_meta`, so
 the collection attributes a line only under two proofs, and where either fails it attributes nothing and says why --
 never a guessed suffix. The log has to be the session's own: its first line a `session_meta` whose `id` is the
-returned session (`native-identity-unproven` otherwise). And the launch has to place the invocation. The CLI stamps
-its lines to the millisecond, so a line stamped more than a millisecond after the launch moment was written after it,
-one stamped more than a millisecond before it was written before it, and one stamped within a millisecond of it, on
-either side, could be either. The invocation's lines are the ones from the first line stamped past that window on --
-the process wrote nothing before it was started, and every earlier invocation had exited by then -- which holds only
-while the log's stamps never go backward. A line with no stamp is placed by its order in the file once a stamped line
-proves its side: followed by a line stamped before the launch it is an earlier invocation's, and after the boundary
-it is this one's, its sample naming no source timestamp. Every one of these is `invocation-unattributed`: a stamp
-earlier than the one before it, anywhere in the log; a line nothing places -- stamped within the launch's window, so
-an earlier invocation's last request there is never copied, or unstamped between the earlier lines and the boundary,
-or after the earlier lines of a log read whole with no boundary at all; a fresh run's log begun before its boundary or
-a resumed run's begun after it; and, where the log and stdout were both read whole, a count of root turns opened from
-the boundary on other than the `turn.started` lines stdout printed -- a turn another process appended meanwhile.
+returned session (`native-identity-unproven` otherwise). And the launch has to place the invocation. A fresh run's log
+did not exist before it, so every line is its own; a resumed run's lines are exactly the ones past the whole lines its
+launch counted, since the log only grows by appending -- a line stamped in the launch's own millisecond, or with no
+stamp at all, its sample then naming no source timestamp, included -- and a resume with no count, or whose log held
+no line, is placed by nothing. Every stamp is then held against that placement, off the host clock the launch was
+observed on and to the millisecond the CLI stamps to: an own line stamped more than a millisecond before the launch,
+or an earlier line stamped more than a millisecond after it, means the clock moved under the log -- the fresh
+invocation's last requests, say, stamped later than a resume launched on a clock stepped back -- and so does a stamp
+earlier than the one before it, anywhere in the log. Each of these is `invocation-unattributed`, as is, where the log
+and stdout were both read whole, a count of root turns opened past the boundary other than the `turn.started` lines
+stdout printed, none included -- a turn another process appended meanwhile, or one stdout never printed.
 
 A `task_started` opens a turn: one whose `turn_attribution` names a `parent_turn_id` is a child turn run in this log,
 whose requests are a branch of their own carrying their `turn_id` and `parent_turn_id`, opened once however often its
@@ -1064,8 +1066,10 @@ request is the old model's. A thread request no `turn_context` precedes falls ba
 (`configured-fallback`); a child's without its own, or one after a `turn_context` naming a model this collection
 refused, is `unestablished`. A thread `turn_context` naming another model than the one before it is a `model-change`
 marker, a `compacted` line a `compaction` marker, and a `thread_rolled_back` event a `reset` marker; none is inferred.
-A child turn the invocation opened that settled no request, and each distinct subagent thread its `SubAgentActivity`
-items name -- whose requests are in a log of that thread's own, never read -- is a `subagent-usage-unavailable` gap,
+A child turn the invocation opened that settled no request, and each distinct subagent thread its lines name -- in
+an `item_completed` `SubAgentActivity` item, or in a legacy history's `sub_agent_activity` event, which a legacy
+history persists for every activity but completion -- whose requests are in a log of that thread's own, never read, is
+a `subagent-usage-unavailable` gap,
 and a child turn the invocation opened or an activity naming no id a `subagent-unidentified` one, whether or not a
 request settles in it, since no branch can keep that request.
 
@@ -1073,9 +1077,11 @@ Each `token_count` carries a request's own counters in `info.last_token_usage` b
 `info.total_token_usage`, and a request's counters are read off the first alone. A running sum equal to the last one
 its branch reported is a repeated notification and no request: the capture's resumed turn opens with the sum the
 earlier invocation left, and its compaction is followed by a context estimate whose sum does not move. One advancing by
-exactly the request's own counters -- on every counter all three report a count of -- is a new request, so two
-requests of equal counts stay two; one advancing otherwise, or after a line or envelope this collection could not read
--- which could have held the report it repeats, an earlier invocation's included -- is an `unreconciled-usage` gap
+exactly the request's own counters -- on every counter all three report a count of, at least one of them moving by a
+count above zero -- is a new request, so two requests of equal counts stay two; one advancing otherwise, one only
+counters staying at zero agree with -- the moving ones left unusable by an earlier sum -- or one after a line or
+envelope this collection could not read -- which could have held the report it repeats, an earlier invocation's
+included -- is an `unreconciled-usage` gap
 rather than a sample, so no earlier request is ever copied into a later invocation. An `info` of null is a notification
 with no usage; one that is no object, or naming no running sum or no request usage, is `malformed-usage`. A sample is
 keyed `rollout-line:<line>` (`native-position`), its `position` that line, its `session_id` and `conversation_id` the

@@ -40,7 +40,7 @@ LAST_RUNNING = (114000, 92100, 14900, 1250, 228, 115250)
 NEXT_REQUEST = (1000, 500, 0, 10, 2, 1010)
 NEXT_RUNNING = (115000, 92600, 14900, 1260, 230, 116260)
 ONE_TURN_STDOUT = '{"type":"turn.started"}'
-APPENDED = capture.Invocation(APPENDED_AT, None, True, ONE_TURN_STDOUT)
+APPENDED = capture.Invocation(APPENDED_AT, None, True, ONE_TURN_STDOUT, len(capture.log_lines()))
 
 
 def counters(counts: Iterable[Any]) -> dict[str, Any]:
@@ -75,7 +75,8 @@ def collected(
 ) -> cases.Collected:
     """What `invocation` collects from `lines` -- the captured log as it stood when it exited, by default."""
     read = capture.log_lines(invocation.end) if lines is None else tuple(lines)
-    facts = Invocation(session_id, invocation.resumed, invocation.launched_at)
+    prior_lines = invocation.start if invocation.resumed else None
+    facts = Invocation(session_id, invocation.resumed, invocation.launched_at, prior_lines)
     session = request_codex.NativeSession(
         facts, tuple(enumerate(read)), request_scan.EventScan(request_scan.current_limits()),
     )

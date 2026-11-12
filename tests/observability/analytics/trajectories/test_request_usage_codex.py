@@ -9,7 +9,6 @@ from unittest.mock import patch
 
 from orchestrator.observability.analytics import sink as analytics_sink
 from orchestrator.observability.analytics.trajectories import codex_sessions
-from orchestrator.observability.analytics.trajectories.codex_launch import LaunchObservation
 from orchestrator.observability.usage import protocol, request_coverage as coverage, trajectory as usage_trajectory
 from tests.observability.analytics.analytics_jsonl_helpers import read_records
 from tests.observability.analytics.trajectories import (
@@ -67,7 +66,7 @@ class _CodexRecordTest(support.RecordAgentExitTrajectorySupport):
             "stdout": invocation.stdout,
             "backend": protocol.CODEX,
             "resume_session_id": resumed,
-            "launch_observation": LaunchObservation(self.home, invocation.launched_at),
+            "launch_observation": sessions.launch(self.home, invocation),
             **options,
         }
 

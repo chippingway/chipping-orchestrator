@@ -53,9 +53,14 @@ _READ_BOUNDS = (
     ("lines", ("MAX_EVENTS", 3), (tuple(range(3)), _SCAN_LIMIT)),
     ("line size", ("MAX_LINE_CHARS", _LINE_BOUND), (_SHORT_LINES, {coverage.OVERSIZE_LINES: _OVERSIZE_COUNT})),
 )
+_UNCOUNTED = capture.RESUMED._replace(start=None)
+# Fewer lines than the resumed invocation's launch counted.
+_SHORTER = capture.RESUMED.start // 2
+_RESUMED_TEXT = capture.log_text(capture.RESUMED.end)
 _NO_PROOF = (
     ("no session", {"session_id": None}, coverage.NO_SESSION_IDENTITY),
     ("no launch", {"observed": False}, coverage.NO_LAUNCH_OBSERVATION),
+    ("a resume its launch counted nothing for", {"invocation": _UNCOUNTED}, coverage.INVOCATION_UNATTRIBUTED),
 )
 
 
@@ -146,6 +151,21 @@ class SessionReadTest(_HomeTest):
             read = support.read(self.home)
         self.assertEqual(read, ([0], {coverage.NATIVE_READ_INTERRUPTED: 1}))
         self.assertTrue(failing.closed)
+
+    def test_a_resume_reads_the_file_it_counted(self) -> None:
+        # The resumed run's own lines are the ones past the count; another file put under its name since, or the
+        # counted one cut shorter, holds none the count places.
+        path = support.write_log(self.home, _RESUMED_TEXT)
+        context = support.exit_context(self.home, capture.RESUMED)
+        usage = request_codex.collect(capture.RESUMED.stdout, codex_sessions.native_session(context))
+        self.assertEqual([observation.position for observation in usage.observations], [32])
+        replacement = path.with_name("replacement")
+        replacement.write_text(_RESUMED_TEXT, encoding="utf-8")
+        replacement.replace(path)
+        self.assertEqual(codex_sessions.native_session(context).unavailable, coverage.INVOCATION_UNATTRIBUTED)
+        shrunk = support.exit_context(self.home, capture.RESUMED)
+        path.write_text(capture.log_text(_SHORTER), encoding="utf-8")
+        self.assertEqual(codex_sessions.native_session(shrunk).unavailable, coverage.INVOCATION_UNATTRIBUTED)
 
     def test_an_unfinished_last_line(self) -> None:
         # A log whose last line the process never finished writing reads up to it, the cut line a malformed one.

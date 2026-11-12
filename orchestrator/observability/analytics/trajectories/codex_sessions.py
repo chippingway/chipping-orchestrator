@@ -7,12 +7,14 @@ is read from that log at exit, inside the request collection's failure boundary,
 trajectory sink is on.
 
 The lookup. `native_session` looks the run's session up by the id the run returned, never by a guess: a run that
-returned none, or whose launch the sink did not observe (`codex_launch`), is looked up nowhere. The log is
+returned none, or whose launch the sink did not observe (`codex_launch`), is looked up nowhere, and neither is a
+resumed run whose launch counted no lines of its log, since nothing would place its own. The log is
 `sessions/YYYY/MM/DD/rollout-<time>-<session id>.jsonl` under the observed home, under the date the session began --
 an older one where the run resumed it -- so the date directories are walked newest first, matching only a regular file
 whose name ends in exactly that id, and the walk is held to `MAX_SESSION_DIRECTORIES` directories and
 `MAX_SESSION_ENTRIES` entries. Whether the file found is the session's own is not taken from its name: the collector
-proves it from the file.
+proves it from the file. A resumed run's has to be the very file its launch counted, on the same device and inode and
+no shorter than it was then; any other is `invocation-unattributed`.
 
 The read. The log is read a line at a time and handed to the collector as it is read, so no more than one line is
 held at once, and it is held to `MAX_LOG_BYTES` bytes, `MAX_EVENTS` lines, and `MAX_LINE_CHARS` bytes a line: no read
@@ -36,6 +38,7 @@ from orchestrator.observability.usage.request_codex_scope import Invocation
 
 if TYPE_CHECKING:
     from orchestrator.observability.analytics.recording.models import AgentExitContext
+    from orchestrator.observability.analytics.trajectories.codex_launch import PriorLog
 
 _SESSIONS = "sessions"
 _ROLLOUT = "rollout-"
@@ -190,12 +193,15 @@ class _LogReader:
 
 
 def _invocation(context: AgentExitContext) -> Invocation:
-    """What the exit knows of the process: the session it returned, whether it resumed it, and when it was launched."""
+    """What the exit knows of the process: the session it returned, whether it resumed it, when it was launched, and
+    how many whole lines its log held then."""
     launch = context.launch_observation
+    prior = None if launch is None else launch.prior
     return Invocation(
         session_id=context.agent_result.session_id,
         resumed=context.resume_session_id is not None,
         launched_at=None if launch is None else launch.launched_at,
+        prior_lines=None if prior is None else prior.lines,
     )
 
 
@@ -203,25 +209,39 @@ def _opened(
     invocation: Invocation,
     found: Path | str,
     limits: request_scan.CollectionLimits,
+    prior: PriorLog | None,
 ) -> request_codex.NativeSession:
-    """The log found, open for its read; or why there is none to read."""
+    """The log found, open for its read; or why there is none to read.
+
+    A resumed run's log has to be the very file the launch counted, grown or as it was: another file under its name,
+    or one shorter than it was, holds no line the count places.
+    """
     if isinstance(found, str):
         return request_codex.NativeSession(invocation, unavailable=found)
     try:
         stream = found.open("rb")
     except OSError:
         return request_codex.NativeSession(invocation, unavailable=coverage.NATIVE_LOG_UNREADABLE)
+    if prior is not None and not prior.holds(stream):
+        stream.close()
+        return request_codex.NativeSession(invocation, unavailable=coverage.INVOCATION_UNATTRIBUTED)
     scan = request_scan.EventScan(limits)
     return request_codex.NativeSession(invocation, _LogReader(stream, scan).lines(), scan)
 
 
 def native_session(context: AgentExitContext) -> request_codex.NativeSession:
-    """The native session log of one finished Codex run, as its collector reads it, or why there is none to read."""
+    """The native session log of one finished Codex run, as its collector reads it, or why there is none to read.
+
+    A resumed run whose launch counted no lines of its log has nothing placing its lines, so its log is not read.
+    """
     invocation = _invocation(context)
     launch = context.launch_observation
     if invocation.session_id is None:
         return request_codex.NativeSession(invocation, unavailable=coverage.NO_SESSION_IDENTITY)
     if launch is None:
         return request_codex.NativeSession(invocation, unavailable=coverage.NO_LAUNCH_OBSERVATION)
+    if invocation.resumed and invocation.prior_lines is None:
+        return request_codex.NativeSession(invocation, unavailable=coverage.INVOCATION_UNATTRIBUTED)
     limits = request_scan.current_limits()
-    return _opened(invocation, discovered_log(launch.codex_home, invocation.session_id, limits), limits)
+    found = discovered_log(launch.codex_home, invocation.session_id, limits)
+    return _opened(invocation, found, limits, launch.prior if invocation.resumed else None)

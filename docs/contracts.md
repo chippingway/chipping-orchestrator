@@ -135,10 +135,11 @@ unpriced cost, and a malformed record's containment remain current answers. A tr
 read only as its collector wrote it: absent is a run whose requests were not collected -- every record an earlier
 build wrote -- never an empty breakdown, and nothing infers or backfills one. A Codex sample is a `token_count` the
 invocation's own lines of the returned session's native log reported, those lines proven by the log's first-line
-identity and the launch moment observed for the run: a line stamped within a millisecond of the launch, or unstamped
-where no stamped line places it, places nothing, and a log holding one, or placing the invocation by no proof,
-attributes nothing, never a guessed suffix; a report repeating its branch's running sum or not proven to advance it by
-its own counters is no request, so no earlier invocation's request is copied into a later one; and stdout's cumulative
+identity and the launch observed for the run -- a fresh run's whole log, a resumed run's lines past the whole lines
+its launch counted in that very file -- and every stamp agreeing with that placement: a resume with no count, a log
+another file or shorter than the counted one, or a stamp the clock contradicts attributes nothing, never a guessed
+suffix; a report repeating its branch's running sum, or not proven to advance it by its own counters with at least one
+of them moving, is no request, so no earlier invocation's request is copied into a later one; and stdout's cumulative
 `turn.completed` is never a sample nor a request size. Within the shared
 request-usage format a counter a sample did not observe is unknown rather than zero, a common total sums only observed
 non-overlapping counters and never the provider's own total, a model the stream did not establish is none rather than
@@ -915,8 +916,9 @@ recovery, or workflow decision reads one. Only the opt-in trajectory write colle
 parse and behind a failure boundary of its own, so a request collector -- a Codex native log's lookup and read
 included -- that fails costs neither the trajectory, the baseline `agent_exit` record, nor the run's accounting, and
 with the trajectory sink off no collector runs, no Codex launch is observed, and no native log is looked up or read.
-The launch observation a tracked Codex spawn hands its exit -- the `CODEX_HOME` its environment names and the launch
-moment -- is observation alone and changes nothing the CLI is launched with. A stream
+The launch observation a tracked Codex spawn hands its exit -- the `CODEX_HOME` its environment names, the launch
+moment, and a resume's count of the lines its log already holds -- is observation alone, read only with the sink on,
+and changes nothing the CLI is launched with. A stream
 the usage parser refuses still writes no `agent_exit` record and publishes no total; its request usage alone is
 recorded, on a trajectory record marked `stream_refused`.
 

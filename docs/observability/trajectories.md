@@ -38,10 +38,12 @@ serialization as the sink writes it, so a collector that raises, or a collection
 leaves a field stating `collector-error` while the trajectory beside it is written whole. A Codex run's requests are
 in its native session log, so the same guard covers looking that log up and reading it (`codex_sessions`), by the
 session id the run returned and the launch the tracked spawn observed for it: just before starting a Codex process
-with the sink on, `_run_agent_tracked` records the `CODEX_HOME` its effective environment names and the launch moment
-(`codex_launch.observed_launch`) and hands them to `record_agent_exit` as `launch_observation`, changing nothing the CLI
-is launched with. A stream the usage parser refuses -- a line the JSON decoder refuses although it parses -- still
-writes no `agent_exit` record and publishes no total, and nothing is reconstructed from it; the block then writes a
+with the sink on, `_run_agent_tracked` records the `CODEX_HOME` its effective environment names, the launch moment,
+and for a resume the whole lines the session's log already holds, read once within the read bound
+(`codex_launch.observed_launch`), and hands them to `record_agent_exit` as `launch_observation`, changing nothing the
+CLI is launched with; the run's own lines are the ones past that count. A stream the usage parser refuses -- a line
+the JSON decoder refuses although it parses -- still writes no `agent_exit` record and publishes no total, and nothing
+is reconstructed from it; the block then writes a
 record carrying only the run's context, its `user_input`, the request usage the collector read past the refusal -- its
 requests naming no trajectory turn, since the record has none -- and a `stream_refused` flag set to true, with no
 `run_usage` and no steps. With the sink off (the default) the block is a no-op before any parse work or request

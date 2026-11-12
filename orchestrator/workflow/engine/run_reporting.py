@@ -48,6 +48,7 @@ def _launched(request: _run_requests._AgentRunRequest) -> _Launch:
         request.backend,
         request.cwd,
         request.run_options.extra_env,
+        request.resume_session_id,
     )
     return _Launch(time.monotonic(), observation)
 

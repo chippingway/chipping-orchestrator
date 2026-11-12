@@ -656,12 +656,14 @@ _LAST_STDOUT = (
 
 
 class Invocation(NamedTuple):
-    """One captured invocation: when it was launched, the log line it ended before, whether it resumed, its stdout."""
+    """One captured invocation: when it was launched, the log line it ended before, whether it resumed, its stdout,
+    and the whole lines the log held when it was launched, its own beginning past them."""
 
     launched_at: datetime
     end: int
     resumed: bool
     stdout: str
+    start: int = 0
 
 
 # Each invocation: its launch moment, the line it ended before, whether it resumed, and its stdout.
@@ -673,9 +675,12 @@ _CAPTURED = (
     ("2026-11-12T14:03:11.000+00:00", 70, True, _INTERRUPTED_STDOUT),
     ("2026-11-12T14:03:33.000+00:00", 80, True, _LAST_STDOUT),
 )
+# Each invocation begins where the one before it ended.
+_ENDS = tuple(captured[1] for captured in _CAPTURED)
+_STARTS = (0, *_ENDS[:-1])
 INVOCATIONS = tuple(
-    Invocation(datetime.fromisoformat(launched_at), end, resumed, "\n".join(stdout))
-    for launched_at, end, resumed, stdout in _CAPTURED
+    Invocation(datetime.fromisoformat(launched_at), end, resumed, "\n".join(stdout), start)
+    for (launched_at, end, resumed, stdout), start in zip(_CAPTURED, _STARTS, strict=True)
 )
 FRESH, RESUMED, SWITCHED = INVOCATIONS[:3]
 FAILED, INTERRUPTED, LAST = INVOCATIONS[3:]

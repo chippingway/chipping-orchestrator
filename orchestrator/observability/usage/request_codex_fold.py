@@ -19,17 +19,19 @@ of its own ran on no model this log establishes, never its parent's; a thread wi
 Requests. Each `token_count` reports one request's own usage (`last_token_usage`) beside its branch's running sum
 (`total_token_usage`). A sum equal to the last one the branch reported repeats a notification -- the CLI prints the
 same report again, opens a turn with the sum the last one left, and follows a compaction with a context estimate --
-and is no request. A sum advancing by exactly the request's own counters is a new request, so two requests of equal
-counts stay two; one advancing by anything else, or following a line this pass could not read -- which could have
-been the report it repeats -- is not proven a new request, and is an `unreconciled-usage` gap rather than a sample, so
-no earlier invocation's request is ever copied into this one. The thread's running sums are checkpoints of the whole
+and is no request. A sum advancing by exactly the request's own counters, at least one of them moving, is a new
+request, so two requests of equal counts stay two; one advancing by anything else, one only counters staying at zero
+agree with, or one following a line this pass could not read -- which could have been the report it repeats -- is not
+proven a new request, and is an `unreconciled-usage` gap rather than a sample, so no earlier invocation's request is
+ever copied into this one. The thread's running sums are checkpoints of the whole
 conversation: the last one before the boundary as the invocation's baseline, and the ones its own requests advance.
 A child turn's sums are kept only to prove its requests, since nothing establishes what they span.
 
-Subagents. A child turn the invocation opened that settled no request, and a subagent thread an `item_completed`
-`SubAgentActivity` of its lines names -- whose requests are in a log of that thread's own, which this pass never reads
--- are usage this collection saw happen and could not observe, so each is a gap rather than a silence; so is a child
-turn naming no id, whose requests no branch can keep, whether or not any settles in it.
+Subagents. A child turn the invocation opened that settled no request, and a subagent thread its lines name -- in an
+`item_completed` `SubAgentActivity`, or in a legacy history's `sub_agent_activity` event -- whose requests are in a log
+of that thread's own, which this pass never reads, are usage this collection saw happen and could not observe, so each
+is a gap rather than a silence; so is a child turn naming no id, whose requests no branch can keep, whether or not any
+settles in it.
 
 Checkpoints are held to a request's arithmetic, so a running sum reporting a counter no usable count, or contradicting
 its own parts, is a gap of the collection keeping it as well as its own evidence.
@@ -66,6 +68,9 @@ _READ = frozenset((SESSION_META, _TURN_CONTEXT, _EVENT_MSG))
 _CLOSES = frozenset(("task_complete", "turn_aborted"))
 _MARKED = MappingProxyType({"compacted": request_models.COMPACTION})
 _EVENT_MARKERS = MappingProxyType({"thread_rolled_back": request_models.RESET})
+_ITEM_COMPLETED = "item_completed"
+# The events naming a subagent's activity, each by the type the activity it carries is spelled with.
+_ACTIVITIES = MappingProxyType({_ITEM_COMPLETED: "SubAgentActivity", "sub_agent_activity": "sub_agent_activity"})
 
 
 class Line(NamedTuple):
@@ -300,12 +305,18 @@ class Notes:
         marker = _EVENT_MARKERS.get(name)
         if marker is not None:
             self.mark(line, marker)
-        elif name == "item_completed" and line.own:
-            self._activity(payload.get("item"))
+        elif line.own and name in _ACTIVITIES:
+            self._activity(name, payload)
 
-    def _activity(self, activity: Any) -> None:
-        """Note a subagent thread the invocation's activity names: its requests are in a log of its own, never read."""
-        if not isinstance(activity, dict) or activity.get(TYPE) != "SubAgentActivity":
+    def _activity(self, name: str, payload: dict[str, Any]) -> None:
+        """Note a subagent thread the invocation's activity names: its requests are in a log of its own, never read.
+
+        A paginated history names it in a completed `SubAgentActivity` item, and a legacy one also in a
+        `sub_agent_activity` event, for every activity but completion.
+        """
+        activity = payload.get("item") if name == _ITEM_COMPLETED else payload
+        spelled = _ACTIVITIES[name]
+        if not isinstance(activity, dict) or activity.get(TYPE) != spelled:
             return
         thread = self.metadata.text(activity.get("agent_thread_id"))
         if thread is None:

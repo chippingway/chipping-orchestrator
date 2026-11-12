@@ -14,9 +14,10 @@ all: a raw zero is kept in `raw` as reported, but it establishes neither that no
 the normalized cache writes are unknown there, and no lifetime split is ever reported.
 
 A request's own counters become a sample; the running sum is a checkpoint, never a request. Each request advances the
-running sum by exactly its own counters, which is what proves a line a new request rather than a repeat of the last
-one -- a repeat leaves the sum where it was -- and nothing here derives a request, or a compaction, from the
-difference between two sums.
+running sum by exactly its own counters, moving at least one of them -- a request always has input -- which is what
+proves a line a new request rather than a repeat of the last one: a repeat leaves the sum where it was, and counters
+that stay at zero agree with any report. Nothing here derives a request, or a compaction, from the difference
+between two sums.
 """
 
 from __future__ import annotations
@@ -57,6 +58,8 @@ _RELATED = MappingProxyType({
 })
 # What a thread's running sum stands at before its first request: nothing at all.
 _NOTHING = Reading(0, normalization.OBSERVED)
+# How far a counter moved where it did not move by the request's own count of it.
+_MISMATCH = -1
 
 
 @dataclass(frozen=True)
@@ -100,15 +103,19 @@ class Counters:
         return all(reading == _NOTHING for reading in self.readings.values())
 
     def advanced_by(self, previous: Counters | None, request: Counters) -> bool:
-        """Whether this running sum is `previous` advanced by exactly `request`'s own counters.
+        """Whether this running sum is `previous` advanced by exactly `request`'s own counters, and moved at all.
 
-        Every counter all three report a count of is held to it, and at least one has to be; a counter any of them
-        reports no count of -- invalid, or left out -- is no evidence either way, so the request it belongs to keeps
-        its own evidence for it rather than being refused for it.
+        Every counter all three report a count of is held to it, and at least one of those has to move by a count
+        above zero: counters that stay at zero beside it prove nothing new happened, so a report the sum's moving
+        counters cannot be compared on -- an earlier sum left unusable -- is no proven request. A counter any of the
+        three reports no count of -- invalid, or left out -- is no evidence either way, so the request it belongs to
+        keeps its own evidence for it rather than being refused for it.
         """
-        verdicts = [self._advance(counter, previous, request) for counter in self.readings]
-        compared = [verdict for verdict in verdicts if verdict is not None]
-        return bool(compared) and all(compared)
+        moves = [self._move(counter, previous, request) for counter in self.readings]
+        compared = [move for move in moves if move is not None]
+        if not compared or _MISMATCH in compared:
+            return False
+        return max(compared) > 0
 
     def evidence(self) -> dict[str, str]:
         """The state of each counter that is no usable count, or that the block's own arithmetic contradicts."""
@@ -125,14 +132,19 @@ class Counters:
         )
         return found
 
-    def _advance(self, counter: str, previous: Counters | None, request: Counters) -> bool | None:
-        """Whether one counter of this sum is `previous`'s advanced by `request`'s; None where one reports no count."""
+    def _move(self, counter: str, previous: Counters | None, request: Counters) -> int | None:
+        """How far one counter of this sum moved past `previous`'s by `request`'s own count of it.
+
+        That count where it moved by exactly it, -1 where it moved otherwise, and None where one of the three reports
+        no count of it.
+        """
         before = _NOTHING if previous is None else previous.readings.get(counter, Reading())
-        parts = (before, request.readings.get(counter, Reading()))
+        own = request.readings.get(counter, Reading())
         total = self.readings[counter]
-        if not (total.known and all(part.known for part in parts)):
+        if not (total.known and before.known and own.known):
             return None
-        return total == Reading.summed(parts)
+        moved = total == Reading.summed((before, own))
+        return (own.count or 0) if moved else _MISMATCH
 
 
 def checkpoint(

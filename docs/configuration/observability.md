@@ -43,11 +43,11 @@ parser read them back is in [`../observability/analytics-database.md`](../observ
   `record_agent_exit` writes one redacted, head/tail-truncated `agent_trajectory` record per tracked run (the
   orchestrator prompt lands as `user_input`, and the record also carries the run's per-request usage counters -- a
   Codex run's read from its native session log under the `CODEX_HOME` its launch environment names, so a Codex launch
-  is observed just before it starts); when off, no trajectory work runs — the per-request usage collection, the Codex
-  launch observation, and every native session log lookup and read included — and the `agent_exit` record is
-  unchanged. Never touches `ANALYTICS_LOG_PATH`, the analytics Postgres sync, or the analytics dashboard.
-  Local filesystem only and observation-only — the polling loop never reads it back, so the file is safe to delete
-  without affecting workflow state. A dedicated developer Streamlit viewer reads this
+  is observed just before it starts, a resume's log counted then); when off, no trajectory work runs — the per-request
+  usage collection, the Codex launch observation, and every native session log lookup and read included — and the
+  `agent_exit` record is unchanged. Never touches `ANALYTICS_LOG_PATH`, the analytics Postgres sync, or the analytics
+  dashboard. Local filesystem only and observation-only — the polling loop never reads it back, so the file is safe to
+  delete without affecting workflow state. A dedicated developer Streamlit viewer reads this
   JSONL file directly — no Postgres or sync — when you browse recorded trajectories. **Privacy:** redaction masks
   only secret-shaped env values (and the GitHub token), **not** issue/repo content, so an enabled trajectory file can
   carry issue titles/bodies, quoted source, and the agent's text turns in cleartext; scope its permissions

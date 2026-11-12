@@ -93,12 +93,14 @@ Summarized here; the reference is
 
 Opt-in, **default-off** sibling sink holding one `agent_trajectory` record per tracked run: the ordered timeline of
 tool calls / results interleaved with the assistant / user text turns, the offered tools and skills, a denormalized
-`run_usage` summary, a codex run's per-item accounting, an Antigravity or Claude run's per-request usage samples with
-the coverage of their collection, and the final output. It is deliberately kept out of the analytics sink, its Postgres
-sync, and
-the analytics dashboard, because the free-text bodies do not belong in the numeric rollup. `record_agent_exit`
-produces it from the same stdout the usage parser reads, behind its own fail-open guard, so a trajectory failure can
-never cost the baseline `agent_exit` record. Every free-text field is redacted and head/tail truncated and the whole
+`run_usage` summary, a codex run's per-item accounting, the run's per-request usage samples with the coverage of their
+collection, and the final output. It is deliberately kept out of the analytics sink, its Postgres sync, and the
+analytics dashboard, because the free-text bodies do not belong in the numeric rollup. `record_agent_exit` produces it
+from the same stdout the usage parser reads -- an Antigravity or Claude run's request samples included -- behind its
+own fail-open guard, so a trajectory failure can never cost the baseline `agent_exit` record. A Codex run's request
+samples are read instead from the invocation's own lines of its native session log under `CODEX_HOME`, which the
+tracked spawn places by observing the launch -- for a resume, counting the lines the log already held -- only while
+this sink is on. Every free-text field is redacted and head/tail truncated and the whole
 record is budget-bounded — but **redaction is not anonymization**: issue content, quoted source, diffs, and the
 agent's own text turns survive in cleartext (a run's hidden reasoning payloads never enter the record), so scope the
 file like the repositories it describes. That page carries the record shape, the join keys back to the numeric sinks,

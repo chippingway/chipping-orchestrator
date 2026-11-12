@@ -10,8 +10,9 @@ reads it. The trajectory sink's native reader finds that log for the session the
 over one at a time, within the read bounds, as a `NativeSession`; this owner reads them and nothing else, so it does
 no I/O of its own.
 
-What makes a line this invocation's is `request_codex_scope`'s to prove -- the log has to be the session's own, and
-its stamps have to place the launch -- and what the lines report is `request_codex_fold`'s to read. A run that
+What makes a line this invocation's is `request_codex_scope`'s to prove -- the log has to be the session's own, a
+resumed run's lines lie past the count its log held at the launch, and no stamp may contradict that -- and what the
+lines report is `request_codex_fold`'s to read. A run that
 returned no session id is never looked up by a guess, and nothing else of its stdout is a request, so its collection
 is unavailable; so is one whose launch was not observed, whose log the reader could not find or read, or whose log
 proves nothing of the invocation. Each says why, and none of them costs the trajectory or the run's accounting.
@@ -104,11 +105,11 @@ def _folded(session: NativeSession, scan: request_scan.EventScan, fallback_model
     return fold
 
 
-def _comparable_turns(stdout: str, scan: request_scan.EventScan, whole: bool) -> int | None:
-    """How many turns stdout says the process started, where the log was read whole to compare them with."""
-    if not whole or scan.unread_lines:
+def _comparable_turns(stdout: str, scan: request_scan.EventScan, reasons: Counter[str]) -> int | None:
+    """How many turns stdout says the process started -- none included -- where the log was read whole to compare."""
+    if reasons.keys() & _CUT or scan.unread_lines:
         return None
-    return stdout_turns(stdout, scan.limits) or None
+    return stdout_turns(stdout, scan.limits)
 
 
 def _collected(fold: NativeFold, scan: request_scan.EventScan, reasons: Counter[str]) -> coverage.RequestUsage:
@@ -140,9 +141,8 @@ def collect(stdout: str, session: NativeSession | None, fallback_model: str | No
         return _unavailable(session.unavailable or coverage.NATIVE_LOG_MISSING, session.scan)
     fold = _folded(session, session.scan, fallback_model)
     reasons = fold.reasons()
-    whole = not reasons.keys() & _CUT
-    turns = _comparable_turns(stdout, session.scan, whole)
-    refusal = fold.timeline.refusal(fold.turns.root_turns, turns, whole)
+    turns = _comparable_turns(stdout, session.scan, reasons)
+    refusal = fold.timeline.refusal(fold.turns.root_turns, turns)
     if refusal is not None:
         return _unavailable(refusal, session.scan)
     return _collected(fold, session.scan, reasons)
