@@ -3,6 +3,8 @@
 """One request's counters normalized under each provider's semantics, every field beside the evidence it rests on."""
 
 import unittest
+from collections.abc import Iterable
+from decimal import Decimal
 from types import MappingProxyType
 
 from orchestrator.observability.usage import protocol, request_normalization as normalization
@@ -83,6 +85,36 @@ def _split() -> dict:
     }
 
 
+def _evidence(provider: str, readings: MappingProxyType, names: Iterable[str]) -> dict[str, str]:
+    """The evidence `readings` normalize to under `provider`, for each field named."""
+    fields = normalization.normalize(provider, readings).fields
+    return {name: fields[name].state for name in names}
+
+
+# A source total beside a part it sums that is missing, with the total's evidence and that of the field the missing
+# part leaves unknown: the parts that are known still bound the total from below.
+_TOTALS_BESIDE_A_MISSING_PART = (
+    (
+        "below the output alone",
+        protocol.AGY,
+        _readings(output=2, source_total=1),
+        MappingProxyType({_SOURCE_TOTAL: _CONFLICTING, _CONTEXT: _MISSING}),
+    ),
+    (
+        "within what the output allows",
+        protocol.AGY,
+        _readings(output=2, source_total=5),
+        MappingProxyType({_SOURCE_TOTAL: _OBSERVED, _CONTEXT: _MISSING}),
+    ),
+    (
+        "below the input alone",
+        protocol.CODEX,
+        _readings(input=_CODEX_INPUT, source_total=_CODEX_INPUT - 1),
+        MappingProxyType({_SOURCE_TOTAL: _CONFLICTING, _OUTPUT: _MISSING}),
+    ),
+)
+
+
 class ProfileSemanticsTest(unittest.TestCase):
     """Each provider's input is read for what it holds, so the context input means one thing for all three."""
 
@@ -143,6 +175,13 @@ class ProfileSemanticsTest(unittest.TestCase):
             normalization.normalize(protocol.CLAUDE, cases[0][1]).to_dict()[_LIFETIMES],
             _split(),
         )
+
+    def test_totals_are_held_to_their_known_parts(self) -> None:
+        # Where a profile's total sums counters, one smaller than those of them that are known contradicts them, another
+        # part missing or not; the part left out stays missing either way, never established by the total.
+        for name, provider, readings, states in _TOTALS_BESIDE_A_MISSING_PART:
+            with self.subTest(name):
+                self.assertEqual(_evidence(provider, readings, states), dict(states))
 
     def test_contradicted_split_leaves_writes_unknown(self) -> None:
         readings = _claude(cache_write=_CLAUDE_WRITE, **{**_split(), normalization.CACHE_WRITE_ONE_HOUR: 1})
@@ -235,6 +274,14 @@ class EvidenceTest(unittest.TestCase):
             (_PAST_ANY_COUNT - 1, _PAST_ANY_COUNT - 1, _OBSERVED),
             (str(_PAST_ANY_COUNT - 1), _PAST_ANY_COUNT - 1, _OBSERVED),
             (float("inf"), None, _INVALID),
+            # A number literal a decoder kept exact is judged as the number it spells, not the float nearest it.
+            (Decimal("2.0"), 2, _OBSERVED),
+            (Decimal("1E+3"), 1000, _OBSERVED),
+            (Decimal("1E-400"), None, _INVALID),
+            (Decimal("1.0000000000000000001"), None, _INVALID),
+            (Decimal("-2.0"), -2, _INVALID),
+            (Decimal("1E+40"), None, _INVALID),
+            (Decimal("NaN"), None, _INVALID),
             (True, None, _INVALID),
             ("ten", None, _INVALID),
             ({}, None, _INVALID),

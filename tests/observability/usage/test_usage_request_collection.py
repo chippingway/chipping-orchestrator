@@ -6,11 +6,13 @@ import dataclasses
 import json
 import sys
 import unittest
+from decimal import Decimal
 from types import MappingProxyType
 from typing import Any
 from unittest.mock import patch
 
 from orchestrator.observability.usage import (
+    event_stream,
     protocol,
     request_coverage as coverage,
     request_models as models,
@@ -30,6 +32,13 @@ _DEEP_NESTING = 200_000
 _OPEN_ARRAYS = "[" * _DEEP_NESTING
 _NESTED_TOO_DEEP = f'{{"unrelated": {_OPEN_ARRAYS}'
 _REFUSED_STDOUT = f"{_TOO_MANY_DIGITS}\n{_NESTED_TOO_DEEP}\n{_OPEN_ARRAYS}\n{_COMPLETE_EVENT}"
+# Number literals a float cannot hold exactly: too small, too precise, and an exponent past any Decimal.
+_INEXACT_NUMBERS = '{"tiny": 1e-400, "precise": 1.0000000000000000001, "whole": 2.0, "past": 1e99999999999999999999}'
+_EXACT_NUMBERS = MappingProxyType({
+    "tiny": Decimal("1E-400"),
+    "precise": Decimal("1.0000000000000000001"),
+    "whole": Decimal("2.0"),
+})
 # Whitespace past a bound of one event's length: within as many characters again, and far past them.
 _SHORT_SPACES = " " * (len(_COMPLETE_EVENT) - 1)
 _LONG_SPACES = " " * 1000
@@ -187,11 +196,19 @@ class BoundedScanTest(unittest.TestCase):
         trailing = scan.scan_events(f"{_COMPLETE_EVENT}\n \n", dataclasses.replace(_LIMITS, scan_chars=_LINE))
         self.assertFalse(trailing.gaps)
 
-    def test_decoder_refusals_are_malformed_lines(self) -> None:
+    def test_lines_decode_apart_from_run_parsers(self) -> None:
         # An object line the decoder refuses could have been an event; a refused array never could.
         events = scan.scan_events(_REFUSED_STDOUT, _LIMITS)
         self.assertEqual([position for position, _ in events.events], [3])
         self.assertEqual(events.gaps, {coverage.MALFORMED_LINES: 2})
+        # The scan keeps each number literal as the Decimal it spells, and one no Decimal holds as NaN, never raising.
+        event = scan.decode_event(_INEXACT_NUMBERS)
+        self.assertEqual({name: event[name] for name in _EXACT_NUMBERS}, dict(_EXACT_NUMBERS))
+        self.assertTrue(event["past"].is_nan())
+        # The run parsers' shared decoder still reads the same line through floats, as it always has.
+        baseline = event_stream.iter_events(_INEXACT_NUMBERS)[0]
+        self.assertEqual({type(baseline[name]) for name in _EXACT_NUMBERS}, {float})
+        self.assertEqual(baseline["tiny"], 0)
 
     def test_the_tail_is_read_within_the_bound(self) -> None:
         # However long the whitespace past the scanned characters, no more of it than the bound is searched: a tail

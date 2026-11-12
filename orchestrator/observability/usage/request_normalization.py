@@ -16,9 +16,10 @@ Every field carries its evidence. A field the source reported a usable count for
 nothing for is `missing`, never a zero; one whose report no count can be -- negative, a fraction, a boolean, a word,
 or a string no exact whole number reads as -- is `invalid`; one two reports of the same request disagree on, or one
 contradicting the counters it is a part of -- Codex's cache reads and writes together exceeding the input that holds
-them included -- is `conflicting`; and one the profile has no counter for at all is `unsupported`. A derived field is
-established only where each of its parts is observed, and otherwise takes the weakest evidence among them, so nothing
-missing, invalid, or contradictory adds up to a count.
+them, or a source total smaller than the known counters it is the sum of, included -- is `conflicting`; and one the
+profile has no counter for at all is `unsupported`. A derived field is established only where each of its parts is
+observed, and otherwise takes the weakest evidence among them, so nothing missing, invalid, or contradictory adds up
+to a count.
 """
 
 from __future__ import annotations
@@ -127,8 +128,12 @@ class Reading:
 Readings = Mapping[str, Reading]
 
 
-def _spelled_number(raw: str) -> int | None:
-    """The whole number a string spells exactly, or None: a fraction, a non-number, or more digits than a count has."""
+def _exact_whole(raw: str | Decimal) -> int | None:
+    """The whole number a string spells, or a `Decimal` is, exactly; None for a fraction, a non-number, or too long.
+
+    A `Decimal` is a number literal a decoder kept exact, so it is judged as the number it spells rather than as the
+    float it would have rounded to, the way a string is.
+    """
     try:
         number = Decimal(raw)
     except InvalidOperation:
@@ -140,8 +145,8 @@ def _spelled_number(raw: str) -> int | None:
 
 def _reported_number(raw: Any) -> float | None:
     """The whole number one raw field reports, or None where it reports none."""
-    if isinstance(raw, str):
-        return _spelled_number(raw)
+    if isinstance(raw, (str, Decimal)):
+        return _exact_whole(raw)
     if isinstance(raw, bool) or not isinstance(raw, (int, float)):
         return None
     if isinstance(raw, int):
@@ -255,12 +260,19 @@ class Profile:
         return aggregate, split
 
     def source_total(self, readings: Readings) -> Reading:
-        total = self.reading(readings, SOURCE_TOTAL)
-        parts = Reading.summed(self.reading(readings, part) for part in self.total_parts)
-        if self.total_parts and total.known and parts.known and total.count != parts.count:
-            return Reading(state=CONFLICTING)
-        return total
+        """The provider's own total, conflicting where the counters it is the sum of contradict it.
 
+        Where every part is known the total has to equal their sum; where one is not, the parts that are known still
+        establish what the total is at least, so a total smaller than them contradicts them all the same.
+        """
+        total = self.reading(readings, SOURCE_TOTAL)
+        if not (self.total_parts and total.known):
+            return total
+        parts = [self.reading(readings, part) for part in self.total_parts]
+        whole = Reading.summed(parts)
+        if whole.known and whole.count != total.count:
+            return Reading(state=CONFLICTING)
+        return Reading(state=CONFLICTING) if Reading.at_least(parts).exceeds(total) else total
 
     def lifetimes(self, readings: Readings, split: Reading) -> MappingProxyType[str, int]:
         """The cache writes by lifetime, where the split establishes them."""

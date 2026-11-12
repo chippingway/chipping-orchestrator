@@ -85,16 +85,31 @@ _UNFINISHED_FIELDS = MappingProxyType({"kind": agy_events.TOOL, "state": agy_eve
 _UNFINISHED_TOOL = stream.step(3, usage=dict(_USAGE), **_UNFINISHED_FIELDS)
 _INVALID_TERMINAL_USAGE = MappingProxyType({**_USAGE, protocol.INPUT_TOKENS: "invalid"})
 _INVALID_TERMINAL = stream.terminal(usage=dict(_INVALID_TERMINAL_USAGE))
-_CONTRADICTED_TERMINAL_USAGE = MappingProxyType({**_USAGE, "total_tokens": 999})
+_TOTAL_TOKENS = "total_tokens"
+_CONTRADICTED_TERMINAL_USAGE = MappingProxyType({**_USAGE, _TOTAL_TOKENS: 999})
 _CONTRADICTED_TERMINAL = stream.terminal(usage=dict(_CONTRADICTED_TERMINAL_USAGE))
 _HUGE_USAGE = MappingProxyType({**_USAGE, protocol.INPUT_TOKENS: cases.PAST_ANY_COUNT})
 _PAST_ANY_COUNT = stream.step(3, usage=dict(_HUGE_USAGE))
 _NEGATIVE_INDEX = _FIRST.replace('"step_index": 1', '"step_index": -1')
 _UNNAMED_USAGE = stream.step(3, kind=agy_events.TOOL, usage={"tokens": 5})
 _MALFORMED_ENVELOPE = json.dumps({"event": agy_events.STEP_UPDATE, agy_events.STEP_UPDATE: []})
+# An `init` whose envelope is no object, naming its conversation beside it: the process's, and another one.
+_MALFORMED_INIT = _init(None).replace('{"model": null}', "[]")
+_MALFORMED_OTHER_INIT = _MALFORMED_INIT.replace(stream.SESSION_ID, "other-conversation")
+# A terminal total smaller than the output it reports, its input unreported.
+_UNDERCOUNTED_TERMINAL_USAGE = MappingProxyType({protocol.OUTPUT_TOKENS: 2, _TOTAL_TOKENS: 1})
+_UNDERCOUNTED_TERMINAL = stream.terminal(usage=dict(_UNDERCOUNTED_TERMINAL_USAGE))
 # A completed request whose duration is twice the largest float: an integer no float holds.
 _PAST_FLOAT = int(sys.float_info.max) * 2
 _UNFLOATABLE_DURATION = stream.step(3, usage=dict(_USAGE), duration_seconds=_PAST_FLOAT)
+# Number literals no float holds exactly, printed as the stream would print them: too small, too precise, and an
+# exponent past any number, as a count and as a duration.
+_STEP_THREE = _UNFLOATABLE_DURATION.replace(str(_PAST_FLOAT), "1")
+_INPUT_LITERAL = f'"{protocol.INPUT_TOKENS}": 10'
+_TINY_INPUT = _STEP_THREE.replace(_INPUT_LITERAL, f'"{protocol.INPUT_TOKENS}": 1e-400')
+_PRECISE_INPUT = _STEP_THREE.replace(_INPUT_LITERAL, f'"{protocol.INPUT_TOKENS}": 10.0000000000000000001')
+_UNREADABLE_INPUT = _STEP_THREE.replace(_INPUT_LITERAL, f'"{protocol.INPUT_TOKENS}": 1e99999999999999999999')
+_UNREADABLE_DURATION = _STEP_THREE.replace('"duration_seconds": 1', '"duration_seconds": 1e99999999999999999999')
 _UNREADABLE_SPAWN = stream.step(3, kind=agy_events.TOOL, subagent_info=[])
 _UNNAMED_SPAWN = stream.step(3, kind=agy_events.TOOL, subagent_info=json.loads('{"subagents": [{"type_name": "x"}]}'))
 _SUBAGENT_STREAM = (_INIT, _FIRST, _SPAWNING_TWO, _CHILD_RESPONSE, _TERMINAL)
@@ -114,6 +129,10 @@ _UNPLACED = (
     ("an unnamed subagent", (_INIT, _UNNAMED_SPAWN, _response(None, 1))),
     # An unnamed process `init` beside a step and a `result` naming two other conversations is either one's.
     ("an unnamed process beside two conversations", (_UNNAMED_INIT, _response("one-conversation", 1))),
+    # An `init` whose envelope is no object still names its conversation, so the stream names two.
+    ("an unnamed process beside a malformed init", (_UNNAMED_INIT, _MALFORMED_OTHER_INIT, _FIRST)),
+    # A frame whose envelope is no object could have named any conversation.
+    ("a frame whose envelope is no object", (_INIT, _MALFORMED_ENVELOPE, _response(None, 1))),
 )
 _TWO_UNNAMED = (_UNNAMED_INIT, _response("one-conversation"), _response("another-conversation"))
 _MODEL_CHANGE_STREAM = (_EARLIER_INIT, _FIRST, _INIT, _SECOND, _TERMINAL)
@@ -148,6 +167,11 @@ _DAMAGED = (
     ("a count past any token count", _PAST_ANY_COUNT, coverage.INVALID_COUNTERS),
     ("a step index no counter reaches", _NEGATIVE_INDEX, coverage.UNINDEXED_FRAMES),
     ("tool usage naming no counter", _UNNAMED_USAGE, coverage.MALFORMED_USAGE),
+    ("a count too small for a float", _TINY_INPUT, coverage.INVALID_COUNTERS),
+    ("a count too precise for a float", _PRECISE_INPUT, coverage.INVALID_COUNTERS),
+    ("a count past any number", _UNREADABLE_INPUT, coverage.INVALID_COUNTERS),
+    ("a duration past any number", _UNREADABLE_DURATION, coverage.MALFORMED_METADATA),
+    ("terminal total below its output alone", _UNDERCOUNTED_TERMINAL, coverage.CONFLICTING_COUNTERS),
 )
 # Later `init` events naming no conversation: a change of the one unnamed conversation, and one placed nowhere.
 _UNNAMED_EARLIER_INIT = _init(_EARLIER_MODEL, None)
@@ -174,6 +198,7 @@ _UNNAMED_PROCESS_CHANGE = (_UNNAMED_EARLIER_INIT, _FIRST, _CHILD_SPAWN, _INIT, _
 _REFUSED_MODELS = (
     ("too long to keep", _OVERSIZE_MODEL_INIT, coverage.OVERSIZE_METADATA),
     ("no string", _init(7), coverage.MALFORMED_METADATA),
+    ("an envelope that is no object", _MALFORMED_INIT, coverage.MALFORMED_ENVELOPES),
 )
 _CONFIGURED_MODEL = "configured-model"
 _AROUND_REFUSAL = (_EARLIER_MODEL, None, stream.MODEL)
@@ -346,7 +371,12 @@ class CoverageGapTest(unittest.TestCase):
         self.assertEqual(collection.status, coverage.INCOMPLETE)
         # A total its own counters contradict keeps its count, and says it is conflicting.
         contradicted = cases.collected(_INIT, _FIRST, _CONTRADICTED_TERMINAL).checkpoints[0]
-        self.assertEqual(contradicted[cases.EVIDENCE], {"total_tokens": "conflicting"})
+        self.assertEqual(contradicted[cases.EVIDENCE], {_TOTAL_TOKENS: "conflicting"})
+        # So does one smaller than the one counter it reports, the other unreported.
+        undercounted = cases.collected(_INIT, _FIRST, _UNDERCOUNTED_TERMINAL)
+        self.assertEqual(undercounted.checkpoints[0][cases.RAW], dict(_UNDERCOUNTED_TERMINAL_USAGE))
+        self.assertEqual(undercounted.checkpoints[0][cases.EVIDENCE], {_TOTAL_TOKENS: "conflicting"})
+        self.assertEqual(undercounted.status, coverage.INCOMPLETE)
 
     def test_dispatch_collects_for_antigravity_alone(self) -> None:
         for backend in (protocol.CLAUDE, protocol.CODEX):

@@ -214,7 +214,7 @@ class StreamFold:
         terminal = agy_events.payload(event, agy_events.RESULT_EVENT)
         self.envelopes += any(envelope is not None for envelope in (init, frame, terminal))
         self.gaps[coverage.MALFORMED_ENVELOPES] += malformed_envelope(event)
-        if init is not None:
+        if event.get(agy_events.EVENT) == agy_events.INIT:
             self.branches.read_init(position, event, init)
         if frame is not None:
             self._step(position, frame)

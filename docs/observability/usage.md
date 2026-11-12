@@ -708,15 +708,16 @@ lifetime exceeding it, leaves both, and so the context input and total, `conflic
 unknown -- that together exceed the input holding them are `conflicting`, the lifetimes with them, while the input stays
 the context input and a write nothing establishes stays unknown. The provider's own total is kept apart as
 `source_total_tokens` and never derives the common total; where the profile states what it sums -- input plus output, on
-Codex and Antigravity -- a source total disagreeing with those counters is `conflicting`. Each field's evidence is
+Codex and Antigravity -- a source total disagreeing with those counters is `conflicting`, and so is one smaller than the
+ones that are known where another is missing, since those already bound it from below. Each field's evidence is
 `observed` (a usable count), `missing` (nothing reported, never a zero), `invalid` (a negative number, a fraction, an
 infinite or NaN value, a boolean, a word, or a number of more than 30 digits, reported or spelled, which no token count
-reaches and no sum of which a record could fail to write -- judged before anything is truncated to a count, and a string
-read exactly, never through a float that could round a fraction whole or move a large count), `conflicting` (two reports
-of the request disagree, a part exceeds its whole, or a total contradicts its parts), or `unsupported` (the profile has
-no such counter). A derived field is established only where every part is observed and otherwise takes the weakest
-part's evidence, so a step reporting no cache reads has no context input, while one reporting zero has its input as its
-context.
+reaches and no sum of which a record could fail to write -- judged before anything is truncated to a count, and a
+string, or a number literal the collector's scan kept exact, read exactly, never through a float that could round a
+fraction whole or move a large count), `conflicting` (two reports of the request disagree, a part exceeds its whole, or
+a total contradicts its parts), or `unsupported` (the profile has no such counter). A derived field is established only
+where every part is observed and otherwise takes the weakest part's evidence, so a step reporting no cache reads has no
+context input, while one reporting zero has its input as its context.
 
 **Coverage and bounds.** Each collection states its `coverage`: `status`, `reasons` (each gap's code and how often it
 occurred, from a vocabulary fixed in `request_coverage.py`), `limitations` (what the source never reports), and
@@ -741,12 +742,15 @@ branches (`MAX_BRANCHES`), 256 markers (`MAX_MARKERS`), the last 4 checkpoints (
 of any one piece of correlation metadata (`MAX_METADATA_CHARS`) -- a longer id or model name is dropped and counted,
 never cut, and so is the configured fallback model; a value that is no string at all -- or a duration no float holds or
 that is negative -- is dropped and counted as `malformed-metadata`, so a malformed field costs its own reading and no
-other request of the stream. Each line goes through the shared decoder; one shaped like a JSON object that decodes to
-none -- cut short, or refused by the decoder -- is a malformed frame, while banner text and a value that is no object,
-which could never have been an event, are skipped without being a gap. The decoder's refusal is caught by the scan
-alone, for the line it was decoding: the run parsers still refuse such a stream (see Resilience above), so a tracked
-run carrying one writes no trajectory for a collection to ride. Only allowlisted counters and correlation
-metadata enter a sample: no prompt, response or tool text, reasoning text, credential, or source dictionary.
+other request of the stream. Each line goes through the standard JSON decoder the run parsers use, except that a number
+literal with a fraction or an exponent is kept as the exact `Decimal` it spells -- NaN where its exponent is past any
+`Decimal` -- so a counter such as `1e-400` or `2.0000000000000000001` is `invalid` rather than the whole number its
+float would round to; the run parsers still decode floats. A line shaped like a JSON object that decodes to none -- cut
+short, or refused by the decoder -- is a malformed frame, while banner text and a value that is no object, which could
+never have been an event, are skipped without being a gap. The decoder's refusal is caught by the scan alone, for the
+line it was decoding: the run parsers still refuse such a stream (see Resilience above), so a tracked run carrying one
+writes no trajectory for a collection to ride. Only allowlisted counters and correlation metadata enter a sample: no
+prompt, response or tool text, reasoning text, credential, or source dictionary.
 
 **Antigravity requests.** `request_agy.py` produces one observation per completed usage-bearing step of the process's
 own stream, on the same agy 1.4.10 captures the run accounting is pinned to. A step is keyed by its conversation and
@@ -769,16 +773,18 @@ Only this process's steps are samples, a resumed run's included: the terminal `r
 conversation, every earlier process of it too, so it is a `result-total` checkpoint of `conversation` scope and never a
 request; on the fresh captures, whose conversation is their own process, it equals the samples' sum.
 `request_agy_branches.py` reads which conversations a stream names -- in its `init`, `step_update`, and `result` events,
-up to one more than the branch bound -- before folding any step. A frame naming no conversation, in a stream naming
-exactly one and spawning no subagent, is that conversation's, folded into the same step as the frames naming it; in a
-stream naming none it is still this process's stdout and is kept under a `process-step` identity; and in any other
-stream it is kept the same way with no model and a `conversation-ambiguous` gap, since it could be more than one
-conversation's. A later `init` naming no conversation is placed the same way: in a stream naming one conversation or
-none it is that conversation's, its model a change like any other, and elsewhere it changes no model and is a
-`conversation-ambiguous` gap. A conversation name this collection refused -- too long to keep, or no string -- is not an
-absent one: a stream carrying one never names only one conversation, and a process `init` naming one leaves the
-process's conversation unknown, so no other conversation the steps name is taken for it. A line the scan left unread --
-past the scan bound, too long to read, or one the decoder refused -- could have named any conversation or spawned any
+up to one more than the branch bound -- before folding any step. An `init` names its conversation beside its envelope,
+so that name is read even where the envelope is no object; a `step_update` or `result` names it inside, so one whose
+envelope is no object could have named any conversation, like a line the scan left unread. A frame naming no
+conversation, in a stream naming exactly one and spawning no subagent, is that conversation's, folded into the same step
+as the frames naming it; in a stream naming none it is still this process's stdout and is kept under a `process-step`
+identity; and in any other stream it is kept the same way with no model and a `conversation-ambiguous` gap, since it
+could be more than one conversation's. A later `init` naming no conversation is placed the same way: in a stream naming
+one conversation or none it is that conversation's, its model a change like any other, and elsewhere it changes no model
+and is a `conversation-ambiguous` gap. A conversation name this collection refused -- too long to keep, or no string --
+is not an absent one: a stream carrying one never names only one conversation, and a process `init` naming one leaves
+the process's conversation unknown, so no other conversation the steps name is taken for it. A line the scan left unread
+-- past the scan bound, too long to read, or one the decoder refused -- could have named any conversation or spawned any
 subagent, so a stream missing one never names only one conversation either. Each step then runs on the model its own
 conversation's `init` named as it began -- a subagent's own `init` included. A step of the process's own conversation --
 the one its first `init` names, or, where that names none, the one conversation the stream names besides the subagents
@@ -788,15 +794,16 @@ any `subagent_info` names, read before any step is folded, a stream naming more 
 subagent conversation a `subagent_info` named keeps its parent conversation, parent step, and subagent type, and without
 an `init` of its own no model at all, never its parent's, as does a step of any other conversation. An `init` naming a
 different model than its conversation's previous one is a `model-change` marker. An `init` naming a model this
-collection refused -- too long to keep, or no string -- leaves its conversation's model unknown from there on: a step
-begun before it keeps the model it began under, while a later one is `unestablished`, never an earlier `init`'s model or
-the configured `--model`, and no marker is kept, since the model it changed to is unknown. A frame naming a subagent is
-read whether or not it carries a step index, and a later one completes the attribution earlier frames left out -- the
-parent conversation, the parent step, or the subagent type -- while one naming any of them differently keeps the first
-and is a `subagent-attribution-conflicting` gap. A subagent gap counts the steps that spawned it once, however often
-their frames repeat it. The gaps it records are a response or `checkpoint` step, or one that carried usage, the stream
-never completed (`unsettled-steps`; a tool step still running that carried no usage is none), a completed one with no
-usage (`unreported-usage`), a frame with no step index -- or one outside 0 through 2,147,483,647, which no step counter
+collection refused -- too long to keep, or no string -- or one whose envelope is no object, so that any model it named
+went unread, leaves its conversation's model unknown from there on: a step begun before it keeps the model it began
+under, while a later one is `unestablished`, never an earlier `init`'s model or the configured `--model`, and no marker
+is kept, since the model it changed to is unknown. A frame naming a subagent is read whether or not it carries a step
+index, and a later one completes the attribution earlier frames left out -- the parent conversation, the parent step, or
+the subagent type -- while one naming any of them differently keeps the first and is a
+`subagent-attribution-conflicting` gap. A subagent gap counts the steps that spawned it once, however often their frames
+repeat it. The gaps it records are a response or `checkpoint` step, or one that carried usage, the stream never
+completed (`unsettled-steps`; a tool step still running that carried no usage is none), a completed one with no usage
+(`unreported-usage`), a frame with no step index -- or one outside 0 through 2,147,483,647, which no step counter
 reaches -- that carries usage or a generation's step type (`unindexed-frames`), a subagent whose conversation exposed no
 usage (`subagent-usage-unavailable`), one `subagent_info` does not name (`subagent-unidentified`), an event naming an
 `init`, `step_update`, or `result` envelope but carrying no object under it (`malformed-envelopes`), a usage block on

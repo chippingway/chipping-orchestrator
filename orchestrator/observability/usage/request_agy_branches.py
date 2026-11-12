@@ -14,7 +14,9 @@ A name this collection refused -- too long to keep, or no string -- is not an ab
 nothing can be compared with, so the stream is never taken to name only one, and a process `init` naming one leaves the
 process's conversation unknown rather than settled on whichever other conversation the steps name. A line the scan left
 unread -- past the scan bound, too long to read, or one the decoder refused -- could have named any conversation or
-spawned any subagent, so a stream missing one is never taken to name only one either.
+spawned any subagent, so a stream missing one is never taken to name only one either, and nor is one carrying a frame
+or a `result` whose envelope is no object, since each names its conversation inside it. An `init` names its
+conversation beside its envelope, so that name is read whatever the envelope holds.
 
 `init.model` echoes the `--model` slug a conversation was started with, and every generation of that conversation, a
 response's and each helper generation beside it, runs on the model it selected. So a step is attributed to the model its
@@ -25,9 +27,10 @@ A step of any other conversation whose `init` named no model keeps its parent an
 all, never its parent's, and so does an unplaced step. An `init` naming a different model than its conversation's
 previous one is a model change, kept as a marker; a later `init` this collection cannot place changes no model and is a
 gap, since the model it names could be any conversation's. An `init` naming a model this collection refused -- too long
-to keep, or no string -- leaves its conversation's model unknown from there on: a step begun before it keeps the model
-it began under, while a later one has no model, neither an earlier `init`'s nor the fallback, and is a gap; no marker is
-kept, since the model it changed to is unknown.
+to keep, or no string -- or one whose envelope is no object, so any model it named went unread, leaves its
+conversation's model unknown from there on: a step begun before it keeps the model it began under, while a later one
+has no model, neither an earlier `init`'s nor the fallback, and is a gap; no marker is kept, since the model it changed
+to is unknown.
 """
 
 from __future__ import annotations
@@ -47,6 +50,8 @@ from orchestrator.observability.usage.request_scan import CollectionLimits, Even
 
 CONVERSATION_ID = request_models.CONVERSATION_ID
 _SUBAGENTS = "subagents"
+# The events naming their conversation inside their envelope rather than beside it.
+_NAMED_INSIDE = frozenset((agy_events.STEP_UPDATE, agy_events.RESULT_EVENT))
 # The step a subagent was spawned from: its conversation, and its index where the frame named one.
 ParentKey = tuple[str | None, int | None]
 
@@ -56,8 +61,15 @@ def _named(raw: Any) -> bool:
     return raw is not None and raw != ""
 
 
-def _model(metadata: Metadata, raw: Any) -> str | None:
-    """The model one `init` names: as kept, `UNKEPT_MODEL` where this collection refused it, and None where none."""
+def _model(metadata: Metadata, init: dict[str, Any] | None) -> str | None:
+    """The model one `init` names: as kept, `UNKEPT_MODEL` where this collection refused it, and None where none.
+
+    `init` is the event's envelope, None where that is no object: any model it named went unread, which is a model
+    refused like any other.
+    """
+    if init is None:
+        return UNKEPT_MODEL
+    raw = init.get(protocol.MODEL)
     kept = metadata.text(raw)
     if kept is None and _named(raw):
         return UNKEPT_MODEL
@@ -94,9 +106,9 @@ class Census:
     """Which conversations a stream names, read before any of its steps is folded.
 
     It keeps each name within a bound, the subagent conversations any `subagent_info` names, and whether a name was
-    refused -- too long to keep, no string at all, past the bound, or on a line the scan left unread -- or a subagent
-    spawn followed, so it costs no more than the bound however many conversations a stream names, and a stream it could
-    not read whole is never taken to name only the ones it kept.
+    refused -- too long to keep, no string at all, past the bound, on a line the scan left unread, or inside an envelope
+    that is no object -- or a subagent spawn followed, so it costs no more than the bound however many conversations a
+    stream names, and a stream it could not read whole is never taken to name only the ones it kept.
     """
 
     limit: int
@@ -142,16 +154,25 @@ class Census:
         return next(iter(self.names), None), True
 
     def read(self, event: dict[str, Any]) -> None:
-        init = agy_events.payload(event, agy_events.INIT)
-        frame = agy_events.payload(event, agy_events.STEP_UPDATE)
-        terminal = agy_events.payload(event, agy_events.RESULT_EVENT)
-        if init is not None:
+        """Note the conversations one event names, wherever the fold reads them from.
+
+        An `init` names its conversation beside its envelope, so that name is read whatever the envelope holds. A
+        frame or a `result` names it inside, so one whose envelope is no object could have named any conversation, or
+        spawned any subagent, and is a refusal like a line the scan left unread.
+        """
+        name = event.get(agy_events.EVENT)
+        if name == agy_events.INIT:
             self._name(event.get(CONVERSATION_ID))
-        if terminal is not None:
-            self._name(terminal.get(CONVERSATION_ID))
-        if frame is not None:
-            self._name(frame.get(CONVERSATION_ID))
-            self._spawn(frame.get(agy_events.SUBAGENT_INFO))
+            return
+        if name not in _NAMED_INSIDE:
+            return
+        envelope = agy_events.payload(event, name)
+        if envelope is None:
+            self.refused = True
+            return
+        self._name(envelope.get(CONVERSATION_ID))
+        if name == agy_events.STEP_UPDATE:
+            self._spawn(envelope.get(agy_events.SUBAGENT_INFO))
 
     def _name(self, raw: Any) -> None:
         if not _named(raw):
@@ -215,14 +236,18 @@ class Branches:
         self,
         position: int,
         event: dict[str, Any],
-        init: dict[str, Any],
+        init: dict[str, Any] | None,
     ) -> None:
-        """Read one `init`: the conversation it names, and the model that conversation runs on from here on."""
+        """Read one `init`: the conversation it names, and the model that conversation runs on from here on.
+
+        `init` is its envelope, None where that is no object: the conversation it names beside the envelope is still
+        read, while the model it names cannot be, so it is one this collection refused.
+        """
         conversation, placed = self._init_conversation(event.get(CONVERSATION_ID))
         if not placed:
             self.gaps[coverage.CONVERSATION_AMBIGUOUS] += 1
             return
-        model = _model(self.metadata, init.get(protocol.MODEL))
+        model = _model(self.metadata, init)
         if model is None:
             return
         previous = self.models.get(conversation)

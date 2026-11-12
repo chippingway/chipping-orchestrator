@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
+from decimal import Decimal
 from types import MappingProxyType
 from typing import Any, NamedTuple
 
@@ -64,8 +65,12 @@ class SettledUsage(NamedTuple):
 
 
 def source_duration(raw: Any) -> float | None:
-    """A frame's reported duration in seconds, where it is a finite, non-negative number a float holds."""
-    if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+    """A frame's reported duration in seconds, where it is a finite, non-negative number a float holds.
+
+    The scan keeps a number spelled with a fraction as the exact `Decimal` it spells; a duration is a float, so it is
+    read as one.
+    """
+    if isinstance(raw, bool) or not isinstance(raw, (int, float, Decimal)):
         return None
     try:
         seconds = float(raw)
