@@ -1022,31 +1022,42 @@ by the id the run returned and nothing else -- a run that returned none is unava
 no stdout of it is request-level evidence to keep -- under the home the launch observed (`codex_launch.py`): just
 before the tracked spawn starts a Codex process with the trajectory sink on, it records the `CODEX_HOME` the process's
 effective environment names -- built by the backend's own environment owner from the run's options, an override
-included, relative to the checkout where relative -- or Codex's `~/.codex`, and the launch moment in UTC cut to the
-millisecond, changing nothing the CLI is launched with; an exit with no observation is `no-launch-observation`. A
+included, relative to the checkout where relative -- or Codex's `~/.codex`, and the launch moment in UTC as
+precisely as the clock gives it, changing nothing the CLI is launched with; an exit with no observation is
+`no-launch-observation`. A
 resumed session's log stays under the date the session began, so the date directories are walked newest first, and
 the first day directory holding a regular file whose name ends in `-<session id>.jsonl` ends the walk: none found is
 `native-log-missing`, two there `native-identity-unproven`, a directory or file that cannot be listed or opened
 `native-log-unreadable`, and a lookup bound reached `discovery-limit`, each attributing nothing. The log is read a line
-at a time and never held whole; a line past the line bound is skipped through and counted, a byte or line bound
-reached is a `scan-limit` gap, and a read failing partway a `native-read-interrupted` one; a last line the process never
-finished writing is a `malformed-lines` gap.
+at a time and never held whole, no read asking for more than the bytes the bound has left and one more, the one that
+shows the log goes on past it; a line past the line bound is skipped through and counted, a byte or line bound reached
+is a `scan-limit` gap, and a read failing partway a `native-read-interrupted` one. A native log holds JSON objects
+alone, so a line holding none -- cut short, a value that is no object, or plain text -- is a `malformed-lines` gap, a
+last line the process never finished writing among them.
 
 Nothing marks where one invocation's lines end, since a resume appends to the same file writing no `session_meta`, so
 the collection attributes a line only under two proofs, and where either fails it attributes nothing and says why --
 never a guessed suffix. The log has to be the session's own: its first line a `session_meta` whose `id` is the
-returned session (`native-identity-unproven` otherwise). And the launch has to place the invocation: its lines are the
-ones from the first line stamped at or after the launch moment on -- the process wrote nothing before it was started,
-and every earlier invocation had exited by then -- which holds only while the log's stamps never go backward, so a
-stamp earlier than the one before it, anywhere in the log, is `invocation-unattributed`; so is a fresh run's log begun
-before its boundary or a resumed run's begun after it, and, where the log and stdout were both read whole, a count of
-root turns opened from the boundary on other than the `turn.started` lines stdout printed -- a turn another process
-appended meanwhile. A line with no stamp is placed by its order in the file, and its sample names no source timestamp.
+returned session (`native-identity-unproven` otherwise). And the launch has to place the invocation. The CLI stamps
+its lines to the millisecond, so a line stamped more than a millisecond after the launch moment was written after it,
+one stamped more than a millisecond before it was written before it, and one stamped within a millisecond of it, on
+either side, could be either. The invocation's lines are the ones from the first line stamped past that window on --
+the process wrote nothing before it was started, and every earlier invocation had exited by then -- which holds only
+while the log's stamps never go backward. A line with no stamp is placed by its order in the file once a stamped line
+proves its side: followed by a line stamped before the launch it is an earlier invocation's, and after the boundary
+it is this one's, its sample naming no source timestamp. Every one of these is `invocation-unattributed`: a stamp
+earlier than the one before it, anywhere in the log; a line nothing places -- stamped within the launch's window, so
+an earlier invocation's last request there is never copied, or unstamped between the earlier lines and the boundary,
+or after the earlier lines of a log read whole with no boundary at all; a fresh run's log begun before its boundary or
+a resumed run's begun after it; and, where the log and stdout were both read whole, a count of root turns opened from
+the boundary on other than the `turn.started` lines stdout printed -- a turn another process appended meanwhile.
 
 A `task_started` opens a turn: one whose `turn_attribution` names a `parent_turn_id` is a child turn run in this log,
-whose requests are a branch of their own carrying their `turn_id` and `parent_turn_id`, and one naming none a root turn
-of the thread, which abandons every turn still open; `task_complete` and `turn_aborted` close the turn they name, and a
-request belongs to the innermost turn the invocation opened that is still open. A `turn_context` sets the model its
+whose requests are a branch of their own carrying their `turn_id` and `parent_turn_id`, opened once however often its
+start repeats, and one naming none a root turn of the thread, which abandons every turn still open; `task_complete` and
+`turn_aborted` close the turn they name, and a request belongs to the innermost turn the invocation opened that is
+still open. Past `MAX_BRANCHES` child turns named, or open at once, no later request can be told apart from its
+parent's, so each is a `correlation-limit` gap rather than a sample. A `turn_context` sets the model its
 turn runs on, a child's own or else the thread's, which holds until the next: on the capture, a resume switching models
 first compacts the thread with one request on the model the thread had, before the new turn's `turn_context`, so that
 request is the old model's. A thread request no `turn_context` precedes falls back to the configured `-m` model
@@ -1055,7 +1066,8 @@ refused, is `unestablished`. A thread `turn_context` naming another model than t
 marker, a `compacted` line a `compaction` marker, and a `thread_rolled_back` event a `reset` marker; none is inferred.
 A child turn the invocation opened that settled no request, and each distinct subagent thread its `SubAgentActivity`
 items name -- whose requests are in a log of that thread's own, never read -- is a `subagent-usage-unavailable` gap,
-and a child turn or activity naming no id a `subagent-unidentified` one.
+and a child turn the invocation opened or an activity naming no id a `subagent-unidentified` one, whether or not a
+request settles in it, since no branch can keep that request.
 
 Each `token_count` carries a request's own counters in `info.last_token_usage` beside its branch's running sum in
 `info.total_token_usage`, and a request's counters are read off the first alone. A running sum equal to the last one
@@ -1084,7 +1096,9 @@ kept with their evidence, as on every profile.
 
 The thread's running sums are checkpoints of `conversation` scope: an `invocation-baseline`, the last one before the
 boundary where nothing unread followed it, and a `cumulative-total` for each one the invocation's requests advanced,
-the baseline and the last `MAX_CHECKPOINTS` less one kept; a child turn's sums prove its requests and are no
+the baseline and the last `MAX_CHECKPOINTS` less one kept, each held to a request's arithmetic -- a counter it reports
+no usable count of, or that its own total or parts contradict, is `invalid` or `conflicting` in its `evidence` and an
+`invalid-counters` or `conflicting-counters` gap -- while a child turn's sums prove its requests and are no
 checkpoint, since nothing establishes what they span. A fresh run's last running sum is the sum of its complete
 samples, and a resumed run's samples are what its last advanced past its baseline -- a reader's check, never a source
 of a request -- while a thread total spanning earlier invocations is never forced to match. A root turn the invocation

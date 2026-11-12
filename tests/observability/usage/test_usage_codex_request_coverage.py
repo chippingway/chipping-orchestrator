@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Codex request attribution and coverage: which log lines are the invocation's, and what the collection missed."""
 
+import dataclasses
 import json
 import unittest
 from datetime import datetime
@@ -9,7 +10,7 @@ from types import MappingProxyType
 from unittest.mock import patch
 
 from orchestrator.observability.usage import request_codex, request_coverage as coverage, request_scan
-from orchestrator.observability.usage.request_codex_scope import Invocation
+from orchestrator.observability.usage.request_codex_scope import Invocation, Turns
 from tests.observability.usage import (
     usage_codex_native_capture as capture,
     usage_codex_request_cases as codex,
@@ -24,6 +25,8 @@ _LIMITATIONS = "limitations"
 _UNAVAILABLE_SCOPE = (coverage.UNAVAILABLE, coverage.NO_SCOPE)
 _ITEM_COMPLETED = "item_completed"
 _SUBAGENT = "SubAgentActivity"
+_TYPE = "type"
+_REPEATS = 50
 _PARENT = MappingProxyType({"parent_turn_id": codex.APPENDED_TURN})
 _CHILD_MODEL = "gpt-5.5-mini"
 _STARTED = codex.event(codex.TASK_STARTED, turn_id=codex.APPENDED_TURN)
@@ -36,12 +39,24 @@ _CHILD_COMPLETE = codex.event("task_complete", turn_id=codex.CHILD_TURN)
 # A child turn's running sum is its own branch's, beginning at nothing.
 _CHILD_REQUEST = codex.token_count(codex.NEXT_REQUEST, codex.NEXT_REQUEST)
 _UNNAMED_CHILD = codex.event(codex.TASK_STARTED, turn_attribution=dict(_PARENT))
-_ACTIVITY = codex.event(_ITEM_COMPLETED, item={"type": _SUBAGENT, "agent_thread_id": "thread-a"})
-_OTHER_ACTIVITY = codex.event(_ITEM_COMPLETED, item={"type": _SUBAGENT, "agent_thread_id": "thread-b"})
-_UNNAMED_ACTIVITY = codex.event(_ITEM_COMPLETED, item={"type": _SUBAGENT})
+_ACTIVITY = codex.event(_ITEM_COMPLETED, item={_TYPE: _SUBAGENT, "agent_thread_id": "thread-a"})
+_OTHER_ACTIVITY = codex.event(_ITEM_COMPLETED, item={_TYPE: _SUBAGENT, "agent_thread_id": "thread-b"})
+_UNNAMED_ACTIVITY = codex.event(_ITEM_COMPLETED, item={_TYPE: _SUBAGENT})
 _OVERSIZED_MODEL = "m" * (request_scan.MAX_METADATA_CHARS + 1)
 _OVERSIZED_CONTEXT = codex.line(codex.TURN_CONTEXT, {codex.TURN_ID: codex.APPENDED_TURN, "model": _OVERSIZED_MODEL})
 _UNSTAMPED = f'"timestamp":"{codex.STAMP}",'
+_UNSTAMPED_NEXT = _NEXT.replace(_UNSTAMPED, "")
+_TURN_LINES = (_STARTED, _NEXT, _COMPLETE)
+_UNSTAMPED_TURN = tuple(text.replace(_UNSTAMPED, "") for text in _TURN_LINES)
+_UNSTAMPED_LOG = (*capture.log_lines(), *_UNSTAMPED_TURN)
+_SILENT = codex.APPENDED._replace(stdout="")
+# A line stamped after the captured log and before the appended invocation's launch: an earlier invocation's.
+_EARLIER_SETTINGS = codex.line(codex.EVENT_MSG, {_TYPE: "thread_settings_applied"}, "2026-11-12T14:05:00.000Z")
+# The resumed invocation's first line, the fresh one's last request plus half a millisecond, and a moment just past a
+# millisecond before that first line.
+_FIRST_RESUMED_LINE = datetime.fromisoformat("2026-11-12T13:55:10.309+00:00")
+_BESIDE_FRESH_REQUEST = datetime.fromisoformat("2026-11-12T13:54:56.701500+00:00")
+_PAST_THE_WINDOW = datetime.fromisoformat("2026-11-12T13:55:10.307999+00:00")
 _RESUMED_STAMP = '"timestamp":"2026-11-12T13:55:10.322Z"'
 _EARLY_STAMP = '"timestamp":"2026-11-12T13:50:00.000Z"'
 _FOREIGN_TURN = codex.event(codex.TASK_STARTED, turn_id=codex.CHILD_TURN)
@@ -70,8 +85,9 @@ _NOT_OWN = (
     ("empty log", {"lines": ()}),
     ("no session_meta first", {"lines": _FRESH_LINES[1:]}),
 )
-# Boundaries nothing proves: a fresh run's log begun before its launch, a resumed run's begun after it, and stamps
-# going backward.
+# Boundaries nothing proves: a fresh run's log begun before its launch, a resumed run's begun after it, stamps going
+# backward, a line stamped within a millisecond of the launch -- an earlier invocation's last request among them --
+# and an unstamped line nothing places, between the earlier lines and the boundary or past them with no boundary.
 _UNPROVEN = (
     ("fresh log begun before the launch", capture.FRESH._replace(launched_at=capture.RESUMED.launched_at), None),
     ("resumed log begun after the launch", capture.RESUMED._replace(launched_at=capture.FRESH.launched_at), None),
@@ -80,6 +96,10 @@ _UNPROVEN = (
         capture.RESUMED,
         [text.replace(_RESUMED_STAMP, _EARLY_STAMP) for text in capture.log_lines(capture.RESUMED.end)],
     ),
+    ("a line in the launch's millisecond", capture.RESUMED._replace(launched_at=_FIRST_RESUMED_LINE), None),
+    ("an earlier request beside the launch", capture.RESUMED._replace(launched_at=_BESIDE_FRESH_REQUEST), None),
+    ("unstamped before the boundary", codex.APPENDED, (*capture.log_lines(), _UNSTAMPED_NEXT, _STARTED, _COMPLETE)),
+    ("unstamped with no boundary", _SILENT, _UNSTAMPED_LOG),
 )
 # A turn another process appended meanwhile, and a turn stdout counts that the log never opened.
 _FOREIGN = (
@@ -102,28 +122,46 @@ _UNREADABLE = (
     ("event naming nothing", codex.line(codex.EVENT_MSG, {"info": {}}), coverage.MALFORMED_ENVELOPES),
     ("no kind", json.dumps({"timestamp": codex.STAMP, "payload": {}}), coverage.MALFORMED_ENVELOPES),
 )
-# Requests whose counters are no usable count, each beside the field it leaves so and the gap it is.
+_INVALID = coverage.INVALID_COUNTERS
+_CONFLICTING = coverage.CONFLICTING_COUNTERS
+# Requests whose counters are no usable count, each beside the running sum it advances, the field it leaves unusable,
+# and the gaps it is: a running sum adding a request's contradiction carries it too, and is a gap of its own.
+_NEGATIVE_INPUT = (-5, 500, 0, 10, 2, 1010)
+_ONE_INVALID = MappingProxyType({_INVALID: 1})
+_ONE_CONFLICT = MappingProxyType({_CONFLICTING: 1})
+_TWO_CONFLICTS = MappingProxyType({_CONFLICTING: 2})
 _UNUSABLE = (
-    ("negative input", (-5, 500, 0, 10, 2, 1010), ("context_input_tokens", coverage.INVALID_COUNTERS)),
-    ("total off its parts", (1000, 500, 0, 10, 2, 1011), ("source_total_tokens", coverage.CONFLICTING_COUNTERS)),
-    ("reads past the input", (1000, 2000, 0, 10, 2, 1010), ("cache_read_tokens", coverage.CONFLICTING_COUNTERS)),
-    ("reasoning past output", (1000, 500, 0, 10, 20, 1010), ("reasoning_tokens", coverage.CONFLICTING_COUNTERS)),
+    ("negative input", _NEGATIVE_INPUT, codex.NEXT_RUNNING, ("context_input_tokens", _ONE_INVALID)),
+    ("total off its parts", (1000, 500, 0, 10, 2, 1011), None, ("source_total_tokens", _TWO_CONFLICTS)),
+    ("reads past the input", (1000, 2000, 0, 10, 2, 1010), None, ("cache_read_tokens", _ONE_CONFLICT)),
+    ("reasoning past output", (1000, 500, 0, 10, 20, 1010), None, ("reasoning_tokens", _ONE_CONFLICT)),
 )
+_INVALID_RUNNING = (*codex.NEXT_RUNNING[:5], -1)
+_NO_OBJECTS = ('[{"type":"event_msg"}]', "Codex ready")
 _UNUSABLE_STATES = frozenset(("invalid", "conflicting"))
 _UNEXPOSED = (
     ("child turn with no request", (_CHILD_STARTED, _CHILD_COMPLETE), coverage.SUBAGENT_USAGE_UNAVAILABLE, 1),
     ("child turn naming no model", (_CHILD_STARTED, _CHILD_REQUEST), coverage.SUBAGENT_MODEL_UNESTABLISHED, 1),
     ("child turn naming no id", (_UNNAMED_CHILD, _NEXT), coverage.SUBAGENT_UNIDENTIFIED, 1),
+    ("child turn naming no id, no request", (_UNNAMED_CHILD,), coverage.SUBAGENT_UNIDENTIFIED, 1),
     ("subagent threads", (_ACTIVITY, _ACTIVITY, _OTHER_ACTIVITY), coverage.SUBAGENT_USAGE_UNAVAILABLE, 2),
     ("subagent naming no thread", (_UNNAMED_ACTIVITY,), coverage.SUBAGENT_UNIDENTIFIED, 1),
 )
 # Each correlation bound, held to its least, and how many entries past it a collection drops.
 _CHILD_OVERRUN = (*capture.log_lines(), _STARTED, _CHILD_STARTED, _CHILD_REQUEST, _COMPLETE)
+_OPEN_OVERRUN = (*capture.log_lines(), _STARTED, _CHILD_STARTED, _UNNAMED_CHILD, _NEXT, _COMPLETE)
 _BOUNDS = (
     ("requests", ("MAX_TRACKED_STEPS", 1), (capture.FRESH,), 2),
     ("markers", ("MAX_MARKERS", 1), (capture.SWITCHED,), 1),
-    ("child turns", ("MAX_BRANCHES", 0), (codex.APPENDED, _CHILD_OVERRUN), 1),
+    ("child turns named", ("MAX_BRANCHES", 0), (codex.APPENDED, _CHILD_OVERRUN), 1),
+    ("child turns open at once", ("MAX_BRANCHES", 1), (codex.APPENDED, _OPEN_OVERRUN), 1),
 )
+_REPEATED_STARTS = (_CHILD_STARTED,) * _REPEATS
+_REPEATED_CHILD = (_STARTED, *_REPEATED_STARTS, _CHILD_CONTEXT, _CHILD_REQUEST, _CHILD_COMPLETE, _COMPLETE)
+_CHILD_START = MappingProxyType({codex.TURN_ID: codex.CHILD_TURN, "turn_attribution": dict(_PARENT)})
+_UNNAMED_START = MappingProxyType({"turn_attribution": dict(_PARENT)})
+_CHILD_STARTS = (*(_CHILD_START,) * _REPEATS, _UNNAMED_START)
+_INVALID_TOTAL = MappingProxyType({"total_tokens": "invalid"})
 _CHILD_RUN = (_STARTED, _CHILD_STARTED, _CHILD_CONTEXT, _CHILD_REQUEST, _CHILD_COMPLETE, _NEXT, _COMPLETE)
 _CHILD_ATTRIBUTION = ("turn_id", "parent_turn_id", "model", "branch_order")
 _THREAD_ATTRIBUTION = (codex.APPENDED_TURN, None, capture.SWITCHED_MODEL, 0)
@@ -178,21 +216,20 @@ class UnattributedCollectionTest(unittest.TestCase):
         self.assertEqual(collection.checkpoints, [])
 
     def test_unstamped_lines_keep_their_order(self) -> None:
-        # A line with no stamp is placed by where the log holds it: before the invocation's first stamped line it is
-        # an earlier one's, and after it the invocation's own, kept with no source timestamp.
+        # A line with no stamp is placed by where the log holds it, once a stamped line proves its side: followed by
+        # an earlier invocation's line it is that one's, and after the boundary the invocation's own, kept with no
+        # source timestamp.
         twice = _advanced(tuple(part * 2 for part in codex.NEXT_REQUEST))
-        earlier = _NEXT.replace(_UNSTAMPED, "")
         own = codex.token_count(twice, codex.NEXT_REQUEST).replace(_UNSTAMPED, "")
-        collection = codex.appended(earlier, _STARTED, own, _COMPLETE)
+        collection = codex.appended(_UNSTAMPED_NEXT, _EARLIER_SETTINGS, _STARTED, own, _COMPLETE)
         self.assertEqual(len(collection.samples), 1)
         self.assertNotIn("source_timestamp", collection.samples[0])
         self.assertIn("no-source-timestamps", collection.coverage[_LIMITATIONS])
         self.assertEqual(collection.status, coverage.COMPLETE)
 
-    def test_the_launch_is_read_to_the_millisecond(self) -> None:
-        # A line the process wrote in the very millisecond it was launched is its own.
-        launched = datetime.fromisoformat("2026-11-12T13:55:10.309+00:00")
-        collection = codex.collected(capture.RESUMED._replace(launched_at=launched))
+    def test_the_launch_window_is_one_millisecond(self) -> None:
+        # A line stamped more than a millisecond past the launch is the invocation's, however close beyond that.
+        collection = codex.collected(capture.RESUMED._replace(launched_at=_PAST_THE_WINDOW))
         self.assertEqual(cases.column(collection.samples, _POSITION), [32])
 
     def _assert_unattributed(self, collection: cases.Collected) -> None:
@@ -233,11 +270,25 @@ class SourceShapeTest(unittest.TestCase):
 
     def test_unusable_counters_are_kept_as_reported(self) -> None:
         # Each request keeps the counter it reported, with the evidence it is, and the gap it leaves.
-        for name, own, (field_name, gap) in _UNUSABLE:
+        for name, own, running, expected in _UNUSABLE:
             with self.subTest(name):
-                collection = _appended_with(codex.token_count(_advanced(own), own))
-                self.assertEqual(collection.reasons, {gap: 1})
-                self._assert_kept(collection.samples[0], own, field_name)
+                collection = _appended_with(codex.token_count(running or _advanced(own), own))
+                self._assert_kept(collection, own, expected)
+
+    def test_an_unusable_running_sum_is_a_gap(self) -> None:
+        # The request it advances by is kept; the checkpoint keeps the count it is no usable one, and says so.
+        collection = _appended_with(codex.token_count(_INVALID_RUNNING, codex.NEXT_REQUEST))
+        self.assertEqual(len(collection.samples), 1)
+        self.assertEqual(collection.reasons, {_INVALID: 1})
+        running = collection.checkpoints[-1]
+        self.assertEqual(running[cases.EVIDENCE], _INVALID_TOTAL)
+
+    def test_a_line_holding_no_object(self) -> None:
+        # A native log holds JSON objects alone, so any other line -- a value that is no object, or plain text -- is
+        # malformed where it stands, while the request beside it is kept.
+        collection = _appended_with(_NEXT, *_NO_OBJECTS)
+        self.assertEqual(len(collection.samples), 1)
+        self.assertEqual(collection.reasons, {coverage.MALFORMED_LINES: len(_NO_OBJECTS)})
 
     def test_unreported_reasoning_stays_unknown(self) -> None:
         own = codex.counters(codex.NEXT_REQUEST)
@@ -250,7 +301,10 @@ class SourceShapeTest(unittest.TestCase):
         self.assertEqual(collection.reasons, {coverage.MALFORMED_METADATA: 1})
         self.assertIn("no-context-capacity", collection.coverage[_LIMITATIONS])
 
-    def _assert_kept(self, sample: dict, own: tuple[int, ...], field_name: str) -> None:
+    def _assert_kept(self, collection: cases.Collected, own: tuple[int, ...], expected: tuple) -> None:
+        field_name, gaps = expected
+        sample = collection.samples[0]
+        self.assertEqual(collection.reasons, gaps)
         self.assertEqual(sample[cases.RAW]["input_tokens"], own[0])
         self.assertIn(sample[cases.EVIDENCE][field_name], _UNUSABLE_STATES)
 
@@ -307,6 +361,19 @@ class CollectionBoundTest(unittest.TestCase):
                 self.assertEqual(collection.reasons.get(coverage.CORRELATION_LIMIT), dropped)
                 self.assertEqual(collection.status, coverage.SOURCE_LIMIT_TRUNCATED)
                 self.assertEqual(collection.coverage[_SCOPE], coverage.PARTIAL_SCOPE)
+
+    def test_turn_state_stays_bounded(self) -> None:
+        # A child turn's start repeated opens it once, and children past the bound open nothing more.
+        collection = codex.appended(*_REPEATED_CHILD)
+        self.assertEqual(cases.column(collection.samples, "turn_id"), [codex.CHILD_TURN])
+        self.assertEqual(collection.reasons, {})
+        limits = dataclasses.replace(request_scan.current_limits(), branches=1)
+        turns = Turns(limits, request_scan.Metadata(limits.metadata_chars))
+        turns.start({codex.TURN_ID: codex.APPENDED_TURN}, own=True)
+        for child in _CHILD_STARTS:
+            turns.start(dict(child), own=True)
+        self.assertEqual(len(turns.open), 2)
+        self.assertTrue(turns.overflowed)
 
     def test_checkpoints_keep_baseline_and_last(self) -> None:
         with patch.object(request_scan, "MAX_CHECKPOINTS", 2):

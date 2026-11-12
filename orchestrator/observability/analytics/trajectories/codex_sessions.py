@@ -15,10 +15,11 @@ whose name ends in exactly that id, and the walk is held to `MAX_SESSION_DIRECTO
 proves it from the file.
 
 The read. The log is read a line at a time and handed to the collector as it is read, so no more than one line is
-held at once, and it is held to `MAX_LOG_BYTES` bytes, `MAX_EVENTS` lines, and `MAX_LINE_CHARS` bytes a line: a longer
-line is skipped through without being kept, and a bound that stops the read, or a read that fails partway, is recorded
-for the collector to state. A log that is missing, cannot be listed or opened, or is found twice is no log at all,
-and the collection says which.
+held at once, and it is held to `MAX_LOG_BYTES` bytes, `MAX_EVENTS` lines, and `MAX_LINE_CHARS` bytes a line: no read
+asks for more than the bytes the bound has left and one more, the one that shows the log goes on past it, a longer
+line is skipped through without being kept, and a bound that stops the read, or a read that fails partway, is
+recorded for the collector to state. A log that is missing, cannot be listed or opened, or is found twice is no log at
+all, and the collection says which.
 """
 
 from __future__ import annotations
@@ -155,7 +156,7 @@ class _LogReader:
     def _next(self) -> bytes | None:
         """The next line; empty where it was too long and skipped through, None at the end or past the byte bound."""
         line_bound = self.scan.limits.line_chars
-        raw = self.stream.readline(line_bound + 1)
+        raw = self.stream.readline(self._capped(line_bound + 1))
         if not raw or not self._charged(len(raw)):
             return None
         if len(raw) <= line_bound or raw.endswith(_NEWLINE):
@@ -166,11 +167,18 @@ class _LogReader:
     def _skipped(self) -> bool:
         """Read past the rest of an overlong line; False where the byte bound stopped it first."""
         while True:
-            chunk = self.stream.readline(_SKIP_CHUNK)
+            chunk = self.stream.readline(self._capped(_SKIP_CHUNK))
             if not self._charged(len(chunk)):
                 return False
             if not chunk or chunk.endswith(_NEWLINE):
                 return True
+
+    def _capped(self, wanted: int) -> int:
+        """`wanted` bytes, or the ones the byte bound has left and one more -- the one showing the log goes on past it.
+
+        No read asks for more, so the whole read never takes more than the bound and that one byte.
+        """
+        return min(wanted, self.scan.limits.log_bytes - self.consumed + 1)
 
     def _charged(self, size: int) -> bool:
         """Charge bytes read to the byte bound; False, and a gap, where they take the read past it."""

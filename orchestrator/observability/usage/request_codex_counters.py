@@ -21,6 +21,7 @@ difference between two sums.
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
@@ -28,6 +29,7 @@ from typing import Any
 
 from orchestrator.observability.usage import (
     protocol,
+    request_coverage as coverage,
     request_models,
     request_normalization as normalization,
     request_scan,
@@ -138,15 +140,22 @@ def checkpoint(
     position: int,
     running_sum: Counters,
     conversation_id: str | None,
+    gaps: Counter[str],
 ) -> request_models.UsageCheckpoint:
-    """A thread's running sum as a checkpoint of the whole conversation it spans, never a request."""
+    """A thread's running sum as a checkpoint of the whole conversation it spans, never a request.
+
+    A counter it reports no usable count of, or its own arithmetic contradicts, is a gap in `gaps` as well as its
+    evidence, so a collection keeping it never reads as whole.
+    """
+    evidence = running_sum.evidence()
+    gaps.update(coverage.evidence_gaps(evidence.values()))
     return request_models.UsageCheckpoint(
         kind=kind,
         scope=request_models.CONVERSATION_SCOPE,
         position=position,
         raw=MappingProxyType(running_sum.raw),
         conversation_id=conversation_id,
-        evidence=MappingProxyType(running_sum.evidence()),
+        evidence=MappingProxyType(evidence),
     )
 
 

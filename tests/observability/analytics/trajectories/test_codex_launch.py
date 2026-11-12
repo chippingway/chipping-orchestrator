@@ -4,7 +4,7 @@
 
 import os
 import unittest
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -19,7 +19,6 @@ _CODEX = "codex"
 _CODEX_HOME = "CODEX_HOME"
 _PROCESS_HOME = "/state/process-codex"
 _OVERRIDE_HOME = "/state/override-codex"
-_MILLISECOND = timedelta(milliseconds=1)
 # Each environment a launch is built from -- the run's override, the process's own, and neither -- and the home the
 # CLI is pointed at by it.
 _HOMES = (
@@ -57,13 +56,13 @@ class LaunchObservationTest(unittest.TestCase):
                 observation = _observed(extra_env=extra_env)
                 self.assertEqual(observation.codex_home, Path(expected))
 
-    def test_the_moment_is_utc_to_the_millisecond(self) -> None:
+    def test_the_moment_is_utc_and_uncut(self) -> None:
+        # The moment is kept as precisely as the clock gives it, never cut down to an earlier millisecond.
         before = datetime.now(UTC)
         observation = _observed()
         after = datetime.now(UTC)
         self.assertEqual(observation.launched_at.tzinfo, UTC)
-        self.assertEqual(observation.launched_at.microsecond % 1000, 0)
-        self.assertLessEqual(before - _MILLISECOND, observation.launched_at)
+        self.assertLessEqual(before, observation.launched_at)
         self.assertLessEqual(observation.launched_at, after)
 
     def test_a_failing_observation_costs_nothing(self) -> None:

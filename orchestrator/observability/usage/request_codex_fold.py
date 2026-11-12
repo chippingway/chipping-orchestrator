@@ -28,7 +28,11 @@ A child turn's sums are kept only to prove its requests, since nothing establish
 
 Subagents. A child turn the invocation opened that settled no request, and a subagent thread an `item_completed`
 `SubAgentActivity` of its lines names -- whose requests are in a log of that thread's own, which this pass never reads
--- are usage this collection saw happen and could not observe, so each is a gap rather than a silence.
+-- are usage this collection saw happen and could not observe, so each is a gap rather than a silence; so is a child
+turn naming no id, whose requests no branch can keep, whether or not any settles in it.
+
+Checkpoints are held to a request's arithmetic, so a running sum reporting a counter no usable count, or contradicting
+its own parts, is a gap of the collection keeping it as well as its own evidence.
 """
 
 from __future__ import annotations
@@ -158,7 +162,9 @@ class Requests:
         if thread.running is None or thread.position is None:
             return
         if thread.proven_at(self.scan.unread_lines):
-            self.baseline = checkpoint(INVOCATION_BASELINE, thread.position, thread.running, self.session_id)
+            self.baseline = checkpoint(
+                INVOCATION_BASELINE, thread.position, thread.running, self.session_id, self.gaps,
+            )
             self.observed_checkpoints += 1
 
     def lose_track(self) -> None:
@@ -170,14 +176,12 @@ class Requests:
         """Fold one `token_count` into its branch: a sample where the invocation's line proves a new request.
 
         An `info` of null is a notification carrying no usage, such as a rate-limit update, so it is nothing; one of a
-        child turn naming no id has no branch to be proven in.
+        child turn naming no id has no branch to be proven in, and the turn it settles in is already a gap.
         """
-        if token_info is None:
+        if token_info is None or (turn is not None and turn.unnamed_child):
             return
         branch = self.branch(None if turn is None else turn.branch)
-        if turn is not None and turn.unnamed_child:
-            self.gaps[coverage.SUBAGENT_UNIDENTIFIED] += line.own
-        elif branch is None:
+        if branch is None:
             self.gaps[coverage.CORRELATION_LIMIT] += line.own
         elif isinstance(token_info, dict):
             self._settle(line, token_info, branch, turn)
@@ -210,7 +214,7 @@ class Requests:
         child = turn is not None and turn.parent_turn_id is not None
         if not child:
             self.checkpoints.append(
-                checkpoint(CUMULATIVE_TOTAL, report.line.position, report.running, self.session_id),
+                checkpoint(CUMULATIVE_TOTAL, report.line.position, report.running, self.session_id, self.gaps),
             )
             self.observed_checkpoints += 1
         own_usage = Counters.of(report.token_info.get("last_token_usage"))
@@ -348,6 +352,7 @@ class NativeFold:
         sampled = {sample.identity.turn_id for sample in self.requests.samples}
         unexposed = self.turns.own_children - sampled
         gaps[coverage.SUBAGENT_USAGE_UNAVAILABLE] += len(self.notes.child_threads) + len(unexposed)
+        gaps[coverage.SUBAGENT_UNIDENTIFIED] += self.turns.unnamed
         gaps[coverage.NO_TERMINAL_RESULT] += self.turns.unclosed
         gaps[coverage.OVERSIZE_METADATA] += self.metadata.oversize
         gaps[coverage.MALFORMED_METADATA] += self.metadata.malformed

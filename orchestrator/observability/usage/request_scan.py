@@ -148,16 +148,17 @@ class EventScan:
         return True
 
     def counted(self, raw_line: str) -> dict[str, Any] | None:
-        """Decode one line a reader hands over, counting it; the event it holds, or None where it holds none.
+        """Decode one native log line a reader hands over, counting it; the event it holds, or None where none.
 
         Nothing is kept: a native log reader feeds its events on one at a time, so a log's decoded lines never pile up
-        in memory, and the reader holds the line and event bounds itself.
+        in memory, and the reader holds the line and event bounds itself. A native log is nothing but JSON objects,
+        one a line, with no banner, so any line holding no object is a malformed one.
         """
         line = raw_line.strip()
         if not line:
             return None
         self.scanned_lines += 1
-        decoded = self._decoded(line)
+        decoded = self._decoded(line, strict=True)
         return decoded[0] if decoded else None
 
     def oversize(self) -> None:
@@ -170,19 +171,21 @@ class EventScan:
         """How many lines this scan could not read as what they were: cut short, refused, or too long to read."""
         return self.gaps[coverage.MALFORMED_LINES] + self.gaps[coverage.OVERSIZE_LINES]
 
-    def _decoded(self, line: str) -> list[dict[str, Any]]:
+    def _decoded(self, line: str, *, strict: bool = False) -> list[dict[str, Any]]:
         """The event one line decodes to, or none, with why a line was skipped counted where it is a gap.
 
-        Only a line shaped like an object could have been an event, so one that decodes to none -- cut short, or
+        Only a line shaped like an object could have been a stream event, so one that decodes to none -- cut short, or
         refused by the decoder for a number past the interpreter's digit limit or nesting past its depth -- is a
-        malformed line of this scan, while any other skipped line is not.
+        malformed line of this scan, while any other skipped line is not, unless the source is `strict` about holding
+        objects alone.
         """
         if len(line) > self.limits.line_chars:
             return self._skipped(coverage.OVERSIZE_LINES)
         decoded = decode_event(line)
         if decoded is not None:
             return [decoded]
-        return self._skipped(coverage.MALFORMED_LINES if line.startswith(_OBJECT_START) else None)
+        malformed = strict or line.startswith(_OBJECT_START)
+        return self._skipped(coverage.MALFORMED_LINES if malformed else None)
 
     def _skipped(self, gap: str | None) -> list[dict[str, Any]]:
         self.skipped_lines += 1

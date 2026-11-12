@@ -6,8 +6,8 @@ Codex keeps a run's requests in its own session log rather than on stdout, and a
 every earlier invocation's lines, so the exit can place this invocation in it only by what was true at the launch. Just
 before the tracked spawn launches a Codex process it asks `observed_launch` for that: the `CODEX_HOME` the process's
 effective environment -- the very one the Codex backend builds, an override in the run's options included -- points
-the CLI at, or Codex's own `~/.codex` where it names none, and the moment, to the millisecond the CLI stamps its lines
-to. The observation reads nothing on disk and changes nothing the CLI is launched with; with the trajectory sink off,
+the CLI at, or Codex's own `~/.codex` where it names none, and the moment, as precisely as the clock gives it. The
+observation reads nothing on disk and changes nothing the CLI is launched with; with the trajectory sink off,
 or for another backend, it is not made at all, and one that fails costs the launch nothing.
 """
 
@@ -21,16 +21,14 @@ from pathlib import Path
 from orchestrator.observability.analytics import config as analytics_config, sink
 from orchestrator.observability.usage import protocol
 
-_MICROSECONDS_PER_MILLISECOND = 1_000
-
 
 @dataclass(frozen=True)
 class LaunchObservation:
     """What the trajectory sink observed of one Codex process just before it was launched.
 
     `codex_home` is the directory the effective launch environment points the CLI's state at, and `launched_at` the
-    moment of the launch in UTC, cut to the millisecond the CLI stamps its own lines to, so a line the process wrote
-    in that same millisecond is never placed before it.
+    moment of the launch in UTC, as precisely as the clock gives it: the collector places a line stamped to the
+    millisecond within a millisecond of it on neither side.
     """
 
     codex_home: Path
@@ -47,7 +45,7 @@ def codex_home(environ: Mapping[str, str], cwd: Path) -> Path:
 
 
 def _observed(cwd: Path, extra_env: dict[str, str] | None) -> LaunchObservation:
-    """The observation itself: the home the launch environment names, and the moment, cut to the millisecond.
+    """The observation itself: the home the launch environment names, and the moment.
 
     The environment is the one the Codex backend launches the process with, built by the same owner from the same
     options. That owner is named inside the call, so the trajectory owners cost an importer nothing of it.
@@ -55,9 +53,7 @@ def _observed(cwd: Path, extra_env: dict[str, str] | None) -> LaunchObservation:
     from orchestrator.agents import environment
 
     home = codex_home(environment.agent_env(extra_env), cwd)
-    now = datetime.now(UTC)
-    cut = now.microsecond - now.microsecond % _MICROSECONDS_PER_MILLISECOND
-    return LaunchObservation(home, now.replace(microsecond=cut))
+    return LaunchObservation(home, datetime.now(UTC))
 
 
 def observed_launch(

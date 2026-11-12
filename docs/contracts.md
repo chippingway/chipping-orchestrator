@@ -135,10 +135,11 @@ unpriced cost, and a malformed record's containment remain current answers. A tr
 read only as its collector wrote it: absent is a run whose requests were not collected -- every record an earlier
 build wrote -- never an empty breakdown, and nothing infers or backfills one. A Codex sample is a `token_count` the
 invocation's own lines of the returned session's native log reported, those lines proven by the log's first-line
-identity and the launch moment observed for the run: a log no proof places the invocation in attributes nothing,
-never a guessed suffix, a report repeating its branch's running sum or not proven to advance it by its own counters is
-no request, so no earlier invocation's request is copied into a later one, and stdout's cumulative `turn.completed`
-is never a sample nor a request size. Within the shared
+identity and the launch moment observed for the run: a line stamped within a millisecond of the launch, or unstamped
+where no stamped line places it, places nothing, and a log holding one, or placing the invocation by no proof,
+attributes nothing, never a guessed suffix; a report repeating its branch's running sum or not proven to advance it by
+its own counters is no request, so no earlier invocation's request is copied into a later one; and stdout's cumulative
+`turn.completed` is never a sample nor a request size. Within the shared
 request-usage format a counter a sample did not observe is unknown rather than zero, a common total sums only observed
 non-overlapping counters and never the provider's own total, a model the stream did not establish is none rather than
 another conversation's or branch's or one taken from unrelated data, a coverage short of `complete` or

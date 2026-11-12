@@ -104,9 +104,9 @@ def _folded(session: NativeSession, scan: request_scan.EventScan, fallback_model
     return fold
 
 
-def _comparable_turns(stdout: str, scan: request_scan.EventScan, reasons: Counter[str]) -> int | None:
+def _comparable_turns(stdout: str, scan: request_scan.EventScan, whole: bool) -> int | None:
     """How many turns stdout says the process started, where the log was read whole to compare them with."""
-    if reasons.keys() & _CUT or scan.unread_lines:
+    if not whole or scan.unread_lines:
         return None
     return stdout_turns(stdout, scan.limits) or None
 
@@ -140,8 +140,9 @@ def collect(stdout: str, session: NativeSession | None, fallback_model: str | No
         return _unavailable(session.unavailable or coverage.NATIVE_LOG_MISSING, session.scan)
     fold = _folded(session, session.scan, fallback_model)
     reasons = fold.reasons()
-    turns = _comparable_turns(stdout, session.scan, reasons)
-    refusal = fold.timeline.refusal(fold.turns.root_turns, turns)
+    whole = not reasons.keys() & _CUT
+    turns = _comparable_turns(stdout, session.scan, whole)
+    refusal = fold.timeline.refusal(fold.turns.root_turns, turns, whole)
     if refusal is not None:
         return _unavailable(refusal, session.scan)
     return _collected(fold, session.scan, reasons)

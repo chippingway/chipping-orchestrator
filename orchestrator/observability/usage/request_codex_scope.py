@@ -13,17 +13,23 @@ Its identity: the first line has to be a `session_meta` naming the session the r
 found under another name, or one whose first line was unreadable, is never adopted.
 
 Its boundary: the tracked spawn observes the moment it launched the process, and the CLI stamps every line with the
-time it wrote it, off the same host clock. The invocation's lines are the ones from the first line stamped at or after
-the launch onward. The process could write nothing before it was started, and every earlier invocation of the session
-had exited before this one was launched, so its lines are the only ones that can land there -- as long as the stamps
-never go backward. Every line is held to that: a stamp earlier than the one before it, anywhere in the log, means the
-clock or the file cannot place the invocation, and nothing in the log is attributed to it. A line with no stamp is
-placed by its order in the file, the order it was appended in. A fresh run's log has to begin inside its own boundary,
-since this process created it, and a resumed run's has to begin before it. Where stdout counts the turns this process
-started, the log has to have opened as many root turns from the boundary on, so a turn some other process appended
-meanwhile is never taken for one of this run's; that count is checked only on a log read whole, since a cut short read
-proves nothing about the turns past the cut, and only on a stdout the scan read whole, since one with a line it could
-not read could have printed one more.
+time it wrote it, off the same host clock, to the millisecond. A line stamped more than a millisecond after the launch
+was written after it, and one stamped more than a millisecond before it was written before it, however the CLI cut its
+stamp; one stamped within a millisecond of the launch, on either side, could be either, and places nothing. The
+invocation's lines are the ones from the first line stamped past that window onward. The process could write nothing
+before it was started, and every earlier invocation of the session had exited before this one was launched, so its
+lines are the only ones that can land there -- as long as the stamps never go backward. Every line is held to that: a
+stamp earlier than the one before it, anywhere in the log, means the clock or the file cannot place the invocation, and
+nothing in the log is attributed to it. A line with no stamp is placed by its order in the file, the order it was
+appended in, but only where a stamped line proves which side it is on: one followed by a line stamped before the launch
+was an earlier invocation's, and one following the boundary is this one's. A line nothing places -- unstamped between
+the last earlier line and the boundary, or after the last earlier line of a log read whole with no boundary at all, or
+stamped within the launch's window -- could be this invocation's or an earlier one's, so no line is attributed. A
+fresh run's log has to begin inside its own boundary, since this process created it, and a resumed run's has to begin
+before it. Where stdout counts the turns this process started, the log has to have opened as many root turns from the
+boundary on, so a turn some other process appended meanwhile is never taken for one of this run's; that count is
+checked only on a log read whole, since a cut short read proves nothing about the turns past the cut, and only on a
+stdout the scan read whole, since one with a line it could not read could have printed one more.
 
 Where either proof fails, the collection names why and attributes nothing; it never guesses a suffix of the log.
 
@@ -37,7 +43,7 @@ turn the invocation opened that is still open when it settles, or to the thread 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from orchestrator.observability.usage import request_coverage as coverage, request_scan
@@ -48,6 +54,9 @@ TYPE = "type"
 _TIMESTAMP = "timestamp"
 _TURN_STARTED = "turn.started"
 _TURN_ID = "turn_id"
+# How far either side of the launch moment a stamp places nothing: the CLI stamps its lines to the millisecond, so a
+# line stamped that close to the launch could have been written just before it or just after.
+_LAUNCH_WINDOW = timedelta(milliseconds=1)
 
 
 @dataclass(frozen=True)
@@ -100,7 +109,11 @@ def names_session(event: dict[str, Any], session_id: str | None) -> bool:
 
 @dataclass
 class Timeline:
-    """Where an invocation's lines begin in its log, read a line at a time, and what would leave that unproven."""
+    """Where an invocation's lines begin in its log, read a line at a time, and what would leave that unproven.
+
+    `pending` counts the unstamped lines read since the last line stamped before the launch, while no boundary is
+    found, and `unplaced` the lines nothing places on either side of the boundary.
+    """
 
     invocation: Invocation
     identified: bool = False
@@ -108,19 +121,18 @@ class Timeline:
     boundary: int | None = None
     latest: datetime | None = None
     regressed: bool = False
+    pending: int = 0
+    unplaced: int = 0
 
     def place(self, position: int, event: dict[str, Any], moment: datetime | None) -> bool:
         """Read one line's identity and stamp in; whether it is the invocation's own."""
         if not self.read_any:
             self.read_any = True
             self.identified = position == 0 and names_session(event, self.invocation.session_id)
-        if moment is not None:
-            if self.latest is not None and moment < self.latest:
-                self.regressed = True
-            self.latest = moment
-            launched = self.invocation.launched_at
-            if self.boundary is None and launched is not None and moment >= launched:
-                self.boundary = position
+        if moment is None:
+            self.pending += self.boundary is None
+        else:
+            self._stamped(position, moment)
         return self.boundary is not None
 
     def writer_version(self, payload: dict[str, Any], metadata: request_scan.Metadata) -> str | None:
@@ -131,20 +143,40 @@ class Timeline:
         version = metadata.text(payload.get("cli_version"))
         return None if self.invocation.resumed else version
 
-    def refusal(self, root_turns: int, stdout_turn_count: int | None) -> str | None:
+    def refusal(self, root_turns: int, stdout_turn_count: int | None, whole: bool) -> str | None:
         """Why nothing in the log can be attributed to the invocation, or None where both proofs hold.
 
-        `root_turns` counts the root turns the log opened from the boundary on, and `stdout_turn_count` the turns
-        stdout says the process started -- None where that is not to be compared.
+        `root_turns` counts the root turns the log opened from the boundary on, `stdout_turn_count` the turns stdout
+        says the process started -- None where that is not to be compared -- and `whole` whether the read reached the
+        log's end, past which an unstamped line still pending could not have been proven earlier anyway.
         """
         if not self.identified:
             return coverage.NATIVE_IDENTITY_UNPROVEN
+        unplaced = self.unplaced + self.pending * whole
         created_here = self.boundary == 0
-        if self.regressed or created_here == self.invocation.resumed:
+        if self.regressed or unplaced or created_here == self.invocation.resumed:
             return coverage.INVOCATION_UNATTRIBUTED
         if stdout_turn_count is not None and stdout_turn_count != root_turns:
             return coverage.INVOCATION_UNATTRIBUTED
         return None
+
+    def _stamped(self, position: int, moment: datetime) -> None:
+        """Place one stamped line, and with it the unstamped ones read since the last line placed earlier."""
+        if self.latest is not None and moment < self.latest:
+            self.regressed = True
+        self.latest = moment
+        launched = self.invocation.launched_at
+        if self.boundary is not None or launched is None:
+            return
+        if moment < launched - _LAUNCH_WINDOW:
+            # An earlier invocation's line, so every unstamped line before it was written earlier still.
+            self.pending = 0
+            return
+        unplaced = moment <= launched + _LAUNCH_WINDOW
+        if not unplaced:
+            self.boundary = position
+        self.unplaced += self.pending + unplaced
+        self.pending = 0
 
 
 @dataclass(frozen=True)
@@ -177,13 +209,15 @@ class Turns:
     own_children: set[str] = field(default_factory=set)
     root_turns: int = 0
     unclosed: int = 0
+    unnamed: int = 0
     overflowed: bool = False
 
     def start(self, payload: dict[str, Any], own: bool) -> None:
         """Open the turn a `task_started` names: a root turn abandoning every open one, or a child beside them.
 
-        Past the child turn bound no later request can be told apart from its parent's, so none is attributed from
-        there on.
+        A child turn already open is opened once, however often its start repeats. Past the child turn bound -- on
+        the children named, or on the ones open at once -- no later request can be told apart from its parent's, so
+        none is attributed from there on.
         """
         turn_id = self.metadata.text(payload.get(_TURN_ID))
         turn = Turn(turn_id, self._parent(payload), own)
@@ -191,6 +225,8 @@ class Turns:
             self.abandon()
             self.root_turns += own
             self.open = [turn]
+        elif turn in self.open:
+            return
         elif self._registered(turn):
             self.open.append(turn)
         else:
@@ -222,8 +258,14 @@ class Turns:
         return self.metadata.text(attribution.get("parent_turn_id"))
 
     def _registered(self, turn: Turn) -> bool:
-        """Note a child turn within the child turn bound; False past it. One naming no id is open, but unnamed."""
+        """Note a child turn within the child turn bound; False past it.
+
+        One naming no id is open, but no branch can keep its requests, so the invocation's is counted as unnamed.
+        """
+        if len(self.open) > self.limits.branches:
+            return False
         if turn.turn_id is None:
+            self.unnamed += turn.own
             return True
         full = len(self.children) >= self.limits.branches
         if full and turn.turn_id not in self.children:

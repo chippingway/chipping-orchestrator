@@ -33,6 +33,11 @@ _SHORT = tuple(len(text) < _LINE_BOUND for text in _FRESH_LINES)
 _SHORT_LINES = tuple(itertools.compress(itertools.count(), _SHORT))
 _OVERSIZE_COUNT = capture.FRESH.end - len(_SHORT_LINES)
 _LISTABLE = 0o700
+# A byte bound far shorter than one line of the log, and a line far longer than it.
+_BYTE_BOUND = 16
+_LONG_LINE = b"".join((b'{"arbitrary":"', b"x" * 1000, b'"}\n'))
+# A line kept until it crosses the byte bound, and one too long to keep, skipped through until it does.
+_BUDGET_CASES = (("crossing line", request_scan.MAX_LINE_CHARS), ("skipped line", _BYTE_BOUND // 2))
 _NOT_ROOT = os.geteuid() != 0
 _SCAN_LIMIT = MappingProxyType({coverage.SCAN_LIMIT: 1})
 # Logs no lookup adopts: none at all, only another session's, and two of the session's name in one day.
@@ -61,6 +66,18 @@ class _FailingLog(BytesIO):
         if self.tell():
             raise OSError("read failed")
         return super().readline(size)
+
+
+class _CountedLog(BytesIO):
+    """A log that keeps how many bytes were read off it by the time it was closed."""
+
+    def __init__(self, initial: bytes) -> None:
+        super().__init__(initial)
+        self.bytes_read = 0
+
+    def close(self) -> None:
+        self.bytes_read = self.tell()
+        super().close()
 
 
 class _HomeTest(unittest.TestCase):
@@ -122,24 +139,6 @@ class SessionReadTest(_HomeTest):
         self.assertEqual(positions, list(range(capture.FRESH.end)))
         self.assertEqual(gaps, {})
 
-    def test_read_bounds(self) -> None:
-        # A line too long to keep is skipped through, and the lines after it keep their place in the log.
-        support.write_log(self.home, _FRESH_TEXT)
-        for name, bound, expected in _READ_BOUNDS:
-            with self.subTest(name), patch.object(request_scan, *bound):
-                positions, gaps = support.read(self.home)
-                self.assertEqual((tuple(positions), gaps), expected)
-
-    def test_an_overlong_line_past_the_byte_bound(self) -> None:
-        # Skipping through a line too long to keep is charged to the byte bound like any other read.
-        support.write_log(self.home, _FRESH_TEXT)
-        with (
-            patch.object(request_scan, "MAX_LINE_CHARS", _LINE_BOUND),
-            patch.object(request_scan, "MAX_LOG_BYTES", _LINE_BOUND * 2),
-        ):
-            read = support.read(self.home)
-        self.assertEqual(read, ([], {coverage.OVERSIZE_LINES: 1, coverage.SCAN_LIMIT: 1}))
-
     def test_a_read_failing_partway(self) -> None:
         failing = _FailingLog(_FRESH_TEXT.encode())
         support.write_log(self.home, "")
@@ -169,6 +168,44 @@ class SessionReadTest(_HomeTest):
         support.write_log(self.home, _FRESH_TEXT).chmod(0)
         session = codex_sessions.native_session(support.exit_context(self.home))
         self.assertEqual(session.unavailable, coverage.NATIVE_LOG_UNREADABLE)
+
+
+class SessionReadBoundTest(_HomeTest):
+    """Each read bound holds, and a bound reached is a gap that says the read stopped short."""
+
+    def test_read_bounds(self) -> None:
+        # A line too long to keep is skipped through, and the lines after it keep their place in the log.
+        support.write_log(self.home, _FRESH_TEXT)
+        for name, bound, expected in _READ_BOUNDS:
+            with self.subTest(name), patch.object(request_scan, *bound):
+                positions, gaps = support.read(self.home)
+                self.assertEqual((tuple(positions), gaps), expected)
+
+    def test_an_overlong_line_past_the_byte_bound(self) -> None:
+        # Skipping through a line too long to keep is charged to the byte bound like any other read.
+        support.write_log(self.home, _FRESH_TEXT)
+        with (
+            patch.object(request_scan, "MAX_LINE_CHARS", _LINE_BOUND),
+            patch.object(request_scan, "MAX_LOG_BYTES", _LINE_BOUND * 2),
+        ):
+            read = support.read(self.home)
+        self.assertEqual(read, ([], {coverage.OVERSIZE_LINES: 1, coverage.SCAN_LIMIT: 1}))
+
+    def test_no_read_past_the_byte_bound(self) -> None:
+        # A line crossing the bound, and one too long to keep skipped through across it, are read no further than the
+        # bound and the one byte showing the log goes on past it.
+        support.write_log(self.home, "")
+        self.enterContext(patch.object(request_scan, "MAX_LOG_BYTES", _BYTE_BOUND))
+        for name, line_bound in _BUDGET_CASES:
+            counted = _CountedLog(_LONG_LINE)
+            with (
+                self.subTest(name),
+                patch.object(request_scan, "MAX_LINE_CHARS", line_bound),
+                patch.object(Path, "open", return_value=counted),
+            ):
+                gaps = support.read(self.home)[1]
+                self.assertEqual(gaps.get(coverage.SCAN_LIMIT), 1)
+                self.assertLessEqual(counted.bytes_read, _BYTE_BOUND + 1)
 
 
 if __name__ == "__main__":
