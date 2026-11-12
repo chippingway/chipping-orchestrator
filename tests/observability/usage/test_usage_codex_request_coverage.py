@@ -198,16 +198,20 @@ _UNEXPOSED = (
     ("legacy subagent event", (_LEGACY_EVENT,), coverage.SUBAGENT_USAGE_UNAVAILABLE, 1),
     ("legacy subagent event naming no thread", (_UNNAMED_LEGACY_EVENT,), coverage.SUBAGENT_UNIDENTIFIED, 1),
 )
-# Each correlation bound, held to its least, and how many entries past it a collection drops.
+# Each correlation bound, held to its least, and how many entries past it a collection drops: a child turn refused
+# is one, whether or not a request follows it, and each request it leaves unattributable another.
 _CHILD_OVERRUN = (*capture.log_lines(), _STARTED, _CHILD_STARTED, _CHILD_REQUEST, _COMPLETE)
+_QUIET_OVERRUN = (*capture.log_lines(), _STARTED, _CHILD_STARTED, _CHILD_COMPLETE, _COMPLETE)
 _OPEN_OVERRUN = (*capture.log_lines(), _STARTED, _CHILD_STARTED, _UNNAMED_CHILD, _NEXT, _COMPLETE)
 _THREAD_OVERRUN = (*capture.log_lines(), _STARTED, _ACTIVITY, _OTHER_ACTIVITY, _ACTIVITY, _COMPLETE)
+_BRANCHES = "MAX_BRANCHES"
 _BOUNDS = (
     ("requests", ("MAX_TRACKED_STEPS", 1), (capture.FRESH,), 2),
     ("markers", ("MAX_MARKERS", 1), (capture.SWITCHED,), 1),
-    ("child turns named", ("MAX_BRANCHES", 0), (codex.APPENDED, _CHILD_OVERRUN), 1),
-    ("child turns open at once", ("MAX_BRANCHES", 1), (codex.APPENDED, _OPEN_OVERRUN), 1),
-    ("subagent threads named", ("MAX_BRANCHES", 1), (codex.APPENDED, _THREAD_OVERRUN), 1),
+    ("child turns named", (_BRANCHES, 0), (codex.APPENDED, _CHILD_OVERRUN), 2),
+    ("a child turn refused with no request", (_BRANCHES, 0), (codex.APPENDED, _QUIET_OVERRUN), 1),
+    ("child turns open at once", (_BRANCHES, 1), (codex.APPENDED, _OPEN_OVERRUN), 2),
+    ("subagent threads named", (_BRANCHES, 1), (codex.APPENDED, _THREAD_OVERRUN), 1),
 )
 # The longest line the captured log holds, and a line one character longer, which a line bound of the first skips.
 _LONGEST = max(map(len, capture.log_lines()))
@@ -225,6 +229,30 @@ _UNNAMED_START = MappingProxyType({"turn_attribution": dict(_PARENT)})
 _CHILD_STARTS = (*(_CHILD_START,) * _REPEATS, _UNNAMED_START)
 _INVALID_TOTAL = MappingProxyType({"total_tokens": _INVALID_STATE})
 _CHILD_RUN = (_STARTED, _CHILD_STARTED, _CHILD_CONTEXT, _CHILD_REQUEST, _CHILD_COMPLETE, _NEXT, _COMPLETE)
+# A child turn switching models between its two requests.
+_SWITCHED_CHILD_MODEL = "gpt-5.5-nano"
+_SWITCHED_CHILD = MappingProxyType({codex.TURN_ID: codex.CHILD_TURN, cases.MODEL: _SWITCHED_CHILD_MODEL})
+_CHILD_SWITCH = codex.line(codex.TURN_CONTEXT, dict(_SWITCHED_CHILD))
+_CHILD_TWICE = tuple(2 * count for count in codex.NEXT_REQUEST)
+_CHILD_SECOND = codex.token_count(_CHILD_TWICE, codex.NEXT_REQUEST)
+_CHILD_SWITCH_RUN = (
+    _STARTED, _CHILD_STARTED, _CHILD_CONTEXT, _CHILD_REQUEST, _CHILD_SWITCH, _CHILD_SECOND, _CHILD_COMPLETE, _COMPLETE,
+)
+_CHILD_MODEL_CHANGE = MappingProxyType({
+    _KIND: "model-change",
+    _POSITION: capture.LAST.end + 4,
+    "conversation_id": capture.SESSION_ID,
+    "turn_id": codex.CHILD_TURN,
+    "parent_turn_id": codex.APPENDED_TURN,
+    cases.MODEL: _SWITCHED_CHILD_MODEL,
+    "previous_model": _CHILD_MODEL,
+})
+# Stamps no UTC moment reads as: one its offset moves before the first moment, one it moves past the last, one naming
+# no offset, and one no ISO moment at all.
+_UNREADABLE_STAMPS = ("0001-01-01T00:00:00+01:00", "9999-12-31T23:59:59-01:00", "2026-11-12T14:10:01", "yesterday")
+# A usage record of the appended request, as the CLI writes one beside each `token_count` reporting a request.
+_RECORD = codex.line("token_usage_record", {"usage": codex.counters(codex.NEXT_REQUEST)})
+_REPORTLESS_FRESH = tuple(text for text in _FRESH_LINES if '"type":"token_count"' not in text)
 _CHILD_ATTRIBUTION = ("turn_id", "parent_turn_id", "model", "branch_order")
 _THREAD_ATTRIBUTION = (codex.APPENDED_TURN, None, capture.SWITCHED_MODEL, 0)
 
@@ -286,10 +314,17 @@ class UnattributedCollectionTest(unittest.TestCase):
                 self.assertEqual(cases.column(collection.samples, _POSITION), positions)
                 self.assertEqual(collection.status, coverage.COMPLETE)
 
-    def test_unstamped_lines_keep_no_stamp(self) -> None:
-        collection = codex.collected(codex.APPENDED, _UNSTAMPED_LOG)
-        self.assertNotIn("source_timestamp", collection.samples[0])
-        self.assertIn("no-source-timestamps", collection.coverage[_LIMITATIONS])
+    def test_stamps_that_place_nothing(self) -> None:
+        # An unstamped line keeps no stamp, and a stamp no UTC moment reads as -- its offset carrying it out of range
+        # included -- is malformed metadata kept as written; neither places anything, and the request is still read.
+        unstamped = codex.collected(codex.APPENDED, _UNSTAMPED_LOG)
+        self.assertNotIn("source_timestamp", unstamped.samples[0])
+        self.assertIn("no-source-timestamps", unstamped.coverage[_LIMITATIONS])
+        for stamp in _UNREADABLE_STAMPS:
+            with self.subTest(stamp):
+                collection = _appended_with(_NEXT.replace(codex.STAMP, stamp))
+                self.assertEqual(collection.reasons, {coverage.MALFORMED_METADATA: 1})
+                self.assertEqual(cases.column(collection.samples, "source_timestamp"), [stamp])
 
     def _assert_unattributed(self, collection: cases.Collected) -> None:
         self.assertEqual(collection.reasons, {coverage.INVOCATION_UNATTRIBUTED: 1})
@@ -356,6 +391,19 @@ class SourceShapeTest(unittest.TestCase):
         self.assertEqual(len(collection.samples), 1)
         self.assertEqual(collection.reasons, {coverage.MALFORMED_LINES: len(_NO_OBJECTS)})
 
+    def test_usage_no_report_carries_is_a_gap(self) -> None:
+        # A request is read off its `token_count` alone, so a usage record beyond the invocation's reports that repeat
+        # nothing -- every record, where its reports are missing -- is usage it could not observe, never no request.
+        cases_by_name = {
+            "every report missing": (codex.collected(lines=_REPORTLESS_FRESH), 3),
+            "one record beyond its report": (_appended_with(_RECORD, _OPENING, _NEXT, _NEXT, _RECORD), 1),
+        }
+        for name, (collection, unobserved) in cases_by_name.items():
+            with self.subTest(name):
+                self.assertEqual(collection.reasons, {coverage.UNSUPPORTED_USAGE_SOURCE: unobserved})
+                self.assertEqual(collection.status, coverage.INCOMPLETE)
+        self.assertEqual(_appended_with(_RECORD, _OPENING, _NEXT, _NEXT).reasons, {})
+
     def test_unreported_reasoning_stays_unknown(self) -> None:
         own = codex.counters(codex.NEXT_REQUEST)
         own.pop("reasoning_output_tokens")
@@ -405,6 +453,13 @@ class AttributionTest(unittest.TestCase):
         # Only the thread's running sums are checkpoints; a child turn's span nothing this log establishes.
         positions = cases.column(collection.checkpoints, _POSITION)
         self.assertEqual(positions[1:], [thread[_POSITION]])
+        self.assertEqual(collection.status, coverage.COMPLETE)
+
+    def test_a_child_turn_marks_its_model_change(self) -> None:
+        # A child turn's own `turn_context` naming another model changes that turn's branch, never the thread's.
+        collection = codex.appended(*_CHILD_SWITCH_RUN)
+        self.assertEqual(cases.column(collection.samples, cases.MODEL), [_CHILD_MODEL, _SWITCHED_CHILD_MODEL])
+        self.assertEqual(collection.markers, [dict(_CHILD_MODEL_CHANGE)])
         self.assertEqual(collection.status, coverage.COMPLETE)
 
     def test_unexposed_children_are_gaps(self) -> None:

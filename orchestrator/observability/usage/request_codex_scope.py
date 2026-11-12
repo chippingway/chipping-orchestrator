@@ -40,6 +40,7 @@ turn the invocation opened that is still open when it settles, or to the thread 
 
 from __future__ import annotations
 
+from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -86,7 +87,11 @@ def stamped(
     event: dict[str, Any],
     metadata: request_scan.Metadata,
 ) -> tuple[str | None, datetime | None]:
-    """The stamp a line was written at, as written and as a UTC moment; a stamp no moment reads as is malformed."""
+    """The stamp a line was written at, as written and as a UTC moment.
+
+    A stamp no UTC moment reads as -- no ISO moment, one naming no offset, or one whose offset moves it past the range a
+    moment holds -- is malformed: it is kept as written, and places nothing.
+    """
     written = metadata.text(event.get(_TIMESTAMP))
     if written is None:
         return None, None
@@ -94,10 +99,13 @@ def stamped(
         moment = datetime.fromisoformat(written)
     except ValueError:
         moment = None
-    if moment is None or moment.tzinfo is None:
+    utc = None
+    if moment is not None and moment.tzinfo is not None:
+        with suppress(OverflowError):
+            utc = moment.astimezone(UTC)
+    if utc is None:
         metadata.malformed += 1
-        return written, None
-    return written, moment.astimezone(UTC)
+    return written, utc
 
 
 def names_session(event: dict[str, Any], session_id: str | None) -> bool:
@@ -166,16 +174,19 @@ class Timeline:
         return None
 
     def _stamped(self, own: bool, moment: datetime) -> None:
-        """Hold one stamp against the stamp before it and against the side of the launch its line is placed on."""
+        """Hold one stamp against the stamp before it and against the side of the launch its line is placed on.
+
+        The launch is compared by how far the stamp lies from it, which no moment in range overflows.
+        """
         if self.latest is not None and moment < self.latest:
             self.regressed = True
         self.latest = moment
         launched = self.invocation.launched_at
         if launched is None:
             return
-        if own and moment < launched - _LAUNCH_WINDOW:
+        if own and launched - moment > _LAUNCH_WINDOW:
             self.disagreed = True
-        if not own and moment > launched + _LAUNCH_WINDOW:
+        if not own and moment - launched > _LAUNCH_WINDOW:
             self.disagreed = True
 
 
@@ -200,16 +211,21 @@ class Turn:
 
 @dataclass
 class Turns:
-    """The turns open as the log is read, the child turns it named, and the root turns the invocation opened."""
+    """The turns open as the log is read, the child turns it named, and the root turns the invocation opened.
+
+    `children` maps each child turn named to the turn it was started from, and `refused` counts the child turns the
+    invocation started past the child turn bound.
+    """
 
     limits: request_scan.CollectionLimits
     metadata: request_scan.Metadata
     open: list[Turn] = field(default_factory=list)
-    children: set[str] = field(default_factory=set)
+    children: dict[str, str] = field(default_factory=dict)
     own_children: set[str] = field(default_factory=set)
     root_turns: int = 0
     unclosed: int = 0
     unnamed: int = 0
+    refused: int = 0
     overflowed: bool = False
 
     def start(self, payload: dict[str, Any], own: bool) -> None:
@@ -217,7 +233,8 @@ class Turns:
 
         A child turn already open is opened once, however often its start repeats. Past the child turn bound -- on
         the children named, or on the ones open at once -- no later request can be told apart from its parent's, so
-        none is attributed from there on.
+        none is attributed from there on, and the invocation's child turn refused is a gap of its own, whether or not
+        a request follows it.
         """
         turn_id = self.metadata.text(payload.get(_TURN_ID))
         turn = Turn(turn_id, self._parent(payload), own)
@@ -231,6 +248,7 @@ class Turns:
             self.open.append(turn)
         else:
             self.overflowed = True
+            self.refused += own
 
     def close(self, payload: dict[str, Any]) -> None:
         """Close the turn a `task_complete` or `turn_aborted` names."""
@@ -270,7 +288,7 @@ class Turns:
         full = len(self.children) >= self.limits.branches
         if full and turn.turn_id not in self.children:
             return False
-        self.children.add(turn.turn_id)
+        self.children[turn.turn_id] = turn.parent_turn_id
         if turn.own:
             self.own_children.add(turn.turn_id)
         return True

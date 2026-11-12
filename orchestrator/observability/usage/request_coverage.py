@@ -8,10 +8,10 @@ collector that failed, or a native session log a Codex collection could not find
 place the invocation in -- `source-limit-truncated` where a collection bound stopped the scan short of the whole
 invocation, or the source stopped answering partway, `storage-truncated` where the record kept fewer samples or markers
 than were observed, `incomplete` where the scan covered the invocation but some request is missing, unsettled,
-unattributed, observed only in part, unreconciled with the running sum beside it, or contradicts itself,
-`complete-empty` where it covered the invocation and found no request, and `complete` otherwise. Each gap is kept as a
-reason code with the number of times it occurred, a vocabulary fixed here, so the reasons are bounded however damaged a
-stream is.
+unattributed, observed only in part, unreconciled with the running sum beside it, reported only by a source the
+collector reads no request from, or contradicts itself, `complete-empty` where it covered the invocation and found no
+request, and `complete` otherwise. Each gap is kept as a reason code with the number of times it occurred, a
+vocabulary fixed here, so the reasons are bounded however damaged a stream is.
 
 The counts are kept with the scope they were taken over. Observed samples are the requests the scan found and retained
 samples the ones the record kept; a scan a bound cut short is `partial`, so its count is never read as the
@@ -92,6 +92,7 @@ OUTPUT_ONLY_OBSERVATIONS = "output-only-observations"
 AGGREGATE_ONLY_USAGE = "aggregate-only-usage"
 IDENTITY_CONFLICTING = "identity-conflicting"
 UNRECONCILED_USAGE = "unreconciled-usage"
+UNSUPPORTED_USAGE_SOURCE = "unsupported-usage-source"
 
 _UNAVAILABLE_REASONS = frozenset((
     COLLECTOR_ERROR,

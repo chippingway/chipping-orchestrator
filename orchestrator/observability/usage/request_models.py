@@ -186,8 +186,8 @@ class RequestObservation:
 class RequestMarker:
     """An explicit boundary the stream printed, at the line it printed it; never a request.
 
-    `conversation_id` names the conversation it bounds, and `parent_tool_use_id` the subagent call whose branch it
-    bounds where that is not the lead thread.
+    `conversation_id` names the conversation it bounds, and `parent_tool_use_id` the subagent call, or `turn_id` and
+    `parent_turn_id` the child turn, whose branch it bounds where that is not the lead thread.
     """
 
     kind: str
@@ -196,6 +196,8 @@ class RequestMarker:
     model: str | None = None
     previous_model: str | None = None
     parent_tool_use_id: str | None = None
+    turn_id: str | None = None
+    parent_turn_id: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return compact({
@@ -203,6 +205,8 @@ class RequestMarker:
             POSITION: self.position,
             CONVERSATION_ID: self.conversation_id,
             PARENT_TOOL_USE_ID: self.parent_tool_use_id,
+            "turn_id": self.turn_id,
+            "parent_turn_id": self.parent_turn_id,
             MODEL: self.model,
             "previous_model": self.previous_model,
         })

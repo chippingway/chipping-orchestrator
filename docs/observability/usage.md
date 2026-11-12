@@ -700,7 +700,8 @@ the stream gave nothing for is absent rather than null:
 Nothing is inferred into a sample: no timestamp, order across conversations, context capacity, or model is taken from
 unrelated data. A marker (`markers`) is an explicit boundary the stream printed -- `model-change`, with the `model` and
 `previous_model`, or a `compaction` or `reset` of the context -- with the `conversation_id` or `parent_tool_use_id` of
-the branch it bounds, and none is inferred where the stream prints no such boundary. A checkpoint (`checkpoints`) is
+the branch it bounds, or a Codex child turn's `turn_id` and `parent_turn_id`, and none is inferred where the stream
+prints no such boundary. A checkpoint (`checkpoints`) is
 aggregate usage over a wider scope than one request -- a terminal total over its whole `conversation`, every
 `lead-thread` request of one process, or every request one `model` served in it, that model named beside it -- with
 its `raw` counters, `turns`, `source_status`, and an `evidence` map naming each counter it reported no usable count
@@ -768,8 +769,8 @@ records `malformed-lines` itself, as below; the rest of the vocabulary is for a 
 `subagent-usage-unavailable`, `subagent-unidentified`, `subagent-attribution-conflicting`, `oversize-metadata`,
 `malformed-metadata`, `malformed-envelopes`, `malformed-usage`, `aggregate-only-usage` -- a stream reporting usage only
 in aggregate, with no request to observe it on -- `identity-conflicting`, a frame tying together identities the
-stream already gave different requests, and `unreconciled-usage`, a Codex report not proven a new request of the
-invocation.
+stream already gave different requests, `unreconciled-usage`, a Codex report not proven a new request of the
+invocation, and `unsupported-usage-source`, Codex usage reported only where no request is read from.
 
 **Bounded scan.** A collector reads stdout a second time, so `request_scan.py` bounds everything it adds, as module
 defaults read when a collection starts. The scan itself holds to at most 64 Mi characters of stdout (`MAX_SCAN_CHARS`;
@@ -1014,9 +1015,8 @@ request the invocation's own lines of that log settled, on sanitized codex-cli 0
 by a fresh run and five resumes: `request_codex_scope.py` proves which lines are the invocation's,
 `request_codex_fold.py` folds the log, and `request_codex_counters.py` reads a usage block. It reads `session_meta`,
 `turn_context`, and `compacted` lines, and `event_msg` lines naming `task_started`, `task_complete`, `turn_aborted`,
-`token_count`, `thread_rolled_back`, an `item_completed` subagent activity, or a legacy `sub_agent_activity`; a
-response item, a `token_usage_record` -- which repeats each response's counters under its response id -- the world
-state, and the settings lines are never read.
+`token_count`, `thread_rolled_back`, an `item_completed` subagent activity, or a legacy `sub_agent_activity`, and
+counts `token_usage_record` lines (below); a response item, the world state, and the settings lines are never read.
 
 The collector is dormant. `parse_agent_request_usage` still collects nothing for a Codex run, and nothing in the
 runtime looks a log up, reads one, or observes a launch; `request_codex.collect(stdout, session, fallback_model)` is
@@ -1046,20 +1046,24 @@ resume launched on a clock stepped back -- and so does a stamp earlier than the 
 Each of these is `invocation-unattributed`, as is, where the log and stdout were both read whole, a count of root turns
 opened past the boundary other than the `turn.started` lines stdout printed, none included -- a turn another process
 appended meanwhile, or one stdout never printed. A read cut short, or a stdout line the scan could not read, proves
-nothing about the turns past it, so that count is not compared there.
+nothing about the turns past it, so that count is not compared there. A stamp no UTC moment reads as -- no ISO
+moment, one naming no offset, or one its offset carries out of range -- is `malformed-metadata`, kept as written, and
+places nothing.
 
 A `task_started` opens a turn: one whose `turn_attribution` names a `parent_turn_id` is a child turn run in this log,
 whose requests are a branch of their own carrying their `turn_id` and `parent_turn_id`, opened once however often its
 start repeats, and one naming none a root turn of the thread, which abandons every turn still open; `task_complete` and
 `turn_aborted` close the turn they name, and a request belongs to the innermost turn the invocation opened that is
 still open. Past `MAX_BRANCHES` child turns named, or open at once, no later request can be told apart from its
-parent's, so each is a `correlation-limit` gap rather than a sample. A `turn_context` sets the model its turn runs on,
+parent's, so each is a `correlation-limit` gap rather than a sample, and so is the child turn the invocation started
+past the bound, whether or not a request follows it. A `turn_context` sets the model its turn runs on,
 a child's own or else the thread's, which holds until the next: on the capture, a resume switching models first
 compacts the thread with one request on the model the thread had, before the new turn's `turn_context`, so that
 request is the old model's. A thread request no `turn_context` precedes falls back to the configured `-m` model
 (`configured-fallback`); a child's without its own, or one after a `turn_context` naming a model this collection
-refused, is `unestablished`. A thread `turn_context` naming another model than the one before it is a `model-change`
-marker, a `compacted` line a `compaction` marker, and a `thread_rolled_back` event a `reset` marker; none is inferred.
+refused, is `unestablished`. A `turn_context` naming another model than the one its branch last ran on is a
+`model-change` marker -- a child turn's naming that turn's `turn_id` and `parent_turn_id` -- a `compacted` line a
+`compaction` marker, and a `thread_rolled_back` event a `reset` marker; none is inferred.
 A child turn the invocation opened that settled no request, and each distinct subagent thread its lines name -- in an
 `item_completed` `SubAgentActivity` item, or in a legacy history's `sub_agent_activity` event, which a legacy history
 persists for every activity but completion -- whose requests are in a log of that thread's own, never read, is a
@@ -1077,9 +1081,12 @@ counters staying at zero agree with -- the moving ones left unusable by an earli
 envelope this collection could not read -- which could have held the report it repeats, an earlier invocation's
 included -- is an `unreconciled-usage` gap rather than a sample, so no earlier request is ever copied into a later
 invocation. An `info` of null is a notification with no usage; one that is no object, or naming no running sum or no
-request usage, is `malformed-usage`. A sample is keyed `rollout-line:<line>` (`native-position`), its `position` that
-line, its `session_id` and `conversation_id` the session, `final` as `token-count` settled it, with the line's stamp
-as `source_timestamp`, `model_context_window` as `context_capacity`, and `last_usage_includes_reasoning` in
+request usage, is `malformed-usage`. The CLI also writes a `token_usage_record` beside each request, repeating its
+counters under its response id; no request is read off one, but the invocation's records are counted, and each beyond
+its `token_count` reports that repeat nothing is an `unsupported-usage-source` gap, so a log whose reports are missing
+never reads as an invocation that made no request. A sample is keyed `rollout-line:<line>` (`native-position`), its
+`position` that line, its `session_id` and `conversation_id` the session, `final` as `token-count` settled it, with the
+line's stamp as `source_timestamp`, `model_context_window` as `context_capacity`, and `last_usage_includes_reasoning` in
 `source_flags` as reported -- a value that is no boolean is `malformed-metadata`. Only a fresh run names a
 `source_version`, its `session_meta`'s `cli_version`: a resumed run's log was begun by an earlier process, whose
 version that is. Requests past `MAX_TRACKED_STEPS` and markers past `MAX_MARKERS` are `correlation-limit` gaps, and an
