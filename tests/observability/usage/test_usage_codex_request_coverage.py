@@ -98,7 +98,9 @@ _LEGACY_LOG = (
 _RESUMED_STAMP = '"timestamp":"2026-11-12T13:55:10.322Z"'
 _EARLY_STAMP = '"timestamp":"2026-11-12T13:50:00.000Z"'
 _FOREIGN_TURN = codex.event(codex.TASK_STARTED, turn_id=codex.CHILD_TURN)
-_REPEAT = codex.token_count(codex.LAST_RUNNING, (16500, 16000, 0, 25, 5, 16525))
+# The captured log's last request, and a report of it again.
+_LAST_REQUEST = (16500, 16000, 0, 25, 5, 16525)
+_REPEAT = codex.token_count(codex.LAST_RUNNING, _LAST_REQUEST)
 _WRONG = codex.token_count(codex.NEXT_RUNNING, (999, 500, 0, 10, 2, 1009))
 _SMALLER = (1, 0, 0, 1, 0, 2)
 _BACKWARD = codex.token_count(_SMALLER, _SMALLER)
@@ -111,6 +113,10 @@ _THREAD_ONLY = MappingProxyType({"total_token_usage": codex.counters(codex.NEXT_
 _LAST_ONLY = MappingProxyType({"total_token_usage": codex.counters(codex.LAST_RUNNING)})
 _NEGATIVE_REPEAT = (-1, 0, 0, 10, 0, 9)
 _REPEAT_NO_USAGE = codex.event(codex.TOKEN_COUNT, info=dict(_LAST_ONLY))
+# Repeats of the captured log's last request whose own parts contradict each other, or whose metadata is malformed.
+_REPEAT_PAST_INPUT = codex.token_count(codex.LAST_RUNNING, (1000, 2000, 0, 10, 2, 1010))
+_REPEAT_BAD_WINDOW = codex.token_count(codex.LAST_RUNNING, _LAST_REQUEST, model_context_window=-1)
+_REPEAT_BAD_FLAG = codex.token_count(codex.LAST_RUNNING, _LAST_REQUEST, last_usage_includes_reasoning="yes")
 _INVALID = coverage.INVALID_COUNTERS
 # A request's usage leaving its reasoning out, and what its report says beside it: nothing more, or a reasoning flag or
 # context window no usable value, each with the malformed metadata it is.
@@ -220,6 +226,9 @@ _UNREADABLE = (
     ("no kind", json.dumps({"timestamp": codex.STAMP, "payload": {}}), coverage.MALFORMED_ENVELOPES),
     ("a repeat naming no request usage", _REPEAT_NO_USAGE, coverage.MALFORMED_USAGE),
     ("a repeat reporting no whole count", codex.token_count(codex.LAST_RUNNING, _NEGATIVE_REPEAT), _INVALID),
+    ("a repeat whose reads pass its input", _REPEAT_PAST_INPUT, coverage.CONFLICTING_COUNTERS),
+    ("a repeat beside a malformed window", _REPEAT_BAD_WINDOW, coverage.MALFORMED_METADATA),
+    ("a repeat beside a malformed flag", _REPEAT_BAD_FLAG, coverage.MALFORMED_METADATA),
 )
 _CONFLICTING = coverage.CONFLICTING_COUNTERS
 # Requests whose counters are no usable count, each beside the running sum it advances, the field it leaves unusable,
@@ -237,15 +246,31 @@ _UNUSABLE = (
 _INVALID_RUNNING = (*codex.NEXT_RUNNING[:5], -1)
 _NO_OBJECTS = ('[{"type":"event_msg"}]', "Codex ready")
 _UNUSABLE_STATES = frozenset((_INVALID_STATE, "conflicting"))
+# Children the invocation's lines expose less than whole, each with the gaps it leaves and the requests kept: a child
+# turn naming no id can never be closed, and one its parent finished without keeps what it settled, unfinished.
+_UNAVAILABLE_CHILD = MappingProxyType({coverage.SUBAGENT_USAGE_UNAVAILABLE: 1})
+_UNIDENTIFIED_CHILD = MappingProxyType({coverage.SUBAGENT_UNIDENTIFIED: 1})
+_UNNAMED_TURN = MappingProxyType({coverage.SUBAGENT_UNIDENTIFIED: 1, coverage.NO_TERMINAL_RESULT: 1})
 _UNEXPOSED = (
-    ("child turn with no request", (_CHILD_STARTED, _CHILD_COMPLETE), coverage.SUBAGENT_USAGE_UNAVAILABLE, 1),
-    ("child turn naming no model", (_CHILD_STARTED, _CHILD_REQUEST), coverage.SUBAGENT_MODEL_UNESTABLISHED, 1),
-    ("child turn naming no id", (_UNNAMED_CHILD, _NEXT), coverage.SUBAGENT_UNIDENTIFIED, 1),
-    ("child turn naming no id, no request", (_UNNAMED_CHILD,), coverage.SUBAGENT_UNIDENTIFIED, 1),
-    ("subagent threads", (_ACTIVITY, _ACTIVITY, _OTHER_ACTIVITY), coverage.SUBAGENT_USAGE_UNAVAILABLE, 2),
-    ("subagent naming no thread", (_UNNAMED_ACTIVITY,), coverage.SUBAGENT_UNIDENTIFIED, 1),
-    ("legacy subagent event", (_LEGACY_EVENT,), coverage.SUBAGENT_USAGE_UNAVAILABLE, 1),
-    ("legacy subagent event naming no thread", (_UNNAMED_LEGACY_EVENT,), coverage.SUBAGENT_UNIDENTIFIED, 1),
+    ("child turn with no request", (_CHILD_STARTED, _CHILD_COMPLETE), _UNAVAILABLE_CHILD, 0),
+    (
+        "child turn naming no model",
+        (_CHILD_STARTED, _CHILD_REQUEST, _CHILD_COMPLETE),
+        {coverage.SUBAGENT_MODEL_UNESTABLISHED: 1},
+        1,
+    ),
+    (
+        "child turn its parent finished without",
+        (_CHILD_STARTED, _CHILD_CONTEXT, _CHILD_REQUEST),
+        {coverage.NO_TERMINAL_RESULT: 1},
+        1,
+    ),
+    ("child turn naming no id", (_UNNAMED_CHILD, _NEXT), _UNNAMED_TURN, 0),
+    ("child turn naming no id, no request", (_UNNAMED_CHILD,), _UNNAMED_TURN, 0),
+    ("subagent threads", (_ACTIVITY, _ACTIVITY, _OTHER_ACTIVITY), {coverage.SUBAGENT_USAGE_UNAVAILABLE: 2}, 0),
+    ("subagent naming no thread", (_UNNAMED_ACTIVITY,), _UNIDENTIFIED_CHILD, 0),
+    ("legacy subagent event", (_LEGACY_EVENT,), _UNAVAILABLE_CHILD, 0),
+    ("legacy subagent event naming no thread", (_UNNAMED_LEGACY_EVENT,), _UNIDENTIFIED_CHILD, 0),
 )
 # Each correlation bound, held to its least, and how many entries past it a collection drops: a child turn refused
 # is one, whether or not a request follows it, and each request it leaves unattributable another.
@@ -528,9 +553,11 @@ class AttributionTest(unittest.TestCase):
         self.assertEqual(collection.status, coverage.COMPLETE)
 
     def test_unexposed_children_are_gaps(self) -> None:
-        for name, lines, gap, count in _UNEXPOSED:
+        for name, lines, gaps, kept in _UNEXPOSED:
             with self.subTest(name):
-                self.assertEqual(_appended_with(*lines).reasons.get(gap), count)
+                collection = _appended_with(*lines)
+                self.assertEqual(collection.reasons, dict(gaps))
+                self.assertEqual(len(collection.samples), kept)
 
     def test_a_legacy_history_names_its_subagents(self) -> None:
         # A legacy history persists a subagent's activity as an event of its own; its usage is a gap all the same.

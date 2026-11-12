@@ -18,18 +18,20 @@ a child turn's naming that turn and the one it was started from -- a `compacted`
 `thread_rolled_back` event a `reset` marker.
 
 Requests. Each `token_count` reports one request's own usage (`last_token_usage`) beside its branch's running sum
-(`total_token_usage`). A sum equal to the last one the branch reported repeats a notification -- the CLI prints the
-same report again, opens a turn with the sum the last one left, and follows a compaction with a context estimate --
-and is no request. A sum advancing by exactly the request's own counters, at least one of them moving, is a new
-request, so two requests of equal counts stay two; one advancing by anything else, one only counters staying at zero
-agree with, or one following a line this pass could not read -- which could have been the report it repeats -- is not
-proven a new request, and is an `unreconciled-usage` gap rather than a sample, so no earlier invocation's request is
-ever copied into this one. A repeat is no request, but the usage block it carries is still evidence, so one naming no
-counter, or reporting one as no whole count, is a gap all the same. The thread's running sums are checkpoints of the
-whole conversation: the last one before the boundary as the invocation's baseline, and the ones its own requests
-advance. A request the earlier lines settled after that last sum -- a usage record no `token_count` reported -- leaves
-it behind, so no baseline is established, and the invocation's first report is not proven new. A child turn's sums are
-kept only to prove its requests, since nothing establishes what they span.
+(`total_token_usage`). A sum equal to the last one the branch reported repeats a notification -- the CLI prints the same
+report again, opens a turn with the sum the last one left, and follows a compaction with a context estimate -- and is no
+request. A sum advancing by exactly the request's own counters, at least one of them moving, is a new request, so two
+requests of equal counts stay two; one advancing by anything else, one only counters staying at zero agree with, or one
+following a line this pass could not read -- which could have been the report it repeats -- is not proven a new request,
+and is an `unreconciled-usage` gap rather than a sample, so no earlier invocation's request is ever copied into this
+one. A repeat is no request, but what it carries is still evidence: a usage block naming no counter, reporting one as no
+whole count, or holding a part past its whole, and metadata reported malformed beside it, are gaps all the same, while
+its total alone is not held to its parts, since the context estimate after a compaction reports one beside no input or
+output. The thread's running sums are checkpoints of the whole conversation: the last one before the boundary as the
+invocation's baseline, and the ones its own requests advance. A request the earlier lines settled after that last sum --
+a usage record no `token_count` reported -- leaves it behind, so no baseline is established, and the invocation's first
+report is not proven new. A child turn's sums are kept only to prove its requests, since nothing establishes what they
+span.
 
 Every request the CLI settles also writes a `token_usage_record` repeating its counters under its response id. No
 request is read off one -- its counters are never a sample -- but the invocation's records are counted, and each beyond
@@ -49,6 +51,7 @@ its own parts, is a gap of the collection keeping it as well as its own evidence
 from __future__ import annotations
 
 from collections import Counter, deque
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Any, NamedTuple
@@ -59,9 +62,8 @@ from orchestrator.observability.usage.request_codex_counters import (
     Counters,
     attribution,
     checkpoint,
-    context_capacity,
     repeat_gaps,
-    source_flags,
+    report_metadata,
 )
 from orchestrator.observability.usage.request_codex_scope import (
     PAYLOAD,
@@ -100,12 +102,17 @@ class Line(NamedTuple):
 
 
 class Report(NamedTuple):
-    """One readable `token_count`: its line, its `info`, the running sum it reports, and whether the last is known."""
+    """One readable `token_count`: its line, its `info`, the running sum it reports, and whether the last is known.
+
+    `capacity` and `flags` are what the invocation's report gives beside its usage, judged once whatever it proves.
+    """
 
     line: Line
     token_info: dict[str, Any]
     running: Counters
     proven: bool
+    capacity: int | None = None
+    flags: Mapping[str, bool] | None = None
 
 
 class Envelope(NamedTuple):
@@ -238,15 +245,17 @@ class Requests:
     ) -> None:
         """Read a `token_count`'s running sum: a repeat is nothing, and anything else moves its branch on to it.
 
-        A repeat of the invocation's is no request, but the request usage it carries is evidence all the same, so a
-        block that names no counter or reports one no whole count is a gap of the collection.
+        A repeat of the invocation's is no request, but what it carries is evidence all the same, so the metadata
+        beside every report of the invocation's is judged, and a repeat's request usage held to its own parts.
         """
+        details = report_metadata(token_info, self.metadata) if line.own else (None, None)
         running = Counters.of(token_info.get("total_token_usage"))
         if running is None:
             self.gaps[coverage.MALFORMED_USAGE] += line.own
             branch.proven = False
             return
-        report = Report(line, token_info, running, branch.proven_at(self.scan.unread_lines))
+        proven = branch.proven_at(self.scan.unread_lines)
+        report = Report(line, token_info, running, proven, *details)
         if report.proven and running.repeats(branch.running):
             self.repeats += line.own
             if line.own:
@@ -287,7 +296,6 @@ class Requests:
         """One request as its sample, keyed by the log line that reported it."""
         position = report.line.position
         parent = None if turn is None else turn.parent_turn_id
-        capacity = context_capacity(report.token_info, self.metadata)
         return request_models.RequestObservation(
             identity=request_models.RequestIdentity(
                 key=f"{NATIVE_LINE}:{position}",
@@ -300,14 +308,14 @@ class Requests:
             position=position,
             branch_order=branch.kept,
             attribution=attribution(
-                branch.model, parent is not None, self.fallback_model, capacity, self.version,
+                branch.model, parent is not None, self.fallback_model, report.capacity, self.version,
             ),
             usage=own_usage.normalized(),
             raw=MappingProxyType(own_usage.raw),
             status=request_models.FINAL,
             settlement=SETTLED_BY_TOKEN_COUNT,
             source_timestamp=report.line.stamp,
-            source_flags=source_flags(report.token_info, self.metadata),
+            source_flags=report.flags,
         )
 
 

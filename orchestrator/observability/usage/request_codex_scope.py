@@ -35,8 +35,9 @@ Where either proof fails, the collection names why and attributes nothing; it ne
 Turns. A `task_started` opens a turn. One whose `turn_attribution` names a `parent_turn_id` is a child turn run inside
 this log, its requests a branch of their own; one naming none is a root turn of the session's own thread, and opening
 it abandons every turn still open, since the thread has moved on -- a turn an earlier process left unfinished is never
-taken for this one's. A `task_complete` or `turn_aborted` closes the turn it names. A request belongs to the innermost
-turn the invocation opened that is still open when it settles, or to the thread where there is none.
+taken for this one's. A `task_complete` or `turn_aborted` closes the turn it names, and a turn the invocation opened
+that none closed -- a child turn its parent finished without included -- never finished. A request belongs to the
+innermost turn the invocation opened that is still open when it settles, or to the thread where there is none.
 """
 
 from __future__ import annotations
@@ -276,9 +277,12 @@ class Turns:
         return turn is None or turn.parent_turn_id is None
 
     def abandon(self) -> None:
-        """Count the invocation's root turns still open as never closed, and close every open turn."""
-        open_roots = [turn for turn in self.open if turn.parent_turn_id is None]
-        self.unclosed += sum(turn.own for turn in open_roots)
+        """Count the invocation's turns still open as never closed, and close every open turn.
+
+        A child turn its parent finished without is as unfinished as a root turn no line closed, whatever requests
+        it settled before.
+        """
+        self.unclosed += sum(turn.own for turn in self.open)
         self.open = []
 
     def _parent(self, payload: dict[str, Any]) -> str | None:

@@ -50,10 +50,11 @@ COUNTERS = MappingProxyType({
     "reasoning_output_tokens": normalization.REASONING,
     "total_tokens": normalization.SOURCE_TOTAL,
 })
+_SOURCE_TOTAL = "total_tokens"
 # The normalized fields a block's own arithmetic can contradict, by the source counter each stands for: a total that is
 # not its input plus its output, reasoning beyond its output, and cache reads and writes beyond the input holding them.
 _RELATED = MappingProxyType({
-    normalization.SOURCE_TOTAL_TOKENS: "total_tokens",
+    normalization.SOURCE_TOTAL_TOKENS: _SOURCE_TOTAL,
     normalization.REASONING_TOKENS: "reasoning_output_tokens",
     normalization.CACHE_READ_TOKENS: "cached_input_tokens",
     normalization.CACHE_WRITE_TOKENS: CACHE_WRITES,
@@ -217,15 +218,26 @@ def context_capacity(token_info: dict[str, Any], metadata: request_scan.Metadata
 def repeat_gaps(token_info: dict[str, Any]) -> tuple[str, ...]:
     """The gaps the request usage a repeated report carries leaves, though the report is no request.
 
-    A block naming no counter is malformed usage, and a counter it reports as no whole count an invalid one. Its
-    arithmetic is not held to a request's: after a compaction the CLI reports a context estimate whose total stands
+    A block naming no counter is malformed usage, a counter it reports as no whole count an invalid one, and a part
+    exceeding its whole -- cache reads or writes past the input, reasoning past the output -- a contradiction. Its
+    total alone is not held to its parts: after a compaction the CLI reports a context estimate whose total stands
     beside no input or output, and a repeat sizes nothing.
     """
     own = Counters.of(token_info.get(LAST_USAGE))
     if own is None:
         return (coverage.MALFORMED_USAGE,)
-    unusable = [reading.state for reading in own.readings.values() if not reading.known]
-    return tuple(coverage.evidence_gaps(unusable))
+    evidence = own.evidence()
+    if evidence.get(_SOURCE_TOTAL) == normalization.CONFLICTING:
+        evidence.pop(_SOURCE_TOTAL)
+    return tuple(coverage.evidence_gaps(evidence.values()))
+
+
+def report_metadata(
+    token_info: dict[str, Any],
+    metadata: request_scan.Metadata,
+) -> tuple[int | None, MappingProxyType[str, bool] | None]:
+    """The context capacity and the flags a report gives beside its usage, each it reports malformed counted."""
+    return context_capacity(token_info, metadata), source_flags(token_info, metadata)
 
 
 def source_flags(
