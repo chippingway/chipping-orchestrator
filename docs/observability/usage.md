@@ -661,7 +661,8 @@ the explicit boundary markers the stream printed, its aggregate checkpoints, and
 `None`, and the trajectory writer collects it on every tracked exit behind a failure boundary of its own, as the
 [trajectory sink](trajectories.md#trajectory-sink-trajectory_log_path) describes. An Antigravity and a Claude stream
 each have a collector; a Codex run collects none, so its record leaves the field out, which means the run's requests
-were not collected, never that it made none. The contract is observation alone: pricing, the run's `UsageMetrics`, the
+were not collected, never that it made none. The Codex collector, which reads a native session log, is dormant, called
+by no dispatch yet (Codex requests, below). The contract is observation alone: pricing, the run's `UsageMetrics`, the
 accounting checkpoint and pinned totals, the cost and token evidence, Claude's turns, and the viewer's timeline are
 computed exactly as they would be without it, and never read a sample, marker, or checkpoint.
 
@@ -672,18 +673,21 @@ the stream gave nothing for is absent rather than null:
   kind of key it is -- `conversation-step` (`<conversation>:<step>`) or `process-step` (`process:<step>`, for a step
   naming no conversation, known only within the process that printed it), `api-message` (a message id),
   `api-request` (the id of the API request that produced the message), `handback-call` (`handback:<call>`, the
-  output of a subagent's closing message under the call its hand-back answers), or `source-position`
-  (`position:<line>`, for a request the stream named no identity for) -- and every identity the stream gave:
-  `conversation_id`, `session_id`, `turn_id`, `message_id`, `request_id`, `step_index`, `parent_conversation_id`,
-  `parent_step_index`, `parent_tool_use_id`, `agent_id`, and `subagent_type`, beside `trajectory_turn`, the index of
-  the record's `turns` entry and steps the request is numbered under, by the key it settles under, where the
-  trajectory numbers it;
+  output of a subagent's closing message under the call its hand-back answers), `source-position`
+  (`position:<line>`, for a request the stream named no identity for), or `native-position` (`rollout-line:<line>`,
+  a Codex request known by the line of its native session log that reported it) -- and every identity the stream
+  gave: `conversation_id`, `session_id`, `turn_id`, `message_id`, `request_id`, `step_index`,
+  `parent_conversation_id`, `parent_step_index`, `parent_tool_use_id`, `parent_turn_id`, `agent_id`, and
+  `subagent_type`, beside `trajectory_turn`, the index of the record's `turns` entry and steps the request is
+  numbered under, by the key it settles under, where the trajectory numbers it;
 - order: `position`, the 0-based stdout line its collector places it at -- the one that completed an Antigravity step,
-  the first one printing a Claude request -- and `branch_order`, its place among its own branch's samples -- a
-  conversation, or on Claude the lead thread or one subagent call; neither orders it against another branch's;
-- source: `source_kind` (the provider's own kind of request), `source_timestamp`, `source_duration_s`, and
-  `source_version`. A source timestamp is the stream's own; when a collection ran is the record's `ts`, never a sample
-  field;
+  the first one printing a Claude request -- or, on Codex, the 0-based line of the native session log reporting it,
+  and `branch_order`, its place among its own branch's samples -- a conversation, on Claude the lead thread or one
+  subagent call, on Codex the thread or one child turn; neither orders it against another branch's;
+- source: `source_kind` (the provider's own kind of request), `source_timestamp`, `source_duration_s`,
+  `source_version`, and `source_flags`, the allowlisted flags the source reported beside the counters as it reported
+  them -- Codex's `last_usage_includes_reasoning`. A source timestamp is the source's own; when a collection ran is
+  the record's `ts`, never a sample field;
 - attribution: `model` with its `model_source` -- `stream` where the stream named it, `configured-fallback` where it
   named none and the configured model stands in, `unestablished` where the stream leaves it unknown, and
   `unavailable` where neither exists -- and `context_capacity` where the stream reports one;
@@ -742,12 +746,17 @@ context.
 **Coverage.** Each collection states its `coverage`: `status`, `reasons` (each gap's code and how often it occurred,
 from a vocabulary fixed in `request_coverage.py`), `limitations` (what the source never reports), and `scan_scope`,
 beside `scanned_lines` and `skipped_lines` and the observed and retained counts of samples, markers, and checkpoints.
-The status is read off the reasons, most severe first: `unavailable` where nothing could be read (`no-stream-events`,
-`collector-error`), `source-limit-truncated` where a bound cut the scan short (`scan-limit`, `oversize-lines`,
-`correlation-limit`), `storage-truncated` where the record kept fewer samples or markers than were observed
+The status is read off the reasons, most severe first: `unavailable` where nothing attributable to the invocation
+could be read (`no-stream-events`, `collector-error`, and the native-log reasons a Codex collection states:
+`no-session-identity`, `no-launch-observation`, `native-log-missing`, `native-log-unreadable`, `discovery-limit`,
+`native-identity-unproven`, and `invocation-unattributed`, below), `source-limit-truncated` where a bound cut the scan
+short or the source stopped answering partway (`scan-limit`, `oversize-lines`, `correlation-limit`,
+`native-read-interrupted`), `storage-truncated` where the record kept fewer samples or markers than were observed
 (`storage-budget`, counting the dropped entries), `incomplete` for any other gap, and `complete-empty` or `complete`
 where there is none, with no sample or with some. A scan a bound cut short is `partial` in `scan_scope`, so its observed
-count is never read as the invocation's; one that read nothing is `none`. A request leaves its own gaps where a core
+count is never read as the invocation's; one that read nothing is `none`, and so is one whose lines established nothing
+of the invocation -- a native log not proven the session's own, or one nothing in which places the invocation --
+however many it read, while a stream read through without an event covers it. A request leaves its own gaps where a core
 counter -- its context input or output -- establishes no count (`missing-counters`, `unsupported-counters`), any of its
 fields is invalid or conflicting (`invalid-counters`, `conflicting-counters`), its usage is provisional
 (`provisional-usage`), or it has no model (`model-unattributed`, or `subagent-model-unestablished` for a subagent's). An
@@ -758,8 +767,9 @@ records `malformed-lines` itself, as below; the rest of the vocabulary is for a 
 `no-terminal-result`, `unsettled-steps`, `unreported-usage`, `unindexed-frames`, `conversation-ambiguous`,
 `subagent-usage-unavailable`, `subagent-unidentified`, `subagent-attribution-conflicting`, `oversize-metadata`,
 `malformed-metadata`, `malformed-envelopes`, `malformed-usage`, `aggregate-only-usage` -- a stream reporting usage only
-in aggregate, with no request to observe it on -- and `identity-conflicting`, a frame tying together identities the
-stream already gave different requests.
+in aggregate, with no request to observe it on -- `identity-conflicting`, a frame tying together identities the
+stream already gave different requests, and `unreconciled-usage`, a Codex report not proven a new request of the
+invocation.
 
 **Bounded scan.** A collector reads stdout a second time, so `request_scan.py` bounds everything it adds, as module
 defaults read when a collection starts. The scan itself holds to at most 64 Mi characters of stdout (`MAX_SCAN_CHARS`;
@@ -778,7 +788,13 @@ like a JSON object that decodes to none -- cut short, or refused by the decoder 
 banner text and a value that is no object, which could never have been an event, are skipped without being one. The
 decoder's refusal is caught by the scan alone, for the line it was decoding: the run parsers still refuse such a
 stream, as Resilience above describes, so a tracked run carrying one publishes no total and reconstructs no timeline,
-while its trajectory record still carries the collection, marked `stream_refused`.
+while its trajectory record still carries the collection, marked `stream_refused`. A Codex collection decodes its
+native session log's lines through the same decoder and gap accounting, one at a time as they are handed over
+(`EventScan.counted`), keeping none: a line past `MAX_LINE_CHARS` is an `oversize-lines` gap however it arrived, and
+any line holding no object a `malformed-lines` one. The bounds a reader of that log is held to are defined beside
+these, so a collection reads them all from `current_limits`: 4,096 session directories (`MAX_SESSION_DIRECTORIES`)
+and 262,144 directory entries (`MAX_SESSION_ENTRIES`) a lookup examines, and 64 MiB of the log (`MAX_LOG_BYTES`)
+beside `MAX_EVENTS` lines a read takes. No reader holds them yet, since the collector is dormant.
 
 **Antigravity requests.** `request_agy.py` produces one observation per completed usage-bearing step of the process's
 own stream, on the same agy 1.4.10 captures the run accounting is pinned to. A step is keyed by its conversation and
@@ -988,5 +1004,111 @@ sample known by no message id, every hand-back included), `no-agent-id` (a subag
 `no-source-version`, `no-source-timestamps`, and `no-context-capacity` where this stream left them out. The run
 accounting is unchanged: its settled rows also name the report each output rests on (`message-start`, `message-delta`,
 `model-usage`, or `handback`), which only this collection reads.
+
+**Codex requests.** `codex exec --json` prints usage only on `turn.completed`, a running sum of the whole thread --
+every request of the turn, and on `exec resume` every earlier invocation's too -- so its stdout holds no request, and
+that block is never a sample nor a source a request's size is inferred from. The requests are in the native session
+log the CLI writes beside it, `<CODEX_HOME>/sessions/YYYY/MM/DD/rollout-<local time>-<session id>.jsonl`, one JSON
+object per line carrying a `timestamp`, a `type`, and a `payload`. `request_codex.py` produces one observation per
+request the invocation's own lines of that log settled, on sanitized codex-cli 0.167.1 captures of one session written
+by a fresh run and five resumes: `request_codex_scope.py` proves which lines are the invocation's,
+`request_codex_fold.py` folds the log, and `request_codex_counters.py` reads a usage block. It reads `session_meta`,
+`turn_context`, and `compacted` lines, and `event_msg` lines naming `task_started`, `task_complete`, `turn_aborted`,
+`token_count`, `thread_rolled_back`, an `item_completed` subagent activity, or a legacy `sub_agent_activity`; a
+response item, a `token_usage_record` -- which repeats each response's counters under its response id -- the world
+state, and the settings lines are never read.
+
+The collector is dormant. `parse_agent_request_usage` still collects nothing for a Codex run, and nothing in the
+runtime looks a log up, reads one, or observes a launch; `request_codex.collect(stdout, session, fallback_model)` is
+called directly, by its tests alone. Its `session`, a `NativeSession`, carries the invocation's facts -- the session id
+the run returned, whether it resumed one, a UTC moment read just before its launch off the clock the CLI stamps by,
+and, for a resume, how many whole lines the log held at that moment -- and the log's lines as `(line, text)` pairs it
+reads one at a time, never holding the log whole. A caller with no line to hand over states why instead
+(`no-session-identity`, `native-log-missing`, `native-log-unreadable`, `discovery-limit`, `native-identity-unproven`,
+or `invocation-unattributed`), and no session at all is `no-launch-observation`; each attributes nothing. A caller
+that reads the log under its own bounds shares the `EventScan` it records them in -- a byte or line bound reached is a
+`scan-limit` gap, a read failing partway a `native-read-interrupted` one -- and the collection is then `partial`; one
+handing over no scan has the collection decode into its own. A native log holds JSON objects alone, so a line holding
+none -- cut short, a value that is no object, or plain text -- is a `malformed-lines` gap, a last line the process
+never finished writing among them.
+
+Nothing marks where one invocation's lines end, since a resume appends to the same file writing no `session_meta`, so
+the collection attributes a line only under two proofs, and where either fails it attributes nothing and says why --
+never a guessed suffix. The log has to be the session's own: its first line a `session_meta` whose `id` is the
+returned session (`native-identity-unproven` otherwise). And the launch has to place the invocation. A fresh run's log
+did not exist before it, so every line is its own; a resumed run's lines are exactly the ones past the whole lines its
+log held at the launch, since the log only grows by appending -- a line stamped in the launch's own millisecond, or
+with no stamp at all, its sample then naming no source timestamp, included -- and a resume with no count, or whose log
+held no line, is placed by nothing. Every stamp is then held against that placement, to the millisecond the CLI stamps
+to: an own line stamped more than a millisecond before the launch, or an earlier line stamped more than a millisecond
+after it, means the clock moved under the log -- the fresh invocation's last requests, say, stamped later than a
+resume launched on a clock stepped back -- and so does a stamp earlier than the one before it, anywhere in the log.
+Each of these is `invocation-unattributed`, as is, where the log and stdout were both read whole, a count of root turns
+opened past the boundary other than the `turn.started` lines stdout printed, none included -- a turn another process
+appended meanwhile, or one stdout never printed. A read cut short, or a stdout line the scan could not read, proves
+nothing about the turns past it, so that count is not compared there.
+
+A `task_started` opens a turn: one whose `turn_attribution` names a `parent_turn_id` is a child turn run in this log,
+whose requests are a branch of their own carrying their `turn_id` and `parent_turn_id`, opened once however often its
+start repeats, and one naming none a root turn of the thread, which abandons every turn still open; `task_complete` and
+`turn_aborted` close the turn they name, and a request belongs to the innermost turn the invocation opened that is
+still open. Past `MAX_BRANCHES` child turns named, or open at once, no later request can be told apart from its
+parent's, so each is a `correlation-limit` gap rather than a sample. A `turn_context` sets the model its turn runs on,
+a child's own or else the thread's, which holds until the next: on the capture, a resume switching models first
+compacts the thread with one request on the model the thread had, before the new turn's `turn_context`, so that
+request is the old model's. A thread request no `turn_context` precedes falls back to the configured `-m` model
+(`configured-fallback`); a child's without its own, or one after a `turn_context` naming a model this collection
+refused, is `unestablished`. A thread `turn_context` naming another model than the one before it is a `model-change`
+marker, a `compacted` line a `compaction` marker, and a `thread_rolled_back` event a `reset` marker; none is inferred.
+A child turn the invocation opened that settled no request, and each distinct subagent thread its lines name -- in an
+`item_completed` `SubAgentActivity` item, or in a legacy history's `sub_agent_activity` event, which a legacy history
+persists for every activity but completion -- whose requests are in a log of that thread's own, never read, is a
+`subagent-usage-unavailable` gap, the threads past `MAX_BRANCHES` a `correlation-limit` one, and a child turn the
+invocation opened or an activity naming no id a `subagent-unidentified` one, whether or not a request settles in it,
+since no branch can keep that request.
+
+Each `token_count` carries a request's own counters in `info.last_token_usage` beside its branch's running sum in
+`info.total_token_usage`, and a request's counters are read off the first alone. A running sum equal to the last one
+its branch reported is a repeated notification and no request: the capture's resumed turn opens with the sum the
+earlier invocation left, and its compaction is followed by a context estimate whose sum does not move. One advancing by
+exactly the request's own counters -- on every counter all three report a count of, at least one of them moving by a
+count above zero -- is a new request, so two requests of equal counts stay two; one advancing otherwise, one only
+counters staying at zero agree with -- the moving ones left unusable by an earlier sum -- or one after a line or
+envelope this collection could not read -- which could have held the report it repeats, an earlier invocation's
+included -- is an `unreconciled-usage` gap rather than a sample, so no earlier request is ever copied into a later
+invocation. An `info` of null is a notification with no usage; one that is no object, or naming no running sum or no
+request usage, is `malformed-usage`. A sample is keyed `rollout-line:<line>` (`native-position`), its `position` that
+line, its `session_id` and `conversation_id` the session, `final` as `token-count` settled it, with the line's stamp
+as `source_timestamp`, `model_context_window` as `context_capacity`, and `last_usage_includes_reasoning` in
+`source_flags` as reported -- a value that is no boolean is `malformed-metadata`. Only a fresh run names a
+`source_version`, its `session_meta`'s `cli_version`: a resumed run's log was begun by an earlier process, whose
+version that is. Requests past `MAX_TRACKED_STEPS` and markers past `MAX_MARKERS` are `correlation-limit` gaps, and an
+id or model past `MAX_METADATA_CHARS` is refused metadata.
+
+`raw` reads `input_tokens`, `cached_input_tokens`, `cache_write_input_tokens`, `output_tokens`,
+`reasoning_output_tokens`, and `total_tokens` and nothing else of a block. The context input is the input, which
+already holds the cache reads and writes; the output is apart, the reasoning a part of it, never added to it, and
+unknown where the block leaves it out; and `total_tokens` is the source total, the input plus the output. The CLI
+prints a write count the response did not report as 0, so a raw zero is kept in `raw` but establishes neither that
+nothing was written nor a lifetime: the normalized writes and their lifetimes are `missing`. The capture's first
+request -- 12,000 input tokens holding 4,000 cache reads and 7,000 cache writes, 500 output tokens holding 100 of
+reasoning -- has 12,000 context-input tokens and a `total_tokens` of 12,500. Contradictory and invalid counters are
+kept with their evidence, as on every profile.
+
+The thread's running sums are checkpoints of `conversation` scope: an `invocation-baseline`, the last one before the
+boundary where nothing unread followed it, and a `cumulative-total` for each one the invocation's requests advanced,
+the baseline and the last `MAX_CHECKPOINTS` less one kept, each held to a request's arithmetic -- a counter it reports
+no usable count of, or that its own total or parts contradict, is `invalid` or `conflicting` in its `evidence` and an
+`invalid-counters` or `conflicting-counters` gap -- while a child turn's sums prove its requests and are no
+checkpoint, since nothing establishes what they span. A fresh run's last running sum is the sum of its complete
+samples, and a resumed run's samples are what its last advanced past its baseline -- a reader's check, never a source
+of a request or a compaction -- while a thread total spanning earlier invocations is never forced to match. A root
+turn the invocation opened that no `task_complete` or `turn_aborted` closed -- an interrupted run's -- is a
+`no-terminal-result` gap, and a resume no request settled usage for, such as one the provider failed, is
+`complete-empty`. Every collection lists `no-request-ids`, `no-cache-write-lifetimes`, and
+`ambiguous-zero-cache-writes` among its `limitations`, and adds `no-source-version`, `no-source-timestamps`, and
+`no-context-capacity` where its source left them out. No transcript text, working directory, or credential the log
+holds reaches the collection. The run accounting is unchanged: `codex_requests.py` and `codex_summary.py` still price
+the last cumulative `turn.completed` block once, and no sample is read by it.
 
 [pinned-state]: ../state-machine/labels-and-state.md#pinned-state

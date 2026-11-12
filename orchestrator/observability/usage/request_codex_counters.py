@@ -1,0 +1,215 @@
+# Copyright 2026 Geser Dugarov
+# SPDX-License-Identifier: Apache-2.0
+"""A Codex native `token_count` usage block read into counters: one request's own, or the thread's running sum.
+
+codex-cli 0.167.1 appends an `event_msg` `token_count` line to its session log as each request settles, and its
+`info` carries the same six counters twice: `last_token_usage`, the usage of the request that just settled, and
+`total_token_usage`, the thread's running sum of every request it ever made -- every earlier invocation of a resumed
+session included. `input_tokens` is a request's whole input, holding its cache reads (`cached_input_tokens`) and its
+cache writes (`cache_write_input_tokens`); `output_tokens` holds `reasoning_output_tokens`; and `total_tokens` is the
+input plus the output. Only those six are read off a block; nothing else of a line is.
+
+The cache-write count is the CLI's flat field, which it prints as zero where a response reported no write count at
+all: a raw zero is kept in `raw` as reported, but it establishes neither that nothing was written nor any lifetime, so
+the normalized cache writes are unknown there, and no lifetime split is ever reported.
+
+A request's own counters become a sample; the running sum is a checkpoint, never a request. Each request advances the
+running sum by exactly its own counters, moving at least one of them -- a request always has input -- which is what
+proves a line a new request rather than a repeat of the last one: a repeat leaves the sum where it was, and counters
+that stay at zero agree with any report. Nothing here derives a request, or a compaction, from the difference
+between two sums.
+"""
+
+from __future__ import annotations
+
+from collections import Counter
+from collections.abc import Mapping
+from dataclasses import dataclass
+from types import MappingProxyType
+from typing import Any
+
+from orchestrator.observability.usage import (
+    protocol,
+    request_coverage as coverage,
+    request_models,
+    request_normalization as normalization,
+    request_scan,
+)
+from orchestrator.observability.usage.request_normalization import Reading
+
+CACHE_WRITES = "cache_write_input_tokens"
+REASONING_FLAG = "last_usage_includes_reasoning"
+# The counters a block is read for, each under the provider-neutral counter it normalizes as.
+COUNTERS = MappingProxyType({
+    protocol.INPUT_TOKENS: normalization.INPUT,
+    "cached_input_tokens": normalization.CACHE_READ,
+    CACHE_WRITES: normalization.CACHE_WRITE,
+    protocol.OUTPUT_TOKENS: normalization.OUTPUT,
+    "reasoning_output_tokens": normalization.REASONING,
+    "total_tokens": normalization.SOURCE_TOTAL,
+})
+# The normalized fields a block's own arithmetic can contradict, by the source counter each stands for: a total that is
+# not its input plus its output, reasoning beyond its output, and cache reads and writes beyond the input holding them.
+_RELATED = MappingProxyType({
+    normalization.SOURCE_TOTAL_TOKENS: "total_tokens",
+    normalization.REASONING_TOKENS: "reasoning_output_tokens",
+    normalization.CACHE_READ_TOKENS: "cached_input_tokens",
+    normalization.CACHE_WRITE_TOKENS: CACHE_WRITES,
+})
+# What a thread's running sum stands at before its first request: nothing at all.
+_NOTHING = Reading(0, normalization.OBSERVED)
+# How far a counter moved where it did not move by the request's own count of it.
+_MISMATCH = -1
+
+
+@dataclass(frozen=True)
+class Counters:
+    """The counters one block reported, by source counter: a count, or the evidence of why it is none."""
+
+    readings: Mapping[str, Reading]
+
+    @classmethod
+    def of(cls, block: Any) -> Counters | None:
+        """The counters `block` reports; None where it is no object or names none of them."""
+        if not isinstance(block, dict):
+            return None
+        readings = {
+            counter: Reading.of(block[counter])
+            for counter in COUNTERS
+            if block.get(counter) is not None
+        }
+        return cls(MappingProxyType(readings)) if readings else None
+
+    @property
+    def raw(self) -> dict[str, int]:
+        """The whole counts the block reported, a negative one included, as the sample's `raw` keeps them."""
+        return {
+            counter: reading.count
+            for counter, reading in self.readings.items()
+            if reading.count is not None
+        }
+
+    def normalized(self) -> normalization.NormalizedUsage:
+        """The block read under the Codex profile, a raw cache-write zero establishing no write count."""
+        neutral = {COUNTERS[counter]: reading for counter, reading in self.readings.items()}
+        if neutral.get(normalization.CACHE_WRITE) == _NOTHING:
+            neutral[normalization.CACHE_WRITE] = Reading()
+        return normalization.normalize(protocol.CODEX, neutral)
+
+    def repeats(self, previous: Counters | None) -> bool:
+        """Whether this running sum is the one `previous` already reported -- nothing at all, where none was."""
+        if previous is not None:
+            return self.readings == previous.readings
+        return all(reading == _NOTHING for reading in self.readings.values())
+
+    def advanced_by(self, previous: Counters | None, request: Counters) -> bool:
+        """Whether this running sum is `previous` advanced by exactly `request`'s own counters, and moved at all.
+
+        Every counter all three report a count of is held to it, and at least one of those has to move by a count
+        above zero: counters that stay at zero beside it prove nothing new happened, so a report the sum's moving
+        counters cannot be compared on -- an earlier sum left unusable -- is no proven request. A counter any of the
+        three reports no count of -- invalid, or left out -- is no evidence either way, so the request it belongs to
+        keeps its own evidence for it rather than being refused for it.
+        """
+        moves = [self._move(counter, previous, request) for counter in self.readings]
+        compared = [move for move in moves if move is not None]
+        if not compared or _MISMATCH in compared:
+            return False
+        return max(compared) > 0
+
+    def evidence(self) -> dict[str, str]:
+        """The state of each counter that is no usable count, or that the block's own arithmetic contradicts."""
+        fields = self.normalized().fields
+        found = {
+            counter: normalization.CONFLICTING
+            for field_name, counter in _RELATED.items()
+            if fields[field_name].state == normalization.CONFLICTING
+        }
+        found.update(
+            (counter, reading.state)
+            for counter, reading in self.readings.items()
+            if not reading.known
+        )
+        return found
+
+    def _move(self, counter: str, previous: Counters | None, request: Counters) -> int | None:
+        """How far one counter of this sum moved past `previous`'s by `request`'s own count of it.
+
+        That count where it moved by exactly it, -1 where it moved otherwise, and None where one of the three reports
+        no count of it.
+        """
+        before = _NOTHING if previous is None else previous.readings.get(counter, Reading())
+        own = request.readings.get(counter, Reading())
+        total = self.readings[counter]
+        if not (total.known and before.known and own.known):
+            return None
+        moved = total == Reading.summed((before, own))
+        return (own.count or 0) if moved else _MISMATCH
+
+
+def checkpoint(
+    kind: str,
+    position: int,
+    running_sum: Counters,
+    conversation_id: str | None,
+    gaps: Counter[str],
+) -> request_models.UsageCheckpoint:
+    """A thread's running sum as a checkpoint of the whole conversation it spans, never a request.
+
+    A counter it reports no usable count of, or its own arithmetic contradicts, is a gap in `gaps` as well as its
+    evidence, so a collection keeping it never reads as whole.
+    """
+    evidence = running_sum.evidence()
+    gaps.update(coverage.evidence_gaps(evidence.values()))
+    return request_models.UsageCheckpoint(
+        kind=kind,
+        scope=request_models.CONVERSATION_SCOPE,
+        position=position,
+        raw=MappingProxyType(running_sum.raw),
+        conversation_id=conversation_id,
+        evidence=MappingProxyType(evidence),
+    )
+
+
+def attribution(
+    model: str | None,
+    child: bool,
+    fallback_model: str | None,
+    token_info: dict[str, Any],
+    version: str | None,
+) -> request_models.RequestAttribution:
+    """The model a request ran on and how that is established, beside the context capacity its report gives.
+
+    `model` is the one the request's branch runs on as its last `turn_context` left it -- `REFUSED` where that named a
+    model this collection refused. A named model is the request's; the thread, where none was named, falls back to
+    the configured model; a child turn, or a branch whose last model was refused, runs on none this log establishes.
+    """
+    capacity = Reading.of(token_info.get("model_context_window"))
+    known_capacity = capacity.count if capacity.known else None
+    if model:
+        return request_models.RequestAttribution(
+            model, request_models.STREAM_MODEL, known_capacity, version,
+        )
+    if model is None and not child and fallback_model:
+        return request_models.RequestAttribution(
+            fallback_model, request_models.CONFIGURED_FALLBACK, known_capacity, version,
+        )
+    unknown = child or model == request_scan.REFUSED
+    source = request_models.UNESTABLISHED if unknown else request_models.UNAVAILABLE
+    return request_models.RequestAttribution(None, source, known_capacity, version)
+
+
+def source_flags(
+    token_info: dict[str, Any],
+    metadata: request_scan.Metadata,
+) -> MappingProxyType[str, bool] | None:
+    """The reasoning flag beside a request's usage, as reported; one that is no boolean is malformed metadata.
+
+    Whether `last_token_usage` counts the reasoning is the CLI's own statement, kept as it gave it: the reasoning count
+    is read as a part of the output either way, never added to it.
+    """
+    flag = token_info.get(REASONING_FLAG)
+    if isinstance(flag, bool):
+        return MappingProxyType({REASONING_FLAG: flag})
+    metadata.malformed += flag is not None
+    return None

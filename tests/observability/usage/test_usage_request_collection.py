@@ -147,10 +147,16 @@ class CollectionStatusTest(unittest.TestCase):
                 self.assertEqual(coverage.collection_status(reasons, observed), status)
 
     def test_partial_scans_never_claim_the_invocation(self) -> None:
+        # A source that stopped answering partway is a partial scan; lines read that establish nothing of the
+        # invocation -- a native log no proof places it in -- cover none of it, while a stream read through without
+        # finding an event still covers the whole.
         cases = (
             ({}, coverage.INVOCATION_SCOPE),
             ({coverage.CORRELATION_LIMIT: 1}, coverage.PARTIAL_SCOPE),
             ({coverage.SCAN_LIMIT: 1}, coverage.PARTIAL_SCOPE),
+            ({coverage.NATIVE_READ_INTERRUPTED: 1}, coverage.PARTIAL_SCOPE),
+            ({coverage.INVOCATION_UNATTRIBUTED: 1}, coverage.NO_SCOPE),
+            ({coverage.NO_STREAM_EVENTS: 1}, coverage.INVOCATION_SCOPE),
         )
         for reasons, scope in cases:
             with self.subTest(reasons=reasons):

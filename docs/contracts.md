@@ -133,13 +133,20 @@ unknown rather than inferred from another (a skill load is no evidence of its of
 query's SELECT list raises rather than reading as NULL. A current optional field's absence, an ID-less CLI run, an
 unpriced cost, and a malformed record's containment remain current answers. A trajectory record's `request_usage` is
 read only as its collector wrote it: absent is a run whose requests were not collected -- a Codex run, and every
-record an earlier build wrote -- never an empty breakdown, and nothing infers or backfills one. Within the shared
-request-usage format a counter a sample did not observe is unknown rather than zero, a common total sums only observed
-non-overlapping counters and never the provider's own total, a model the stream did not establish is none rather than
-another conversation's or branch's or one taken from unrelated data, a coverage short of `complete` or
-`complete-empty` or a scan scope short of `invocation` never reads as the whole invocation, an output-only sample
-establishes no context input, and a marker or aggregate checkpoint is never a request. A Claude sample's output is
-`final` only where the `message_delta` closing that message, its subagent hand-back, or a `modelUsage` remainder the
+record an earlier build wrote -- never an empty breakdown, and nothing infers or backfills one. The Codex request
+parser is dormant, called by no dispatch, and attributes only what it proves: a sample is a `token_count` the
+invocation's own lines of a native session log reported, those lines proven by the log's first-line identity and the
+launch facts its caller supplies -- a fresh run's whole log, a resumed run's lines past the whole lines its log held at
+the launch -- and every stamp agreeing with that placement; a resume with no count, a log not the session's own, or a
+stamp the clock contradicts attributes nothing, never a guessed suffix. A report repeating its branch's running sum, or
+not proven to advance it by its own counters with at least one of them moving, is no request, so no earlier
+invocation's request is copied into a later one, and stdout's cumulative `turn.completed` is never a sample nor a
+request size. Within the shared request-usage format a counter a sample did not observe is unknown rather than zero, a
+common total sums only observed non-overlapping counters and never the provider's own total, a model the stream did not
+establish is none rather than another conversation's or branch's or one taken from unrelated data, a coverage short of
+`complete` or `complete-empty` or a scan scope short of `invocation` never reads as the whole invocation, an output-only
+sample establishes no context input, and a marker or aggregate checkpoint is never a request. A Claude sample's output
+is `final` only where the `message_delta` closing that message, its subagent hand-back, or a `modelUsage` remainder the
 run accounting attributes to it as its model's sole open message settles it -- every request the collection holds
 among those it sums, and the collection's own counts of them reproducing that remainder -- and no `result.usage` or
 `modelUsage` total is ever divided among requests or recorded as one. A record marked `stream_refused` is a run whose
@@ -355,6 +362,8 @@ or lost write interrupted are current state, not historical compatibility.
 [Claude request coverage](../tests/observability/usage/test_usage_claude_request_coverage.py),
 [request usage records](../tests/observability/analytics/trajectories/test_request_usage.py),
 [Claude request records](../tests/observability/analytics/trajectories/test_request_usage_claude.py),
+[Codex request samples](../tests/observability/usage/test_usage_codex_request_samples.py),
+[Codex request coverage](../tests/observability/usage/test_usage_codex_request_coverage.py),
 [verification artifacts](../tests/github/test_verification_artifacts.py),
 [requirements baselines](../tests/workflow/engine/test_drift.py),
 [late first baselines](../tests/workflow/stages/decomposition/test_late_first_baseline.py),
