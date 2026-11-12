@@ -25,14 +25,15 @@ request. A sum advancing by exactly the request's own counters, at least one of 
 requests of equal counts stay two; one advancing by anything else, one only counters staying at zero agree with, or one
 following a line this pass could not read -- which could have been the report it repeats -- is not proven a new request,
 and is an `unreconciled-usage` gap rather than a sample, so no earlier invocation's request is ever copied into this
-one. A report kept as no sample still carries evidence: its usage block naming no counter, reporting one as no whole
-count, holding a part past its whole, or a total its parts contradict, and metadata reported malformed beside it, are
-gaps all the same -- a repeat's included, but for the context estimate the CLI follows a compaction with, whose total
-stands beside parts all zero. The thread's running sums are checkpoints of the whole conversation: the last one before
-the boundary as the invocation's baseline, and the ones its own requests advance. A request the earlier lines settled
-after that last sum -- a usage record no `token_count` reported -- leaves it behind, so no baseline is established, and
-the invocation's first report is not proven new. A child turn's sums are kept only to prove its requests, since nothing
-establishes what they span, though they are held to the same arithmetic as a checkpoint.
+one. A report kept as no sample -- a repeat, or one naming no running sum, included -- still carries evidence: its usage
+block naming no counter, reporting one as no whole count, holding a part past its whole, a total its parts contradict,
+or a count past the running sum beside it, and metadata reported malformed beside it, are gaps all the same -- but for
+the context estimate the CLI follows a compaction with, whose total stands beside parts all zero. The thread's running
+sums are checkpoints of the whole conversation: the last one before the boundary as the invocation's baseline, and the
+ones its own requests advance. A request the earlier lines settled after that last sum -- a usage record no
+`token_count` reported -- leaves it behind, so no baseline is established, and the invocation's first report is not
+proven new. A child turn's sums are kept only to prove its requests, since nothing establishes what they span, though
+they are held to the same arithmetic as a checkpoint.
 
 Every request the CLI settles also writes a `token_usage_record` repeating its counters under its response id. No
 request is read off one -- its counters are never a sample -- but the invocation's records are counted on the branch of
@@ -40,7 +41,8 @@ the turn each names -- one the invocation opened, for its own record, else none 
 -- and each beyond the reports its branch's `token_count` lines made that repeat nothing is usage reported only where
 this pass reads no request from: an `unsupported-usage-source` gap, so a log whose `token_count` lines are missing never
 reads as no requests, and a report of one branch never answers another's record. A record that is no object is a
-malformed envelope, and one whose usage names no counter malformed usage.
+malformed envelope, and one whose usage names no counter malformed usage, each still a record of a request settled, in
+the innermost open turn where it names none.
 
 Subagents. A child turn the invocation opened that settled no request, and a subagent thread its lines name -- in an
 `item_completed` `SubAgentActivity`, or in a legacy history's `sub_agent_activity` event -- whose requests are in a log
@@ -67,8 +69,8 @@ from orchestrator.observability.usage.request_codex_counters import (
     Counters,
     attribution,
     checkpoint,
-    repeat_gaps,
     report_metadata,
+    usage_gaps,
 )
 from orchestrator.observability.usage.request_codex_scope import (
     PAYLOAD,
@@ -261,13 +263,15 @@ class Requests:
     ) -> None:
         """Read a `token_count`'s running sum: a repeat is nothing, and anything else moves its branch on to it.
 
-        A repeat of the invocation's is no request, but what it carries is evidence all the same, so the metadata
-        beside every report of the invocation's is judged, and a repeat's request usage held to its own parts.
+        A repeat of the invocation's, or one naming no running sum, is no request, but what it carries is evidence all
+        the same, so the metadata beside every report of the invocation's is judged, and the request usage of one made
+        no sample held to its own parts and to the running sum beside it.
         """
         details = report_metadata(token_info, self.metadata) if line.own else (None, None)
         running = Counters.of(token_info.get("total_token_usage"))
         if running is None:
-            self.gaps[coverage.MALFORMED_USAGE] += line.own
+            if line.own:
+                self.gaps.update(usage_gaps(token_info) | {coverage.MALFORMED_USAGE})
             branch.reports += line.own
             branch.proven = False
             return
@@ -275,7 +279,7 @@ class Requests:
         report = Report(line, token_info, running, proven, *details)
         if report.proven and running.repeats(branch.running):
             if line.own:
-                self.gaps.update(repeat_gaps(token_info, branch.compacted))
+                self.gaps.update(usage_gaps(token_info, running, branch.compacted))
             return
         branch.reports += line.own
         if line.own:
@@ -312,7 +316,7 @@ class Requests:
             return
         # A report kept as no sample -- not proven new, or past the request bound -- is evidence all the same.
         self.gaps[coverage.CORRELATION_LIMIT if admitted else coverage.UNRECONCILED_USAGE] += 1
-        self.gaps.update(coverage.evidence_gaps(own_usage.evidence().values()))
+        self.gaps.update(usage_gaps(report.token_info, report.running))
 
     def _sample(
         self,
@@ -471,17 +475,19 @@ class NativeFold:
         """Note a usage record on the branch of the turn it names, where `token_count` lines can be told apart.
 
         No request is read off a record, but its shape is evidence: a payload that is no object is a malformed
-        envelope, and a usage block naming no counter malformed usage. The turn a record names has to be one open --
-        the invocation's own, for the invocation's record -- as `Turns.current` holds it. A record in a child turn
+        envelope, and a usage block naming no counter malformed usage. Either is still a request settled, so it is a
+        record all the same, in the innermost open turn where it names none -- one left before the boundary leaves
+        the running sum behind like any. The turn a record names has to be one open -- the invocation's own, for the
+        invocation's record -- as `Turns.current` holds it. A record in a child turn
         naming no id has no branch, and neither has one past the child turn bound; each such turn is a gap already.
         """
-        if not isinstance(payload, dict):
+        fields = payload if isinstance(payload, dict) else None
+        if fields is None:
             self.notes.gaps[coverage.MALFORMED_ENVELOPES] += line.own
-            return
-        unreadable = Counters.of(payload.get(_USAGE)) is None
-        self.requests.gaps[coverage.MALFORMED_USAGE] += line.own and unreadable
-        named = self.metadata.text(payload.get(_TURN_ID))
-        turn = self.turns.current(line.own, named)
+        elif Counters.of(fields.get(_USAGE)) is None:
+            self.requests.gaps[coverage.MALFORMED_USAGE] += line.own
+        named = None if fields is None else fields.get(_TURN_ID)
+        turn = self.turns.current(line.own, self.metadata.text(named))
         if self.turns.overflowed or (turn is not None and turn.unnamed_child):
             return
         branch = self.requests.branch(None if turn is None else turn.branch)

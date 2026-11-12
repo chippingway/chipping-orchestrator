@@ -30,6 +30,7 @@ _TYPE = "type"
 _REPEATS = 50
 _RECORD_KIND = "token_usage_record"
 _USAGE = "usage"
+_LAST_USAGE = "last_token_usage"
 _NEXT_USAGE = codex.counters(codex.NEXT_REQUEST)
 _TASK_COMPLETE = "task_complete"
 _PARENT = MappingProxyType({"parent_turn_id": codex.APPENDED_TURN})
@@ -98,7 +99,7 @@ _REPLAYED = (100, 0, 0, 10, 0, 110)
 _UNUSABLE_SUM = (_INVALID_STATE, 0, 0, _INVALID_STATE, 0, _INVALID_STATE)
 _UNUSABLE_REPORT = MappingProxyType({
     "total_token_usage": codex.counters(_UNUSABLE_SUM),
-    "last_token_usage": codex.counters(_REPLAYED),
+    _LAST_USAGE: codex.counters(_REPLAYED),
 })
 _REPLAY_LOG = (
     _FRESH_FIRST,
@@ -174,6 +175,9 @@ _REPLAYED_TWICE = tuple(2 * count for count in _REPLAYED)
 _UNCOVERED = (_FRESH_FIRST, _PRIOR_STARTED, _PRIOR_RECORD, _PRIOR_COMPLETE)
 _LAGGING = (_FRESH_FIRST, _PRIOR_STARTED, _PRIOR_RECORD, _PRIOR_REPORT, _PRIOR_RECORD, _PRIOR_COMPLETE)
 _UNUSED = (_FRESH_FIRST, _PRIOR_STARTED, _PRIOR_COMPLETE)
+# A turn reporting its request, then writing a record no reading can place: a request it settled, whatever branch.
+_UNPLACED_RECORD = codex.line(_RECORD_KIND, ["not an object"], _PRIOR_STAMP)
+_UNPLACED = (_FRESH_FIRST, _PRIOR_STARTED, _PRIOR_REPORT, _UNPLACED_RECORD, _PRIOR_COMPLETE)
 _REPLAYED_REPORT = codex.token_count(_REPLAYED, _REPLAYED)
 _BEHIND = (
     ("a request no report covers", len(_UNCOVERED), (*_UNCOVERED, _STARTED, _REPLAYED_REPORT, _COMPLETE), 0),
@@ -183,7 +187,33 @@ _BEHIND = (
         (*_LAGGING, _STARTED, codex.token_count(_REPLAYED_TWICE, _REPLAYED), _COMPLETE),
         0,
     ),
+    (
+        "a request past the last report, its record unreadable",
+        len(_UNPLACED),
+        (*_UNPLACED, _STARTED, codex.token_count(_REPLAYED_TWICE, _REPLAYED), _COMPLETE),
+        0,
+    ),
     ("no usage before", len(_UNUSED), (*_UNUSED, _STARTED, _REPLAYED_REPORT, _COMPLETE), 1),
+)
+# Reports that make no sample, and the evidence each still leaves: one naming no running sum beside request usage
+# no count of which is usable, and a fresh run's first, repeating a running sum of nothing its own counts exceed.
+_SUMLESS_COUNTS = codex.counters((-1, 0, 0, 10, 2, 0))
+_SUMLESS_USAGE = MappingProxyType({_LAST_USAGE: _SUMLESS_COUNTS})
+_SUMLESS = codex.event(codex.TOKEN_COUNT, info=dict(_SUMLESS_USAGE))
+_PAST_NOTHING = codex.token_count((0, 0, 0, 0, 0, 0), codex.NEXT_REQUEST)
+_UNSAMPLED = (
+    (
+        "naming no running sum",
+        codex.APPENDED,
+        (*capture.log_lines(), _STARTED, _SUMLESS, _COMPLETE),
+        {coverage.MALFORMED_USAGE: 1, coverage.INVALID_COUNTERS: 1, coverage.CONFLICTING_COUNTERS: 1},
+    ),
+    (
+        "counts past a running sum of nothing",
+        capture.FRESH,
+        (_FRESH_FIRST, _FRESH_STARTED, _PAST_NOTHING, _FRESH_COMPLETED),
+        {coverage.CONFLICTING_COUNTERS: 1},
+    ),
 )
 # Reasons a reader states for a log it read no line of.
 _READER_REASONS = (
@@ -267,7 +297,7 @@ _UNPROVEN_REPORTS = (
 )
 _UNREADABLE = (
     ("info no object", codex.event(codex.TOKEN_COUNT, info=[1]), coverage.MALFORMED_USAGE),
-    ("no running sum", codex.event(codex.TOKEN_COUNT, info={"last_token_usage": {}}), coverage.MALFORMED_USAGE),
+    ("no running sum", codex.event(codex.TOKEN_COUNT, info={_LAST_USAGE: {}}), coverage.MALFORMED_USAGE),
     ("no request usage", codex.event(codex.TOKEN_COUNT, info=dict(_THREAD_ONLY)), coverage.MALFORMED_USAGE),
     ("payload no object", codex.line(codex.EVENT_MSG, [1]), coverage.MALFORMED_ENVELOPES),
     ("event naming nothing", codex.line(codex.EVENT_MSG, {"info": {}}), coverage.MALFORMED_ENVELOPES),
@@ -499,6 +529,15 @@ class RequestIdentityTest(unittest.TestCase):
                 self.assertEqual(collection.reasons, {} if kept else {coverage.UNRECONCILED_USAGE: 1})
                 self.assertNotIn("invocation-baseline", cases.column(collection.checkpoints, _KIND))
 
+    def test_unsampled_reports_keep_evidence(self) -> None:
+        # A report no sample is made of still has its request usage judged: against its own parts, and against the
+        # running sum beside it, which every request it sums adds to -- nothing at all included.
+        for name, invocation, lines, gaps in _UNSAMPLED:
+            with self.subTest(name):
+                collection = codex.collected(invocation, lines)
+                self.assertEqual(collection.samples, [])
+                self.assertEqual(collection.reasons, gaps)
+
     def test_records_keep_their_shape_as_evidence(self) -> None:
         # No request is read off a usage record, but one that is no object, or whose usage names no counter, is
         # malformed evidence beside the request its `token_count` reports.
@@ -573,7 +612,7 @@ class SourceShapeTest(unittest.TestCase):
         # is malformed metadata, while one left out is a limitation of the source alone.
         for reported, malformed in _METADATA_SHAPES:
             with self.subTest(reported=reported):
-                usage = {**_THREAD_ONLY, "last_token_usage": dict(_NO_REASONING), **reported}
+                usage = {**_THREAD_ONLY, _LAST_USAGE: dict(_NO_REASONING), **reported}
                 collection = _appended_with(codex.event(codex.TOKEN_COUNT, info=usage))
                 sample = collection.samples[0]
                 self.assertEqual(sample[cases.EVIDENCE]["reasoning_tokens"], "missing")

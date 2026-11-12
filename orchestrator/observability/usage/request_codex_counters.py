@@ -200,20 +200,28 @@ def attribution(
     return request_models.RequestAttribution(None, source, known_capacity, version)
 
 
-def repeat_gaps(token_info: dict[str, Any], after_compaction: bool) -> tuple[str, ...]:
-    """The gaps the request usage a repeated report carries leaves, though the report is no request.
+def usage_gaps(
+    token_info: dict[str, Any],
+    running: Counters | None = None,
+    after_compaction: bool = False,
+) -> frozenset[str]:
+    """The gaps the request usage a report carries leaves where no sample is made of it.
 
     A block naming no counter is malformed usage, a counter it reports as no whole count an invalid one, and a part
-    exceeding its whole, or a total its parts contradict, a contradiction. The one total not held to its parts is the
-    context estimate the CLI follows a compaction with: a total beside parts that are all zero, `after_compaction`.
+    exceeding its whole, a total its parts contradict, or a count past the one the `running` sum beside it reports --
+    which every request it sums, this one included, adds to -- a contradiction. The one total not held to its parts is
+    the context estimate the CLI follows a compaction with: a total beside parts that are all zero, `after_compaction`.
     """
     own = Counters.of(token_info.get(LAST_USAGE))
     if own is None:
-        return (coverage.MALFORMED_USAGE,)
+        return frozenset((coverage.MALFORMED_USAGE,))
     evidence = own.evidence()
     if after_compaction and _estimates_context(own):
         evidence.pop(_SOURCE_TOTAL, None)
-    return tuple(coverage.evidence_gaps(evidence.values()))
+    gaps = set(coverage.evidence_gaps(evidence.values()))
+    if running is not None and _outgrows(own, running):
+        gaps.add(coverage.CONFLICTING_COUNTERS)
+    return frozenset(gaps)
 
 
 def report_metadata(
@@ -234,6 +242,15 @@ def report_metadata(
     metadata.malformed += window is not None and not capacity.known
     metadata.malformed += flag is not None and flags is None
     return capacity.count if capacity.known else None, flags
+
+
+def _outgrows(own: Counters, running: Counters) -> bool:
+    """Whether a request reports a count of a counter past the count the running sum beside it reports of it."""
+    for counter, part in own.readings.items():
+        whole = running.readings.get(counter, Reading())
+        if part.known and whole.known and part.exceeds(whole):
+            return True
+    return False
 
 
 def _estimates_context(usage: Counters) -> bool:
