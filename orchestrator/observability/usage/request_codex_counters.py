@@ -106,16 +106,17 @@ class Counters:
             return self.readings == previous.readings
         return all(reading == _NOTHING for reading in self.readings.values())
 
-    def advanced_by(self, previous: Counters | None, request: Counters) -> bool:
+    def advanced_by(self, previous: Counters | None, request: Counters, floor: Mapping[str, int]) -> bool:
         """Whether this running sum is `previous` advanced by exactly `request`'s own counters, and moved at all.
 
         Every counter all three report a count of is held to it, and at least one of those has to move by a count
         above zero: counters that stay at zero beside it prove nothing new happened, so a report the sum's moving
         counters cannot be compared on -- an earlier sum left unusable -- is no proven request. A counter any of the
         three reports no count of -- invalid, or left out -- is no evidence either way, so the request it belongs to
-        keeps its own evidence for it rather than being refused for it.
+        keeps its own evidence for it rather than being refused for it -- unless the sum cannot hold the request beside
+        the least its branch's earlier reports establish it holds, `floor`.
         """
-        moves = [self._move(counter, previous, request) for counter in self.readings]
+        moves = [self._move(counter, previous, request, floor) for counter in self.readings]
         compared = [move for move in moves if move is not None]
         if not compared or _MISMATCH in compared:
             return False
@@ -136,12 +137,19 @@ class Counters:
         )
         return found
 
-    def _move(self, counter: str, previous: Counters | None, request: Counters) -> int | None:
+    def _move(
+        self,
+        counter: str,
+        previous: Counters | None,
+        request: Counters,
+        floor: Mapping[str, int],
+    ) -> int | None:
         """How far one counter of this sum moved past `previous`'s by `request`'s own count of it.
 
         That count where it moved by exactly it, -1 where it moved otherwise, and None where this sum or the request
         reports no count of it. Where `previous` reports none, the move is unknown, but a sum adds up every request it
-        holds, so one smaller than the request's own count still contradicts it.
+        holds, so one smaller than the request's own count beside the least the earlier reports establish it holds
+        still contradicts it.
         """
         before = _NOTHING if previous is None else previous.readings.get(counter, Reading())
         own = request.readings.get(counter, Reading())
@@ -149,7 +157,8 @@ class Counters:
         if not (total.known and own.known):
             return None
         if not before.known:
-            return _MISMATCH if own.exceeds(total) else None
+            held = (own.count or 0) + floor.get(counter, 0)
+            return _MISMATCH if held > (total.count or 0) else None
         moved = total == Reading.summed((before, own))
         return (own.count or 0) if moved else _MISMATCH
 

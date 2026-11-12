@@ -32,8 +32,8 @@ read could have printed one more.
 
 The invocation opens its own turns before it settles any usage in them, so usage its lines settle in no turn they opened
 -- none open at all, the innermost open one being an earlier process's, a turn left unfinished, say, that a resume
-printing no turn never replaced, or a usage record naming a turn the invocation never opened -- was written by another
-process past the count, and nothing is attributed either.
+printing no turn never replaced, a usage record naming a turn the invocation never opened, or a child turn started from
+one -- was written by another process past the count, and nothing is attributed either.
 
 Where either proof fails, the collection names why and attributes nothing; it never guesses a suffix of the log.
 
@@ -42,9 +42,9 @@ this log, its requests a branch of their own; one naming none is a root turn of 
 abandons every turn still open, since the thread has moved on -- a turn an earlier process left unfinished is never
 taken for this one's. A `task_complete` or `turn_aborted` closes the turn it names, and a turn the invocation opened
 that none closed -- a child turn its parent finished without included -- never finished. A request belongs to the turn
-the usage record written just before its report names, where that turn is still open, or else to the innermost open
-turn; where two child turns are open at once and no record names one, nothing tells which the report is, and it is
-placed in neither.
+the usage record written just before its report names, where that turn is still open, or else to the one open turn;
+where several are open -- a parent and its child included -- and no record names one, nothing tells which the report is,
+and it is placed in none.
 """
 
 from __future__ import annotations
@@ -226,7 +226,7 @@ class Turn:
         return self.parent_turn_id is not None and self.turn_id is None
 
 
-# What a `token_count` settles in where nothing tells which of the overlapping open turns is its own.
+# What a `token_count` settles in where nothing tells which of several open turns is its own.
 UNPLACED = Turn(None, None, own=False)
 
 
@@ -236,6 +236,7 @@ class Records:
 
     The CLI writes a request's usage record just before the `token_count` reporting it, so the turn a record names is
     the one its report belongs to -- unless records naming two turns came before one report, which leaves it unknown.
+    Where no record names one, only a single open turn places a report.
     """
 
     named: Turn | None = None
@@ -248,8 +249,9 @@ class Records:
         self.named = turn
 
     def take(self, opened: list[Turn]) -> Turn | None:
-        """The turn a `token_count` settles in, the records noted for it spent: the one they named, or else the
-        innermost open turn, unless child turns overlap -- `UNPLACED` where the records conflict or the turns do.
+        """The turn a `token_count` settles in, the records noted for it spent: the one they named, or else the one
+        open turn -- `UNPLACED` where the records conflict, or none names one of several open turns, a parent and its
+        child included, since any of them could have made the request.
 
         A record and its report are written while their turn is open, so a record naming a turn closed since is one
         whose report never came, and tells nothing of this one.
@@ -258,8 +260,7 @@ class Records:
         conflicted = self.conflicted
         self.named = None
         self.conflicted = False
-        overlapping = sum(turn.parent_turn_id is not None for turn in opened) > 1
-        if conflicted or (named is None and overlapping):
+        if conflicted or (named is None and len(opened) > 1):
             return UNPLACED
         if named is not None:
             return named
@@ -293,7 +294,8 @@ class Turns:
         A child turn already open is opened once, however often its start repeats. Past the child turn bound -- on
         the children named, or on the ones open at once -- no later request can be told apart from its parent's, so
         none is attributed from there on, and the invocation's child turn refused is a gap of its own, whether or not
-        a request follows it.
+        a request follows it. The invocation starts a child only from a turn it opened, so its child of any other
+        parent -- an earlier process's, or one not open -- is another process's, which `intruded` records.
         """
         turn_id = self.metadata.text(payload.get(_TURN_ID))
         turn = Turn(turn_id, self._parent(payload), own)
@@ -301,9 +303,14 @@ class Turns:
             self.abandon()
             self.root_turns += own
             self.open = [turn]
-        elif turn in self.open:
             return
-        elif self._registered(turn):
+        parent = self.named(turn.parent_turn_id)
+        foreign_parent = parent is None or not parent.own
+        if own and foreign_parent:
+            self.intruded = True
+        if turn in self.open:
+            return
+        if self._registered(turn):
             self.open.append(turn)
         else:
             self.overflowed = True

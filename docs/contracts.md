@@ -139,8 +139,8 @@ invocation's own lines of a native session log reported, those lines proven by t
 launch facts its caller supplies -- a fresh run's whole log, a resumed run's lines past the whole lines its log held at
 the launch -- and every stamp agreeing with that placement; a resume with no count, a log not the session's own, a log
 read whole that is shorter than the count, usage settled past the count in no turn the invocation opened -- none at
-all, an earlier invocation's left open, or one a usage record names -- or a stamp the clock contradicts attributes
-nothing, never a guessed suffix.
+all, an earlier invocation's left open or a child started from it, or one a usage record names -- or a stamp the clock
+contradicts attributes nothing, never a guessed suffix.
 A report repeating its branch's running sum, not proven to advance it by its own counters with at least one of them
 moving, or following an earlier request whose usage record no report covered, is no request, so no earlier
 invocation's request is copied into a later one, and stdout's cumulative `turn.completed` is never a sample nor a

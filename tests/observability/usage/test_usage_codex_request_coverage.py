@@ -34,7 +34,8 @@ _LAST_USAGE = "last_token_usage"
 _TOTAL_USAGE = "total_token_usage"
 _NEXT_USAGE = codex.counters(codex.NEXT_REQUEST)
 _TASK_COMPLETE = "task_complete"
-_PARENT = MappingProxyType({"parent_turn_id": codex.APPENDED_TURN})
+_PARENT_TURN = "parent_turn_id"
+_PARENT = MappingProxyType({_PARENT_TURN: codex.APPENDED_TURN})
 _CHILD_MODEL = "gpt-5.5-mini"
 _STARTED = codex.event(codex.TASK_STARTED, turn_id=codex.APPENDED_TURN)
 _COMPLETE = codex.event(_TASK_COMPLETE, turn_id=codex.APPENDED_TURN)
@@ -45,6 +46,10 @@ _CHILD_CONTEXT = codex.line(codex.TURN_CONTEXT, {codex.TURN_ID: codex.CHILD_TURN
 _CHILD_COMPLETE = codex.event(_TASK_COMPLETE, turn_id=codex.CHILD_TURN)
 # A child turn's running sum is its own branch's, beginning at nothing.
 _CHILD_REQUEST = codex.token_count(codex.NEXT_REQUEST, codex.NEXT_REQUEST)
+# The usage record the CLI writes just before a child request's report, naming the child turn it settles in: with the
+# parent turn open beside it, nothing else tells whose a report is.
+_CHILD_USAGE = MappingProxyType({codex.TURN_ID: codex.CHILD_TURN, _USAGE: _NEXT_USAGE})
+_CHILD_RECORD = codex.line(_RECORD_KIND, dict(_CHILD_USAGE))
 _UNNAMED_CHILD = codex.event(codex.TASK_STARTED, turn_attribution=dict(_PARENT))
 _ACTIVITY = codex.event(_ITEM_COMPLETED, item={_TYPE: _SUBAGENT, "agent_thread_id": "thread-a"})
 _OTHER_ACTIVITY = codex.event(_ITEM_COMPLETED, item={_TYPE: _SUBAGENT, "agent_thread_id": "thread-b"})
@@ -241,6 +246,9 @@ _RELABELED = (_STARTED, _EARLIER_RECORD, _NEXT, _COMPLETE)
 # open: a record naming that turn, and a report advancing the running sum it left by exactly the record's request.
 _AFTER_INTERRUPTED = codex.APPENDED._replace(start=capture.INTERRUPTED.end, stdout="")
 _INTERRUPTED_USAGE = MappingProxyType({codex.TURN_ID: capture.INTERRUPTED_TURN, _USAGE: _NEXT_USAGE})
+_EARLIER_PARENT = MappingProxyType({_PARENT_TURN: capture.INTERRUPTED_TURN})
+_EARLIER_CHILD = codex.event(codex.TASK_STARTED, turn_id=codex.CHILD_TURN, turn_attribution=dict(_EARLIER_PARENT))
+_ADOPTED_CHILD = (*capture.log_lines(capture.INTERRUPTED.end), _EARLIER_CHILD)
 _INTRUDING = (
     *capture.log_lines(capture.INTERRUPTED.end),
     codex.line(_RECORD_KIND, dict(_INTERRUPTED_USAGE)),
@@ -256,6 +264,7 @@ _UNPROVEN = (
     ("a resume of an empty log", capture.RESUMED._replace(start=0), None),
     ("a silent resume of a log shorter than its count", _SHORTER, None),
     ("usage settled in an earlier invocation's open turn", _AFTER_INTERRUPTED, _INTRUDING),
+    ("a child turn started from an earlier invocation's open turn", _AFTER_INTERRUPTED, _ADOPTED_CHILD),
     ("a record naming an earlier invocation's turn", codex.APPENDED, (*capture.log_lines(), *_RELABELED)),
     ("a silent resume's record naming an earlier turn", _SILENT, (*capture.log_lines(), _EARLIER_RECORD, _NEXT)),
     ("a silent resume's request in no turn at all", _SILENT, (*capture.log_lines(), _NEXT)),
@@ -327,7 +336,7 @@ _UNUSABLE = (
 _INVALID_RUNNING = (*codex.NEXT_RUNNING[:5], -1)
 _INVALID_CHILD_RUNNING = (-1, *codex.NEXT_REQUEST[1:])
 _INVALID_CHILD_REQUEST = codex.token_count(_INVALID_CHILD_RUNNING, codex.NEXT_REQUEST)
-_INVALID_CHILD_RUN = (_CHILD_STARTED, _CHILD_CONTEXT, _INVALID_CHILD_REQUEST, _CHILD_COMPLETE)
+_INVALID_CHILD_RUN = (_CHILD_STARTED, _CHILD_CONTEXT, _CHILD_RECORD, _INVALID_CHILD_REQUEST, _CHILD_COMPLETE)
 _NO_OBJECTS = ('[{"type":"event_msg"}]', "Codex ready")
 _UNUSABLE_STATES = frozenset((_INVALID_STATE, "conflicting"))
 # Children the invocation's lines expose less than whole, each with the gaps it leaves and the requests kept: a child
@@ -339,17 +348,17 @@ _UNEXPOSED = (
     ("child turn with no request", (_CHILD_STARTED, _CHILD_COMPLETE), _UNAVAILABLE_CHILD, 0),
     (
         "child turn naming no model",
-        (_CHILD_STARTED, _CHILD_REQUEST, _CHILD_COMPLETE),
+        (_CHILD_STARTED, _CHILD_RECORD, _CHILD_REQUEST, _CHILD_COMPLETE),
         {coverage.SUBAGENT_MODEL_UNESTABLISHED: 1},
         1,
     ),
     (
         "child turn its parent finished without",
-        (_CHILD_STARTED, _CHILD_CONTEXT, _CHILD_REQUEST),
+        (_CHILD_STARTED, _CHILD_CONTEXT, _CHILD_RECORD, _CHILD_REQUEST),
         {coverage.NO_TERMINAL_RESULT: 1},
         1,
     ),
-    ("child turn naming no id", (_UNNAMED_CHILD, _NEXT), _UNNAMED_TURN, 0),
+    ("child turn naming no id", (_UNNAMED_CHILD, _NEXT), {**_UNNAMED_TURN, coverage.CONVERSATION_AMBIGUOUS: 1}, 0),
     ("child turn naming no id, no request", (_UNNAMED_CHILD,), _UNNAMED_TURN, 0),
     ("subagent threads", (_ACTIVITY, _ACTIVITY, _OTHER_ACTIVITY), {coverage.SUBAGENT_USAGE_UNAVAILABLE: 2}, 0),
     ("subagent naming no thread", (_UNNAMED_ACTIVITY,), _UNIDENTIFIED_CHILD, 0),
@@ -383,12 +392,16 @@ _APPENDED_FACTS = Invocation(capture.SESSION_ID, True, codex.APPENDED_AT, codex.
 _ALL_BUT_LAST = capture.log_lines()[:-1]
 _RESUMED_FACTS = Invocation(capture.SESSION_ID, True, capture.RESUMED.launched_at)
 _REPEATED_STARTS = (_CHILD_STARTED,) * _REPEATS
-_REPEATED_CHILD = (_STARTED, *_REPEATED_STARTS, _CHILD_CONTEXT, _CHILD_REQUEST, _CHILD_COMPLETE, _COMPLETE)
+_REPEATED_CHILD = (
+    _STARTED, *_REPEATED_STARTS, _CHILD_CONTEXT, _CHILD_RECORD, _CHILD_REQUEST, _CHILD_COMPLETE, _COMPLETE,
+)
 _CHILD_START = MappingProxyType({codex.TURN_ID: codex.CHILD_TURN, "turn_attribution": dict(_PARENT)})
 _UNNAMED_START = MappingProxyType({"turn_attribution": dict(_PARENT)})
 _CHILD_STARTS = (*(_CHILD_START,) * _REPEATS, _UNNAMED_START)
 _INVALID_TOTAL = MappingProxyType({"total_tokens": _INVALID_STATE})
-_CHILD_RUN = (_STARTED, _CHILD_STARTED, _CHILD_CONTEXT, _CHILD_REQUEST, _CHILD_COMPLETE, _NEXT, _COMPLETE)
+_CHILD_RUN = (
+    _STARTED, _CHILD_STARTED, _CHILD_CONTEXT, _CHILD_RECORD, _CHILD_REQUEST, _CHILD_COMPLETE, _NEXT, _COMPLETE,
+)
 # A child turn switching models between its two requests.
 _SWITCHED_CHILD_MODEL = "gpt-5.5-nano"
 _SWITCHED_CHILD = MappingProxyType({codex.TURN_ID: codex.CHILD_TURN, cases.MODEL: _SWITCHED_CHILD_MODEL})
@@ -396,11 +409,20 @@ _CHILD_SWITCH = codex.line(codex.TURN_CONTEXT, dict(_SWITCHED_CHILD))
 _CHILD_TWICE = tuple(2 * count for count in codex.NEXT_REQUEST)
 _CHILD_SECOND = codex.token_count(_CHILD_TWICE, codex.NEXT_REQUEST)
 _CHILD_SWITCH_RUN = (
-    _STARTED, _CHILD_STARTED, _CHILD_CONTEXT, _CHILD_REQUEST, _CHILD_SWITCH, _CHILD_SECOND, _CHILD_COMPLETE, _COMPLETE,
+    _STARTED,
+    _CHILD_STARTED,
+    _CHILD_CONTEXT,
+    _CHILD_RECORD,
+    _CHILD_REQUEST,
+    _CHILD_SWITCH,
+    _CHILD_RECORD,
+    _CHILD_SECOND,
+    _CHILD_COMPLETE,
+    _COMPLETE,
 )
 _CHILD_MODEL_CHANGE = MappingProxyType({
     _KIND: "model-change",
-    _POSITION: capture.LAST.end + 4,
+    _POSITION: capture.LAST.end + 5,
     "conversation_id": capture.SESSION_ID,
     "turn_id": codex.CHILD_TURN,
     "parent_turn_id": codex.APPENDED_TURN,
@@ -418,8 +440,6 @@ _MALFORMED_RECORDS = (
 )
 # A child turn writing two usage records and reporting one request, beside a thread request reported with no record:
 # the child's second record has no report of its own branch, however the thread's surplus report matches in number.
-_CHILD_USAGE = MappingProxyType({codex.TURN_ID: codex.CHILD_TURN, _USAGE: _NEXT_USAGE})
-_CHILD_RECORD = codex.line(_RECORD_KIND, dict(_CHILD_USAGE))
 _CHILD_RECORDS = (_CHILD_STARTED, _CHILD_CONTEXT, _CHILD_RECORD, _CHILD_REQUEST, _CHILD_RECORD, _CHILD_COMPLETE, _NEXT)
 # Two child turns open at once, each on a model of its own: told apart by the record before each report, or not.
 _SECOND_CHILD = "01a1d020-0000-7000-8000-000000000003"
@@ -434,43 +454,62 @@ _OVERLAPPING = (_STARTED, _CHILD_STARTED, _CHILD_CONTEXT, _SECOND_STARTED, _SECO
 _CLOSING = (_SECOND_COMPLETE, _CHILD_COMPLETE, _COMPLETE)
 _TOLD_APART = (*_OVERLAPPING, _CHILD_RECORD, _CHILD_REQUEST, _SECOND_RECORD, _CHILD_REQUEST, *_CLOSING)
 _UNTOLD = (*_OVERLAPPING, _CHILD_REQUEST, *_CLOSING)
+_UNTOLD_PARENT = (_STARTED, _CHILD_STARTED, _CHILD_CONTEXT, _CHILD_REQUEST, _CHILD_COMPLETE, _COMPLETE)
+_UNTOLD_CASES = (("two child turns", _UNTOLD), ("a parent and its child", _UNTOLD_PARENT))
 _TOLD_TURNS = (codex.CHILD_TURN, _SECOND_CHILD)
 _TOLD_MODELS = (_CHILD_MODEL, _SECOND_MODEL)
 # A report no branch takes, its own counts and its context window unusable: placed in neither of two overlapping child
-# turns, or in a child turn naming no id.
+# turns, or in a child turn naming no id, the one turn open once its parent finished.
 _DETACHED_COUNTS = (-1, 500, 0, 10, 2, 1010)
 _DETACHED = codex.token_count(codex.NEXT_REQUEST, _DETACHED_COUNTS, model_context_window=-1)
 _DETACHED_GAPS = MappingProxyType({coverage.INVALID_COUNTERS: 1, coverage.MALFORMED_METADATA: 1})
+# A fresh turn whose first report's running sum leaves the input out, and whose second's cannot hold the input both
+# requests report: the second is no proven request, the first kept.
+_FRESH_MODEL = MappingProxyType({codex.TURN_ID: capture.FRESH_TURN, cases.MODEL: capture.FIRST_MODEL})
+_FRESH_CONTEXT = codex.line(codex.TURN_CONTEXT, dict(_FRESH_MODEL))
+_SPARSE_FIRST_INFO = MappingProxyType({_TOTAL_USAGE: _OUTPUT_COUNT, _LAST_USAGE: _OUTGROWN_OWN})
+_SPARSE_SUM = dict(zip(_OUTGROWN_COUNTERS, (100, 20, 120), strict=True))
+_SPARSE_SECOND_INFO = MappingProxyType({_TOTAL_USAGE: _SPARSE_SUM, _LAST_USAGE: _OUTGROWN_OWN})
+_SPARSE_FIRST = codex.event(codex.TOKEN_COUNT, info=dict(_SPARSE_FIRST_INFO))
+_SPARSE_SECOND = codex.event(codex.TOKEN_COUNT, info=dict(_SPARSE_SECOND_INFO))
+_SPARSE = (_FRESH_FIRST, _FRESH_STARTED, _FRESH_CONTEXT, _SPARSE_FIRST, _SPARSE_SECOND, _FRESH_COMPLETED)
+# Each case: the gaps it leaves, and how many samples it keeps.
 _UNSAMPLED = (
     (
         "naming no running sum",
         codex.APPENDED,
         (*capture.log_lines(), _STARTED, _SUMLESS, _COMPLETE),
-        {coverage.MALFORMED_USAGE: 1, coverage.INVALID_COUNTERS: 1, coverage.CONFLICTING_COUNTERS: 1},
+        ({coverage.MALFORMED_USAGE: 1, coverage.INVALID_COUNTERS: 1, coverage.CONFLICTING_COUNTERS: 1}, 0),
     ),
     (
         "counts past a running sum an earlier one left a counter out of",
         codex.APPENDED._replace(start=len(_PARTIAL_PRIOR)),
         (*_PARTIAL_PRIOR, _STARTED, _OUTGROWN, _COMPLETE),
-        {coverage.UNRECONCILED_USAGE: 1, coverage.CONFLICTING_COUNTERS: 1},
+        ({coverage.UNRECONCILED_USAGE: 1, coverage.CONFLICTING_COUNTERS: 1}, 0),
+    ),
+    (
+        "counts past what a sparse running sum holds beside the request before it",
+        capture.FRESH,
+        _SPARSE,
+        ({coverage.UNRECONCILED_USAGE: 1}, 1),
     ),
     (
         "counts past a running sum of nothing",
         capture.FRESH,
         (_FRESH_FIRST, _FRESH_STARTED, _PAST_NOTHING, _FRESH_COMPLETED),
-        {coverage.CONFLICTING_COUNTERS: 1},
+        ({coverage.CONFLICTING_COUNTERS: 1}, 0),
     ),
     (
         "placed in neither of two overlapping turns",
         codex.APPENDED,
         (*capture.log_lines(), *_OVERLAPPING, _DETACHED, *_CLOSING),
-        {**_DETACHED_GAPS, coverage.CONVERSATION_AMBIGUOUS: 1, coverage.SUBAGENT_USAGE_UNAVAILABLE: 2},
+        ({**_DETACHED_GAPS, coverage.CONVERSATION_AMBIGUOUS: 1, coverage.SUBAGENT_USAGE_UNAVAILABLE: 2}, 0),
     ),
     (
-        "in a child turn naming no id",
+        "in a child turn naming no id, its parent finished",
         codex.APPENDED,
-        (*capture.log_lines(), _STARTED, _UNNAMED_CHILD, _DETACHED, _COMPLETE),
-        {**_DETACHED_GAPS, coverage.SUBAGENT_UNIDENTIFIED: 1, coverage.NO_TERMINAL_RESULT: 1},
+        (*capture.log_lines(), _STARTED, _UNNAMED_CHILD, _COMPLETE, _DETACHED),
+        ({**_DETACHED_GAPS, coverage.SUBAGENT_UNIDENTIFIED: 1, coverage.NO_TERMINAL_RESULT: 1}, 0),
     ),
 )
 _REPORTLESS_FRESH = tuple(text for text in _FRESH_LINES if '"type":"token_count"' not in text)
@@ -586,12 +625,12 @@ class RequestIdentityTest(unittest.TestCase):
     def test_unsampled_reports_keep_evidence(self) -> None:
         # A report no sample is made of -- none proven, or none a branch takes -- still has its request usage judged:
         # against its own parts, and against the running sum beside it, which every request it sums adds to, nothing
-        # at all included; and its metadata beside it.
-        for name, invocation, lines, gaps in _UNSAMPLED:
+        # at all included, nor less than what earlier reports establish where it leaves a counter out; and its
+        # metadata beside it.
+        for name, invocation, lines, expected in _UNSAMPLED:
             with self.subTest(name):
                 collection = codex.collected(invocation, lines)
-                self.assertEqual(collection.samples, [])
-                self.assertEqual(collection.reasons, gaps)
+                self.assertEqual((collection.reasons, len(collection.samples)), expected)
 
     def test_records_keep_their_shape_as_evidence(self) -> None:
         # No request is read off a usage record, but one that is no object, or whose usage names no counter, is
@@ -603,15 +642,18 @@ class RequestIdentityTest(unittest.TestCase):
                 self.assertEqual(collection.reasons, {gap: 1})
 
     def test_overlapping_turns_told_apart_by_records(self) -> None:
-        # With two child turns open at once, the record before a report names the turn it settles in; with none,
-        # nothing tells them apart, so the report is placed in neither, and no branch is proven past it.
+        # With several turns open at once -- two child turns, or a parent and its child -- the record before a report
+        # names the turn it settles in; with none, nothing tells them apart, so the report is placed in none, and no
+        # branch is proven past it.
         told = codex.appended(*_TOLD_APART)
         self.assertEqual(cases.column(told.samples, codex.TURN_ID), list(_TOLD_TURNS))
         self.assertEqual(cases.column(told.samples, cases.MODEL), list(_TOLD_MODELS))
         self.assertEqual(told.reasons, {})
-        untold = codex.appended(*_UNTOLD)
-        self.assertEqual(untold.samples, [])
-        self.assertEqual(untold.reasons.get(coverage.CONVERSATION_AMBIGUOUS), 1)
+        for name, lines in _UNTOLD_CASES:
+            with self.subTest(name):
+                untold = codex.appended(*lines)
+                self.assertEqual(untold.samples, [])
+                self.assertEqual(untold.reasons.get(coverage.CONVERSATION_AMBIGUOUS), 1)
 
     def test_unproven_reports_are_no_requests(self) -> None:
         for name, lines, others in _UNPROVEN_REPORTS:
