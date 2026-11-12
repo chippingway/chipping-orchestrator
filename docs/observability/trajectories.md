@@ -97,6 +97,14 @@ rows — or for none of them, in which case the `source_items` key is absent whi
 many items the stream identified. A claude run identifies no codex items, so all three keys are simply absent from its
 record.
 
+**Request usage (`request_usage`).** `AgentTrajectory` has a `request_usage` field of the shared request-usage type
+[the usage parser](usage.md#request-usage-observations) defines -- the per-request samples, boundary markers,
+aggregate checkpoints, and collection coverage a collector reads off a run's stdout -- kept apart from claude's
+per-turn `turns`. No collector runs yet: every trajectory parser leaves the field `None`, and the sink writes no
+`request_usage` key on any record. The field's absence means the run's requests were not collected, never that the
+run made none or that an empty breakdown was collected, and no reader infers or backfills one from `run_usage`, the
+`turns`, or the steps.
+
 **Join keys.** The envelope and correlation context double as join keys back to the numeric sinks. `session_id` (the
 live `result.session_id`) is the per-run key onto the
 [`agent_exit`](event-streams.md#agent_exit-records) analytics record and the

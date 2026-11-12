@@ -3,6 +3,7 @@
 """Focused provider usage parsing tests."""
 
 import json
+import sys
 import unittest
 
 from orchestrator.observability.usage import metrics as _metrics
@@ -10,6 +11,14 @@ from tests.observability.usage import (
     usage_codex_events as _codex,
     usage_jsonl_helpers as _jsonl,
     usage_test_values as _usage_cases,
+)
+
+# A final cumulative usage event carrying a number past the interpreter's digit limit, which the decoder refuses
+# although the line parses.
+_REFUSED_DIGITS = "9" * (sys.get_int_max_str_digits() + 1)
+_REFUSED_FINAL_EVENT = (
+    '{"type":"turn.completed","usage":{"input_tokens":1000,"cached_input_tokens":0,"output_tokens":100},'
+    f'"total_cost_usd":1.0,"extra":{_REFUSED_DIGITS}}}'
 )
 
 
@@ -69,6 +78,18 @@ class CodexUsageErrorTest(unittest.TestCase):
         self.assertEqual(metrics.input_tokens, 10)
         self.assertEqual(metrics.output_tokens, 5)
         self.assertEqual(metrics.cost_source, _usage_cases.ESTIMATED_COST_SOURCE)
+
+    def test_a_refused_final_event_refuses_the_stream(self) -> None:
+        # Codex usage is cumulative, so a final event the decoder refuses is never skipped: the earlier subtotal
+        # would be published as a complete total. The parse raises, which cancels the run's record.
+        earlier = _jsonl.jsonl({
+            _usage_cases.TYPE_FIELD: "turn.completed",
+            _usage_cases.USAGE_FIELD: _codex.usage(input=10, cached=0, output=1),
+            "total_cost_usd": 0.01,
+        })
+        self.assertEqual(_metrics.parse_agent_usage(_usage_cases.CODEX, earlier).input_tokens, 10)
+        with self.assertRaises(ValueError):
+            _metrics.parse_agent_usage(_usage_cases.CODEX, f"{earlier}\n{_REFUSED_FINAL_EVENT}")
 
     def test_turns_falls_back_to_turn_complete_count(self) -> None:
         # When ``num_turns`` is absent, the count of ``turn_complete``

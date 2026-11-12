@@ -85,7 +85,9 @@ orchestrator/
                         head/tail truncation it passes through, and the fail-open write the whole of it rides
     usage/              the provider payload parsers, publishing the parser surface and the result types it returns
                         (`__all__`): token and cost metering, skill evidence, and per-run trajectories, one family
-                        per backend over a shared JSONL vocabulary and the first-party rate tables
+                        per backend over a shared JSONL vocabulary and the first-party rate tables, beside the
+                        provider-neutral per-request usage records, normalization, coverage, and bounded scan that
+                        no collector reads through yet
     dashboard/          the Streamlit analytics page: the visual theme both pages are drawn in, the window and
                         filters one run of it carries, the two waves a load is staged into with the read adapters
                         they are made of, the cost details, banner, and headline numbers drawn between them, and the

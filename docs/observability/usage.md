@@ -35,7 +35,11 @@ record establishes about the requests it sums and the estimate it is priced at, 
 `trajectory_codex_items.py` under it the timeline reconstruction. Antigravity's envelopes, tool lifecycles, and
 completed-step usage live in `agy_events.py` / `agy_summary.py`, with `agy_requests.py` holding which Gemini API model
 a run's CLI slug is priced as and the estimate its steps are priced at, and its text and tool timeline in
-`trajectory_agy.py`. The
+`trajectory_agy.py`. The shared per-request usage contract has owners of its own: `request_models.py` the
+observation, marker, and checkpoint records, `request_normalization.py` the common counters every provider's are read
+into, `request_coverage.py` the coverage a collection states and the field the observations ride in, and
+`request_scan.py` the bounded pass a collector reads stdout in, as
+[request usage observations](#request-usage-observations) describes. The
 trajectory classifier reuses the same event decoder, pricing path, and skill evidence owners, so the resilience and
 cost-precedence contracts are defined once. Tests intercept parsers on the module their caller imports. The package
 initializer re-exports the public parsers and result types; callers name the defining owner so patches reach it.
@@ -399,10 +403,12 @@ models carry no row, since no captured stream shows a harness emitting their IDs
 cyber model is current; nor does any `gpt-5.6-pro`, which OpenAI does not publish.
 
 **Resilience.** Malformed JSON lines (banner text, truncated frames, partial flushes) are silently skipped so a single
-bad line never invalidates the rest of the stream. `_run_agent_tracked` (in `workflow/engine/usage.py`) calls
-`parse_agent_usage` after every tracked agent run and appends the parsed counts to the
-[analytics sink](event-streams.md#analytics-sink-analytics_log_path) under `event="agent_exit"`; a
-parser exception is caught and downgraded to a `log.exception`.
+bad line never invalidates the rest of the stream. A line the decoder refuses although it parses -- a number past the
+interpreter's digit limit, nesting past its depth -- is not skipped: it raises out of the parser, so no total read
+before it is published as the run's. `_run_agent_tracked` (in `workflow/engine/usage.py`) calls `parse_agent_usage`
+after every tracked agent run and appends the parsed counts to the
+[analytics sink](event-streams.md#analytics-sink-analytics_log_path) under `event="agent_exit"`; a parser exception is
+caught and downgraded to a `log.exception`, and the run writes no `agent_exit` record.
 
 **Terminal verdict surface.** Beyond the analytics sink, every invoked run's parsed `UsageMetrics` is counted on
 per-issue totals on the pinned state (`issue_agent_runs` / `issue_total_tokens` /
@@ -637,5 +643,117 @@ thing not accounted — there is no name to account it under, and every such fra
 contributes its steps and nothing else. `AgentTrajectory.to_dict()` carries the tuple as `source_items`, and the
 `agent_trajectory` sink record serializes it under that same key — bounded, counted, and flagged when truncated, as
 [`trajectories.md`](trajectories.md#trajectory-sink-trajectory_log_path) describes.
+
+## Request usage observations
+
+The four `request_*.py` owners define how one run's usage is recorded request by request, but nothing collects it
+yet. A `RequestUsage` (`request_coverage.py`) holds one observation per request a stream settled usage for, the
+explicit boundary markers the stream printed, its aggregate checkpoints, and the coverage of the collection. It is the
+type of `AgentTrajectory`'s `request_usage` field, kept apart from Claude's per-turn `turns`. No backend has a
+collector and nothing dispatches one: every trajectory parser leaves the field `None`, the
+[trajectory sink](trajectories.md#trajectory-sink-trajectory_log_path) writes no `request_usage` key, and `None` means
+the run's requests were not collected, never that it made none. The contract is observation alone: pricing, the run's
+`UsageMetrics`, the accounting checkpoint and pinned totals, the cost and token evidence, Claude's turns, and the
+viewer's timeline never read a sample, marker, or checkpoint.
+
+**What an observation carries.** `request_models.py` defines the record; each sample serializes these keys, and a key
+the stream gave nothing for is absent rather than null:
+
+- identity: `id`, a key that stays the same however often the stream repeats the request, with `id_kind` saying what
+  kind of key it is -- `conversation-step` (`<conversation>:<step>`) or `process-step` (`process:<step>`, for a step
+  naming no conversation, known only within the process that printed it) -- and every identity the stream gave:
+  `conversation_id`, `session_id`, `turn_id`, `message_id`, `step_index`, `parent_conversation_id`,
+  `parent_step_index`, and `subagent_type`;
+- order: `position`, the 0-based stdout line that completed it, and `branch_order`, its place among its own
+  conversation's samples; neither orders it against another conversation's;
+- source: `source_kind` (the provider's own kind of request), `source_timestamp`, `source_duration_s`, and
+  `source_version`. A source timestamp is the stream's own; when a collection ran is the record's `ts`, never a sample
+  field;
+- attribution: `model` with its `model_source` -- `stream` where the stream named it, `configured-fallback` where it
+  named none and the configured model stands in, `unestablished` where the stream leaves it unknown, and
+  `unavailable` where neither exists -- and `context_capacity` where the stream reports one;
+- settlement: `scope` (`request`), `status` (`final` or `provisional`), and `settlement`, the report the status
+  rests on;
+- counters: `raw`, the counters its collector allowlists, as whole counts -- a negative whole number included, and a
+  value that is no whole count left out, its field `invalid` -- the normalized counters below, the `overlap` profile
+  they were read under, and `evidence`, one state for each normalized field.
+
+Nothing is inferred into a sample: no timestamp, order across conversations, context capacity, or model is taken from
+unrelated data. A marker (`markers`) is an explicit boundary the stream printed -- `model-change`, with the `model` and
+`previous_model`, or a `compaction` or `reset` of the context -- and none is inferred where the stream prints no such
+boundary. A checkpoint (`checkpoints`) is aggregate usage over a wider scope than one request, such as a terminal
+total over its whole `conversation`, with its `raw` counters, `turns`, `source_status`, and an `evidence` map naming
+each counter it reported no usable count for or its own arithmetic contradicts. Neither is a request: neither is
+counted as one, and a reader reconciles a checkpoint only against samples of its own scope. Only allowlisted counters
+and correlation metadata enter any of the three: no prompt, response or tool text, reasoning text, credential, or
+source dictionary.
+
+**Normalization.** `request_normalization.py` reads each request's raw counters into the same fields under its
+provider's profile:
+
+| Profile | `overlap` | `context_input_tokens` | Cache writes |
+| --- | --- | --- | --- |
+| Codex | `input-includes-cache` | the input, which already holds its cache reads and writes | inside the input |
+| Claude | `input-excludes-cache` | input plus cache reads plus cache writes, each write once | aggregate or split |
+| Antigravity | `input-excludes-cache-reads` | input plus cache reads | `unsupported` |
+
+`output_tokens` is the output, `reasoning_tokens` a subset of it on every profile, and `total_tokens` the context input
+plus the output. `cache_read_tokens` and `cache_write_tokens` keep the cache breakdown, and `cache_write_lifetimes` a
+Claude write's `cache_write_5m` / `cache_write_1h` split. A Claude write is its aggregate where the block reports one
+and its lifetime split only where the aggregate is missing; a split summing to anything but its aggregate, or one
+lifetime exceeding it, leaves both, and so the context input and total, `conflicting`. On Codex, cache reads and writes
+-- the writes held at least at what is known of them: their settled count, or the lifetimes reported so far where it is
+unknown -- that together exceed the input holding them are `conflicting`, the lifetimes with them, while the input stays
+the context input and a write nothing establishes stays unknown. The provider's own total is kept apart as
+`source_total_tokens` and never derives the common total: an Antigravity request of 278 input tokens beside 30,214
+cache reads and 4 output tokens has 30,492 context-input tokens and a `total_tokens` of 30,496, while the 282 its
+source reports stays its `source_total_tokens`. Where the profile states what the source total sums -- input plus
+output, on Codex and Antigravity -- one disagreeing with those counters is `conflicting`, and so is one smaller than the
+ones that are known where another is missing, since those already bound it from below.
+
+Each field's evidence is `observed` (a usable count), `missing` (nothing reported, never a zero), `invalid` (a negative
+number, a fraction, an infinite or NaN value, a boolean, a word, or a number of more than 30 digits, reported or
+spelled, which no token count reaches -- judged before anything is truncated to a count, and a string, or a number
+literal the scan kept exact, read exactly, never through a float that could round a fraction whole or move a large
+count), `conflicting` (two reports of the request disagree, a part exceeds its whole, or a total contradicts its
+parts), or `unsupported` (the profile has no such counter -- a limitation of the source on an optional field such as
+Antigravity's cache writes, but an `unsupported-counters` gap on the context input or the output a request is unusable
+without). A derived field is established only where every part is observed and otherwise takes the weakest part's
+evidence, so a request reporting no cache reads has no context input, while one reporting zero has its input as its
+context.
+
+**Coverage.** Each collection states its `coverage`: `status`, `reasons` (each gap's code and how often it occurred,
+from a vocabulary fixed in `request_coverage.py`), `limitations` (what the source never reports), and `scan_scope`,
+beside `scanned_lines` and `skipped_lines` and the observed and retained counts of samples, markers, and checkpoints.
+The status is read off the reasons, most severe first: `unavailable` where nothing could be read (`no-stream-events`,
+`collector-error`), `source-limit-truncated` where a bound cut the scan short (`scan-limit`, `oversize-lines`,
+`correlation-limit`), `storage-truncated` where the record kept fewer samples or markers than were observed
+(`storage-budget`, counting the dropped entries), `incomplete` for any other gap, and `complete-empty` or `complete`
+where there is none, with no sample or with some. A scan a bound cut short is `partial` in `scan_scope`, so its observed
+count is never read as the invocation's; one that read nothing is `none`. A request leaves its own gaps where a core
+counter -- its context input or output -- establishes no count (`missing-counters`, `unsupported-counters`), any of its
+fields is invalid or conflicting (`invalid-counters`, `conflicting-counters`), its usage is provisional
+(`provisional-usage`), or it has no model (`model-unattributed`, or `subagent-model-unestablished` for a subagent's).
+The scan records `malformed-lines` itself, as below; the rest of the vocabulary is for a collector to record about its
+stream: `no-terminal-result`, `unsettled-steps`, `unreported-usage`, `unindexed-frames`, `conversation-ambiguous`,
+`subagent-usage-unavailable`, `subagent-unidentified`, `subagent-attribution-conflicting`, `oversize-metadata`,
+`malformed-metadata`, `malformed-envelopes`, and `malformed-usage`.
+
+**Bounded scan.** A collector reads stdout a second time, so `request_scan.py` bounds everything it adds, as module
+defaults read when a collection starts. The scan itself holds to at most 64 Mi characters of stdout (`MAX_SCAN_CHARS`;
+whitespace past them is no gap, and is looked through for as many characters again at most, any output beyond taken as
+unread), 4 Mi characters per line (`MAX_LINE_CHARS`), and 200,000 decoded events (`MAX_EVENTS`), each a gap where it
+stops or skips the scan. The correlation bounds a collector enforces are defined beside them: 20,000 correlated steps
+(`MAX_TRACKED_STEPS`), 64 subagent branches (`MAX_BRANCHES`), 256 markers (`MAX_MARKERS`), 4 checkpoints
+(`MAX_CHECKPOINTS`), and 128 characters of any one piece of correlation metadata (`MAX_METADATA_CHARS`). `Metadata`
+drops a longer id or model name whole and counts it, never cutting it, and drops and counts a value that is no string
+apart, so a malformed field costs its own reading and nothing beside it. Each line goes through the standard JSON
+decoder the run parsers use, except that a number literal with a fraction or an exponent is kept as the exact `Decimal`
+it spells -- NaN where its exponent is past any `Decimal` -- so a counter such as `1e-400` or `2.0000000000000000001`
+is `invalid` rather than the whole number its float would round to; the run parsers still decode floats. A line shaped
+like a JSON object that decodes to none -- cut short, or refused by the decoder -- is a `malformed-lines` gap, while
+banner text and a value that is no object, which could never have been an event, are skipped without being one. The
+decoder's refusal is caught by the scan alone, for the line it was decoding: the run parsers still refuse such a
+stream, as Resilience above describes.
 
 [pinned-state]: ../state-machine/labels-and-state.md#pinned-state

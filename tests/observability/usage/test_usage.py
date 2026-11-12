@@ -2,15 +2,41 @@
 # SPDX-License-Identifier: Apache-2.0
 """Focused provider usage parsing tests."""
 
+import dataclasses
+import sys
 import unittest
+from unittest.mock import patch
 
-from orchestrator.observability.usage import metrics as _metrics, skills as _skills, trajectory as _trajectory
+from orchestrator.observability.usage import (
+    metrics as _metrics,
+    request_coverage as _request_coverage,
+    request_normalization as _request_normalization,
+    request_scan as _request_scan,
+    skills as _skills,
+    trajectory as _trajectory,
+)
 from tests.observability.usage import (
     usage_claude_events as _claude,
     usage_codex_events as _codex,
     usage_jsonl_helpers as _jsonl,
     usage_serialization_cases as _serialization,
     usage_test_values as _usage_cases,
+)
+from tests.support import agy_stream as _agy_stream
+
+# A line the decoder refuses although it parses: a number past the interpreter's digit limit.
+_REFUSED_DIGITS = "1" * (sys.get_int_max_str_digits() + 1)
+_REFUSED_LINE = f'{{"unrelated": {_REFUSED_DIGITS}}}'
+_REQUEST_USAGE = "request_usage"
+
+_CLAUDE_USAGE = _claude.usage(input=10, output=2, cache_read=5)
+_CLAUDE_FRAMES = (_claude.assistant(usage=_CLAUDE_USAGE), _claude.terminal_result())
+_CODEX_FRAME = _codex.turn_complete(input=10, cached=5, output=2)
+# One stream per backend that reports request usage, which a request collector could read were one to run.
+_USAGE_BEARING_STREAMS = (
+    (_usage_cases.CLAUDE, _jsonl.jsonl(*_CLAUDE_FRAMES)),
+    (_usage_cases.CODEX, _jsonl.jsonl(_CODEX_FRAME)),
+    (_agy_stream.BACKEND, _agy_stream.resumed_stream()),
 )
 
 
@@ -28,6 +54,15 @@ class DispatcherTest(unittest.TestCase):
     def test_unknown_backend_raises(self) -> None:
         with self.assertRaises(ValueError):
             _metrics.parse_agent_usage("gemini", "")
+
+    def test_a_refused_line_refuses_the_stream(self) -> None:
+        # The run parsers never skip a refused line: its usage could be the run's total, so a total read without it
+        # is no total at all. Only request collection catches the refusal, for its own scan.
+        for backend in (_usage_cases.CLAUDE, _usage_cases.CODEX, _agy_stream.BACKEND):
+            with self.subTest(backend), self.assertRaises(ValueError):
+                _metrics.parse_agent_usage(backend, _REFUSED_LINE)
+            with self.subTest(backend), self.assertRaises(ValueError):
+                _trajectory.parse_agent_trajectory(backend, _REFUSED_LINE)
 
 
 class UsageMetricsTest(unittest.TestCase):
@@ -77,6 +112,21 @@ class TrajectoryDispatcherTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             _trajectory.parse_agent_trajectory("gemini", "")
 
+    def test_parsing_collects_no_request_usage(self) -> None:
+        # Reconstructing a timeline is not collecting its requests: every backend's trajectory leaves the field
+        # uncollected, and parsing scans and normalizes nothing for it, however much usage the stream reports.
+        for backend, stdout in _USAGE_BEARING_STREAMS:
+            with (
+                self.subTest(backend),
+                patch.object(_request_scan, "scan_events") as scanned,
+                patch.object(_request_normalization, "normalize") as normalized,
+            ):
+                parsed = _trajectory.parse_agent_trajectory(backend, stdout)
+                self.assertIsNone(parsed.request_usage)
+                self.assertIsNone(parsed.to_dict()[_REQUEST_USAGE])
+                scanned.assert_not_called()
+                normalized.assert_not_called()
+
 
 class AgentTrajectoryTest(unittest.TestCase):
     def test_to_dict_round_trips_via_json(self) -> None:
@@ -111,3 +161,11 @@ class AgentTrajectoryTest(unittest.TestCase):
                 ),
             ),
         )
+
+    def test_request_usage_rides_apart_from_the_turns(self) -> None:
+        trajectory = _serialization.build_agent_trajectory()
+        failed = _request_coverage.RequestUsage.failed()
+        decoded = _serialization.serialize(dataclasses.replace(trajectory, request_usage=failed))
+        self.assertEqual(decoded[_REQUEST_USAGE], failed.to_dict())
+        without = _serialization.serialize(trajectory)
+        self.assertEqual(decoded[_usage_cases.TURNS_FIELD], without[_usage_cases.TURNS_FIELD])
