@@ -5,11 +5,14 @@
 Request collection is a second reading of a stream the run parsers have already read, so everything it adds is
 bounded: how much of the stdout it scans, how long one line may be, how many events it decodes, how many steps,
 branches, and markers it correlates, how many aggregate checkpoints it keeps, and how long a piece of correlation
-metadata may be. Each line is decoded by the shared resilient decoder (`event_stream.iter_events`), so a line reads the
-same here as in every other parser. A bound that stops the scan, or a line it refuses to decode, is recorded as a gap,
-so a collection that read less than the whole invocation says so. A line shaped like a JSON object that does not decode
-is a malformed frame, a line the decoder refuses included; any other line that decodes to no event -- banner text, or
-a value that is no object -- is skipped without being one, since it could never have been an event.
+metadata may be. Each line is decoded by the shared decoder (`event_stream.iter_events`), so a line reads the same here
+as in every other parser. That decoder raises for a line it refuses although it parses -- a number past the
+interpreter's digit limit, nesting past its depth -- and the run parsers let that refusal cancel the run's record as
+they always have; this scan alone catches it, for the one line it was decoding. A bound that stops the scan, or a line
+it cannot decode, is recorded as a gap, so a collection that read less than the whole invocation says so. A line
+shaped like a JSON object that does not decode is a malformed frame, a line the decoder refuses included; any other
+line that decodes to no event -- banner text, or a value that is no object -- is skipped without being one, since it
+could never have been an event.
 
 The bounds are module defaults rather than knobs, read once per collection by `current_limits`, so a caller shrinks
 one here and the next collection is held to it.
@@ -105,11 +108,15 @@ class EventScan:
 
         Only a line shaped like an object could have been an event, so one that decodes to none -- cut short, or
         refused by the decoder for a number past the interpreter's digit limit or nesting past its depth -- is a
-        malformed line of this scan, while any other skipped line is not.
+        malformed line of this scan, while any other skipped line is not. The refusal is caught here rather than in
+        the shared decoder, so it costs this scan one line and leaves the run parsers' refusal of the stream as it was.
         """
         if len(line) > self.limits.line_chars:
             return self._skipped(coverage.OVERSIZE_LINES)
-        decoded = event_stream.iter_events(line)
+        try:
+            decoded = event_stream.iter_events(line)
+        except (ValueError, RecursionError):
+            decoded = []
         if decoded:
             return decoded
         return self._skipped(coverage.MALFORMED_LINES if line.startswith(_OBJECT_START) else None)

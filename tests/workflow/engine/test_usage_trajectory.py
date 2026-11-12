@@ -67,10 +67,8 @@ _AGY_STDOUT = "\n".join((
 _FAILED_AGY_RUN = AgentResult(
     session_id=None, last_message="", exit_code=1, timed_out=False, stdout=_AGY_STDOUT, stderr="",
 )
-# The same run with a line the JSON decoder refuses although it parses: nesting past its depth.
-_DEEP_NESTING = 200_000
-_OPEN_ARRAYS = "[" * _DEEP_NESTING
-_REFUSED_LINE = f'{{"unrelated": {_OPEN_ARRAYS}'
+# The same run with a line the JSON decoder refuses although it parses.
+_REFUSED_LINE = _usage_frames._REFUSED_LINE
 _REFUSED_AGY_RUN = AgentResult(
     session_id=None, last_message="", exit_code=1, timed_out=False, stdout=f"{_AGY_STDOUT}\n{_REFUSED_LINE}", stderr="",
 )
@@ -272,15 +270,19 @@ class TrajectoryRecordingTest(unittest.TestCase):
         self.assertEqual(trajectory_record["request_usage"]["coverage"]["reasons"], {"collector-error": 1})
         self.assertEqual(trajectory_record["steps"][0]["content"], "partial")
 
-    def test_a_refused_line_keeps_the_run(self) -> None:
-        # A line the decoder refuses costs that line alone: the run is metered and accounted, and its trajectory
-        # keeps the completed request beside a malformed-line gap.
+    def test_a_refused_line_keeps_baseline_refusal(self) -> None:
+        # A line the decoder refuses cancels the run's usage parse exactly as it did before request collection
+        # existed: the run publishes no total read without that line, so no trajectory is written and the request
+        # collector, which rides the trajectory, never runs.
         gh = FakeGitHubClient()
         budget = _tracked_budget(gh, _REFUSED_LINE_ISSUE_NUMBER)
         trajectory_path = _analytics_path(self, "refused-", "refused-trajectory.jsonl")
+        collector = MagicMock()
         with (
             patch.object(analytics_settings, _TRAJECTORY_PATH_ATTR, trajectory_path),
+            patch.object(support.usage_trajectory, "parse_agent_request_usage", collector),
             patch.object(_agent_runner, _RUN_AGENT_ATTR, return_value=_REFUSED_AGY_RUN),
+            self.assertLogs(analytics_sink.log, level="ERROR"),
         ):
             agent_result = engine_usage._run_agent_tracked(
                 gh, budget,
@@ -291,11 +293,11 @@ class TrajectoryRecordingTest(unittest.TestCase):
                 cwd=_FAKE_WT,
                 agent_spec=_BACKEND_AGY,
             )
-        self.assertEqual(agent_result.usage.input_tokens, 10)
-        self.assertEqual(budget.state.state_data["issue_agent_runs"], 1)
-        request_usage = _analytics_records(trajectory_path)[0]["request_usage"]
-        self.assertEqual(len(request_usage["samples"]), 1)
-        self.assertIn("malformed-lines", request_usage["coverage"]["reasons"])
+        self.assertIsNone(agent_result.usage)
+        self.assertFalse(agent_result.unaccounted)
+        self.assertNotIn("issue_total_tokens", budget.state.state_data)
+        collector.assert_not_called()
+        self.assertFalse(trajectory_path.exists())
 
     def test_failure_keeps_skill_events(self) -> None:
         # A trajectory-parse failure must not cost the `skill_triggered`

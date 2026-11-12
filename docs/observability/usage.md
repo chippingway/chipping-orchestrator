@@ -403,12 +403,13 @@ exists: the Developer API routes that deprecated ID to 3.8. The restricted Claud
 models carry no row, since no captured stream shows a harness emitting their IDs and `gpt-5.6-cyber` names whichever
 cyber model is current; nor does any `gpt-5.6-pro`, which OpenAI does not publish.
 
-**Resilience.** Malformed JSON lines (banner text, truncated frames, partial flushes, and lines the decoder refuses
-although they parse -- a number past the interpreter's digit limit, nesting past its depth) are silently skipped so a
-single bad line never invalidates the rest of the stream. `_run_agent_tracked` (in `workflow/engine/usage.py`) calls
-`parse_agent_usage` after every tracked agent run and appends the parsed counts to the [analytics
-sink](event-streams.md#analytics-sink-analytics_log_path) under `event="agent_exit"`; a parser exception is caught and
-downgraded to a `log.exception`.
+**Resilience.** Malformed JSON lines (banner text, truncated frames, partial flushes) are silently skipped so a single
+bad line never invalidates the rest of the stream. A line the decoder refuses although it parses -- a number past the
+interpreter's digit limit, nesting past its depth -- is not skipped: it raises out of the parser, so no total read
+before it is published as the run's. `_run_agent_tracked` (in `workflow/engine/usage.py`) calls `parse_agent_usage`
+after every tracked agent run and appends the parsed counts to the
+[analytics sink](event-streams.md#analytics-sink-analytics_log_path) under `event="agent_exit"`; a parser exception is
+caught and downgraded to a `log.exception`, and the run writes no `agent_exit` record and no trajectory.
 
 **Terminal verdict surface.** Beyond the analytics sink, every invoked run's parsed `UsageMetrics` is counted on
 per-issue totals on the pinned state (`issue_agent_runs` / `issue_total_tokens` /
@@ -742,7 +743,9 @@ never cut, and so is the configured fallback model; a value that is no string at
 that is negative -- is dropped and counted as `malformed-metadata`, so a malformed field costs its own reading and no
 other request of the stream. Each line goes through the shared decoder; one shaped like a JSON object that decodes to
 none -- cut short, or refused by the decoder -- is a malformed frame, while banner text and a value that is no object,
-which could never have been an event, are skipped without being a gap. Only allowlisted counters and correlation
+which could never have been an event, are skipped without being a gap. The decoder's refusal is caught by the scan
+alone, for the line it was decoding: the run parsers still refuse such a stream (see Resilience above), so a tracked
+run carrying one writes no trajectory for a collection to ride. Only allowlisted counters and correlation
 metadata enter a sample: no prompt, response or tool text, reasoning text, credential, or source dictionary.
 
 **Antigravity requests.** `request_agy.py` produces one observation per completed usage-bearing step of the process's

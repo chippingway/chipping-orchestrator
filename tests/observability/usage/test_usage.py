@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Focused provider usage parsing tests."""
 
+import sys
 import unittest
 
 from orchestrator.observability.usage import metrics as _metrics, skills as _skills, trajectory as _trajectory
@@ -12,6 +13,11 @@ from tests.observability.usage import (
     usage_serialization_cases as _serialization,
     usage_test_values as _usage_cases,
 )
+from tests.support import agy_stream as _agy_stream
+
+# A line the decoder refuses although it parses: a number past the interpreter's digit limit.
+_REFUSED_DIGITS = "1" * (sys.get_int_max_str_digits() + 1)
+_REFUSED_LINE = f'{{"unrelated": {_REFUSED_DIGITS}}}'
 
 
 class DispatcherTest(unittest.TestCase):
@@ -28,6 +34,15 @@ class DispatcherTest(unittest.TestCase):
     def test_unknown_backend_raises(self) -> None:
         with self.assertRaises(ValueError):
             _metrics.parse_agent_usage("gemini", "")
+
+    def test_a_refused_line_refuses_the_stream(self) -> None:
+        # The run parsers never skip a refused line: its usage could be the run's total, so a total read without it
+        # is no total at all. Only request collection catches the refusal, for its own scan.
+        for backend in (_usage_cases.CLAUDE, _usage_cases.CODEX, _agy_stream.BACKEND):
+            with self.subTest(backend), self.assertRaises(ValueError):
+                _metrics.parse_agent_usage(backend, _REFUSED_LINE)
+            with self.subTest(backend), self.assertRaises(ValueError):
+                _trajectory.parse_agent_trajectory(backend, _REFUSED_LINE)
 
 
 class UsageMetricsTest(unittest.TestCase):
