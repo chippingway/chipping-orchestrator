@@ -22,12 +22,15 @@ reconstruction one timeline is rebuilt into (``trajectory_models``,
 ``trajectory_claude_turns``, ``trajectory_codex``,
 ``trajectory_codex_items``, ``trajectory_codex_payloads``, ``trajectory_agy``);
 and the per-request usage a run's stream is collected into -- its records,
-common normalization, coverage, and bounded scan, and the Antigravity
-collector with its step fold and conversation attribution
+common normalization, coverage, and bounded scan, the Antigravity collector
+with its step fold and conversation attribution, and the Claude collector
+with its stream fold, request fold, counter reading, and process reports
 (``request_models``, ``request_normalization``, ``request_coverage``,
 ``request_scan``, ``request_agy``, ``request_agy_steps``,
-``request_agy_branches``). The request collector is dispatched beside the
-trajectory parsers on ``trajectory`` and is not published here.
+``request_agy_branches``, ``request_claude``, ``request_claude_stream``,
+``request_claude_messages``, ``request_claude_counters``,
+``request_claude_reports``). The request collectors are dispatched beside the
+trajectory parsers on ``trajectory`` and are not published here.
 
 This initializer re-exports the narrow public surface (``__all__``): the nine
 parsers a caller dispatches through -- dispatch plus the Codex and Claude

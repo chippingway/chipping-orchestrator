@@ -4,11 +4,13 @@
 
 An observation is one request the provider's stream settled usage for, under an identity that stays the same however
 often the stream repeats it: what it is called and what kind of name that is, where the stream placed it, every
-session, conversation, turn, message, step, and parent or subagent identity the stream gave it, the model it ran on
-and how that model was established, the raw counters as reported, the normalized counters with their evidence, and
-whether its usage is final or provisional and which report settled it. A source timestamp is the stream's own; the
-moment a collection ran is the record's, never one of these. A field the stream did not give is absent, never guessed:
-no timestamp, branch order across conversations, context capacity, or model is inferred from unrelated data.
+session, conversation, turn, message, request, step, and parent or subagent identity the stream gave it, the
+trajectory turn the run's timeline numbers it under where it has one, the model it ran on and how that model was
+established, the raw counters as reported, the normalized counters with their evidence, the scope those counters cover
+-- one whole request, or only the output of one -- and whether its usage is final or provisional and which report
+settled it. A source timestamp is the stream's own; the moment a collection ran is the record's, never one of these. A
+field the stream did not give is absent, never guessed: no timestamp, branch order across conversations, context
+capacity, or model is inferred from unrelated data.
 
 A marker is an explicit boundary the stream printed -- a model change, a context compaction, or a reset -- and a
 checkpoint is aggregate evidence such as a terminal total, with the scope it covers. Neither is a request, so neither
@@ -27,13 +29,23 @@ from typing import Any
 from orchestrator.observability.usage.request_normalization import NormalizedUsage
 
 # Identity kinds: a step within a named conversation, and a step the stream named no conversation for, which is
-# known only within the process that printed it.
+# known only within the process that printed it; an API message under its own id, one under the id of the API
+# request that produced it, and the output of a subagent's closing message under the call its hand-back answers; and
+# a request the stream named no identity for, known only by the stdout line the process first printed it on.
 CONVERSATION_STEP = "conversation-step"
 PROCESS_STEP = "process-step"
+API_MESSAGE = "api-message"
+API_REQUEST = "api-request"
+HANDBACK_CALL = "handback-call"
+SOURCE_POSITION = "source-position"
 
-# Scopes: one request, and every request of a conversation however many processes it spanned.
+# Scopes: one request, the output alone of one request, every request of a conversation however many processes it
+# spanned, every lead-thread request of one process, and every request one model served in one process.
 REQUEST_SCOPE = "request"
+OUTPUT_SCOPE = "request-output"
 CONVERSATION_SCOPE = "conversation"
+LEAD_THREAD_SCOPE = "lead-thread"
+MODEL_SCOPE = "model"
 
 FINAL = "final"
 PROVISIONAL = "provisional"
@@ -55,6 +67,7 @@ RAW = "raw"
 MODEL = "model"
 KIND = "kind"
 SCOPE = "scope"
+PARENT_TOOL_USE_ID = "parent_tool_use_id"
 
 
 def compact(fields: Mapping[str, Any]) -> dict[str, Any]:
@@ -76,6 +89,10 @@ class RequestIdentity:
     parent_conversation_id: str | None = None
     parent_step_index: int | None = None
     subagent_type: str | None = None
+    request_id: str | None = None
+    agent_id: str | None = None
+    parent_tool_use_id: str | None = None
+    trajectory_turn: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return compact({
@@ -85,10 +102,14 @@ class RequestIdentity:
             "session_id": self.session_id,
             "turn_id": self.turn_id,
             "message_id": self.message_id,
+            "request_id": self.request_id,
             "step_index": self.step_index,
             "parent_conversation_id": self.parent_conversation_id,
             "parent_step_index": self.parent_step_index,
+            PARENT_TOOL_USE_ID: self.parent_tool_use_id,
+            "agent_id": self.agent_id,
             "subagent_type": self.subagent_type,
+            "trajectory_turn": self.trajectory_turn,
         })
 
 
@@ -114,10 +135,11 @@ class RequestAttribution:
 class RequestObservation:
     """One request the stream settled usage for.
 
-    `position` is the stream line that completed it and `branch_order` its place among its own conversation's
-    requests; neither orders it against another conversation's. `raw` holds the allowlisted counters that are whole
-    counts, a negative one included -- a value that is none is left out, its field invalid -- `usage` the normalized
-    ones, and `settlement` the report its `status` rests on.
+    `position` is the stream line its collector places it at -- the one that completed an Antigravity step, the first
+    one naming a Claude message -- and `branch_order` its place among its own branch's requests; neither orders it
+    against another branch's. `raw` holds the allowlisted counters that are whole counts, a negative one included -- a
+    value that is none is left out, its field invalid -- `usage` the normalized ones, `scope` how much of the request
+    they cover, and `settlement` the report its `status` rests on.
     """
 
     identity: RequestIdentity
@@ -154,19 +176,25 @@ class RequestObservation:
 
 @dataclass(frozen=True)
 class RequestMarker:
-    """An explicit boundary the stream printed, at the line it printed it; never a request."""
+    """An explicit boundary the stream printed, at the line it printed it; never a request.
+
+    `conversation_id` names the conversation it bounds, and `parent_tool_use_id` the subagent call whose branch it
+    bounds where that is not the lead thread.
+    """
 
     kind: str
     position: int
     conversation_id: str | None = None
     model: str | None = None
     previous_model: str | None = None
+    parent_tool_use_id: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return compact({
             KIND: self.kind,
             POSITION: self.position,
             CONVERSATION_ID: self.conversation_id,
+            PARENT_TOOL_USE_ID: self.parent_tool_use_id,
             MODEL: self.model,
             "previous_model": self.previous_model,
         })
@@ -177,7 +205,7 @@ class UsageCheckpoint:
     """Aggregate usage the stream reported over a wider scope than one request; never a request itself.
 
     `evidence` names each allowlisted counter the stream reported no usable count for, beside the state it is in, so
-    a counter reported as no count is never read as one it left out.
+    a counter reported as no count is never read as one it left out. `model` names the model a per-model total covers.
     """
 
     kind: str
@@ -188,6 +216,7 @@ class UsageCheckpoint:
     source_status: str | None = None
     turns: int | None = None
     evidence: Mapping[str, str] | None = None
+    model: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return compact({
@@ -195,6 +224,7 @@ class UsageCheckpoint:
             SCOPE: self.scope,
             POSITION: self.position,
             CONVERSATION_ID: self.conversation_id,
+            MODEL: self.model,
             "source_status": self.source_status,
             "turns": self.turns,
             RAW: dict(self.raw),

@@ -73,8 +73,9 @@ _REFUSED_AGY_RUN = AgentResult(
     session_id=None, last_message="", exit_code=1, timed_out=False, stdout=f"{_AGY_STDOUT}\n{_REFUSED_LINE}", stderr="",
 )
 _ERROR_LEVEL = "ERROR"
-# A Claude run whose stream the decoder refuses: its backend has no request collector.
-_REFUSED_CLAUDE_RUN = AgentResult(
+# A Codex run whose stream the decoder refuses: its backend has no request collector.
+_BACKEND_CODEX = "codex"
+_REFUSED_CODEX_RUN = AgentResult(
     session_id=None, last_message="", exit_code=1, timed_out=False, stdout=_REFUSED_LINE, stderr="",
 )
 
@@ -311,20 +312,20 @@ class TrajectoryRecordingTest(unittest.TestCase):
         # A backend with no request collector has nothing to record past the refusal, so its run writes no trajectory.
         gh = FakeGitHubClient()
         budget = _tracked_budget(gh, _REFUSED_LINE_ISSUE_NUMBER)
-        trajectory_path = _analytics_path(self, "refused-claude-", "refused-trajectory.jsonl")
+        trajectory_path = _analytics_path(self, "refused-codex-", "refused-trajectory.jsonl")
         with (
             patch.object(analytics_settings, _TRAJECTORY_PATH_ATTR, trajectory_path),
-            patch.object(_agent_runner, _RUN_AGENT_ATTR, return_value=_REFUSED_CLAUDE_RUN),
+            patch.object(_agent_runner, _RUN_AGENT_ATTR, return_value=_REFUSED_CODEX_RUN),
             self.assertLogs(analytics_sink.log, level=_ERROR_LEVEL),
         ):
             agent_result = engine_usage._run_agent_tracked(
                 gh, budget,
                 agent_role=ROLE_DEVELOPER,
                 stage=STAGE_IMPLEMENTING,
-                backend=BACKEND_CLAUDE,
+                backend=_BACKEND_CODEX,
                 prompt=_TRAJECTORY_PROMPT,
                 cwd=_FAKE_WT,
-                agent_spec=BACKEND_CLAUDE,
+                agent_spec=_BACKEND_CODEX,
             )
         self.assertIsNone(agent_result.usage)
         self.assertFalse(trajectory_path.exists())

@@ -109,13 +109,15 @@ def agent_trajectory(
     A `refused` stream is one the run parsers would not read, so nothing is
     reconstructed from it -- the trajectory parse shares their decoder -- and
     the record holds the request usage its collector read past the refusal,
-    or is not written at all where the backend has no request collector.
+    or is not written at all where the backend has no request collector. A
+    record with no timeline has no turn for a request to name, so the
+    requests it keeps name none.
     """
     if refused:
         request_usage = collected_request_usage(context)
         if request_usage is None:
             return None
-        return usage_trajectory_models.AgentTrajectory(context.backend, request_usage=request_usage)
+        return usage_trajectory_models.AgentTrajectory(context.backend, request_usage=request_usage.unlinked())
     trajectory = usage_trajectory.parse_agent_trajectory(
         context.backend,
         context.agent_result.stdout,

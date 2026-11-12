@@ -431,10 +431,12 @@ class CoverageGapTest(unittest.TestCase):
         self.assertEqual(undercounted.checkpoints[0][cases.EVIDENCE], {_TOTAL_TOKENS: "conflicting"})
         self.assertEqual(undercounted.status, coverage.INCOMPLETE)
 
-    def test_dispatch_collects_for_antigravity_alone(self) -> None:
-        for backend in (protocol.CLAUDE, protocol.CODEX):
+    def test_dispatch_collects_where_it_can(self) -> None:
+        # A Codex run has no request collector; every other backend's stream is collected, however little it holds.
+        self.assertIsNone(trajectory.parse_agent_request_usage(protocol.CODEX, _FIRST))
+        for backend in (protocol.AGY, protocol.CLAUDE):
             with self.subTest(backend):
-                self.assertIsNone(trajectory.parse_agent_request_usage(backend, _FIRST))
+                self.assertIsNotNone(trajectory.parse_agent_request_usage(backend, _FIRST))
         with self.assertRaises(ValueError):
             trajectory.parse_agent_request_usage("gemini", _FIRST)
 

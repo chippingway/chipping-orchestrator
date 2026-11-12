@@ -8,7 +8,8 @@ the API documents as summing to the aggregate. Each write counts once, under the
 so a write is never charged twice nor at another lifetime's rate. A write the block gives no lifetime counts under
 an unknown one, which no catalogue row prices: the whole aggregate beside no split, and the part of it a partial split
 leaves over. A lifetime field holding anything but a non-negative whole number -- a fraction, a non-finite number, a
-string, a bool -- is no lifetime count, read before any coercion could round it into one. With no aggregate, a split
+string, a bool -- is no lifetime count, read before any coercion could round it into one, while a `Decimal` the request
+scan kept exact reads as the float the run parsers decode the same literal as. With no aggregate, a split
 reporting both lifetimes is the whole write count, and one reporting a single lifetime counts those writes alone and
 leaves the whole unknown. An explicit zero is a count like any other. The unknown-lifetime class is present exactly
 when the block establishes its whole write count, zero where every write has its lifetime.
@@ -24,11 +25,17 @@ reads, and cache writes are that request's prompt, the size a request-tiered mod
 `result` frame's usage, a sum over the lead thread's requests: neither establishes any request's prompt. Each row is
 priced on its own (`ClaudeUsageRow.estimate`), so the run aggregate and every turn price their rows on one path and
 a run's estimate is its rows' estimates summed.
+
+A row's settlement says which report its output count rests on: the count its message started with
+(`message-start`), the `message_delta` closing it (`message-delta`), what `modelUsage` leaves over for the sole open
+subagent message (`model-usage`), or a subagent hand-back (`handback`). No price or total reads it; it is the
+provenance the request collector records beside each request's output.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from decimal import Decimal
 from typing import Any
 
 from orchestrator.observability.usage import cost_evidence, prices, protocol, token_evidence
@@ -40,6 +47,11 @@ CacheWrites = tuple[dict[str, int | None], bool]
 MESSAGE = "message"
 HANDBACK_OUTPUT = "handback-output"
 RESULT_TOTAL = "result-total"
+
+SETTLED_AT_START = "message-start"
+SETTLED_BY_DELTA = "message-delta"
+SETTLED_BY_MODEL_USAGE = "model-usage"
+SETTLED_BY_HANDBACK = "handback"
 
 CACHE_WRITE_CLASSES = (
     protocol.CACHE_WRITE_FIVE_MIN,
@@ -57,13 +69,17 @@ _PROMPT_CLASSES = frozenset((protocol.INPUT, protocol.CACHE_READ, protocol.CACHE
 
 @dataclass(frozen=True)
 class ClaudeUsageRow:
-    """One usage row in stream order: its model, its counts by token class, and the scope those counts cover."""
+    """One usage row in stream order: its model, its counts by token class, and the scope those counts cover.
+
+    `settlement` names the report its output count rests on.
+    """
 
     ordinal: int
     model: str
     counts: protocol.TokenBucket
     scope: str = MESSAGE
     conflicting_writes: bool = False
+    settlement: str = SETTLED_AT_START
 
     @property
     def prompt_tokens(self) -> int | None:
@@ -74,8 +90,8 @@ class ClaudeUsageRow:
         output = self.counts.get(protocol.OUTPUT, 0)
         return sum(self.counts.values()) - output
 
-    def with_output(self, output: int) -> ClaudeUsageRow:
-        return replace(self, counts={**self.counts, protocol.OUTPUT: output})
+    def with_output(self, output: int, settlement: str) -> ClaudeUsageRow:
+        return replace(self, counts={**self.counts, protocol.OUTPUT: output}, settlement=settlement)
 
     def estimate(self) -> cost_evidence.CostContribution | None:
         """The row priced on its own as an Anthropic API estimate, or None when nothing establishes its price."""
@@ -119,9 +135,11 @@ def _lifetime_count(*spellings: Any) -> int | None:
 
 
 def _whole_count(raw: Any) -> int | None:
-    if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+    # A `Decimal` the request scan kept exact reads as the float the run parsers decode the same literal as.
+    number = float(raw) if isinstance(raw, Decimal) else raw
+    if isinstance(number, bool) or not isinstance(number, (int, float)):
         return None
     # A float is a count only when it is a finite whole number: `is_integer` is false for a fraction, inf, and nan.
-    if isinstance(raw, float) and not raw.is_integer():
+    if isinstance(number, float) and not number.is_integer():
         return None
-    return int(raw) if raw >= 0 else None
+    return int(number) if number >= 0 else None

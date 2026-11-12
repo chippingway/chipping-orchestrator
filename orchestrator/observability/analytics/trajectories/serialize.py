@@ -187,7 +187,7 @@ def build_trajectory_record(
     cumulative -- `build_record` then drops the key).
 
     The collected request usage rides along as `request_usage`
-    (Antigravity-only today): its coverage and checkpoints charged with the
+    (Antigravity and Claude today): its coverage and checkpoints charged with the
     headline and always kept, its markers and samples drawn after the item
     accounting and before the steps, as the `requests` owner describes. A
     run with no collector leaves it None, and `build_record` drops the key.

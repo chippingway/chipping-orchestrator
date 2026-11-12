@@ -41,8 +41,8 @@ parser read them back is in [`../observability/analytics-database.md`](../observ
   file for per-run agent reasoning trajectories, separate from `ANALYTICS_LOG_PATH`. Defaults off: unset / empty / `off`
   / `disabled` / `none` (case-insensitive) all disable it; any other value is the explicit opt-in path. When enabled,
   `record_agent_exit` writes one redacted, head/tail-truncated `agent_trajectory` record per tracked run (the
-  orchestrator prompt lands as `user_input`, and an Antigravity run's record also carries its per-request usage
-  counters); when off, no trajectory work runs — the per-request usage collection included — and the `agent_exit`
+  orchestrator prompt lands as `user_input`, and an Antigravity or Claude run's record also carries its per-request
+  usage counters); when off, no trajectory work runs — the per-request usage collection included — and the `agent_exit`
   record is unchanged. Never touches `ANALYTICS_LOG_PATH`, the analytics Postgres sync, or the analytics dashboard.
   Local filesystem only and observation-only — the polling loop never reads it back, so the file is safe to delete
   without affecting workflow state. A dedicated developer Streamlit viewer reads this

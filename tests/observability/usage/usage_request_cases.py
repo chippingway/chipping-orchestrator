@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""One Antigravity stream collected into its serialized request usage, and the parts a test reads back.
+"""One stream collected into its serialized request usage, and the parts a test reads back.
 
 The request tests read the field as a record carries it -- `RequestUsage.to_dict()` -- so the keys below are the
 serialized format they pin, named once here rather than spelled out in every module.
@@ -77,9 +77,9 @@ class Collected:
         return self.coverage[STATUS]
 
 
-def collected(*lines: str, fallback_model: str | None = None) -> Collected:
-    """The request usage one Antigravity stdout of `lines` serializes as."""
-    usage = trajectory.parse_agent_request_usage(protocol.AGY, "\n".join(lines), fallback_model)
+def collected(*lines: str, fallback_model: str | None = None, backend: str = protocol.AGY) -> Collected:
+    """The request usage one stdout of `lines` serializes as, an Antigravity one unless `backend` names another."""
+    usage = trajectory.parse_agent_request_usage(backend, "\n".join(lines), fallback_model)
     return Collected(usage.to_dict())
 
 

@@ -4,7 +4,7 @@
 
 import unittest
 
-from orchestrator.observability.usage import event_stream
+from orchestrator.observability.usage import claude_requests, event_stream, protocol, trajectory_claude_turns
 from tests.observability.usage import (
     usage_claude_stream_capture as _capture,
     usage_test_values as _usage_cases,
@@ -18,6 +18,16 @@ _API_MESSAGE_ID = "api_message_id"
 _TOOL_USE_RESULT = "tool_use_result"
 
 FrameCounts = dict[str, set[_capture.TokenCounts]]
+_DELTA = claude_requests.SETTLED_BY_DELTA
+_MAIN_SETTLED = tuple((_DELTA, message.final_output_tokens) for message in _capture.MAIN_RUN_MESSAGES)
+_LEAD_SETTLED = tuple((_DELTA, message.final_output_tokens) for message in _capture.SUBAGENT_RUN_LEAD_MESSAGES)
+# The subagent's message is the second turn, between the lead thread's first two; the hand-back comes after them all.
+_SUBAGENT_SETTLED = (
+    _LEAD_SETTLED[0],
+    (claude_requests.SETTLED_BY_MODEL_USAGE, _capture.SUBAGENT_RUN_SUBAGENT_MESSAGES[0].final_output_tokens),
+    *_LEAD_SETTLED[1:],
+    (claude_requests.SETTLED_BY_HANDBACK, _capture.SUBAGENT_RUN_HANDBACK.output_tokens),
+)
 
 
 def _counts(usage: dict) -> _capture.TokenCounts:
@@ -75,6 +85,16 @@ def _result_figures(stdout: str) -> tuple[object, ...]:
         model_usage["costUSD"],
         terminal["num_turns"],
     )
+
+
+def _settled_outputs(stdout: str) -> tuple[tuple[str, int], ...]:
+    """The report each turn's output was settled by, and the output, in the order the turns number them."""
+    builder = trajectory_claude_turns.ClaudeTurnUsageBuilder()
+    for index, event in enumerate(event_stream.iter_events(stdout)):
+        builder.add_event(index, event)
+    settlement = builder.settlement
+    rows = [*settlement.settled_rows(builder.by_key), *settlement.handback_rows()]
+    return tuple((row.settlement, row.counts[protocol.OUTPUT]) for row in rows)
 
 
 def _handback_counts(stdout: str) -> list[_capture.TokenCounts]:
@@ -154,3 +174,10 @@ class ClaudeStreamAccountingTest(unittest.TestCase):
             _capture.summed([*lead_finals, *subagent_finals, _capture.SUBAGENT_RUN_HANDBACK]),
             _capture.SUBAGENT_RUN_MODEL_TOTALS,
         )
+
+    def test_rows_name_the_report_settling_output(self) -> None:
+        # Every lead-thread message is settled by its closing delta; the subagent's one open message by what
+        # `modelUsage` leaves over, its input and cache totals matching what the stream printed; and the message that
+        # closed the subagent by its hand-back. The counts are the documented final ones either way.
+        self.assertEqual(_settled_outputs(_capture.MAIN_RUN_STDOUT), _MAIN_SETTLED)
+        self.assertEqual(_settled_outputs(_capture.SUBAGENT_RUN_STDOUT), _SUBAGENT_SETTLED)

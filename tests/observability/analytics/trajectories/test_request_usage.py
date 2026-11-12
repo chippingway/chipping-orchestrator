@@ -50,14 +50,6 @@ _FAILURES = (
     ("raising", patch.object(usage_trajectory, _COLLECTOR, side_effect=RuntimeError("collector boom"))),
     ("unserializable", patch.object(usage_trajectory, _COLLECTOR, return_value=_UNSERIALIZABLE)),
 )
-# The keys a sample may carry: identities, positions, attribution, status, and counters with their evidence.
-_SAMPLE_KEYS = frozenset((
-    "id", "id_kind", "conversation_id", "session_id", "turn_id", "message_id", "step_index",
-    "parent_conversation_id", "parent_step_index", "subagent_type", "position", "branch_order", "source_kind",
-    "source_timestamp", "source_duration_s", "model", "model_source", "context_capacity", "source_version", "scope",
-    "status", "settlement", "raw", "context_input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens",
-    "cache_write_lifetimes", "reasoning_tokens", "total_tokens", "source_total_tokens", "overlap", "evidence",
-))
 _RAW_KEYS = frozenset(("input_tokens", "output_tokens", "thinking_tokens", "cache_read_tokens", "total_tokens"))
 
 
@@ -84,7 +76,7 @@ class RequestUsageRecordTest(support.RecordAgentExitTrajectorySupport):
             with self.subTest(private=private):
                 self.assertNotIn(private, serialized)
         sample = request_usage[_SAMPLES][0]
-        self.assertLessEqual(set(sample), _SAMPLE_KEYS)
+        self.assertLessEqual(set(sample), cases.SAMPLE_KEYS)
         self.assertLessEqual(set(sample["raw"]), _RAW_KEYS)
 
     def test_unfinished_runs_keep_their_requests(self) -> None:
@@ -100,10 +92,8 @@ class RequestUsageRecordTest(support.RecordAgentExitTrajectorySupport):
                 self.assertEqual(request_usage[_COVERAGE][_STATUS], coverage.INCOMPLETE)
 
     def test_runs_without_a_collector_carry_none(self) -> None:
-        for backend in (support.CLAUDE, support.CODEX):
-            with self.subTest(backend):
-                record, _ = self._written(stdout=_FRESH_STDOUT, backend=backend)
-                self.assertNotIn(_REQUEST_USAGE, record)
+        record, _ = self._written(stdout=_FRESH_STDOUT, backend=support.CODEX)
+        self.assertNotIn(_REQUEST_USAGE, record)
 
     def test_disabled_sink_runs_no_collector(self) -> None:
         with tempfile.TemporaryDirectory() as td, patch.object(usage_trajectory, _COLLECTOR) as collector:
@@ -123,11 +113,7 @@ class RequestUsageRecordTest(support.RecordAgentExitTrajectorySupport):
 
     def _written(self, **options) -> tuple[dict, list[dict]]:
         options.setdefault("backend", protocol.AGY)
-        with tempfile.TemporaryDirectory() as td:
-            traj_path = Path(td) / support.TRAJECTORY_FILENAME
-            analytics_path = Path(td) / support.ANALYTICS_FILENAME
-            self._emit(traj_path=traj_path, analytics_path=analytics_path, **options)
-            return read_records(traj_path)[0], read_records(analytics_path)
+        return self._written_records(**options)
 
 
 class RefusedStreamTest(support.RecordAgentExitTrajectorySupport):

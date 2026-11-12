@@ -132,15 +132,20 @@ Analytics and trajectory readers interpret only what current producers write: a 
 unknown rather than inferred from another (a skill load is no evidence of its offer), and a row narrower than its
 query's SELECT list raises rather than reading as NULL. A current optional field's absence, an ID-less CLI run, an
 unpriced cost, and a malformed record's containment remain current answers. A trajectory record's `request_usage` is
-read only as its collector wrote it: absent is a run whose requests were not collected -- a Claude or Codex run, and
-every record an earlier build wrote -- never an empty breakdown, and nothing infers or backfills one. Within the shared
+read only as its collector wrote it: absent is a run whose requests were not collected -- a Codex run, and every
+record an earlier build wrote -- never an empty breakdown, and nothing infers or backfills one. Within the shared
 request-usage format a counter a sample did not observe is unknown rather than zero, a common total sums only observed
 non-overlapping counters and never the provider's own total, a model the stream did not establish is none rather than
-another conversation's or one taken from unrelated data, a coverage short of `complete` or `complete-empty` or a scan
-scope short of `invocation` never reads as the whole invocation, and a marker or conversation-scope checkpoint is never
-a request. A record marked `stream_refused` is a run whose stdout the usage parser refused: its run published no total
-and reconstructed no timeline, so it carries no `run_usage` and no steps, only the request usage collected past the
-refusal. A usage estimate prices a model only through
+another conversation's or branch's or one taken from unrelated data, a coverage short of `complete` or
+`complete-empty` or a scan scope short of `invocation` never reads as the whole invocation, an output-only sample
+establishes no context input, and a marker or aggregate checkpoint is never a request. A Claude sample's output is
+`final` only where the `message_delta` closing that message, its subagent hand-back, or a `modelUsage` remainder the
+run accounting attributes to it as its model's sole open message settles it -- every request the collection holds
+among those it sums, and the collection's own counts of them reproducing that remainder -- and no `result.usage` or
+`modelUsage` total is ever divided among requests or recorded as one. A record marked `stream_refused` is a run whose
+stdout the usage parser refused: its run published no total and reconstructed no timeline, so it carries no
+`run_usage` and no steps, only the request usage collected past the refusal, which names no trajectory turn. A usage
+estimate prices a model only through
 an active price-catalogue row naming its exact ID, documented alias, or published snapshot; an unknown version, an
 arbitrary suffix, or a dormant row is an unpriced cost, never another row's rates. A Claude estimate prices each usage
 row on its own, a run and its turns alike: a cache write at the lifetime its usage block reports as a whole number, a
@@ -344,7 +349,12 @@ or lost write interrupted are current state, not historical compatibility.
 [request records](../tests/observability/usage/test_usage_request_records.py),
 [Antigravity request samples](../tests/observability/usage/test_usage_agy_request_samples.py),
 [Antigravity request coverage](../tests/observability/usage/test_usage_agy_request_coverage.py),
+[Claude request captures](../tests/observability/usage/test_usage_claude_request_captures.py),
+[Claude request samples](../tests/observability/usage/test_usage_claude_request_samples.py),
+[Claude subagent requests](../tests/observability/usage/test_usage_claude_request_subagents.py),
+[Claude request coverage](../tests/observability/usage/test_usage_claude_request_coverage.py),
 [request usage records](../tests/observability/analytics/trajectories/test_request_usage.py),
+[Claude request records](../tests/observability/analytics/trajectories/test_request_usage_claude.py),
 [verification artifacts](../tests/github/test_verification_artifacts.py),
 [requirements baselines](../tests/workflow/engine/test_drift.py),
 [late first baselines](../tests/workflow/stages/decomposition/test_late_first_baseline.py),
@@ -906,6 +916,7 @@ recorded, on a trajectory record marked `stream_refused`.
 [rotation](../tests/github/test_event_log.py),
 [request isolation](../tests/workflow/engine/test_usage_trajectory.py),
 [request usage records](../tests/observability/analytics/trajectories/test_request_usage.py),
+[Claude request records](../tests/observability/analytics/trajectories/test_request_usage_claude.py),
 [trajectory parsing](../tests/observability/usage/test_usage.py).
 
 ## C-13: Module ownership and public surfaces

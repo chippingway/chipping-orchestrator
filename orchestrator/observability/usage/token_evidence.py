@@ -23,6 +23,7 @@ from __future__ import annotations
 import math
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+from decimal import Decimal
 from typing import Any
 
 from orchestrator.observability.usage import protocol
@@ -108,10 +109,11 @@ def reported_count(raw: Any) -> int | None:
     """The token count one raw usage field reports, or None when it reports none: absent, null, or not a number.
 
     An infinite or NaN value, a JSON number or a string spelling one, is no number a count can hold, so it reports
-    none rather than stopping the whole stream's parse.
+    none rather than stopping the whole stream's parse. A `Decimal` -- a number literal the request scan kept exact --
+    reads as the float the run parsers decode the same literal as, so a payload reads alike however it was decoded.
     """
     number = raw
-    if isinstance(raw, str):
+    if isinstance(raw, (str, Decimal)):
         try:
             number = float(raw)
         except ValueError:

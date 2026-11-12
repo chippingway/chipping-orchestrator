@@ -93,8 +93,8 @@ Summarized here; the reference is
 
 Opt-in, **default-off** sibling sink holding one `agent_trajectory` record per tracked run: the ordered timeline of
 tool calls / results interleaved with the assistant / user text turns, the offered tools and skills, a denormalized
-`run_usage` summary, a codex run's per-item accounting, an Antigravity run's per-request usage samples with the
-coverage of their collection, and the final output. It is deliberately kept out of the analytics sink, its Postgres
+`run_usage` summary, a codex run's per-item accounting, an Antigravity or Claude run's per-request usage samples with
+the coverage of their collection, and the final output. It is deliberately kept out of the analytics sink, its Postgres
 sync, and
 the analytics dashboard, because the free-text bodies do not belong in the numeric rollup. `record_agent_exit`
 produces it from the same stdout the usage parser reads, behind its own fail-open guard, so a trajectory failure can
@@ -226,7 +226,7 @@ siblings return. The per-issue counters that verdict reads are not these sinks: 
 pinned comment once, by the accounting checkpoint the tracked spawn asks as the run returns, a held or killed run's
 included, and an exit no checkpoint landed is never reconstructed from the analytics or audit records, which stay
 observational. The same page defines the provider-neutral per-request usage records, their normalization, coverage,
-and bounded scan, and the Antigravity collector the trajectory sink records them through.
+and bounded scan, and the Antigravity and Claude collectors the trajectory sink records them through.
 
 ## Summary of "what runs when"
 

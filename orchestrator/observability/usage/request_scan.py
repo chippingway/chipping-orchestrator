@@ -29,7 +29,8 @@ from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from orchestrator.observability.usage import request_coverage as coverage
+from orchestrator.observability.usage import protocol, request_coverage as coverage
+from orchestrator.observability.usage.model_names import nested_value
 
 MAX_SCAN_CHARS = 67_108_864  # 64 Mi characters
 MAX_LINE_CHARS = 4_194_304  # 4 Mi characters
@@ -40,6 +41,9 @@ MAX_MARKERS = 256
 MAX_CHECKPOINTS = 4
 MAX_METADATA_CHARS = 128
 
+# What a field reads as where the stream named a value this collection refused -- too long to keep, or no string at
+# all. No kept value is empty, so it stands apart from a value kept and from none named.
+REFUSED = ""
 _OBJECT_START = "{"
 _NON_SPACE = re.compile(r"\S")
 # What a number literal whose exponent no `Decimal` holds is read as: no number at all, which no reader takes for one.
@@ -84,6 +88,27 @@ class Metadata:
             return raw
         self.oversize += 1
         return None
+
+    def first_text(
+        self,
+        payload: dict[str, Any],
+        paths: tuple[protocol.ModelPath, ...],
+    ) -> str | None:
+        """The first string any of `paths` holds, as `text` keeps it; `REFUSED` where every value named was refused.
+
+        A value that is no string is counted and passed over for the next path, as the run parsers pass it over, so a
+        string beside it is still read; a string too long to keep is the one the run parsers read, so it ends the
+        search refused. None where no path holds anything.
+        """
+        refused = False
+        for path in paths:
+            raw = nested_value(payload, path)
+            if isinstance(raw, str) and raw:
+                return self.text(raw) or REFUSED
+            if raw is not None and not isinstance(raw, str):
+                self.malformed += 1
+                refused = True
+        return REFUSED if refused else None
 
 
 @dataclass

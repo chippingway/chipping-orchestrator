@@ -38,9 +38,11 @@ a run's CLI slug is priced as and the estimate its steps are priced at, and its 
 `trajectory_agy.py`. Per-request usage has owners of its own: `request_models.py` the observation, marker, and
 checkpoint records, `request_normalization.py` the common counters every provider's are read into,
 `request_coverage.py` the coverage a collection states and the field the observations ride in, `request_scan.py` the
-bounded pass a collector reads stdout in, and `request_agy.py` with `request_agy_steps.py` and
-`request_agy_branches.py` the Antigravity collector, its step fold, and its conversation attribution, as
-[request usage observations](#request-usage-observations) describes. The
+bounded pass a collector reads stdout in, `request_agy.py` with `request_agy_steps.py` and `request_agy_branches.py`
+the Antigravity collector, its step fold, and its conversation attribution, and `request_claude.py` with
+`request_claude_stream.py`, `request_claude_messages.py`, `request_claude_counters.py`, and `request_claude_reports.py`
+the Claude collector, its stream fold, its request fold, the counters a usage block is read for, and what the stream
+reports of its process, as [request usage observations](#request-usage-observations) describes. The
 trajectory classifier reuses the same event decoder, pricing path, and skill evidence owners, so the resilience and
 cost-precedence contracts are defined once. Tests intercept parsers on the module their caller imports. The package
 initializer re-exports the public parsers and result types; callers name the defining owner so patches reach it.
@@ -657,8 +659,8 @@ request: a `RequestUsage` (`request_coverage.py`) holding one observation per re
 the explicit boundary markers the stream printed, its aggregate checkpoints, and the coverage of the collection. It is
 `AgentTrajectory`'s `request_usage` field, kept apart from Claude's per-turn `turns`: the trajectory parsers leave it
 `None`, and the trajectory writer collects it on every tracked exit behind a failure boundary of its own, as the
-[trajectory sink](trajectories.md#trajectory-sink-trajectory_log_path) describes. Only an Antigravity stream has a
-collector; a Claude or Codex run collects none, so its record leaves the field out, which means the run's requests
+[trajectory sink](trajectories.md#trajectory-sink-trajectory_log_path) describes. An Antigravity and a Claude stream
+each have a collector; a Codex run collects none, so its record leaves the field out, which means the run's requests
 were not collected, never that it made none. The contract is observation alone: pricing, the run's `UsageMetrics`, the
 accounting checkpoint and pinned totals, the cost and token evidence, Claude's turns, and the viewer's timeline are
 computed exactly as they would be without it, and never read a sample, marker, or checkpoint.
@@ -668,29 +670,37 @@ the stream gave nothing for is absent rather than null:
 
 - identity: `id`, a key that stays the same however often the stream repeats the request, with `id_kind` saying what
   kind of key it is -- `conversation-step` (`<conversation>:<step>`) or `process-step` (`process:<step>`, for a step
-  naming no conversation, known only within the process that printed it) -- and every identity the stream gave:
-  `conversation_id`, `session_id`, `turn_id`, `message_id`, `step_index`, `parent_conversation_id`,
-  `parent_step_index`, and `subagent_type`;
-- order: `position`, the 0-based stdout line that completed it, and `branch_order`, its place among its own
-  conversation's samples; neither orders it against another conversation's;
+  naming no conversation, known only within the process that printed it), `api-message` (a message id),
+  `api-request` (the id of the API request that produced the message), `handback-call` (`handback:<call>`, the
+  output of a subagent's closing message under the call its hand-back answers), or `source-position`
+  (`position:<line>`, for a request the stream named no identity for) -- and every identity the stream gave:
+  `conversation_id`, `session_id`, `turn_id`, `message_id`, `request_id`, `step_index`, `parent_conversation_id`,
+  `parent_step_index`, `parent_tool_use_id`, `agent_id`, and `subagent_type`, beside `trajectory_turn`, the index of
+  the record's `turns` entry and steps the request is numbered under, by the key it settles under, where the
+  trajectory numbers it;
+- order: `position`, the 0-based stdout line its collector places it at -- the one that completed an Antigravity step,
+  the first one printing a Claude request -- and `branch_order`, its place among its own branch's samples -- a
+  conversation, or on Claude the lead thread or one subagent call; neither orders it against another branch's;
 - source: `source_kind` (the provider's own kind of request), `source_timestamp`, `source_duration_s`, and
   `source_version`. A source timestamp is the stream's own; when a collection ran is the record's `ts`, never a sample
   field;
 - attribution: `model` with its `model_source` -- `stream` where the stream named it, `configured-fallback` where it
   named none and the configured model stands in, `unestablished` where the stream leaves it unknown, and
   `unavailable` where neither exists -- and `context_capacity` where the stream reports one;
-- settlement: `scope` (`request`), `status` (`final` or `provisional`), and `settlement`, the report the status
-  rests on;
+- settlement: `scope` -- `request`, or `request-output` for an observation of a request's output alone -- `status`
+  (`final` or `provisional`), and `settlement`, the report the status rests on;
 - counters: `raw`, the counters its collector allowlists, as whole counts -- a negative whole number included, and a
   value that is no whole count left out, its field `invalid` -- the normalized counters below, the `overlap` profile
   they were read under, and `evidence`, one state for each normalized field.
 
 Nothing is inferred into a sample: no timestamp, order across conversations, context capacity, or model is taken from
 unrelated data. A marker (`markers`) is an explicit boundary the stream printed -- `model-change`, with the `model` and
-`previous_model`, or a `compaction` or `reset` of the context -- and none is inferred where the stream prints no such
-boundary. A checkpoint (`checkpoints`) is aggregate usage over a wider scope than one request, such as a terminal
-total over its whole `conversation`, with its `raw` counters, `turns`, `source_status`, and an `evidence` map naming
-each counter it reported no usable count for or its own arithmetic contradicts. Neither is a request: neither is
+`previous_model`, or a `compaction` or `reset` of the context -- with the `conversation_id` or `parent_tool_use_id` of
+the branch it bounds, and none is inferred where the stream prints no such boundary. A checkpoint (`checkpoints`) is
+aggregate usage over a wider scope than one request -- a terminal total over its whole `conversation`, every
+`lead-thread` request of one process, or every request one `model` served in it, that model named beside it -- with
+its `raw` counters, `turns`, `source_status`, and an `evidence` map naming each counter it reported no usable count
+for or its own arithmetic contradicts. Neither is a request: neither is
 counted as one, and a reader reconciles a checkpoint only against samples of its own scope. Only allowlisted counters
 and correlation metadata enter any of the three: no prompt, response or tool text, reasoning text, credential, or
 source dictionary.
@@ -740,11 +750,16 @@ where there is none, with no sample or with some. A scan a bound cut short is `p
 count is never read as the invocation's; one that read nothing is `none`. A request leaves its own gaps where a core
 counter -- its context input or output -- establishes no count (`missing-counters`, `unsupported-counters`), any of its
 fields is invalid or conflicting (`invalid-counters`, `conflicting-counters`), its usage is provisional
-(`provisional-usage`), or it has no model (`model-unattributed`, or `subagent-model-unestablished` for a subagent's).
-The scan records `malformed-lines` itself, as below; the rest of the vocabulary is for a collector to record about its
-stream: `no-terminal-result`, `unsettled-steps`, `unreported-usage`, `unindexed-frames`, `conversation-ambiguous`,
+(`provisional-usage`), or it has no model (`model-unattributed`, or `subagent-model-unestablished` for a subagent's). An
+observation of a request's output alone (`request-output` scope) has its output as its one core counter, and only its
+output and the thinking inside it are judged, since its scope establishes no context input; the part of the request it
+never observed is an `output-only-observations` gap instead, so a collection holding one is never `complete`. The scan
+records `malformed-lines` itself, as below; the rest of the vocabulary is for a collector to record about its stream:
+`no-terminal-result`, `unsettled-steps`, `unreported-usage`, `unindexed-frames`, `conversation-ambiguous`,
 `subagent-usage-unavailable`, `subagent-unidentified`, `subagent-attribution-conflicting`, `oversize-metadata`,
-`malformed-metadata`, `malformed-envelopes`, and `malformed-usage`.
+`malformed-metadata`, `malformed-envelopes`, `malformed-usage`, `aggregate-only-usage` -- a stream reporting usage only
+in aggregate, with no request to observe it on -- and `identity-conflicting`, a frame tying together identities the
+stream already gave different requests.
 
 **Bounded scan.** A collector reads stdout a second time, so `request_scan.py` bounds everything it adds, as module
 defaults read when a collection starts. The scan itself holds to at most 64 Mi characters of stdout (`MAX_SCAN_CHARS`;
@@ -844,5 +859,134 @@ with no room left is a `correlation-limit` gap. The stream reports no timestamp,
 write, or compaction or reset boundary, so every collection lists those as `limitations` and records none of them.
 The run accounting is unchanged: `agy_summary.py` still counts each completed step's last completed frame, so where
 completed frames disagree the run counters keep that frame while the sample states the counter `conflicting`.
+
+**Claude requests.** `request_claude.py` produces one observation per API message the process's stream printed, and one
+per subagent hand-back, on the same Claude Code 2.1.295 captures the run accounting is pinned to;
+`request_claude_stream.py` folds the stream, `request_claude_messages.py` folds one request,
+`request_claude_counters.py` reads a usage block, and `request_claude_reports.py` reads what the stream says of the
+process. A message prints a `message_start` stream event and one `assistant` frame per content block, each repeating the
+usage it started with, so its frames are one sample however many blocks it has -- an `assistant` frame keyed by the
+message it names (`message.id`, else its wrapper's `api_message_id`), then by its `request_id`, then by its place in the
+stream, as the trajectory keys its turn except that the trajectory reads no wrapper id, a stream event through its
+wrapper's `api_message_id`, or where it names no message by its `request_id` as an `assistant` frame is, a content event
+among them witnessing the message even where no frame of it reports usage, and naming its session and
+timestamp as any frame of it does -- while two messages reporting equal counts stay two samples. A `message_start` or
+`assistant` frame naming one message on itself (`message.id`) and another on its wrapper (`api_message_id`) names no
+one message, so it folds into neither and is an `identity-conflicting` gap. A frame naming a
+message by both its id and its `request_id` joins the two keys, so a start naming the request alone and a block naming
+both are one sample, at the line first printing it and settled under its message id, as the trajectory's turns key it;
+two requests held apart until a frame bridges them are folded into the one printed first, which links the turn either
+was numbered under by its message id. A frame joining keys the stream already named apart -- a request id another
+message already gave, or a message another request already produced -- joins nothing and is an `identity-conflicting`
+gap, both requests kept; a request id named for two messages names neither from then on, so a frame naming it alone
+settles nothing and is an `unindexed-frames` gap. Only ids within the metadata bound join keys -- a longer one, dropped
+from the sample as `oversize-metadata`, could never be caught contradicting another -- and a key is kept only for a
+request held within the bound on tracked requests, each request found by at most one key besides its own: a frame that
+would give it a second is an `identity-conflicting` gap whatever ids its frames kept, so the keys a stream names never
+outnumber the requests held. Its input, cache-read, and cache-write counters are the same on every frame that reports
+them, two disagreeing leaving that counter `conflicting`. Its output and thinking are settled by the `message_delta`
+naming it, which replaces the start count rather than adding to it (`final`, `message-delta`): two closing reports
+disagreeing leave the output `conflicting`, and one whose output is no count leaves it `invalid`. A closing report that
+breaks out the thinking but reports no output settles the thinking alone (`final`, `message-delta-partial`): the output
+is `missing`, never the start count beside a final thinking count. A message no closing report reached keeps its start
+counts as `provisional` (`message-start`), its thinking unknown, and a `message_delta` naming no message settles nothing
+and is an `unindexed-frames` gap where it carries usage.
+
+`raw` reads `input_tokens`, `output_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens`, the
+`cache_creation` object's `ephemeral_5m_input_tokens` and `ephemeral_1h_input_tokens`, and
+`output_tokens_details.thinking_tokens` -- a lifetime or the thinking spelled beside its object standing in where the
+object leaves it out -- and nothing else of a block; the alternate spellings the run accounting also accepts
+(`prompt_tokens`, `completion_tokens`, `cached_input_tokens`) are not read. The context input is ordinary input plus
+cache reads plus cache writes, each write once: the aggregate where it is reported, its five-minute and one-hour split
+kept in `cache_write_lifetimes`, and an aggregate with no split leaving its lifetimes `missing`. A split contradicting
+its aggregate leaves the writes, the context input, and the total `conflicting`, and a `cache_creation` or
+`output_tokens_details` that is no object at all leaves its counters `invalid`. The thinking sits inside the output, and
+a message whose final report breaks out none has no thinking count. The main capture's three messages normalize to
+21,517, 21,798, and 21,910 context-input tokens, the last one's 107 output tokens holding its 60 thinking tokens.
+
+A subagent prints its messages under the `parent_tool_use_id` of the call that launched it and its `agent_id`, but no
+stream events, so each keeps its start output as `provisional` -- except where `modelUsage` settles it. Any frame of a
+message naming the agent but no call -- a block, a start or close, or a content event -- makes it the subagent's: its
+call is unknown, a `subagent-unidentified` gap, and it never takes the lead thread's model. Every frame of a message
+places it, so a later frame naming the call or the agent an earlier one left out makes it the subagent's, and one naming
+another call than an earlier frame is a `subagent-attribution-conflicting` gap, the first call kept. The stream fold
+feeds every event to the trajectory's own `ClaudeTurnUsageBuilder`, whose settlement is the run accounting's, and where
+that settles a model's sole open message -- a subagent's, in a stream whose `modelUsage` reports every input and cache
+total for the model, each equal to what the stream printed -- the sample takes that output as `final` (`model-usage`),
+its `raw` still the start count the frame reported and its thinking only what a closing report broke out. It takes it
+only where this collection's own counts reproduce that settlement -- the model's totals equal, class by class, the
+prompts of the messages and hand-backs it sums, and what its output total leaves beyond their outputs is that output --
+since the accounting reads some counters otherwise than this collection does, a fraction truncated and a lifetime
+spelled as a string left out, and only where that settlement sums every request this collection holds: a message no
+`assistant` frame reported usage for, a start naming no message, and a hand-back naming no agent are usage it never
+sums, so any of them could hold the remainder it found, and each leaves every open message provisional. The builder
+reads the same exact numbers this scan decodes, a `Decimal` as the float the run parsers decode its literal as, so a
+whole count spelled `2.0` or `1.4561e4` -- a lifetime split's included -- settles exactly as its integer spelling does.
+Wherever the evidence is ambiguous -- two open messages, a total covering usage the stream did not print, or one missing
+a total -- every open message keeps its start count; no `result.usage` or `modelUsage` total is ever divided among
+requests or made into one. The message that closes a subagent prints no frame: the lead thread's hand-back for its call
+-- a `user` frame whose `tool_use_result` carries a `usage` and either names an `agentId` or answers a call the stream
+already named a subagent for -- is an observation of that message's output and thinking alone, of `request-output`
+scope, `final` (`handback`), keyed `handback:<call>` by the call it answers and carrying the `agentId`, where it names
+one, and its `resolvedModel`. Its input and cache counters are never recorded -- they are read only to check such a
+settlement -- so it leaves an `output-only-observations` gap; a hand-back answering no named call is known by its line
+and is a `subagent-unidentified` gap. One call answered twice is one sample, and a resumed subagent answering a new call
+under the same agent another. A subagent call the stream named -- by a `system` `task_started` frame, which also gives
+the `subagent_type` its samples carry, or by any frame on its branch, its own `user` frames included -- that no
+hand-back with usage answered is a `subagent-usage-unavailable` gap. On the subagent capture the subagent's message
+settles at 97 output tokens through `modelUsage` and the hand-back holds 39, 36 of them thinking.
+
+Each message links the trajectory turn its `assistant` frames were numbered under by the key it is settled under
+(`trajectory_turn`) -- its message id once a frame names one, as the trajectory settles the turn -- and a hand-back the
+turn numbered after every message turn wherever the turns number it, where some `message_delta` closed a message at all.
+A message whose only turn is numbered under another key -- a block naming the request alone, or naming the message on
+its wrapper alone, which the trajectory numbers by its request id or its line, or the message named first by a stream
+event -- links none, since that turn holds the count it started with rather than its output. A linked turn
+holds the sample's output, wherever it is a count, except where the closing report named the request alone: the sample
+is settled by it, while the trajectory settles a turn only through its `api_message_id`. A scan a bound cut
+short, or one that skipped a line too long to read, may have missed a frame the trajectory counted, so it links no turn
+and settles nothing through `modelUsage`. The builder is held to `MAX_TRACKED_STEPS` like the requests: the first event
+taking any of its correlation maps past the bound drops it, a `correlation-limit` gap, and from there the turns already
+linked stay -- the trajectory's numbering of the events before -- while no hand-back turn is numbered and nothing is
+settled through `modelUsage`, both of which need every message. A record whose stream the run parsers refused has no
+turns, so the requests it keeps name none. A sample is placed at the line first printing it, and its `branch_order` is
+its place on its own branch -- the lead thread, or one subagent call (`parent_tool_use_id`) -- never across branches.
+Its `id` is its message id -- a stream event's `api_message_id` included -- (`api-message`), else its `request_id`
+(`api-request`), else `position:<line>` (`source-position`); its `session_id` is its frames' own, else the process's
+(`init`, then `result`). Its model is the one its own frames name (`stream`), read where the run parsers read a Claude
+frame's -- its message, a stream event's message, then the frame itself: a lead-thread message naming none falls back to
+the `init` model and then the configured `--model` (`configured-fallback`), while a subagent's message or hand-back
+naming none is `unestablished`, never the lead thread's. A model a frame named that this collection refused is a
+`malformed-metadata` gap where it is no string, passed over for the next place as the run parsers pass it over, and an
+`oversize-metadata` gap where it is too long to keep, the one the run parsers read; a message whose frames name no
+model kept but one refused is `unestablished` too, never the `init` or configured model, since the model it ran on is
+unknown rather than unnamed. The `init` frame's `claude_code_version` is every sample's
+`source_version`, the `contextWindow` the last `modelUsage` reports for a sample's model its `context_capacity`, and a
+frame's `timestamp` its `source_timestamp`, each only where the stream supplied it. A message naming another model than
+the previous one on its branch is a `model-change` marker with its branch's call, and a `system` `compact_boundary`
+frame a `compaction` marker.
+
+The `result` frame's `usage` -- on the captures the sum of this process's lead-thread final message counts -- is a
+`result-total` checkpoint of `lead-thread` scope, with its `num_turns` and its subtype as `source_status`, and its
+`modelUsage`, which adds every subagent message, a `model-usage` checkpoint of `model` scope per model; each is held to
+a request's arithmetic, a lifetime split contradicting its aggregate or thinking beyond its output being `conflicting`
+in its `evidence`. A complete collection reconciles with the totals of its own scope -- the main capture's samples sum
+to its `result.usage` and its `modelUsage` alike, and the subagent capture's lead-thread samples to its `result.usage`
+-- while partial subagent coverage is never forced to match a wider total: the subagent capture's sample prompts fall
+short of its `modelUsage` by exactly the closing message's prompt, so its collection is `incomplete`. No capture
+establishes whether a resumed process's totals stop at the process. A stream reporting usage only in aggregate has no
+sample and an `aggregate-only-usage` gap.
+
+Only this process's stream is read, so a resumed run's samples are its own, and so are an ID-less run's. The other gaps
+a Claude collection records are a request none of whose frames carried a counter -- a message witnessed only by its
+content included -- (`unreported-usage`), a frame whose discriminator is no string or whose message is no object
+(`malformed-envelopes`), a usage block that is no object or names no counter this collection reads (`malformed-usage`),
+a stream with no `result` (`no-terminal-result`), requests past `MAX_TRACKED_STEPS`, subagent calls past `MAX_BRANCHES`,
+and markers past `MAX_MARKERS` (`correlation-limit`), and refused metadata. Every collection lists `no-reset-markers`
+among its `limitations`, the stream printing no reset of the context, and adds `no-session-id`, `no-message-id` (a
+sample known by no message id, every hand-back included), `no-agent-id` (a subagent's sample naming no agent),
+`no-source-version`, `no-source-timestamps`, and `no-context-capacity` where this stream left them out. The run
+accounting is unchanged: its settled rows also name the report each output rests on (`message-start`, `message-delta`,
+`model-usage`, or `handback`), which only this collection reads.
 
 [pinned-state]: ../state-machine/labels-and-state.md#pinned-state

@@ -23,6 +23,15 @@ from orchestrator.observability.usage import metrics, protocol, request_agy, tra
 from tests.support import agy_stream as stream
 
 ARRAYS = ("turns", "source_items", "markers", "samples", "steps")
+# The keys a sample may carry: identities, positions, attribution, status, and counters with their evidence.
+SAMPLE_KEYS = frozenset((
+    "id", "id_kind", "conversation_id", "session_id", "turn_id", "message_id", "request_id", "step_index",
+    "parent_conversation_id", "parent_step_index", "parent_tool_use_id", "agent_id", "subagent_type",
+    "trajectory_turn", "position", "branch_order", "source_kind", "source_timestamp", "source_duration_s", "model",
+    "model_source", "context_capacity", "source_version", "scope", "status", "settlement", "raw",
+    "context_input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens", "cache_write_lifetimes",
+    "reasoning_tokens", "total_tokens", "source_total_tokens", "overlap", "evidence",
+))
 SECRET = "sk-ant-DEADBEEF-conversation-0123456789"
 SPOKEN = "the-words-the-agent-said"
 TOOL_TEXT = "the-command-the-tool-ran"

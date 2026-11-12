@@ -21,6 +21,7 @@ from unittest.mock import patch
 from orchestrator.agents.models import AgentResult
 from orchestrator.observability.analytics import settings as analytics_settings
 from orchestrator.observability.analytics.recording import agent_exit as _agent_exit_records
+from tests.observability.analytics.analytics_jsonl_helpers import read_records
 from tests.observability.analytics.analytics_reload_helpers import reload_analytics as _reload
 
 ANALYTICS_LOG_PATH = "ANALYTICS_LOG_PATH"
@@ -157,6 +158,14 @@ class RecordAgentExitTrajectorySupport(unittest.TestCase):
     `TRAJECTORY_LOG_PATH` is enabled, redacts every free-text field, applies
     head/tail + total-size truncation caps, and never lets a trajectory
     failure drop the baseline `agent_exit` usage record."""
+
+    def _written_records(self, **options) -> tuple[dict, list[dict]]:
+        """The trajectory record one run writes, and the baseline records written beside it."""
+        with tempfile.TemporaryDirectory() as sink_dir:
+            trajectory_path = Path(sink_dir) / TRAJECTORY_FILENAME
+            analytics_path = Path(sink_dir) / ANALYTICS_FILENAME
+            self._emit(traj_path=trajectory_path, analytics_path=analytics_path, **options)
+            return read_records(trajectory_path)[0], read_records(analytics_path)
 
     def _emit(self, **options):
         case = TrajectoryExitCase(**options)
