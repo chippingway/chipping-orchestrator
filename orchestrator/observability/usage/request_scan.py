@@ -16,11 +16,11 @@ less than the whole invocation says so. A line shaped like a JSON object that do
 line the decoder refuses included; any other line that decodes to no event -- banner text, or a value that is no
 object -- is skipped without being one, since it could never have been an event.
 
-A Codex collection reads a native session log rather than stdout, and the same decoding and gap accounting hold
-for its lines, which its caller hands over one at a time (`EventScan.counted`) rather than keeping every decoded
-event, a line past `MAX_LINE_CHARS` counted oversize however it arrived. The bounds a reader of that log is held to
--- how many session directories and entries its lookup may examine and how many bytes of the log it may read, beside
-`MAX_EVENTS` lines -- are defined here beside the others, so one collection reads them all from `current_limits`.
+A Codex collection reads a native session log rather than stdout, and the same decoding and gap accounting hold for its
+lines, which its caller hands over one at a time (`EventScan.counted`) rather than keeping every decoded event, a line
+past `MAX_LINE_CHARS` -- whitespace included -- counted oversize however it arrived. The bounds a reader of that log is
+held to -- how many session directories and entries its lookup may examine and how many bytes of the log it may read,
+beside `MAX_EVENTS` lines -- are defined here beside the others, so one collection reads them all from `current_limits`.
 
 The bounds are module defaults rather than knobs, read once per collection by `current_limits`, so a caller shrinks
 one here and the next collection is held to it.
@@ -56,6 +56,7 @@ MAX_LOG_BYTES = 67_108_864  # 64 MiB
 # all. No kept value is empty, so it stands apart from a value kept and from none named.
 REFUSED = ""
 _OBJECT_START = "{"
+_LINE_END = "\r\n"
 _NON_SPACE = re.compile(r"\S")
 # What a number literal whose exponent no `Decimal` holds is read as: no number at all, which no reader takes for one.
 _UNREADABLE_NUMBER = Decimal("NaN")
@@ -152,9 +153,13 @@ class EventScan:
         """Decode one native log line a reader hands over, counting it; the event it holds, or None where none.
 
         Nothing is kept: a native log's lines are fed in one at a time, so its decoded lines never pile up in memory,
-        and a reader holds its byte and line-count bounds itself. A native log is nothing but JSON objects, one a
-        line, with no banner, so any line holding no object is a malformed one.
+        and a reader holds its byte and line-count bounds itself. The line bound holds the line as handed over,
+        whitespace included, short of the newline ending it. A native log is nothing but JSON objects, one a line,
+        with no banner, so any line holding no object is a malformed one.
         """
+        if len(raw_line.rstrip(_LINE_END)) > self.limits.line_chars:
+            self.oversize()
+            return None
         line = raw_line.strip()
         if not line:
             return None

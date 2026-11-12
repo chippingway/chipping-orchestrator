@@ -30,9 +30,10 @@ lines -- none, where stdout printed none -- so a turn some other process appende
 this run's; a cut short read proves nothing about the turns past the cut, and a stdout with a line the scan could not
 read could have printed one more.
 
-The invocation opens its own turns before it settles any usage in them, so usage its lines settle while the innermost
-open turn is an earlier process's -- a turn left unfinished, say, that a resume printing no turn never replaced -- was
-written by that process past the count, and nothing is attributed either.
+The invocation opens its own turns before it settles any usage in them, so usage its lines settle in a turn they did
+not open -- the innermost open one being an earlier process's, a turn left unfinished, say, that a resume printing no
+turn never replaced, or a usage record naming a turn the invocation never opened -- was written by another process past
+the count, and nothing is attributed either.
 
 Where either proof fails, the collection names why and attributes nothing; it never guesses a suffix of the log.
 
@@ -270,29 +271,30 @@ class Turns:
         if turn_id is not None:
             self.open = [turn for turn in self.open if turn.turn_id != turn_id]
 
-    def current(self, own: bool) -> Turn | None:
-        """The innermost open turn a usage line settles in, or None for the thread with no turn open.
+    def current(self, own: bool, turn_id: str | None = None) -> Turn | None:
+        """The turn a usage line settles in -- the open one it names, where it names one, else the innermost open one --
+        or None for the thread with no turn open.
 
-        The invocation opens its own turns before it settles anything in them, so its line settling usage while the
-        innermost open turn is an earlier process's is that process's, appended past the count: `intruded` records it,
-        and the line is placed in no turn.
+        The invocation opens its own turns before it settles anything in them, so its line settling usage in a turn it
+        did not open -- an earlier process's, or one it names that is not open at all -- is another process's, appended
+        past the count: `intruded` records it, and the line settles in no turn.
         """
-        if not self.open:
-            return None
-        innermost = self.open[-1]
-        if own and not innermost.own:
+        if turn_id is None:
+            if not self.open:
+                return None
+            settled = self.open[-1]
+        else:
+            settled = self.named(turn_id)
+        foreign = settled is None or not settled.own
+        if own and foreign:
             self.intruded = True
             return None
-        return innermost
+        return settled
 
-    def named(self, turn_id: str | None, own: bool) -> Turn | None:
-        """The turn a `turn_context` names: a child turn the log named, or the thread's open root turn; else None."""
+    def named(self, turn_id: str | None) -> Turn | None:
+        """The open turn naming `turn_id`: the thread's root turn, or a child turn beside it; None where none does."""
         if turn_id is None:
             return None
-        parent = self.children.get(turn_id)
-        if parent is not None:
-            return Turn(turn_id, parent, own)
-        # Every open turn naming an id is a root turn or a child the log named, so one the children leave is a root.
         opened = [turn for turn in self.open if turn.turn_id == turn_id]
         return opened[0] if opened else None
 

@@ -200,35 +200,19 @@ def attribution(
     return request_models.RequestAttribution(None, source, known_capacity, version)
 
 
-def context_capacity(token_info: dict[str, Any], metadata: request_scan.Metadata) -> int | None:
-    """The context window a request's report gives; one reported as no whole count is malformed metadata.
-
-    A report naming none leaves the capacity unknown, a limitation of its source rather than a gap.
-    """
-    reported = token_info.get(CONTEXT_WINDOW)
-    if reported is None:
-        return None
-    capacity = Reading.of(reported)
-    if capacity.known:
-        return capacity.count
-    metadata.malformed += 1
-    return None
-
-
-def repeat_gaps(token_info: dict[str, Any]) -> tuple[str, ...]:
+def repeat_gaps(token_info: dict[str, Any], after_compaction: bool) -> tuple[str, ...]:
     """The gaps the request usage a repeated report carries leaves, though the report is no request.
 
     A block naming no counter is malformed usage, a counter it reports as no whole count an invalid one, and a part
-    exceeding its whole -- cache reads or writes past the input, reasoning past the output -- a contradiction. Its
-    total alone is not held to its parts: after a compaction the CLI reports a context estimate whose total stands
-    beside no input or output, and a repeat sizes nothing.
+    exceeding its whole, or a total its parts contradict, a contradiction. The one total not held to its parts is the
+    context estimate the CLI follows a compaction with: a total beside parts that are all zero, `after_compaction`.
     """
     own = Counters.of(token_info.get(LAST_USAGE))
     if own is None:
         return (coverage.MALFORMED_USAGE,)
     evidence = own.evidence()
-    if evidence.get(_SOURCE_TOTAL) == normalization.CONFLICTING:
-        evidence.pop(_SOURCE_TOTAL)
+    if after_compaction and _estimates_context(own):
+        evidence.pop(_SOURCE_TOTAL, None)
     return tuple(coverage.evidence_gaps(evidence.values()))
 
 
@@ -236,21 +220,24 @@ def report_metadata(
     token_info: dict[str, Any],
     metadata: request_scan.Metadata,
 ) -> tuple[int | None, MappingProxyType[str, bool] | None]:
-    """The context capacity and the flags a report gives beside its usage, each it reports malformed counted."""
-    return context_capacity(token_info, metadata), source_flags(token_info, metadata)
+    """The context capacity and the reasoning flag a report gives beside its usage.
 
-
-def source_flags(
-    token_info: dict[str, Any],
-    metadata: request_scan.Metadata,
-) -> MappingProxyType[str, bool] | None:
-    """The reasoning flag beside a request's usage, as reported; one that is no boolean is malformed metadata.
-
-    Whether `last_token_usage` counts the reasoning is the CLI's own statement, kept as it gave it: the reasoning count
-    is read as a part of the output either way, never added to it.
+    A context window reported as no whole count, and a flag that is no boolean, are malformed metadata, counted into
+    `metadata`; one left out is unknown, a limitation of the source rather than a gap. Whether `last_token_usage`
+    counts the reasoning is the CLI's own statement, kept as it gave it: the reasoning count is read as a part of the
+    output either way, never added to it.
     """
+    window = token_info.get(CONTEXT_WINDOW)
+    capacity = Reading() if window is None else Reading.of(window)
     flag = token_info.get(REASONING_FLAG)
-    if isinstance(flag, bool):
-        return MappingProxyType({REASONING_FLAG: flag})
-    metadata.malformed += flag is not None
-    return None
+    flags = MappingProxyType({REASONING_FLAG: flag}) if isinstance(flag, bool) else None
+    metadata.malformed += window is not None and not capacity.known
+    metadata.malformed += flag is not None and flags is None
+    return capacity.count if capacity.known else None, flags
+
+
+def _estimates_context(usage: Counters) -> bool:
+    """Whether a block reports a total beside parts that are all zero, as the CLI's context estimate does."""
+    total = usage.readings.get(_SOURCE_TOTAL, Reading())
+    parts = [reading for counter, reading in usage.readings.items() if counter != _SOURCE_TOTAL]
+    return total.known and all(reading == _NOTHING for reading in parts)

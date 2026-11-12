@@ -125,20 +125,26 @@ _REPEAT = codex.token_count(codex.LAST_RUNNING, _LAST_REQUEST)
 _WRONG = codex.token_count(codex.NEXT_RUNNING, (999, 500, 0, 10, 2, 1009))
 _SMALLER = (1, 0, 0, 1, 0, 2)
 _BACKWARD = codex.token_count(_SMALLER, _SMALLER)
-_ESTIMATE = codex.token_count(codex.NEXT_RUNNING, (0, 0, 0, 0, 0, 9548))
+# A compaction, and the context estimate the CLI follows one with: a total beside parts all zero, its sum unmoved.
+_COMPACTED = codex.line("compacted", {})
+_ESTIMATE_COUNTS = (0, 0, 0, 0, 0, 9548)
+_ESTIMATE = codex.token_count(codex.NEXT_RUNNING, _ESTIMATE_COUNTS)
 _OPENING = codex.token_count(codex.LAST_RUNNING, codex.NEXT_REQUEST)
 _NO_USAGE = codex.event(codex.TOKEN_COUNT, info=None)
 _ROLLBACK = codex.event("thread_rolled_back", num_turns=1)
 _THREAD_ONLY = MappingProxyType({"total_token_usage": codex.counters(codex.NEXT_RUNNING)})
 # A report repeating the captured log's last running sum, its own request usage left out, or carrying a negative count.
 _LAST_ONLY = MappingProxyType({"total_token_usage": codex.counters(codex.LAST_RUNNING)})
-_NEGATIVE_REPEAT = (-1, 0, 0, 10, 0, 9)
+_NEGATIVE_REPEAT = (-1, 0, 0, 10, 0, 10)
 _REPEAT_NO_USAGE = codex.event(codex.TOKEN_COUNT, info=dict(_LAST_ONLY))
 # Repeats of the captured log's last request whose own parts contradict each other, or whose metadata is malformed.
 _REPEAT_PAST_INPUT = codex.token_count(codex.LAST_RUNNING, (1000, 2000, 0, 10, 2, 1010))
+_OFF_TOTAL = (*_LAST_REQUEST[:-1], 9999)
+_REPEAT_OFF_TOTAL = codex.token_count(codex.LAST_RUNNING, _OFF_TOTAL)
 _REPEAT_BAD_WINDOW = codex.token_count(codex.LAST_RUNNING, _LAST_REQUEST, model_context_window=-1)
 _REPEAT_BAD_FLAG = codex.token_count(codex.LAST_RUNNING, _LAST_REQUEST, last_usage_includes_reasoning="yes")
 _INVALID = coverage.INVALID_COUNTERS
+_CONFLICTING = coverage.CONFLICTING_COUNTERS
 # A request's usage leaving its reasoning out, and what its report says beside it: nothing more, or a reasoning flag or
 # context window no usable value, each with the malformed metadata it is.
 _NO_REASONING = MappingProxyType({
@@ -195,6 +201,11 @@ _NOT_OWN = (
     ("no session_meta first", {"lines": _FRESH_LINES[1:]}),
 )
 _SHORTER = codex.APPENDED._replace(start=capture.LAST.end + 1, stdout="")
+_SILENT = codex.APPENDED._replace(stdout="")
+# A usage record naming the last captured turn, which the invocation never opened, with or without a turn of its own.
+_EARLIER_USAGE = MappingProxyType({codex.TURN_ID: capture.LAST_TURN, _USAGE: _NEXT_USAGE})
+_EARLIER_RECORD = codex.line(_RECORD_KIND, dict(_EARLIER_USAGE))
+_RELABELED = (_STARTED, _EARLIER_RECORD, _NEXT, _COMPLETE)
 # A silent resume after the interrupted invocation, past whose count usage settles in the turn that invocation left
 # open: a record naming that turn, and a report advancing the running sum it left by exactly the record's request.
 _AFTER_INTERRUPTED = codex.APPENDED._replace(start=capture.INTERRUPTED.end, stdout="")
@@ -214,6 +225,8 @@ _UNPROVEN = (
     ("a resume of an empty log", capture.RESUMED._replace(start=0), None),
     ("a silent resume of a log shorter than its count", _SHORTER, None),
     ("usage settled in an earlier invocation's open turn", _AFTER_INTERRUPTED, _INTRUDING),
+    ("a record naming an earlier invocation's turn", codex.APPENDED, (*capture.log_lines(), *_RELABELED)),
+    ("a silent resume's record naming an earlier turn", _SILENT, (*capture.log_lines(), _EARLIER_RECORD, _NEXT)),
     ("fresh log begun before the launch", capture.FRESH._replace(launched_at=capture.RESUMED.launched_at), None),
     ("earlier lines stamped after the launch", capture.RESUMED._replace(launched_at=capture.FRESH.launched_at), None),
     ("a silent resume after a clock step back", _STEPPED_BACK, None),
@@ -224,7 +237,6 @@ _UNPROVEN = (
         [text.replace(_RESUMED_STAMP, _EARLY_STAMP) for text in capture.log_lines(capture.RESUMED.end)],
     ),
 )
-_SILENT = codex.APPENDED._replace(stdout="")
 # Turns stdout does not account for: one another process appended meanwhile, one stdout counts that the log never
 # opened, and one the log opened that stdout never printed.
 _FOREIGN = (
@@ -243,11 +255,15 @@ _PLACED = (
 )
 # Reports never taken for a new request: one after a line no reading could place -- which could repeat the one that
 # line held, an earlier invocation's included -- and one whose running sum moves by anything but its own counters.
+# A report its own counts cannot prove new: two of them negative, and its total below its output.
+_UNUSABLE_COUNTS = (-1, -1, 0, 10, 2, 0)
+_UNUSABLE_OWN = codex.token_count(codex.NEXT_RUNNING, _UNUSABLE_COUNTS)
 _UNPROVEN_REPORTS = (
     ("after a line cut short", (_STARTED, _CUT_SHORT, _NEXT, _COMPLETE), {coverage.MALFORMED_LINES}),
     ("an earlier report after one cut short", (_CUT_SHORT, _STARTED, _REPEAT, _COMPLETE), {coverage.MALFORMED_LINES}),
     ("moving by another request", (_STARTED, _WRONG, _COMPLETE), set()),
     ("moving backward", (_STARTED, _BACKWARD, _COMPLETE), set()),
+    ("its own counts unusable", (_STARTED, _UNUSABLE_OWN, _COMPLETE), {_INVALID, _CONFLICTING}),
 )
 _UNREADABLE = (
     ("info no object", codex.event(codex.TOKEN_COUNT, info=[1]), coverage.MALFORMED_USAGE),
@@ -259,10 +275,11 @@ _UNREADABLE = (
     ("a repeat naming no request usage", _REPEAT_NO_USAGE, coverage.MALFORMED_USAGE),
     ("a repeat reporting no whole count", codex.token_count(codex.LAST_RUNNING, _NEGATIVE_REPEAT), _INVALID),
     ("a repeat whose reads pass its input", _REPEAT_PAST_INPUT, coverage.CONFLICTING_COUNTERS),
+    ("a repeat whose total its parts contradict", _REPEAT_OFF_TOTAL, coverage.CONFLICTING_COUNTERS),
+    ("an estimate no compaction precedes", codex.token_count(codex.LAST_RUNNING, _ESTIMATE_COUNTS), _CONFLICTING),
     ("a repeat beside a malformed window", _REPEAT_BAD_WINDOW, coverage.MALFORMED_METADATA),
     ("a repeat beside a malformed flag", _REPEAT_BAD_FLAG, coverage.MALFORMED_METADATA),
 )
-_CONFLICTING = coverage.CONFLICTING_COUNTERS
 # Requests whose counters are no usable count, each beside the running sum it advances, the field it leaves unusable,
 # and the gaps it is: a running sum adding a request's contradiction carries it too, and is a gap of its own.
 _NEGATIVE_INPUT = (-5, 500, 0, 10, 2, 1010)
@@ -326,6 +343,7 @@ _BOUNDS = (
 _LONGEST = max(map(len, capture.log_lines()))
 _PADDING = _LONGEST + 1 - len(codex.event(_ITEM_COMPLETED, text=""))
 _OVERSIZE_LINE = codex.event(_ITEM_COMPLETED, text="x" * _PADDING)
+_PADDED_START = " " * (_LONGEST + 1 - len(_STARTED)) + _STARTED
 # What stops a reader before the log's end, which it records in the scan it shares once it stops: a read bound, and a
 # read failing partway.
 _READER_STOPS = (coverage.SCAN_LIMIT, coverage.NATIVE_READ_INTERRUPTED)
@@ -362,6 +380,10 @@ _CHILD_MODEL_CHANGE = MappingProxyType({
 _UNREADABLE_STAMPS = ("0001-01-01T00:00:00+01:00", "9999-12-31T23:59:59-01:00", "2026-11-12T14:10:01", "yesterday")
 # A usage record of the appended request, as the CLI writes one beside each `token_count` reporting a request.
 _RECORD = codex.line(_RECORD_KIND, {_USAGE: codex.counters(codex.NEXT_REQUEST)})
+_MALFORMED_RECORDS = (
+    ("a payload no object", codex.line(_RECORD_KIND, ["not an object"]), coverage.MALFORMED_ENVELOPES),
+    ("usage naming no counter", codex.line(_RECORD_KIND, {_USAGE: {}}), coverage.MALFORMED_USAGE),
+)
 # A child turn writing two usage records and reporting one request, beside a thread request reported with no record:
 # the child's second record has no report of its own branch, however the thread's surplus report matches in number.
 _CHILD_USAGE = MappingProxyType({codex.TURN_ID: codex.CHILD_TURN, _USAGE: _NEXT_USAGE})
@@ -451,9 +473,9 @@ class RequestIdentityTest(unittest.TestCase):
     """A repeated report is one request, and a report not proven new is none, so nothing is copied or doubled."""
 
     def test_repeated_notifications_are_one_request(self) -> None:
-        # The turn opening with the last running sum, the request's report printed twice, a context estimate whose
-        # running sum does not move, and a notification with no usage: one request.
-        collection = _appended_with(_OPENING, _NO_USAGE, _NEXT, _NEXT, _ESTIMATE)
+        # The turn opening with the last running sum, the request's report printed twice, the context estimate after a
+        # compaction, whose running sum does not move, and a notification with no usage: one request.
+        collection = _appended_with(_OPENING, _NO_USAGE, _NEXT, _NEXT, _COMPACTED, _ESTIMATE)
         self.assertEqual(len(collection.samples), 1)
         self.assertEqual(collection.reasons, {})
 
@@ -476,6 +498,15 @@ class RequestIdentityTest(unittest.TestCase):
                 self.assertEqual(len(collection.samples), kept)
                 self.assertEqual(collection.reasons, {} if kept else {coverage.UNRECONCILED_USAGE: 1})
                 self.assertNotIn("invocation-baseline", cases.column(collection.checkpoints, _KIND))
+
+    def test_records_keep_their_shape_as_evidence(self) -> None:
+        # No request is read off a usage record, but one that is no object, or whose usage names no counter, is
+        # malformed evidence beside the request its `token_count` reports.
+        for name, record, gap in _MALFORMED_RECORDS:
+            with self.subTest(name):
+                collection = _appended_with(record, _NEXT)
+                self.assertEqual(len(collection.samples), 1)
+                self.assertEqual(collection.reasons, {gap: 1})
 
     def test_unproven_reports_are_no_requests(self) -> None:
         for name, lines, others in _UNPROVEN_REPORTS:
@@ -644,13 +675,16 @@ class CollectionBoundTest(unittest.TestCase):
         # A line past the line bound is counted and skipped however it was handed over, cutting the collection short
         # of the whole log: here it stands where the invocation's turn would open, so stdout's turn cannot be held
         # against the log, and it could have held the report the one after it repeats, so that is no proven request.
-        with patch.object(request_scan, "MAX_LINE_CHARS", _LONGEST):
-            collection = codex.appended(_OVERSIZE_LINE, _NEXT, _COMPLETE)
-        self.assertEqual(len(_OVERSIZE_LINE), _LONGEST + 1)
-        self.assertEqual(collection.reasons, {coverage.OVERSIZE_LINES: 1, coverage.UNRECONCILED_USAGE: 1})
-        self.assertEqual(collection.status, coverage.SOURCE_LIMIT_TRUNCATED)
-        self.assertEqual(collection.coverage[_SCOPE], coverage.PARTIAL_SCOPE)
-        self.assertEqual(collection.samples, [])
+        # The bound holds the line as handed over, so padding a short one past it is as long as any.
+        for oversize in (_OVERSIZE_LINE, _PADDED_START):
+            bound = patch.object(request_scan, "MAX_LINE_CHARS", _LONGEST)
+            with self.subTest(padded=oversize.startswith(" ")), bound:
+                collection = codex.appended(oversize, _NEXT, _COMPLETE)
+                self.assertEqual(len(oversize), _LONGEST + 1)
+                self.assertEqual(collection.reasons, {coverage.OVERSIZE_LINES: 1, coverage.UNRECONCILED_USAGE: 1})
+                self.assertEqual(collection.status, coverage.SOURCE_LIMIT_TRUNCATED)
+                self.assertEqual(collection.coverage[_SCOPE], coverage.PARTIAL_SCOPE)
+                self.assertEqual(collection.samples, [])
 
     def test_a_read_stopped_short(self) -> None:
         # A reader a bound or a failing read stopped records why in the scan it shares with the collection, which is

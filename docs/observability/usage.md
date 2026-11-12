@@ -789,13 +789,13 @@ like a JSON object that decodes to none -- cut short, or refused by the decoder 
 banner text and a value that is no object, which could never have been an event, are skipped without being one. The
 decoder's refusal is caught by the scan alone, for the line it was decoding: the run parsers still refuse such a
 stream, as Resilience above describes, so a tracked run carrying one publishes no total and reconstructs no timeline,
-while its trajectory record still carries the collection, marked `stream_refused`. A Codex collection decodes its
-native session log's lines through the same decoder and gap accounting, one at a time as they are handed over
-(`EventScan.counted`), keeping none: a line past `MAX_LINE_CHARS` is an `oversize-lines` gap however it arrived, and
-any line holding no object a `malformed-lines` one. The bounds a reader of that log is held to are defined beside
-these, so a collection reads them all from `current_limits`: 4,096 session directories (`MAX_SESSION_DIRECTORIES`)
-and 262,144 directory entries (`MAX_SESSION_ENTRIES`) a lookup examines, and 64 MiB of the log (`MAX_LOG_BYTES`)
-beside `MAX_EVENTS` lines a read takes. No reader holds them yet, since the collector is dormant.
+while its trajectory record still carries the collection, marked `stream_refused`. A Codex collection decodes its native
+session log's lines through the same decoder and gap accounting, one at a time as they are handed over
+(`EventScan.counted`), keeping none: a line past `MAX_LINE_CHARS`, whitespace included, is an `oversize-lines` gap
+however it arrived, and any line holding no object a `malformed-lines` one. The bounds a reader of that log is held to
+are defined beside these, so a collection reads them all from `current_limits`: 4,096 session directories
+(`MAX_SESSION_DIRECTORIES`) and 262,144 directory entries (`MAX_SESSION_ENTRIES`) a lookup examines, and 64 MiB of the
+log (`MAX_LOG_BYTES`) beside `MAX_EVENTS` lines a read takes. No reader holds them yet, since the collector is dormant.
 
 **Antigravity requests.** `request_agy.py` produces one observation per completed usage-bearing step of the process's
 own stream, on the same agy 1.4.10 captures the run accounting is pinned to. A step is keyed by its conversation and
@@ -1046,11 +1046,12 @@ the clock moved under the log -- the fresh invocation's last requests, say, stam
 clock stepped back -- and so does a stamp earlier than the one before it, anywhere in the log. Each of these is
 `invocation-unattributed`, as is, where the log and stdout were both read whole, a count of root turns opened past the
 boundary other than the `turn.started` lines stdout printed, none included -- a turn another process appended meanwhile,
-or one stdout never printed -- and so is usage its lines settle while the innermost open turn is an earlier
-invocation's, which a resume printing no turn would otherwise adopt: the invocation opens its own turns before settling
-anything in them. A read cut short, or a stdout line the scan could not read, proves nothing about the turns past it, so
-that count is not compared there. A stamp no UTC moment reads as -- no ISO moment, one naming no offset, or one its
-offset carries out of range -- is `malformed-metadata`, kept as written, and places nothing.
+or one stdout never printed -- and so is usage its lines settle in a turn they did not open -- the innermost open one
+being an earlier invocation's, which a resume printing no turn would otherwise adopt, or a usage record naming a turn
+the invocation never opened: the invocation opens its own turns before settling anything in them. A read cut short, or a
+stdout line the scan could not read, proves nothing about the turns past it, so that count is not compared there. A
+stamp no UTC moment reads as -- no ISO moment, one naming no offset, or one its offset carries out of range -- is
+`malformed-metadata`, kept as written, and places nothing.
 
 A `task_started` opens a turn: one whose `turn_attribution` names a `parent_turn_id` is a child turn run in this log,
 whose requests are a branch of their own carrying their `turn_id` and `parent_turn_id`, opened once however often its
@@ -1079,24 +1080,27 @@ branch reported is a repeated notification and no request: the capture's resumed
 invocation left, and its compaction is followed by a context estimate whose sum does not move. A repeat's own block and
 the metadata beside it are still evidence -- a block naming no counter is `malformed-usage`, a count no whole number
 `invalid-counters`, a part past its whole (cache reads or writes past the input, reasoning past the output)
-`conflicting-counters`, and a malformed flag or context window `malformed-metadata` -- though its total alone is not
-held to its parts, the estimate's standing beside no input or output. One advancing by exactly the request's own
-counters -- on every counter all three report a count of, at least one of them moving by a count above zero -- is a new
-request, so two requests of equal counts stay two; one advancing otherwise, one only counters staying at zero agree with
--- the moving ones left unusable by an earlier sum -- or one after a line or envelope this collection could not read --
-which could have held the report it repeats, an earlier invocation's included -- or the invocation's first after a
-request the earlier lines settled with no `token_count` reporting it, whose usage record leaves the last running sum
-behind, is an `unreconciled-usage` gap rather than a sample, so no earlier request is ever copied into a later
-invocation. An `info` of null is a notification with no usage; one that is no object, or naming no running sum or no
+`conflicting-counters`, and a malformed flag or context window `malformed-metadata` -- and a total its parts contradict
+`conflicting-counters` too, but for the estimate after a compaction, whose total stands beside parts all zero. One
+advancing by exactly the request's own counters -- on every counter all three report a count of, at least one of them
+moving by a count above zero -- is a new request, so two requests of equal counts stay two; one advancing otherwise, one
+only counters staying at zero agree with -- the moving ones left unusable by an earlier sum -- or one after a line or
+envelope this collection could not read -- which could have held the report it repeats, an earlier invocation's included
+-- or the invocation's first after a request the earlier lines settled with no `token_count` reporting it, whose usage
+record leaves the last running sum behind, is an `unreconciled-usage` gap rather than a sample, so no earlier request is
+ever copied into a later invocation; its own counters are judged all the same, an invalid or contradictory one a gap
+beside it. An `info` of null is a notification with no usage; one that is no object, or naming no running sum or no
 request usage, is `malformed-usage`. The CLI also writes a `token_usage_record` beside each request, repeating its
 counters under its response id; no request is read off one, but the invocation's records are counted on the branch of
-the turn each settles in, and each beyond its branch's `token_count` reports that repeat nothing is an
-`unsupported-usage-source` gap, so one branch's report never answers another's record, so a log whose reports are
-missing never reads as an invocation that made no request. A sample is keyed `rollout-line:<line>` (`native-position`),
-its `position` that line, its `session_id` and `conversation_id` the session, `final` as `token-count` settled it, with
-the line's stamp as `source_timestamp`, `model_context_window` as `context_capacity` -- one reported as no whole count
-is `malformed-metadata`, one left out the `no-context-capacity` limitation alone -- and `last_usage_includes_reasoning`
-in `source_flags` as reported -- a value that is no boolean is `malformed-metadata`. Only a fresh run names a
+the turn each names, and each beyond its branch's `token_count` reports that repeat nothing is an
+`unsupported-usage-source` gap, so one branch's report never answers another's record, and a log whose reports are
+missing never reads as an invocation that made no request. A record of the invocation's naming a turn it did not open is
+`invocation-unattributed`, as above; one that is no object is `malformed-envelopes`, and one whose usage names no
+counter `malformed-usage`. A sample is keyed `rollout-line:<line>` (`native-position`), its `position` that line, its
+`session_id` and `conversation_id` the session, `final` as `token-count` settled it, with the line's stamp as
+`source_timestamp`, `model_context_window` as `context_capacity` -- one reported as no whole count is
+`malformed-metadata`, one left out the `no-context-capacity` limitation alone -- and `last_usage_includes_reasoning` in
+`source_flags` as reported -- a value that is no boolean is `malformed-metadata`. Only a fresh run names a
 `source_version`, its `session_meta`'s `cli_version`: a resumed run's log was begun by an earlier process, whose version
 that is. Requests past `MAX_TRACKED_STEPS` and markers past `MAX_MARKERS` are `correlation-limit` gaps, and an id or
 model past `MAX_METADATA_CHARS` is refused metadata.
