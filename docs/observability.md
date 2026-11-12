@@ -224,7 +224,8 @@ dispatcher, the cost-precedence rule, the per-issue verdict line a terminal post
 siblings return. The per-issue counters that verdict reads are not these sinks: each invoked exit is counted on the
 pinned comment once, by the accounting checkpoint the tracked spawn asks as the run returns, a held or killed run's
 included, and an exit no checkpoint landed is never reconstructed from the analytics or audit records, which stay
-observational.
+observational. The same page defines the provider-neutral per-request usage records, their normalization, coverage,
+and bounded scan; no collector reads through them yet, so no trajectory carries a request usage breakdown.
 
 ## Summary of "what runs when"
 
