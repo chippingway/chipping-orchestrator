@@ -1093,22 +1093,24 @@ earlier invocation's included -- or the invocation's first after a request the e
 `token_count` reporting it, whose usage record leaves the last running sum behind, is an `unreconciled-usage` gap rather
 than a sample, so no earlier request is ever copied into a later invocation; its own counters are judged all the same,
 an invalid or contradictory one -- a count past its running sum included -- a gap beside it, and so are a report's
-naming no running sum. An `info` of null is a notification with no usage; one that is no object, or naming no running
-sum or no request usage, is `malformed-usage`. The CLI also writes a `token_usage_record` beside each request, repeating
-its counters under its response id; no request is read off one, but the invocation's records are counted on the branch
-of the turn each names, and each beyond its branch's `token_count` reports that repeat nothing is an
-`unsupported-usage-source` gap, so one branch's report never answers another's record, and a log whose reports are
-missing never reads as an invocation that made no request. A record of the invocation's naming a turn it did not open is
-`invocation-unattributed`, as above; one that is no object is `malformed-envelopes`, and one whose usage names no
-counter `malformed-usage`, each still a record, in the innermost open turn where it names none, so one before the
-boundary leaves the running sum behind like any. A sample is keyed `rollout-line:<line>` (`native-position`), its
-`position` that line, its `session_id` and `conversation_id` the session, `final` as `token-count` settled it, with the
-line's stamp as `source_timestamp`, `model_context_window` as `context_capacity` -- one reported as no whole count is
-`malformed-metadata`, one left out the `no-context-capacity` limitation alone -- and `last_usage_includes_reasoning` in
-`source_flags` as reported -- a value that is no boolean is `malformed-metadata`. Only a fresh run names a
-`source_version`, its `session_meta`'s `cli_version`: a resumed run's log was begun by an earlier process, whose version
-that is. Requests past `MAX_TRACKED_STEPS` and markers past `MAX_MARKERS` are `correlation-limit` gaps, and an id or
-model past `MAX_METADATA_CHARS` is refused metadata.
+naming no running sum, and those of one no branch takes -- among overlapping turns, in a child turn naming no id, or
+past a bound -- with its running sum and its metadata. An `info` of null is a notification with no usage; one that is no
+object, or naming no running sum or no request usage, is `malformed-usage`. The CLI also writes a `token_usage_record`
+beside each request, repeating its counters under its response id; no request is read off one, but the invocation's
+records are counted on the branch of the turn each names, and each awaits a later report of its branch that repeats
+nothing, in the order the log holds them; one no such report answers is an `unsupported-usage-source` gap, so one
+branch's report never answers another's record, and a log whose reports are missing never reads as an invocation that
+made no request. A record of the invocation's naming a turn it did not open is `invocation-unattributed`, as above; one
+that is no object is `malformed-envelopes`, and one whose usage names no counter `malformed-usage`, each still a record,
+in the innermost open turn where it names none, so one before the boundary leaves the running sum behind like any. A
+sample is keyed `rollout-line:<line>` (`native-position`), its `position` that line, its `session_id` and
+`conversation_id` the session, `final` as `token-count` settled it, with the line's stamp as `source_timestamp`,
+`model_context_window` as `context_capacity` -- one reported as no whole count is `malformed-metadata`, one left out the
+`no-context-capacity` limitation alone -- and `last_usage_includes_reasoning` in `source_flags` as reported -- a value
+that is no boolean is `malformed-metadata`. Only a fresh run names a `source_version`, its `session_meta`'s
+`cli_version`: a resumed run's log was begun by an earlier process, whose version that is. Requests past
+`MAX_TRACKED_STEPS` and markers past `MAX_MARKERS` are `correlation-limit` gaps, and an id or model past
+`MAX_METADATA_CHARS` is refused metadata.
 
 `raw` reads `input_tokens`, `cached_input_tokens`, `cache_write_input_tokens`, `output_tokens`,
 `reasoning_output_tokens`, and `total_tokens` and nothing else of a block. The context input is the input, which

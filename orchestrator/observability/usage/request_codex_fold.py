@@ -25,24 +25,26 @@ request. A sum advancing by exactly the request's own counters, at least one of 
 new request, so two requests of equal counts stay two; one advancing by anything else, one only counters staying at zero
 agree with, or one following a line this pass could not read -- which could have been the report it repeats -- is not
 proven a new request, and is an `unreconciled-usage` gap rather than a sample, so no earlier invocation's request is
-ever copied into this one. A report kept as no sample -- a repeat, or one naming no running sum, included -- still
-carries evidence: its usage block naming no counter, reporting one as no whole count, holding a part past its whole, a
-total its parts contradict, or a count past the running sum beside it, and metadata reported malformed beside it, are
-gaps all the same -- but for the context estimate the CLI follows a compaction with, whose total stands beside parts all
-zero. The thread's running sums are checkpoints of the whole conversation: the last one before the boundary as the
-invocation's baseline, and the ones its own requests advance. A request the earlier lines settled after that last sum --
-a usage record no `token_count` reported -- leaves it behind, so no baseline is established, and the invocation's first
-report is not proven new. A child turn's sums are kept only to prove its requests, since nothing establishes what they
-span, though they are held to the same arithmetic as a checkpoint.
+ever copied into this one. A report kept as no sample -- a repeat, one naming no running sum, or one no branch takes,
+among overlapping turns, in a child turn naming no id, or past a bound, included -- still carries evidence: its usage
+block naming no counter, reporting one as no whole count, holding a part past its whole, a total its parts contradict,
+or a count past the running sum beside it, and metadata reported malformed beside it, are gaps all the same -- but for
+the context estimate the CLI follows a compaction with, whose total stands beside parts all zero. The thread's running
+sums are checkpoints of the whole conversation: the last one before the boundary as the invocation's baseline, and the
+ones its own requests advance. A request the earlier lines settled after that last sum -- a usage record no
+`token_count` reported -- leaves it behind, so no baseline is established, and the invocation's first report is not
+proven new. A child turn's sums are kept only to prove its requests, since nothing establishes what they span, though
+they are held to the same arithmetic as a checkpoint.
 
 Every request the CLI settles also writes a `token_usage_record` repeating its counters under its response id. No
 request is read off one -- its counters are never a sample -- but the invocation's records are counted on the branch of
-the turn each names, which the report after it settles in, -- one the invocation opened, for its own record, else none
-of the invocation's lines is attributed -- and each beyond the reports its branch's `token_count` lines made that repeat
-nothing is usage reported only where this pass reads no request from: an `unsupported-usage-source` gap, so a log whose
-`token_count` lines are missing never reads as no requests, and a report of one branch never answers another's record. A
-record that is no object is a malformed envelope, and one whose usage names no counter malformed usage, each still a
-record of a request settled, in the innermost open turn where it names none.
+the turn each names, which the report after it settles in -- one the invocation opened, for its own record, else none
+of the invocation's lines is attributed -- and each awaits the next report of its branch that repeats nothing, in the
+order the log holds them; one no later report answers is usage reported only where this pass reads no request from: an
+`unsupported-usage-source` gap, so a log whose `token_count` lines are missing never reads as no requests, and a report
+of one branch never answers another's record. A record that is no object is a malformed envelope, and one whose usage
+names no counter malformed usage, each still a record of a request settled, in the innermost open turn where it names
+none.
 
 Subagents. A child turn the invocation opened that settled no request, and a subagent thread its lines name -- in an
 `item_completed` `SubAgentActivity`, or in a legacy history's `sub_agent_activity` event -- whose requests are in a log
@@ -66,9 +68,11 @@ from typing import Any, NamedTuple
 from orchestrator.observability.usage import request_coverage as coverage, request_models, request_scan
 from orchestrator.observability.usage.request_codex_counters import (
     LAST_USAGE,
+    RUNNING_SUM,
     Counters,
     attribution,
     checkpoint,
+    detached_gaps,
     report_metadata,
     usage_gaps,
 )
@@ -155,9 +159,9 @@ class Branch:
 
     `unreported` counts the usage records written on it since that running sum: requests settled that no `token_count`
     has reported yet, the sum lagging them until one does. `compacted` is whether a compaction followed that sum, after
-    which the CLI reports a context estimate repeating it. `records` and `reports` count the invocation's own usage
-    records on it and its reports that were no proven repeat, so a record no report of its own branch answers is told
-    apart from one another branch's report happens to match in number.
+    which the CLI reports a context estimate repeating it. `pending` counts the invocation's own usage records on it
+    still awaiting the report written after each: a report that is no proven repeat answers one, in the order the log
+    holds them, so a record is answered only by a later report of its own branch.
     """
 
     model: str | None = None
@@ -166,15 +170,13 @@ class Branch:
     proven: bool = True
     unread_at: int = 0
     unreported: int = 0
-    records: int = 0
-    reports: int = 0
+    pending: int = 0
     compacted: bool = False
     kept: int = 0
 
-    @property
-    def unanswered(self) -> int:
-        """How many of the invocation's usage records on it no report of its own answers."""
-        return max(self.records - self.reports, 0)
+    def answer(self, own: bool) -> None:
+        """Answer the invocation's earliest record awaiting a report, where its report is one; none awaiting is none."""
+        self.pending = max(self.pending - own, 0)
 
     def proven_at(self, unread_lines: int) -> bool:
         """Whether its last running sum is the last it reported: no line since then could have been another."""
@@ -241,18 +243,21 @@ class Requests:
         """Fold one `token_count` carrying usage into its branch: a sample where the invocation's line proves a new
         request.
 
-        One of a child turn naming no id has no branch to be proven in, and the turn it settles in is already a gap.
+        One of a child turn naming no id has no branch to be proven in, the turn it settles in a gap already, and one
+        past the branch bound none to be kept in; the invocation's has its evidence judged all the same.
         """
-        if turn is not None and turn.unnamed_child:
-            return
-        branch = self.branch(None if turn is None else turn.branch)
+        unnamed = turn is not None and turn.unnamed_child
+        key = None if turn is None else turn.branch
+        branch = None if unnamed else self.branch(key)
         if branch is None:
-            self.gaps[coverage.CORRELATION_LIMIT] += line.own
+            self.gaps[coverage.CORRELATION_LIMIT] += line.own and not unnamed
+            if line.own:
+                self.gaps.update(detached_gaps(token_info, self.metadata))
         elif isinstance(token_info, dict):
             self._settle(line, token_info, branch, turn)
         else:
             self.gaps[coverage.MALFORMED_USAGE] += line.own
-            branch.reports += line.own
+            branch.answer(line.own)
             branch.proven = False
 
     def _settle(
@@ -269,11 +274,11 @@ class Requests:
         no sample held to its own parts and to the running sum beside it.
         """
         details = report_metadata(token_info, self.metadata) if line.own else (None, None)
-        running = Counters.of(token_info.get("total_token_usage"))
+        running = Counters.of(token_info.get(RUNNING_SUM))
         if running is None:
             if line.own:
                 self.gaps.update(usage_gaps(token_info) | {coverage.MALFORMED_USAGE})
-            branch.reports += line.own
+            branch.answer(line.own)
             branch.proven = False
             return
         proven = branch.proven_at(self.scan.unread_lines)
@@ -282,7 +287,7 @@ class Requests:
             if line.own:
                 self.gaps.update(usage_gaps(token_info, running, branch.compacted))
             return
-        branch.reports += line.own
+        branch.answer(line.own)
         if line.own:
             self._observe(report, branch, turn)
         branch.advance(running, line.position, self.scan.unread_lines)
@@ -466,7 +471,7 @@ class NativeFold:
         # Every request the CLI settles writes one `token_usage_record` beside the `token_count` reporting it, so a
         # record beyond its branch's reports that were no proven repeat is usage this collection cannot observe.
         branches = self.requests.branches.values()
-        gaps[coverage.UNSUPPORTED_USAGE_SOURCE] += sum(branch.unanswered for branch in branches)
+        gaps[coverage.UNSUPPORTED_USAGE_SOURCE] += sum(branch.pending for branch in branches)
         gaps[coverage.NO_TERMINAL_RESULT] += self.turns.unclosed
         gaps[coverage.OVERSIZE_METADATA] += self.metadata.oversize
         gaps[coverage.MALFORMED_METADATA] += self.metadata.malformed
@@ -494,7 +499,7 @@ class NativeFold:
         branch = self.requests.branch(None if turn is None else turn.branch)
         if branch is not None:
             branch.unreported += 1
-            branch.records += line.own
+            branch.pending += line.own
 
     def _line(self, line: Line, envelope: Envelope) -> None:
         marker = _MARKED.get(envelope.kind)
@@ -527,13 +532,17 @@ class NativeFold:
         if token_info is None:
             return
         turn = self.turns.current(line.own, report=True)
+        if turn is not UNPLACED and not self.turns.overflowed:
+            self.requests.report(line, token_info, turn)
+            return
+        if line.own:
+            # A report no branch takes is evidence all the same.
+            self.notes.gaps.update(detached_gaps(token_info, self.metadata))
         if turn is UNPLACED:
             self.notes.gaps[coverage.CONVERSATION_AMBIGUOUS] += line.own
             self.requests.lose_track()
-        elif self.turns.overflowed:
-            self.notes.gaps[coverage.CORRELATION_LIMIT] += line.own
         else:
-            self.requests.report(line, token_info, turn)
+            self.notes.gaps[coverage.CORRELATION_LIMIT] += line.own
 
     def _turn_context(self, line: Line, payload: dict[str, Any]) -> None:
         """Set the model the open turn a `turn_context` names runs on: a child turn's own, or the thread's root turn's.

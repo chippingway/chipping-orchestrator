@@ -216,26 +216,6 @@ _OUTGROWN_OWN = dict(zip(_OUTGROWN_COUNTERS, (100, 10, 110), strict=True))
 _OUTGROWN_INFO = MappingProxyType({_TOTAL_USAGE: _OUTGROWN_SUM, _LAST_USAGE: _OUTGROWN_OWN})
 _OUTGROWN = codex.event(codex.TOKEN_COUNT, info=dict(_OUTGROWN_INFO))
 _PARTIAL_PRIOR = (_FRESH_FIRST, _PRIOR_STARTED, _PRIOR_OUTPUT, _PRIOR_COMPLETE)
-_UNSAMPLED = (
-    (
-        "naming no running sum",
-        codex.APPENDED,
-        (*capture.log_lines(), _STARTED, _SUMLESS, _COMPLETE),
-        {coverage.MALFORMED_USAGE: 1, coverage.INVALID_COUNTERS: 1, coverage.CONFLICTING_COUNTERS: 1},
-    ),
-    (
-        "counts past a running sum an earlier one left a counter out of",
-        codex.APPENDED._replace(start=len(_PARTIAL_PRIOR)),
-        (*_PARTIAL_PRIOR, _STARTED, _OUTGROWN, _COMPLETE),
-        {coverage.UNRECONCILED_USAGE: 1, coverage.CONFLICTING_COUNTERS: 1},
-    ),
-    (
-        "counts past a running sum of nothing",
-        capture.FRESH,
-        (_FRESH_FIRST, _FRESH_STARTED, _PAST_NOTHING, _FRESH_COMPLETED),
-        {coverage.CONFLICTING_COUNTERS: 1},
-    ),
-)
 # Reasons a reader states for a log it read no line of.
 _READER_REASONS = (
     coverage.NO_SESSION_IDENTITY,
@@ -456,6 +436,43 @@ _TOLD_APART = (*_OVERLAPPING, _CHILD_RECORD, _CHILD_REQUEST, _SECOND_RECORD, _CH
 _UNTOLD = (*_OVERLAPPING, _CHILD_REQUEST, *_CLOSING)
 _TOLD_TURNS = (codex.CHILD_TURN, _SECOND_CHILD)
 _TOLD_MODELS = (_CHILD_MODEL, _SECOND_MODEL)
+# A report no branch takes, its own counts and its context window unusable: placed in neither of two overlapping child
+# turns, or in a child turn naming no id.
+_DETACHED_COUNTS = (-1, 500, 0, 10, 2, 1010)
+_DETACHED = codex.token_count(codex.NEXT_REQUEST, _DETACHED_COUNTS, model_context_window=-1)
+_DETACHED_GAPS = MappingProxyType({coverage.INVALID_COUNTERS: 1, coverage.MALFORMED_METADATA: 1})
+_UNSAMPLED = (
+    (
+        "naming no running sum",
+        codex.APPENDED,
+        (*capture.log_lines(), _STARTED, _SUMLESS, _COMPLETE),
+        {coverage.MALFORMED_USAGE: 1, coverage.INVALID_COUNTERS: 1, coverage.CONFLICTING_COUNTERS: 1},
+    ),
+    (
+        "counts past a running sum an earlier one left a counter out of",
+        codex.APPENDED._replace(start=len(_PARTIAL_PRIOR)),
+        (*_PARTIAL_PRIOR, _STARTED, _OUTGROWN, _COMPLETE),
+        {coverage.UNRECONCILED_USAGE: 1, coverage.CONFLICTING_COUNTERS: 1},
+    ),
+    (
+        "counts past a running sum of nothing",
+        capture.FRESH,
+        (_FRESH_FIRST, _FRESH_STARTED, _PAST_NOTHING, _FRESH_COMPLETED),
+        {coverage.CONFLICTING_COUNTERS: 1},
+    ),
+    (
+        "placed in neither of two overlapping turns",
+        codex.APPENDED,
+        (*capture.log_lines(), *_OVERLAPPING, _DETACHED, *_CLOSING),
+        {**_DETACHED_GAPS, coverage.CONVERSATION_AMBIGUOUS: 1, coverage.SUBAGENT_USAGE_UNAVAILABLE: 2},
+    ),
+    (
+        "in a child turn naming no id",
+        codex.APPENDED,
+        (*capture.log_lines(), _STARTED, _UNNAMED_CHILD, _DETACHED, _COMPLETE),
+        {**_DETACHED_GAPS, coverage.SUBAGENT_UNIDENTIFIED: 1, coverage.NO_TERMINAL_RESULT: 1},
+    ),
+)
 _REPORTLESS_FRESH = tuple(text for text in _FRESH_LINES if '"type":"token_count"' not in text)
 _CHILD_ATTRIBUTION = ("turn_id", "parent_turn_id", "model", "branch_order")
 _THREAD_ATTRIBUTION = (codex.APPENDED_TURN, None, capture.SWITCHED_MODEL, 0)
@@ -567,8 +584,9 @@ class RequestIdentityTest(unittest.TestCase):
                 self.assertNotIn("invocation-baseline", cases.column(collection.checkpoints, _KIND))
 
     def test_unsampled_reports_keep_evidence(self) -> None:
-        # A report no sample is made of still has its request usage judged: against its own parts, and against the
-        # running sum beside it, which every request it sums adds to -- nothing at all included.
+        # A report no sample is made of -- none proven, or none a branch takes -- still has its request usage judged:
+        # against its own parts, and against the running sum beside it, which every request it sums adds to, nothing
+        # at all included; and its metadata beside it.
         for name, invocation, lines, gaps in _UNSAMPLED:
             with self.subTest(name):
                 collection = codex.collected(invocation, lines)
@@ -642,12 +660,14 @@ class SourceShapeTest(unittest.TestCase):
         self.assertEqual(collection.reasons, {coverage.MALFORMED_LINES: len(_NO_OBJECTS)})
 
     def test_usage_no_report_carries_is_a_gap(self) -> None:
-        # A request is read off its `token_count` alone, so a usage record beyond the invocation's reports that repeat
-        # nothing -- every record, where its reports are missing -- is usage it could not observe, never no request.
+        # A request is read off its `token_count` alone, so a usage record no later report of its branch answers --
+        # every record, where its reports are missing, and one after the report it could have been mistaken for -- is
+        # usage it could not observe, never no request.
         cases_by_name = {
             "every report missing": (codex.collected(lines=_REPORTLESS_FRESH), 3),
             "one record beyond its report": (_appended_with(_RECORD, _OPENING, _NEXT, _NEXT, _RECORD), 1),
             "a child's record another branch's report matches in number": (_appended_with(*_CHILD_RECORDS), 1),
+            "a record after its turn's only report": (_appended_with(_NEXT, _RECORD), 1),
         }
         for name, (collection, unobserved) in cases_by_name.items():
             with self.subTest(name):

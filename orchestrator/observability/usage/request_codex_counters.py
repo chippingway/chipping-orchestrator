@@ -41,6 +41,7 @@ CACHE_WRITES = "cache_write_input_tokens"
 REASONING_FLAG = "last_usage_includes_reasoning"
 CONTEXT_WINDOW = "model_context_window"
 LAST_USAGE = "last_token_usage"
+RUNNING_SUM = "total_token_usage"
 # The counters a block is read for, each under the provider-neutral counter it normalizes as.
 COUNTERS = MappingProxyType({
     protocol.INPUT_TOKENS: normalization.INPUT,
@@ -219,12 +220,34 @@ def usage_gaps(
     if own is None:
         return frozenset((coverage.MALFORMED_USAGE,))
     evidence = own.evidence()
-    if after_compaction and _estimates_context(own):
+    parts = dict(own.readings)
+    total = parts.pop(_SOURCE_TOTAL, Reading())
+    # The context estimate reports a total beside parts that are all zero.
+    if after_compaction and total.known and set(parts.values()) <= {_NOTHING}:
         evidence.pop(_SOURCE_TOTAL, None)
     gaps = set(coverage.evidence_gaps(evidence.values()))
     if running is not None and _outgrows(own, running):
         gaps.add(coverage.CONFLICTING_COUNTERS)
     return frozenset(gaps)
+
+
+def detached_gaps(token_info: Any, metadata: request_scan.Metadata) -> frozenset[str]:
+    """The gaps a report no branch takes leaves: one no record places among overlapping turns, one of a child turn
+    naming no id, or one past a correlation bound.
+
+    No sample is made of it and no running sum kept, but its evidence is judged as any report's: the metadata beside
+    it, its running sum, and its request usage against both its own parts and that sum.
+    """
+    if not isinstance(token_info, dict):
+        return frozenset((coverage.MALFORMED_USAGE,))
+    report_metadata(token_info, metadata)
+    running = Counters.of(token_info.get(RUNNING_SUM))
+    found = set(usage_gaps(token_info, running))
+    if running is None:
+        found.add(coverage.MALFORMED_USAGE)
+    else:
+        found.update(coverage.evidence_gaps(running.evidence().values()))
+    return frozenset(found)
 
 
 def report_metadata(
@@ -254,10 +277,3 @@ def _outgrows(own: Counters, running: Counters) -> bool:
         if part.known and whole.known and part.exceeds(whole):
             return True
     return False
-
-
-def _estimates_context(usage: Counters) -> bool:
-    """Whether a block reports a total beside parts that are all zero, as the CLI's context estimate does."""
-    total = usage.readings.get(_SOURCE_TOTAL, Reading())
-    parts = [reading for counter, reading in usage.readings.items() if counter != _SOURCE_TOTAL]
-    return total.known and all(reading == _NOTHING for reading in parts)
