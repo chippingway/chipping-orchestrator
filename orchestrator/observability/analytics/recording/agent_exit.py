@@ -3,9 +3,11 @@
 """The `agent_exit` flow: what one finished run is summarized into.
 
 The order here is the contract. Usage is parsed first because a stream it
-cannot read cancels the record entirely, the Codex catalog next because the
-skill fields fall back to it, and the write last -- the allowlisted baseline
-event, then the opt-in trajectory beside it under its own guard. The names
+cannot read cancels the baseline record and every total entirely -- the
+opt-in trajectory then records only the request usage its collector read
+past the refusal -- the Codex catalog next because the skill fields fall
+back to it, and the write last -- the allowlisted baseline event, then the
+opt-in trajectory beside it under its own guard. The names
 this composes are reached on the owners that define them; what this owner adds
 is the sequence and the value the caller gets back, which is the list the
 `skill_triggered` audit events are driven by rather than a second pass over
@@ -118,6 +120,7 @@ def record_agent_exit(*args: Any, **kwargs: Any) -> list[str] | None:
     context = bind_agent_exit(args, kwargs)
     metrics = parse_agent_exit_usage(context)
     if metrics is None:
+        trajectory_persistence.maybe_record_trajectory(context, None, CodexCatalog())
         return None
     codex_catalog = discover_codex_catalog(context)
     skill_fields = parse_agent_exit_skills(context, codex_catalog)

@@ -9,10 +9,10 @@ identified, so an id that reaches no step is a decision this record names
 rather than a silence a reader has to reconstruct.
 
 `request_usage` is a third, separate from the Claude per-turn `turns`: the
-per-request usage observations a collector reads off the stream, with their
+per-request usage observations a collector read off the stream, with their
 coverage (`request_coverage.RequestUsage`). The trajectory parsers leave it
-None, and no caller collects it yet, so every parsed trajectory carries None,
-which means no collected breakdown rather than an empty one.
+None; the caller that collects it attaches it, and None means no collected
+breakdown rather than an empty one.
 """
 
 from __future__ import annotations

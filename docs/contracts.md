@@ -131,14 +131,16 @@ Historical forms the runtime still reads stay documented in their specifications
 Analytics and trajectory readers interpret only what current producers write: a field a producer did not report is
 unknown rather than inferred from another (a skill load is no evidence of its offer), and a row narrower than its
 query's SELECT list raises rather than reading as NULL. A current optional field's absence, an ID-less CLI run, an
-unpriced cost, and a malformed record's containment remain current answers. A trajectory's `request_usage` is read only
-as a collector wrote it; no collector runs yet, so every parsed trajectory leaves it `None` and no record carries the
-key. Its absence is a run whose requests were not collected, never an empty breakdown, and nothing infers or backfills
-one. Within the shared request-usage format a counter a sample did not observe is unknown rather than zero, a common
-total sums only observed non-overlapping counters and never the provider's own total, a model the stream did not
-establish is none rather than one taken from unrelated data, a coverage short of `complete` or `complete-empty` or a
-scan scope short of `invocation` never reads as the whole invocation, and a marker or checkpoint is never a request.
-A usage estimate prices a model only through
+unpriced cost, and a malformed record's containment remain current answers. A trajectory record's `request_usage` is
+read only as its collector wrote it: absent is a run whose requests were not collected -- a Claude or Codex run, and
+every record an earlier build wrote -- never an empty breakdown, and nothing infers or backfills one. Within the shared
+request-usage format a counter a sample did not observe is unknown rather than zero, a common total sums only observed
+non-overlapping counters and never the provider's own total, a model the stream did not establish is none rather than
+another conversation's or one taken from unrelated data, a coverage short of `complete` or `complete-empty` or a scan
+scope short of `invocation` never reads as the whole invocation, and a marker or conversation-scope checkpoint is never
+a request. A record marked `stream_refused` is a run whose stdout the usage parser refused: its run published no total
+and reconstructed no timeline, so it carries no `run_usage` and no steps, only the request usage collected past the
+refusal. A usage estimate prices a model only through
 an active price-catalogue row naming its exact ID, documented alias, or published snapshot; an unknown version, an
 arbitrary suffix, or a dormant row is an unpriced cost, never another row's rates. A Claude estimate prices each usage
 row on its own, a run and its turns alike: a cache write at the lifetime its usage block reports as a whole number, a
@@ -299,6 +301,7 @@ or lost write interrupted are current state, not historical compatibility.
 [price catalogue](observability/usage.md),
 [usage evidence](observability/usage.md#usage-parser),
 [request usage](observability/usage.md#request-usage-observations),
+[trajectory records](observability/trajectories.md#trajectory-sink-trajectory_log_path),
 [requirements baselines](state-machine/delivery-stages.md#user-content-drift-detection),
 [watermark initialization](state-machine/delivery-stages.md#_handle_in_review-label-in_review),
 [replay batches](state-machine/labels-and-state.md#pinned-state),
@@ -339,6 +342,9 @@ or lost write interrupted are current state, not historical compatibility.
 [request normalization](../tests/observability/usage/test_usage_request_normalization.py),
 [request coverage](../tests/observability/usage/test_usage_request_collection.py),
 [request records](../tests/observability/usage/test_usage_request_records.py),
+[Antigravity request samples](../tests/observability/usage/test_usage_agy_request_samples.py),
+[Antigravity request coverage](../tests/observability/usage/test_usage_agy_request_coverage.py),
+[request usage records](../tests/observability/analytics/trajectories/test_request_usage.py),
 [verification artifacts](../tests/github/test_verification_artifacts.py),
 [requirements baselines](../tests/workflow/engine/test_drift.py),
 [late first baselines](../tests/workflow/stages/decomposition/test_late_first_baseline.py),
@@ -884,16 +890,23 @@ container, or VM.
 `base_rebased` events, which record rebases onto the updated base branch. An unreadable log holds that finish.
 Deleting a rotated copy or truncating the log without keeping a copy while a finish awaits retry can emit
 `base_rebased` twice. The per-issue usage counters are the accounting checkpoint's alone: an exit no usable checkpoint
-landed is not counted, and nothing reconstructs it from the analytics or audit sinks. Request usage samples, markers,
-and checkpoints are observation alone: no price, usage total, accounting recovery, or workflow decision reads one. No
-collector runs yet, and parsing a trajectory scans and normalizes nothing for them.
+landed is not counted, and nothing reconstructs it from the analytics or audit sinks. The request usage samples,
+markers, and checkpoints a trajectory record carries are observation alone: no price, usage total, accounting
+recovery, or workflow decision reads one. Only the opt-in trajectory write collects them, apart from the trajectory
+parse and behind a failure boundary of its own, so a request collector that fails costs neither the trajectory, the
+baseline `agent_exit` record, nor the run's accounting, and with the trajectory sink off no collector runs. A stream
+the usage parser refuses still writes no `agent_exit` record and publishes no total; its request usage alone is
+recorded, on a trajectory record marked `stream_refused`.
 
 **Specs:** [audit recovery](observability/event-streams.md#audit-event-log-event_log_path),
-[request usage](observability/usage.md#request-usage-observations).
+[request usage](observability/usage.md#request-usage-observations),
+[request collection](observability/trajectories.md#trajectory-sink-trajectory_log_path).
 
 **Checks:** [rewrite events](../tests/workflow/engine/test_rewrite_finish_event_stream.py),
 [rotation](../tests/github/test_event_log.py),
-[uncollected request usage](../tests/observability/usage/test_usage.py).
+[request isolation](../tests/workflow/engine/test_usage_trajectory.py),
+[request usage records](../tests/observability/analytics/trajectories/test_request_usage.py),
+[trajectory parsing](../tests/observability/usage/test_usage.py).
 
 ## C-13: Module ownership and public surfaces
 
