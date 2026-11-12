@@ -132,8 +132,13 @@ Analytics and trajectory readers interpret only what current producers write: a 
 unknown rather than inferred from another (a skill load is no evidence of its offer), and a row narrower than its
 query's SELECT list raises rather than reading as NULL. A current optional field's absence, an ID-less CLI run, an
 unpriced cost, and a malformed record's containment remain current answers. A trajectory record's `request_usage` is
-read only as its collector wrote it: absent is a run whose requests were not collected -- a Codex run, and every
-record an earlier build wrote -- never an empty breakdown, and nothing infers or backfills one. Within the shared
+read only as its collector wrote it: absent is a run whose requests were not collected -- every record an earlier
+build wrote -- never an empty breakdown, and nothing infers or backfills one. A Codex sample is a `token_count` the
+invocation's own lines of the returned session's native log reported, those lines proven by the log's first-line
+identity and the launch moment observed for the run: a log no proof places the invocation in attributes nothing,
+never a guessed suffix, a report repeating its branch's running sum or not proven to advance it by its own counters is
+no request, so no earlier invocation's request is copied into a later one, and stdout's cumulative `turn.completed`
+is never a sample nor a request size. Within the shared
 request-usage format a counter a sample did not observe is unknown rather than zero, a common total sums only observed
 non-overlapping counters and never the provider's own total, a model the stream did not establish is none rather than
 another conversation's or branch's or one taken from unrelated data, a coverage short of `complete` or
@@ -355,6 +360,9 @@ or lost write interrupted are current state, not historical compatibility.
 [Claude request coverage](../tests/observability/usage/test_usage_claude_request_coverage.py),
 [request usage records](../tests/observability/analytics/trajectories/test_request_usage.py),
 [Claude request records](../tests/observability/analytics/trajectories/test_request_usage_claude.py),
+[Codex request samples](../tests/observability/usage/test_usage_codex_request_samples.py),
+[Codex request coverage](../tests/observability/usage/test_usage_codex_request_coverage.py),
+[Codex request records](../tests/observability/analytics/trajectories/test_request_usage_codex.py),
 [verification artifacts](../tests/github/test_verification_artifacts.py),
 [requirements baselines](../tests/workflow/engine/test_drift.py),
 [late first baselines](../tests/workflow/stages/decomposition/test_late_first_baseline.py),
@@ -903,8 +911,11 @@ Deleting a rotated copy or truncating the log without keeping a copy while a fin
 landed is not counted, and nothing reconstructs it from the analytics or audit sinks. The request usage samples,
 markers, and checkpoints a trajectory record carries are observation alone: no price, usage total, accounting
 recovery, or workflow decision reads one. Only the opt-in trajectory write collects them, apart from the trajectory
-parse and behind a failure boundary of its own, so a request collector that fails costs neither the trajectory, the
-baseline `agent_exit` record, nor the run's accounting, and with the trajectory sink off no collector runs. A stream
+parse and behind a failure boundary of its own, so a request collector -- a Codex native log's lookup and read
+included -- that fails costs neither the trajectory, the baseline `agent_exit` record, nor the run's accounting, and
+with the trajectory sink off no collector runs, no Codex launch is observed, and no native log is looked up or read.
+The launch observation a tracked Codex spawn hands its exit -- the `CODEX_HOME` its environment names and the launch
+moment -- is observation alone and changes nothing the CLI is launched with. A stream
 the usage parser refuses still writes no `agent_exit` record and publishes no total; its request usage alone is
 recorded, on a trajectory record marked `stream_refused`.
 
@@ -917,6 +928,10 @@ recorded, on a trajectory record marked `stream_refused`.
 [request isolation](../tests/workflow/engine/test_usage_trajectory.py),
 [request usage records](../tests/observability/analytics/trajectories/test_request_usage.py),
 [Claude request records](../tests/observability/analytics/trajectories/test_request_usage_claude.py),
+[Codex request records](../tests/observability/analytics/trajectories/test_request_usage_codex.py),
+[Codex session reads](../tests/observability/analytics/trajectories/test_codex_sessions.py),
+[Codex launch observation](../tests/observability/analytics/trajectories/test_codex_launch.py),
+[Codex launch handoff](../tests/workflow/engine/test_usage_codex_launch.py),
 [trajectory parsing](../tests/observability/usage/test_usage.py).
 
 ## C-13: Module ownership and public surfaces

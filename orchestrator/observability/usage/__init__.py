@@ -23,14 +23,19 @@ reconstruction one timeline is rebuilt into (``trajectory_models``,
 ``trajectory_codex_items``, ``trajectory_codex_payloads``, ``trajectory_agy``);
 and the per-request usage a run's stream is collected into -- its records,
 common normalization, coverage, and bounded scan, the Antigravity collector
-with its step fold and conversation attribution, and the Claude collector
-with its stream fold, request fold, counter reading, and process reports
-(``request_models``, ``request_normalization``, ``request_coverage``,
-``request_scan``, ``request_agy``, ``request_agy_steps``,
-``request_agy_branches``, ``request_claude``, ``request_claude_stream``,
-``request_claude_messages``, ``request_claude_counters``,
-``request_claude_reports``). The request collectors are dispatched beside the
-trajectory parsers on ``trajectory`` and are not published here.
+with its step fold and conversation attribution, the Claude collector with
+its stream fold, request fold, counter reading, and process reports, and the
+Codex collector over the native session log lines it is handed, with its
+invocation scope, log fold, and counter reading (``request_models``,
+``request_normalization``, ``request_coverage``, ``request_scan``,
+``request_agy``, ``request_agy_steps``, ``request_agy_branches``,
+``request_claude``, ``request_claude_stream``, ``request_claude_messages``,
+``request_claude_counters``, ``request_claude_reports``, ``request_codex``,
+``request_codex_scope``, ``request_codex_fold``,
+``request_codex_counters``). The request collectors are dispatched beside the
+trajectory parsers on ``trajectory`` and are not published here; none of them
+reads a file, the Codex one's log lines being looked up and read by the
+trajectory sink that hands them over.
 
 This initializer re-exports the narrow public surface (``__all__``): the nine
 parsers a caller dispatches through -- dispatch plus the Codex and Claude

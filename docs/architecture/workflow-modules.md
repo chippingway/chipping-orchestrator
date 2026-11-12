@@ -2638,8 +2638,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     run_requests.py         agent invocation requests, stable logical-round fingerprints, launch identities, and
                             optional runner arguments; prompt text is excluded so rebuilding a prompt cannot buy a
                             second charge, and the fingerprint, shared by every attempt at a round, is no accounting key
-    run_reporting.py        agent-exit audit and analytics records, configured-model fallback, and triggered-skill
-                            emissions; a failure to emit those skill records cannot discard a completed agent result
+    run_reporting.py        agent-exit audit and analytics records, configured-model fallback, the launch a tracked
+                            spawn hands its exit (start time and the opt-in trajectory's Codex launch observation),
+                            and triggered-skill emissions; a failure to emit those skill records cannot discard a
+                            completed agent result
     issue_usage.py          cumulative per-issue usage totals and their terminal receipt: the cost evidence reduced by
                             basis and completeness, the non-overlapping token total beside the runs it settles none
                             for, and an earlier build's totals read as one record without evidence (`EarlierUsage`),

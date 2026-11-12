@@ -37,6 +37,8 @@ _INTERRUPTED = "\n".join((
     stream.step(2, state="ACTIVE"),
 ))
 _FAILED = coverage.RequestUsage.failed().summary(0, 0)
+_REASONS = "reasons"
+_UNOBSERVED = (coverage.NO_LAUNCH_OBSERVATION,)
 # The ways a run ends before its stream does, each with its exit code and whether it timed out.
 _UNFINISHED = (("failed", 1, False), ("timed out", -9, True))
 # The fresh run beside a line the JSON decoder refuses although it parses.
@@ -91,9 +93,13 @@ class RequestUsageRecordTest(support.RecordAgentExitTrajectorySupport):
                 self.assertEqual(len(request_usage[_SAMPLES]), 1)
                 self.assertEqual(request_usage[_COVERAGE][_STATUS], coverage.INCOMPLETE)
 
-    def test_runs_without_a_collector_carry_none(self) -> None:
+    def test_codex_without_a_launch_says_why(self) -> None:
+        # A Codex run's requests are in a native log only its observed launch can place, so one with none carries a
+        # collection attributing nothing, never a guessed one.
         record, _ = self._written(stdout=_FRESH_STDOUT, backend=support.CODEX)
-        self.assertNotIn(_REQUEST_USAGE, record)
+        summary = record[_REQUEST_USAGE][_COVERAGE]
+        self.assertEqual(summary[_STATUS], coverage.UNAVAILABLE)
+        self.assertEqual(tuple(summary[_REASONS]), _UNOBSERVED)
 
     def test_disabled_sink_runs_no_collector(self) -> None:
         with tempfile.TemporaryDirectory() as td, patch.object(usage_trajectory, _COLLECTOR) as collector:
@@ -132,7 +138,7 @@ class RefusedStreamTest(support.RecordAgentExitTrajectorySupport):
         self.assertFalse({"run_usage", support.OUTPUT_KEY, "turns"} & set(record))
         self.assertEqual(record[support.STEPS_KEY], [])
         request_usage = record[_REQUEST_USAGE]
-        self.assertEqual(request_usage[_COVERAGE]["reasons"], {coverage.MALFORMED_LINES: 1})
+        self.assertEqual(request_usage[_COVERAGE][_REASONS], {coverage.MALFORMED_LINES: 1})
         self.assertEqual(request_usage[_SAMPLES][0]["context_input_tokens"], _FRESH_INPUT)
 
     def test_disabled_sink_collects_nothing_refused(self) -> None:
@@ -154,7 +160,7 @@ class RequestUsageBoundTest(support.RecordAgentExitTrajectorySupport):
         sample = request_usage[_SAMPLES][0]
         self.assertNotIn(protocol.INPUT_TOKENS, sample["raw"])
         self.assertEqual(sample["evidence"]["context_input_tokens"], "invalid")
-        self.assertIn(coverage.INVALID_COUNTERS, request_usage[_COVERAGE]["reasons"])
+        self.assertIn(coverage.INVALID_COUNTERS, request_usage[_COVERAGE][_REASONS])
 
 
 class RequestRetentionTest(unittest.TestCase):
@@ -176,6 +182,6 @@ class RequestRetentionTest(unittest.TestCase):
         summary = request_usage[_COVERAGE]
         self.assertNotIn(_SAMPLES, request_usage)
         self.assertEqual(summary[_STATUS], coverage.STORAGE_TRUNCATED)
-        self.assertEqual(summary["reasons"], {coverage.STORAGE_BUDGET: 3})
+        self.assertEqual(summary[_REASONS], {coverage.STORAGE_BUDGET: 3})
         self.assertEqual(summary["observed_samples"], 2)
         self.assertEqual(summary["retained_samples"], 0)

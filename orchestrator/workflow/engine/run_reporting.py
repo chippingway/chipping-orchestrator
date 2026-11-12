@@ -2,15 +2,22 @@
 # SPDX-License-Identifier: Apache-2.0
 """Agent-exit analytics and triggered-skill audit records for completed invocations.
 
-The actual request supplies the model fallback and round identity. A failure to
+The actual request supplies the model fallback and round identity. What the
+tracked spawn measured around the process -- when it was started, and what the
+opt-in trajectory sink observed of its launch -- rides from the launch to the
+exit as one record (`_Launch`), so the observation is made before the process
+starts and read only by that sink's request collection at exit. A failure to
 record triggered skills cannot discard an agent result the workflow must settle."""
 from __future__ import annotations
 
 import logging
+import time
+from dataclasses import dataclass
 
 from orchestrator.agents.models import AgentResult
 from orchestrator.github.client import GitHubClient
 from orchestrator.observability.analytics.recording import agent_exit as _agent_exit_records
+from orchestrator.observability.analytics.trajectories import codex_launch as _codex_launch
 from orchestrator.workflow.engine import (
     run_requests as _run_requests,
 )
@@ -18,14 +25,41 @@ from orchestrator.workflow.engine import (
 log = logging.getLogger("orchestrator.workflow")
 
 
+@dataclass(frozen=True)
+class _Launch:
+    """When the tracked spawn started one process, and what the trajectory sink observed of its launch.
+
+    `started` is the monotonic clock the run's duration is measured from;
+    `observation` is None unless the trajectory sink was on and the backend is
+    Codex, whose request usage lives in a native log only the launch can place.
+    """
+
+    started: float
+    observation: _codex_launch.LaunchObservation | None
+
+    @property
+    def duration_s(self) -> float:
+        return round(time.monotonic() - self.started, 3)
+
+
+def _launched(request: _run_requests._AgentRunRequest) -> _Launch:
+    """Observe one launch just before the process is started; nothing about the launch itself changes."""
+    observation = _codex_launch.observed_launch(
+        request.backend,
+        request.cwd,
+        request.run_options.extra_env,
+    )
+    return _Launch(time.monotonic(), observation)
+
 
 def _record_tracked_agent_exit(
     gh: GitHubClient,
     issue_number: int,
     request: _run_requests._AgentRunRequest,
     agent_result: AgentResult,
-    duration_s: float,
+    launch: _Launch,
 ):
+    duration_s = launch.duration_s
     gh.emit_event(
         "agent_exit",
         issue_number=issue_number,
@@ -54,6 +88,7 @@ def _record_tracked_agent_exit(
         fallback_model=_configured_model(request.backend, request.extra_args),
         prompt=request.prompt,
         cwd=request.cwd,
+        launch_observation=launch.observation,
     )
 
 

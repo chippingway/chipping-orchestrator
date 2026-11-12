@@ -13,7 +13,6 @@ accounting checkpoint have sibling owners."""
 from __future__ import annotations
 
 import logging
-import time
 from datetime import UTC, datetime
 from typing import Any
 
@@ -137,6 +136,14 @@ def _run_agent_tracked(
     fail-open guard inside `record_agent_exit`, so it never disturbs the
     baseline record or the `skill_triggered` events below.
 
+    Just before the process starts, the launch is observed for the opt-in
+    trajectory sink (`run_reporting._launched`): for a Codex run with that
+    sink on, the `CODEX_HOME` the backend's own environment owner names for it
+    and the launch moment, handed to `record_agent_exit` as
+    `launch_observation`, so its exit can place the run's requests in a native
+    session log earlier invocations of the session also wrote. Nothing the CLI
+    is launched with changes, and with the sink off nothing is observed.
+
     The worktree `cwd` is also forwarded so `record_agent_exit` can discover
     a codex run's offered skills out-of-band from the filesystem -- codex's
     stream carries no offered-skills catalog the way claude's `system`/`init`
@@ -158,7 +165,7 @@ def _run_agent_tracked(
     started = _run_circuit._charge_launch(gh, budget, run_request.launch)
     if started is None:
         return _run_circuit._refused_run()
-    start = time.monotonic()
+    launch = _run_reporting._launched(run_request)
     gh.emit_event(
         "agent_spawn",
         issue_number=budget.issue.number,
@@ -177,7 +184,7 @@ def _run_agent_tracked(
     )
     agent_result.invocation = _invocations.minted(started, budget.issue.number)
     triggered_skills = _run_reporting._record_tracked_agent_exit(
-        gh, budget.issue.number, run_request, agent_result, round(time.monotonic() - start, 3),
+        gh, budget.issue.number, run_request, agent_result, launch,
     )
     # One `skill_triggered` audit event per distinct triggered skill, reusing
     # the list `record_agent_exit` already parsed (no second pass over stdout).

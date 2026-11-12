@@ -186,11 +186,11 @@ def build_trajectory_record(
     breakdown rides along as `turns` (empty on codex, whose usage frames are
     cumulative -- `build_record` then drops the key).
 
-    The collected request usage rides along as `request_usage`
-    (Antigravity and Claude today): its coverage and checkpoints charged with the
-    headline and always kept, its markers and samples drawn after the item
-    accounting and before the steps, as the `requests` owner describes. A
-    run with no collector leaves it None, and `build_record` drops the key.
+    The collected request usage rides along as `request_usage`: its coverage
+    and checkpoints charged with the headline and always kept, its markers and
+    samples drawn after the item accounting and before the steps, as the
+    `requests` owner describes. A trajectory nothing collected requests for
+    leaves it None, and `build_record` drops the key.
 
     The parser's per-item accounting rides along as `source_items` (codex-only
     today), one `{item_id, item_type, disposition}` row per item the stream

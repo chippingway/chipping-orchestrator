@@ -432,8 +432,10 @@ class CoverageGapTest(unittest.TestCase):
         self.assertEqual(undercounted.status, coverage.INCOMPLETE)
 
     def test_dispatch_collects_where_it_can(self) -> None:
-        # A Codex run has no request collector; every other backend's stream is collected, however little it holds.
-        self.assertIsNone(trajectory.parse_agent_request_usage(protocol.CODEX, _FIRST))
+        # Every backend has a collector, however little its stream holds; a Codex run's reads the native session log
+        # it is handed, so one handed none attributes nothing and says why.
+        codex = trajectory.parse_agent_request_usage(protocol.CODEX, _FIRST)
+        self.assertEqual(dict(codex.coverage.reasons), {coverage.NO_LAUNCH_OBSERVATION: 1})
         for backend in (protocol.AGY, protocol.CLAUDE):
             with self.subTest(backend):
                 self.assertIsNotNone(trajectory.parse_agent_request_usage(backend, _FIRST))

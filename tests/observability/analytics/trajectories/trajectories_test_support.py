@@ -139,6 +139,8 @@ class TrajectoryExitCase:
     exit_code: int = 0
     timed_out: bool = False
     fallback_model: str | None = None
+    resume_session_id: str | None = None
+    launch_observation: object = None
 
 
 @contextlib.contextmanager
@@ -181,7 +183,7 @@ class RecordAgentExitTrajectorySupport(unittest.TestCase):
                 agent_role=DEVELOPER,
                 backend=case.backend,
                 agent_spec=case.backend,
-                resume_session_id=None,
+                resume_session_id=case.resume_session_id,
                 result=AgentResult(
                     session_id=case.session_id,
                     last_message="",
@@ -195,4 +197,5 @@ class RecordAgentExitTrajectorySupport(unittest.TestCase):
                 retry_count=TRAJECTORY_RETRY_COUNT,
                 fallback_model=case.fallback_model,
                 prompt=case.prompt,
+                launch_observation=case.launch_observation,
             )

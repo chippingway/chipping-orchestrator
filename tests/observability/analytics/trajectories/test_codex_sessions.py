@@ -1,0 +1,175 @@
+# Copyright 2026 Geser Dugarov
+# SPDX-License-Identifier: Apache-2.0
+"""A Codex run's native session log looked up and read off a real `CODEX_HOME`, within every lookup and read bound."""
+
+import itertools
+import os
+import tempfile
+import unittest
+from io import BytesIO
+from pathlib import Path
+from types import MappingProxyType
+from unittest.mock import patch
+
+from orchestrator.observability.analytics.trajectories import codex_sessions
+from orchestrator.observability.usage import request_codex, request_coverage as coverage, request_scan
+from tests.observability.analytics.trajectories import codex_session_support as support
+from tests.observability.usage import usage_codex_native_capture as capture
+
+_OTHER_LOG = f"rollout-2026-11-13T09-00-00-{support.OTHER_SESSION}.jsonl"
+_SECOND_LOG = f"rollout-x-{capture.SESSION_ID}.jsonl"
+_NEWER_DAY = ("2026", "11", "13")
+_NEWEST_DAY = ("2026", "11", "14")
+_OLDER_DAY = ("2026", "10", "01")
+_FRESH_TEXT = capture.log_text(capture.FRESH.end)
+_FRESH_LINES = capture.log_lines(capture.FRESH.end)
+# The fresh invocation's last request, cut halfway as a process killed mid-write leaves it.
+_CUT_LINE = _FRESH_LINES[-2][:100]
+# The bytes of the fresh invocation's first five lines, each with its newline.
+_FIVE_LINES = len(capture.log_text(5).encode())
+# A line bound the session_meta and the longer lines run past, and the lines it leaves to read.
+_LINE_BOUND = 300
+_SHORT = tuple(len(text) < _LINE_BOUND for text in _FRESH_LINES)
+_SHORT_LINES = tuple(itertools.compress(itertools.count(), _SHORT))
+_OVERSIZE_COUNT = capture.FRESH.end - len(_SHORT_LINES)
+_LISTABLE = 0o700
+_NOT_ROOT = os.geteuid() != 0
+_SCAN_LIMIT = MappingProxyType({coverage.SCAN_LIMIT: 1})
+# Logs no lookup adopts: none at all, only another session's, and two of the session's name in one day.
+_NO_ONE_LOG = (
+    ("no sessions directory", (), coverage.NATIVE_LOG_MISSING),
+    ("only another session's", (_OTHER_LOG,), coverage.NATIVE_LOG_MISSING),
+    ("two of its name", (capture.LOG_NAME, _SECOND_LOG), coverage.NATIVE_IDENTITY_UNPROVEN),
+)
+# The sessions, year, month, and day directories are four listings, and the walk examines five entries.
+_LOOKUP_BOUNDS = (("MAX_SESSION_DIRECTORIES", 3), ("MAX_SESSION_ENTRIES", 4))
+_READ_BOUNDS = (
+    ("bytes", ("MAX_LOG_BYTES", _FIVE_LINES), (tuple(range(5)), _SCAN_LIMIT)),
+    ("lines", ("MAX_EVENTS", 3), (tuple(range(3)), _SCAN_LIMIT)),
+    ("line size", ("MAX_LINE_CHARS", _LINE_BOUND), (_SHORT_LINES, {coverage.OVERSIZE_LINES: _OVERSIZE_COUNT})),
+)
+_NO_PROOF = (
+    ("no session", {"session_id": None}, coverage.NO_SESSION_IDENTITY),
+    ("no launch", {"observed": False}, coverage.NO_LAUNCH_OBSERVATION),
+)
+
+
+class _FailingLog(BytesIO):
+    """A log that fails to read past its first line."""
+
+    def readline(self, size: int = -1) -> bytes:
+        if self.tell():
+            raise OSError("read failed")
+        return super().readline(size)
+
+
+class _HomeTest(unittest.TestCase):
+    """A test with a fresh, empty `CODEX_HOME` of its own."""
+
+    def setUp(self) -> None:
+        self.home = Path(self.enterContext(tempfile.TemporaryDirectory()))
+
+
+class SessionLookupTest(_HomeTest):
+    """The log is looked up by the returned session alone, newest date first, and only a file of its exact name."""
+
+    def test_a_log_under_an_older_date(self) -> None:
+        # A resumed session's log stays under the date it began; other sessions' logs, newer and older, and
+        # directories no date names, are passed over.
+        support.write_log(self.home, "", day=_NEWER_DAY, name=_OTHER_LOG)
+        support.write_log(self.home, "", day=_OLDER_DAY, name=_OTHER_LOG)
+        expected = support.write_log(self.home, _FRESH_TEXT)
+        support.day_directory(self.home, ("archive",))
+        self.assertEqual(support.discovered(self.home), expected)
+
+    def test_only_a_regular_file_of_its_name(self) -> None:
+        # A link or a directory named as the log, on a newer date, is no log; the regular file under its own date is.
+        expected = support.write_log(self.home, _FRESH_TEXT, day=_OLDER_DAY)
+        (support.day_directory(self.home, _NEWER_DAY) / capture.LOG_NAME).symlink_to(expected)
+        (support.day_directory(self.home, _NEWEST_DAY) / capture.LOG_NAME).mkdir()
+        self.assertEqual(support.discovered(self.home), expected)
+
+    def test_no_one_log(self) -> None:
+        for name, logs, reason in _NO_ONE_LOG:
+            with self.subTest(name):
+                home = Path(self.enterContext(tempfile.TemporaryDirectory()))
+                for log_name in logs:
+                    support.write_log(home, "", name=log_name)
+                self.assertEqual(support.discovered(home), reason)
+
+    @unittest.skipUnless(_NOT_ROOT, "root reads any directory")
+    def test_an_unlistable_sessions_directory(self) -> None:
+        support.write_log(self.home, _FRESH_TEXT)
+        sessions = self.home / support.SESSIONS
+        sessions.chmod(0)
+        self.addCleanup(sessions.chmod, _LISTABLE)
+        self.assertEqual(support.discovered(self.home), coverage.NATIVE_LOG_UNREADABLE)
+
+    def test_lookup_bounds(self) -> None:
+        support.write_log(self.home, _FRESH_TEXT)
+        support.write_log(self.home, "", name=_OTHER_LOG)
+        for bound in _LOOKUP_BOUNDS:
+            with self.subTest(bound[0]), patch.object(request_scan, *bound):
+                self.assertEqual(support.discovered(self.home), coverage.DISCOVERY_LIMIT)
+
+
+class SessionReadTest(_HomeTest):
+    """The log is read a line at a time within its byte, line, and line-size bounds, each bound reached a gap."""
+
+    def test_the_log_is_read_whole(self) -> None:
+        support.write_log(self.home, _FRESH_TEXT)
+        positions, gaps = support.read(self.home)
+        self.assertEqual(positions, list(range(capture.FRESH.end)))
+        self.assertEqual(gaps, {})
+
+    def test_read_bounds(self) -> None:
+        # A line too long to keep is skipped through, and the lines after it keep their place in the log.
+        support.write_log(self.home, _FRESH_TEXT)
+        for name, bound, expected in _READ_BOUNDS:
+            with self.subTest(name), patch.object(request_scan, *bound):
+                positions, gaps = support.read(self.home)
+                self.assertEqual((tuple(positions), gaps), expected)
+
+    def test_an_overlong_line_past_the_byte_bound(self) -> None:
+        # Skipping through a line too long to keep is charged to the byte bound like any other read.
+        support.write_log(self.home, _FRESH_TEXT)
+        with (
+            patch.object(request_scan, "MAX_LINE_CHARS", _LINE_BOUND),
+            patch.object(request_scan, "MAX_LOG_BYTES", _LINE_BOUND * 2),
+        ):
+            read = support.read(self.home)
+        self.assertEqual(read, ([], {coverage.OVERSIZE_LINES: 1, coverage.SCAN_LIMIT: 1}))
+
+    def test_a_read_failing_partway(self) -> None:
+        failing = _FailingLog(_FRESH_TEXT.encode())
+        support.write_log(self.home, "")
+        with patch.object(Path, "open", return_value=failing):
+            read = support.read(self.home)
+        self.assertEqual(read, ([0], {coverage.NATIVE_READ_INTERRUPTED: 1}))
+        self.assertTrue(failing.closed)
+
+    def test_an_unfinished_last_line(self) -> None:
+        # A log whose last line the process never finished writing reads up to it, the cut line a malformed one.
+        support.write_log(self.home, _FRESH_TEXT + _CUT_LINE)
+        session = codex_sessions.native_session(support.exit_context(self.home))
+        usage = request_codex.collect(capture.FRESH.stdout, session)
+        self.assertEqual(dict(usage.coverage.reasons), {coverage.MALFORMED_LINES: 1})
+        self.assertEqual(len(usage.observations), 3)
+
+    def test_nothing_is_looked_up_without_proof(self) -> None:
+        # A run that returned no session, or whose launch was not observed, is looked up nowhere.
+        for name, options, reason in _NO_PROOF:
+            with self.subTest(name), patch.object(codex_sessions.os, "scandir") as scandir:
+                session = codex_sessions.native_session(support.exit_context(self.home, **options))
+                self.assertEqual(session.unavailable, reason)
+                scandir.assert_not_called()
+
+    @unittest.skipUnless(_NOT_ROOT, "root reads any file")
+    def test_an_unopenable_log(self) -> None:
+        support.write_log(self.home, _FRESH_TEXT).chmod(0)
+        session = codex_sessions.native_session(support.exit_context(self.home))
+        self.assertEqual(session.unavailable, coverage.NATIVE_LOG_UNREADABLE)
+
+
+if __name__ == "__main__":
+    unittest.main()
