@@ -535,11 +535,12 @@ the names-only `skills` (`SkillTriggers`), an ordered `steps` tuple of `Trajecto
 `"tool_result"` / `"assistant_message"` / `"user_message"`, with `name` / `tool_id` / raw `content` — `name` /
 `tool_id` empty on the text turns — plus a `turn` index tying each billed step back to the assistant turn that
 produced it), a `source_items` tuple of `SourceItem` accounting for every item the provider stream identified
-(codex-only today), `final_output`, and a best-effort `turns` tuple of per-turn token usage (`TurnUsage`, parallel to
-`tools` / `skills` and claude-only today). `parse_claude_trajectory(stdout)` reads the offered tools from the
-`system`/`init` frame's `tools` array, then the ordered timeline: assistant `text` blocks become `assistant_message`
-turns and `tool_use` blocks `tool_call` steps; user `text` blocks become `user_message` turns and `tool_result` blocks
-`tool_result` steps — calls / results joined by `tool_use_id` and de-duplicated per id the same way
+(codex-only today), `final_output`, a best-effort `turns` tuple of per-turn token usage (`TurnUsage`, parallel to
+`tools` / `skills` and claude-only today), and a `request_usage` field every parser leaves `None`, as
+[request usage observations](#request-usage-observations) describes. `parse_claude_trajectory(stdout)` reads the
+offered tools from the `system`/`init` frame's `tools` array, then the ordered timeline: assistant `text` blocks become
+`assistant_message` turns and `tool_use` blocks `tool_call` steps; user `text` blocks become `user_message` turns and
+`tool_result` blocks `tool_result` steps — calls / results joined by `tool_use_id` and de-duplicated per id the same way
 `parse_claude_skills` is, while id-less text blocks ride claude's per-completed-block framing — and the final answer
 from the `result` frame's `result` string. It also groups those assistant frames by `message.id` in first-seen order to
 assign each a 0-based `turn` index — stamped onto the `assistant_message` / `tool_call` steps that frame produced (a
