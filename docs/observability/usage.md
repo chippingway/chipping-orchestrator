@@ -1046,33 +1046,35 @@ the clock moved under the log -- the fresh invocation's last requests, say, stam
 clock stepped back -- and so does a stamp earlier than the one before it, anywhere in the log. Each of these is
 `invocation-unattributed`, as is, where the log and stdout were both read whole, a count of root turns opened past the
 boundary other than the `turn.started` lines stdout printed, none included -- a turn another process appended meanwhile,
-or one stdout never printed -- and so is usage its lines settle in a turn they did not open -- the innermost open one
-being an earlier invocation's, which a resume printing no turn would otherwise adopt, or a usage record naming a turn
-the invocation never opened: the invocation opens its own turns before settling anything in them. A read cut short, or a
-stdout line the scan could not read, proves nothing about the turns past it, so that count is not compared there. A
-stamp no UTC moment reads as -- no ISO moment, one naming no offset, or one its offset carries out of range -- is
-`malformed-metadata`, kept as written, and places nothing.
+or one stdout never printed -- and so is usage its lines settle in no turn they opened -- none open at all, the
+innermost open one being an earlier invocation's, which a resume printing no turn would otherwise adopt, or a usage
+record naming a turn the invocation never opened: the invocation opens its own turns before settling anything in them. A
+read cut short, or a stdout line the scan could not read, proves nothing about the turns past it, so that count is not
+compared there. A stamp no UTC moment reads as -- no ISO moment, one naming no offset, or one its offset carries out of
+range -- is `malformed-metadata`, kept as written, and places nothing.
 
 A `task_started` opens a turn: one whose `turn_attribution` names a `parent_turn_id` is a child turn run in this log,
 whose requests are a branch of their own carrying their `turn_id` and `parent_turn_id`, opened once however often its
 start repeats, and one naming none a root turn of the thread, which abandons every turn still open; `task_complete` and
-`turn_aborted` close the turn they name, and a request belongs to the innermost turn the invocation opened that is still
-open. Past `MAX_BRANCHES` child turns named, or open at once, no later request can be told apart from its parent's, so
-each is a `correlation-limit` gap rather than a sample, and so is the child turn the invocation started past the bound,
-whether or not a request follows it. A `turn_context` sets the model of the turn it names, a child turn the log named or
-the thread's open root turn, which holds until the next -- one naming any other turn sets no model, and the invocation's
-is a `conversation-ambiguous` gap. On the capture, a resume switching models first compacts the thread with one request
-on the model the thread had, before the new turn's `turn_context`, so that request is the old model's. A thread request
-no `turn_context` precedes falls back to the configured `-m` model (`configured-fallback`); a child's without its own,
-or one after a `turn_context` naming a model this collection refused, is `unestablished`. A `turn_context` naming
-another model than the one its branch last ran on is a `model-change` marker -- a child turn's naming that turn's
-`turn_id` and `parent_turn_id` -- a `compacted` line a `compaction` marker, and a `thread_rolled_back` event a `reset`
-marker; none is inferred. A child turn the invocation opened that settled no request, and each distinct subagent thread
-its lines name -- in an `item_completed` `SubAgentActivity` item, or in a legacy history's `sub_agent_activity` event,
-which a legacy history persists for every activity but completion -- whose requests are in a log of that thread's own,
-never read, is a `subagent-usage-unavailable` gap, the threads past `MAX_BRANCHES` a `correlation-limit` one, and a
-child turn the invocation opened or an activity naming no id a `subagent-unidentified` one, whether or not a request
-settles in it, since no branch can keep that request.
+`turn_aborted` close the turn they name, and a request belongs to the turn the usage record written just before its
+report names, where that turn is still open, or else to the innermost open turn; where two child turns are open at once
+and no record names one, the report is placed in neither -- a `conversation-ambiguous` gap, no branch's running sum
+proven past it. Past `MAX_BRANCHES` child turns named, or open at once, no later request can be told apart from its
+parent's, so each is a `correlation-limit` gap rather than a sample, and so is the child turn the invocation started
+past the bound, whether or not a request follows it. A `turn_context` sets the model of the turn it names, a child turn
+the log named or the thread's open root turn, which holds until the next -- one naming any other turn sets no model, and
+the invocation's is a `conversation-ambiguous` gap. On the capture, a resume switching models first compacts the thread
+with one request on the model the thread had, before the new turn's `turn_context`, so that request is the old model's.
+A thread request no `turn_context` precedes falls back to the configured `-m` model (`configured-fallback`); a child's
+without its own, or one after a `turn_context` naming a model this collection refused, is `unestablished`. A
+`turn_context` naming another model than the one its branch last ran on is a `model-change` marker -- a child turn's
+naming that turn's `turn_id` and `parent_turn_id` -- a `compacted` line a `compaction` marker, and a
+`thread_rolled_back` event a `reset` marker; none is inferred. A child turn the invocation opened that settled no
+request, and each distinct subagent thread its lines name -- in an `item_completed` `SubAgentActivity` item, or in a
+legacy history's `sub_agent_activity` event, which a legacy history persists for every activity but completion -- whose
+requests are in a log of that thread's own, never read, is a `subagent-usage-unavailable` gap, the threads past
+`MAX_BRANCHES` a `correlation-limit` one, and a child turn the invocation opened or an activity naming no id a
+`subagent-unidentified` one, whether or not a request settles in it, since no branch can keep that request.
 
 Each `token_count` carries a request's own counters in `info.last_token_usage` beside its branch's running sum in
 `info.total_token_usage`, and a request's counters are read off the first alone. A running sum equal to the last one its
@@ -1083,29 +1085,30 @@ the metadata beside it are still evidence -- a block naming no counter is `malfo
 `conflicting-counters`, as is a count past the running sum beside it, and a malformed flag or context window
 `malformed-metadata` -- and a total its parts contradict `conflicting-counters` too, but for the estimate after a
 compaction, whose total stands beside parts all zero. One advancing by exactly the request's own counters -- on every
-counter all three report a count of, at least one of them moving by a count above zero -- is a new request, so two
-requests of equal counts stay two; one advancing otherwise, one only counters staying at zero agree with -- the moving
-ones left unusable by an earlier sum -- or one after a line or envelope this collection could not read -- which could
-have held the report it repeats, an earlier invocation's included -- or the invocation's first after a request the
-earlier lines settled with no `token_count` reporting it, whose usage record leaves the last running sum behind, is an
-`unreconciled-usage` gap rather than a sample, so no earlier request is ever copied into a later invocation; its own
-counters are judged all the same, an invalid or contradictory one -- a count past its running sum included -- a gap
-beside it, and so are a report's naming no running sum. An `info` of null is a notification with no usage; one that is
-no object, or naming no running sum or no request usage, is `malformed-usage`. The CLI also writes a
-`token_usage_record` beside each request, repeating its counters under its response id; no request is read off one, but
-the invocation's records are counted on the branch of the turn each names, and each beyond its branch's `token_count`
-reports that repeat nothing is an `unsupported-usage-source` gap, so one branch's report never answers another's record,
-and a log whose reports are missing never reads as an invocation that made no request. A record of the invocation's
-naming a turn it did not open is `invocation-unattributed`, as above; one that is no object is `malformed-envelopes`,
-and one whose usage names no counter `malformed-usage`, each still a record, in the innermost open turn where it names
-none, so one before the boundary leaves the running sum behind like any. A sample is keyed `rollout-line:<line>`
-(`native-position`), its `position` that line, its `session_id` and `conversation_id` the session, `final` as
-`token-count` settled it, with the line's stamp as `source_timestamp`, `model_context_window` as `context_capacity` --
-one reported as no whole count is `malformed-metadata`, one left out the `no-context-capacity` limitation alone -- and
-`last_usage_includes_reasoning` in `source_flags` as reported -- a value that is no boolean is `malformed-metadata`.
-Only a fresh run names a `source_version`, its `session_meta`'s `cli_version`: a resumed run's log was begun by an
-earlier process, whose version that is. Requests past `MAX_TRACKED_STEPS` and markers past `MAX_MARKERS` are
-`correlation-limit` gaps, and an id or model past `MAX_METADATA_CHARS` is refused metadata.
+counter all three report a count of, at least one of them moving by a count above zero, and no own count past the sum's
+even where the earlier sum left that counter out -- is a new request, so two requests of equal counts stay two; one
+advancing otherwise, one only counters staying at zero agree with -- the moving ones left unusable by an earlier sum --
+or one after a line or envelope this collection could not read -- which could have held the report it repeats, an
+earlier invocation's included -- or the invocation's first after a request the earlier lines settled with no
+`token_count` reporting it, whose usage record leaves the last running sum behind, is an `unreconciled-usage` gap rather
+than a sample, so no earlier request is ever copied into a later invocation; its own counters are judged all the same,
+an invalid or contradictory one -- a count past its running sum included -- a gap beside it, and so are a report's
+naming no running sum. An `info` of null is a notification with no usage; one that is no object, or naming no running
+sum or no request usage, is `malformed-usage`. The CLI also writes a `token_usage_record` beside each request, repeating
+its counters under its response id; no request is read off one, but the invocation's records are counted on the branch
+of the turn each names, and each beyond its branch's `token_count` reports that repeat nothing is an
+`unsupported-usage-source` gap, so one branch's report never answers another's record, and a log whose reports are
+missing never reads as an invocation that made no request. A record of the invocation's naming a turn it did not open is
+`invocation-unattributed`, as above; one that is no object is `malformed-envelopes`, and one whose usage names no
+counter `malformed-usage`, each still a record, in the innermost open turn where it names none, so one before the
+boundary leaves the running sum behind like any. A sample is keyed `rollout-line:<line>` (`native-position`), its
+`position` that line, its `session_id` and `conversation_id` the session, `final` as `token-count` settled it, with the
+line's stamp as `source_timestamp`, `model_context_window` as `context_capacity` -- one reported as no whole count is
+`malformed-metadata`, one left out the `no-context-capacity` limitation alone -- and `last_usage_includes_reasoning` in
+`source_flags` as reported -- a value that is no boolean is `malformed-metadata`. Only a fresh run names a
+`source_version`, its `session_meta`'s `cli_version`: a resumed run's log was begun by an earlier process, whose version
+that is. Requests past `MAX_TRACKED_STEPS` and markers past `MAX_MARKERS` are `correlation-limit` gaps, and an id or
+model past `MAX_METADATA_CHARS` is refused metadata.
 
 `raw` reads `input_tokens`, `cached_input_tokens`, `cache_write_input_tokens`, `output_tokens`,
 `reasoning_output_tokens`, and `total_tokens` and nothing else of a block. The context input is the input, which

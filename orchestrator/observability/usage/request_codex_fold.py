@@ -21,28 +21,28 @@ one it was started from -- a `compacted` line a `compaction` marker, and a `thre
 Requests. Each `token_count` reports one request's own usage (`last_token_usage`) beside its branch's running sum
 (`total_token_usage`). A sum equal to the last one the branch reported repeats a notification -- the CLI prints the same
 report again, opens a turn with the sum the last one left, and follows a compaction with a context estimate -- and is no
-request. A sum advancing by exactly the request's own counters, at least one of them moving, is a new request, so two
-requests of equal counts stay two; one advancing by anything else, one only counters staying at zero agree with, or one
-following a line this pass could not read -- which could have been the report it repeats -- is not proven a new request,
-and is an `unreconciled-usage` gap rather than a sample, so no earlier invocation's request is ever copied into this
-one. A report kept as no sample -- a repeat, or one naming no running sum, included -- still carries evidence: its usage
-block naming no counter, reporting one as no whole count, holding a part past its whole, a total its parts contradict,
-or a count past the running sum beside it, and metadata reported malformed beside it, are gaps all the same -- but for
-the context estimate the CLI follows a compaction with, whose total stands beside parts all zero. The thread's running
-sums are checkpoints of the whole conversation: the last one before the boundary as the invocation's baseline, and the
-ones its own requests advance. A request the earlier lines settled after that last sum -- a usage record no
-`token_count` reported -- leaves it behind, so no baseline is established, and the invocation's first report is not
-proven new. A child turn's sums are kept only to prove its requests, since nothing establishes what they span, though
-they are held to the same arithmetic as a checkpoint.
+request. A sum advancing by exactly the request's own counters, at least one of them moving and none past the sum, is a
+new request, so two requests of equal counts stay two; one advancing by anything else, one only counters staying at zero
+agree with, or one following a line this pass could not read -- which could have been the report it repeats -- is not
+proven a new request, and is an `unreconciled-usage` gap rather than a sample, so no earlier invocation's request is
+ever copied into this one. A report kept as no sample -- a repeat, or one naming no running sum, included -- still
+carries evidence: its usage block naming no counter, reporting one as no whole count, holding a part past its whole, a
+total its parts contradict, or a count past the running sum beside it, and metadata reported malformed beside it, are
+gaps all the same -- but for the context estimate the CLI follows a compaction with, whose total stands beside parts all
+zero. The thread's running sums are checkpoints of the whole conversation: the last one before the boundary as the
+invocation's baseline, and the ones its own requests advance. A request the earlier lines settled after that last sum --
+a usage record no `token_count` reported -- leaves it behind, so no baseline is established, and the invocation's first
+report is not proven new. A child turn's sums are kept only to prove its requests, since nothing establishes what they
+span, though they are held to the same arithmetic as a checkpoint.
 
 Every request the CLI settles also writes a `token_usage_record` repeating its counters under its response id. No
 request is read off one -- its counters are never a sample -- but the invocation's records are counted on the branch of
-the turn each names -- one the invocation opened, for its own record, else none of the invocation's lines is attributed
--- and each beyond the reports its branch's `token_count` lines made that repeat nothing is usage reported only where
-this pass reads no request from: an `unsupported-usage-source` gap, so a log whose `token_count` lines are missing never
-reads as no requests, and a report of one branch never answers another's record. A record that is no object is a
-malformed envelope, and one whose usage names no counter malformed usage, each still a record of a request settled, in
-the innermost open turn where it names none.
+the turn each names, which the report after it settles in, -- one the invocation opened, for its own record, else none
+of the invocation's lines is attributed -- and each beyond the reports its branch's `token_count` lines made that repeat
+nothing is usage reported only where this pass reads no request from: an `unsupported-usage-source` gap, so a log whose
+`token_count` lines are missing never reads as no requests, and a report of one branch never answers another's record. A
+record that is no object is a malformed envelope, and one whose usage names no counter malformed usage, each still a
+record of a request settled, in the innermost open turn where it names none.
 
 Subagents. A child turn the invocation opened that settled no request, and a subagent thread its lines name -- in an
 `item_completed` `SubAgentActivity`, or in a legacy history's `sub_agent_activity` event -- whose requests are in a log
@@ -76,6 +76,7 @@ from orchestrator.observability.usage.request_codex_scope import (
     PAYLOAD,
     SESSION_META,
     TYPE,
+    UNPLACED,
     Timeline,
     Turn,
     Turns,
@@ -519,12 +520,17 @@ class NativeFold:
     def _token_count(self, line: Line, token_info: Any) -> None:
         """Hand a `token_count` to its requests, unless the child turns overran their bound before it.
 
-        An `info` of null is a notification carrying no usage, such as a rate-limit update, so it is nothing.
+        An `info` of null is a notification carrying no usage, such as a rate-limit update, so it is nothing. A report
+        nothing places among overlapping turns is guessed into none: the invocation's is a `conversation-ambiguous`
+        gap, and since it could have moved any branch on, no branch's running sum is proven past it.
         """
         if token_info is None:
             return
-        turn = self.turns.current(line.own)
-        if self.turns.overflowed:
+        turn = self.turns.current(line.own, report=True)
+        if turn is UNPLACED:
+            self.notes.gaps[coverage.CONVERSATION_AMBIGUOUS] += line.own
+            self.requests.lose_track()
+        elif self.turns.overflowed:
             self.notes.gaps[coverage.CORRELATION_LIMIT] += line.own
         else:
             self.requests.report(line, token_info, turn)

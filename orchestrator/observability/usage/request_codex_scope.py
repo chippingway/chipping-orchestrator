@@ -30,19 +30,21 @@ lines -- none, where stdout printed none -- so a turn some other process appende
 this run's; a cut short read proves nothing about the turns past the cut, and a stdout with a line the scan could not
 read could have printed one more.
 
-The invocation opens its own turns before it settles any usage in them, so usage its lines settle in a turn they did
-not open -- the innermost open one being an earlier process's, a turn left unfinished, say, that a resume printing no
-turn never replaced, or a usage record naming a turn the invocation never opened -- was written by another process past
-the count, and nothing is attributed either.
+The invocation opens its own turns before it settles any usage in them, so usage its lines settle in no turn they opened
+-- none open at all, the innermost open one being an earlier process's, a turn left unfinished, say, that a resume
+printing no turn never replaced, or a usage record naming a turn the invocation never opened -- was written by another
+process past the count, and nothing is attributed either.
 
 Where either proof fails, the collection names why and attributes nothing; it never guesses a suffix of the log.
 
 Turns. A `task_started` opens a turn. One whose `turn_attribution` names a `parent_turn_id` is a child turn run inside
-this log, its requests a branch of their own; one naming none is a root turn of the session's own thread, and opening
-it abandons every turn still open, since the thread has moved on -- a turn an earlier process left unfinished is never
+this log, its requests a branch of their own; one naming none is a root turn of the session's own thread, and opening it
+abandons every turn still open, since the thread has moved on -- a turn an earlier process left unfinished is never
 taken for this one's. A `task_complete` or `turn_aborted` closes the turn it names, and a turn the invocation opened
-that none closed -- a child turn its parent finished without included -- never finished. A request belongs to the
-innermost turn the invocation opened that is still open when it settles, or to the thread where there is none.
+that none closed -- a child turn its parent finished without included -- never finished. A request belongs to the turn
+the usage record written just before its report names, where that turn is still open, or else to the innermost open
+turn; where two child turns are open at once and no record names one, nothing tells which the report is, and it is
+placed in neither.
 """
 
 from __future__ import annotations
@@ -115,13 +117,6 @@ def stamped(
     return written, utc
 
 
-def names_session(event: dict[str, Any], session_id: str | None) -> bool:
-    """Whether a line is a `session_meta` naming `session_id` as its own thread."""
-    payload = event.get(PAYLOAD)
-    if event.get(TYPE) != SESSION_META or not isinstance(payload, dict):
-        return False
-    return session_id is not None and payload.get("id") == session_id
-
 
 @dataclass
 class Timeline:
@@ -149,7 +144,7 @@ class Timeline:
         """Read one line's identity and stamp in; whether it is the invocation's own."""
         if not self.read_any:
             self.read_any = True
-            self.identified = position == 0 and names_session(event, self.invocation.session_id)
+            self.identified = position == 0 and self._names_session(event)
         start = self.start
         own = start is not None and position >= start
         if own and self.boundary is None:
@@ -182,6 +177,14 @@ class Timeline:
         if stdout_turn_count is not None and stdout_turn_count != turns.root_turns:
             return coverage.INVOCATION_UNATTRIBUTED
         return None
+
+    def _names_session(self, event: dict[str, Any]) -> bool:
+        """Whether a line is a `session_meta` naming the session the run returned as its own thread."""
+        payload = event.get(PAYLOAD)
+        if event.get(TYPE) != SESSION_META or not isinstance(payload, dict):
+            return False
+        session_id = self.invocation.session_id
+        return session_id is not None and payload.get("id") == session_id
 
     def _short(self, partial: bool) -> bool:
         """Whether a log read whole holds fewer lines than the count its launch took of it."""
@@ -223,12 +226,52 @@ class Turn:
         return self.parent_turn_id is not None and self.turn_id is None
 
 
+# What a `token_count` settles in where nothing tells which of the overlapping open turns is its own.
+UNPLACED = Turn(None, None, own=False)
+
+
+@dataclass
+class Records:
+    """The turn the usage records since the last `token_count` named, which that report's request settled in.
+
+    The CLI writes a request's usage record just before the `token_count` reporting it, so the turn a record names is
+    the one its report belongs to -- unless records naming two turns came before one report, which leaves it unknown.
+    """
+
+    named: Turn | None = None
+    conflicted: bool = False
+
+    def note(self, turn: Turn) -> None:
+        """Note a record naming `turn`."""
+        changed = self.named is not None and self.named != turn
+        self.conflicted = self.conflicted or changed
+        self.named = turn
+
+    def take(self, opened: list[Turn]) -> Turn | None:
+        """The turn a `token_count` settles in, the records noted for it spent: the one they named, or else the
+        innermost open turn, unless child turns overlap -- `UNPLACED` where the records conflict or the turns do.
+
+        A record and its report are written while their turn is open, so a record naming a turn closed since is one
+        whose report never came, and tells nothing of this one.
+        """
+        named = self.named if self.named in opened else None
+        conflicted = self.conflicted
+        self.named = None
+        self.conflicted = False
+        overlapping = sum(turn.parent_turn_id is not None for turn in opened) > 1
+        if conflicted or (named is None and overlapping):
+            return UNPLACED
+        if named is not None:
+            return named
+        return opened[-1] if opened else None
+
+
 @dataclass
 class Turns:
     """The turns open as the log is read, the child turns it named, and the root turns the invocation opened.
 
-    `children` maps each child turn named to the turn it was started from, and `refused` counts the child turns the
-    invocation started past the child turn bound.
+    `children` maps each child turn named to the turn it was started from, `refused` counts the child turns the
+    invocation started past the child turn bound, and `records` correlates usage records with the reports after them.
     """
 
     limits: request_scan.CollectionLimits
@@ -242,6 +285,7 @@ class Turns:
     refused: int = 0
     overflowed: bool = False
     intruded: bool = False
+    records: Records = field(default_factory=Records)
 
     def start(self, payload: dict[str, Any], own: bool) -> None:
         """Open the turn a `task_started` names: a root turn abandoning every open one, or a child beside them.
@@ -271,24 +315,29 @@ class Turns:
         if turn_id is not None:
             self.open = [turn for turn in self.open if turn.turn_id != turn_id]
 
-    def current(self, own: bool, turn_id: str | None = None) -> Turn | None:
-        """The turn a usage line settles in -- the open one it names, where it names one, else the innermost open one --
-        or None for the thread with no turn open.
+    def current(self, own: bool, turn_id: str | None = None, report: bool = False) -> Turn | None:
+        """The turn a usage line settles in, or None for the thread with no turn open.
 
-        The invocation opens its own turns before it settles anything in them, so its line settling usage in a turn it
-        did not open -- an earlier process's, or one it names that is not open at all -- is another process's, appended
-        past the count: `intruded` records it, and the line settles in no turn.
+        A usage record settles in the open turn it names, noted for the report after it; a `token_count` (`report`)
+        in the turn the records before it named, as `Records` takes it -- `UNPLACED` where nothing tells overlapping
+        turns apart -- and any other line in the innermost open turn. The invocation opens its own turns before it
+        settles anything in them, so its line settling usage in no turn it opened -- none open at all, an earlier
+        process's, or one it names that is not open -- is another process's, appended past the count: `intruded`
+        records it, and the line settles in no turn.
         """
-        if turn_id is None:
-            if not self.open:
-                return None
-            settled = self.open[-1]
+        if report:
+            settled = self.records.take(self.open)
+        elif turn_id is None:
+            settled = self.open[-1] if self.open else None
         else:
             settled = self.named(turn_id)
-        foreign = settled is None or not settled.own
-        if own and foreign:
+        if settled is UNPLACED:
+            return settled
+        if own and (settled is None or not settled.own):
             self.intruded = True
             return None
+        if turn_id is not None and settled is not None:
+            self.records.note(settled)
         return settled
 
     def named(self, turn_id: str | None) -> Turn | None:

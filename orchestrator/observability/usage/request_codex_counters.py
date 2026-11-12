@@ -138,14 +138,17 @@ class Counters:
     def _move(self, counter: str, previous: Counters | None, request: Counters) -> int | None:
         """How far one counter of this sum moved past `previous`'s by `request`'s own count of it.
 
-        That count where it moved by exactly it, -1 where it moved otherwise, and None where one of the three reports
-        no count of it.
+        That count where it moved by exactly it, -1 where it moved otherwise, and None where this sum or the request
+        reports no count of it. Where `previous` reports none, the move is unknown, but a sum adds up every request it
+        holds, so one smaller than the request's own count still contradicts it.
         """
         before = _NOTHING if previous is None else previous.readings.get(counter, Reading())
         own = request.readings.get(counter, Reading())
         total = self.readings[counter]
-        if not (total.known and before.known and own.known):
+        if not (total.known and own.known):
             return None
+        if not before.known:
+            return _MISMATCH if own.exceeds(total) else None
         moved = total == Reading.summed((before, own))
         return (own.count or 0) if moved else _MISMATCH
 
