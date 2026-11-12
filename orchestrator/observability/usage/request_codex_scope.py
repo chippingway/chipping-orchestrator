@@ -21,14 +21,15 @@ no line at all, is placed by nothing, and so is one whose log, read whole, holds
 the count was taken of is not the one read.
 
 The CLI also stamps every line with the time it wrote it, to the millisecond, off the host clock the launch moment is
-read from, and every stamp is held against that placement: a line of the invocation's stamped more than a
-millisecond before the launch, or an earlier line stamped more than a millisecond after it, means the clock moved
-under the log -- an earlier invocation's line, say, stamped later than a launch the clock stepped back to -- so nothing
-in the log is attributed; so does a stamp earlier than the one before it, anywhere in the log. Where stdout and the log
-were both read whole, the log has to have opened as many root turns from the boundary on as stdout counts `turn.started`
-lines -- none, where stdout printed none -- so a turn some other process appended meanwhile is never taken for one of
-this run's; a cut short read proves nothing about the turns past the cut, and a stdout with a line the scan could not
-read could have printed one more.
+read from, and every stamp is held against that placement: a line of the invocation's stamped more than a millisecond
+before the launch, or an earlier line stamped more than a millisecond after it, means the clock moved under the log --
+an earlier invocation's line, say, stamped later than a launch the clock stepped back to -- so nothing in the log is
+attributed; so does a stamp earlier than the one before it, anywhere in the log. Where stdout was read whole, the log
+may open no more root turns from the boundary on than stdout counts `turn.started` lines -- none, where stdout printed
+none -- so a turn some other process appended meanwhile is never taken for one of this run's, whatever the log's read
+left out, since a line left unread hides a turn rather than adds one; and where the log was read whole too, no fewer, a
+turn whose parentage is unproven counted either way. A stdout with a line the scan could not read could have printed one
+more, so it is held to nothing.
 
 The invocation opens its own turns before it settles any usage in them, so usage its lines settle in no turn they opened
 -- none open at all, the innermost open one being an earlier process's, a turn left unfinished, say, that a resume
@@ -41,10 +42,11 @@ Turns. A `task_started` opens a turn. One whose `turn_attribution` names a `pare
 this log, its requests a branch of their own; one naming none is a root turn of the session's own thread, and opening it
 abandons every turn still open, since the thread has moved on -- a turn an earlier process left unfinished is never
 taken for this one's. A `task_complete` or `turn_aborted` closes the turn it names, and a turn the invocation opened
-that none closed -- a child turn its parent finished without included -- never finished. A request belongs to the turn
-the usage record written just before its report names, where that turn is still open, or else to the one open turn;
-where several are open -- a parent and its child included -- and no record names one, nothing tells which the report is,
-and it is placed in none.
+that none closed -- a child turn its parent finished without included -- never finished. A `turn_attribution` that is no
+object, or names a parent this collection could not read, is malformed metadata and leaves the turn's parentage
+unproven: it abandons no open turn, and no request settles in it. A request belongs to the turn the usage record written
+just before its report names, where that turn is still open, or else to the one open turn; where several are open -- a
+parent and its child included -- and no record names one, nothing tells which the report is, and it is placed in none.
 """
 
 from __future__ import annotations
@@ -161,12 +163,12 @@ class Timeline:
         version = metadata.text(payload.get("cli_version"))
         return None if self.invocation.resumed else version
 
-    def refusal(self, turns: Turns, stdout_turn_count: int | None, partial: bool) -> str | None:
+    def refusal(self, turns: Turns, miscounted: bool, partial: bool) -> str | None:
         """Why nothing in the log can be attributed to the invocation, or None where both proofs hold.
 
-        `turns` are the ones the log opened, `stdout_turn_count` the turns stdout says the process started -- None
-        where that is not to be compared -- and `partial` whether the read may have stopped short of the log's end or
-        passed lines over unhanded, so its extent proves nothing.
+        `turns` are the ones the log opened, `miscounted` whether their root turns contradict the ones stdout says the
+        process started, and `partial` whether the read may have stopped short of the log's end or passed lines over
+        unhanded, so its extent proves nothing.
         """
         if not self.identified:
             return coverage.NATIVE_IDENTITY_UNPROVEN
@@ -174,7 +176,7 @@ class Timeline:
             return coverage.INVOCATION_UNATTRIBUTED
         if self.regressed or self.disagreed or turns.intruded or self._short(partial):
             return coverage.INVOCATION_UNATTRIBUTED
-        if stdout_turn_count is not None and stdout_turn_count != turns.root_turns:
+        if miscounted:
             return coverage.INVOCATION_UNATTRIBUTED
         return None
 
@@ -225,6 +227,11 @@ class Turn:
         """Whether it is a child turn naming no id, whose requests no branch can be kept under."""
         return self.parent_turn_id is not None and self.turn_id is None
 
+    @property
+    def unplaced(self) -> bool:
+        """Whether its attribution named a parent this collection could not read: neither root nor child is proven."""
+        return self.parent_turn_id == request_scan.REFUSED
+
 
 # What a `token_count` settles in where nothing tells which of several open turns is its own.
 UNPLACED = Turn(None, None, own=False)
@@ -262,9 +269,9 @@ class Records:
         self.conflicted = False
         if conflicted or (named is None and len(opened) > 1):
             return UNPLACED
-        if named is not None:
-            return named
-        return opened[-1] if opened else None
+        innermost = opened[-1] if opened else None
+        settled = innermost if named is None else named
+        return UNPLACED if settled is not None and settled.unplaced else settled
 
 
 @dataclass
@@ -286,6 +293,7 @@ class Turns:
     refused: int = 0
     overflowed: bool = False
     intruded: bool = False
+    uncertain: int = 0
     records: Records = field(default_factory=Records)
 
     def start(self, payload: dict[str, Any], own: bool) -> None:
@@ -295,7 +303,9 @@ class Turns:
         the children named, or on the ones open at once -- no later request can be told apart from its parent's, so
         none is attributed from there on, and the invocation's child turn refused is a gap of its own, whether or not
         a request follows it. The invocation starts a child only from a turn it opened, so its child of any other
-        parent -- an earlier process's, or one not open -- is another process's, which `intruded` records.
+        parent -- an earlier process's, or one not open -- is another process's, which `intruded` records. A turn
+        whose parentage is unproven abandons nothing and settles no request, and the invocation's is `uncertain`: a
+        root turn of its own, or not.
         """
         turn_id = self.metadata.text(payload.get(_TURN_ID))
         turn = Turn(turn_id, self._parent(payload), own)
@@ -306,10 +316,11 @@ class Turns:
             return
         parent = self.named(turn.parent_turn_id)
         foreign_parent = parent is None or not parent.own
-        if own and foreign_parent:
+        if own and foreign_parent and not turn.unplaced:
             self.intruded = True
         if turn in self.open:
             return
+        self.uncertain += own and turn.unplaced
         if self._registered(turn):
             self.open.append(turn)
         else:
@@ -364,11 +375,19 @@ class Turns:
         self.open = []
 
     def _parent(self, payload: dict[str, Any]) -> str | None:
-        """The turn a `task_started` names as the one it was started from, where its attribution names one."""
+        """The turn a `task_started` names as the one it was started from: None where its attribution names none, and
+        `REFUSED` where it is no object or names one no string or too long to keep, a parentage left unproven.
+        """
         attribution = payload.get("turn_attribution")
-        if not isinstance(attribution, dict):
+        if attribution is None:
             return None
-        return self.metadata.text(attribution.get("parent_turn_id"))
+        if not isinstance(attribution, dict):
+            self.metadata.malformed += 1
+            return request_scan.REFUSED
+        named = attribution.get("parent_turn_id")
+        if named is None or named == "":
+            return None
+        return self.metadata.text(named) or request_scan.REFUSED
 
     def _registered(self, turn: Turn) -> bool:
         """Note a child turn within the child turn bound; False past it.
@@ -384,6 +403,6 @@ class Turns:
         if full and turn.turn_id not in self.children:
             return False
         self.children[turn.turn_id] = turn.parent_turn_id
-        if turn.own:
+        if turn.own and not turn.unplaced:
             self.own_children.add(turn.turn_id)
         return True

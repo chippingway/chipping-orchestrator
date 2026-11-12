@@ -139,6 +139,13 @@ _ESTIMATE = codex.token_count(codex.NEXT_RUNNING, _ESTIMATE_COUNTS)
 _OPENING = codex.token_count(codex.LAST_RUNNING, codex.NEXT_REQUEST)
 _NO_USAGE = codex.event(codex.TOKEN_COUNT, info=None)
 _ROLLBACK = codex.event("thread_rolled_back", num_turns=1)
+# A repeat of the appended request's running sum giving half its usage.
+_HALVED_REPEAT = codex.token_count(codex.NEXT_RUNNING, (500, 250, 0, 5, 1, 505))
+_REPEATS_OF_ONE = (
+    ("notifications repeating one report", (_OPENING, _NO_USAGE, _NEXT, _NEXT, _COMPACTED, _ESTIMATE), {}),
+    ("a repeat giving other usage", (_NEXT, _HALVED_REPEAT), {coverage.CONFLICTING_COUNTERS: 1}),
+    ("a repeat giving other usage after a reset", (_NEXT, _ROLLBACK, _HALVED_REPEAT), {}),
+)
 _THREAD_ONLY = MappingProxyType({_TOTAL_USAGE: codex.counters(codex.NEXT_RUNNING)})
 # A report repeating the captured log's last running sum, its own request usage left out, or carrying a negative count.
 _LAST_ONLY = MappingProxyType({_TOTAL_USAGE: codex.counters(codex.LAST_RUNNING)})
@@ -237,6 +244,9 @@ _NOT_OWN = (
     ("no session_meta first", {"lines": _FRESH_LINES[1:]}),
 )
 _SHORTER = codex.APPENDED._replace(start=capture.LAST.end + 1, stdout="")
+# The captured log with a line of its earlier history cut short, and a turn appended past it stdout never started.
+_PAST_DAMAGE = capture.log_lines()[3:]
+_DAMAGED = (*capture.log_lines(2), _CUT_SHORT, *_PAST_DAMAGE, *_TURN_LINES)
 _SILENT = codex.APPENDED._replace(stdout="")
 # A usage record naming the last captured turn, which the invocation never opened, with or without a turn of its own.
 _EARLIER_USAGE = MappingProxyType({codex.TURN_ID: capture.LAST_TURN, _USAGE: _NEXT_USAGE})
@@ -263,6 +273,7 @@ _UNPROVEN = (
     ("a resume counted nothing for", capture.RESUMED._replace(start=None), None),
     ("a resume of an empty log", capture.RESUMED._replace(start=0), None),
     ("a silent resume of a log shorter than its count", _SHORTER, None),
+    ("a turn stdout never started, past damaged earlier history", codex.APPENDED._replace(stdout=""), _DAMAGED),
     ("usage settled in an earlier invocation's open turn", _AFTER_INTERRUPTED, _INTRUDING),
     ("a child turn started from an earlier invocation's open turn", _AFTER_INTERRUPTED, _ADOPTED_CHILD),
     ("a record naming an earlier invocation's turn", codex.APPENDED, (*capture.log_lines(), *_RELABELED)),
@@ -473,6 +484,14 @@ _SPARSE_SECOND_INFO = MappingProxyType({_TOTAL_USAGE: _SPARSE_SUM, _LAST_USAGE: 
 _SPARSE_FIRST = codex.event(codex.TOKEN_COUNT, info=dict(_SPARSE_FIRST_INFO))
 _SPARSE_SECOND = codex.event(codex.TOKEN_COUNT, info=dict(_SPARSE_SECOND_INFO))
 _SPARSE = (_FRESH_FIRST, _FRESH_STARTED, _FRESH_CONTEXT, _SPARSE_FIRST, _SPARSE_SECOND, _FRESH_COMPLETED)
+# The same turn, its second running sum holding more input than both requests together report.
+_SURPLUS_SUM = dict(zip(_OUTGROWN_COUNTERS, (250, 20, 270), strict=True))
+_SURPLUS_INFO = MappingProxyType({_TOTAL_USAGE: _SURPLUS_SUM, _LAST_USAGE: _OUTGROWN_OWN})
+_SURPLUS_SECOND = codex.event(codex.TOKEN_COUNT, info=dict(_SURPLUS_INFO))
+_SURPLUS = (_FRESH_FIRST, _FRESH_STARTED, _FRESH_CONTEXT, _SPARSE_FIRST, _SURPLUS_SECOND, _FRESH_COMPLETED)
+# The fresh run's log, its turn's attribution no object: whether the turn is a root or a child is unproven.
+_MALFORMED_START = _FRESH_LINES[1].replace('"turn_attribution":{', '"turn_attribution":["malformed"],"unread":{', 1)
+_MALFORMED_ATTRIBUTION = (_FRESH_LINES[0], _MALFORMED_START, *_FRESH_LINES[2:])
 # Each case: the gaps it leaves, and how many samples it keeps.
 _UNSAMPLED = (
     (
@@ -492,6 +511,18 @@ _UNSAMPLED = (
         capture.FRESH,
         _SPARSE,
         ({coverage.UNRECONCILED_USAGE: 1}, 1),
+    ),
+    (
+        "complete samples a fresh run's last running sum does not add up to",
+        capture.FRESH,
+        _SURPLUS,
+        ({coverage.UNRECONCILED_USAGE: 1}, 2),
+    ),
+    (
+        "a turn whose attribution is no object",
+        capture.FRESH,
+        _MALFORMED_ATTRIBUTION,
+        ({coverage.MALFORMED_METADATA: 1, coverage.CONVERSATION_AMBIGUOUS: 4}, 0),
     ),
     (
         "counts past a running sum of nothing",
@@ -597,10 +628,13 @@ class RequestIdentityTest(unittest.TestCase):
 
     def test_repeated_notifications_are_one_request(self) -> None:
         # The turn opening with the last running sum, the request's report printed twice, the context estimate after a
-        # compaction, whose running sum does not move, and a notification with no usage: one request.
-        collection = _appended_with(_OPENING, _NO_USAGE, _NEXT, _NEXT, _COMPACTED, _ESTIMATE)
-        self.assertEqual(len(collection.samples), 1)
-        self.assertEqual(collection.reasons, {})
+        # compaction, whose running sum does not move, and a notification with no usage: one request. A repeat giving
+        # other request usage than the report it repeats contradicts it, unless a reset came between.
+        for name, lines, gaps in _REPEATS_OF_ONE:
+            with self.subTest(name):
+                collection = _appended_with(*lines)
+                self.assertEqual(len(collection.samples), 1)
+                self.assertEqual(collection.reasons, gaps)
 
     def test_unchanged_zeros_prove_no_request(self) -> None:
         # After an earlier running sum leaves the counters a request moves unusable, a report its sum's zeros alone
@@ -622,11 +656,12 @@ class RequestIdentityTest(unittest.TestCase):
                 self.assertEqual(collection.reasons, {} if kept else {coverage.UNRECONCILED_USAGE: 1})
                 self.assertNotIn("invocation-baseline", cases.column(collection.checkpoints, _KIND))
 
-    def test_unsampled_reports_keep_evidence(self) -> None:
-        # A report no sample is made of -- none proven, or none a branch takes -- still has its request usage judged:
-        # against its own parts, and against the running sum beside it, which every request it sums adds to, nothing
-        # at all included, nor less than what earlier reports establish where it leaves a counter out; and its
-        # metadata beside it.
+    def test_reports_keep_their_evidence(self) -> None:
+        # A report no sample is made of -- none proven, or none a branch takes, a turn whose parentage is unproven
+        # included -- still has its request usage judged: against its own parts, and against the running sum beside
+        # it, which every request it sums adds to, nothing at all included, nor less than what earlier reports
+        # establish where it leaves a counter out; and its metadata beside it. The samples kept add up to what the
+        # last running sum advanced, where nothing else is missing.
         for name, invocation, lines, expected in _UNSAMPLED:
             with self.subTest(name):
                 collection = codex.collected(invocation, lines)
@@ -851,11 +886,13 @@ class CollectionBoundTest(unittest.TestCase):
                 self.assertEqual(summary["scanned_lines"], len(_ALL_BUT_LAST))
 
     def test_checkpoints_keep_baseline_and_last(self) -> None:
-        with patch.object(request_scan, "MAX_CHECKPOINTS", 2):
-            collection = codex.collected(capture.SWITCHED)
-        self.assertEqual(cases.column(collection.checkpoints, _POSITION), [32, 52])
-        self.assertEqual(collection.coverage["observed_checkpoints"], 3)
-        self.assertEqual(collection.status, coverage.COMPLETE)
+        # The bound holds the baseline and the last running sums together, none at all where it is zero.
+        for bound, positions in ((2, [32, 52]), (0, [])):
+            with self.subTest(bound=bound), patch.object(request_scan, "MAX_CHECKPOINTS", bound):
+                collection = codex.collected(capture.SWITCHED)
+                self.assertEqual(cases.column(collection.checkpoints, _POSITION), positions)
+                self.assertEqual(collection.coverage["observed_checkpoints"], 3)
+                self.assertEqual(collection.status, coverage.COMPLETE)
 
 
 if __name__ == "__main__":

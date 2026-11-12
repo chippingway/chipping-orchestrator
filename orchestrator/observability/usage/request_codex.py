@@ -111,23 +111,33 @@ def _folded(session: NativeSession, scan: request_scan.EventScan, fallback_model
 
 
 def _refusal(fold: NativeFold, stdout: str, scan: request_scan.EventScan, reasons: Counter[str]) -> str | None:
-    """Why nothing in the log can be attributed to the invocation, stdout's turns compared where both were read whole.
+    """Why nothing in the log can be attributed to the invocation, the log's root turns held to the ones stdout started.
 
-    A read cut short proves nothing about the turns or the lines past the cut, and a line the scan could not read
-    could have opened a turn, so neither holds the log to the turns stdout started -- none included.
+    Where stdout was read whole, the log opening more root turns past the boundary than stdout started -- none
+    included -- means another process's turn is among them, whatever the log's read left out, since a line left unread
+    hides a turn rather than adds one. Fewer, counting a turn whose parentage is unknown as a root, mean one is missing
+    only where the log was read whole too: a read cut short, or a line the scan could not read, could have held it.
     """
     partial = bool(reasons.keys() & _CUT)
-    turns = None if partial or scan.unread_lines else stdout_turns(stdout, scan.limits)
-    return fold.timeline.refusal(fold.turns, turns, partial)
+    counted = stdout_turns(stdout, scan.limits)
+    if counted is None:
+        return fold.timeline.refusal(fold.turns, miscounted=False, partial=partial)
+    whole = not (partial or scan.unread_lines)
+    ceiling = fold.turns.root_turns + fold.turns.uncertain if whole else counted
+    miscounted = not fold.turns.root_turns <= counted <= ceiling
+    return fold.timeline.refusal(fold.turns, miscounted=miscounted, partial=partial)
 
 
 def _collected(fold: NativeFold, scan: request_scan.EventScan, reasons: Counter[str]) -> coverage.RequestUsage:
-    """The requests, markers, and checkpoints the invocation's lines left, with the baseline it began from first."""
+    """The requests, markers, and checkpoints the invocation's lines left, with the baseline it began from first.
+
+    The checkpoint bound holds the baseline and the last ones the invocation advanced together.
+    """
     requests = fold.requests
-    baseline = () if requests.baseline is None else (requests.baseline,)
+    opening = () if requests.baseline is None else (requests.baseline,)
+    baseline = opening[:scan.limits.checkpoints]
     advanced = tuple(requests.checkpoints)
-    kept = len(advanced) + len(baseline)
-    room = max(kept - scan.limits.checkpoints, 0)
+    dropped = len(advanced) + len(baseline) - scan.limits.checkpoints
     return coverage.RequestUsage(
         coverage.CollectionCoverage(
             reasons=MappingProxyType(dict(reasons)),
@@ -138,7 +148,7 @@ def _collected(fold: NativeFold, scan: request_scan.EventScan, reasons: Counter[
         ),
         observations=tuple(requests.samples),
         markers=tuple(fold.notes.markers),
-        checkpoints=(*baseline, *advanced[room:]),
+        checkpoints=(*baseline, *advanced[max(dropped, 0):]),
     )
 
 
