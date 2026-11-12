@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import sys
 
 _TYPE_KEY = "type"
 _USAGE_KEY = "usage"
@@ -19,6 +20,9 @@ _CLAUDE_INPUT_TOKENS = 1234
 _CLAUDE_OUTPUT_TOKENS = 567
 _CLAUDE_CACHE_WRITE_TOKENS = 80
 _SKILL_OUTPUT_TOKENS = 500
+# A line the JSON decoder refuses although it parses: a number past the interpreter's digit limit.
+_REFUSED_DIGITS = "1" * (sys.get_int_max_str_digits() + 1)
+_REFUSED_LINE = f'{{"unrelated": {_REFUSED_DIGITS}}}'
 
 
 def _codex_stdout_no_model(

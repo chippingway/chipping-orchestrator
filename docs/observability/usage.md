@@ -35,10 +35,11 @@ record establishes about the requests it sums and the estimate it is priced at, 
 `trajectory_codex_items.py` under it the timeline reconstruction. Antigravity's envelopes, tool lifecycles, and
 completed-step usage live in `agy_events.py` / `agy_summary.py`, with `agy_requests.py` holding which Gemini API model
 a run's CLI slug is priced as and the estimate its steps are priced at, and its text and tool timeline in
-`trajectory_agy.py`. The shared per-request usage contract has owners of its own: `request_models.py` the
-observation, marker, and checkpoint records, `request_normalization.py` the common counters every provider's are read
-into, `request_coverage.py` the coverage a collection states and the field the observations ride in, and
-`request_scan.py` the bounded pass a collector reads stdout in, as
+`trajectory_agy.py`. Per-request usage has owners of its own: `request_models.py` the observation, marker, and
+checkpoint records, `request_normalization.py` the common counters every provider's are read into,
+`request_coverage.py` the coverage a collection states and the field the observations ride in, `request_scan.py` the
+bounded pass a collector reads stdout in, and `request_agy.py` with `request_agy_steps.py` and
+`request_agy_branches.py` the Antigravity collector, its step fold, and its conversation attribution, as
 [request usage observations](#request-usage-observations) describes. The
 trajectory classifier reuses the same event decoder, pricing path, and skill evidence owners, so the resilience and
 cost-precedence contracts are defined once. Tests intercept parsers on the module their caller imports. The package
@@ -408,7 +409,10 @@ interpreter's digit limit, nesting past its depth -- is not skipped: it raises o
 before it is published as the run's. `_run_agent_tracked` (in `workflow/engine/usage.py`) calls `parse_agent_usage`
 after every tracked agent run and appends the parsed counts to the
 [analytics sink](event-streams.md#analytics-sink-analytics_log_path) under `event="agent_exit"`; a parser exception is
-caught and downgraded to a `log.exception`, and the run writes no `agent_exit` record.
+caught and downgraded to a `log.exception`, and the run writes no `agent_exit` record and publishes no total. Its
+trajectory reconstructs nothing from the refused stream either; where the trajectory sink is on and the backend has a
+request collector, the trajectory record carries only the request usage the collector read past the refusal, marked
+`stream_refused` (see [Request usage observations](#request-usage-observations)).
 
 **Terminal verdict surface.** Beyond the analytics sink, every invoked run's parsed `UsageMetrics` is counted on
 per-issue totals on the pinned state (`issue_agent_runs` / `issue_total_tokens` /
@@ -536,9 +540,10 @@ the names-only `skills` (`SkillTriggers`), an ordered `steps` tuple of `Trajecto
 `tool_id` empty on the text turns — plus a `turn` index tying each billed step back to the assistant turn that
 produced it), a `source_items` tuple of `SourceItem` accounting for every item the provider stream identified
 (codex-only today), `final_output`, a best-effort `turns` tuple of per-turn token usage (`TurnUsage`, parallel to
-`tools` / `skills` and claude-only today), and a `request_usage` field every parser leaves `None`, as
-[request usage observations](#request-usage-observations) describes. `parse_claude_trajectory(stdout)` reads the
-offered tools from the `system`/`init` frame's `tools` array, then the ordered timeline: assistant `text` blocks become
+`tools` / `skills` and claude-only today), and a `request_usage` field every parser leaves `None` for the
+trajectory writer to collect, as [request usage observations](#request-usage-observations) describes.
+`parse_claude_trajectory(stdout)` reads the offered tools from the `system`/`init` frame's `tools` array, then the
+ordered timeline: assistant `text` blocks become
 `assistant_message` turns and `tool_use` blocks `tool_call` steps; user `text` blocks become `user_message` turns and
 `tool_result` blocks `tool_result` steps — calls / results joined by `tool_use_id` and de-duplicated per id the same way
 `parse_claude_skills` is, while id-less text blocks ride claude's per-completed-block framing — and the final answer
@@ -647,15 +652,16 @@ contributes its steps and nothing else. `AgentTrajectory.to_dict()` carries the 
 
 ## Request usage observations
 
-The four `request_*.py` owners define how one run's usage is recorded request by request, but nothing collects it
-yet. A `RequestUsage` (`request_coverage.py`) holds one observation per request a stream settled usage for, the
-explicit boundary markers the stream printed, its aggregate checkpoints, and the coverage of the collection. It is the
-type of `AgentTrajectory`'s `request_usage` field, kept apart from Claude's per-turn `turns`. No backend has a
-collector and nothing dispatches one: every trajectory parser leaves the field `None`, the
-[trajectory sink](trajectories.md#trajectory-sink-trajectory_log_path) writes no `request_usage` key, and `None` means
-the run's requests were not collected, never that it made none. The contract is observation alone: pricing, the run's
-`UsageMetrics`, the accounting checkpoint and pinned totals, the cost and token evidence, Claude's turns, and the
-viewer's timeline never read a sample, marker, or checkpoint.
+`parse_agent_request_usage(backend, stdout, fallback_model=None)` on `trajectory.py` collects one run's usage request by
+request: a `RequestUsage` (`request_coverage.py`) holding one observation per request the stream settled usage for,
+the explicit boundary markers the stream printed, its aggregate checkpoints, and the coverage of the collection. It is
+`AgentTrajectory`'s `request_usage` field, kept apart from Claude's per-turn `turns`: the trajectory parsers leave it
+`None`, and the trajectory writer collects it on every tracked exit behind a failure boundary of its own, as the
+[trajectory sink](trajectories.md#trajectory-sink-trajectory_log_path) describes. Only an Antigravity stream has a
+collector; a Claude or Codex run collects none, so its record leaves the field out, which means the run's requests
+were not collected, never that it made none. The contract is observation alone: pricing, the run's `UsageMetrics`, the
+accounting checkpoint and pinned totals, the cost and token evidence, Claude's turns, and the viewer's timeline are
+computed exactly as they would be without it, and never read a sample, marker, or checkpoint.
 
 **What an observation carries.** `request_models.py` defines the record; each sample serializes these keys, and a key
 the stream gave nothing for is absent rather than null:
@@ -746,15 +752,97 @@ whitespace past them is no gap, and is looked through for as many characters aga
 unread), 4 Mi characters per line (`MAX_LINE_CHARS`), and 200,000 decoded events (`MAX_EVENTS`), each a gap where it
 stops or skips the scan. The correlation bounds a collector enforces are defined beside them: 20,000 correlated steps
 (`MAX_TRACKED_STEPS`), 64 subagent branches (`MAX_BRANCHES`), 256 markers (`MAX_MARKERS`), 4 checkpoints
-(`MAX_CHECKPOINTS`), and 128 characters of any one piece of correlation metadata (`MAX_METADATA_CHARS`). `Metadata`
-drops a longer id or model name whole and counts it, never cutting it, and drops and counts a value that is no string
-apart, so a malformed field costs its own reading and nothing beside it. Each line goes through the standard JSON
+(`MAX_CHECKPOINTS`, the last ones a stream printed), and 128 characters of any one piece of correlation metadata
+(`MAX_METADATA_CHARS`). `Metadata` drops a longer id or model name whole and counts it, never cutting it -- the
+configured fallback model included -- and drops and counts a value that is no string apart, so a malformed field costs
+its own reading and nothing beside it. Each line goes through the standard JSON
 decoder the run parsers use, except that a number literal with a fraction or an exponent is kept as the exact `Decimal`
 it spells -- NaN where its exponent is past any `Decimal` -- so a counter such as `1e-400` or `2.0000000000000000001`
 is `invalid` rather than the whole number its float would round to; the run parsers still decode floats. A line shaped
 like a JSON object that decodes to none -- cut short, or refused by the decoder -- is a `malformed-lines` gap, while
 banner text and a value that is no object, which could never have been an event, are skipped without being one. The
 decoder's refusal is caught by the scan alone, for the line it was decoding: the run parsers still refuse such a
-stream, as Resilience above describes.
+stream, as Resilience above describes, so a tracked run carrying one publishes no total and reconstructs no timeline,
+while its trajectory record still carries the collection, marked `stream_refused`.
+
+**Antigravity requests.** `request_agy.py` produces one observation per completed usage-bearing step of the process's
+own stream, on the same agy 1.4.10 captures the run accounting is pinned to. A step is keyed by its conversation and
+`step_index` and folded from every frame of it (`request_agy_steps.py`): a completed frame adds the counters it carries
+and never takes back ones an earlier frame supplied, so a repeated or sparse frame keeps the step's usage; two completed
+frames reporting different counts leave that counter `conflicting`; a frame arriving after completion and naming no
+state adds the counters it carries to the completed report under the same rule; and a counter only a frame not marked
+completed reported -- before completion, or after it under another state such as `ACTIVE` -- is unconfirmed, keeping
+that frame's count. A sample every counter of which a completed report holds is `final` (`completed-frame`, or
+`completed-and-later-frames` where a frame after completion added one); one resting on unconfirmed counters alone or in
+part is `provisional` (`unconfirmed-frame`, or `completed-and-unconfirmed-frames`). Two steps reporting equal counts
+stay two samples, and `checkpoint` steps -- helper generations -- are requests in their own right, in the order the
+stream completed them. `raw` reads `input_tokens`, `output_tokens`, `thinking_tokens`, `cache_read_tokens`, and
+`total_tokens` and nothing else of the block: the context input is the input plus the cache reads, the thinking a part
+of the output, and `total_tokens` the source total. The guide's cached step normalizes 278 input tokens beside 30,214
+cache reads to 30,492 context-input tokens, keeps its `total_tokens` of 282 as `source_total_tokens`, keeps its 0
+thinking tokens inside its 4 output tokens, and leaves cache writes and their lifetimes `unsupported`.
+
+Only this process's steps are samples, a resumed run's included: the terminal `result` usage counts the whole
+conversation, every earlier process of it too, so it is a `result-total` checkpoint of `conversation` scope and never a
+request, held to the same arithmetic as a request -- a total that is not its input plus its output, or thinking beyond
+its output, is `conflicting` -- and its unusable counters named in its `evidence`. On the fresh captures, whose
+conversation is their own process, it equals the samples' sum; a resumed run's also counts the earlier processes, so
+its samples are never reconciled against it.
+
+`request_agy_branches.py` reads which conversations a stream names -- in its `init`, `step_update`, and `result` events,
+up to one more than the branch bound -- before folding any step. An `init` names its conversation beside its envelope,
+so that name is read even where the envelope is no object; a `step_update` or `result` names it inside, so one whose
+envelope is no object could have named any conversation, like a line the scan left unread, and so could an event whose
+discriminator is no string. A frame naming no conversation, in a stream naming exactly one and spawning no subagent, is
+that conversation's, folded into the same step as the frames naming it; in a stream naming none it is still this
+process's stdout and is kept under a `process-step` identity; and in any other stream it is kept the same way with no
+model and a `conversation-ambiguous` gap, since it could be more than one conversation's. A later `init` naming no
+conversation is placed the same way: in a stream naming one conversation or none it is that conversation's, its model a
+change like any other, and elsewhere it changes no model and is a `conversation-ambiguous` gap. A conversation name this
+collection refused -- too long to keep, or no string -- is not an absent one: a stream carrying one never names only one
+conversation, and a process `init` naming one leaves the process's conversation unknown, so no other conversation the
+steps name is taken for it. A line the scan left unread -- past the scan bound, too long to read, or one the decoder
+refused -- could have named any conversation or spawned any subagent, so a stream missing one never names only one
+conversation either.
+
+Each step runs on the model its own conversation's `init` named as it began -- a subagent's own `init` included. A
+step of the process's own conversation -- the one its first `init` names, or, where that names none, the one
+conversation the stream names besides the subagents any `subagent_info` names, a stream naming more than one leaving it
+unknown and a `conversation-ambiguous` gap -- falls back to the process's `init` model and then the configured
+`--model` (`configured-fallback`); an unnamed first `init`'s model is that conversation's, so a later `init` naming it
+with another model is a change of it. A step of a subagent conversation a `subagent_info` named keeps its parent
+conversation, parent step, and subagent type, and without an `init` of its own no model at all, never its parent's, as
+does a step of any other conversation: `unestablished`, and a `subagent-model-unestablished` or `model-unattributed`
+gap. Models are kept for one more conversation than the branch bound, beside the process's own, which always has
+room: its steps alone fall back to the configured `--model`, so a model the stream named for them is never dropped for
+that, while another conversation's past the bound is a `correlation-limit` gap and leaves its steps `unestablished`. An
+`init` naming a different model than its conversation's previous one is a `model-change` marker. An `init`
+naming a model this collection refused -- too long to keep, or no string -- or one whose envelope is no object, so that
+any model it named went unread, leaves its conversation's model unknown from there on: a step begun before it keeps
+the model it began under, while a later one is `unestablished`, never an earlier `init`'s model or the configured
+`--model`, and no marker is kept, since the model it changed to is unknown. A frame naming a subagent is read whether
+or not it carries a step index, and a later one completes the attribution earlier frames left out -- the parent
+conversation, the parent step, or the subagent type -- while one naming any of them differently keeps the first and is
+a `subagent-attribution-conflicting` gap. A subagent gap counts the steps that spawned it once, however often their
+frames repeat it, keeping no more spawning steps than `MAX_TRACKED_STEPS` for each of `subagent-unidentified` and the
+subagents past the branch bound: a spawning step past that has no room to be told apart from one already counted, so
+every frame naming it is a `correlation-limit` gap instead.
+
+The other gaps an Antigravity collection records are a response or `checkpoint` step, or one that carried usage, the
+stream never completed (`unsettled-steps`; a tool step still running that carried no usage is none), a completed one
+with no usage (`unreported-usage`), a frame with no step index -- or one outside 0 through 2,147,483,647, which no step
+counter reaches -- that carries usage or a generation's step type (`unindexed-frames`), a subagent whose conversation
+exposed no usage (`subagent-usage-unavailable`), one `subagent_info` does not name (`subagent-unidentified`), an event
+naming an `init`, `step_update`, or `result` envelope but carrying no object under it, or naming its envelope by a
+discriminator that is no string (`malformed-envelopes`), a usage block on any step or `result` that is no object or
+names no counter (`malformed-usage`), a duration no float holds or that is negative, its sign judged on the exact
+number (`malformed-metadata`), and a stream with no terminal `result` of the process's own conversation
+(`no-terminal-result`) -- a subagent's `result` ends its own conversation, never the process. Once the process's
+first `init` has settled its conversation, another conversation's `result` takes no room, so no number of them crowds
+out the process's own; one printed before then could be the process's, so it is held within the branch bound, and one
+with no room left is a `correlation-limit` gap. The stream reports no timestamp, context capacity, CLI version, cache
+write, or compaction or reset boundary, so every collection lists those as `limitations` and records none of them.
+The run accounting is unchanged: `agy_summary.py` still counts each completed step's last completed frame, so where
+completed frames disagree the run counters keep that frame while the sample states the counter `conflicting`.
 
 [pinned-state]: ../state-machine/labels-and-state.md#pinned-state

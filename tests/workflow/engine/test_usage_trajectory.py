@@ -13,6 +13,7 @@ from orchestrator.agents.models import AgentResult
 from orchestrator.observability.analytics import settings as analytics_settings, sink as analytics_sink
 from orchestrator.observability.analytics.recording import agent_exit as _agent_exit_records
 from orchestrator.workflow.engine import usage as engine_usage
+from tests.support import agy_stream as _agy_stream
 from tests.workflow.engine import usage_frames as _usage_frames, usage_test_support as support
 
 BACKEND_CLAUDE = support.BACKEND_CLAUDE
@@ -52,6 +53,30 @@ _analytics_path = support._analytics_path
 _tracked_budget = support._tracked_budget
 _analytics_records = support._analytics_records
 _claude_stdout_with_skills = _usage_frames._claude_stdout_with_skills
+
+
+_BACKEND_AGY = "agy"
+_REQUEST_ISOLATION_ISSUE_NUMBER = 304
+_REFUSED_LINE_ISSUE_NUMBER = 305
+# An Antigravity run interrupted mid-response, after one completed request.
+_AGY_STDOUT = "\n".join((
+    _agy_stream.init_event(),
+    _agy_stream.step(1, usage={_INPUT_TOKENS_KEY: 10, _OUTPUT_TOKENS_KEY: 2, "cache_read_tokens": 0}),
+    _agy_stream.step(2, state="ACTIVE", text_delta="partial"),
+))
+_FAILED_AGY_RUN = AgentResult(
+    session_id=None, last_message="", exit_code=1, timed_out=False, stdout=_AGY_STDOUT, stderr="",
+)
+# The same run with a line the JSON decoder refuses although it parses.
+_REFUSED_LINE = _usage_frames._REFUSED_LINE
+_REFUSED_AGY_RUN = AgentResult(
+    session_id=None, last_message="", exit_code=1, timed_out=False, stdout=f"{_AGY_STDOUT}\n{_REFUSED_LINE}", stderr="",
+)
+_ERROR_LEVEL = "ERROR"
+# A Claude run whose stream the decoder refuses: its backend has no request collector.
+_REFUSED_CLAUDE_RUN = AgentResult(
+    session_id=None, last_message="", exit_code=1, timed_out=False, stdout=_REFUSED_LINE, stderr="",
+)
 
 
 def _claude_trajectory_stdout(
@@ -221,6 +246,88 @@ class TrajectoryRecordingTest(unittest.TestCase):
             base = _analytics_records(a_path, event=EVENT_AGENT_EXIT)
             self.assertEqual(len(base), 1)
             self.assertNotIn("user_input", base[0])
+
+    def test_request_collector_failure_keeps_the_run(self) -> None:
+        # A failed Antigravity run that returned no session id, whose request collector raises: the run is
+        # still accounted and its baseline records are written, and the trajectory states the collection failed.
+        gh = FakeGitHubClient()
+        budget = _tracked_budget(gh, _REQUEST_ISOLATION_ISSUE_NUMBER)
+        trajectory_path = _analytics_path(self, "requests-", "trajectory.jsonl")
+        with (
+            patch.object(analytics_settings, _TRAJECTORY_PATH_ATTR, trajectory_path),
+            patch.object(support.usage_trajectory, "parse_agent_request_usage", side_effect=RuntimeError("boom")),
+            patch.object(_agent_runner, _RUN_AGENT_ATTR, return_value=_FAILED_AGY_RUN),
+            self.assertLogs(analytics_sink.log, level="ERROR"),
+        ):
+            agent_result = engine_usage._run_agent_tracked(
+                gh, budget,
+                agent_role=ROLE_DEVELOPER,
+                stage=STAGE_IMPLEMENTING,
+                backend=_BACKEND_AGY,
+                prompt=_TRAJECTORY_PROMPT,
+                cwd=_FAKE_WT,
+                agent_spec=_BACKEND_AGY,
+            )
+        self.assertFalse(agent_result.unaccounted)
+        self.assertEqual(budget.state.state_data["issue_agent_runs"], 1)
+        self.assertIn(EVENT_AGENT_EXIT, [event[_EVENT_KEY] for event in gh.recorded_events])
+        trajectory_record = _analytics_records(trajectory_path)[0]
+        self.assertEqual(trajectory_record["request_usage"]["coverage"]["reasons"], {"collector-error": 1})
+        self.assertEqual(trajectory_record["steps"][0]["content"], "partial")
+
+    def test_a_refused_stream_keeps_its_requests(self) -> None:
+        # A line the decoder refuses cancels the run's usage parse as it always has: no total is published, and no
+        # trajectory is reconstructed from the stream. The request collector reads past the refusal, so the trajectory
+        # record still carries the completed request, its coverage incomplete, and says the stream was refused.
+        gh = FakeGitHubClient()
+        budget = _tracked_budget(gh, _REFUSED_LINE_ISSUE_NUMBER)
+        trajectory_path = _analytics_path(self, "refused-", "refused-trajectory.jsonl")
+        with (
+            patch.object(analytics_settings, _TRAJECTORY_PATH_ATTR, trajectory_path),
+            patch.object(_agent_runner, _RUN_AGENT_ATTR, return_value=_REFUSED_AGY_RUN),
+            self.assertLogs(analytics_sink.log, level=_ERROR_LEVEL),
+        ):
+            agent_result = engine_usage._run_agent_tracked(
+                gh, budget,
+                agent_role=ROLE_DEVELOPER,
+                stage=STAGE_IMPLEMENTING,
+                backend=_BACKEND_AGY,
+                prompt=_TRAJECTORY_PROMPT,
+                cwd=_FAKE_WT,
+                agent_spec=_BACKEND_AGY,
+            )
+        self.assertIsNone(agent_result.usage)
+        self.assertFalse(agent_result.unaccounted)
+        self.assertNotIn("issue_total_tokens", budget.state.state_data)
+        record = _analytics_records(trajectory_path)[0]
+        self.assertTrue(record["stream_refused"])
+        # No run usage and no steps: nothing the run parsers refused is reconstructed.
+        self.assertNotIn("run_usage", record)
+        self.assertEqual(record["steps"], [])
+        self.assertEqual(len(record["request_usage"]["samples"]), 1)
+        self.assertEqual(record["request_usage"]["coverage"]["status"], "incomplete")
+
+    def test_a_refused_stream_with_no_collector(self) -> None:
+        # A backend with no request collector has nothing to record past the refusal, so its run writes no trajectory.
+        gh = FakeGitHubClient()
+        budget = _tracked_budget(gh, _REFUSED_LINE_ISSUE_NUMBER)
+        trajectory_path = _analytics_path(self, "refused-claude-", "refused-trajectory.jsonl")
+        with (
+            patch.object(analytics_settings, _TRAJECTORY_PATH_ATTR, trajectory_path),
+            patch.object(_agent_runner, _RUN_AGENT_ATTR, return_value=_REFUSED_CLAUDE_RUN),
+            self.assertLogs(analytics_sink.log, level=_ERROR_LEVEL),
+        ):
+            agent_result = engine_usage._run_agent_tracked(
+                gh, budget,
+                agent_role=ROLE_DEVELOPER,
+                stage=STAGE_IMPLEMENTING,
+                backend=BACKEND_CLAUDE,
+                prompt=_TRAJECTORY_PROMPT,
+                cwd=_FAKE_WT,
+                agent_spec=BACKEND_CLAUDE,
+            )
+        self.assertIsNone(agent_result.usage)
+        self.assertFalse(trajectory_path.exists())
 
     def test_failure_keeps_skill_events(self) -> None:
         # A trajectory-parse failure must not cost the `skill_triggered`

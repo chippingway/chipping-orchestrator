@@ -80,16 +80,24 @@ class ToolLifecycle:
             step[STATE] = state
 
 
+def payload(
+    event: dict[str, Any],
+    event_name: str,
+) -> dict[str, Any] | None:
+    """The envelope one event carries for the named event, or None when it is another event or carries none."""
+    envelope = event.get(event_name)
+    if event.get(EVENT) == event_name and isinstance(envelope, dict):
+        return envelope
+    return None
+
+
 def payloads(
     events: list[dict[str, Any]],
     event_name: str,
 ) -> list[dict[str, Any]]:
     """Read only the envelope belonging to the named event."""
-    return [
-        event[event_name]
-        for event in events
-        if event.get(EVENT) == event_name and isinstance(event.get(event_name), dict)
-    ]
+    envelopes = [payload(event, event_name) for event in events]
+    return [envelope for envelope in envelopes if envelope is not None]
 
 
 def terminal_result(events: list[dict[str, Any]]) -> dict[str, Any]:

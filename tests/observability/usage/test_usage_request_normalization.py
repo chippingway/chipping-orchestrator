@@ -8,6 +8,7 @@ from decimal import Decimal
 from types import MappingProxyType
 
 from orchestrator.observability.usage import protocol, request_normalization as normalization
+from tests.observability.usage import usage_request_cases as cases
 
 _Reading = normalization.Reading
 _OBSERVED = normalization.OBSERVED
@@ -45,8 +46,7 @@ _CLAUDE_WRITE_FIVE_MIN = 60
 _CLAUDE_WRITE_ONE_HOUR = 40
 _CLAUDE_OUTPUT = 7
 _CLAUDE_CONTEXT = _CLAUDE_INPUT + _CLAUDE_CACHE_READ + _CLAUDE_WRITE
-# Ten to the thirtieth: the first count with more digits than any token count has.
-_PAST_ANY_COUNT = 1_000_000_000_000_000_000_000_000_000_000
+_PAST_ANY_COUNT = cases.PAST_ANY_COUNT
 # A Codex write split in full, and one of its lifetimes alone, each past what the input holds beside its cache reads.
 _HELD_LIFETIMES = (
     ("whole split", {"cache_write_5m": _CODEX_CACHED, "cache_write_1h": _CODEX_CACHED}),

@@ -1,12 +1,21 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Provider trajectory parser entry points over the shared records."""
+"""Provider trajectory parser entry points over the shared records.
+
+Two dispatches share this owner. `parse_agent_trajectory` reconstructs what a run did; `parse_agent_request_usage`
+collects the per-request usage observations its stream reports, which a caller attaches as the trajectory's
+`request_usage` under a failure boundary of its own, so a collector that fails costs the trajectory nothing. Only an
+Antigravity stream has a request collector; a Claude or Codex run collects none, which a record states by leaving
+the field out.
+"""
 
 from __future__ import annotations
 
 from orchestrator.observability.usage import (
     event_stream,
     protocol,
+    request_agy,
+    request_coverage,
     trajectory_agy,
     trajectory_claude_stream,
     trajectory_claude_turns,
@@ -56,6 +65,24 @@ def parse_agent_trajectory(backend: str, stdout: str) -> AgentTrajectory:
         return parse_codex_trajectory(stdout)
     if backend == protocol.AGY:
         return trajectory_agy.reconstruct(event_stream.iter_events(stdout))
+    raise ValueError(
+        f"unknown agent backend {backend!r}; expected 'claude', 'codex', or 'agy'",
+    )
+
+
+def parse_agent_request_usage(
+    backend: str,
+    stdout: str,
+    fallback_model: str | None = None,
+) -> request_coverage.RequestUsage | None:
+    """Dispatch request-usage collection by agent backend; None where the backend has no request collector.
+
+    `fallback_model` is the configured model a request is attributed to where the stream names none.
+    """
+    if backend == protocol.AGY:
+        return request_agy.collect(stdout, fallback_model)
+    if backend in {protocol.CLAUDE, protocol.CODEX}:
+        return None
     raise ValueError(
         f"unknown agent backend {backend!r}; expected 'claude', 'codex', or 'agy'",
     )
