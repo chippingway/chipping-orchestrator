@@ -118,7 +118,7 @@ def _refusal(fold: NativeFold, stdout: str, scan: request_scan.EventScan, reason
     """
     partial = bool(reasons.keys() & _CUT)
     turns = None if partial or scan.unread_lines else stdout_turns(stdout, scan.limits)
-    return fold.timeline.refusal(fold.turns.root_turns, turns, partial)
+    return fold.timeline.refusal(fold.turns, turns, partial)
 
 
 def _collected(fold: NativeFold, scan: request_scan.EventScan, reasons: Counter[str]) -> coverage.RequestUsage:

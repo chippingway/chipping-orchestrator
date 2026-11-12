@@ -28,6 +28,9 @@ _ITEM_COMPLETED = "item_completed"
 _SUBAGENT = "SubAgentActivity"
 _TYPE = "type"
 _REPEATS = 50
+_RECORD_KIND = "token_usage_record"
+_USAGE = "usage"
+_NEXT_USAGE = codex.counters(codex.NEXT_REQUEST)
 _TASK_COMPLETE = "task_complete"
 _PARENT = MappingProxyType({"parent_turn_id": codex.APPENDED_TURN})
 _CHILD_MODEL = "gpt-5.5-mini"
@@ -57,6 +60,24 @@ _FRESH_LINES = capture.log_lines(capture.FRESH.end)
 _FRESH_FIRST = _FRESH_LINES[0]
 _OVERSIZED_MODEL = "m" * (request_scan.MAX_METADATA_CHARS + 1)
 _OVERSIZED_CONTEXT = codex.line(codex.TURN_CONTEXT, {codex.TURN_ID: codex.APPENDED_TURN, "model": _OVERSIZED_MODEL})
+# A context naming a turn the log never opened, and what each context leaves of the thread request after it.
+_FOREIGN_CONTEXT = MappingProxyType({codex.TURN_ID: codex.CHILD_TURN, cases.MODEL: "gpt-5.5-foreign"})
+_UNPLACED_CONTEXT = codex.line(codex.TURN_CONTEXT, dict(_FOREIGN_CONTEXT))
+_ATTRIBUTED = (cases.MODEL, _SOURCE)
+_UNSET_MODELS = (
+    (
+        "a refused model",
+        (_STARTED, _OVERSIZED_CONTEXT, _NEXT, _COMPLETE),
+        (None, "unestablished"),
+        {coverage.OVERSIZE_METADATA: 1, coverage.MODEL_UNATTRIBUTED: 1},
+    ),
+    (
+        "a context naming another turn",
+        (_STARTED, _UNPLACED_CONTEXT, _NEXT, _COMPLETE),
+        (capture.SWITCHED_MODEL, "stream"),
+        {coverage.CONVERSATION_AMBIGUOUS: 1},
+    ),
+)
 _UNSTAMPED = f'"timestamp":"{codex.STAMP}",'
 _TURN_LINES = (_STARTED, _NEXT, _COMPLETE)
 _UNSTAMPED_TURN = tuple(text.replace(_UNSTAMPED, "") for text in _TURN_LINES)
@@ -141,7 +162,7 @@ _FRESH_STARTED = codex.event(codex.TASK_STARTED, turn_id=capture.FRESH_TURN)
 _FRESH_COMPLETED = codex.event(_TASK_COMPLETE, turn_id=capture.FRESH_TURN)
 _PRIOR_STARTED = _FRESH_STARTED.replace(codex.STAMP, _PRIOR_STAMP)
 _PRIOR_COMPLETE = _FRESH_COMPLETED.replace(codex.STAMP, _PRIOR_STAMP)
-_PRIOR_RECORD = codex.line("token_usage_record", {"usage": codex.counters(_REPLAYED)}, _PRIOR_STAMP)
+_PRIOR_RECORD = codex.line(_RECORD_KIND, {_USAGE: codex.counters(_REPLAYED)}, _PRIOR_STAMP)
 _PRIOR_REPORT = codex.token_count(_REPLAYED, _REPLAYED).replace(codex.STAMP, _PRIOR_STAMP)
 _REPLAYED_TWICE = tuple(2 * count for count in _REPLAYED)
 _UNCOVERED = (_FRESH_FIRST, _PRIOR_STARTED, _PRIOR_RECORD, _PRIOR_COMPLETE)
@@ -174,14 +195,25 @@ _NOT_OWN = (
     ("no session_meta first", {"lines": _FRESH_LINES[1:]}),
 )
 _SHORTER = codex.APPENDED._replace(start=capture.LAST.end + 1, stdout="")
+# A silent resume after the interrupted invocation, past whose count usage settles in the turn that invocation left
+# open: a record naming that turn, and a report advancing the running sum it left by exactly the record's request.
+_AFTER_INTERRUPTED = codex.APPENDED._replace(start=capture.INTERRUPTED.end, stdout="")
+_INTERRUPTED_USAGE = MappingProxyType({codex.TURN_ID: capture.INTERRUPTED_TURN, _USAGE: _NEXT_USAGE})
+_INTRUDING = (
+    *capture.log_lines(capture.INTERRUPTED.end),
+    codex.line(_RECORD_KIND, dict(_INTERRUPTED_USAGE)),
+    codex.token_count((98500, 76600, 14900, 1235, 225, 99735), codex.NEXT_REQUEST),
+)
 # Placements nothing proves: a resume its launch counted no lines for, none at all, or more than the log read whole
-# holds; and stamps the clock contradicts -- a fresh run's log stamped before its launch, earlier lines stamped after
-# it, the silent resume after a clock step back that would have taken the fresh invocation's last requests, an own line
-# stamped before the launch, and stamps going backward.
+# holds; usage past the count settled in a turn an earlier invocation left open; and stamps the clock contradicts -- a
+# fresh run's log stamped before its launch, earlier lines stamped after it, the silent resume after a clock step back
+# that would have taken the fresh invocation's last requests, an own line stamped before the launch, and stamps going
+# backward.
 _UNPROVEN = (
     ("a resume counted nothing for", capture.RESUMED._replace(start=None), None),
     ("a resume of an empty log", capture.RESUMED._replace(start=0), None),
     ("a silent resume of a log shorter than its count", _SHORTER, None),
+    ("usage settled in an earlier invocation's open turn", _AFTER_INTERRUPTED, _INTRUDING),
     ("fresh log begun before the launch", capture.FRESH._replace(launched_at=capture.RESUMED.launched_at), None),
     ("earlier lines stamped after the launch", capture.RESUMED._replace(launched_at=capture.FRESH.launched_at), None),
     ("a silent resume after a clock step back", _STEPPED_BACK, None),
@@ -244,6 +276,9 @@ _UNUSABLE = (
     ("reasoning past output", (1000, 500, 0, 10, 20, 1010), None, ("reasoning_tokens", _ONE_CONFLICT)),
 )
 _INVALID_RUNNING = (*codex.NEXT_RUNNING[:5], -1)
+_INVALID_CHILD_RUNNING = (-1, *codex.NEXT_REQUEST[1:])
+_INVALID_CHILD_REQUEST = codex.token_count(_INVALID_CHILD_RUNNING, codex.NEXT_REQUEST)
+_INVALID_CHILD_RUN = (_CHILD_STARTED, _CHILD_CONTEXT, _INVALID_CHILD_REQUEST, _CHILD_COMPLETE)
 _NO_OBJECTS = ('[{"type":"event_msg"}]', "Codex ready")
 _UNUSABLE_STATES = frozenset((_INVALID_STATE, "conflicting"))
 # Children the invocation's lines expose less than whole, each with the gaps it leaves and the requests kept: a child
@@ -326,7 +361,12 @@ _CHILD_MODEL_CHANGE = MappingProxyType({
 # no offset, and one no ISO moment at all.
 _UNREADABLE_STAMPS = ("0001-01-01T00:00:00+01:00", "9999-12-31T23:59:59-01:00", "2026-11-12T14:10:01", "yesterday")
 # A usage record of the appended request, as the CLI writes one beside each `token_count` reporting a request.
-_RECORD = codex.line("token_usage_record", {"usage": codex.counters(codex.NEXT_REQUEST)})
+_RECORD = codex.line(_RECORD_KIND, {_USAGE: codex.counters(codex.NEXT_REQUEST)})
+# A child turn writing two usage records and reporting one request, beside a thread request reported with no record:
+# the child's second record has no report of its own branch, however the thread's surplus report matches in number.
+_CHILD_USAGE = MappingProxyType({codex.TURN_ID: codex.CHILD_TURN, _USAGE: _NEXT_USAGE})
+_CHILD_RECORD = codex.line(_RECORD_KIND, dict(_CHILD_USAGE))
+_CHILD_RECORDS = (_CHILD_STARTED, _CHILD_CONTEXT, _CHILD_RECORD, _CHILD_REQUEST, _CHILD_RECORD, _CHILD_COMPLETE, _NEXT)
 _REPORTLESS_FRESH = tuple(text for text in _FRESH_LINES if '"type":"token_count"' not in text)
 _CHILD_ATTRIBUTION = ("turn_id", "parent_turn_id", "model", "branch_order")
 _THREAD_ATTRIBUTION = (codex.APPENDED_TURN, None, capture.SWITCHED_MODEL, 0)
@@ -471,6 +511,10 @@ class SourceShapeTest(unittest.TestCase):
         self.assertEqual(collection.reasons, {_INVALID: 1})
         running = collection.checkpoints[-1]
         self.assertEqual(running[cases.EVIDENCE], _INVALID_TOTAL)
+        # A child turn's running sum is no checkpoint, but is held to the same arithmetic.
+        child = _appended_with(*_INVALID_CHILD_RUN)
+        self.assertEqual(len(child.samples), 1)
+        self.assertEqual(child.reasons, {_INVALID: 1})
 
     def test_a_line_holding_no_object(self) -> None:
         # A native log holds JSON objects alone, so any other line -- a value that is no object, or plain text -- is
@@ -485,6 +529,7 @@ class SourceShapeTest(unittest.TestCase):
         cases_by_name = {
             "every report missing": (codex.collected(lines=_REPORTLESS_FRESH), 3),
             "one record beyond its report": (_appended_with(_RECORD, _OPENING, _NEXT, _NEXT, _RECORD), 1),
+            "a child's record another branch's report matches in number": (_appended_with(*_CHILD_RECORDS), 1),
         }
         for name, (collection, unobserved) in cases_by_name.items():
             with self.subTest(name):
@@ -525,14 +570,15 @@ class AttributionTest(unittest.TestCase):
         self.assertEqual(set(cases.column(unconfigured.samples, _SOURCE)), {"unavailable"})
         self.assertEqual(unconfigured.reasons, {coverage.MODEL_UNATTRIBUTED: 3})
 
-    def test_a_refused_model_is_unestablished(self) -> None:
-        collection = codex.appended(
-            _STARTED, _OVERSIZED_CONTEXT, _NEXT, _COMPLETE, fallback_model=capture.FIRST_MODEL,
-        )
-        sample = collection.samples[0]
-        attributed = cases.picked(sample, cases.MODEL, cases.MODEL_SOURCE)
-        self.assertEqual(attributed, (None, "unestablished"))
-        self.assertEqual(collection.reasons, {coverage.OVERSIZE_METADATA: 1, coverage.MODEL_UNATTRIBUTED: 1})
+    def test_contexts_that_establish_no_model(self) -> None:
+        # A context naming a model this collection refused leaves its turn's model unestablished, never the fallback;
+        # one naming a turn neither the thread's open one nor a child the log named sets no model at all, so the
+        # thread's request keeps the model the thread last ran on.
+        for name, lines, attributed, gaps in _UNSET_MODELS:
+            with self.subTest(name):
+                collection = codex.appended(*lines, fallback_model=capture.FIRST_MODEL)
+                self.assertEqual(cases.picked(collection.samples[0], *_ATTRIBUTED), attributed)
+                self.assertEqual(collection.reasons, dict(gaps))
 
     def test_a_child_turn_keeps_its_attribution(self) -> None:
         collection = codex.appended(*_CHILD_RUN)

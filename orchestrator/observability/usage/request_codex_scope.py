@@ -30,6 +30,10 @@ lines -- none, where stdout printed none -- so a turn some other process appende
 this run's; a cut short read proves nothing about the turns past the cut, and a stdout with a line the scan could not
 read could have printed one more.
 
+The invocation opens its own turns before it settles any usage in them, so usage its lines settle while the innermost
+open turn is an earlier process's -- a turn left unfinished, say, that a resume printing no turn never replaced -- was
+written by that process past the count, and nothing is attributed either.
+
 Where either proof fails, the collection names why and attributes nothing; it never guesses a suffix of the log.
 
 Turns. A `task_started` opens a turn. One whose `turn_attribution` names a `parent_turn_id` is a child turn run inside
@@ -161,20 +165,20 @@ class Timeline:
         version = metadata.text(payload.get("cli_version"))
         return None if self.invocation.resumed else version
 
-    def refusal(self, root_turns: int, stdout_turn_count: int | None, partial: bool) -> str | None:
+    def refusal(self, turns: Turns, stdout_turn_count: int | None, partial: bool) -> str | None:
         """Why nothing in the log can be attributed to the invocation, or None where both proofs hold.
 
-        `root_turns` counts the root turns the log opened from the boundary on, `stdout_turn_count` the turns stdout
-        says the process started -- None where that is not to be compared -- and `partial` whether the read may have
-        stopped short of the log's end or passed lines over unhanded, so its extent proves nothing.
+        `turns` are the ones the log opened, `stdout_turn_count` the turns stdout says the process started -- None
+        where that is not to be compared -- and `partial` whether the read may have stopped short of the log's end or
+        passed lines over unhanded, so its extent proves nothing.
         """
         if not self.identified:
             return coverage.NATIVE_IDENTITY_UNPROVEN
         if not self.start and self.invocation.resumed:
             return coverage.INVOCATION_UNATTRIBUTED
-        if self.regressed or self.disagreed or self._short(partial):
+        if self.regressed or self.disagreed or turns.intruded or self._short(partial):
             return coverage.INVOCATION_UNATTRIBUTED
-        if stdout_turn_count is not None and stdout_turn_count != root_turns:
+        if stdout_turn_count is not None and stdout_turn_count != turns.root_turns:
             return coverage.INVOCATION_UNATTRIBUTED
         return None
 
@@ -236,6 +240,7 @@ class Turns:
     unnamed: int = 0
     refused: int = 0
     overflowed: bool = False
+    intruded: bool = False
 
     def start(self, payload: dict[str, Any], own: bool) -> None:
         """Open the turn a `task_started` names: a root turn abandoning every open one, or a child beside them.
@@ -266,15 +271,30 @@ class Turns:
             self.open = [turn for turn in self.open if turn.turn_id != turn_id]
 
     def current(self, own: bool) -> Turn | None:
-        """The innermost open turn a line belongs to; for the invocation's own line, only a turn it opened itself."""
-        if not self.open or (own and not self.open[-1].own):
-            return None
-        return self.open[-1]
+        """The innermost open turn a usage line settles in, or None for the thread with no turn open.
 
-    def on_thread(self, own: bool) -> bool:
-        """Whether a line belongs to the thread's own branch rather than a child turn's."""
-        turn = self.current(own)
-        return turn is None or turn.parent_turn_id is None
+        The invocation opens its own turns before it settles anything in them, so its line settling usage while the
+        innermost open turn is an earlier process's is that process's, appended past the count: `intruded` records it,
+        and the line is placed in no turn.
+        """
+        if not self.open:
+            return None
+        innermost = self.open[-1]
+        if own and not innermost.own:
+            self.intruded = True
+            return None
+        return innermost
+
+    def named(self, turn_id: str | None, own: bool) -> Turn | None:
+        """The turn a `turn_context` names: a child turn the log named, or the thread's open root turn; else None."""
+        if turn_id is None:
+            return None
+        parent = self.children.get(turn_id)
+        if parent is not None:
+            return Turn(turn_id, parent, own)
+        # Every open turn naming an id is a root turn or a child the log named, so one the children leave is a root.
+        opened = [turn for turn in self.open if turn.turn_id == turn_id]
+        return opened[0] if opened else None
 
     def abandon(self) -> None:
         """Count the invocation's turns still open as never closed, and close every open turn.

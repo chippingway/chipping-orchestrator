@@ -138,7 +138,8 @@ parser is dormant, called by no dispatch, and attributes only what it proves: a 
 invocation's own lines of a native session log reported, those lines proven by the log's first-line identity and the
 launch facts its caller supplies -- a fresh run's whole log, a resumed run's lines past the whole lines its log held at
 the launch -- and every stamp agreeing with that placement; a resume with no count, a log not the session's own, a log
-read whole that is shorter than the count, or a stamp the clock contradicts attributes nothing, never a guessed suffix.
+read whole that is shorter than the count, usage settled past the count in a turn an earlier invocation left open, or a
+stamp the clock contradicts attributes nothing, never a guessed suffix.
 A report repeating its branch's running sum, not proven to advance it by its own counters with at least one of them
 moving, or following an earlier request whose usage record no report covered, is no request, so no earlier
 invocation's request is copied into a later one, and stdout's cumulative `turn.completed` is never a sample nor a

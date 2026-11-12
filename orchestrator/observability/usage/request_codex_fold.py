@@ -9,13 +9,14 @@ left. Only the invocation's own lines -- the ones its timeline places past the b
 and checkpoints. Which turn, and so which branch, a request belongs to is the `request_codex_scope` turns' to say: a
 child turn's own branch, or the thread's.
 
-Models. A `turn_context` sets the model its turn runs on: a child turn's own, or else the thread's, which holds until
-the next one. A request that settles before its turn's own `turn_context` -- the compaction a model switch runs first,
-on the model the thread had -- ran on the thread's model as the last one left it. A child turn without a `turn_context`
-of its own ran on no model this log establishes, never its parent's; a thread with none falls back to the configured
-`-m` model. A `turn_context` naming another model than the last one its branch ran on is a `model-change` marker --
-a child turn's naming that turn and the one it was started from -- a `compacted` line a `compaction` marker, and a
-`thread_rolled_back` event a `reset` marker.
+Models. A `turn_context` sets the model the turn it names runs on: a child turn's own, where it names a child the log
+named, or the thread's, where it names the thread's open root turn, which holds until the next one; one naming any other
+turn sets no model, since nothing places it, and the invocation's is a `conversation-ambiguous` gap. A request that
+settles before its turn's own `turn_context` -- the compaction a model switch runs first, on the model the thread had --
+ran on the thread's model as the last one left it. A child turn without a `turn_context` of its own ran on no model this
+log establishes, never its parent's; a thread with none falls back to the configured `-m` model. A `turn_context` naming
+another model than the last one its branch ran on is a `model-change` marker -- a child turn's naming that turn and the
+one it was started from -- a `compacted` line a `compaction` marker, and a `thread_rolled_back` event a `reset` marker.
 
 Requests. Each `token_count` reports one request's own usage (`last_token_usage`) beside its branch's running sum
 (`total_token_usage`). A sum equal to the last one the branch reported repeats a notification -- the CLI prints the same
@@ -31,12 +32,13 @@ output. The thread's running sums are checkpoints of the whole conversation: the
 invocation's baseline, and the ones its own requests advance. A request the earlier lines settled after that last sum --
 a usage record no `token_count` reported -- leaves it behind, so no baseline is established, and the invocation's first
 report is not proven new. A child turn's sums are kept only to prove its requests, since nothing establishes what they
-span.
+span, though they are held to the same arithmetic as a checkpoint.
 
 Every request the CLI settles also writes a `token_usage_record` repeating its counters under its response id. No
-request is read off one -- its counters are never a sample -- but the invocation's records are counted, and each beyond
-the reports its `token_count` lines made that repeat nothing is usage reported only where this pass reads no request
-from: an `unsupported-usage-source` gap, so a log whose `token_count` lines are missing never reads as no requests.
+request is read off one -- its counters are never a sample -- but the invocation's records are counted on the branch of
+the turn each settles in, and each beyond the reports its branch's `token_count` lines made that repeat nothing is usage
+reported only where this pass reads no request from: an `unsupported-usage-source` gap, so a log whose `token_count`
+lines are missing never reads as no requests, and a report of one branch never answers another's record.
 
 Subagents. A child turn the invocation opened that settled no request, and a subagent thread its lines name -- in an
 `item_completed` `SubAgentActivity`, or in a legacy history's `sub_agent_activity` event -- whose requests are in a log
@@ -45,7 +47,8 @@ is a gap rather than a silence; so is a child turn naming no id, whose requests 
 settles in it.
 
 Checkpoints are held to a request's arithmetic, so a running sum reporting a counter no usable count, or contradicting
-its own parts, is a gap of the collection keeping it as well as its own evidence.
+its own parts, is a gap of the collection keeping it as well as its own evidence; a child turn's running sum, kept as no
+checkpoint, is the gap alone.
 """
 
 from __future__ import annotations
@@ -145,7 +148,9 @@ class Branch:
     """One branch's state as the log is read: the model in effect, its last running sum, and the requests kept.
 
     `unreported` counts the usage records written on it since that running sum: requests settled that no `token_count`
-    has reported yet, the sum lagging them until one does.
+    has reported yet, the sum lagging them until one does. `records` and `reports` count the invocation's own usage
+    records on it and its reports that were no proven repeat, so a record no report of its own branch answers is told
+    apart from one another branch's report happens to match in number.
     """
 
     model: str | None = None
@@ -154,7 +159,14 @@ class Branch:
     proven: bool = True
     unread_at: int = 0
     unreported: int = 0
+    records: int = 0
+    reports: int = 0
     kept: int = 0
+
+    @property
+    def unanswered(self) -> int:
+        """How many of the invocation's usage records on it no report of its own answers."""
+        return max(self.records - self.reports, 0)
 
     def proven_at(self, unread_lines: int) -> bool:
         """Whether its last running sum is the last it reported: no line since then could have been another."""
@@ -183,9 +195,6 @@ class Requests:
     checkpoints: deque[request_models.UsageCheckpoint] = field(default_factory=deque)
     baseline: request_models.UsageCheckpoint | None = None
     observed_checkpoints: int = 0
-    usage_records: int = 0
-    reports: int = 0
-    repeats: int = 0
     gaps: Counter[str] = field(default_factory=Counter)
 
     def branch(self, key: str | None) -> Branch | None:
@@ -234,6 +243,7 @@ class Requests:
             self._settle(line, token_info, branch, turn)
         else:
             self.gaps[coverage.MALFORMED_USAGE] += line.own
+            branch.reports += line.own
             branch.proven = False
 
     def _settle(
@@ -252,23 +262,31 @@ class Requests:
         running = Counters.of(token_info.get("total_token_usage"))
         if running is None:
             self.gaps[coverage.MALFORMED_USAGE] += line.own
+            branch.reports += line.own
             branch.proven = False
             return
         proven = branch.proven_at(self.scan.unread_lines)
         report = Report(line, token_info, running, proven, *details)
         if report.proven and running.repeats(branch.running):
-            self.repeats += line.own
             if line.own:
                 self.gaps.update(repeat_gaps(token_info))
             return
+        branch.reports += line.own
         if line.own:
             self._observe(report, branch, turn)
         branch.advance(running, line.position, self.scan.unread_lines)
 
     def _observe(self, report: Report, branch: Branch, turn: Turn | None) -> None:
-        """Keep the invocation's new request as a sample, and the thread's advanced running sum as a checkpoint."""
+        """Keep the invocation's new request as a sample, and the thread's advanced running sum as a checkpoint.
+
+        A child turn's running sum is no checkpoint, since nothing establishes what it spans, but it is held to the same
+        arithmetic, so one reporting a counter no usable count, or contradicting its own parts, is a gap all the same.
+        """
         child = turn is not None and turn.parent_turn_id is not None
-        if not child:
+        if child:
+            child_evidence = report.running.evidence()
+            self.gaps.update(coverage.evidence_gaps(child_evidence.values()))
+        else:
             self.checkpoints.append(
                 checkpoint(CUMULATIVE_TOTAL, report.line.position, report.running, self.session_id, self.gaps),
             )
@@ -402,7 +420,12 @@ class NativeFold:
         """
         if event is None:
             return
-        line = self._placed(position, event)
+        stamp, moment = stamped(event, self.metadata)
+        crossing = self.timeline.boundary is None
+        line = Line(position, self.timeline.place(position, event, moment), stamp)
+        if crossing and line.own:
+            # The first of the invocation's lines keeps the baseline the earlier lines left.
+            self.requests.cross()
         envelope = Envelope.of(event)
         if envelope is None:
             self.notes.gaps[coverage.MALFORMED_ENVELOPES] += line.own
@@ -410,8 +433,7 @@ class NativeFold:
         elif envelope.kind == _EVENT_MSG:
             self._event(line, envelope)
         elif envelope.kind == _USAGE_RECORD:
-            self.requests.usage_records += line.own
-            self.requests.branches[None].unreported += self.turns.on_thread(line.own)
+            self._record(line)
         else:
             self._line(line, envelope)
 
@@ -427,22 +449,27 @@ class NativeFold:
         gaps[coverage.SUBAGENT_UNIDENTIFIED] += self.turns.unnamed
         gaps[coverage.CORRELATION_LIMIT] += self.turns.refused
         # Every request the CLI settles writes one `token_usage_record` beside the `token_count` reporting it, so a
-        # record beyond the invocation's reports that were no proven repeat is usage this collection cannot observe.
-        reported = self.requests.reports - self.requests.repeats
-        gaps[coverage.UNSUPPORTED_USAGE_SOURCE] += max(self.requests.usage_records - reported, 0)
+        # record beyond its branch's reports that were no proven repeat is usage this collection cannot observe.
+        branches = self.requests.branches.values()
+        gaps[coverage.UNSUPPORTED_USAGE_SOURCE] += sum(branch.unanswered for branch in branches)
         gaps[coverage.NO_TERMINAL_RESULT] += self.turns.unclosed
         gaps[coverage.OVERSIZE_METADATA] += self.metadata.oversize
         gaps[coverage.MALFORMED_METADATA] += self.metadata.malformed
         return +gaps
 
-    def _placed(self, position: int, event: dict[str, Any]) -> Line:
-        """Where a line sits, and whether it is the invocation's; crossing the boundary keeps the baseline before it."""
-        stamp, moment = stamped(event, self.metadata)
-        crossing = self.timeline.boundary is None
-        line = Line(position, self.timeline.place(position, event, moment), stamp)
-        if crossing and line.own:
-            self.requests.cross()
-        return line
+    def _record(self, line: Line) -> None:
+        """Note a usage record on the branch of the turn it settles in, where `token_count` lines can be told apart.
+
+        A record in a child turn naming no id has no branch, and neither has one past the child turn bound; each such
+        turn is a gap already.
+        """
+        turn = self.turns.current(line.own)
+        if self.turns.overflowed or (turn is not None and turn.unnamed_child):
+            return
+        branch = self.requests.branch(None if turn is None else turn.branch)
+        if branch is not None:
+            branch.unreported += 1
+            branch.records += line.own
 
     def _line(self, line: Line, envelope: Envelope) -> None:
         marker = _MARKED.get(envelope.kind)
@@ -471,25 +498,29 @@ class NativeFold:
         """
         if token_info is None:
             return
-        self.requests.reports += line.own
+        turn = self.turns.current(line.own)
         if self.turns.overflowed:
             self.notes.gaps[coverage.CORRELATION_LIMIT] += line.own
         else:
-            self.requests.report(line, token_info, self.turns.current(line.own))
+            self.requests.report(line, token_info, turn)
 
     def _turn_context(self, line: Line, payload: dict[str, Any]) -> None:
-        """Set the model the named turn runs on: its own where it is a child, the thread's otherwise.
+        """Set the model the turn a `turn_context` names runs on: a child turn's own, or the thread's open root turn's.
 
-        A model naming another than the one its branch last ran on is a `model-change` of that branch -- a child
-        turn's carrying its turn and the turn it was started from.
+        A context naming any other turn sets no model, since nothing places it, and the invocation's is a
+        `conversation-ambiguous` gap. A model naming another than the one its branch last ran on is a `model-change`
+        of that branch -- a child turn's carrying its turn and the turn it was started from.
         """
         turn_id = self.metadata.text(payload.get(_TURN_ID))
-        parent = None if turn_id is None else self.turns.children.get(turn_id)
-        child = None if parent is None else Turn(turn_id, parent, own=line.own)
-        branch = self.requests.branch(None if child is None else turn_id)
+        turn = self.turns.named(turn_id, line.own)
+        if turn is None:
+            self.notes.gaps[coverage.CONVERSATION_AMBIGUOUS] += line.own
+            return
+        branch = self.requests.branch(turn.branch)
         if branch is None:
             return
         model = self.metadata.text(payload.get("model"))
         if model and branch.model and model != branch.model:
+            child = None if turn.parent_turn_id is None else turn
             self.notes.mark(line, request_models.MODEL_CHANGE, (model, branch.model), child)
         branch.model = model or request_scan.REFUSED
