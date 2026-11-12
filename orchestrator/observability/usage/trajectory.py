@@ -4,9 +4,9 @@
 
 Two dispatches share this owner. `parse_agent_trajectory` reconstructs what a run did; `parse_agent_request_usage`
 collects the per-request usage observations its stream reports, which a caller attaches as the trajectory's
-`request_usage` under a failure boundary of its own, so a collector that fails costs the trajectory nothing. Only an
-Antigravity stream has a request collector; a Claude or Codex run collects none, which a record states by leaving
-the field out.
+`request_usage` under a failure boundary of its own, so a collector that fails costs the trajectory nothing. An
+Antigravity and a Claude stream each have a request collector; a Codex run collects none, which a record states by
+leaving the field out.
 """
 
 from __future__ import annotations
@@ -15,12 +15,13 @@ from orchestrator.observability.usage import (
     event_stream,
     protocol,
     request_agy,
-    request_coverage,
+    request_claude,
     trajectory_agy,
     trajectory_claude_stream,
     trajectory_claude_turns,
     trajectory_codex,
 )
+from orchestrator.observability.usage.request_coverage import RequestUsage
 from orchestrator.observability.usage.skills import (
     parse_claude_skills,
     parse_codex_skills,
@@ -74,14 +75,16 @@ def parse_agent_request_usage(
     backend: str,
     stdout: str,
     fallback_model: str | None = None,
-) -> request_coverage.RequestUsage | None:
+) -> RequestUsage | None:
     """Dispatch request-usage collection by agent backend; None where the backend has no request collector.
 
     `fallback_model` is the configured model a request is attributed to where the stream names none.
     """
     if backend == protocol.AGY:
         return request_agy.collect(stdout, fallback_model)
-    if backend in {protocol.CLAUDE, protocol.CODEX}:
+    if backend == protocol.CLAUDE:
+        return request_claude.collect(stdout, fallback_model)
+    if backend == protocol.CODEX:
         return None
     raise ValueError(
         f"unknown agent backend {backend!r}; expected 'claude', 'codex', or 'agy'",

@@ -6,9 +6,10 @@ A collection's status is read off the gaps it recorded rather than set beside th
 collection is `unavailable` where nothing could be read -- no stream event at all, or a collector that failed --
 `source-limit-truncated` where a collection bound stopped the scan short of the whole invocation,
 `storage-truncated` where the record kept fewer samples or markers than were observed, `incomplete` where the scan
-covered the invocation but some request is missing, unsettled, unattributed, or contradicts itself, `complete-empty`
-where it covered the invocation and found no request, and `complete` otherwise. Each gap is kept as a reason code
-with the number of times it occurred, a vocabulary fixed here, so the reasons are bounded however damaged a stream is.
+covered the invocation but some request is missing, unsettled, unattributed, observed only in part, or contradicts
+itself, `complete-empty` where it covered the invocation and found no request, and `complete` otherwise. Each gap is
+kept as a reason code with the number of times it occurred, a vocabulary fixed here, so the reasons are bounded however
+damaged a stream is.
 
 The counts are kept with the scope they were taken over. Observed samples are the requests the scan found and retained
 samples the ones the record kept; a scan a bound cut short is `partial`, so its count is never read as the
@@ -19,12 +20,13 @@ listed apart from the gaps, since they say nothing about whether this run's coll
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from types import MappingProxyType
 from typing import Any
 
 from orchestrator.observability.usage import request_normalization as normalization
 from orchestrator.observability.usage.request_models import (
+    OUTPUT_SCOPE,
     PROVISIONAL,
     RequestMarker,
     RequestObservation,
@@ -72,11 +74,16 @@ OVERSIZE_METADATA = "oversize-metadata"
 MALFORMED_METADATA = "malformed-metadata"
 MALFORMED_ENVELOPES = "malformed-envelopes"
 MALFORMED_USAGE = "malformed-usage"
+OUTPUT_ONLY_OBSERVATIONS = "output-only-observations"
+AGGREGATE_ONLY_USAGE = "aggregate-only-usage"
+IDENTITY_CONFLICTING = "identity-conflicting"
 
 _UNAVAILABLE_REASONS = frozenset((COLLECTOR_ERROR, NO_STREAM_EVENTS))
 _SOURCE_LIMIT_REASONS = frozenset((SCAN_LIMIT, OVERSIZE_LINES, CORRELATION_LIMIT))
-# The counters one request's usage is unusable without, each of which has to be observed.
+# The counters one request's usage is unusable without, each of which has to be observed; an output-only observation
+# has its output alone to observe, the thinking inside it beside it.
 _CORE_FIELDS = (normalization.CONTEXT_INPUT_TOKENS, normalization.OUTPUT_TOKENS)
+_OUTPUT_ONLY_FIELDS = (normalization.OUTPUT_TOKENS, normalization.REASONING_TOKENS)
 _COUNTER_GAPS = MappingProxyType({
     normalization.CONFLICTING: CONFLICTING_COUNTERS,
     normalization.INVALID: INVALID_COUNTERS,
@@ -108,12 +115,31 @@ def evidence_gaps(states: Iterable[str]) -> Iterator[str]:
     yield from (gap for state, gap in _COUNTER_GAPS.items() if state in present)
 
 
-def observation_gaps(observation: RequestObservation, *, subagent: bool) -> Iterator[str]:
-    """The gaps one observation leaves in its collection: unusable counters, unsettled usage, no model."""
+def _judged(observation: RequestObservation) -> tuple[frozenset[str], tuple[str, ...]]:
+    """The evidence states an observation is judged on, and the core fields it is unusable without.
+
+    An observation of a request's output alone establishes no context input by its scope, so its one core field is
+    its output, and only the fields it observes are judged: the ones its scope leaves out hold no evidence about the
+    request.
+    """
     usage = observation.usage
-    yield from evidence_gaps(usage.states())
-    core = frozenset(usage.fields[name].state for name in _CORE_FIELDS)
+    if observation.scope != OUTPUT_SCOPE:
+        return usage.states(), _CORE_FIELDS
+    states = frozenset(usage.fields[name].state for name in _OUTPUT_ONLY_FIELDS)
+    return states, _OUTPUT_ONLY_FIELDS[:1]
+
+
+def observation_gaps(observation: RequestObservation, *, subagent: bool) -> Iterator[str]:
+    """The gaps one observation leaves in its collection: unusable counters, unsettled usage, no model.
+
+    The part of a request an output-only observation never observed is a gap of its own rather than a missing counter.
+    """
+    states, core_fields = _judged(observation)
+    yield from evidence_gaps(states)
+    core = frozenset(observation.usage.fields[name].state for name in core_fields)
     yield from (gap for state, gap in _CORE_GAPS.items() if state in core)
+    if observation.scope == OUTPUT_SCOPE:
+        yield OUTPUT_ONLY_OBSERVATIONS
     if observation.status == PROVISIONAL:
         yield PROVISIONAL_USAGE
     if observation.attribution.model is None:
@@ -152,6 +178,14 @@ class RequestUsage:
     def failed(cls) -> RequestUsage:
         """The collection a collector that raised leaves: nothing read, and the reason why."""
         return cls(CollectionCoverage(MappingProxyType({COLLECTOR_ERROR: 1})))
+
+    def unlinked(self) -> RequestUsage:
+        """This collection with no observation naming a trajectory turn: what a record with no timeline keeps."""
+        observations = tuple(
+            replace(observation, identity=replace(observation.identity, trajectory_turn=None))
+            for observation in self.observations
+        )
+        return replace(self, observations=observations)
 
     def summary(self, retained_samples: int, retained_markers: int) -> dict[str, Any]:
         """The coverage of a record keeping the first `retained_samples` samples and `retained_markers` markers.

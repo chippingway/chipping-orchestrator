@@ -38,8 +38,9 @@ serialization as the sink writes it, so a collector that raises, or a collection
 leaves a field stating `collector-error` while the trajectory beside it is written whole. A stream the usage parser
 refuses -- a line the JSON decoder refuses although it parses -- still writes no `agent_exit` record and publishes no
 total, and nothing is reconstructed from it; where the backend has a request collector, the block then writes a record
-carrying only the run's context, its `user_input`, the request usage the collector read past the refusal, and a
-`stream_refused` flag set to true, with no `run_usage` and no steps, while a backend with none writes nothing. With the
+carrying only the run's context, its `user_input`, the request usage the collector read past the refusal -- its
+requests naming no trajectory turn, since the record has none -- and a `stream_refused` flag set to true, with no
+`run_usage` and no steps, while a backend with none writes nothing. With the
 sink off (the default) the block is a no-op before any parse work or request collection — the prompt is never read into
 a record and the `agent_exit` shape is byte-for-byte unchanged. `runtime.ticks.run_tick` does not yet call
 `prune_trajectory_records`, so trajectory retention stays operator-driven for now.
@@ -53,8 +54,8 @@ since its stream carries no offered-tools frame), `skills_triggered` / `skills_a
 `skills.discovery.discover_local_skill_sources(cwd)` filesystem scan, since its stream carries no offered-skills
 catalog; the source level that scan also reports rides the `agent_exit` record, not this one), a `run_usage` summary,
 a claude-only per-turn `turns` array, a codex-only `source_items` accounting with its `source_item_counts` summary and
-`source_items_truncated` flag, an Antigravity-only `request_usage` field (below), a `stream_refused` flag on the record
-of a run whose stdout the usage parser refused (above), an ordered `steps` array (each
+`source_items_truncated` flag, an Antigravity and Claude `request_usage` field (below), a `stream_refused` flag on
+the record of a run whose stdout the usage parser refused (above), an ordered `steps` array (each
 `{kind, name, tool_id, content}` plus a `turn` index on the billed steps, where
 `kind` is `tool_call` / `tool_result` / `assistant_message` / `user_message` / `unsupported_item` and `content` is the
 redacted tool input, tool result, or text turn — `name` / `tool_id` are `null` on the message turns, and an
@@ -105,19 +106,21 @@ rows — or for none of them, in which case the `source_items` key is absent whi
 many items the stream identified. A claude run identifies no codex items, so all three keys are simply absent from its
 record.
 
-**Request usage (`request_usage`).** Beside the steps, a run whose backend has a request collector -- Antigravity
-alone today -- carries the per-request usage [the usage parser](usage.md#request-usage-observations) collects from the
-same stdout: its `coverage` and its aggregate `checkpoints`, always kept, then its boundary `markers` and its
-`samples`, one per request, as far as the record budget reaches. It is collected on every tracked exit while the sink
-is on, a failed, interrupted, or timed-out run's, one that returned no session id, and one whose stdout the run parsers
-refused included, since what the process printed is attributable to it either way; with the sink off no collector
-runs. A Claude or Codex record carries no such key, and neither does any record an earlier build wrote: the field's
-absence means its requests were not collected, never that the run made none, and no reader infers or backfills a
-breakdown in its place. A sample holds allowlisted counters and correlation metadata -- identities, positions, model
-and provenance, settlement, counters and their evidence -- and no prompt, response or tool text, or reasoning, and
-every string in the field passes the same secret redactor as the free text before it is charged. Nothing reads the
-field back into a decision: `run_usage`, the cost evidence, the per-issue accounting and pinned totals, the claude
-`turns`, and the timeline are what they would be without it.
+**Request usage (`request_usage`).** Beside the steps, a run whose backend has a request collector -- Antigravity and
+Claude today -- carries the per-request usage [the usage parser](usage.md#request-usage-observations) collects from the
+same stdout: its `coverage` and its aggregate `checkpoints`, always kept, then its boundary `markers` and its `samples`,
+one per request, as far as the record budget reaches. It is collected on every tracked exit while the sink is on, a
+failed, interrupted, or timed-out run's, one that returned no session id, and one whose stdout the run parsers refused
+included, since what the process printed is attributable to it either way; with the sink off no collector runs. A Codex
+record carries no such key, and neither does any record an earlier build wrote: the field's absence means its requests
+were not collected, never that the run made none, and no reader infers or backfills a breakdown in its place. A Claude
+sample also names the trajectory turn it is numbered under by the key it is settled under (`trajectory_turn`) -- the
+`turn` of its `turns` entry and of the steps it produced -- so a request's usage reads beside its turn; one numbered
+only under another key links none. A sample holds allowlisted counters and
+correlation metadata -- identities, positions, model and provenance, settlement, counters and their evidence -- and no
+prompt, response or tool text, or reasoning, and every string in the field passes the same secret redactor as the free
+text before it is charged. Nothing reads the field back into a decision: `run_usage`, the cost evidence, the per-issue
+accounting and pinned totals, the claude `turns`, and the timeline are what they would be without it.
 
 **Join keys.** The envelope and correlation context double as join keys back to the numeric sinks. `session_id` (the
 live `result.session_id`) is the per-run key onto the

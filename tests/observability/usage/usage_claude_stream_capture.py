@@ -30,6 +30,11 @@ What the capture establishes about Claude's accounting:
 - Each usage block carries both the flat `cache_creation_input_tokens` and the `cache_creation` split by TTL.
   The lead threads write one-hour cache entries and the subagent five-minute ones. A `message_delta` carries
   the TTL split only under `iterations`.
+- What correlates a request: an `assistant` frame names its API request (`request_id`) beside its message; a
+  subagent's frames name the call that launched it and the subagent (`agent_id`), which a `task_started` frame
+  also names with the subagent's type; and the hand-back names the same subagent (`agentId`) and the model that
+  ran it (`resolvedModel`) beside the call it answers. The `init` frame names the session and the CLI version, and
+  `modelUsage` the model's context window.
 
 Keeping the last `assistant` frame per `message.id` sums the start counts: 31 output tokens on the main run,
 where the CLI reports 358; 92 on the subagent run, where it reports 314 for the lead thread and 450 in all.
@@ -142,6 +147,16 @@ SUBAGENT_RUN_LEAD_TOTALS = counts((6, 53725, 9992, 314))
 SUBAGENT_RUN_MODEL_TOTALS = counts((10, 68286, 26375, 450))
 SUBAGENT_RUN_COST_USD = 0.18454820000000002
 SUBAGENT_RUN_NUM_TURNS = 3
+
+MAIN_RUN_SESSION = "7d4c1e52-3b0a-4f6e-9a18-5c2e0b9d3f71"
+SUBAGENT_RUN_SESSION = "2e9f6a03-8c41-4b7d-b5e2-91d0c7a4f6e8"
+# Each main-run message's thinking, out of the final output its `message_delta` reports.
+MAIN_RUN_THINKING = (0, 0, 60)
+SUBAGENT_CALL = "toolu_lead_0"
+SUBAGENT_AGENT = "agent_lead_0"
+SUBAGENT_TYPE = "general-purpose"
+HANDBACK_THINKING = 36
+CONTEXT_WINDOW = 1_000_000
 
 _STATUS_LINE = '{"type":"system","subtype":"status","status":"requesting"}'
 

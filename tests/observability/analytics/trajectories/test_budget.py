@@ -80,6 +80,11 @@ _TURNS_KEY = _support.TURNS_KEY
 _RECORD_BUDGET = "TRAJECTORY_RECORD_BUDGET"
 
 
+# The budgets below are measured for the steps, turns, and item accounting; the request usage field is charged and
+# drawn on its own retention tests, so the runs here collect none.
+_REQUEST_COLLECTOR = "parse_agent_request_usage"
+
+
 _DROPS_EXCESS_STEPS_OBJECT_ARGUMENT = 3552
 
 
@@ -156,10 +161,9 @@ _ACCOUNTING_BUDGET_CASES = (
 def _emit_stubbed_trajectory(test_case, trajectory) -> tuple[str, dict]:
     with tempfile.TemporaryDirectory() as temp_dir:
         trajectory_path = Path(temp_dir) / _TRAJECTORY_FILENAME
-        with patch.object(
-            _usage_trajectory,
-            "parse_agent_trajectory",
-            return_value=trajectory,
+        with (
+            patch.object(_usage_trajectory, "parse_agent_trajectory", return_value=trajectory),
+            patch.object(_usage_trajectory, _REQUEST_COLLECTOR, return_value=None),
         ):
             test_case._emit(
                 stdout="",
@@ -179,6 +183,7 @@ class RecordAgentExitTrajectoryBudgetTest(_support.RecordAgentExitTrajectorySupp
         with (
             tempfile.TemporaryDirectory() as td,
             patch.object(trajectory_models, _RECORD_BUDGET, _DROPS_EXCESS_STEPS_OBJECT_ARGUMENT),
+            patch.object(_usage_trajectory, _REQUEST_COLLECTOR, return_value=None),
         ):
             t_path = Path(td) / _TRAJECTORY_FILENAME
             self._emit(

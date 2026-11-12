@@ -319,11 +319,12 @@ PROFILES = MappingProxyType({
         (INPUT, OUTPUT),
         cache_within_input=True,
     ),
-    # Ordinary input, cache reads, and cache writes are three classes; each write is counted once.
+    # Ordinary input, cache reads, and cache writes are three classes; each write is counted once, and the thinking
+    # a message's final report breaks out sits inside its output.
     protocol.CLAUDE: Profile(
         "input-excludes-cache",
         (INPUT, CACHE_READ, CACHE_WRITE),
-        frozenset((INPUT, OUTPUT, *_EVERY_CACHE_COUNTER)),
+        frozenset((INPUT, OUTPUT, REASONING, *_EVERY_CACHE_COUNTER)),
     ),
     # Ordinary input and cache reads are two classes, and no cache write is reported at all.
     protocol.AGY: Profile(

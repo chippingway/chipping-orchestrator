@@ -168,8 +168,10 @@ class ProfileSemanticsTest(unittest.TestCase):
                 self.assertEqual(usage.count(_CACHE_WRITE), _CLAUDE_WRITE)
                 self.assertEqual(usage.count(_CONTEXT), _CLAUDE_CONTEXT)
                 self.assertEqual(usage.count(_TOTAL), _CLAUDE_CONTEXT + _CLAUDE_OUTPUT)
+                # Claude breaks the thinking inside its output out on a message's final report, so one left out is
+                # missing rather than unsupported.
                 self.assertEqual(
-                    (usage.lifetimes_state, usage.fields[_REASONING].state), (lifetime_state, _UNSUPPORTED),
+                    (usage.lifetimes_state, usage.fields[_REASONING].state), (lifetime_state, _MISSING),
                 )
         self.assertEqual(
             normalization.normalize(protocol.CLAUDE, cases[0][1]).to_dict()[_LIFETIMES],

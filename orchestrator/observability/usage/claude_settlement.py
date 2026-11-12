@@ -17,7 +17,8 @@ its last frame carries, and neither hand-backs nor `modelUsage` are read.
 Only output counts are settled. Input and cache counts stay the ones the `assistant` frames carry, and a hand-back's
 row carries its output count alone, so a run's input and cache counts leave out the message closing a subagent: its
 `handback-output` scope says that row establishes no request's prompt. The run aggregate and the per-turn builder
-settle through the same `ClaudeSettlement`, so the turns sum to the run.
+settle through the same `ClaudeSettlement`, so the turns sum to the run, and so does the request collector, which
+reads each message's settled row by the key it was folded under (`settled_by_key`) for the report that settled it.
 """
 
 from __future__ import annotations
@@ -80,6 +81,16 @@ def input_and_cache(bucket: protocol.TokenBucket) -> tuple[int, int, int]:
 usage_row_index = attrgetter("ordinal")
 
 
+def closed_row(
+    usage_row: claude_requests.ClaudeUsageRow,
+    final_output: int | None,
+) -> claude_requests.ClaudeUsageRow:
+    """A message row settled by the `message_delta` closing it, where one closed it with a final output count."""
+    if final_output is None:
+        return usage_row
+    return usage_row.with_output(final_output, claude_requests.SETTLED_BY_DELTA)
+
+
 @dataclass
 class ClaudeSettlement:
     """What a stream shows of each message's final output count, gathered as its frames arrive."""
@@ -101,19 +112,26 @@ class ClaudeSettlement:
             self.handbacks[handback[0]] = handback[1]
         self.model_usage = model_usage_counts(event) or self.model_usage
 
-    def settled_rows(
+    def settled_by_key(
         self,
         rows_by_id: dict[str, claude_requests.ClaudeUsageRow],
-    ) -> list[claude_requests.ClaudeUsageRow]:
-        """The message rows in order, each output count settled to the final one the stream shows."""
+    ) -> dict[str, claude_requests.ClaudeUsageRow]:
+        """Each message row under its key, its output count settled to the final one the stream shows."""
         settled = {
-            message_id: self._closed(message_id, usage_row)
+            message_id: closed_row(usage_row, self.final_outputs.get(message_id))
             for message_id, usage_row in rows_by_id.items()
         }
         models = dict.fromkeys(usage_row.model for usage_row in settled.values())
         for model in models:
             self._reconcile(model, settled)
-        return sorted(settled.values(), key=usage_row_index)
+        return settled
+
+    def settled_rows(
+        self,
+        rows_by_id: dict[str, claude_requests.ClaudeUsageRow],
+    ) -> list[claude_requests.ClaudeUsageRow]:
+        """The message rows in order, each output count settled to the final one the stream shows."""
+        return sorted(self.settled_by_key(rows_by_id).values(), key=usage_row_index)
 
     def handback_rows(self) -> list[claude_requests.ClaudeUsageRow]:
         """One row per subagent hand-back, holding the output count of the message that closed the subagent.
@@ -132,13 +150,10 @@ class ClaudeSettlement:
                 handback.model,
                 token_evidence.reported_counts({protocol.OUTPUT: handback.counts.get(protocol.OUTPUT)}),
                 claude_requests.HANDBACK_OUTPUT,
+                settlement=claude_requests.SETTLED_BY_HANDBACK,
             )
             for handback in self.handbacks.values()
         ]
-
-    def _closed(self, message_id: str, usage_row: claude_requests.ClaudeUsageRow) -> claude_requests.ClaudeUsageRow:
-        final_output = self.final_outputs.get(message_id)
-        return usage_row if final_output is None else usage_row.with_output(final_output)
 
     def _reconcile(self, model: str, settled: dict[str, claude_requests.ClaudeUsageRow]) -> None:
         open_message = self._sole_open_message(model, settled)
@@ -146,7 +161,9 @@ class ClaudeSettlement:
         if open_message is None or unprinted is None:
             return
         start = settled[open_message].counts.get(protocol.OUTPUT, 0)
-        settled[open_message] = settled[open_message].with_output(start + unprinted)
+        settled[open_message] = settled[open_message].with_output(
+            start + unprinted, claude_requests.SETTLED_BY_MODEL_USAGE,
+        )
 
     def _sole_open_message(self, model: str, settled: dict[str, claude_requests.ClaudeUsageRow]) -> str | None:
         # What `modelUsage` leaves over belongs to one subagent message only
