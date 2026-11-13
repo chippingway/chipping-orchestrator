@@ -226,7 +226,8 @@ siblings return. The per-issue counters that verdict reads are not these sinks: 
 pinned comment once, by the accounting checkpoint the tracked spawn asks as the run returns, a held or killed run's
 included, and an exit no checkpoint landed is never reconstructed from the analytics or audit records, which stay
 observational. The same page defines the provider-neutral per-request usage records, their normalization, coverage,
-and bounded scan, and the Antigravity and Claude collectors the trajectory sink records them through.
+and bounded scan, the Antigravity and Claude collectors the trajectory sink records them through, and the dormant
+Codex collector over the native session log lines it is handed, which no dispatch calls and no reader feeds yet.
 
 ## Summary of "what runs when"
 
