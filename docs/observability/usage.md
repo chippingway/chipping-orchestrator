@@ -1023,11 +1023,12 @@ only their tests call them.
 `NativeScope.of(invocation, scan)` takes the invocation's facts -- the session id the run returned, whether it resumed
 one, a UTC moment read just before its launch off the clock the CLI stamps by, and, for a resume, how many whole lines
 the log held at that moment -- and the `EventScan` its reader shares, in which the reader records a bound that stopped
-its read (`scan-limit`) or a read failing partway (`native-read-interrupted`). `read(position, line)` takes the log a
-line at a time, never holding it whole, and places each line as the invocation's or not, with its stamp, the envelope it
-is read as, and the turn a usage line settles in; `refusal(stdout)` names why nothing in the log can be attributed to
-the invocation, or nothing where both proofs below hold. Where either fails, no line is attributed and no suffix of the
-log is guessed.
+its read (`scan-limit`) or a read failing partway (`native-read-interrupted`); with none shared, the scope decodes
+into one of its own, held to the bounds in force. `read(position, line)` takes the log a line at a time, never holding
+it whole, and places each line as the invocation's or not, with its stamp, the envelope it is read as, whether turn
+knowledge was lost at it, and the turn a usage line settles in; `refusal(stdout)` names why nothing in the log can be
+attributed to the invocation, or nothing where both proofs below hold. Where either fails, no line is attributed and no
+suffix of the log is guessed.
 
 The log has to be the session's own: its first line a `session_meta` whose `id` is the returned session, an empty id
 naming none (`native-identity-unproven` otherwise). And the launch has to place the invocation. A fresh run's log did
