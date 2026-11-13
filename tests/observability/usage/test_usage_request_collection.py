@@ -62,6 +62,21 @@ _BOUNDS = (
     ("scanned characters", dataclasses.replace(_LIMITS, scan_chars=_LINE + 1), 1, coverage.SCAN_LIMIT),
     ("decoded events", dataclasses.replace(_LIMITS, events=1), 1, coverage.SCAN_LIMIT),
 )
+# Lines holding no object -- an array, banner text, whitespace alone, nothing at all, and a frame cut short -- and one
+# event under a line bound of its own length: ended by a carriage return and a newline, or by a carriage return alone,
+# and padded past the bound by a space before it, or by a carriage return before its ending.
+_NO_OBJECT_LINES = ("[]", "Antigravity CLI ready", "   ", "", _COMPLETE_EVENT[:-1])
+_ENDED_EVENT = f"{_COMPLETE_EVENT}\r\n"
+_RETURN_ENDED_EVENT = f"{_COMPLETE_EVENT}\r"
+_PADDED_EVENTS = (f" {_ENDED_EVENT}", f"{_RETURN_ENDED_EVENT}\r\n")
+_NATIVE_LINES = (*_NO_OBJECT_LINES, _ENDED_EVENT, _RETURN_ENDED_EVENT, *_PADDED_EVENTS)
+_DECODED_EVENT = MappingProxyType({"event": "result", "result": {}})
+_UNDECODED = tuple(None for _ in _NO_OBJECT_LINES)
+_NATIVE_DECODED = (*_UNDECODED, dict(_DECODED_EVENT), dict(_DECODED_EVENT), None, None)
+_NATIVE_GAPS = MappingProxyType({
+    coverage.MALFORMED_LINES: len(_NO_OBJECT_LINES),
+    coverage.OVERSIZE_LINES: len(_PADDED_EVENTS),
+})
 _UNSUPPORTED = normalization.Reading(state=normalization.UNSUPPORTED)
 # How an observation differs from a final, attributed, complete one; whether it is a subagent's; and its gaps.
 _OBSERVATION_GAPS = (
@@ -141,16 +156,28 @@ class CollectionStatusTest(unittest.TestCase):
             ({coverage.OVERSIZE_LINES: 1, _STORAGE: 1}, 2, coverage.SOURCE_LIMIT_TRUNCATED),
             ({coverage.NO_STREAM_EVENTS: 1, coverage.SCAN_LIMIT: 1}, 0, coverage.UNAVAILABLE),
             ({coverage.COLLECTOR_ERROR: 1}, 0, coverage.UNAVAILABLE),
+            ({coverage.INVOCATION_UNATTRIBUTED: 1, coverage.MALFORMED_LINES: 1}, 0, coverage.UNAVAILABLE),
+            ({coverage.NATIVE_READ_INTERRUPTED: 1, _STORAGE: 1}, 2, coverage.SOURCE_LIMIT_TRUNCATED),
+            ({coverage.UNRECONCILED_USAGE: 1}, 2, coverage.INCOMPLETE),
+            ({coverage.UNSUPPORTED_USAGE_SOURCE: 1}, 0, coverage.INCOMPLETE),
         )
         for reasons, observed, status in cases:
             with self.subTest(reasons=reasons, observed=observed):
                 self.assertEqual(coverage.collection_status(reasons, observed), status)
 
     def test_partial_scans_never_claim_the_invocation(self) -> None:
+        # A source that stopped answering partway is a partial scan; lines read that establish nothing of the
+        # invocation -- a native log no proof places it in -- cover none of it, while a stream read through without
+        # finding an event, or finding usage it could not reconcile or read a request from, still covers the whole.
         cases = (
             ({}, coverage.INVOCATION_SCOPE),
             ({coverage.CORRELATION_LIMIT: 1}, coverage.PARTIAL_SCOPE),
             ({coverage.SCAN_LIMIT: 1}, coverage.PARTIAL_SCOPE),
+            ({coverage.NATIVE_READ_INTERRUPTED: 1}, coverage.PARTIAL_SCOPE),
+            ({coverage.INVOCATION_UNATTRIBUTED: 1}, coverage.NO_SCOPE),
+            ({coverage.NATIVE_IDENTITY_UNPROVEN: 1}, coverage.NO_SCOPE),
+            ({coverage.NO_STREAM_EVENTS: 1}, coverage.INVOCATION_SCOPE),
+            ({coverage.UNRECONCILED_USAGE: 1, coverage.UNSUPPORTED_USAGE_SOURCE: 1}, coverage.INVOCATION_SCOPE),
         )
         for reasons, scope in cases:
             with self.subTest(reasons=reasons):
@@ -224,6 +251,19 @@ class BoundedScanTest(unittest.TestCase):
                 events = scan.scan_events(stdout, _TAIL_LIMITS)
                 self.assertLessEqual(_widest_search(non_space), _TAIL_LIMITS.scan_chars)
                 self.assertEqual(dict(events.gaps), gaps)
+
+    def test_native_lines_decode_strictly(self) -> None:
+        # A native log holds JSON objects alone, so a line holding none -- whitespace alone included -- is malformed,
+        # and the line bound holds a line as handed over short of its one line ending, so padding makes one oversize,
+        # carriage returns before that ending included; each line is counted where it stands, and nothing is kept.
+        events = scan.EventScan(dataclasses.replace(_LIMITS, line_chars=_LINE))
+        decoded = tuple(map(events.counted, _NATIVE_LINES))
+        self.assertEqual(decoded, _NATIVE_DECODED)
+        self.assertEqual(events.gaps, _NATIVE_GAPS)
+        self.assertEqual(events.scanned_lines, len(decoded))
+        self.assertEqual(events.unread_lines, events.skipped_lines)
+        self.assertEqual(events.skipped_lines, decoded.count(None))
+        self.assertEqual(events.events, [])
 
     def test_bad_metadata_is_dropped_and_counted(self) -> None:
         # A string too long is dropped whole, never cut, and a value that is no string is malformed: each is counted

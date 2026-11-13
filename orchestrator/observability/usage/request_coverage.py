@@ -3,18 +3,21 @@
 """How much of a run's request usage one collection covered, and the field the observations ride in.
 
 A collection's status is read off the gaps it recorded rather than set beside them, so the two cannot disagree. A
-collection is `unavailable` where nothing could be read -- no stream event at all, or a collector that failed --
-`source-limit-truncated` where a collection bound stopped the scan short of the whole invocation,
-`storage-truncated` where the record kept fewer samples or markers than were observed, `incomplete` where the scan
-covered the invocation but some request is missing, unsettled, unattributed, observed only in part, or contradicts
-itself, `complete-empty` where it covered the invocation and found no request, and `complete` otherwise. Each gap is
-kept as a reason code with the number of times it occurred, a vocabulary fixed here, so the reasons are bounded however
-damaged a stream is.
+collection is `unavailable` where nothing attributable to the invocation could be read -- no stream event at all, a
+collector that failed, or a Codex native session log that could not be found, read, proven the session's own, or
+placed the invocation in -- `source-limit-truncated` where a collection bound stopped the scan short of the whole
+invocation, or the source stopped answering partway, `storage-truncated` where the record kept fewer samples or markers
+than were observed, `incomplete` where the scan covered the invocation but some request is missing, unsettled,
+unattributed, observed only in part, unreconciled with the running sum beside it, reported only by a source the
+collector reads no request from, or contradicts itself, `complete-empty` where it covered the invocation and found no
+request, and `complete` otherwise. Each gap is kept as a reason code with the number of times it occurred, a
+vocabulary fixed here, so the reasons are bounded however damaged a stream is.
 
 The counts are kept with the scope they were taken over. Observed samples are the requests the scan found and retained
 samples the ones the record kept; a scan a bound cut short is `partial`, so its count is never read as the
-invocation's. Source limitations -- what a provider's stream never reports, such as timestamps or cache writes -- are
-listed apart from the gaps, since they say nothing about whether this run's collection was whole.
+invocation's, and one that established nothing of the invocation is `none`, whatever lines it read. Source
+limitations -- what a provider's stream never reports, such as timestamps or cache writes -- are listed apart from the
+gaps, since they say nothing about whether this run's collection was whole.
 """
 
 from __future__ import annotations
@@ -47,10 +50,21 @@ NO_SCOPE = "none"
 # Nothing could be read.
 COLLECTOR_ERROR = "collector-error"
 NO_STREAM_EVENTS = "no-stream-events"
-# A collection bound stopped the scan short of the whole invocation.
+# Nothing attributable to the invocation could be read from a native session log: the run named no session, the
+# launch it was started under was not observed, the lookup found no log, could not read it, or ran out of bounds, the
+# log is not proven the session's own, or nothing in it proves which of its lines the invocation wrote.
+NO_SESSION_IDENTITY = "no-session-identity"
+NO_LAUNCH_OBSERVATION = "no-launch-observation"
+NATIVE_LOG_MISSING = "native-log-missing"
+NATIVE_LOG_UNREADABLE = "native-log-unreadable"
+DISCOVERY_LIMIT = "discovery-limit"
+NATIVE_IDENTITY_UNPROVEN = "native-identity-unproven"
+INVOCATION_UNATTRIBUTED = "invocation-unattributed"
+# A collection bound stopped the scan short of the whole invocation, or the source stopped answering partway.
 SCAN_LIMIT = "scan-limit"
 OVERSIZE_LINES = "oversize-lines"
 CORRELATION_LIMIT = "correlation-limit"
+NATIVE_READ_INTERRUPTED = "native-read-interrupted"
 # The record kept fewer entries than the scan observed.
 STORAGE_BUDGET = "storage-budget"
 # The scan covered the invocation, but the evidence in it does not.
@@ -77,9 +91,26 @@ MALFORMED_USAGE = "malformed-usage"
 OUTPUT_ONLY_OBSERVATIONS = "output-only-observations"
 AGGREGATE_ONLY_USAGE = "aggregate-only-usage"
 IDENTITY_CONFLICTING = "identity-conflicting"
+# A native session log's report not proven a new request of the invocation beside the running sum it reports, and usage
+# reported only where no request is read from, such as a usage record no report answers.
+UNRECONCILED_USAGE = "unreconciled-usage"
+UNSUPPORTED_USAGE_SOURCE = "unsupported-usage-source"
 
-_UNAVAILABLE_REASONS = frozenset((COLLECTOR_ERROR, NO_STREAM_EVENTS))
-_SOURCE_LIMIT_REASONS = frozenset((SCAN_LIMIT, OVERSIZE_LINES, CORRELATION_LIMIT))
+_UNAVAILABLE_REASONS = frozenset((
+    COLLECTOR_ERROR,
+    NO_STREAM_EVENTS,
+    NO_SESSION_IDENTITY,
+    NO_LAUNCH_OBSERVATION,
+    NATIVE_LOG_MISSING,
+    NATIVE_LOG_UNREADABLE,
+    DISCOVERY_LIMIT,
+    NATIVE_IDENTITY_UNPROVEN,
+    INVOCATION_UNATTRIBUTED,
+))
+# The one reason nothing could be read that still leaves a scan of the whole invocation: a stream it read through and
+# found no event in.
+_EMPTY_SCAN_REASONS = frozenset((NO_STREAM_EVENTS,))
+_SOURCE_LIMIT_REASONS = frozenset((SCAN_LIMIT, OVERSIZE_LINES, CORRELATION_LIMIT, NATIVE_READ_INTERRUPTED))
 # The counters one request's usage is unusable without, each of which has to be observed; an output-only observation
 # has its output alone to observe, the thinking inside it beside it.
 _CORE_FIELDS = (normalization.CONTEXT_INPUT_TOKENS, normalization.OUTPUT_TOKENS)
@@ -158,7 +189,14 @@ class CollectionCoverage:
 
     @property
     def scan_scope(self) -> str:
-        if _UNAVAILABLE_REASONS.intersection(self.reasons) and not self.scanned_lines:
+        """How much of the invocation the scan covered: none, part of it, or all of it.
+
+        A scan that read no line covers nothing where nothing could be read, and so does one whatever lines it read
+        where they established nothing of the invocation -- a native log not proven the session's own, or one nothing
+        in which places the invocation -- while a stream read through without finding an event still covers it.
+        """
+        unavailable = _UNAVAILABLE_REASONS.intersection(self.reasons)
+        if unavailable and (not self.scanned_lines or unavailable - _EMPTY_SCAN_REASONS):
             return NO_SCOPE
         if _SOURCE_LIMIT_REASONS.intersection(self.reasons):
             return PARTIAL_SCOPE

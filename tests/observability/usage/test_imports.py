@@ -47,6 +47,8 @@ _OWNERS = (
     "request_claude_messages",
     "request_claude_reports",
     "request_claude_stream",
+    "request_codex_scope",
+    "request_codex_turns",
     "request_coverage",
     "request_models",
     "request_normalization",

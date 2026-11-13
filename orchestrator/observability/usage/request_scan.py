@@ -16,6 +16,14 @@ less than the whole invocation says so. A line shaped like a JSON object that do
 line the decoder refuses included; any other line that decodes to no event -- banner text, or a value that is no
 object -- is skipped without being one, since it could never have been an event.
 
+A Codex native session log is read through the same decoding and gap accounting rather than stdout, its lines handed
+over one at a time (`EventScan.counted`) rather than every decoded event kept, a line past `MAX_LINE_CHARS` --
+whitespace included -- counted oversize however it arrived. A native log holds JSON objects alone, so any of its lines
+holding none -- nothing but whitespace included -- is a malformed line. The bounds a reader of that log is held to --
+how many session directories and entries its lookup may examine and how many bytes of the log it may read, beside
+`MAX_EVENTS` lines -- are defined here beside the others, so one collection reads them all from `current_limits`; no
+lookup or read in this package holds them yet, since nothing collects a Codex run's requests.
+
 The bounds are module defaults rather than knobs, read once per collection by `current_limits`, so a caller shrinks
 one here and the next collection is held to it.
 """
@@ -40,11 +48,19 @@ MAX_BRANCHES = 64
 MAX_MARKERS = 256
 MAX_CHECKPOINTS = 4
 MAX_METADATA_CHARS = 128
+# A native session log lookup and read: the directories and the directory entries the lookup examines, and the bytes
+# of the log the read takes. The lines it reads are held to `MAX_EVENTS`, and one line to `MAX_LINE_CHARS` bytes.
+MAX_SESSION_DIRECTORIES = 4_096
+MAX_SESSION_ENTRIES = 262_144
+MAX_LOG_BYTES = 67_108_864  # 64 MiB
 
 # What a field reads as where the stream named a value this collection refused -- too long to keep, or no string at
 # all. No kept value is empty, so it stands apart from a value kept and from none named.
 REFUSED = ""
 _OBJECT_START = "{"
+# A line's one ending, a carriage return and a newline both included where they end it as a pair.
+_NEWLINE = "\n"
+_CARRIAGE_RETURN = "\r"
 _NON_SPACE = re.compile(r"\S")
 # What a number literal whose exponent no `Decimal` holds is read as: no number at all, which no reader takes for one.
 _UNREADABLE_NUMBER = Decimal("NaN")
@@ -64,6 +80,9 @@ class CollectionLimits:
     markers: int
     checkpoints: int
     metadata_chars: int
+    session_directories: int
+    session_entries: int
+    log_bytes: int
 
 
 @dataclass
@@ -134,19 +153,49 @@ class EventScan:
             self.events.append((position, decoded[0]))
         return True
 
-    def _decoded(self, line: str) -> list[dict[str, Any]]:
+    def counted(self, raw_line: str) -> dict[str, Any] | None:
+        """Decode one native log line a reader hands over, counting it; the event it holds, or None where none.
+
+        Nothing is kept: a native log's lines are fed in one at a time, so its decoded lines never pile up in memory,
+        and a reader holds its byte and line-count bounds itself. The line bound holds the line as handed over,
+        whitespace included, short of the one ending it -- a newline, a carriage return, or the two as a pair -- so no
+        padding of carriage returns before that ending escapes it. A native log is nothing but JSON objects, one a
+        line, with no banner, so any line holding no object -- whitespace alone included -- is a malformed one.
+        """
+        measured = raw_line.removesuffix(_NEWLINE).removesuffix(_CARRIAGE_RETURN)
+        if len(measured) > self.limits.line_chars:
+            self.oversize()
+            return None
+        line = raw_line.strip()
+        self.scanned_lines += 1
+        decoded = self._decoded(line, strict=True)
+        return decoded[0] if decoded else None
+
+    def oversize(self) -> None:
+        """Count one line a reader found too long to read, as a line this scan skips for its length is counted."""
+        self.scanned_lines += 1
+        self._skipped(coverage.OVERSIZE_LINES)
+
+    @property
+    def unread_lines(self) -> int:
+        """How many lines this scan could not read as what they were: cut short, refused, or too long to read."""
+        return self.gaps[coverage.MALFORMED_LINES] + self.gaps[coverage.OVERSIZE_LINES]
+
+    def _decoded(self, line: str, *, strict: bool = False) -> list[dict[str, Any]]:
         """The event one line decodes to, or none, with why a line was skipped counted where it is a gap.
 
-        Only a line shaped like an object could have been an event, so one that decodes to none -- cut short, or
+        Only a line shaped like an object could have been a stream event, so one that decodes to none -- cut short, or
         refused by the decoder for a number past the interpreter's digit limit or nesting past its depth -- is a
-        malformed line of this scan, while any other skipped line is not.
+        malformed line of this scan, while any other skipped line is not, unless the source is `strict` about holding
+        objects alone.
         """
         if len(line) > self.limits.line_chars:
             return self._skipped(coverage.OVERSIZE_LINES)
         decoded = decode_event(line)
         if decoded is not None:
             return [decoded]
-        return self._skipped(coverage.MALFORMED_LINES if line.startswith(_OBJECT_START) else None)
+        malformed = strict or line.startswith(_OBJECT_START)
+        return self._skipped(coverage.MALFORMED_LINES if malformed else None)
 
     def _skipped(self, gap: str | None) -> list[dict[str, Any]]:
         self.skipped_lines += 1
@@ -192,6 +241,9 @@ def current_limits() -> CollectionLimits:
         markers=MAX_MARKERS,
         checkpoints=MAX_CHECKPOINTS,
         metadata_chars=MAX_METADATA_CHARS,
+        session_directories=MAX_SESSION_DIRECTORIES,
+        session_entries=MAX_SESSION_ENTRIES,
+        log_bytes=MAX_LOG_BYTES,
     )
 
 

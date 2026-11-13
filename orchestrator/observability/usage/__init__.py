@@ -29,8 +29,13 @@ with its stream fold, request fold, counter reading, and process reports
 ``request_scan``, ``request_agy``, ``request_agy_steps``,
 ``request_agy_branches``, ``request_claude``, ``request_claude_stream``,
 ``request_claude_messages``, ``request_claude_counters``,
-``request_claude_reports``). The request collectors are dispatched beside the
-trajectory parsers on ``trajectory`` and are not published here.
+``request_claude_reports``) -- beside the dormant scope over a Codex native
+session log, which proves which of its lines one invocation wrote and follows
+the turns they open and settle usage in (``request_codex_scope``,
+``request_codex_turns``). The request collectors are dispatched beside the
+trajectory parsers on ``trajectory`` and are not published here; the Codex
+scope is called by no dispatch yet, reads only the lines its caller hands it,
+and is not published either.
 
 This initializer re-exports the narrow public surface (``__all__``): the nine
 parsers a caller dispatches through -- dispatch plus the Codex and Claude
