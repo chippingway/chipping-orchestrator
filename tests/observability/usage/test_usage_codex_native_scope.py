@@ -10,7 +10,11 @@ from unittest.mock import patch
 from orchestrator.observability.usage import request_coverage as coverage, request_scan
 from orchestrator.observability.usage.request_codex_scope import stdout_turns
 from orchestrator.observability.usage.request_codex_turns import UNPLACED
-from tests.observability.usage import usage_codex_native_capture as capture, usage_codex_request_cases as codex
+from tests.observability.usage import (
+    usage_codex_native_capture as capture,
+    usage_codex_native_scope_cases as scoping,
+    usage_codex_request_cases as codex,
+)
 
 _LINES = "lines"
 _TIMESTAMP = "timestamp"
@@ -133,7 +137,7 @@ class CapturedInvocationTest(unittest.TestCase):
     def test_each_invocation_owns_its_lines(self) -> None:
         for invocation, turn_ids in _OWN_TURNS:
             with self.subTest(start=invocation.start):
-                scoped = codex.scoped(invocation)
+                scoped = scoping.scoped(invocation)
                 self.assertIsNone(scoped.refusal)
                 self.assertEqual(scoped.own, list(range(invocation.start, invocation.end)))
                 self.assertEqual(scoped.usage_turns, turn_ids)
@@ -148,13 +152,13 @@ class CapturedInvocationTest(unittest.TestCase):
         for invocation in capture.INVOCATIONS:
             with self.subTest(start=invocation.start):
                 self.assertEqual(stdout_turns(invocation.stdout, request_scan.current_limits()), 1)
-        usage_only = codex.scoped(_USAGE_ONLY_STDOUT, _APPENDED_TURN_LOG)
+        usage_only = scoping.scoped(_USAGE_ONLY_STDOUT, _APPENDED_TURN_LOG)
         self.assertEqual(usage_only.refusal, coverage.INVOCATION_UNATTRIBUTED)
 
     def test_only_a_fresh_run_wrote_its_version(self) -> None:
         for invocation in (capture.FRESH, capture.RESUMED):
             with self.subTest(resumed=invocation.resumed):
-                scope = codex.scoped(invocation).scope
+                scope = scoping.scoped(invocation).scope
                 version = scope.timeline.writer_version(_FIRST_PAYLOAD, scope.metadata)
                 self.assertEqual(version, None if invocation.resumed else capture.CLI_VERSION)
 
@@ -179,12 +183,12 @@ class UnattributedLogTest(unittest.TestCase):
     def test_a_log_not_the_sessions_own(self) -> None:
         for name, options in _NOT_OWN:
             with self.subTest(name):
-                self.assertEqual(codex.scoped(**options).refusal, coverage.NATIVE_IDENTITY_UNPROVEN)
+                self.assertEqual(scoping.scoped(**options).refusal, coverage.NATIVE_IDENTITY_UNPROVEN)
 
     def test_an_unprovable_boundary(self) -> None:
         for name, invocation, lines in _UNPROVEN:
             with self.subTest(name):
-                scoped = codex.scoped(invocation, lines)
+                scoped = scoping.scoped(invocation, lines)
                 self.assertEqual(scoped.refusal, coverage.INVOCATION_UNATTRIBUTED)
                 self.assertGreater(scoped.scope.scan.scanned_lines, 0)
 
@@ -193,14 +197,14 @@ class UnattributedLogTest(unittest.TestCase):
         # invocation's, however much of the log would otherwise be taken for its own.
         for counted in _UNUSABLE_COUNTS:
             with self.subTest(counted=counted):
-                scoped = codex.scoped(capture.RESUMED._replace(start=counted))
+                scoped = scoping.scoped(capture.RESUMED._replace(start=counted))
                 self.assertEqual(scoped.refusal, coverage.INVOCATION_UNATTRIBUTED)
                 self.assertEqual(scoped.own, [])
                 self.assertIsNone(scoped.scope.timeline.boundary)
 
     def test_an_invocation_that_wrote_nothing(self) -> None:
         # A resume that wrote no line, and whose stdout started no turn, crossed no boundary and is refused nothing.
-        scoped = codex.scoped(_SILENT)
+        scoped = scoping.scoped(_SILENT)
         self.assertIsNone(scoped.refusal)
         self.assertEqual(scoped.own, [])
         self.assertIsNone(scoped.scope.timeline.boundary)
@@ -213,18 +217,18 @@ class LaunchPlacementTest(unittest.TestCase):
         # A line in the launch's own millisecond is placed by the count, and an unstamped one too.
         for (name, invocation, lines), own in zip(_PLACED, _PLACED_OWN, strict=True):
             with self.subTest(name):
-                scoped = codex.scoped(invocation, lines)
+                scoped = scoping.scoped(invocation, lines)
                 self.assertIsNone(scoped.refusal)
                 self.assertEqual(scoped.own, list(own))
 
     def test_stamps_that_place_nothing(self) -> None:
         # An unstamped line keeps no stamp, and a stamp no UTC moment reads as -- its offset carrying it out of range
         # included -- is malformed metadata kept as written; neither places anything.
-        unstamped = codex.scoped(codex.APPENDED, _UNSTAMPED_LOG)
+        unstamped = scoping.scoped(codex.APPENDED, _UNSTAMPED_LOG)
         self.assertEqual({line.stamp for line in unstamped.lines if line.own}, {None})
         for stamp in _UNREADABLE_STAMPS:
             with self.subTest(stamp):
-                scoped = codex.appended(_STARTED, _NEXT.replace(codex.STAMP, stamp), _COMPLETE)
+                scoped = scoping.appended(_STARTED, _NEXT.replace(codex.STAMP, stamp), _COMPLETE)
                 self.assertIsNone(scoped.refusal)
                 self.assertEqual(scoped.scope.metadata.malformed, 1)
                 self.assertIn(stamp, {line.stamp for line in scoped.lines})
@@ -238,7 +242,7 @@ class PartialReadTest(unittest.TestCase):
         # have opened or closed any turn, so the next line read loses track of which are open.
         for unread in (*_NO_OBJECTS, *_NO_ENVELOPES):
             with self.subTest(unread=unread):
-                scoped = codex.appended(_STARTED, unread, _NEXT, _COMPLETE)
+                scoped = scoping.appended(_STARTED, unread, _NEXT, _COMPLETE)
                 self.assertEqual(scoped.settled(codex.TOKEN_COUNT), [UNPLACED])
                 self.assertTrue(any(line.lost for line in scoped.lines if line.own))
                 self.assertIsNone(scoped.refusal)
@@ -250,7 +254,7 @@ class PartialReadTest(unittest.TestCase):
         for oversize in (_OVERSIZE_LINE, _PADDED_LINE):
             bound = patch.object(request_scan, "MAX_LINE_CHARS", _LONGEST)
             with self.subTest(padded=oversize.startswith(" ")), bound:
-                scoped = codex.appended(_STARTED, oversize, _NEXT, _COMPLETE)
+                scoped = scoping.appended(_STARTED, oversize, _NEXT, _COMPLETE)
                 self.assertEqual(len(oversize), _LONGEST + 1)
                 self.assertEqual(scoped.scope.scan.gaps, {coverage.OVERSIZE_LINES: 1})
                 self.assertEqual(scoped.settled(codex.TOKEN_COUNT), [UNPLACED])
@@ -260,12 +264,12 @@ class PartialReadTest(unittest.TestCase):
         # A reader a bound or a failing read stopped records why in the scan it shares, counting only the lines read;
         # the lines past the cut prove nothing, so neither a turn stdout printed and the read never reached nor a read
         # ending short of the lines the launch counted refuses anything -- as the same lines read whole would.
-        self.assertEqual(codex.scoped(codex.APPENDED, _ALL_BUT_LAST).refusal, coverage.INVOCATION_UNATTRIBUTED)
+        self.assertEqual(scoping.scoped(codex.APPENDED, _ALL_BUT_LAST).refusal, coverage.INVOCATION_UNATTRIBUTED)
         for gap in _READER_STOPS:
             with self.subTest(gap):
                 scan = request_scan.EventScan(request_scan.current_limits())
                 scan.gaps[gap] += 1
-                scoped = codex.scoped(codex.APPENDED, _ALL_BUT_LAST, scan=scan)
+                scoped = scoping.scoped(codex.APPENDED, _ALL_BUT_LAST, scan=scan)
                 self.assertIsNone(scoped.refusal)
                 self.assertEqual(scan.gaps, {gap: 1})
                 self.assertEqual(scan.scanned_lines, len(_ALL_BUT_LAST))
@@ -273,7 +277,7 @@ class PartialReadTest(unittest.TestCase):
     def test_an_unreadable_stdout_counts_nothing(self) -> None:
         # A stdout line the scan could not read could have started a turn, so the turns the log opened are held to none.
         self.assertIsNone(stdout_turns(_UNREADABLE_STDOUT.stdout, request_scan.current_limits()))
-        self.assertIsNone(codex.scoped(_UNREADABLE_STDOUT, _FOREIGN_TURN_LOG).refusal)
+        self.assertIsNone(scoping.scoped(_UNREADABLE_STDOUT, _FOREIGN_TURN_LOG).refusal)
 
 
 if __name__ == "__main__":

@@ -7,10 +7,10 @@ often the stream repeats it: what it is called and what kind of name that is, wh
 session, conversation, turn, message, request, step, and parent or subagent identity the stream gave it, the
 trajectory turn the run's timeline numbers it under where it has one, the model it ran on and how that model was
 established, the raw counters as reported, the normalized counters with their evidence, the scope those counters cover
--- one whole request, or only the output of one -- and whether its usage is final or provisional and which report
-settled it. A source timestamp is the stream's own; the moment a collection ran is the record's, never one of these. A
-field the stream did not give is absent, never guessed: no timestamp, branch order across conversations, context
-capacity, or model is inferred from unrelated data.
+-- one whole request, or only the output of one -- whether its usage is final or provisional and which report
+settled it, and any flag the source reported about what its counters cover. A source timestamp is the stream's own;
+the moment a collection ran is the record's, never one of these. A field the stream did not give is absent, never
+guessed: no timestamp, branch order across conversations, context capacity, or model is inferred from unrelated data.
 
 A marker is an explicit boundary the stream printed -- a model change, a context compaction, or a reset -- and a
 checkpoint is aggregate evidence such as a terminal total, with the scope it covers. Neither is a request, so neither
@@ -31,13 +31,16 @@ from orchestrator.observability.usage.request_normalization import NormalizedUsa
 # Identity kinds: a step within a named conversation, and a step the stream named no conversation for, which is
 # known only within the process that printed it; an API message under its own id, one under the id of the API
 # request that produced it, and the output of a subagent's closing message under the call its hand-back answers; and
-# a request the stream named no identity for, known only by the stdout line the process first printed it on.
+# a request the stream named no identity for, known only by the stdout line the process first printed it on; and a
+# request a native session log reported with no request id, known by the line of that log that reported it, which
+# the log only ever appends after.
 CONVERSATION_STEP = "conversation-step"
 PROCESS_STEP = "process-step"
 API_MESSAGE = "api-message"
 API_REQUEST = "api-request"
 HANDBACK_CALL = "handback-call"
 SOURCE_POSITION = "source-position"
+NATIVE_POSITION = "native-position"
 
 # Scopes: one request, the output alone of one request, every request of a conversation however many processes it
 # spanned, every lead-thread request of one process, and every request one model served in one process.
@@ -92,6 +95,7 @@ class RequestIdentity:
     request_id: str | None = None
     agent_id: str | None = None
     parent_tool_use_id: str | None = None
+    parent_turn_id: str | None = None
     trajectory_turn: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -107,6 +111,7 @@ class RequestIdentity:
             "parent_conversation_id": self.parent_conversation_id,
             "parent_step_index": self.parent_step_index,
             PARENT_TOOL_USE_ID: self.parent_tool_use_id,
+            "parent_turn_id": self.parent_turn_id,
             "agent_id": self.agent_id,
             "subagent_type": self.subagent_type,
             "trajectory_turn": self.trajectory_turn,
@@ -136,10 +141,11 @@ class RequestObservation:
     """One request the stream settled usage for.
 
     `position` is the stream line its collector places it at -- the one that completed an Antigravity step, the first
-    one naming a Claude message -- and `branch_order` its place among its own branch's requests; neither orders it
-    against another branch's. `raw` holds the allowlisted counters that are whole counts, a negative one included -- a
-    value that is none is left out, its field invalid -- `usage` the normalized ones, `scope` how much of the request
-    they cover, and `settlement` the report its `status` rests on.
+    one naming a Claude message, the native session log line reporting a Codex request -- and `branch_order` its place
+    among its own branch's requests; neither orders it against another branch's. `raw` holds the allowlisted counters
+    that are whole counts, a negative one included -- a value that is none is left out, its field invalid -- `usage`
+    the normalized ones, `scope` how much of the request they cover, and `settlement` the report its `status` rests on.
+    `source_flags` holds the allowlisted flags the source reported beside the counters, as it reported them.
     """
 
     identity: RequestIdentity
@@ -154,6 +160,7 @@ class RequestObservation:
     source_kind: str | None = None
     source_timestamp: str | None = None
     source_duration_s: float | None = None
+    source_flags: Mapping[str, bool] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -164,6 +171,7 @@ class RequestObservation:
                 "source_kind": self.source_kind,
                 "source_timestamp": self.source_timestamp,
                 "source_duration_s": self.source_duration_s,
+                "source_flags": dict(self.source_flags) if self.source_flags else None,
             }),
             **self.attribution.to_dict(),
             SCOPE: self.scope,
@@ -178,8 +186,8 @@ class RequestObservation:
 class RequestMarker:
     """An explicit boundary the stream printed, at the line it printed it; never a request.
 
-    `conversation_id` names the conversation it bounds, and `parent_tool_use_id` the subagent call whose branch it
-    bounds where that is not the lead thread.
+    `conversation_id` names the conversation it bounds, and `parent_tool_use_id` the subagent call, or `turn_id` and
+    `parent_turn_id` the child turn, whose branch it bounds where that is not the lead thread.
     """
 
     kind: str
@@ -188,6 +196,8 @@ class RequestMarker:
     model: str | None = None
     previous_model: str | None = None
     parent_tool_use_id: str | None = None
+    turn_id: str | None = None
+    parent_turn_id: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return compact({
@@ -195,6 +205,8 @@ class RequestMarker:
             POSITION: self.position,
             CONVERSATION_ID: self.conversation_id,
             PARENT_TOOL_USE_ID: self.parent_tool_use_id,
+            "turn_id": self.turn_id,
+            "parent_turn_id": self.parent_turn_id,
             MODEL: self.model,
             "previous_model": self.previous_model,
         })

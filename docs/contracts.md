@@ -133,18 +133,35 @@ unknown rather than inferred from another (a skill load is no evidence of its of
 query's SELECT list raises rather than reading as NULL. A current optional field's absence, an ID-less CLI run, an
 unpriced cost, and a malformed record's containment remain current answers. A trajectory record's `request_usage` is
 read only as its collector wrote it: absent is a run whose requests were not collected -- a Codex run, and every
-record an earlier build wrote -- never an empty breakdown, and nothing infers or backfills one. The scope over a Codex
-native session log is dormant, called by no dispatch, and attributes a line to an invocation only under proof: the
-log's first line a `session_meta` naming the session the run returned, and the launch facts its caller supplies -- a
-fresh run's whole log, a resumed run's lines past the whole lines its log held at the launch -- with every stamp
-agreeing with that placement and the root turns it opened with stdout's `turn.started` lines. A resume with no count of
-a line or more, a log not the session's own, a log read whole that is shorter than the count, a stamp the clock
-contradicts, a turn stdout's count does not account for, or usage settled in no turn the invocation opened -- none at
-all, an earlier invocation's left open, or one a usage record names -- or a child turn started from one, attributes
-nothing, never a guessed suffix. A report among overlapping turns no record tells apart, a usage record naming its turn
-by an id the scope refused and the report after it, any usage line past a line no reading could place before a root
-turn opens, and any past a child turn the scope's bound refused settle in no turn, and past either no usage line or
-child turn's start is taken for another process's; stdout's cumulative `turn.completed` is never request evidence.
+record an earlier build wrote -- never an empty breakdown, and nothing infers or backfills one. The Codex request
+collector is dormant, called by no dispatch, and attributes only what it proves: a sample is a `token_count` the
+invocation's own lines of a native session log reported, and its scope attributes a line to an invocation only under
+proof: the log's first line a `session_meta` naming the session the run returned, and the launch facts its caller
+supplies -- a fresh run's whole log, a resumed run's lines past the whole lines its log held at the launch -- with every
+stamp agreeing with that placement and the root turns it opened with stdout's `turn.started` lines. A resume with no
+count of a line or more, a log not the session's own, a log read whole that is shorter than the count, a stamp the
+clock contradicts, a turn stdout's count does not account for, or usage settled in no turn the invocation opened --
+none at all, an earlier invocation's left open, or one a usage record names -- or a child turn started from one,
+attributes nothing, never a guessed suffix. A report among overlapping turns no record tells apart, a usage record
+naming its turn by an id the scope refused and the report after it, any usage line past a line no reading could place
+before a root turn opens, and any past a child turn the scope's bound refused settle in no turn, and past either no
+usage line or child turn's start is taken for another process's. A report settled in no turn, repeating its branch's
+running sum, not proven to advance it by its own counters with at least one of them moving and within what its branch's
+earlier requests, an earlier invocation's included, establish the sum holds, giving counters an earlier request whose
+usage record no report answered could repeat, on any branch while that request is left -- a record repeating its
+request's counters, each report of a record's own branch whose running sum rises past the most that branch's earlier
+reports establish answering the invocation's own earliest record whose counters it could give, else the earliest earlier
+one whose counters it could give, as no repeat, proven current or not, no sparser sum, no sum climbing back after
+shrinking, no report naming no running sum, and no report of another branch does, and a record placed on no branch none,
+since a late report settles in whatever turn is open, a child turn opened after it included -- or answering such a
+record itself, any once another branch has reported -- a report naming no running sum, or whose `info` is no object,
+included -- as a repeat of any of that branch's reports could be, short of the
+invocation's own record awaiting it on its branch, giving counters any record of the invocation's another branch awaits
+could repeat, following a running sum smaller than an earlier one or than the request reported beside it, or the first
+of its branch past a line no reading could place or a report no branch takes is no request, its evidence kept as a gap,
+so no earlier invocation's request is copied into a later one; a running sum is a checkpoint, never a request size or a
+compaction, reconciled with the invocation's own thread samples only where the sum it began from is proven; and neither
+a `token_usage_record`'s counters nor stdout's cumulative `turn.completed` is ever a sample or a request size.
 Within the shared request-usage format a counter a
 sample did not observe is unknown rather than zero, a common total sums only
 observed non-overlapping counters and never the provider's own total, a model the stream did not establish is none
@@ -368,6 +385,9 @@ or lost write interrupted are current state, not historical compatibility.
 [Claude request coverage](../tests/observability/usage/test_usage_claude_request_coverage.py),
 [Codex native-log scope](../tests/observability/usage/test_usage_codex_native_scope.py),
 [Codex native turns](../tests/observability/usage/test_usage_codex_native_turns.py),
+[Codex request samples](../tests/observability/usage/test_usage_codex_request_samples.py),
+[Codex request coverage](../tests/observability/usage/test_usage_codex_request_coverage.py),
+[Codex request fold state](../tests/observability/usage/test_usage_codex_request_fold.py),
 [request usage records](../tests/observability/analytics/trajectories/test_request_usage.py),
 [Claude request records](../tests/observability/analytics/trajectories/test_request_usage_claude.py),
 [verification artifacts](../tests/github/test_verification_artifacts.py),

@@ -41,7 +41,8 @@ turn each usage line settles in, so which lines are the invocation's and which t
 reading the usage they report. Its `refusal` is the admission: why nothing in the log can be attributed to the
 invocation, or None where both proofs hold. Where either fails, nothing is attributed; no suffix of the log is ever
 guessed. Only the process that created the log wrote its `session_meta`, so only a fresh run is the one whose CLI
-version it names. The scope is dormant: nothing in the runtime looks a log up, reads one, or calls it yet.
+version it names. The scope is dormant: nothing in the runtime looks a log up or reads one, and only the dormant
+collector in `request_codex` calls it.
 """
 
 from __future__ import annotations

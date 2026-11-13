@@ -6,6 +6,7 @@ The keys asserted here are the serialized format a trajectory record's `request_
 out literally rather than read back off the owners.
 """
 
+import dataclasses
 import json
 import unittest
 from types import MappingProxyType
@@ -83,17 +84,29 @@ _FULL = MappingProxyType({
 # Every identity and source field a sample keys only where its stream gave one.
 _NEVER_GIVEN = frozenset((
     _CONVERSATION_ID, "session_id", "turn_id", "message_id", "parent_conversation_id", "parent_step_index",
-    "subagent_type", "source_kind", "source_timestamp", "source_duration_s",
+    "parent_turn_id", "subagent_type", "source_kind", "source_timestamp", "source_duration_s", "source_flags",
 ))
+# A request a native session log reported in a child turn, known by the line reporting it, with the flag its source
+# reported beside its counters.
+_TURN_IDS = MappingProxyType({"turn_id": "turn-3", "parent_turn_id": "turn-2"})
+_FLAGS = MappingProxyType({"last_usage_includes_reasoning": False})
+_NATIVE = MappingProxyType({
+    "id": "rollout-line:7",
+    "id_kind": "native-position",
+    **_TURN_IDS,
+    "source_flags": dict(_FLAGS),
+})
 _MARKERS = (
     models.RequestMarker(models.MODEL_CHANGE, 4, _CHILD, model="b", previous_model="a"),
     models.RequestMarker(models.COMPACTION, 6),
     models.RequestMarker(models.RESET, 8),
+    models.RequestMarker(models.MODEL_CHANGE, 10, _CHILD, model="d", previous_model="c", **_TURN_IDS),
 )
 _SERIALIZED_MARKERS = (
     {_KIND: "model-change", _POSITION: 4, _CONVERSATION_ID: _CHILD, "model": "b", "previous_model": "a"},
     {_KIND: "compaction", _POSITION: 6},
     {_KIND: "reset", _POSITION: 8},
+    {_KIND: "model-change", _POSITION: 10, _CONVERSATION_ID: _CHILD, **_TURN_IDS, "model": "d", "previous_model": "c"},
 )
 _CHECKPOINT = models.UsageCheckpoint(
     "result-total",
@@ -170,6 +183,12 @@ class ObservationRecordTest(unittest.TestCase):
         self.assertEqual(sparse[_CACHE_READ_TOKENS], 0)
         self.assertFalse({"reasoning_tokens", "source_total_tokens"} & set(sparse))
         self.assertNotIn(None, sparse.values())
+
+    def test_native_turns_and_flags(self) -> None:
+        # The child turn a native request settled in, the turn it was started from, and the source's flags as given.
+        identity = models.RequestIdentity("rollout-line:7", models.NATIVE_POSITION, **_TURN_IDS)
+        native = dataclasses.replace(_observation(identity), source_flags=_FLAGS).to_dict()
+        self.assertEqual({name: native[name] for name in _NATIVE}, dict(_NATIVE))
 
 
 class CollectionRecordTest(unittest.TestCase):
