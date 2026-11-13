@@ -142,9 +142,10 @@ read whole that is shorter than the count, usage settled past the count in no tu
 all, an earlier invocation's left open or a child started from it, or one a usage record names -- or a stamp the clock
 contradicts attributes nothing, never a guessed suffix.
 A report repeating its branch's running sum, not proven to advance it by its own counters with at least one of them
-moving, or following an earlier request whose usage record no report covered, is no request, so no earlier
-invocation's request is copied into a later one, and stdout's cumulative `turn.completed` is never a sample nor a
-request size. Within the shared request-usage format a counter a sample did not observe is unknown rather than zero, a
+moving, or following an earlier request whose usage record no report answered -- each report answering one -- is no
+request, nor is one past a line no reading could place before a root turn opens, so no earlier invocation's request is
+copied into a later one, and stdout's cumulative `turn.completed` is never a sample nor a request size. Within the
+shared request-usage format a counter a sample did not observe is unknown rather than zero, a
 common total sums only observed non-overlapping counters and never the provider's own total, a model the stream did not
 establish is none rather than another conversation's or branch's or one taken from unrelated data, a coverage short of
 `complete` or `complete-empty` or a scan scope short of `invocation` never reads as the whole invocation, an output-only

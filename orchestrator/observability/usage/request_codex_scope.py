@@ -47,6 +47,8 @@ object, or names a parent this collection could not read, is malformed metadata 
 unproven: it abandons no open turn, and no request settles in it. A request belongs to the turn the usage record written
 just before its report names, where that turn is still open, or else to the one open turn; where several are open -- a
 parent and its child included -- and no record names one, nothing tells which the report is, and it is placed in none.
+A line this collection could not read could have opened or closed any turn, so past it which turns are open is unknown,
+and no report is placed in any until a root turn opens, leaving itself alone open.
 """
 
 from __future__ import annotations
@@ -255,16 +257,16 @@ class Records:
         self.conflicted = self.conflicted or changed
         self.named = turn
 
-    def take(self, opened: list[Turn]) -> Turn | None:
+    def take(self, opened: list[Turn], lost: bool) -> Turn | None:
         """The turn a `token_count` settles in, the records noted for it spent: the one they named, or else the one
-        open turn -- `UNPLACED` where the records conflict, or none names one of several open turns, a parent and its
-        child included, since any of them could have made the request.
+        open turn -- `UNPLACED` where the records conflict, none names one of several open turns, a parent and its
+        child included, since any of them could have made the request, or the turns open are `lost`.
 
         A record and its report are written while their turn is open, so a record naming a turn closed since is one
         whose report never came, and tells nothing of this one.
         """
         named = self.named if self.named in opened else None
-        conflicted = self.conflicted
+        conflicted = self.conflicted or lost
         self.named = None
         self.conflicted = False
         if conflicted or (named is None and len(opened) > 1):
@@ -280,6 +282,8 @@ class Turns:
 
     `children` maps each child turn named to the turn it was started from, `refused` counts the child turns the
     invocation started past the child turn bound, and `records` correlates usage records with the reports after them.
+    `lost` is whether a line no reading could place came since the last root turn opened: it could have opened or
+    closed any turn, so which turns are open is unknown, and no report is placed in any, until a root turn opens.
     """
 
     limits: request_scan.CollectionLimits
@@ -294,6 +298,7 @@ class Turns:
     overflowed: bool = False
     intruded: bool = False
     uncertain: int = 0
+    lost: bool = False
     records: Records = field(default_factory=Records)
 
     def start(self, payload: dict[str, Any], own: bool) -> None:
@@ -305,7 +310,8 @@ class Turns:
         a request follows it. The invocation starts a child only from a turn it opened, so its child of any other
         parent -- an earlier process's, or one not open -- is another process's, which `intruded` records. A turn
         whose parentage is unproven abandons nothing and settles no request, and the invocation's is `uncertain`: a
-        root turn of its own, or not.
+        root turn of its own, or not. A root turn leaves itself alone open, which is known again after a line no reading
+        could place.
         """
         turn_id = self.metadata.text(payload.get(_TURN_ID))
         turn = Turn(turn_id, self._parent(payload), own)
@@ -313,6 +319,7 @@ class Turns:
             self.abandon()
             self.root_turns += own
             self.open = [turn]
+            self.lost = False
             return
         parent = self.named(turn.parent_turn_id)
         foreign_parent = parent is None or not parent.own
@@ -344,7 +351,7 @@ class Turns:
         records it, and the line settles in no turn.
         """
         if report:
-            settled = self.records.take(self.open)
+            settled = self.records.take(self.open, self.lost)
         elif turn_id is None:
             settled = self.open[-1] if self.open else None
         else:

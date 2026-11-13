@@ -14,9 +14,11 @@ named, or the thread's, where it names the thread's open root turn, which holds 
 turn sets no model, since nothing places it, and the invocation's is a `conversation-ambiguous` gap. A request that
 settles before its turn's own `turn_context` -- the compaction a model switch runs first, on the model the thread had --
 ran on the thread's model as the last one left it. A child turn without a `turn_context` of its own ran on no model this
-log establishes, never its parent's; a thread with none falls back to the configured `-m` model. A `turn_context` naming
-another model than the last one its branch ran on is a `model-change` marker -- a child turn's naming that turn and the
-one it was started from -- a `compacted` line a `compaction` marker, and a `thread_rolled_back` event a `reset` marker.
+log establishes, never its parent's; a thread with none falls back to the configured `-m` model. A line this pass could
+not read could have been a `turn_context`, so past it no branch runs on a model this log establishes, the thread's
+included, until a `turn_context` of its own names one. A `turn_context` naming another model than the last one its
+branch ran on is a `model-change` marker -- a child turn's naming that turn and the one it was started from -- a
+`compacted` line a `compaction` marker, and a `thread_rolled_back` event a `reset` marker.
 
 Requests. Each `token_count` reports one request's own usage (`last_token_usage`) beside its branch's running sum
 (`total_token_usage`). A sum equal to the last one the branch reported repeats a notification -- the CLI prints the same
@@ -35,10 +37,10 @@ repeats contradicts it, short of the boundary, a compaction, or a reset between 
 the sum the invocation began from is known, its requests kept on the thread add up to exactly what the thread's last
 running sum advanced past that sum, or the collection is an `unreconciled-usage` gap. The thread's running sums are
 checkpoints of the whole conversation: the last one before the boundary as the invocation's baseline, and the ones its
-own requests advance. A request the earlier lines settled after that last sum -- a usage record no `token_count`
-reported -- leaves it behind, so no baseline is established, and the invocation's first report is not proven new. A
-child turn's sums are kept only to prove its requests, since nothing establishes what they span, though they are held to
-the same arithmetic as a checkpoint.
+own requests advance. A request the earlier lines settled that no report answered -- a usage record beyond the reports
+after it, each report that repeats nothing answering one -- leaves it behind, so no baseline is established, and the
+invocation's first report is not proven new. A child turn's sums are kept only to prove its requests, since nothing
+establishes what they span, though they are held to the same arithmetic as a checkpoint.
 
 Every request the CLI settles also writes a `token_usage_record` repeating its counters under its response id. No
 request is read off one -- its counters are never a sample -- but the invocation's records are counted on the branch of
@@ -165,13 +167,14 @@ class Envelope(NamedTuple):
 class Branch:
     """One branch's state as the log is read: the model in effect, its last running sum, and the requests kept.
 
-    `unreported` counts the usage records written on it since that running sum: requests settled that no `token_count`
-    has reported yet, the sum lagging them until one does. `compacted` is whether a compaction followed that sum, after
-    which the CLI reports a context estimate repeating it. `pending` counts the invocation's own usage records on it
-    still awaiting the report written after each: a report that is no proven repeat answers one, in the order the log
-    holds them, so a record is answered only by a later report of its own branch. `floor` is the least each counter
-    of its running sum is established to hold: the count its last report gave, or, where that gave none, the floor
-    before it and the request it proved since, so a sum leaving a counter out still cannot shrink below its requests.
+    `unreported` counts the usage records written on it that no report has answered yet: requests settled that no
+    `token_count` has reported, the sum lagging them until one does. A report that is no proven repeat answers one, so
+    two records before a single report leave one unanswered, and the sum behind it. `compacted` is whether a
+    compaction followed that sum, after which the CLI reports a context estimate repeating it. `pending` counts the
+    invocation's own usage records on it still awaiting a report the same way, in the order the log holds them, so a
+    record is answered only by a later report of its own branch. `floor` is the least each counter of its running sum
+    is established to hold: the count its last report gave, or, where that gave none, the floor before it and the
+    request it proved since, so a sum leaving a counter out still cannot shrink below its requests.
     `opening` is the running sum the invocation began from -- none, for nothing at all -- where `reconcilable` holds
     that it is known, and `last_own` the request usage its last report gave, which a repeat of it gives again.
     """
@@ -191,7 +194,9 @@ class Branch:
     kept: int = 0
 
     def answer(self, own: bool) -> None:
-        """Answer the invocation's earliest record awaiting a report, where its report is one; none awaiting is none."""
+        """Answer one record awaiting a report -- the invocation's earliest too, where its report is one; none awaiting
+        is none."""
+        self.unreported = max(self.unreported - 1, 0)
         self.pending = max(self.pending - own, 0)
 
     def contradicted_by(self, token_info: dict[str, Any]) -> bool:
@@ -229,7 +234,6 @@ class Branch:
         self.position = position
         self.proven = True
         self.unread_at = unread_lines
-        self.unreported = 0
         self.compacted = False
 
     def _raise_floor(self, running: Counters, gained: Mapping[str, Reading]) -> None:
@@ -284,9 +288,9 @@ class Requests:
     def cross(self) -> None:
         """Keep the thread's running sum as the invocation's baseline, where its last before the boundary is known.
 
-        A request the earlier lines settled after that sum -- a usage record no `token_count` reported -- leaves it
-        behind, nothing at all included, so no baseline is established, and no report of the invocation's is proven to
-        advance it until one has reported where it stands.
+        A request the earlier lines settled that no report answered -- a usage record beyond the reports after it,
+        however many records came before the last one -- leaves it behind, nothing at all included, so no baseline is
+        established, and no report of the invocation's is proven to advance it until one has reported where it stands.
         """
         thread = self.branches[None]
         thread.last_own = None
@@ -303,10 +307,16 @@ class Requests:
             )
             self.observed_checkpoints += 1
 
-    def lose_track(self) -> None:
-        """Leave every branch's last running sum unproven: a line no reading could place may have reported one."""
+    def lose_track(self, models: bool = False) -> None:
+        """Leave every branch's last running sum unproven: a report no reading could place may have moved one on.
+
+        With `models`, every branch's model is unknown too -- a line no reading could place may have been a
+        `turn_context` -- until one of its own names it again.
+        """
         for branch in self.branches.values():
             branch.proven = False
+            if models:
+                branch.model = request_scan.REFUSED
 
     def report(self, line: Line, token_info: Any, turn: Turn | None) -> None:
         """Fold one `token_count` carrying usage into its branch: a sample where the invocation's line proves a new
@@ -497,18 +507,27 @@ class Notes:
 
 @dataclass
 class NativeFold:
-    """Every line of one session log folded in order, with the invocation's own lines kept as what they report."""
+    """Every line of one session log folded in order, with the invocation's own lines kept as what they report.
+
+    `unread` is how many lines the scan had left unread when the last line was read.
+    """
 
     timeline: Timeline
     turns: Turns
     requests: Requests
     notes: Notes
     metadata: request_scan.Metadata
+    unread: int = 0
 
     def feed(self, position: int, event: dict[str, Any] | None) -> None:
         """Fold one line in, where it decoded to an event: place it, then read it as whatever kind of line it is.
 
-        A line whose envelope nothing can be read off could have held a running sum, so none is proven past it.
+        A line no reading could place -- one the scan left unread, or whose envelope nothing can be read off -- could
+        have been any line: a running sum, a turn opened or closed, a model set. So no running sum is proven past it,
+        no report is placed in any turn until a root turn opens and leaves that one alone open, and no branch runs on a
+        model this log establishes until a `turn_context` of its own names one. A line the scan left unread is noticed
+        once the line after it is placed, before that one is read as anything: a baseline crossed there is already
+        unproven past it.
         """
         if event is None:
             return
@@ -519,9 +538,12 @@ class NativeFold:
             # The first of the invocation's lines keeps the baseline the earlier lines left.
             self.requests.cross()
         envelope = Envelope.of(event)
+        if envelope is None or self.requests.scan.unread_lines != self.unread:
+            self.unread = self.requests.scan.unread_lines
+            self.turns.lost = True
+            self.requests.lose_track(models=True)
         if envelope is None:
             self.notes.gaps[coverage.MALFORMED_ENVELOPES] += line.own
-            self.requests.lose_track()
         elif envelope.kind == _EVENT_MSG:
             self._event(line, envelope)
         elif envelope.kind == _USAGE_RECORD:

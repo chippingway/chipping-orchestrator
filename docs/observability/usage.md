@@ -1065,20 +1065,24 @@ from its parent's, so each is a `correlation-limit` gap rather than a sample, an
 started past the bound, whether or not a request follows it. A `turn_attribution` that is no object, or names a parent
 this collection could not read, is `malformed-metadata` and leaves the turn's parentage unproven: it abandons no open
 turn, no request settles in it -- a report there is a `conversation-ambiguous` gap -- and it counts as a root turn or
-not. A `turn_context` sets the model of the turn it names, a child turn the log named or the thread's open root turn,
-which holds until the next -- one naming any other turn sets no model, and the invocation's is a
-`conversation-ambiguous` gap. On the capture, a resume switching models first compacts the thread with one request on
-the model the thread had, before the new turn's `turn_context`, so that request is the old model's. A thread request no
-`turn_context` precedes falls back to the configured `-m` model (`configured-fallback`); a child's without its own, or
-one after a `turn_context` naming a model this collection refused, is `unestablished`. A `turn_context` naming another
-model than the one its branch last ran on is a `model-change` marker -- a child turn's naming that turn's `turn_id` and
-`parent_turn_id` -- a `compacted` line a `compaction` marker, and a `thread_rolled_back` event a `reset` marker; none is
-inferred. A child turn the invocation opened that settled no request, and each distinct subagent thread its lines name
--- in an `item_completed` `SubAgentActivity` item, or in a legacy history's `sub_agent_activity` event, which a legacy
-history persists for every activity but completion -- whose requests are in a log of that thread's own, never read, is a
-`subagent-usage-unavailable` gap, the threads past `MAX_BRANCHES` a `correlation-limit` one, and a child turn the
-invocation opened or an activity naming no id a `subagent-unidentified` one, whether or not a request settles in it,
-since no branch can keep that request.
+not. A line no reading could place -- one the scan left unread, or whose envelope nothing can be read off -- could have
+opened or closed any turn, so past it no report is placed in any -- each a `conversation-ambiguous` gap, no branch's
+running sum proven past it -- until a root turn opens and leaves itself alone open. A `turn_context` sets the model of
+the turn it names, a child turn the log named or the thread's open root turn, which holds until the next -- one naming
+any other turn sets no model, and the invocation's is a `conversation-ambiguous` gap. On the capture, a resume switching
+models first compacts the thread with one request on the model the thread had, before the new turn's `turn_context`, so
+that request is the old model's. A thread request no `turn_context` precedes falls back to the configured `-m` model
+(`configured-fallback`); a child's without its own, or one after a `turn_context` naming a model this collection
+refused, is `unestablished`, and so is every branch's, the thread's included, past a line no reading could place --
+which could have been a `turn_context` -- until a `turn_context` of its own names one, no `model-change` marked from a
+model left unknown. A `turn_context` naming another model than the one its branch last ran on is a `model-change`
+marker -- a child turn's naming that turn's `turn_id` and `parent_turn_id` -- a `compacted` line a `compaction` marker,
+and a `thread_rolled_back` event a `reset` marker; none is inferred. A child turn the invocation opened that settled no
+request, and each distinct subagent thread its lines name -- in an `item_completed` `SubAgentActivity` item, or in a
+legacy history's `sub_agent_activity` event, which a legacy history persists for every activity but completion -- whose
+requests are in a log of that thread's own, never read, is a `subagent-usage-unavailable` gap, the threads past
+`MAX_BRANCHES` a `correlation-limit` one, and a child turn the invocation opened or an activity naming no id a
+`subagent-unidentified` one, whether or not a request settles in it, since no branch can keep that request.
 
 Each `token_count` carries a request's own counters in `info.last_token_usage` beside its branch's running sum in
 `info.total_token_usage`, and a request's counters are read off the first alone. A running sum equal to the last one its
@@ -1096,8 +1100,9 @@ sum's count or, where it left the counter out, the requests proven since its las
 requests of equal counts stay two; one advancing otherwise, one only counters staying at zero agree with -- the moving
 ones left unusable by an earlier sum -- or one after a line or envelope this collection could not read -- which could
 have held the report it repeats, an earlier invocation's included -- or the invocation's first after a request the
-earlier lines settled with no `token_count` reporting it, whose usage record leaves the last running sum behind, is an
-`unreconciled-usage` gap rather than a sample, so no earlier request is ever copied into a later invocation; its own
+earlier lines settled with no `token_count` reporting it -- a usage record no report answered, each report repeating
+nothing answering one, so two records before a single report leave one -- which leaves the last running sum behind, is
+an `unreconciled-usage` gap rather than a sample, so no earlier request is ever copied into a later invocation; its own
 counters are judged all the same, an invalid or contradictory one -- a count past its running sum included -- a gap
 beside it, and so are a report's naming no running sum, and those of one no branch takes -- among overlapping turns, in
 a child turn naming no id, or past a bound -- with its running sum and its metadata. An `info` of null is a notification
@@ -1129,7 +1134,7 @@ reasoning -- has 12,000 context-input tokens and a `total_tokens` of 12,500. Con
 kept with their evidence, as on every profile.
 
 The thread's running sums are checkpoints of `conversation` scope: an `invocation-baseline`, the last one before the
-boundary where nothing unread and no usage record no report covered followed it, and a `cumulative-total` for each one
+boundary where nothing unread and no usage record no report answered followed it, and a `cumulative-total` for each one
 the invocation's requests advanced, the baseline and the last ones kept together within `MAX_CHECKPOINTS` -- none where
 it is zero -- each held to a request's arithmetic -- a counter it reports no usable count of, or that its own total or
 parts contradict, is `invalid` or `conflicting` in its `evidence` and an `invalid-counters` or `conflicting-counters`

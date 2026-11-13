@@ -71,6 +71,19 @@ _OVERSIZED_CONTEXT = codex.line(codex.TURN_CONTEXT, {codex.TURN_ID: codex.APPEND
 _FOREIGN_CONTEXT = MappingProxyType({codex.TURN_ID: codex.CHILD_TURN, cases.MODEL: "gpt-5.5-foreign"})
 _UNPLACED_CONTEXT = codex.line(codex.TURN_CONTEXT, dict(_FOREIGN_CONTEXT))
 _ATTRIBUTED = (cases.MODEL, _SOURCE)
+# Lines no reading places: a child turn's start cut short before the parent it names, a context of the appended turn
+# cut short before the model it names, and a context whose payload is no object. Any could have opened a turn or set a
+# model.
+_THREAD_CONTEXT = MappingProxyType({codex.TURN_ID: codex.APPENDED_TURN, cases.MODEL: _CHILD_MODEL})
+_NAMED_CONTEXT = codex.line(codex.TURN_CONTEXT, dict(_THREAD_CONTEXT))
+_CUT_CHILD_START = _CHILD_STARTED[:_CHILD_STARTED.rindex(codex.APPENDED_TURN)]
+_CUT_CONTEXT = _NAMED_CONTEXT[:_NAMED_CONTEXT.rindex(_CHILD_MODEL)]
+_CONTEXT_NO_OBJECT = codex.line(codex.TURN_CONTEXT, [_CHILD_MODEL])
+# The appended request reported once more, advancing the running sum the report of it leaves.
+_NEXT_AGAIN = codex.token_count((116000, 93100, 14900, 1270, 232, 117270), codex.NEXT_REQUEST)
+_PAST_CUT_CONTEXT = (_CUT_CONTEXT, _STARTED, _NEXT, _NEXT_AGAIN, _COMPLETE)
+_PAST_CONTEXT_NO_OBJECT = (_CONTEXT_NO_OBJECT, _STARTED, _NEXT, _NEXT_AGAIN, _COMPLETE)
+_PAST_UNREAD = MappingProxyType({coverage.UNRECONCILED_USAGE: 1, coverage.MODEL_UNATTRIBUTED: 1})
 _UNSET_MODELS = (
     (
         "a refused model",
@@ -83,6 +96,18 @@ _UNSET_MODELS = (
         (_STARTED, _UNPLACED_CONTEXT, _NEXT, _COMPLETE),
         (capture.SWITCHED_MODEL, "stream"),
         {coverage.CONVERSATION_AMBIGUOUS: 1},
+    ),
+    (
+        "a turn after a context cut short",
+        _PAST_CUT_CONTEXT,
+        (None, "unestablished"),
+        {**_PAST_UNREAD, coverage.MALFORMED_LINES: 1},
+    ),
+    (
+        "a turn after a context no object",
+        _PAST_CONTEXT_NO_OBJECT,
+        (None, "unestablished"),
+        {**_PAST_UNREAD, coverage.MALFORMED_ENVELOPES: 1},
     ),
 )
 _UNSTAMPED = f'"timestamp":"{codex.STAMP}",'
@@ -175,8 +200,9 @@ _METADATA_SHAPES = (
     ({_WINDOW: True}, 1),
 )
 # Earlier turns of the session, stamped before the appended invocation's launch: one whose request a usage record
-# shows and no report covers, one whose second request no report covers, and one reporting no usage at all. Each
-# resume after them reports the request the earlier turn settled last again -- or, after none, its own first one.
+# shows and no report covers, one whose second request no report covers -- recorded after its first report, or before
+# it, the one report answering only one record -- and one reporting no usage at all. Each resume after them reports the
+# request the earlier turn settled last again -- or, after none, its own first one.
 _PRIOR_STAMP = "2026-11-12T14:09:00.000Z"
 _FRESH_STARTED = codex.event(codex.TASK_STARTED, turn_id=capture.FRESH_TURN)
 _FRESH_COMPLETED = codex.event(_TASK_COMPLETE, turn_id=capture.FRESH_TURN)
@@ -187,6 +213,7 @@ _PRIOR_REPORT = codex.token_count(_REPLAYED, _REPLAYED).replace(codex.STAMP, _PR
 _REPLAYED_TWICE = tuple(2 * count for count in _REPLAYED)
 _UNCOVERED = (_FRESH_FIRST, _PRIOR_STARTED, _PRIOR_RECORD, _PRIOR_COMPLETE)
 _LAGGING = (_FRESH_FIRST, _PRIOR_STARTED, _PRIOR_RECORD, _PRIOR_REPORT, _PRIOR_RECORD, _PRIOR_COMPLETE)
+_TWICE_RECORDED = (_FRESH_FIRST, _PRIOR_STARTED, _PRIOR_RECORD, _PRIOR_RECORD, _PRIOR_REPORT, _PRIOR_COMPLETE)
 _UNUSED = (_FRESH_FIRST, _PRIOR_STARTED, _PRIOR_COMPLETE)
 # A turn reporting its request, then writing a record no reading can place: a request it settled, whatever branch.
 _UNPLACED_RECORD = codex.line(_RECORD_KIND, ["not an object"], _PRIOR_STAMP)
@@ -198,6 +225,12 @@ _BEHIND = (
         "a request past the last report",
         len(_LAGGING),
         (*_LAGGING, _STARTED, codex.token_count(_REPLAYED_TWICE, _REPLAYED), _COMPLETE),
+        0,
+    ),
+    (
+        "two requests before the last report",
+        len(_TWICE_RECORDED),
+        (*_TWICE_RECORDED, _STARTED, codex.token_count(_REPLAYED_TWICE, _REPLAYED), _COMPLETE),
         0,
     ),
     (
@@ -305,13 +338,14 @@ _PLACED = (
     ("an earlier line in the launch's millisecond", _BESIDE_EARLIER_LINE, None, [32]),
     ("unstamped lines", codex.APPENDED, _UNSTAMPED_LOG, [capture.LAST.end + 1]),
 )
-# Reports never taken for a new request: one after a line no reading could place -- which could repeat the one that
-# line held, an earlier invocation's included -- and one whose running sum moves by anything but its own counters.
+# Reports never taken for a new request: one in the turn after a line no reading could place -- which could repeat the
+# one that line held, an earlier invocation's included -- and one whose running sum moves by anything but its own
+# counters.
 # A report its own counts cannot prove new: two of them negative, and its total below its output.
 _UNUSABLE_COUNTS = (-1, -1, 0, 10, 2, 0)
 _UNUSABLE_OWN = codex.token_count(codex.NEXT_RUNNING, _UNUSABLE_COUNTS)
 _UNPROVEN_REPORTS = (
-    ("after a line cut short", (_STARTED, _CUT_SHORT, _NEXT, _COMPLETE), {coverage.MALFORMED_LINES}),
+    ("after a line cut short", (_CUT_SHORT, _STARTED, _NEXT, _COMPLETE), {coverage.MALFORMED_LINES}),
     ("an earlier report after one cut short", (_CUT_SHORT, _STARTED, _REPEAT, _COMPLETE), {coverage.MALFORMED_LINES}),
     ("moving by another request", (_STARTED, _WRONG, _COMPLETE), set()),
     ("moving backward", (_STARTED, _BACKWARD, _COMPLETE), set()),
@@ -466,7 +500,13 @@ _CLOSING = (_SECOND_COMPLETE, _CHILD_COMPLETE, _COMPLETE)
 _TOLD_APART = (*_OVERLAPPING, _CHILD_RECORD, _CHILD_REQUEST, _SECOND_RECORD, _CHILD_REQUEST, *_CLOSING)
 _UNTOLD = (*_OVERLAPPING, _CHILD_REQUEST, *_CLOSING)
 _UNTOLD_PARENT = (_STARTED, _CHILD_STARTED, _CHILD_CONTEXT, _CHILD_REQUEST, _CHILD_COMPLETE, _COMPLETE)
-_UNTOLD_CASES = (("two child turns", _UNTOLD), ("a parent and its child", _UNTOLD_PARENT))
+_UNTOLD_CASES = (
+    ("two child turns", _UNTOLD, 1),
+    ("a parent and its child", _UNTOLD_PARENT, 1),
+    ("past a child turn's start cut short", (_STARTED, _CUT_CHILD_START, _NEXT, _NEXT_AGAIN, _COMPLETE), 2),
+    ("past a context cut short", (_STARTED, _CUT_CONTEXT, _NEXT, _NEXT_AGAIN, _COMPLETE), 2),
+    ("past a context no object", (_STARTED, _CONTEXT_NO_OBJECT, _NEXT, _NEXT_AGAIN, _COMPLETE), 2),
+)
 _TOLD_TURNS = (codex.CHILD_TURN, _SECOND_CHILD)
 _TOLD_MODELS = (_CHILD_MODEL, _SECOND_MODEL)
 # A report no branch takes, its own counts and its context window unusable: placed in neither of two overlapping child
@@ -645,8 +685,9 @@ class RequestIdentityTest(unittest.TestCase):
 
     def test_a_running_sum_behind_a_settled_request(self) -> None:
         # A request the earlier lines settled with no `token_count` reporting it leaves the thread's running sum behind
-        # it -- nothing at all, or the last sum reported -- so no baseline is kept, and the invocation's report of that
-        # request again is not proven new; after no usage at all, nothing lags, and the first report is a request.
+        # it -- nothing at all, or the last sum reported, which answers one record however many came before it -- so no
+        # baseline is kept, and the invocation's report of that request again is not proven new; after no usage at
+        # all, nothing lags, and the first report is a request.
         for name, start, lines, kept in _BEHIND:
             with self.subTest(name):
                 collection = codex.collected(
@@ -679,16 +720,18 @@ class RequestIdentityTest(unittest.TestCase):
     def test_overlapping_turns_told_apart_by_records(self) -> None:
         # With several turns open at once -- two child turns, or a parent and its child -- the record before a report
         # names the turn it settles in; with none, nothing tells them apart, so the report is placed in none, and no
-        # branch is proven past it.
+        # branch is proven past it, nor its running sum kept as a checkpoint. So is every report past a line no reading
+        # could place, which could have opened such a turn, until a root turn opens.
         told = codex.appended(*_TOLD_APART)
         self.assertEqual(cases.column(told.samples, codex.TURN_ID), list(_TOLD_TURNS))
         self.assertEqual(cases.column(told.samples, cases.MODEL), list(_TOLD_MODELS))
         self.assertEqual(told.reasons, {})
-        for name, lines in _UNTOLD_CASES:
+        for name, lines, unplaced in _UNTOLD_CASES:
             with self.subTest(name):
                 untold = codex.appended(*lines)
                 self.assertEqual(untold.samples, [])
-                self.assertEqual(untold.reasons.get(coverage.CONVERSATION_AMBIGUOUS), 1)
+                self.assertEqual(untold.reasons.get(coverage.CONVERSATION_AMBIGUOUS), unplaced)
+                self.assertEqual(cases.column(untold.checkpoints, _KIND), ["invocation-baseline"])
 
     def test_unproven_reports_are_no_requests(self) -> None:
         for name, lines, others in _UNPROVEN_REPORTS:
@@ -788,7 +831,9 @@ class AttributionTest(unittest.TestCase):
     def test_contexts_that_establish_no_model(self) -> None:
         # A context naming a model this collection refused leaves its turn's model unestablished, never the fallback;
         # one naming a turn neither the thread's open one nor a child the log named sets no model at all, so the
-        # thread's request keeps the model the thread last ran on.
+        # thread's request keeps the model the thread last ran on. A line no reading could place could have been a
+        # context, so past it the thread's model is unestablished -- neither the one it last ran on nor the fallback --
+        # and the first report of the turn after it, which could repeat the one that line held, is no proven request.
         for name, lines, attributed, gaps in _UNSET_MODELS:
             with self.subTest(name):
                 collection = codex.appended(*lines, fallback_model=capture.FIRST_MODEL)
@@ -857,15 +902,15 @@ class CollectionBoundTest(unittest.TestCase):
 
     def test_an_oversize_line_is_skipped(self) -> None:
         # A line past the line bound is counted and skipped however it was handed over, cutting the collection short
-        # of the whole log: here it stands inside the invocation's turn, before its request, so it could have held the
-        # report the one after it repeats, and that is no proven request. The bound holds the line as handed over, so
-        # padding a short one past it is as long as any.
+        # of the whole log: here it stands inside the invocation's turn, before its request, so it could have opened
+        # another turn or held the report the one after it repeats, and that report is placed in no turn. The bound
+        # holds the line as handed over, so padding a short one past it is as long as any.
         for oversize in (_OVERSIZE_LINE, _PADDED_LINE):
             bound = patch.object(request_scan, "MAX_LINE_CHARS", _LONGEST)
             with self.subTest(padded=oversize.startswith(" ")), bound:
                 collection = codex.appended(_STARTED, oversize, _NEXT, _COMPLETE)
                 self.assertEqual(len(oversize), _LONGEST + 1)
-                self.assertEqual(collection.reasons, {coverage.OVERSIZE_LINES: 1, coverage.UNRECONCILED_USAGE: 1})
+                self.assertEqual(collection.reasons, {coverage.OVERSIZE_LINES: 1, coverage.CONVERSATION_AMBIGUOUS: 1})
                 self.assertEqual(collection.status, coverage.SOURCE_LIMIT_TRUNCATED)
                 self.assertEqual(collection.coverage[_SCOPE], coverage.PARTIAL_SCOPE)
                 self.assertEqual(collection.samples, [])
