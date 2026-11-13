@@ -60,6 +60,13 @@ _SWITCH_WRITES = 900
 _PRIVATE = (capture.TEXT_CANARY, capture.CREDENTIAL_CANARY, capture.WORKSPACE)
 
 
+def _recounted(text: str) -> str:
+    """`text`, where it is a usage record, with its input and total raised alike: valid, but no longer its report's."""
+    if '"token_usage_record"' not in text:
+        return text
+    return text.replace('"input_tokens":', '"input_tokens":9').replace('"total_tokens":', '"total_tokens":9')
+
+
 class FreshInvocationTest(unittest.TestCase):
     """A fresh invocation's log is its own: every request it settled, each once, in the shared format."""
 
@@ -192,11 +199,9 @@ class NativeSourceTest(unittest.TestCase):
     """Only `token_count` usage is a request: no other line's counters, nor stdout's, reach a sample."""
 
     def test_other_usage_reaches_no_sample(self) -> None:
-        # A `token_usage_record` beside each request, and stdout's cumulative `turn.completed`, are never read.
-        changed = [
-            text.replace('"input_tokens":', '"input_tokens":9') if '"token_usage_record"' in text else text
-            for text in capture.log_lines(capture.FRESH.end)
-        ]
+        # The counters of a `token_usage_record` beside each request -- valid, but other than its report's -- and
+        # stdout's cumulative `turn.completed` are never read as a request.
+        changed = [_recounted(text) for text in capture.log_lines(capture.FRESH.end)]
         stdout = capture.FRESH.stdout.replace("37000", "1")
         unread = codex.collected(lines=changed, stdout=stdout)
         self.assertEqual(unread.serialized, codex.collected().serialized)

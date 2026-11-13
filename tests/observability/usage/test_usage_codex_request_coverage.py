@@ -177,7 +177,8 @@ _LAST_ONLY = MappingProxyType({_TOTAL_USAGE: codex.counters(codex.LAST_RUNNING)}
 _NEGATIVE_REPEAT = (-1, 0, 0, 10, 0, 10)
 _REPEAT_NO_USAGE = codex.event(codex.TOKEN_COUNT, info=dict(_LAST_ONLY))
 # Repeats of the captured log's last request whose own parts contradict each other, or whose metadata is malformed.
-_REPEAT_PAST_INPUT = codex.token_count(codex.LAST_RUNNING, (1000, 2000, 0, 10, 2, 1010))
+_PAST_INPUT = (1000, 2000, 0, 10, 2, 1010)
+_REPEAT_PAST_INPUT = codex.token_count(codex.LAST_RUNNING, _PAST_INPUT)
 _OFF_TOTAL = (*_LAST_REQUEST[:-1], 9999)
 _REPEAT_OFF_TOTAL = codex.token_count(codex.LAST_RUNNING, _OFF_TOTAL)
 _REPEAT_BAD_WINDOW = codex.token_count(codex.LAST_RUNNING, _LAST_REQUEST, model_context_window=-1)
@@ -348,7 +349,7 @@ _UNPROVEN_REPORTS = (
     ("after a line cut short", (_CUT_SHORT, _STARTED, _NEXT, _COMPLETE), {coverage.MALFORMED_LINES}),
     ("an earlier report after one cut short", (_CUT_SHORT, _STARTED, _REPEAT, _COMPLETE), {coverage.MALFORMED_LINES}),
     ("moving by another request", (_STARTED, _WRONG, _COMPLETE), set()),
-    ("moving backward", (_STARTED, _BACKWARD, _COMPLETE), set()),
+    ("moving backward", (_STARTED, _BACKWARD, _COMPLETE), {_CONFLICTING}),
     ("its own counts unusable", (_STARTED, _UNUSABLE_OWN, _COMPLETE), {_INVALID, _CONFLICTING}),
 )
 _UNREADABLE = (
@@ -482,6 +483,8 @@ _RECORD = codex.line(_RECORD_KIND, {_USAGE: codex.counters(codex.NEXT_REQUEST)})
 _MALFORMED_RECORDS = (
     ("a payload no object", codex.line(_RECORD_KIND, ["not an object"]), coverage.MALFORMED_ENVELOPES),
     ("usage naming no counter", codex.line(_RECORD_KIND, {_USAGE: {}}), coverage.MALFORMED_USAGE),
+    ("a negative count", codex.line(_RECORD_KIND, {_USAGE: {_INPUT: -1}}), coverage.INVALID_COUNTERS),
+    ("reads past the input", codex.line(_RECORD_KIND, {_USAGE: codex.counters(_PAST_INPUT)}), _CONFLICTING),
 )
 # A child turn writing two usage records and reporting one request, beside a thread request reported with no record:
 # the child's second record has no report of its own branch, however the thread's surplus report matches in number.
@@ -529,6 +532,26 @@ _SURPLUS_SUM = dict(zip(_OUTGROWN_COUNTERS, (250, 20, 270), strict=True))
 _SURPLUS_INFO = MappingProxyType({_TOTAL_USAGE: _SURPLUS_SUM, _LAST_USAGE: _OUTGROWN_OWN})
 _SURPLUS_SECOND = codex.event(codex.TOKEN_COUNT, info=dict(_SURPLUS_INFO))
 _SURPLUS = (_FRESH_FIRST, _FRESH_STARTED, _FRESH_CONTEXT, _SPARSE_FIRST, _SURPLUS_SECOND, _FRESH_COMPLETED)
+# Running sums showing none of the counters a request moves -- zeros on the others, or the earlier sum's output alone --
+# which prove no repeat of nothing, nor of the sum before.
+_ZEROS_ALONE = (None, 0, 0, None, 0, None)
+_OUTPUT_ALONE = (None, None, None, 10, None, None)
+_UNSHOWN_ZEROS = codex.token_count(_ZEROS_ALONE, (100, 0, 0, 10, 0, 110))
+_UNSHOWN_AGAIN = codex.token_count(_OUTPUT_ALONE, (100, 0, 0, 0, 0, 100))
+_FRESH_TURN_HEAD = (_FRESH_FIRST, _FRESH_STARTED, _FRESH_CONTEXT)
+# A fresh turn's cache reads or writes, then a running sum holding fewer of them beside a request leaving them out.
+_LEAVING_CACHE_OUT = (100, None, None, 10, None, 110)
+_READS_FIRST = (100, 50, None, 10, None, 110)
+_WRITES_FIRST = (100, None, 50, 10, None, 110)
+_READS_LEFT = (200, 0, None, 20, None, 220)
+_WRITES_LEFT = (200, None, 0, 20, None, 220)
+_READS_SHRUNK = codex.token_count(_READS_LEFT, _LEAVING_CACHE_OUT)
+_WRITES_SHRUNK = codex.token_count(_WRITES_LEFT, _LEAVING_CACHE_OUT)
+_READS_REPORT = codex.token_count(_READS_FIRST, _READS_FIRST)
+_WRITES_REPORT = codex.token_count(_WRITES_FIRST, _WRITES_FIRST)
+_READS_TURN = (*_FRESH_TURN_HEAD, _READS_REPORT, _READS_SHRUNK, _FRESH_COMPLETED)
+_WRITES_TURN = (*_FRESH_TURN_HEAD, _WRITES_REPORT, _WRITES_SHRUNK, _FRESH_COMPLETED)
+_SHRUNK_GAPS = MappingProxyType({coverage.UNRECONCILED_USAGE: 1, coverage.CONFLICTING_COUNTERS: 1})
 # The fresh run's log, its turn's attribution no object: whether the turn is a root or a child is unproven.
 _MALFORMED_START = _FRESH_LINES[1].replace('"turn_attribution":{', '"turn_attribution":["malformed"],"unread":{', 1)
 _MALFORMED_ATTRIBUTION = (_FRESH_LINES[0], _MALFORMED_START, *_FRESH_LINES[2:])
@@ -563,6 +586,30 @@ _UNSAMPLED = (
         capture.FRESH,
         _MALFORMED_ATTRIBUTION,
         ({coverage.MALFORMED_METADATA: 1, coverage.CONVERSATION_AMBIGUOUS: 4}, 0),
+    ),
+    (
+        "a running sum of zeros showing none of the counters the request moves",
+        capture.FRESH,
+        (*_FRESH_TURN_HEAD, _UNSHOWN_ZEROS, _FRESH_COMPLETED),
+        ({coverage.UNRECONCILED_USAGE: 1}, 0),
+    ),
+    (
+        "a running sum repeated showing none of the counters the request moves",
+        capture.FRESH,
+        (*_FRESH_TURN_HEAD, _SPARSE_FIRST, _UNSHOWN_AGAIN, _FRESH_COMPLETED),
+        ({coverage.UNRECONCILED_USAGE: 1}, 1),
+    ),
+    (
+        "a running sum's cache reads shrinking, the request leaving them out",
+        capture.FRESH,
+        _READS_TURN,
+        (_SHRUNK_GAPS, 1),
+    ),
+    (
+        "a running sum's cache writes shrinking, the request leaving them out",
+        capture.FRESH,
+        _WRITES_TURN,
+        (_SHRUNK_GAPS, 1),
     ),
     (
         "counts past a running sum of nothing",
@@ -701,16 +748,19 @@ class RequestIdentityTest(unittest.TestCase):
         # A report no sample is made of -- none proven, or none a branch takes, a turn whose parentage is unproven
         # included -- still has its request usage judged: against its own parts, and against the running sum beside
         # it, which every request it sums adds to, nothing at all included, nor less than what earlier reports
-        # establish where it leaves a counter out; and its metadata beside it. The samples kept add up to what the
-        # last running sum advanced, where nothing else is missing.
+        # establish where it leaves a counter out; and its metadata beside it. A running sum showing none of the
+        # counters its request moves proves no repeat, and one holding less of a counter than earlier reports establish
+        # contradicts them, whatever the request leaves out. The samples kept add up to what the last running sum
+        # advanced, where nothing else is missing.
         for name, invocation, lines, expected in _UNSAMPLED:
             with self.subTest(name):
                 collection = codex.collected(invocation, lines)
                 self.assertEqual((collection.reasons, len(collection.samples)), expected)
 
     def test_records_keep_their_shape_as_evidence(self) -> None:
-        # No request is read off a usage record, but one that is no object, or whose usage names no counter, is
-        # malformed evidence beside the request its `token_count` reports.
+        # No request is read off a usage record, but one that is no object, whose usage names no counter, or whose
+        # counters are no whole count or contradict its own parts is malformed, invalid, or conflicting evidence beside
+        # the request its `token_count` reports, which is kept as a sample all the same.
         for name, record, gap in _MALFORMED_RECORDS:
             with self.subTest(name):
                 collection = _appended_with(record, _NEXT)

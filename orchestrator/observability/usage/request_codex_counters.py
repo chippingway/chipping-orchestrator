@@ -15,15 +15,17 @@ the normalized cache writes are unknown there, and no lifetime split is ever rep
 
 A request's own counters become a sample; the running sum is a checkpoint, never a request. Each request advances the
 running sum by exactly its own counters, moving at least one of them -- a request always has input -- which is what
-proves a line a new request rather than a repeat of the last one: a repeat leaves the sum where it was, and counters
-that stay at zero agree with any report. Nothing here derives a request, or a compaction, from the difference
-between two sums.
+proves a line a new request rather than a repeat of the last one: a repeat leaves the sum where it was on a counter its
+request moves -- a sum reporting none of those shows no such thing -- and counters that stay at zero agree with any
+report. A sum never shrinks, so one holding less of a counter than the earlier sums and requests establish
+contradicts them, whether or not the request reports that counter. Nothing here derives a request, or a compaction,
+from the difference between two sums.
 """
 
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Any
@@ -100,8 +102,17 @@ class Counters:
             neutral[normalization.CACHE_WRITE] = Reading()
         return normalization.normalize(protocol.CODEX, neutral)
 
-    def repeats(self, previous: Counters | None) -> bool:
-        """Whether this running sum is the one `previous` already reported -- nothing at all, where none was."""
+    def repeats(self, previous: Counters | None, moving: Collection[str]) -> bool:
+        """Whether this running sum is the one `previous` already reported -- nothing at all, where none was -- beside a
+        request it shows did not move it, the request reporting the counters in `moving` above zero.
+
+        A request would have moved the sum by every counter it moves, so a sum staying where it was on one of those is
+        a repeat; but one reporting no count of any of them shows nothing of the kind, however its other counters stay,
+        and proves no repeat.
+        """
+        shown = {counter for counter, reading in self.readings.items() if reading.known}
+        if moving and shown.isdisjoint(moving):
+            return False
         if previous is not None:
             return self.readings == previous.readings
         return all(reading == _NOTHING for reading in self.readings.values())
@@ -113,8 +124,9 @@ class Counters:
         above zero: counters that stay at zero beside it prove nothing new happened, so a report the sum's moving
         counters cannot be compared on -- an earlier sum left unusable -- is no proven request. A counter any of the
         three reports no count of -- invalid, or left out -- is no evidence either way, so the request it belongs to
-        keeps its own evidence for it rather than being refused for it -- unless the sum cannot hold the request beside
-        the least its branch's earlier reports establish it holds, `floor`.
+        keeps its own evidence for it rather than being refused for it -- unless the sum cannot hold the least its
+        branch's earlier reports establish it holds, `floor`, beside the request's own count where it reports one: a
+        running sum never shrinks, so one below that least contradicts them, whatever the request leaves out.
         """
         moves = [self._move(counter, previous, request, floor) for counter in self.readings]
         compared = [move for move in moves if move is not None]
@@ -146,21 +158,21 @@ class Counters:
     ) -> int | None:
         """How far one counter of this sum moved past `previous`'s by `request`'s own count of it.
 
-        That count where it moved by exactly it, -1 where it moved otherwise, and None where this sum or the request
-        reports no count of it. Where `previous` reports none, the move is unknown, but a sum adds up every request it
-        holds, so one smaller than the request's own count beside the least the earlier reports establish it holds
-        still contradicts it.
+        That count where it moved by exactly it, -1 where it moved otherwise, and None where this sum reports no count
+        of it. Where `previous` or the request reports none, the move is unknown, but a sum adds up every request it
+        holds and never shrinks, so one smaller than the least the earlier reports establish it holds -- beside the
+        request's own count, where it reports one -- still contradicts it.
         """
         before = _NOTHING if previous is None else previous.readings.get(counter, Reading())
         own = request.readings.get(counter, Reading())
         total = self.readings[counter]
-        if not (total.known and own.known):
+        if not total.known:
             return None
-        if not before.known:
-            held = (own.count or 0) + floor.get(counter, 0)
-            return _MISMATCH if held > (total.count or 0) else None
-        moved = total == Reading.summed((before, own))
-        return (own.count or 0) if moved else _MISMATCH
+        if before.known and own.known:
+            moved = total == Reading.summed((before, own))
+            return (own.count or 0) if moved else _MISMATCH
+        held = Reading.at_least((own, Reading.of(floor.get(counter))))
+        return _MISMATCH if held.exceeds(total) else None
 
 
 def checkpoint(
@@ -217,13 +229,16 @@ def usage_gaps(
     token_info: dict[str, Any],
     running: Counters | None = None,
     after_compaction: bool = False,
+    floor: Mapping[str, int] | None = None,
 ) -> frozenset[str]:
     """The gaps the request usage a report carries leaves where no sample is made of it.
 
     A block naming no counter is malformed usage, a counter it reports as no whole count an invalid one, and a part
     exceeding its whole, a total its parts contradict, or a count past the one the `running` sum beside it reports --
-    which every request it sums, this one included, adds to -- a contradiction. The one total not held to its parts is
-    the context estimate the CLI follows a compaction with: a total beside parts that are all zero, `after_compaction`.
+    which every request it sums, this one included, adds to -- a contradiction. So is a `running` sum holding less of a
+    counter than the least its branch's earlier reports establish it holds, its `floor`, since a running sum never
+    shrinks. The one total not held to its parts is the context estimate the CLI follows a compaction with: a total
+    beside parts that are all zero, `after_compaction`.
     """
     own = Counters.of(token_info.get(LAST_USAGE))
     if own is None:
@@ -235,7 +250,7 @@ def usage_gaps(
     if after_compaction and total.known and set(parts.values()) <= {_NOTHING}:
         evidence.pop(_SOURCE_TOTAL, None)
     gaps = set(coverage.evidence_gaps(evidence.values()))
-    if running is not None and _outgrows(own, running):
+    if running is not None and _outgrows(own, running, floor or {}):
         gaps.add(coverage.CONFLICTING_COUNTERS)
     return frozenset(gaps)
 
@@ -279,10 +294,11 @@ def report_metadata(
     return capacity.count if capacity.known else None, flags
 
 
-def _outgrows(own: Counters, running: Counters) -> bool:
-    """Whether a request reports a count of a counter past the count the running sum beside it reports of it."""
-    for counter, part in own.readings.items():
-        whole = running.readings.get(counter, Reading())
-        if part.known and whole.known and part.exceeds(whole):
+def _outgrows(own: Counters, running: Counters, floor: Mapping[str, int]) -> bool:
+    """Whether a running sum holds less of a counter than the request beside it reports, or than `floor` establishes."""
+    for counter, whole in running.readings.items():
+        part = Reading.at_least((own.readings.get(counter, Reading()),))
+        least = Reading.of(floor.get(counter, 0))
+        if whole.known and (part.exceeds(whole) or least.exceeds(whole)):
             return True
     return False
