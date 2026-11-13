@@ -133,12 +133,25 @@ unknown rather than inferred from another (a skill load is no evidence of its of
 query's SELECT list raises rather than reading as NULL. A current optional field's absence, an ID-less CLI run, an
 unpriced cost, and a malformed record's containment remain current answers. A trajectory record's `request_usage` is
 read only as its collector wrote it: absent is a run whose requests were not collected -- a Codex run, and every
-record an earlier build wrote -- never an empty breakdown, and nothing infers or backfills one. Within the shared
-request-usage format a counter a sample did not observe is unknown rather than zero, a common total sums only observed
-non-overlapping counters and never the provider's own total, a model the stream did not establish is none rather than
-another conversation's or branch's or one taken from unrelated data, a coverage short of `complete` or
-`complete-empty` or a scan scope short of `invocation` never reads as the whole invocation, an output-only sample
-establishes no context input, and a marker or aggregate checkpoint is never a request. A Claude sample's output is
+record an earlier build wrote -- never an empty breakdown, and nothing infers or backfills one. The scope over a Codex
+native session log is dormant, called by no dispatch, and attributes a line to an invocation only under proof: the
+log's first line a `session_meta` naming the session the run returned, and the launch facts its caller supplies -- a
+fresh run's whole log, a resumed run's lines past the whole lines its log held at the launch -- with every stamp
+agreeing with that placement and the root turns it opened with stdout's `turn.started` lines. A resume with no count of
+a line or more, a log not the session's own, a log read whole that is shorter than the count, a stamp the clock
+contradicts, a turn stdout's count does not account for, or usage settled in no turn the invocation opened -- none at
+all, an earlier invocation's left open, or one a usage record names -- or a child turn started from one, attributes
+nothing, never a guessed suffix. A report among overlapping turns no record tells apart, a usage record naming its turn
+by an id the scope refused and the report after it, any usage line past a line no reading could place before a root
+turn opens, and any past a child turn the scope's bound refused settle in no turn, and past either no usage line or
+child turn's start is taken for another process's; stdout's cumulative `turn.completed` is never request evidence.
+Within the shared request-usage format a counter a
+sample did not observe is unknown rather than zero, a common total sums only
+observed non-overlapping counters and never the provider's own total, a model the stream did not establish is none
+rather than another conversation's or branch's or one taken from unrelated data, a coverage short of `complete` or
+`complete-empty` or a scan scope short of `invocation` never reads as the whole invocation -- a native log no proof
+places the invocation in covering none of it, whatever lines were read -- an output-only sample establishes no context
+input, and a marker or aggregate checkpoint is never a request. A Claude sample's output is
 `final` only where the `message_delta` closing that message, its subagent hand-back, or a `modelUsage` remainder the
 run accounting attributes to it as its model's sole open message settles it -- every request the collection holds
 among those it sums, and the collection's own counts of them reproducing that remainder -- and no `result.usage` or
@@ -353,6 +366,8 @@ or lost write interrupted are current state, not historical compatibility.
 [Claude request samples](../tests/observability/usage/test_usage_claude_request_samples.py),
 [Claude subagent requests](../tests/observability/usage/test_usage_claude_request_subagents.py),
 [Claude request coverage](../tests/observability/usage/test_usage_claude_request_coverage.py),
+[Codex native-log scope](../tests/observability/usage/test_usage_codex_native_scope.py),
+[Codex native turns](../tests/observability/usage/test_usage_codex_native_turns.py),
 [request usage records](../tests/observability/analytics/trajectories/test_request_usage.py),
 [Claude request records](../tests/observability/analytics/trajectories/test_request_usage_claude.py),
 [verification artifacts](../tests/github/test_verification_artifacts.py),

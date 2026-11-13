@@ -42,7 +42,8 @@ bounded pass a collector reads stdout in, `request_agy.py` with `request_agy_ste
 the Antigravity collector, its step fold, and its conversation attribution, and `request_claude.py` with
 `request_claude_stream.py`, `request_claude_messages.py`, `request_claude_counters.py`, and `request_claude_reports.py`
 the Claude collector, its stream fold, its request fold, the counters a usage block is read for, and what the stream
-reports of its process, as [request usage observations](#request-usage-observations) describes. The
+reports of its process, and `request_codex_scope.py` with `request_codex_turns.py` the dormant scope over a Codex native
+session log and the turns it follows, as [request usage observations](#request-usage-observations) describes. The
 trajectory classifier reuses the same event decoder, pricing path, and skill evidence owners, so the resilience and
 cost-precedence contracts are defined once. Tests intercept parsers on the module their caller imports. The package
 initializer re-exports the public parsers and result types; callers name the defining owner so patches reach it.
@@ -661,7 +662,9 @@ the explicit boundary markers the stream printed, its aggregate checkpoints, and
 `None`, and the trajectory writer collects it on every tracked exit behind a failure boundary of its own, as the
 [trajectory sink](trajectories.md#trajectory-sink-trajectory_log_path) describes. An Antigravity and a Claude stream
 each have a collector; a Codex run collects none, so its record leaves the field out, which means the run's requests
-were not collected, never that it made none. The contract is observation alone: pricing, the run's `UsageMetrics`, the
+were not collected, never that it made none. What a Codex collection would read is the native session log, through a
+scope that is dormant, called by no dispatch yet (Codex native-log scope, below). The contract is observation alone:
+pricing, the run's `UsageMetrics`, the
 accounting checkpoint and pinned totals, the cost and token evidence, Claude's turns, and the viewer's timeline are
 computed exactly as they would be without it, and never read a sample, marker, or checkpoint.
 
@@ -742,12 +745,20 @@ context.
 **Coverage.** Each collection states its `coverage`: `status`, `reasons` (each gap's code and how often it occurred,
 from a vocabulary fixed in `request_coverage.py`), `limitations` (what the source never reports), and `scan_scope`,
 beside `scanned_lines` and `skipped_lines` and the observed and retained counts of samples, markers, and checkpoints.
-The status is read off the reasons, most severe first: `unavailable` where nothing could be read (`no-stream-events`,
-`collector-error`), `source-limit-truncated` where a bound cut the scan short (`scan-limit`, `oversize-lines`,
-`correlation-limit`), `storage-truncated` where the record kept fewer samples or markers than were observed
-(`storage-budget`, counting the dropped entries), `incomplete` for any other gap, and `complete-empty` or `complete`
-where there is none, with no sample or with some. A scan a bound cut short is `partial` in `scan_scope`, so its observed
-count is never read as the invocation's; one that read nothing is `none`. A request leaves its own gaps where a core
+The status is read off the reasons, most severe first: `unavailable` where nothing attributable to the invocation
+could be read (`no-stream-events`, `collector-error`, and the native-log reasons: `no-session-identity`,
+`no-launch-observation`, `native-log-missing`, `native-log-unreadable`, `discovery-limit`, `native-identity-unproven`,
+and `invocation-unattributed`), `source-limit-truncated` where a bound cut the scan short or the source stopped
+answering partway (`scan-limit`, `oversize-lines`, `correlation-limit`, `native-read-interrupted`), `storage-truncated`
+where the record kept fewer samples or markers than were observed (`storage-budget`, counting the dropped entries),
+`incomplete` for any other gap, and `complete-empty` or `complete` where there is none, with no sample or with some. A
+scan a bound cut short is `partial` in `scan_scope`, so its observed count is never read as the invocation's; one that
+read nothing is `none`, and so is one whose lines established nothing of the invocation -- a native log not proven the
+session's own, or one nothing in which places the invocation -- however many it read, while a stream read through
+without an event covers it. The native-log reasons name why no line of a native session log could be attributed: the
+run named no session, its launch was not observed, the lookup found no log, could not read it, or ran out of bounds, or
+the log is not proven the session's own or proves no line the invocation's (Codex native-log scope, below); nothing
+records them yet. A request leaves its own gaps where a core
 counter -- its context input or output -- establishes no count (`missing-counters`, `unsupported-counters`), any of its
 fields is invalid or conflicting (`invalid-counters`, `conflicting-counters`), its usage is provisional
 (`provisional-usage`), or it has no model (`model-unattributed`, or `subagent-model-unestablished` for a subagent's). An
@@ -758,8 +769,10 @@ records `malformed-lines` itself, as below; the rest of the vocabulary is for a 
 `no-terminal-result`, `unsettled-steps`, `unreported-usage`, `unindexed-frames`, `conversation-ambiguous`,
 `subagent-usage-unavailable`, `subagent-unidentified`, `subagent-attribution-conflicting`, `oversize-metadata`,
 `malformed-metadata`, `malformed-envelopes`, `malformed-usage`, `aggregate-only-usage` -- a stream reporting usage only
-in aggregate, with no request to observe it on -- and `identity-conflicting`, a frame tying together identities the
-stream already gave different requests.
+in aggregate, with no request to observe it on -- `identity-conflicting`, a frame tying together identities the
+stream already gave different requests, `unreconciled-usage`, a native session log's report not proven a new request of
+the invocation beside the running sum it reports, and `unsupported-usage-source`, usage reported only where no request
+is read from, such as a usage record no report answers; nothing records the last two yet.
 
 **Bounded scan.** A collector reads stdout a second time, so `request_scan.py` bounds everything it adds, as module
 defaults read when a collection starts. The scan itself holds to at most 64 Mi characters of stdout (`MAX_SCAN_CHARS`;
@@ -778,7 +791,14 @@ like a JSON object that decodes to none -- cut short, or refused by the decoder 
 banner text and a value that is no object, which could never have been an event, are skipped without being one. The
 decoder's refusal is caught by the scan alone, for the line it was decoding: the run parsers still refuse such a
 stream, as Resilience above describes, so a tracked run carrying one publishes no total and reconstructs no timeline,
-while its trajectory record still carries the collection, marked `stream_refused`.
+while its trajectory record still carries the collection, marked `stream_refused`. A Codex native session log is
+decoded through the same decoder and gap accounting, one line at a time as a reader hands it over
+(`EventScan.counted`), keeping none: a line past `MAX_LINE_CHARS` -- whitespace included, short of the one line
+ending it: a newline, a carriage return, or the two as a pair -- is an `oversize-lines` gap however it arrived, and any
+line holding no object -- whitespace alone included -- a `malformed-lines` one, each scanned where it stands. The bounds
+a reader of that log is held to are defined beside these, so a collection reads them all from `current_limits`: 4,096
+session directories (`MAX_SESSION_DIRECTORIES`) and 262,144 directory entries (`MAX_SESSION_ENTRIES`) a lookup examines,
+and 64 MiB of the log (`MAX_LOG_BYTES`) beside `MAX_EVENTS` lines a read takes. No lookup or read holds them yet.
 
 **Antigravity requests.** `request_agy.py` produces one observation per completed usage-bearing step of the process's
 own stream, on the same agy 1.4.10 captures the run accounting is pinned to. A step is keyed by its conversation and
@@ -988,5 +1008,70 @@ sample known by no message id, every hand-back included), `no-agent-id` (a subag
 `no-source-version`, `no-source-timestamps`, and `no-context-capacity` where this stream left them out. The run
 accounting is unchanged: its settled rows also name the report each output rests on (`message-start`, `message-delta`,
 `model-usage`, or `handback`), which only this collection reads.
+
+**Codex native-log scope.** `codex exec --json` prints usage only on `turn.completed`, a running sum of the whole
+thread -- every request of the turn, and on `exec resume` every earlier invocation's too -- so its stdout holds no
+request, and that block is never request evidence. The requests are in the native session log the CLI writes beside it,
+one JSON object per line carrying a `timestamp`, a `type`, and a `payload`. A fresh `codex exec` opens the log with a
+`session_meta` naming the thread it started, and every `exec resume` appends to the same file writing none, so nothing
+in the log says where one invocation's lines end. `request_codex_scope.py` proves which lines one invocation wrote, and
+`request_codex_turns.py` follows the turns they open and the turn each usage line settles in, on a sanitized codex-cli
+0.167.1 capture of one session written by a fresh run and five resumes. Both are dormant: `parse_agent_request_usage`
+still collects nothing for a Codex run, nothing in the runtime looks a log up, reads one, or observes a launch, and
+only their tests call them.
+
+`NativeScope.of(invocation, scan)` takes the invocation's facts -- the session id the run returned, whether it resumed
+one, a UTC moment read just before its launch off the clock the CLI stamps by, and, for a resume, how many whole lines
+the log held at that moment -- and the `EventScan` its reader shares, in which the reader records a bound that stopped
+its read (`scan-limit`) or a read failing partway (`native-read-interrupted`). `read(position, line)` takes the log a
+line at a time, never holding it whole, and places each line as the invocation's or not, with its stamp, the envelope it
+is read as, and the turn a usage line settles in; `refusal(stdout)` names why nothing in the log can be attributed to
+the invocation, or nothing where both proofs below hold. Where either fails, no line is attributed and no suffix of the
+log is guessed.
+
+The log has to be the session's own: its first line a `session_meta` whose `id` is the returned session, an empty id
+naming none (`native-identity-unproven` otherwise). And the launch has to place the invocation. A fresh run's log did
+not exist before it, so every line is its own; a resumed run's lines are exactly the ones past the whole lines its log
+held at the launch, since the log only grows by appending -- a line stamped in the launch's own millisecond, or with no
+stamp at all, included -- and a resume with no count, or one below a single line, is placed by nothing, and so is one
+whose log, read whole, holds fewer lines than the count. Every stamp is held against that placement, to the millisecond
+the CLI stamps to: an own line stamped more than a millisecond before the launch, or an earlier line stamped more than a
+millisecond after it, means the clock moved under the log, and so does a stamp earlier than the one before it, anywhere
+in the log. Each of these is `invocation-unattributed`, as is, where stdout was read whole, more root turns opened past
+the boundary than the `turn.started` lines it printed, none included -- a turn another process appended meanwhile,
+however much of the log's earlier history went unread -- or, where the log was read whole too, fewer, a turn whose
+parentage is unproven counted either way. A stdout line the scan could not read could have started one more turn, so
+such a stdout is compared with nothing, and a read cut short proves neither the turns nor the lines it never reached. A
+stamp no UTC moment reads as -- no ISO moment, one naming no offset, or one its offset carries out of range -- is
+`malformed-metadata`, kept as written, and places nothing. Only a fresh run is the process whose CLI version its log's
+`session_meta` names: a resumed run's log was begun by an earlier one.
+
+A `task_started` opens a turn. One whose `turn_attribution` names a `parent_turn_id` is a child turn run in this log,
+carrying its `turn_id` and the turn it was started from, opened once however often its start repeats; one naming none is
+a root turn of the thread, which abandons every turn still open. `task_complete` and `turn_aborted` close the turn they
+name, and a turn the invocation opened that none closed -- an interrupted run's, or a child turn its parent finished
+without -- never finished. A usage record settles in the open turn it names, else in the innermost open one, and a
+`token_count` in the turn the records written since the last report name, where that turn is still open -- a record
+whose turn closed since tells nothing -- or else in the one open turn; where several are open -- a parent and its child
+included -- and no record names one, or records name two still open, the report is placed in none. A record naming its
+turn by an id this reading refused -- no string, or past `MAX_METADATA_CHARS`, a `malformed-metadata` or
+`oversize-metadata` gap -- is no record naming none: neither it nor the report after it is placed in any turn. The
+invocation opens its own turns before settling usage in them, so its usage settled in no turn it opened -- none open at
+all, the innermost open one being an earlier invocation's, which a resume printing no turn would otherwise adopt, or a
+record naming a turn the invocation never opened -- and a child turn it starts from a turn it did not open are
+`invocation-unattributed` too. A `turn_attribution` that is no object, or names a parent no string or past
+`MAX_METADATA_CHARS`, is `malformed-metadata` or `oversize-metadata` and leaves the turn's parentage unproven: it
+abandons no open turn and settles no request. A line no reading could place -- one the scan left unread, or whose
+envelope nothing can be read off -- could have opened or closed any turn, the invocation's own root turn included, so
+past it no usage record or report is placed in any, and neither a usage line nor a child turn's start is taken for
+another process's, until a root turn opens and leaves itself alone open. The turn state is bounded: past `MAX_BRANCHES`
+child turns named, or open at once, no later child turn is kept, since no later request could be told apart from its
+parent's, and the invocation's child turn refused there is counted. A refused turn could make any request after it,
+its parent's included, so from there on no usage record or report is placed in any turn, and no child turn's start is
+taken for another process's.
+
+The scope reads no usage: which reports are requests, their counters, models, markers, and checkpoints are left to the
+collector that will read the lines it places, and the run accounting is unchanged -- `codex_requests.py` and
+`codex_summary.py` still price the last cumulative `turn.completed` block once.
 
 [pinned-state]: ../state-machine/labels-and-state.md#pinned-state
