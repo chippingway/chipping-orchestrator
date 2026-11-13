@@ -9,7 +9,11 @@ from unittest.mock import patch
 
 from orchestrator.observability.usage import request_coverage as coverage, request_scan
 from orchestrator.observability.usage.request_codex_turns import UNPLACED, Turns
-from tests.observability.usage import usage_codex_native_capture as capture, usage_codex_request_cases as codex
+from tests.observability.usage import (
+    usage_codex_native_capture as capture,
+    usage_codex_native_scope_cases as scoping,
+    usage_codex_request_cases as codex,
+)
 
 _REPEATS = 50
 _PARENT_TURN = "parent_turn_id"
@@ -142,7 +146,7 @@ class TurnPlacementTest(unittest.TestCase):
     def test_overlapping_turns_told_apart_by_records(self) -> None:
         for name, lines, turn_ids in _TOLD:
             with self.subTest(name):
-                scoped = codex.appended(*lines)
+                scoped = scoping.appended(*lines)
                 self.assertEqual(_turn_ids(scoped.reports), list(turn_ids))
                 self.assertIsNone(scoped.refusal)
 
@@ -151,7 +155,7 @@ class TurnPlacementTest(unittest.TestCase):
         # or records naming two, any of them could have made the request, so it is placed in none.
         for name, lines in _UNTOLD:
             with self.subTest(name):
-                scoped = codex.appended(*lines)
+                scoped = scoping.appended(*lines)
                 self.assertEqual(scoped.reports, [UNPLACED])
                 self.assertIsNone(scoped.refusal)
 
@@ -160,7 +164,7 @@ class TurnPlacementTest(unittest.TestCase):
         # naming none falls to -- so neither it nor the report after it settles in any, and neither proves anything.
         for name, record, refusal in _REFUSED_RECORDS:
             with self.subTest(name):
-                scoped = codex.appended(_STARTED, record, _NEXT, _COMPLETE)
+                scoped = scoping.appended(_STARTED, record, _NEXT, _COMPLETE)
                 self.assertEqual(scoped.settled(codex.USAGE_RECORD), [UNPLACED])
                 self.assertEqual(scoped.reports, [UNPLACED])
                 self.assertEqual(getattr(scoped.scope.metadata, refusal), 1)
@@ -169,7 +173,7 @@ class TurnPlacementTest(unittest.TestCase):
     def test_turn_knowledge_returns_with_a_root_turn(self) -> None:
         # Past a line no reading could place, which turns are open is unknown until a root turn opens, alone: no record
         # or report settles in any, and no child start or record naming a turn not known open is another process's.
-        scoped = codex.scoped(_TWO_TURNS, (*capture.log_lines(), *_RECOVERED))
+        scoped = scoping.scoped(_TWO_TURNS, (*capture.log_lines(), *_RECOVERED))
         records = scoped.settled(codex.USAGE_RECORD)
         reports = scoped.reports
         self.assertEqual(records[:2], [UNPLACED, UNPLACED])
@@ -185,7 +189,7 @@ class TurnParentageTest(unittest.TestCase):
     """A child turn keeps the turn it was started from, and only the invocation's own turns hold its usage."""
 
     def test_a_child_turn_exposes_its_parent(self) -> None:
-        scoped = codex.appended(*_CHILD_RUN)
+        scoped = scoping.appended(*_CHILD_RUN)
         child, thread = scoped.reports
         self.assertEqual((child.parent_turn_id, child.branch), (codex.APPENDED_TURN, codex.CHILD_TURN))
         self.assertEqual((thread.turn_id, thread.branch), (codex.APPENDED_TURN, None))
@@ -195,7 +199,7 @@ class TurnParentageTest(unittest.TestCase):
 
     def test_a_child_turn_its_parent_finished_without(self) -> None:
         # It never finished, whatever requests it settled.
-        scoped = codex.appended(*_UNFINISHED_CHILD)
+        scoped = scoping.appended(*_UNFINISHED_CHILD)
         self.assertEqual(_turn_ids(scoped.reports), [codex.CHILD_TURN])
         scoped.scope.turns.abandon()
         self.assertEqual(scoped.scope.turns.unclosed, 1)
@@ -205,7 +209,7 @@ class TurnParentageTest(unittest.TestCase):
         # counted as a root turn of the invocation's or not, so stdout's one turn is no contradiction.
         for name, started, refusal in _UNPLACED_STARTS:
             with self.subTest(name):
-                scoped = codex.scoped(lines=(_FRESH_LINES[0], started, *_FRESH_REST))
+                scoped = scoping.scoped(lines=(_FRESH_LINES[0], started, *_FRESH_REST))
                 turns = scoped.scope.turns
                 self.assertEqual(set(scoped.reports), {UNPLACED})
                 self.assertEqual(turns.root_turns, 0)
@@ -219,7 +223,7 @@ class TurnParentageTest(unittest.TestCase):
         for name, invocation, lines in _FOREIGN:
             with self.subTest(name):
                 before = _BEFORE_RESUME if invocation is _AFTER_INTERRUPTED else capture.log_lines()
-                scoped = codex.scoped(invocation, (*before, *lines))
+                scoped = scoping.scoped(invocation, (*before, *lines))
                 self.assertTrue(scoped.scope.turns.intruded)
                 self.assertEqual(scoped.refusal, coverage.INVOCATION_UNATTRIBUTED)
 
@@ -228,7 +232,7 @@ class TurnBoundTest(unittest.TestCase):
     """The turn state stays bounded however a log repeats or multiplies its child turns."""
 
     def test_repeated_child_starts_open_one_turn(self) -> None:
-        scoped = codex.appended(_STARTED, *(_CHILD_STARTED,) * _REPEATS, _CHILD_RECORD, _CHILD_REQUEST)
+        scoped = scoping.appended(_STARTED, *(_CHILD_STARTED,) * _REPEATS, _CHILD_RECORD, _CHILD_REQUEST)
         turns = scoped.scope.turns
         self.assertEqual(_turn_ids(scoped.reports), [codex.CHILD_TURN])
         self.assertEqual(len(turns.open), 2)
@@ -249,7 +253,7 @@ class TurnBoundTest(unittest.TestCase):
         # child start -- one of the refused turn's included -- is taken for another process's.
         for name, lines, refused in _BOUNDS:
             with self.subTest(name), patch.object(request_scan, _BRANCHES, 1):
-                scoped = codex.appended(*lines)
+                scoped = scoping.appended(*lines)
                 turns = scoped.scope.turns
                 self.assertTrue(turns.overflowed)
                 self.assertEqual(turns.refused, refused)
@@ -270,7 +274,7 @@ class TurnBoundTest(unittest.TestCase):
 
     def test_a_child_turn_naming_no_id(self) -> None:
         # It is open, and never closed, but no branch can keep its requests, and beside its parent a report is untold.
-        scoped = codex.appended(_STARTED, _UNNAMED_CHILD, _NEXT, _COMPLETE)
+        scoped = scoping.appended(_STARTED, _UNNAMED_CHILD, _NEXT, _COMPLETE)
         turns = scoped.scope.turns
         self.assertEqual(scoped.reports, [UNPLACED])
         self.assertEqual(turns.unnamed, 1)

@@ -1,21 +1,22 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Codex native session log lines spelled the way the CLI writes them, and the scope one invocation takes over a log.
+"""Codex native session log lines spelled the way the CLI writes them, and the request usage the dormant collector
+serializes from a log.
 
-The scope is dormant -- nothing in the runtime reads a native log yet -- and reads only the lines it is handed, so a
-test hands it the captured log as it stood when an invocation exited, or that log with the lines an invocation launched
-after the capture appended, beside the facts the invocation's launch would establish. Appended lines carry a stamp, a
-kind, and a payload, one JSON object per line.
+The collector is dormant -- no trajectory dispatch reaches it, and nothing in the runtime reads a native log yet -- and
+reads only the lines it is handed, so a test calls it directly with the captured log as it stood when an invocation
+exited, or with that log and the lines an invocation launched after the capture appended, beside the facts the
+invocation's launch would establish. Appended lines carry a stamp, a kind, and a payload, one JSON object per line.
 """
 
 import json
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from datetime import datetime
-from typing import Any, NamedTuple
+from typing import Any
 
-from orchestrator.observability.usage import request_scan
-from orchestrator.observability.usage.request_codex_scope import Invocation, Line, NativeScope
-from tests.observability.usage import usage_codex_native_capture as capture
+from orchestrator.observability.usage import request_codex
+from orchestrator.observability.usage.request_codex_scope import Invocation
+from tests.observability.usage import usage_codex_native_capture as capture, usage_request_cases as cases
 
 COUNTERS = (
     "input_tokens",
@@ -37,50 +38,13 @@ APPENDED_AT = datetime.fromisoformat("2026-11-12T14:10:00.000+00:00")
 STAMP = "2026-11-12T14:10:01.000Z"
 APPENDED_TURN = "01a1d020-0000-7000-8000-000000000001"
 CHILD_TURN = "01a1d020-0000-7000-8000-000000000002"
-# One request advancing the running sum the captured log ends on.
+# The running sum the captured log ends on, and one request that advances it.
+LAST_RUNNING = (114000, 92100, 14900, 1250, 228, 115250)
 NEXT_REQUEST = (1000, 500, 0, 10, 2, 1010)
 NEXT_RUNNING = (115000, 92600, 14900, 1260, 230, 116260)
 ONE_TURN_STDOUT = '{"type":"turn.started"}'
 # Launched once the captured log was whole, which is what it reads where no lines are handed over.
 APPENDED = capture.Invocation(APPENDED_AT, capture.LAST.end, True, ONE_TURN_STDOUT, capture.LAST.end)
-
-
-class Scoped(NamedTuple):
-    """The scope an invocation took over a log, every line it read an event off, and the stdout it printed."""
-
-    scope: NativeScope
-    lines: tuple[Line, ...]
-    stdout: str
-
-    @property
-    def refusal(self) -> str | None:
-        """Why the scope attributes nothing of the log to the invocation; None where it attributes its own lines."""
-        return self.scope.refusal(self.stdout)
-
-    @property
-    def own(self) -> list[int]:
-        """The positions of the lines placed as the invocation's own."""
-        return [line.position for line in self.lines if line.own]
-
-    @property
-    def reports(self) -> list[Any]:
-        """The turn each of the invocation's `token_count` lines settled in."""
-        return self.settled(TOKEN_COUNT)
-
-    @property
-    def usage_turns(self) -> set[str | None]:
-        """The ids of the turns the invocation's usage records and reports settled in."""
-        settled = [*self.settled(USAGE_RECORD), *self.reports]
-        return {turn.turn_id for turn in settled if turn is not None}
-
-    def settled(self, kind: str) -> list[Any]:
-        """The turn each of the invocation's lines of `kind` -- an event name, or a line kind -- settled in."""
-        found = []
-        for placed in self.lines:
-            envelope = placed.envelope
-            if placed.own and envelope and kind in envelope[:2]:
-                found.append(placed.settled)
-        return found
 
 
 def counters(counts: Iterable[Any]) -> dict[str, Any]:
@@ -105,24 +69,34 @@ def token_count(running: Iterable[Any], own: Iterable[Any], **reported: Any) -> 
     return event(TOKEN_COUNT, info=usage)
 
 
-def scoped(
+def collected(
     invocation: capture.Invocation = capture.FRESH,
     lines: Iterable[str] | None = None,
     *,
     session_id: str | None = capture.SESSION_ID,
-    scan: request_scan.EventScan | None = None,
-) -> Scoped:
-    """The scope `invocation` takes over `lines` -- the captured log as it stood when it exited, by default -- read
-    into `scan`, or into a scan of its own, and held to the turns its stdout started.
+    fallback_model: str | None = None,
+    stdout: str | None = None,
+) -> cases.Collected:
+    """What the collector serializes for `invocation` from `lines` -- the captured log as it stood when it exited, by
+    default -- held to the turns `stdout` started, the invocation's own by default.
     """
     read = capture.log_lines(invocation.end) if lines is None else tuple(lines)
     # A fresh run's log held no line at its launch, which is the count a fresh invocation starts at.
     facts = Invocation(session_id, invocation.resumed, invocation.launched_at, invocation.start)
-    scope = NativeScope.of(facts, scan)
-    placed = [scope.read(*numbered) for numbered in enumerate(read)]
-    return Scoped(scope, tuple(filter(None, placed)), invocation.stdout)
+    session = request_codex.NativeSession(facts, enumerate(read))
+    usage = request_codex.collect(invocation.stdout if stdout is None else stdout, session, fallback_model)
+    return cases.Collected(usage.to_dict())
 
 
-def appended(*lines: str, **options: Any) -> Scoped:
-    """The scope an invocation launched after the capture takes, the captured log with its `lines` appended."""
-    return scoped(APPENDED, (*capture.log_lines(), *lines), **options)
+def appended(*lines: str, **options: Any) -> cases.Collected:
+    """What an invocation launched after the capture collects, the captured log with its `lines` appended."""
+    return collected(APPENDED, (*capture.log_lines(), *lines), **options)
+
+
+def raw_sums(entries: Iterable[Mapping[str, Any]]) -> tuple[int, ...]:
+    """Each of the six raw counters added up over `entries` -- one sample's or checkpoint's own, given only it."""
+    totals = dict.fromkeys(COUNTERS, 0)
+    for entry in entries:
+        for counter in COUNTERS:
+            totals[counter] += entry[cases.RAW][counter]
+    return tuple(totals.values())
