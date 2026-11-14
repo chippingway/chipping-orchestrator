@@ -132,13 +132,20 @@ Analytics and trajectory readers interpret only what current producers write: a 
 unknown rather than inferred from another (a skill load is no evidence of its offer), and a row narrower than its
 query's SELECT list raises rather than reading as NULL. A current optional field's absence, an ID-less CLI run, an
 unpriced cost, and a malformed record's containment remain current answers. A trajectory record's `request_usage` is
-read only as its collector wrote it: absent is a run whose requests were not collected -- a Codex run, and every
-record an earlier build wrote -- never an empty breakdown, and nothing infers or backfills one. The Codex request
-collector is dormant, called by no dispatch, and attributes only what it proves: a sample is a `token_count` the
+read only as its collector wrote it: absent is a run whose requests were not collected -- every record an earlier build
+wrote, a Codex run's included -- never an empty breakdown, and nothing infers or backfills one. The Codex request
+collector reads only the native session log the trajectory sink's reader hands it, which looks a log up by the session
+id the run returned alone, under the `CODEX_HOME` the launch's effective environment named, and adopts one regular file
+of exactly that session's name -- a resume's only the very file its launch counted, neither replaced nor shorter --
+never a nearby name, a worktree, a branch, or another session: a run that returned no id, or whose launch was not
+observed, is looked up nowhere, and a lookup or read bound reached, or a log missing, unreadable, or found twice under
+any dates, is stated as such, never filled in. It attributes only what it proves: a sample is a `token_count` the
 invocation's own lines of a native session log reported, and its scope attributes a line to an invocation only under
-proof: the log's first line a `session_meta` naming the session the run returned, and the launch facts its caller
-supplies -- a fresh run's whole log, a resumed run's lines past the whole lines its log held at the launch -- with every
-stamp agreeing with that placement and the root turns it opened with stdout's `turn.started` lines. A resume with no
+proof: the log's
+first line a `session_meta` naming the session the run returned, and the launch facts the tracked spawn observed just
+before the process started -- a fresh run's whole log, a resumed run's lines past the whole lines its log held at the
+launch -- with every stamp agreeing with that placement and the root turns it opened with stdout's `turn.started`
+lines. A resume with no
 count of a line or more, a log not the session's own, a log read whole that is shorter than the count, a stamp the
 clock contradicts, a turn stdout's count does not account for, or usage settled in no turn the invocation opened --
 none at all, an earlier invocation's left open, or one a usage record names -- or a child turn started from one,
@@ -388,8 +395,11 @@ or lost write interrupted are current state, not historical compatibility.
 [Codex request samples](../tests/observability/usage/test_usage_codex_request_samples.py),
 [Codex request coverage](../tests/observability/usage/test_usage_codex_request_coverage.py),
 [Codex request fold state](../tests/observability/usage/test_usage_codex_request_fold.py),
+[Codex native lookups](../tests/observability/analytics/trajectories/test_codex_sessions.py),
+[Codex launch observations](../tests/observability/analytics/trajectories/test_codex_launch.py),
 [request usage records](../tests/observability/analytics/trajectories/test_request_usage.py),
 [Claude request records](../tests/observability/analytics/trajectories/test_request_usage_claude.py),
+[Codex request records](../tests/observability/analytics/trajectories/test_request_usage_codex.py),
 [verification artifacts](../tests/github/test_verification_artifacts.py),
 [requirements baselines](../tests/workflow/engine/test_drift.py),
 [late first baselines](../tests/workflow/stages/decomposition/test_late_first_baseline.py),
@@ -938,8 +948,11 @@ Deleting a rotated copy or truncating the log without keeping a copy while a fin
 landed is not counted, and nothing reconstructs it from the analytics or audit sinks. The request usage samples,
 markers, and checkpoints a trajectory record carries are observation alone: no price, usage total, accounting
 recovery, or workflow decision reads one. Only the opt-in trajectory write collects them, apart from the trajectory
-parse and behind a failure boundary of its own, so a request collector that fails costs neither the trajectory, the
-baseline `agent_exit` record, nor the run's accounting, and with the trajectory sink off no collector runs. A stream
+parse and behind a failure boundary of its own -- a Codex run's native session log looked up and read inside it -- so
+a request collector, lookup, or read that fails costs neither the trajectory, the baseline `agent_exit` record, nor the
+run's accounting. The tracked spawn observes a Codex launch for that collection alone, before the process starts and
+behind a fail-open guard, changing nothing the CLI is launched with; with the trajectory sink off no launch is
+observed, no native log is looked up or read, and no collector runs. A stream
 the usage parser refuses still writes no `agent_exit` record and publishes no total; its request usage alone is
 recorded, on a trajectory record marked `stream_refused`.
 
@@ -950,8 +963,10 @@ recorded, on a trajectory record marked `stream_refused`.
 **Checks:** [rewrite events](../tests/workflow/engine/test_rewrite_finish_event_stream.py),
 [rotation](../tests/github/test_event_log.py),
 [request isolation](../tests/workflow/engine/test_usage_trajectory.py),
+[Codex launch handoff](../tests/workflow/engine/test_usage_codex_launch.py),
 [request usage records](../tests/observability/analytics/trajectories/test_request_usage.py),
 [Claude request records](../tests/observability/analytics/trajectories/test_request_usage_claude.py),
+[Codex request records](../tests/observability/analytics/trajectories/test_request_usage_codex.py),
 [trajectory parsing](../tests/observability/usage/test_usage.py).
 
 ## C-13: Module ownership and public surfaces

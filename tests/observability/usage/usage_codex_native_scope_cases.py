@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """The scope one Codex invocation takes over its native session log, read directly a line at a time.
 
-The scope is dormant -- nothing in the runtime reads a native log yet -- and reads only the lines it is handed, so a
-test hands it the captured log as it stood when an invocation exited, or that log with the lines an invocation launched
-after the capture appended, beside the facts the invocation's launch would establish.
+The scope reads only the lines it is handed, so a test hands it the captured log as it stood when an invocation exited,
+or that log with the lines an invocation launched after the capture appended, beside the facts the invocation's launch
+would establish.
 """
 
 from collections.abc import Iterable

@@ -43,10 +43,10 @@ the Antigravity collector, its step fold, and its conversation attribution, and 
 `request_claude_stream.py`, `request_claude_messages.py`, `request_claude_counters.py`, and `request_claude_reports.py`
 the Claude collector, its stream fold, its request fold, the counters a usage block is read for, and what the stream
 reports of its process, and `request_codex.py` with `request_codex_scope.py`, `request_codex_turns.py`,
-`request_codex_fold.py`, and `request_codex_counters.py` the dormant Codex collector over the native session log lines
-it is handed, the scope proving which of them an invocation wrote, the turns it follows, the fold reading what those
-lines report, and the counters a usage block is read for, as [request usage observations](#request-usage-observations)
-describes. The
+`request_codex_fold.py`, and `request_codex_counters.py` the Codex collector over the native session log lines the
+trajectory sink's reader hands it, the scope proving which of them an invocation wrote, the turns it follows, the fold
+reading what those lines report, and the counters a usage block is read for, as
+[request usage observations](#request-usage-observations) describes. The
 trajectory classifier reuses the same event decoder, pricing path, and skill evidence owners, so the resilience and
 cost-precedence contracts are defined once. Tests intercept parsers on the module their caller imports. The package
 initializer re-exports the public parsers and result types; callers name the defining owner so patches reach it.
@@ -658,17 +658,18 @@ contributes its steps and nothing else. `AgentTrajectory.to_dict()` carries the 
 
 ## Request usage observations
 
-`parse_agent_request_usage(backend, stdout, fallback_model=None)` on `trajectory.py` collects one run's usage request by
-request: a `RequestUsage` (`request_coverage.py`) holding one observation per request the stream settled usage for,
-the explicit boundary markers the stream printed, its aggregate checkpoints, and the coverage of the collection. It is
-`AgentTrajectory`'s `request_usage` field, kept apart from Claude's per-turn `turns`: the trajectory parsers leave it
-`None`, and the trajectory writer collects it on every tracked exit behind a failure boundary of its own, as the
-[trajectory sink](trajectories.md#trajectory-sink-trajectory_log_path) describes. An Antigravity and a Claude stream
-each have a collector; a Codex run collects none, so its record leaves the field out, which means the run's requests
-were not collected, never that it made none. The Codex collector, which reads a native session log, is dormant, called
-by no dispatch yet (Codex requests, below). The contract is observation alone: pricing, the run's `UsageMetrics`, the
-accounting checkpoint and pinned totals, the cost and token evidence, Claude's turns, and the viewer's timeline are
-computed exactly as they would be without it, and never read a sample, marker, or checkpoint.
+`parse_agent_request_usage(backend, stdout, fallback_model=None, native_session=None)` on `trajectory.py` collects one
+run's usage request by request: a `RequestUsage` (`request_coverage.py`) holding one observation per request the source
+settled usage for, the explicit boundary markers it printed, its aggregate checkpoints, and the coverage of the
+collection. It is `AgentTrajectory`'s `request_usage` field, kept apart from Claude's per-turn `turns`: the trajectory
+parsers leave it `None`, and the trajectory writer collects it on every tracked exit behind a failure boundary of its
+own, as the [trajectory sink](trajectories.md#trajectory-sink-trajectory_log_path) describes. Every backend has a
+collector: an Antigravity and a Claude run's read its stdout, and a Codex run's reads the native session log the
+trajectory writer hands it as `native_session`, since its stdout prints no request (Codex requests, below). A record an
+earlier build wrote leaves the field out, which means its run's requests were not collected, never that it made none.
+The contract is observation alone: pricing, the run's `UsageMetrics`, the accounting checkpoint and pinned totals, the
+cost and token evidence, Claude's turns, and the viewer's timeline are computed exactly as they would be without it,
+and never read a sample, marker, or checkpoint.
 
 **What an observation carries.** `request_models.py` defines the record; each sample serializes these keys, and a key
 the stream gave nothing for is absent rather than null:
@@ -805,8 +806,8 @@ ending it: a newline, a carriage return, or the two as a pair -- is an `oversize
 line holding no object -- whitespace alone included -- a `malformed-lines` one, each scanned where it stands. The bounds
 a reader of that log is held to are defined beside these, so a collection reads them all from `current_limits`: 4,096
 session directories (`MAX_SESSION_DIRECTORIES`) and 262,144 directory entries (`MAX_SESSION_ENTRIES`) a lookup examines,
-and 64 MiB of the log (`MAX_LOG_BYTES`) beside `MAX_EVENTS` lines a read takes. No lookup or read holds them yet,
-since nothing looks a log up or reads one for the dormant collector.
+and 64 MiB of the log (`MAX_LOG_BYTES`) beside `MAX_EVENTS` lines a read takes; the trajectory sink's lookup and
+read of that log hold them, at a Codex launch and at its exit (Codex requests, below).
 
 **Antigravity requests.** `request_agy.py` produces one observation per completed usage-bearing step of the process's
 own stream, on the same agy 1.4.10 captures the run accounting is pinned to. A step is keyed by its conversation and
@@ -1030,12 +1031,12 @@ folds what the lines report, and `request_codex_counters.py` reads a usage block
 `token_count`, `thread_rolled_back`, an `item_completed` subagent activity, or a legacy `sub_agent_activity`, and counts
 `token_usage_record` lines (below); a response item, the world state, and the settings lines are never read.
 
-The collector is dormant. `parse_agent_request_usage` still collects nothing for a Codex run, and nothing in the
-runtime looks a log up, reads one, or observes a launch; `request_codex.collect(stdout, session, fallback_model)` is
-called directly, by its tests alone. Its `session`, a `NativeSession`, carries the invocation's facts -- the session id
-the run returned, whether it resumed one, a UTC moment read just before its launch off the clock the CLI stamps by,
-and, for a resume, how many whole lines the log held at that moment -- and the log's lines as `(line, text)` pairs it
-reads one at a time, never holding the log whole. A caller with no line to hand over states why instead
+`parse_agent_request_usage` calls `request_codex.collect(stdout, session, fallback_model)` for every Codex run, with the
+`session` the trajectory sink's native reader hands over (below); the collector itself does no I/O. Its `session`, a
+`NativeSession`, carries the invocation's facts -- the session id the run returned, whether it resumed one, a UTC
+moment read just before its launch off the clock the CLI stamps by, and, for a resume, how many whole lines the log
+held at that moment -- and the log's lines as `(line, text)` pairs it reads one at a time, never holding the log
+whole. A caller with no line to hand over states why instead
 (`no-session-identity`, `native-log-missing`, `native-log-unreadable`, `discovery-limit`, `native-identity-unproven`,
 or `invocation-unattributed`), and no session at all is `no-launch-observation`; each attributes nothing. A caller
 that reads the log under its own bounds shares the `EventScan` it records them in -- a byte or line bound reached is a
@@ -1047,6 +1048,40 @@ stamp, the envelope it is read as, whether turn knowledge was lost at it, and th
 reason, keeping nothing the fold read beside the lines its scan counted. A native log holds JSON objects alone, so a
 line holding none -- cut short, a value that is no object, plain text, or nothing but whitespace -- is a
 `malformed-lines` gap, a last line the process never finished writing among them.
+
+The native reader, `trajectories/codex_sessions.py`, runs only while the trajectory sink is on, inside the request
+collection's failure boundary: a lookup or read that raises leaves a `collector-error` collection, and the trajectory,
+the baseline `agent_exit` record, and the run's accounting are written as they would have been. It looks the session up
+by the id the run returned and nothing else. A run that returned none, or an empty one, is `no-session-identity` and is
+looked up nowhere; its stdout holds only cumulative `turn.completed` sums, aggregate evidence the run accounting
+already reads, so nothing of it is kept as a request. The home it looks under is the one the launch observed
+(`trajectories/codex_launch.py`): just before the tracked spawn starts a Codex process with the trajectory sink on, it
+records the `CODEX_HOME` the process's effective environment names -- built by the backend's own environment owner
+from the run's options, an override included, taken against the directory the process runs in where relative -- or
+Codex's `~/.codex` where it names none or an empty one; for a resume, the log the session already has, looked up as the
+exit looks it up -- its device, inode, and bytes, and the whole lines it holds within the read bound, one more where
+it runs past the bound, and no count where its last line is unfinished; and then the launch moment, as precisely as
+the clock gives it, so every line counted precedes it. The observation rides the tracked spawn's own launch record to
+the exit's `launch_observation`, nothing the CLI is launched with changes, and an observation that fails is logged and
+leaves none. An exit with no observation -- the sink off at the launch, another backend's, or one that failed -- is
+`no-launch-observation`, and a resume whose launch counted no line is `invocation-unattributed`; neither is looked up.
+
+A resumed session's log stays under the date the session began, so every date directory is walked, newest first, for
+a regular file named `rollout-` and ending in `-<session id>.jsonl`, and a log is adopted only where the whole walk
+finds exactly one: it goes on past the first it finds and stops at a second, under the same date or another, which
+leaves no one log. A link, a directory, or a name only near the session's is never adopted, and no worktree, branch,
+or other session is searched. None found is `native-log-missing`, two `native-identity-unproven`, a directory or file
+that cannot be listed or opened `native-log-unreadable`, and past `MAX_SESSION_DIRECTORIES` directories or
+`MAX_SESSION_ENTRIES` entries examined -- which also bound what the walk holds of any listing -- `discovery-limit`, each
+attributing nothing; a launch whose lookup ends in any of them counts no line, so its resume is never read.
+A resume's log that is not the very file its launch counted -- another device or inode, or fewer bytes -- is
+`invocation-unattributed`, so a replaced or shortened log is never read past a count taken of another. The log is
+opened for the collection alone and closed as it ends, a collector that raises included, and read a line at a time,
+never held whole, no read asking for more than the bytes the bound has left and one more, the one that shows the log
+goes on past it: a line past `MAX_LINE_CHARS` bytes is skipped through without being kept and handed over as no line,
+an `oversize-lines` gap, a byte or line bound reached a `scan-limit` gap, and a read failing partway a
+`native-read-interrupted` one, each leaving the collection `partial` while the lines read before it keep what they
+prove. The same bounds hold the launch's count, which reads no further than `MAX_LOG_BYTES` of the log.
 
 Nothing marks where one invocation's lines end, since a resume appends to the same file writing no `session_meta`, so
 a line is attributed only under two proofs, and where either fails nothing is and the collection says why -- never a

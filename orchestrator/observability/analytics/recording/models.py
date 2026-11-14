@@ -5,8 +5,9 @@
 One owner for what a recorder is asked to write and what it carries while
 writing it: the signature each of the four argument-bound event families is
 reached through, the request the two renaming ones bind into, the inputs one
-completed tracked agent run is summarized from, and the two optional groups an
-`agent_exit` folds in when the run offered them.
+completed tracked agent run is summarized from -- the observation-only launch
+facts a Codex run's trajectory request collection needs among them -- and the
+two optional groups an `agent_exit` folds in when the run offered them.
 
 The signatures are declared rather than written as parameter lists because the
 recorders they belong to are what a caller reaches, and the caller's spelling
@@ -31,6 +32,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from orchestrator.agents.models import AgentResult
+    from orchestrator.observability.analytics.trajectories.codex_launch import LaunchObservation
 
 
 REPO_FIELD = "repo"
@@ -49,7 +51,14 @@ class StageEvaluationRequest:
 
 @dataclass(frozen=True)
 class AgentExitContext:
-    """Inputs that describe one completed tracked agent run."""
+    """Inputs that describe one completed tracked agent run.
+
+    `launch_observation` is what the opt-in trajectory sink observed of a Codex
+    process just before the tracked spawn launched it -- where its native
+    session log lives and when the launch was -- and None for every other run:
+    another backend's, one launched with that sink off, and one whose
+    observation failed. Only the trajectory's request collection reads it.
+    """
 
     repo: str
     issue: int
@@ -65,6 +74,7 @@ class AgentExitContext:
     fallback_model: str | None
     prompt: str | None
     cwd: Path | None
+    launch_observation: LaunchObservation | None = None
 
 
 @dataclass
@@ -150,6 +160,7 @@ AGENT_EXIT_SIGNATURE = inspect.Signature(
         _parameter("fallback_model", None),
         _parameter("prompt", None),
         _parameter("cwd", None),
+        _parameter("launch_observation", None),
     )
 )
 PARK_AWAITING_HUMAN_SIGNATURE = inspect.Signature(

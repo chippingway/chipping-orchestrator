@@ -21,9 +21,9 @@ over one at a time (`EventScan.counted`) rather than every decoded event kept, a
 whitespace included -- counted oversize however it arrived. A native log holds JSON objects alone, so any of its lines
 holding none -- nothing but whitespace included -- is a malformed line. The bounds a reader of that log is held to --
 how many session directories and entries its lookup may examine and how many bytes of the log it may read, beside
-`MAX_EVENTS` lines -- are defined here beside the others, so one collection reads them all from `current_limits`; no
-lookup or read in this package holds them yet, since the Codex collector is dormant and reads only the lines it is
-handed.
+`MAX_EVENTS` lines -- are defined here beside the others, so one collection reads them all from `current_limits`; the
+trajectory sink's lookup and read of that log, at a Codex launch and at its exit, hold them, while no owner in this
+package reads a file.
 
 The bounds are module defaults rather than knobs, read once per collection by `current_limits`, so a caller shrinks
 one here and the next collection is held to it.
