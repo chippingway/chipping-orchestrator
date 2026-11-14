@@ -9,10 +9,12 @@ rides. They sit together because they are one decision -- the sink being off
 is what makes the parse and the request collection never run, and the parse
 failing is what the guard exists to swallow. The request collection rides a
 narrower guard of its own inside that one, so a collector that fails costs the
-trajectory nothing. A stream the run parsers refused is parsed into nothing --
-the trajectory parse shares their decoder -- yet its request usage, which the
-collector reads past the refusal, is still written, on a record marked as
-refused and carrying no run usage.
+trajectory nothing; a Codex run's native session log is looked up and read
+inside that same guard (`codex_sessions`), so neither its lookup nor its read
+runs with the sink off. A stream the run parsers refused is parsed into
+nothing -- the trajectory parse shares their decoder -- yet its request usage,
+which the collector reads past the refusal, is still written, on a record
+marked as refused and carrying no run usage.
 
 The gate reads the opt-in knob off the `settings` holder inside the call, and
 the append it ends with is the `api` owner's own -- the sink is never reached
@@ -24,16 +26,18 @@ the sink an operator turned on has something to write.
 from __future__ import annotations
 
 import json
+from contextlib import nullcontext
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
 from orchestrator.observability.analytics import config as analytics_config, sink
-from orchestrator.observability.analytics.trajectories import api
+from orchestrator.observability.analytics.trajectories import api, codex_sessions
 from orchestrator.observability.analytics.trajectories.serialize import (
     build_trajectory_record,
 )
 from orchestrator.observability.usage import (
     metrics as usage_metrics,
+    protocol,
     request_coverage as usage_request_coverage,
     trajectory as usage_trajectory,
     trajectory_models as usage_trajectory_models,
@@ -70,6 +74,21 @@ def serializable(
     return request_usage
 
 
+def parsed_request_usage(
+    context: AgentExitContext,
+) -> usage_request_coverage.RequestUsage:
+    """The run's request usage as its backend's collector reads it: a Codex run's from its native session log, open
+    for the collection alone."""
+    reading = codex_sessions.native_session(context) if context.backend == protocol.CODEX else nullcontext()
+    with reading as native:
+        return usage_trajectory.parse_agent_request_usage(
+            context.backend,
+            context.agent_result.stdout,
+            context.fallback_model,
+            native,
+        )
+
+
 def collected_request_usage(
     context: AgentExitContext,
 ) -> usage_request_coverage.RequestUsage | None:
@@ -77,19 +96,18 @@ def collected_request_usage(
 
     The collector reads the run's stdout whether or not the CLI returned a
     session id, a failed or interrupted run's included, since what it printed
-    is attributable to this invocation either way. The boundary covers the
-    field's serialization too, which is checked here the way the sink writes
-    a record. A collector that raises, or a collection that would not
-    serialize, logs and leaves a collection stating it failed, so the
-    trajectory beside it -- and the baseline `agent_exit` record and the
-    workflow behind that -- are written exactly as they would have been.
+    is attributable to this invocation either way; a Codex run's requests are
+    in its native session log instead, which is looked up by the session id
+    the run returned and the launch observed for it, and read inside the
+    boundary. The boundary covers the field's serialization too, which is
+    checked here the way the sink writes a record. A collector, lookup, or
+    read that raises, or a collection that would not serialize, logs and
+    leaves a collection stating it failed, so the trajectory beside it -- and
+    the baseline `agent_exit` record and the workflow behind that -- are
+    written exactly as they would have been.
     """
     try:
-        return serializable(usage_trajectory.parse_agent_request_usage(
-            context.backend,
-            context.agent_result.stdout,
-            context.fallback_model,
-        ))
+        return serializable(parsed_request_usage(context))
     except Exception:  # noqa: BLE001 - request usage is dropped, never the trajectory
         sink.log.exception(
             "issue=#%d analytics: request usage collection(%s) failed; trajectory record is unaffected",
@@ -109,7 +127,7 @@ def agent_trajectory(
     A `refused` stream is one the run parsers would not read, so nothing is
     reconstructed from it -- the trajectory parse shares their decoder -- and
     the record holds the request usage its collector read past the refusal,
-    or is not written at all where the backend has no request collector. A
+    or is not written at all where nothing was collected. A
     record with no timeline has no turn for a request to name, so the
     requests it keeps name none.
     """
@@ -123,7 +141,7 @@ def agent_trajectory(
         context.agent_result.stdout,
     )
     changes: dict[str, Any] = {"request_usage": collected_request_usage(context)}
-    if context.backend == "codex":
+    if context.backend == protocol.CODEX:
         changes.update(codex_trajectory_changes(trajectory, catalog))
     return replace(trajectory, **changes)
 

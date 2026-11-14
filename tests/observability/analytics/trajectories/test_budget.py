@@ -323,9 +323,11 @@ class RecordAgentExitItemAccountingBudgetTest(_support.RecordAgentExitTrajectory
         self.assertLess(len(record[_STEPS_KEY]), CODEX_ACCOUNTING_STEP_COUNT)
 
     def _emit_accounting_record(self, record_budget: int) -> dict:
+        # The budgets are calibrated against the item accounting and the steps alone, so no request usage is charged.
         with (
             tempfile.TemporaryDirectory() as sink_dir,
             patch.object(trajectory_models, _RECORD_BUDGET, record_budget),
+            patch.object(_usage_trajectory, _REQUEST_COLLECTOR, return_value=None),
         ):
             trajectory_path = Path(sink_dir) / _TRAJECTORY_FILENAME
             self._emit(

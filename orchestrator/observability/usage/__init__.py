@@ -33,10 +33,10 @@ settle usage in, its log fold, and its counter reading (``request_models``,
 ``request_claude``, ``request_claude_stream``, ``request_claude_messages``,
 ``request_claude_counters``, ``request_claude_reports``, ``request_codex``,
 ``request_codex_scope``, ``request_codex_turns``, ``request_codex_fold``,
-``request_codex_counters``). The Antigravity and Claude request collectors
-are dispatched beside the trajectory parsers on ``trajectory``; the Codex one
-is dormant, called by no dispatch yet, and reads only the lines its caller
-hands it. None of them is published here, and none reads a file.
+``request_codex_counters``). The request collectors are dispatched beside
+the trajectory parsers on ``trajectory``, the Codex one reading only the lines
+the trajectory sink's native reader hands it. None of them is published here,
+and none reads a file.
 
 This initializer re-exports the narrow public surface (``__all__``): the nine
 parsers a caller dispatches through -- dispatch plus the Codex and Claude

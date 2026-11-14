@@ -1,12 +1,11 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Codex native session log lines spelled the way the CLI writes them, and the request usage the dormant collector
-serializes from a log.
+"""Codex native session log lines spelled the way the CLI writes them, and the request usage the collector serializes
+from a log.
 
-The collector is dormant -- no trajectory dispatch reaches it, and nothing in the runtime reads a native log yet -- and
-reads only the lines it is handed, so a test calls it directly with the captured log as it stood when an invocation
-exited, or with that log and the lines an invocation launched after the capture appended, beside the facts the
-invocation's launch would establish. Appended lines carry a stamp, a kind, and a payload, one JSON object per line.
+The collector reads only the lines it is handed, so a test calls it directly with the captured log as it stood when an
+invocation exited, or with that log and the lines an invocation launched after the capture appended, beside the facts
+the invocation's launch would establish. Appended lines carry a stamp, a kind, and a payload, one JSON object per line.
 """
 
 import json

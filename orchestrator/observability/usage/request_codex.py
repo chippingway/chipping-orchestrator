@@ -9,8 +9,9 @@ codex-cli 0.167.1 writes beside it under `CODEX_HOME`: one `token_count` per req
 reads it. `collect` reads that log's lines as its caller hands them over, one at a time, beside the facts of the
 launch that place the invocation in it, as a `NativeSession`; it reads nothing else, so it does no I/O of its own.
 
-The collector is dormant: the trajectory dispatch does not call it yet, so a Codex trajectory record still collects
-no request usage, and only a direct caller -- its tests -- reads a log through it.
+The trajectory dispatch (`trajectory.parse_agent_request_usage`) calls it for every Codex run, handing it the
+`NativeSession` the opt-in trajectory sink's reader built at exit: that reader looks the log up and reads it, bounded,
+and observed the launch the invocation's facts come from, so with the sink off nothing calls this collector.
 
 What makes a line this invocation's, and which turn each usage line settles in, is `request_codex_scope`'s to prove --
 the log has to be the session's own, a resumed run's lines lie past the count its log held at the launch, no stamp may
