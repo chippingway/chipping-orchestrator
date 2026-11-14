@@ -26,11 +26,15 @@ _API_OWNER = "api"
 
 _PERSISTENCE_OWNER = "persistence"
 
+_LAUNCH_OWNER = "codex_launch"
+
 # The declared inventory. A new owner is a deliberate edit here and a
 # paragraph in the module map, which is what the inventory check compares the
 # directory against.
 _OWNERS = (
     _API_OWNER,
+    _LAUNCH_OWNER,
+    "codex_sessions",
     "models",
     _PERSISTENCE_OWNER,
     "requests",
@@ -48,14 +52,18 @@ _ALWAYS_PLANTED = frozenset((
 
 # What each owner may reach beyond its own siblings, declared per owner
 # because the direction is the point. The two leaves reach nothing; the
-# request usage field names only the usage records it bounds; the serializer
-# names the shared write owner for the record envelope and the parsers a run
-# is metered by; the append and the write add the configuration owner the
-# knob is read through. The recording package is deliberately absent
-# from all of them: an `agent_exit` composes this write, so a trajectory owner
-# importing the recorders that call it is the cycle this rejects.
+# request usage field names only the usage records it bounds, and the Codex
+# session read only the collector it hands the log to; the serializer names
+# the shared write owner for the record envelope and the parsers a run is
+# metered by; the append, the write, and the launch observation add the
+# configuration owner the knob is read through. The recording package is
+# deliberately absent from all of them: an `agent_exit` composes this write,
+# so a trajectory owner importing the recorders that call it is the cycle this
+# rejects.
 _REACHABLE = MappingProxyType({
     _API_OWNER: (_CONFIG, _SINK),
+    _LAUNCH_OWNER: (_CONFIG, _SINK, _USAGE),
+    "codex_sessions": (_USAGE,),
     "models": (),
     _PERSISTENCE_OWNER: (_CONFIG, _SINK, _USAGE),
     "requests": (_USAGE,),
@@ -64,12 +72,14 @@ _REACHABLE = MappingProxyType({
 })
 
 # Every caller that has to obtain a trajectory owner from this package: the
-# `agent_exit` that hands one finished run's second record over. The by-age
-# prune is deliberately absent -- it takes the sink lock off the `sink` owner
-# that minted it, which is what keeps that object identical to the one the
-# append here takes.
+# `agent_exit` that hands one finished run's second record over, and the
+# tracked spawn's exit reporting, which observes a Codex launch for it before
+# the process starts. The by-age prune is deliberately absent -- it takes the
+# sink lock off the `sink` owner that minted it, which is what keeps that
+# object identical to the one the append here takes.
 _CALLERS = MappingProxyType({
     "orchestrator.observability.analytics.recording.agent_exit": _PERSISTENCE_OWNER,
+    "orchestrator.workflow.engine.run_reporting": _LAUNCH_OWNER,
 })
 
 

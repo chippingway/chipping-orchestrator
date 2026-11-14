@@ -73,7 +73,8 @@ _REFUSED_AGY_RUN = AgentResult(
     session_id=None, last_message="", exit_code=1, timed_out=False, stdout=f"{_AGY_STDOUT}\n{_REFUSED_LINE}", stderr="",
 )
 _ERROR_LEVEL = "ERROR"
-# A Codex run whose stream the decoder refuses: its backend has no request collector.
+_REQUEST_USAGE_KEY = "request_usage"
+# A Codex run whose stream the decoder refuses, and which returned no session.
 _BACKEND_CODEX = "codex"
 _REFUSED_CODEX_RUN = AgentResult(
     session_id=None, last_message="", exit_code=1, timed_out=False, stdout=_REFUSED_LINE, stderr="",
@@ -273,7 +274,7 @@ class TrajectoryRecordingTest(unittest.TestCase):
         self.assertEqual(budget.state.state_data["issue_agent_runs"], 1)
         self.assertIn(EVENT_AGENT_EXIT, [event[_EVENT_KEY] for event in gh.recorded_events])
         trajectory_record = _analytics_records(trajectory_path)[0]
-        self.assertEqual(trajectory_record["request_usage"]["coverage"]["reasons"], {"collector-error": 1})
+        self.assertEqual(trajectory_record[_REQUEST_USAGE_KEY]["coverage"]["reasons"], {"collector-error": 1})
         self.assertEqual(trajectory_record["steps"][0]["content"], "partial")
 
     def test_a_refused_stream_keeps_its_requests(self) -> None:
@@ -305,11 +306,12 @@ class TrajectoryRecordingTest(unittest.TestCase):
         # No run usage and no steps: nothing the run parsers refused is reconstructed.
         self.assertNotIn("run_usage", record)
         self.assertEqual(record["steps"], [])
-        self.assertEqual(len(record["request_usage"]["samples"]), 1)
-        self.assertEqual(record["request_usage"]["coverage"]["status"], "incomplete")
+        self.assertEqual(len(record[_REQUEST_USAGE_KEY]["samples"]), 1)
+        self.assertEqual(record[_REQUEST_USAGE_KEY]["coverage"]["status"], "incomplete")
 
-    def test_a_refused_stream_with_no_collector(self) -> None:
-        # A backend with no request collector has nothing to record past the refusal, so its run writes no trajectory.
+    def test_a_refused_codex_stream_without_a_session(self) -> None:
+        # A Codex run whose stdout the decoder refused returned no session, so its native log is looked up nowhere:
+        # its record carries no total and no timeline, only a request usage field saying why it holds nothing.
         gh = FakeGitHubClient()
         budget = _tracked_budget(gh, _REFUSED_LINE_ISSUE_NUMBER)
         trajectory_path = _analytics_path(self, "refused-codex-", "refused-trajectory.jsonl")
@@ -328,7 +330,10 @@ class TrajectoryRecordingTest(unittest.TestCase):
                 agent_spec=_BACKEND_CODEX,
             )
         self.assertIsNone(agent_result.usage)
-        self.assertFalse(trajectory_path.exists())
+        record = _analytics_records(trajectory_path)[0]
+        self.assertTrue(record["stream_refused"])
+        self.assertNotIn("run_usage", record)
+        self.assertEqual(record[_REQUEST_USAGE_KEY]["coverage"]["reasons"], {"no-session-identity": 1})
 
     def test_failure_keeps_skill_events(self) -> None:
         # A trajectory-parse failure must not cost the `skill_triggered`

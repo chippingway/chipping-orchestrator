@@ -2638,8 +2638,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
     run_requests.py         agent invocation requests, stable logical-round fingerprints, launch identities, and
                             optional runner arguments; prompt text is excluded so rebuilding a prompt cannot buy a
                             second charge, and the fingerprint, shared by every attempt at a round, is no accounting key
-    run_reporting.py        agent-exit audit and analytics records, configured-model fallback, and triggered-skill
-                            emissions; a failure to emit those skill records cannot discard a completed agent result
+    run_reporting.py        agent-exit audit and analytics records, configured-model fallback, the launch a tracked
+                            spawn hands its exit (start time and the opt-in trajectory's Codex launch observation),
+                            and triggered-skill emissions; a failure to emit those skill records cannot discard a
+                            completed agent result
     issue_usage.py          cumulative per-issue usage totals and their terminal receipt: the cost evidence reduced by
                             basis and completeness, the non-overlapping token total beside the runs it settles none
                             for, and an earlier build's totals read as one record without evidence (`EarlierUsage`),
@@ -2678,11 +2680,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             landed is laid back onto the caller's state as the comment's (`ACCOUNTING`, the fields the
                             reviewer's rereads keep as the comment's too). Only a settled answer licenses dependent
                             work. The counters' one writer: no stage folds usage of its own
-    usage.py                the tracked agent invocation: charge the required issue budget, emit spawn, call the runner,
-                            record its exit and skills, stamp the result with the identity minted over the reading
-                            the charge was started on, account its usage through the checkpoint before anything
-                            above can discard it, and return it for the stage to settle -- `unaccounted`, with the
-                            caller's state withheld, where that accounting is unresolved
+    usage.py                the tracked agent invocation: charge the required issue budget, observe the launch for the
+                            opt-in trajectory sink, emit spawn, call the runner, record its exit and skills, stamp the
+                            result with the identity minted over the reading the charge was started on, account its
+                            usage through the checkpoint before anything above can discard it, and return it for the
+                            stage to settle -- `unaccounted`, with the caller's state withheld, where that accounting
+                            is unresolved
   late_split/               the late size gate's own domain: what one generation IS, apart from anything that drives
                             one
     formats.py              what any late value has to look like -- a real integer, a git object id, a bounded

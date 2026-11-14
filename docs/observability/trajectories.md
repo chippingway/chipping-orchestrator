@@ -35,14 +35,20 @@ failure logs (`log.exception`) and is swallowed, so it can never drop the baseli
 the `skill_triggered` audit events, all of which were already produced before it runs. Inside it, the run's request
 usage is collected (`persistence.collected_request_usage`) behind a guard of its own, which covers the field's
 serialization as the sink writes it, so a collector that raises, or a collection that would not serialize, logs and
-leaves a field stating `collector-error` while the trajectory beside it is written whole. A stream the usage parser
-refuses -- a line the JSON decoder refuses although it parses -- still writes no `agent_exit` record and publishes no
-total, and nothing is reconstructed from it; where the backend has a request collector, the block then writes a record
-carrying only the run's context, its `user_input`, the request usage the collector read past the refusal -- its
+leaves a field stating `collector-error` while the trajectory beside it is written whole. A Codex run's requests are
+in its native session log, so the same guard covers looking that log up and reading it (`codex_sessions`), by the
+session id the run returned and the launch the tracked spawn observed for it: just before starting a Codex process
+with the sink on, `_run_agent_tracked` records the `CODEX_HOME` its effective environment names, for a resume the
+whole lines the session's log already holds, read once within the lookup and read bounds, and then the launch moment
+(`codex_launch.observed_launch`), and hands them to `record_agent_exit` as `launch_observation`, changing nothing the
+CLI is launched with; the run's own lines are the ones past that count. A stream the usage parser refuses -- a line
+the JSON decoder refuses although it parses -- still writes no `agent_exit` record and publishes no total, and nothing
+is reconstructed from it; the block then writes a
+record carrying only the run's context, its `user_input`, the request usage the collector read past the refusal -- its
 requests naming no trajectory turn, since the record has none -- and a `stream_refused` flag set to true, with no
-`run_usage` and no steps, while a backend with none writes nothing. With the
-sink off (the default) the block is a no-op before any parse work or request collection — the prompt is never read into
-a record and the `agent_exit` shape is byte-for-byte unchanged. `runtime.ticks.run_tick` does not yet call
+`run_usage` and no steps. With the sink off (the default) the block is a no-op before any parse work or request
+collection — no Codex launch is observed and no native session log is looked up or read, the prompt is never read into
+a record, and the `agent_exit` shape is byte-for-byte unchanged. `runtime.ticks.run_tick` does not yet call
 `prune_trajectory_records`, so trajectory retention stays operator-driven for now.
 
 **Record shape.** One `agent_trajectory` record per tracked run carries the standard envelope (`ts`, `repo`, `issue`,
@@ -54,7 +60,7 @@ since its stream carries no offered-tools frame), `skills_triggered` / `skills_a
 `skills.discovery.discover_local_skill_sources(cwd)` filesystem scan, since its stream carries no offered-skills
 catalog; the source level that scan also reports rides the `agent_exit` record, not this one), a `run_usage` summary,
 a claude-only per-turn `turns` array, a codex-only `source_items` accounting with its `source_item_counts` summary and
-`source_items_truncated` flag, an Antigravity and Claude `request_usage` field (below), a `stream_refused` flag on
+`source_items_truncated` flag, a `request_usage` field (below), a `stream_refused` flag on
 the record of a run whose stdout the usage parser refused (above), an ordered `steps` array (each
 `{kind, name, tool_id, content}` plus a `turn` index on the billed steps, where
 `kind` is `tool_call` / `tool_result` / `assistant_message` / `user_message` / `unsupported_item` and `content` is the
@@ -106,14 +112,16 @@ rows — or for none of them, in which case the `source_items` key is absent whi
 many items the stream identified. A claude run identifies no codex items, so all three keys are simply absent from its
 record.
 
-**Request usage (`request_usage`).** Beside the steps, a run whose backend has a request collector -- Antigravity and
-Claude today -- carries the per-request usage [the usage parser](usage.md#request-usage-observations) collects from the
-same stdout: its `coverage` and its aggregate `checkpoints`, always kept, then its boundary `markers` and its `samples`,
-one per request, as far as the record budget reaches. It is collected on every tracked exit while the sink is on, a
-failed, interrupted, or timed-out run's, one that returned no session id, and one whose stdout the run parsers refused
-included, since what the process printed is attributable to it either way; with the sink off no collector runs. A Codex
-record carries no such key, and neither does any record an earlier build wrote: the field's absence means its requests
-were not collected, never that the run made none, and no reader infers or backfills a breakdown in its place. A Claude
+**Request usage (`request_usage`).** Beside the steps, every run carries the per-request usage
+[the usage parser](usage.md#request-usage-observations) collects -- an Antigravity or Claude run's from the same stdout,
+a Codex run's from the invocation's own lines of its native session log: its `coverage` and its aggregate
+`checkpoints`, always kept, then its boundary `markers` and its `samples`, one per request, as far as the record budget
+reaches. It is collected on every tracked exit while the sink is on, a failed, interrupted, or timed-out run's, one
+that returned no session id, and one whose stdout the run parsers refused included, since what the process left is
+attributable to it either way -- a Codex run that returned no session id, or whose launch was not observed, is looked
+up nowhere and carries a collection saying so; with the sink off no collector runs and no native log is read. A record
+an earlier build wrote carries no such key: the field's absence means its requests were not collected, never that the
+run made none, and no reader infers or backfills a breakdown in its place. A Claude
 sample also names the trajectory turn it is numbered under by the key it is settled under (`trajectory_turn`) -- the
 `turn` of its `turns` entry and of the steps it produced -- so a request's usage reads beside its turn; one numbered
 only under another key links none. A sample holds allowlisted counters and
@@ -173,7 +181,9 @@ web-search queries it ran, the plan a codex run wrote for itself and the paths e
 agent's own text turns, all in cleartext after redaction. Two payloads a stream carries stay out of the record: a
 codex `reasoning` item never enters it — the accounting names that id and its type and nothing else, never the hidden
 text — and a web search records the query and the `action` it resolved to but no result body, because the stream
-carries none and nothing reconstructs one. An enabled trajectory file therefore
+carries none and nothing reconstructs one. A Codex run's native session log under `CODEX_HOME`, which the sink opens
+read-only at that run's launch and exit, contributes only the `request_usage` counters and correlation metadata: none
+of its instructions, messages, or tool text enters the record. An enabled trajectory file therefore
 carries the same sensitivity as the repositories the orchestrator works on; scope its filesystem permissions (and any
 retention) accordingly. This is why the sink is off by default and why it never leaves the local filesystem (next
 paragraphs).

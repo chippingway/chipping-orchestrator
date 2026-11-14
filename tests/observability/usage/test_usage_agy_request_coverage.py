@@ -432,9 +432,11 @@ class CoverageGapTest(unittest.TestCase):
         self.assertEqual(undercounted.status, coverage.INCOMPLETE)
 
     def test_dispatch_collects_where_it_can(self) -> None:
-        # The Codex collector is dormant, so the dispatch collects nothing for a Codex run; every other backend's stream
-        # is collected, however little it holds.
-        self.assertIsNone(trajectory.parse_agent_request_usage(protocol.CODEX, _FIRST))
+        # Every backend's run is collected, however little it holds; a Codex run handed no native session log --
+        # its stdout holding no request -- attributes nothing, and says its launch placed it in no log.
+        codex = trajectory.parse_agent_request_usage(protocol.CODEX, _FIRST)
+        self.assertEqual(dict(codex.coverage.reasons), {coverage.NO_LAUNCH_OBSERVATION: 1})
+        self.assertEqual(codex.observations, ())
         for backend in (protocol.AGY, protocol.CLAUDE):
             with self.subTest(backend):
                 self.assertIsNotNone(trajectory.parse_agent_request_usage(backend, _FIRST))
