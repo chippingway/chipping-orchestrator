@@ -2680,11 +2680,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             landed is laid back onto the caller's state as the comment's (`ACCOUNTING`, the fields the
                             reviewer's rereads keep as the comment's too). Only a settled answer licenses dependent
                             work. The counters' one writer: no stage folds usage of its own
-    usage.py                the tracked agent invocation: charge the required issue budget, emit spawn, call the runner,
-                            record its exit and skills, stamp the result with the identity minted over the reading
-                            the charge was started on, account its usage through the checkpoint before anything
-                            above can discard it, and return it for the stage to settle -- `unaccounted`, with the
-                            caller's state withheld, where that accounting is unresolved
+    usage.py                the tracked agent invocation: charge the required issue budget, observe the launch for the
+                            opt-in trajectory sink, emit spawn, call the runner, record its exit and skills, stamp the
+                            result with the identity minted over the reading the charge was started on, account its
+                            usage through the checkpoint before anything above can discard it, and return it for the
+                            stage to settle -- `unaccounted`, with the caller's state withheld, where that accounting
+                            is unresolved
   late_split/               the late size gate's own domain: what one generation IS, apart from anything that drives
                             one
     formats.py              what any late value has to look like -- a real integer, a git object id, a bounded

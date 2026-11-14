@@ -181,7 +181,9 @@ web-search queries it ran, the plan a codex run wrote for itself and the paths e
 agent's own text turns, all in cleartext after redaction. Two payloads a stream carries stay out of the record: a
 codex `reasoning` item never enters it — the accounting names that id and its type and nothing else, never the hidden
 text — and a web search records the query and the `action` it resolved to but no result body, because the stream
-carries none and nothing reconstructs one. An enabled trajectory file therefore
+carries none and nothing reconstructs one. A Codex run's native session log under `CODEX_HOME`, which the sink opens
+read-only at that run's launch and exit, contributes only the `request_usage` counters and correlation metadata: none
+of its instructions, messages, or tool text enters the record. An enabled trajectory file therefore
 carries the same sensitivity as the repositories the orchestrator works on; scope its filesystem permissions (and any
 retention) accordingly. This is why the sink is off by default and why it never leaves the local filesystem (next
 paragraphs).
