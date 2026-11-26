@@ -24,10 +24,12 @@ identifiers, and the record limit sits there: it binds only on text made
 mostly of those widest characters, which no ordinary record is.
 
 Only the telemetry copy is bounded. Nothing here shortens what an agent was
-handed or what the workflow publishes.
+handed or what the workflow publishes. A bounded text is also storable: the
+characters the analytics database's `jsonb` refuses are replaced as it is cut.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 # Characters of a task description the record keeps.
@@ -41,6 +43,10 @@ EXCERPT_CHARS = 500
 RECORD_BYTES = 8192
 
 TEXT = "text"
+
+# The characters `jsonb` refuses, and what a record writes in their place.
+_UNSTORABLE_RE = re.compile("[\x00\ud800-\udfff]")
+_REPLACEMENT = "\ufffd"
 
 CHARS = "chars"
 
@@ -71,9 +77,22 @@ class BoundedText:
         return spelled
 
 
+def storable(text: str) -> str:
+    """`text` with every character the analytics database cannot hold replaced, one for one.
+
+    The database keeps a record's extras as `jsonb`, which refuses a NUL
+    character and a surrogate code point -- which no well-formed text holds --
+    and one such value rolls back the replay of every record beside it. Each
+    is written as the replacement character instead, so lengths and
+    positions stand.
+    """
+    return _UNSTORABLE_RE.sub(_REPLACEMENT, text)
+
+
 def bounded(text: str, limit: int) -> BoundedText:
-    """`text`'s first `limit` characters, beside its whole length."""
-    return BoundedText(text[:limit], len(text))
+    """`text`, made storable, cut to its first `limit` characters beside its whole length."""
+    kept = storable(text)
+    return BoundedText(kept[:limit], len(kept))
 
 
 def dropped(spelled: dict) -> dict:

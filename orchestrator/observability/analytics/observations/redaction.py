@@ -2,10 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 """The telemetry copy of a reply's text, with every credential in it masked before anything is cut or written.
 
-The credential redactor (`config.credentials.redact_secrets`) replaces each
-credential's literal value in a text it is handed whole. A description is
-handed whole: it is one decoded JSON string, so the redactor runs over it as
-it is, a credential the JSON escaped decoded back into its value.
+Every text is made storable first (`bounds.storable`), one character for one,
+so nothing below moves a position. The credential redactor
+(`config.credentials.redact_secrets`) replaces each credential's literal value
+in a text it is handed whole. A description is handed whole: it is one decoded
+JSON string, so the redactor runs over it as it is, a credential the JSON
+escaped decoded back into its value. Decoding can also do the opposite -- a
+credential whose value itself spells an escape, a backslash and an `n`, decodes
+into another character -- and the sink would spell it back exactly as it
+serializes the record, so every text is searched once more in that JSON
+spelling, and what a credential covers there is masked too.
 
 An excerpt of a refused line is not handed whole. It is one line of a reply,
 so a credential whose line break the agent wrote raw reaches it as a fragment
@@ -31,6 +37,8 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, NamedTuple
+
+from orchestrator.observability.analytics.observations import bounds
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -67,13 +75,14 @@ class Telemetry(NamedTuple):
 
 
 def sanitized(message: str, reading: SnapshotReading) -> Telemetry:
-    """The texts `reading` of `message` yields, with every credential the process holds masked."""
+    """The texts `reading` of `message` yields, storable, with every credential the process holds masked."""
     from orchestrator import config
 
+    masker = _Masker.over(bounds.storable(message), _credential_values(config))
     redact = config.credentials.redact_secrets
-    masker = _Masker.over(message, _credential_values(config))
-    excerpts = tuple(masker.excerpt(problem.spans, redact) for problem in reading.problems)
-    return Telemetry(masker.redacted(reading.description, redact), excerpts)
+    excerpts = (masker.excerpt(problem.spans) for problem in reading.problems)
+    cleared = tuple(masker.cleared(excerpt, redact) for excerpt in excerpts)
+    return Telemetry(masker.cleared(reading.description, redact), cleared)
 
 
 def _credential_values(config: ModuleType) -> tuple[str, ...]:
@@ -100,6 +109,17 @@ class _Decoded:
         text = "".join(piece[0] for piece in pieces)
         return cls(raw, text, tuple(piece[1] for piece in pieces))
 
+    def masked(self, spans: tuple[_Span, ...]) -> str:
+        """The decoded text, each run of characters decoded from inside `spans` of the raw text shown as the mask."""
+        hidden = self._hidden(spans)
+        pieces: list[str] = []
+        for index, character in enumerate(self.text):
+            if index not in hidden:
+                pieces.append(character)
+            elif index - 1 not in hidden:
+                pieces.append(MASK)
+        return "".join(pieces)
+
     def spans_of(self, secret: str) -> list[_Span]:
         """Every span of the raw text `secret` sits in, as written or behind escapes."""
         pattern = re.compile(re.escape(secret))
@@ -112,54 +132,64 @@ class _Decoded:
         last = self.sources[found.end() - 1]
         return (first[0], last[1])
 
+    def _hidden(self, spans: tuple[_Span, ...]) -> set[int]:
+        """The decoded characters whose source overlaps any of `spans`."""
+        hidden: set[int] = set()
+        for start, end in spans:
+            for index, source in enumerate(self.sources):
+                if source[0] < end and source[1] > start:
+                    hidden.add(index)
+        return hidden
+
     @classmethod
     def _pieces(cls, raw: str) -> list[tuple[str, _Span]]:
         """`raw` one decoded character at a time, each beside the span it was decoded from."""
         pieces: list[tuple[str, _Span]] = []
         cursor = 0
         for escape in _ESCAPE_RE.finditer(raw):
-            pieces.extend(cls._literal(raw, cursor, escape.start()))
-            pieces.append(cls._unescaped(escape))
+            pieces.extend(_literal(raw, cursor, escape.start()))
+            pieces.append(_unescaped(escape))
             cursor = escape.end()
-        pieces.extend(cls._literal(raw, cursor, len(raw)))
+        pieces.extend(_literal(raw, cursor, len(raw)))
         return pieces
-
-    @classmethod
-    def _literal(cls, raw: str, start: int, end: int) -> list[tuple[str, _Span]]:
-        literal = []
-        for offset in range(start, end):
-            literal.append((raw[offset], (offset, offset + 1)))
-        return literal
-
-    @classmethod
-    def _unescaped(cls, escape: re.Match[str]) -> tuple[str, _Span]:
-        escaped = escape.group()
-        return json.loads(f'"{escaped}"'), escape.span()
 
 
 @dataclass(frozen=True)
 class _Masker:
-    """A reply, and the merged spans every credential in it sits in, in order."""
+    """A reply, the merged spans every credential in it sits in, in order, and the credentials themselves."""
 
     message: str
     spans: tuple[_Span, ...]
+    secrets: tuple[str, ...]
 
     @classmethod
     def over(cls, message: str, secrets: tuple[str, ...]) -> _Masker:
         decoded = _Decoded.of(message)
         found = [span for secret in secrets for span in decoded.spans_of(secret)]
-        return cls(message, cls._merged(found))
+        return cls(message, cls._merged(found), secrets)
 
-    def redacted(self, text: str | None, redact: _Redactor) -> str | None:
-        """`text` through the redactor, where there is any."""
-        return None if text is None else redact(text)
+    def cleared(self, text: str | None, redact: _Redactor) -> str | None:
+        """`text` made storable and redacted, and masked in the JSON spelling the sink writes it in; None for none.
 
-    def excerpt(self, lines: tuple[_Span, ...], redact: _Redactor) -> str | None:
+        A credential's value may itself spell an escape -- a backslash and an
+        `n`, written by an agent inside a JSON string -- which decoding turned
+        into another character, so the redactor no longer sees it in the text,
+        and serializing would spell it back exactly. Each character escaped
+        into that spelling of a credential is masked in the text.
+        """
+        if text is None:
+            return None
+        redacted = redact(bounds.storable(text))
+        written = _Decoded.of(json.dumps(redacted)[1:-1])
+        found = [span for secret in self.secrets for span in written.spans_of(secret)]
+        return written.masked(self._merged(found)) if found else redacted
+
+    def excerpt(self, lines: tuple[_Span, ...]) -> str | None:
         """The reply's `lines`, one per line, every credential in them masked; None for no lines."""
         if not lines:
             return None
         shown = [self._line(*line) for line in lines]
-        return redact("\n".join(shown))
+        return "\n".join(shown)
 
     def _line(self, start: int, end: int) -> str:
         pieces = []
@@ -190,3 +220,17 @@ class _Masker:
             else:
                 merged.append([start, end])
         return tuple((span[0], span[1]) for span in merged)
+
+
+def _literal(raw: str, start: int, end: int) -> list[tuple[str, _Span]]:
+    """`raw[start:end]` one character at a time, each beside the span it sits in."""
+    literal = []
+    for offset in range(start, end):
+        literal.append((raw[offset], (offset, offset + 1)))
+    return literal
+
+
+def _unescaped(escape: re.Match[str]) -> tuple[str, _Span]:
+    """The character one JSON string escape decodes to, beside the span it was written in."""
+    escaped = escape.group()
+    return json.loads(f'"{escaped}"'), escape.span()

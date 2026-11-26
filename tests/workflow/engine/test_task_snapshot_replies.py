@@ -11,15 +11,18 @@ report keeps its text, a VERIFIED line its location, a malformed outcome
 stays malformed, and a reply without an outcome stays one -- whatever the
 description says, since a JSON string escapes every line break a marker,
 an acknowledgement, or a fence would need. The workflow reads the reply with
-the line taken out above the outcome and left where it is past it, so text
-after an outcome is still refused; and the recorder is handed the report
-reader's own framing of the reply.
+the line taken out above the outcome and inside a report block, and left
+where it is past the outcome, so the published report is the one written
+without it and text after an outcome is still refused; a reply nothing can
+take it out of is read as written. The recorder is handed the report reader's
+own framing of the reply.
 """
 from __future__ import annotations
 
 import json
 import unittest
 from types import MappingProxyType
+from unittest.mock import patch
 
 from orchestrator.observability.analytics.observations import attachments, recorder as _recorder
 from orchestrator.workflow.engine import (
@@ -142,6 +145,19 @@ class ProtocolIsolationTest(unittest.TestCase):
     def test_a_ready_report_keeps_its_text(self) -> None:
         attached = _attached(_REPLIES[_READY], _line(_DESCRIPTION))
         self.assertEqual(_outcomes._parse_report_outcome(attached).report, _REPORT)
+
+    def test_a_line_inside_the_report_is_taken_out(self) -> None:
+        # The report the workflow publishes, and its digest, are the ones the
+        # reply without the line would have.
+        inside = f"Done.\n\nREPORT: READY\n{_REPORT}\n{_line(_DESCRIPTION)}\nREPORT: END\n"
+        self.assertEqual(_task_snapshots._workflow_reply(inside), _REPLIES[_READY])
+
+    def test_an_unstrippable_reply_reads_as_written(self) -> None:
+        attached = _attached(_REPLIES[_READY], _line(_DESCRIPTION))
+        failing = patch.object(attachments, "without_attachments", side_effect=ValueError("unreadable"))
+        with failing, self.assertLogs("orchestrator.workflow", level="WARNING") as logged:
+            self.assertEqual(_task_snapshots._workflow_reply(attached), attached)
+            self.assertEqual(len(logged.output), 1)
 
     def test_text_after_an_outcome_stays_refused(self) -> None:
         # A line past the outcome stays in the reply the workflow reads, so

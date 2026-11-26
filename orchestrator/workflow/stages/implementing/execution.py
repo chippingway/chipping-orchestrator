@@ -375,7 +375,7 @@ class _DevRunCoordinator:
             self._options.get(_RESUMED),
         )
         if road is not None:
-            road.received(attempt, str(self._options["stage"]))
+            road.received(attempt, self._state())
         paused = self._held_on_quota(agent_result, resume_session_id) or agent_result.unaccounted or (
             self._options.get("pause_guard", True)
             and _guards._paused_during_agent_run(self._gh, self._issue())

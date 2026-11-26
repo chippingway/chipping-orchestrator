@@ -1945,15 +1945,24 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             it, then `Error:`, `Expected:` and `Observed:` where needed, `Reproduce:` -- a
                             self-contained snippet for a probe, since a stdin command alone reproduces nothing -- and
                             `Unavailable:` for each diagnostic not obtained, every entry outside the declaration
+    task_snapshot_grounding.py
+                            what an implementing developer conversation was handed, for its task snapshot: a fresh
+                            one its prompt's, a resumed one what the pinned `task_snapshot_grounding` record says it
+                            was grounded on while the conversation and the baseline stand, the road's revision
+                            otherwise; and that record, staged with the tick's own state only where the conversation
+                            was handed something other than the baseline. Only the snapshot reads it
     task_snapshots.py       which developer attempts are asked for a task snapshot -- every one on the first
                             implementation's road or an implementing resume's, and none else -- the request appended
                             to the prompt each is handed, and the receipt of each return on those roads: a genuine
                             one, judged by the run's status alone, handed to the analytics recorder with its
-                            invocation, the requirements its prompt was handed, and the report reader's own framing
-                            of the reply, which the recorder asks inside its failure boundary; and every one left as
-                            the workflow reads it, its attachment lines above the outcome taken out, so no park or
-                            notice quotes the line and text after an outcome is still refused. Nothing a workflow
-                            decides reads the observation back
+                            invocation, the requirements its conversation was handed (`task_snapshot_grounding.py`),
+                            the revision its report is stamped with -- which spells the task reference -- and the
+                            report reader's own framing of the reply, which the recorder asks inside its failure
+                            boundary; and every one left as the workflow reads it, its attachment lines above the
+                            outcome and inside a report block taken out, so no park or notice quotes the line, the
+                            published report and its digest are as written without it, and text after an outcome is
+                            still refused -- a reply nothing can strip read as written, with one warning. Nothing a
+                            workflow decides reads the observation back
     review_subjects.py      what one review is of -- pull request, head, requirements revision, and report revision and
                             digest -- recorded as `review_subject` before the spawn, as `review_returned_subject` once a
                             reviewer returns, and as `review_approved_subject` once an approval passes the verify gate,
@@ -4823,7 +4832,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             implementation's road and an implementing resume's ask for, record, and take out of the
                             reply the workflow reads -- the snapshot bound to the handoff's requirements, or, for an
                             attempt that opened a fresh conversation on a retry's road, to the read that conversation
-                            was re-grounded on (`fresh_requirements`)
+                            was re-grounded on (`fresh_requirements`), and for one resuming it, to what the pinned
+                            grounding record says (`engine/task_snapshot_grounding.py`)
       captured_report.py    the run's own pending capture handed to the report delivery where the disposition records
                             a report -- what the tick settled around the run riding the transfer's own commit, so the
                             two land together or not at all; one refused for the report itself withdrawn and the run

@@ -4259,7 +4259,12 @@ The keys that matter for the state machine fall into a few groups:
   that park is taken by the late owner and rides its write; see [The retry budget](#the-retry-budget)),
   `silent_park_count` (dev-session silent-park counter), `dev_resume_count` (per-dev-session resume budget; once it
   reaches `DEV_SESSION_MAX_RESUMES` the session is retired and respawned fresh from durable state, reset to 0 on every
-  fresh spawn), `merged_at` / `closed_without_merge_at` terminal stamps, and the per-round stamps `last_question_at` /
+  fresh spawn), `task_snapshot_grounding` (the requirements an implementing developer conversation was handed where
+  they are not the baseline `user_content_hash` -- a retry's fresh conversation re-grounded on an edit beside the
+  command -- as `{"session_id", "requirements", "baseline"}`, staged with the tick's own state; only the task snapshot
+  of a later attempt resuming that same conversation reads it, and only while the baseline still stands, so it decides
+  nothing and a lost or damaged one leaves that snapshot bound to its road's revision -- see
+  [`../workflow/conversations.md#the-task-snapshot-attachment`](../workflow/conversations.md#the-task-snapshot-attachment)), `merged_at` / `closed_without_merge_at` terminal stamps, and the per-round stamps `last_question_at` /
   `last_discussion_at` the two operator-applied conversation stages set on every run they settle.
 - **Usage meter.** `issue_agent_runs`, `issue_total_tokens`, `issue_total_tokens_unknown_runs`,
   `issue_total_cost_usd`, `issue_cost_sources`, `issue_cost_evidence`, and `issue_unevidenced_runs` are per-issue

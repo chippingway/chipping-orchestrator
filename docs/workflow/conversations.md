@@ -566,11 +566,12 @@ description says can open a line another reader sees. Above the outcome, the lin
 and so outside the report that is published and the digest it is identified by; a `REPORT: VERIFIED` line names a
 report already on the pull request, which the attachment never touches.
 
-The workflow reads the reply without it. Every return on those two roads has its attachment lines above the report
-outcome taken out of the message before any stage reads it, so a reply carrying nothing else is the silent failure an
-empty one is, no park or notice quotes the line, and every report reading is what it would be without it. A line at or
-past the outcome is left where it is, so text after an outcome is still refused and a report is still published as it
-was written.
+The workflow reads the reply without it. Every return on those two roads has its attachment lines taken out of the
+message before any stage reads it — above the report outcome, and inside a report block where a developer misplaced
+one — so a reply carrying nothing else is the silent failure an empty one is, no park or notice quotes the line, and
+the report published, with the digest it is identified by, is the one written without it. A line past the outcome's
+last marker line is left where it is, so text after an outcome is still refused. A reply nothing can take the line out
+of is read as written, with one warning.
 
 The attachment is read on its own terms and decides nothing. `task_snapshots.py` hands a genuine return — judged by the
 run's status alone: invoked under a tracked charge, neither interrupted nor timed out, exiting 0, with no tool step
@@ -578,12 +579,17 @@ unfinished — to the one reader and recorder under `observability/analytics/obs
 came from, the requirements revision the attempt's prompt was handed, and the report reader's own framing of the reply,
 which the recorder asks inside its failure boundary. That revision is the one the road froze before the launch, save
 on a retry that opens a fresh conversation, whose snapshot is bound to the read the replacement session was re-grounded
-on. The reader reads the reply as written: exactly one line above the outcome is a snapshot; none is missing, two or
+on; a later retry resuming that same conversation is handed nothing new, so the pinned
+[`task_snapshot_grounding`](../state-machine/labels-and-state.md#pinned-state) record carries that grounding to its
+snapshot while the conversation and the issue's baseline stand (`workflow/engine/task_snapshot_grounding.py`). The task
+reference is spelled from the revision the run's report is stamped with instead, which is what a reviewer is handed.
+The reader reads the reply as written: exactly one line above the outcome is a snapshot; none is missing, two or
 more anywhere are a duplicate, the one line at or past the outcome is misplaced, and a line out of shape — a key
 written twice included — is malformed. Each of those is recorded as a diagnostic and nothing else: no retry,
 correction, park, or refusal follows from it, and a valid report outcome beside it stays valid, while an invalid one is
-not rescued by it. The reviewer later handed the report is told the task snapshot reference its revision spells,
-beside the quoted report (`workflow/engine/review_prompts.py`). What the records hold is in
+not rescued by it. The reviewer later handed the report is told the task snapshot reference its stamped revision
+spells, beside the quoted report (`workflow/engine/review_prompts.py`), which is the reference the snapshot was
+recorded under. What the records hold is in
 [`../observability/event-streams.md#task-snapshot-records`](../observability/event-streams.md#task-snapshot-records).
 
 ### The developer report lifecycle

@@ -245,8 +245,11 @@ holding one non-blank `description` written once. Another kind, version, or shap
 the report block or past the outcome, two lines anywhere, or none at all is a diagnostic naming why, never a guessed,
 repaired, or merged observation. The `task_snapshot` and `observation_diagnostic` records carry
 `observation_version: 1` and their source invocation's identity whole; a text says how long it was and whether it was
-cut, a record past its limit drops its texts rather than cutting an identifier, and nothing backfills a snapshot for a
-run that recorded none.
+cut, a character `jsonb` refuses is written as the replacement character, a record past its limit drops its texts
+rather than cutting an identifier, and nothing backfills a snapshot for a run that recorded none. A snapshot's
+`task_ref` is spelled from the revision its run's report is stamped with, and its `requirements_revision` names what
+its conversation was handed, which the pinned `task_snapshot_grounding` record carries to a later retry resuming that
+conversation only while its baseline stands.
 A recorded requirements fingerprint
 (`user_content_hash`, `observed_user_content_hash`) is compared with the current fingerprint alone, which leaves bare
 operator controls out: a value no current reading reproduces -- one an earlier producer wrote counting a bare
@@ -754,11 +757,12 @@ answer is read by the same parser and earns none of its own; a question, silence
 interrupted, or dirty run earns none, and no dependency list is inferred from a child's prose. Session identity is
 covered by [C-14]. The task snapshot request the implementing roads append to every attempt is spelled from the
 vocabulary the one analytics attachment reader reads, and asks every finished reply for its line, above the report
-outcome where there is one. The workflow reads the reply with that line taken out above the outcome, so it is outside
-the report and its digest, no park reads or quotes it, and every report reading is what it would be without it --
-text after an outcome still refused. A missing, malformed, duplicated, or misplaced attachment earns a diagnostic and
-nothing else -- no retry, correction, park, or refusal -- and never makes an invalid report outcome valid. A reviewer
-handed a report is told the task snapshot reference that report's requirements revision spells.
+outcome where there is one. The workflow reads the reply with that line taken out above the outcome and inside a
+report block, so it is outside the published report and its digest, no park reads or quotes it, and every report
+reading is what it would be without it -- text after an outcome still refused. A missing, malformed, duplicated, or
+misplaced attachment earns a diagnostic and nothing else -- no retry, correction, park, or refusal -- and never makes
+an invalid report outcome valid. A reviewer handed a report is told the task snapshot reference that report's stamped
+requirements revision spells, the one the snapshot of the reply that wrote it was recorded under.
 
 **Specs:** [reply protocols](workflow.md), [task snapshots](workflow/conversations.md#the-task-snapshot-attachment).
 
@@ -770,6 +774,7 @@ handed a report is told the task snapshot reference that report's requirements r
 [task snapshot replies](../tests/workflow/engine/test_task_snapshot_replies.py),
 [task snapshot attempts](../tests/workflow/stages/implementing/test_task_snapshot_attempts.py),
 [task snapshot readings](../tests/workflow/stages/implementing/test_task_snapshot_readings.py),
+[task snapshot grounding](../tests/workflow/engine/test_task_snapshot_grounding.py),
 [reviewer task reference](../tests/workflow/engine/test_prompts_review_report.py).
 
 ## C-09: Reports, review subjects, and verification
@@ -991,10 +996,11 @@ recorded, on a trajectory record marked `stream_refused`. A task snapshot and it
 no usage total, accounting, completion capture, report settlement, or workflow decision reads one. They are collected
 wherever the analytics sink is on, needing no usage parse, trajectory sink, or database, from a genuine developer
 return alone, judged by the run's status -- so the recovery that finishes a captured report records none -- and behind
-one failure boundary from the report reader's framing of the reply through the append: a step that fails is a
-diagnostic, a diagnostic that cannot be written is one warning, and a lost observation owes no export, checkpoint, or
-agent run. Only the telemetry copy is redacted, before it is cut: an excerpt masks every credential the whole reply
-holds, written raw or JSON-escaped.
+one failure boundary from the report reader's framing of the reply through the append: a step that fails before the
+append is a diagnostic, a refused append or a diagnostic that cannot be written is one warning, and a lost observation
+owes no export, checkpoint, or agent run. Only the telemetry copy is redacted, before it is cut: an excerpt masks every
+credential the whole reply holds, written raw or JSON-escaped, and every text is masked in the JSON spelling the sink
+writes it in as well. The pinned `task_snapshot_grounding` record is read by the snapshot alone and decides nothing.
 
 **Specs:** [audit recovery](observability/event-streams.md#audit-event-log-event_log_path),
 [request usage](observability/usage.md#request-usage-observations),

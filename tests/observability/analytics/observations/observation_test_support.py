@@ -38,7 +38,7 @@ REVISION = "abababababababababababababababababababababababababababababababab"
 
 STAGE = "implementing"
 
-RUN = records.ObservedRun(INVOCATION, STAGE, "implementation", REVISION)
+RUN = records.ObservedRun(INVOCATION, STAGE, "implementation", REVISION, report_requirements=REVISION)
 
 TASK_REF = f"{REPO}#{ISSUE}@{REVISION}"
 

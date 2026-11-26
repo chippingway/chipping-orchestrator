@@ -53,10 +53,11 @@ snapshot: the coordinator hands every attempt the prompt its road asks with
 (`asked`) and every return to its road (`received`), and only the first
 implementation's road and an implementing resume's append the request, record
 anything, or take the attachment out of the reply the workflow reads
-(`task_snapshots`). The observation is bound to what the attempt's prompt was
-handed -- for a retry's fresh conversation, the read it was re-grounded on --
-is analytics alone, raises nothing, and is read by nothing here, so it changes
-no capture.
+(`task_snapshots`). The observation is bound to what the attempt's
+conversation was handed -- for a retry's fresh conversation, the read it was
+re-grounded on, and for a later attempt resuming it, that same grounding
+(`task_snapshot_grounding`) -- is analytics alone, raises nothing, and is read
+by nothing here, so it changes no capture.
 """
 from __future__ import annotations
 
@@ -182,22 +183,20 @@ class CompletionRoad:
         """
         return _task_snapshots.asked(self.handoff, prompt)
 
-    def received(self, attempt: Attempt, stage: str) -> None:
+    def received(self, attempt: Attempt, state: _pinned_state.PinnedState) -> None:
         """Receive an attempt's return on this road, where the road asks a task snapshot (`task_snapshots`).
 
         Asked of every attempt as it returns, ahead of anything that reads
         it: a genuine return's snapshot goes to analytics, bound to what the
-        attempt's prompt was handed -- `fresh_requirements` where the
-        coordinated run opened a fresh conversation (`resumed` None) and the
-        road holds one, the handoff's otherwise -- and the result's message
-        is left as the workflow reads it, its attachment taken out above the
-        outcome. The recording raises nothing, and no disposition, capture,
+        attempt's conversation was handed -- `fresh_requirements` where the
+        coordinated run opened a fresh conversation and the road holds one,
+        what a resumed conversation was grounded on where the pinned record
+        still says (`task_snapshot_grounding`), the handoff's otherwise -- and
+        the result's message is left as the workflow reads it, its attachment
+        taken out. The recording raises nothing, and no disposition, capture,
         or accounting reads it back.
         """
-        handed = self.handoff.requirements_revision
-        if attempt.resumed is None and self.fresh_requirements is not None:
-            handed = self.fresh_requirements
-        _task_snapshots.receive(self.handoff, attempt.agent_result, stage, handed)
+        _task_snapshots.receive(self.handoff, attempt.agent_result, state, attempt.resumed, self.fresh_requirements)
 
     def source(self, agent_result: AgentResult) -> str | None:
         """The head `agent_result`'s report is about, read off the checkout as it returns; None where none qualifies.

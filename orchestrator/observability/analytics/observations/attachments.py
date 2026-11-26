@@ -36,8 +36,10 @@ Nothing here bounds, redacts, or writes anything either: a problem names where
 its lines sit in the reply, and the redaction owner masks what it excerpts.
 
 `without_attachments` is the other half of the framing: the workflow reads a
-reply with its attachment lines taken out above the outcome, so a reply that
-says nothing else reads as saying nothing, and no park or notice quotes it.
+reply with its attachment lines taken out wherever it says they do not
+belong in what it publishes -- above the outcome and inside a report block --
+so a reply that says nothing else reads as saying nothing, no park or notice
+quotes it, and no published report carries one.
 """
 from __future__ import annotations
 

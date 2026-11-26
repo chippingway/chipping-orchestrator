@@ -8,8 +8,9 @@ handed, and the task reference a reviewer of a report stamped with that
 revision names it by; a reply with no snapshot is one diagnostic naming the
 item, its category, the attachment lines found and readable, and a bounded
 excerpt where there are lines. The records ride the
-sink's own encoding into the database's `extras`, and a sink that is off
-reads nothing at all.
+sink's own encoding into the database's `extras` -- a character `jsonb`
+refuses written as the replacement character -- and a sink that is off reads
+nothing at all.
 """
 from __future__ import annotations
 
@@ -78,6 +79,15 @@ _REFUSED = (
     ),
 )
 
+# What a record writes for a character `jsonb` refuses.
+_REPLACED = "\ufffd"
+
+# Lines decoding to, or carrying, a NUL and a lone surrogate, and the field each lands in.
+_UNSTORABLE = (
+    (_support.snapshot_line("Describe this task.\x00\ud800"), _support.DESCRIPTION_FIELD),
+    ("ANALYTICS: task-snapshot v1 {broken \x00 and \ud800", _support.EXCERPT_FIELD),
+)
+
 # Replies carrying no attachment line, and what each one's outcome reads as.
 _UNATTACHED = ((_support.reply("Done."), _support.READY), ("A question?", _support.NO_MARKER))
 
@@ -99,7 +109,7 @@ class SnapshotRecordTest(_support.SinkCase):
         # A cycle or comment the identity could not read is null, never a
         # guess; a road holding no revision names no task reference.
         damaged = replace(_support.INVOCATION, comment=None, cycle=None)
-        unknown = replace(_support.RUN, invocation=damaged, requirements_revision=None)
+        unknown = replace(_support.RUN, invocation=damaged, requirements_revision=None, report_requirements=None)
         snapshot = self.record(_support.reply(_support.snapshot_line()), unknown)[0]
         source = snapshot[_support.SOURCE_FIELD]
         self.assertEqual((source["comment"], source["cycle"]), (None, None))
@@ -149,6 +159,22 @@ class SnapshotRecordTest(_support.SinkCase):
             recorder.record_task_snapshot(_support.RUN, observed)
         finding.assert_not_called()
         self.assertEqual(self.written(), [])
+
+
+class StorableTextTest(_support.SinkCase):
+    """A NUL or a surrogate a description or an excerpt carries, replaced before the sink takes it."""
+
+    def test_unstorable_characters_are_replaced(self) -> None:
+        for line, field in _UNSTORABLE:
+            with self.subTest(field=field):
+                self.path.unlink(missing_ok=True)
+                self.record(_support.reply(line))
+                line = self.path.read_text(encoding="utf-8")
+                prepared, refusal = rows.prepare_record(line)
+                self.assertIsNone(refusal)
+                text = prepared.extras[field][_support.TEXT]
+                self.assertEqual(text.count(_REPLACED), 2)
+                self.assertNotIn("\x00", text)
 
 
 if __name__ == "__main__":

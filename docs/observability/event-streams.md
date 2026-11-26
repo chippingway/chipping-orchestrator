@@ -823,14 +823,16 @@ finishes a captured report from its record, since no developer ran.
 - `route` — `implementation` or `resume`, the road the run came down.
 - `report_outcome` — what the report reader reads the reply's outcome as: `ready`, `verified`, `malformed`, or
   `no_marker`. Dropped where the recording failed before reading it.
-- `requirements_revision` — the requirements fingerprint the attempt's prompt was handed, frozen before the launch:
-  the read the prompt was built from, never one an edit during the run moved the issue to. That is the revision the
-  run's report is stamped with, save on a retry that opens a fresh conversation: the report keeps the baseline the
-  issue recorded, while the snapshot is bound to the read the replacement session was re-grounded on, an edit beside
-  the command included. Dropped where the road held none.
-- `task_ref` — `<repo>#<issue>@<requirements_revision>`, the reference a later reader names the snapshot by. The
-  reviewer handed a report is told the reference that report's revision spells, beside the quoted report. Dropped
-  with the revision.
+- `requirements_revision` — the requirements fingerprint the conversation that wrote the reply was handed, frozen
+  before the launch: the read the prompt was built from, never one an edit during the run moved the issue to.
+  Ordinarily that is the revision the run's report is stamped with. A retry that opens a fresh conversation
+  re-grounds it on the issue as it then reads, an edit beside the command included, while its report keeps the
+  baseline the issue recorded; the snapshot is bound to that read, and so is the snapshot of a later retry resuming
+  the same conversation, which is handed nothing new
+  ([`task_snapshot_grounding`](../state-machine/labels-and-state.md#pinned-state)). Dropped where the road held none.
+- `task_ref` — `<repo>#<issue>@<revision>`, the reference a later reader names the snapshot by, spelled from the
+  revision the run's report is stamped with: the reviewer handed that report is told exactly this reference, beside
+  the quoted report. Dropped where the road held no revision.
 
 `task_snapshot` adds `attachment_version` (`1`, the attachment format it was read from) and `description`.
 `observation_diagnostic` adds `item` (`task-snapshot`), `category`, `counts` — `found`, the attachment lines in the
@@ -850,7 +852,6 @@ diagnostic:
 | `parse_failed` | Framing the reply against its report outcome or reading the attachment raised. |
 | `redaction_failed` | The credential redactor raised; nothing it did not finish is excerpted. |
 | `serialization_failed` | A record would not serialize, or stayed past its limit with its texts dropped. |
-| `append_failed` | The filesystem refused the append; recorded only where the diagnostic's own append lands. |
 
 The line is read off the reply exactly as the agent wrote it: nothing is redacted or repaired first, so a key written
 twice is `malformed` rather than the last of its values, and a credential's line break written raw inside the JSON
@@ -862,7 +863,11 @@ serializes them. The decoded description passes through the credential redactor 
 decoded back into its value. An excerpt is a line of the reply, so the whole reply is searched first for every value
 the redactor masks — as written, and with its JSON string escapes decoded — and every part of a place one sits that
 the excerpt covers is shown as the redactor's mask, so neither a credential split across the reply's lines nor one
-escaped inside a refused line survives as text the redactor no longer recognizes. A description keeps 1,000
+escaped inside a refused line survives as text the redactor no longer recognizes. Each text is then searched once
+more in the JSON spelling the sink writes it in, so a credential whose value itself spells an escape — a backslash and
+an `n` that decoding turned into a line break — is masked rather than spelled back exactly. A NUL character or a
+surrogate code point, which the database's `jsonb` refuses and whose one value would roll back the replay of every
+record beside it, is written as the replacement character, one for one. A description keeps 1,000
 characters and an excerpt 500; a record past 8,192 bytes drops its text whole — `text` gone, `chars` kept, `truncated`
 true — and never cuts an identifier, and one still past it is a `serialization_failed` diagnostic. Only the telemetry
 copy is bounded: nothing shortens what an agent was handed or what the workflow publishes.
@@ -877,9 +882,10 @@ content, so the file and a database filled from it hold a developer's words in c
 **Best effort, behind one boundary.** The whole path — the report reader's framing of the reply, reading the
 attachment, redacting, bounding, serializing, and appending — runs inside one guard (`observations/recorder.py`); the
 workflow asks nothing of the reply before handing it over, and the lines go to disk through `sink.write_jsonl_lines`
-under the sink's own lock so a refused append reaches that guard instead of the sink's `log.warning`. A failed step
-becomes a diagnostic; a diagnostic that cannot be written either becomes one warning on `orchestrator.analytics` naming
-the issue, the invocation, and both failures' types, and nothing is tried again. A crash between a return and its
+under the sink's own lock so a refused append reaches that guard instead of the sink's `log.warning`. A step that fails
+before the append becomes a diagnostic. A refused append — the snapshot or a refused reply's diagnostic lost with it —
+and a diagnostic that cannot be written either each become one warning on `orchestrator.analytics`, naming the issue,
+the invocation, and the failures' types, and nothing more is written or tried again. A crash between a return and its
 record loses the record: there is no export queue, checkpoint, or agent run owed for it, and usage accounting, a
 completion capture, and the report's settlement each stand on their own evidence. Collection needs no usage parse, no
 trajectory sink, and no database.

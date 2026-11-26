@@ -10,11 +10,13 @@ serializing the records, and appending them. The sink's own
 `append_jsonl_record` catches only a filesystem error, and only around the
 file -- a serialization error before it would reach the caller -- so this
 path writes its lines itself (`sink.write_jsonl_lines`) and catches
-everything. Whatever fails is named by the step it failed in --
-`parse_failed`, `redaction_failed`, `serialization_failed`, or
-`append_failed` -- and recorded as a diagnostic of its own; where that write
-fails too, the failure is logged once on the `orchestrator.analytics`
-channel and nothing is tried again.
+everything. A step that fails before the append is named by the step --
+`parse_failed`, `redaction_failed`, or `serialization_failed` -- and recorded
+as a diagnostic of its own; where that write fails too, or the append itself
+is what failed -- the snapshot or a refused reply's diagnostic lost with it --
+the loss is logged once on the `orchestrator.analytics` channel, as
+`append_failed` where the append was refused, and nothing is written or tried
+again.
 
 The attachment is read off the reply exactly as the agent wrote it, so
 nothing the telemetry copy needs can repair or reshape the framing it is
@@ -26,8 +28,8 @@ diagnostic carries none.
 
 A diagnostic's `counts` say how far the reading got: the attachment lines
 `found`, and how many were `readable` as a snapshot. They never claim a
-write -- a snapshot record and the diagnostics of its reply are one append,
-so a diagnostic that landed after a failure landed without it.
+write: a reply's one record is one append, and a diagnostic of a failed step
+lands only where that record did not.
 
 Collection follows the analytics sink alone: with `ANALYTICS_LOG_PATH` off,
 nothing is framed, read, redacted, or written. It needs no usage parse, no
@@ -133,17 +135,26 @@ class _Recording:
         ]
 
     def _diagnose(self, error: Exception) -> None:
-        """Write the diagnostic a failed step earns; warn once, and only, where that write fails too."""
+        """Write the diagnostic a failed step earns; warn once, and only, where nothing more can be written.
+
+        A refused append is that already: whatever it carried -- the snapshot
+        or the diagnostic of a refused reply -- is lost, and a second append
+        would be the retry nothing owes, so it is warned of and nothing else.
+        """
+        if self._step is Step.APPEND:
+            self._warn(error, "nothing more was written")
+            return
         try:
             self._write_diagnostic(error)
         except Exception as lost:  # noqa: BLE001 - the one warning a lost observation earns
-            invocation = self._run.invocation
-            sink.log.warning(
-                "issue=#%d analytics: lost the task snapshot of invocation %d/%s to %s (%s); "
-                "its diagnostic could not be written either (%s)",
-                invocation.issue, invocation.ordinal, invocation.nonce, self._step.value,
-                type(error).__name__, type(lost).__name__,
-            )
+            self._warn(error, f"its diagnostic could not be written either ({type(lost).__name__})")
+
+    def _warn(self, error: Exception, rest: str) -> None:
+        invocation = self._run.invocation
+        sink.log.warning(
+            "issue=#%d analytics: lost the task snapshot of invocation %d/%s to %s (%s); %s",
+            invocation.issue, invocation.ordinal, invocation.nonce, self._step.value, type(error).__name__, rest,
+        )
 
     def _write_diagnostic(self, error: Exception) -> None:
         diagnostic = records.diagnostic_record(

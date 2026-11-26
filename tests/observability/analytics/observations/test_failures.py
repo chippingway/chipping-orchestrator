@@ -1,22 +1,24 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""One failure boundary around a reply's whole recording, from its parse through its append.
+"""One failure boundary around a reply's whole recording, from its framing through its append.
 
-Whatever step fails -- finding the outcome, redacting, serializing, or
-appending -- the recorder raises nothing, writes no partial record, and
+Whatever step fails before the append -- framing the reply, redacting, or
+serializing -- the recorder raises nothing, writes no partial record, and
 records a diagnostic naming the step, the counts it had reached, and the
 failure's type, never the text the step could not finish with. Where that
-diagnostic cannot be written either, it warns once and tries nothing again.
+diagnostic cannot be written either, or the append itself is refused --
+taking a snapshot or a refused reply's diagnostic with it -- it warns once
+and writes nothing more.
 """
 from __future__ import annotations
 
 import json
 from dataclasses import replace
-from types import MappingProxyType
+from types import MappingProxyType, SimpleNamespace
 from unittest.mock import patch
 
 from orchestrator.observability.analytics import settings as analytics_settings, sink
-from orchestrator.observability.analytics.observations import bounds, recorder
+from orchestrator.observability.analytics.observations import bounds, recorder, records
 from tests.observability.analytics.observations import observation_test_support as _support
 
 _CHANNEL = "orchestrator.analytics"
@@ -36,7 +38,6 @@ _STEP_FAILURES = (
     ("parse_failed", _UNREAD, "RuntimeError", "_outcome_fails"),
     ("redaction_failed", _READ, "RuntimeError", "_redaction_fails"),
     ("serialization_failed", _READ, "TypeError", "_serialization_fails"),
-    ("append_failed", _READ, "OSError", "_append_fails"),
 )
 
 # What a failure's diagnostic is read as.
@@ -99,11 +100,8 @@ class StepFailureTest(_support.SinkCase):
             self.record(_REPLY)
 
     def _serialization_fails(self) -> None:
-        with patch.object(json, "dumps", _FailsOnce(json.dumps, TypeError("not serializable"))):
-            self.record(_REPLY)
-
-    def _append_fails(self) -> None:
-        with patch.object(sink, "write_jsonl_lines", _FailsOnce(sink.write_jsonl_lines, OSError("disk full"))):
+        encoder = SimpleNamespace(dumps=_FailsOnce(json.dumps, TypeError("not serializable")))
+        with patch.object(records, "json", encoder):
             self.record(_REPLY)
 
 
@@ -111,11 +109,16 @@ class LostDiagnosticTest(_support.SinkCase):
     """A diagnostic that cannot be written either: one warning, and nothing more."""
 
     def test_a_lost_diagnostic_warns_once(self) -> None:
-        # An append the filesystem refuses refuses the diagnostic behind it
-        # too; and a record past its limit with every text dropped -- an
-        # identifier kept whole rather than cut -- serializes no diagnostic
-        # either. One warning each, and nothing raised or written.
-        cases = (("append", self._record_onto_a_directory), ("serialization", self._identifier_overflows))
+        # An append refused for good, or once on a refused reply's diagnostic,
+        # takes what it carried and is not tried again; and a record past its
+        # limit with every text dropped -- an identifier kept whole rather than
+        # cut -- serializes no diagnostic either. One warning each, and nothing
+        # raised or written.
+        cases = (
+            ("append", self._record_onto_a_directory),
+            ("append", self._missing_diagnostic_refused_once),
+            ("serialization", self._identifier_overflows),
+        )
         for step, failing in cases:
             with self.subTest(step=step), self.assertLogs(_CHANNEL, level="WARNING") as logged:
                 failing()
@@ -126,6 +129,10 @@ class LostDiagnosticTest(_support.SinkCase):
     def _record_onto_a_directory(self) -> None:
         with patch.object(analytics_settings, "ANALYTICS_LOG_PATH", self.path.parent):
             self.record(_REPLY)
+
+    def _missing_diagnostic_refused_once(self) -> None:
+        with patch.object(sink, "write_jsonl_lines", _FailsOnce(sink.write_jsonl_lines, OSError("disk full"))):
+            self.record("The developer supplied no attachment.")
 
     def _identifier_overflows(self) -> None:
         self.record(_REPLY, replace(_support.RUN, requirements_revision="f" * bounds.RECORD_BYTES))

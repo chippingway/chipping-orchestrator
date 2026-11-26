@@ -16,9 +16,11 @@ the reply's report outcome read as -- `ready`, `verified`, `malformed`, or
 `no_marker` -- where the recording got as far as reading it.
 
 * `task_snapshot` is a developer's description of its task, bounded, beside
-  the requirements revision the run was handed and the task reference
-  (`task_reference`) a later reader -- a reviewer handed a report stamped
-  with that same revision -- names it by.
+  the requirements revision its conversation was handed and the task
+  reference (`task_reference`) a later reader names it by: spelled from the
+  revision the run's report is stamped with, which a reviewer handed that
+  report is told. The two differ only where a retry re-grounded a fresh
+  conversation on an edit the report's stamp leaves owed.
 * `observation_diagnostic` is why a reply yielded no observation: the item
   it is about, the category, the counts the collection reached -- the
   attachment lines `found`, and how many were `readable` as a snapshot, which
@@ -56,16 +58,19 @@ class ObservedRun:
 
     `invocation` is the process the reply came back from, `stage` the bare
     stage tag its records are attributed to, `route` the road it ran on, and
-    `requirements_revision` the requirements the attempt's prompt was
-    handed -- None where the road holds none. `report_outcome` is what the
-    reply's report outcome read as, set once the recorder has read it and
-    None before.
+    `requirements_revision` the requirements the conversation the attempt ran
+    in was handed -- None where the road holds none. `report_requirements`
+    is the revision the run's report is stamped with -- the road's own,
+    which a reviewer handed that report names -- and spells the task
+    reference. `report_outcome` is what the reply's report outcome read as,
+    set once the recorder has read it and None before.
     """
 
     invocation: AgentInvocation
     stage: str | None
     route: str
     requirements_revision: str | None
+    report_requirements: str | None = None
     report_outcome: str | None = None
 
 
@@ -154,6 +159,6 @@ def _observation(run: ObservedRun, event: str, **fields: object) -> dict:
         route=run.route,
         report_outcome=run.report_outcome,
         requirements_revision=run.requirements_revision,
-        task_ref=task_reference(invocation.repo, invocation.issue, run.requirements_revision),
+        task_ref=task_reference(invocation.repo, invocation.issue, run.report_requirements),
         **fields,
     )
