@@ -7,7 +7,11 @@ every record satisfies, the encoding and locking discipline one line reaches
 disk under, the fail-open answer to a filesystem that refuses the write, and
 the channel a refusal is reported on. They sit together because a reader
 asking "what shape does a record have and how does it get written" has one
-place to look, and because the two sinks cannot drift apart on any of it.
+place to look, and because the two sinks cannot drift apart on any of it. A
+writer whose own failure boundary has to see a refusal -- the observation
+recorder, which turns one into a diagnostic -- writes the lines it serialized
+through the same lock itself (`write_jsonl_lines`), which raises what the
+filesystem raises.
 
 *Which* file a record lands in is the caller's, which is why the path arrives
 as an argument rather than being read here -- the ``config`` owner beside this
@@ -19,10 +23,11 @@ because a sink is only safe when its append and the retention prune that
 rewrites the file under it hold the *same* object. The two stay separate
 objects so the two files never serialize against one another.
 
-This owner sits above both packages and imports nothing from either. That is
-what keeps the recording graph free of a back edge: an ``agent_exit`` composes
-the trajectory write, and the trajectory writers reach the envelope and the
-line here rather than back through the recorders that called them.
+This owner sits above every write package -- recording, trajectories, and
+observations -- and imports nothing from any of them. That is what keeps the
+recording graph free of a back edge: an ``agent_exit`` composes the trajectory
+write, and the trajectory writers reach the envelope and the line here rather
+than back through the recorders that called them.
 """
 
 from __future__ import annotations
@@ -99,11 +104,28 @@ def append_jsonl_record(
     """
     if path is None:
         return
-    serialized = f"{json.dumps(record, sort_keys=True)}\n"
+    serialized = json.dumps(record, sort_keys=True)
     try:
-        with lock:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            with path.open("a", encoding="utf-8") as fh:
-                fh.write(serialized)
+        write_jsonl_lines(path, lock, (serialized,))
     except OSError as error:
         log.warning("could not write record to %s: %s", path, error)
+
+
+def write_jsonl_lines(
+    path: Path,
+    lock: threading.Lock,
+    lines: typing.Sequence[str],
+) -> None:
+    """Append already serialized JSONL lines to `path` under `lock`, in one write.
+
+    The filesystem half of `append_jsonl_record`, taken under the same lock
+    and reached directly by a writer whose own failure boundary has to see
+    the `OSError` rather than have it swallowed here: the observation
+    recorder turns a refused append into a diagnostic of its own, or into its
+    one warning (`observations/recorder.py`).
+    """
+    joined = "".join(f"{line}\n" for line in lines)
+    with lock:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as fh:
+            fh.write(joined)

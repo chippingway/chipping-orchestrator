@@ -1906,8 +1906,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             never one of them -- the developer report contract spelled from the report vocabulary with
                             its fresh-respawn counterpart, both scoping the report to the final change, its rationale,
                             and unresolved risks with verification left out and forbidding the receipt prefix
-                            `github/comments.py` refuses anywhere in a report, and the continuation notes for a
-                            session-limit retry
+                            `github/comments.py` refuses anywhere in a report, the task snapshot request spelled from
+                            the analytics attachment vocabulary, and the continuation notes for a session-limit retry
     prompts.py              implementation, documentation, fixing, conflict-resolution, fresh-session, and
                             report-refresh prompt builders; each response marker agrees with the parser that settles
                             its stage, and the report refresh asks for a `REPORT: READY` report of the rewritten head
@@ -1943,6 +1943,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             it, then `Error:`, `Expected:` and `Observed:` where needed, `Reproduce:` -- a
                             self-contained snippet for a probe, since a stdin command alone reproduces nothing -- and
                             `Unavailable:` for each diagnostic not obtained, every entry outside the declaration
+    task_snapshots.py       which developer attempts are asked for a task snapshot -- every one on the first
+                            implementation's road or an implementing resume's, and none else -- the request appended
+                            to the prompt each is handed, and the observation of a genuine return: a tracked run that
+                            completed handed to the analytics recorder with its invocation, the requirements revision
+                            its road froze before the launch, and the report reader's own pattern for where the
+                            outcome begins, so the attachment is read above it and nothing a workflow decides reads
+                            the observation back
     review_subjects.py      what one review is of -- pull request, head, requirements revision, and report revision and
                             digest -- recorded as `review_subject` before the spawn, as `review_returned_subject` once a
                             reviewer returns, and as `review_approved_subject` once an approval passes the verify gate,
@@ -4760,7 +4767,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             retired never launched, and no launch made at all while a capture nothing has decided
                             stands; each attempt, behind its accounting, quota retirement, and live-pause reading,
                             asked of the road its caller froze, which captures a return that finished on its report
-                            and holds the tick where that capture did not settle;
+                            and holds the tick where that capture did not settle; the same road handing each attempt
+                            its prompt (`asked`) and its genuine return to analytics (`observe`) before anything reads
+                            it, so an implementing road's every attempt is asked for its task snapshot and recorded;
                             and the identity an attempt is charged under, spelled once
                             (`_launch_identity`), so the fingerprint a resume's first attempt would be charged under is
                             read without resuming (`_first_launch_fingerprint`) -- how a handed change request's
@@ -4804,7 +4813,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             -- `stages/validating/refresh_road.py`) -- and the road the late developer revision
                             freezes (`stages/decomposition/late_revision_road.py`), with the command, prompt digest, and
                             conversation it ran as and still pinned, and answers held where that capture left the
-                            state withheld
+                            state withheld; and, through `engine/task_snapshots.py`, the task snapshot request an
+                            attempt on it is handed and the observation of its return, which only the first
+                            implementation's road and an implementing resume's ask for and record
       captured_report.py    the run's own pending capture handed to the report delivery where the disposition records
                             a report -- what the tick settled around the run riding the transfer's own commit, so the
                             two land together or not at all; one refused for the report itself withdrawn and the run

@@ -40,6 +40,7 @@ from orchestrator.workflow.engine import (
     content_hash as _content_hash,
     drift as _engine_drift,
     prompt_context as _prompt_context,
+    prompt_notes as _prompt_notes,
     prompts as _prompts,
 )
 from tests.support.fakes import (
@@ -155,15 +156,18 @@ def _expected_prompt(
     Built from the issue and the rendered comments themselves, through the
     same builders the stage calls, so a case compares what an agent was really
     handed rather than looking for a fragment inside it. `fresh` picks the
-    spawn's implement prompt over the resume's, and `respawned` puts the
-    re-grounding preamble a retired session's replacement is given in front of
-    it -- over the same conversation, since there is one read to quote.
+    spawn's implement prompt over the resume's -- closing, as the first
+    implementation's road hands it, on the task snapshot request -- and
+    `respawned` puts the re-grounding preamble a retired session's replacement
+    is given in front of it -- over the same conversation, since there is one
+    read to quote.
     """
     convo = "\n\n".join(spoken)
     if fresh:
-        return _prompts._build_implement_prompt(
+        implement = _prompts._build_implement_prompt(
             _TEST_SPEC, issue, convo, config.default_repo_specs(),
         )
+        return f"{implement}\n\n{_prompt_notes._TASK_SNAPSHOT_NOTE}"
     followup = _engine_drift._build_user_content_change_prompt(issue, convo)
     if not respawned:
         return followup

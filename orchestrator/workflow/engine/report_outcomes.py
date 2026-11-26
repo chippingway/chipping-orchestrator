@@ -32,6 +32,10 @@ fence may enclose it.
 A VERIFIED location is a `github.com` pull request URL, optionally anchored at
 one of its conversation comments, and its revision a lowercase SHA-256 digest.
 Parsing establishes their shape, not their truth.
+
+The marker-line pattern is also where a task snapshot's reader finds the
+outcome to read above (`task_snapshots`), so an attachment is never taken from
+a line this reader counts as part of the outcome.
 """
 from __future__ import annotations
 

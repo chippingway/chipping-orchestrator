@@ -46,6 +46,14 @@ freeze a road of this same shape (`validating/fix_road`, `fixing/resume_road`,
 `fixing/feedback_road`, `drift_road`, `validating/refresh_road`,
 `decomposition/late_revision_road`) -- the refresh asking more of a return's
 checkout than a report (`CompletionRoad.source`).
+
+The two implementing routes are also the initial implementation request and
+its ordinary continuations, so a road is what decides who is asked for a task
+snapshot: the coordinator hands every attempt the prompt its road asks with
+(`asked`) and every return to its road's observation (`observe`), and only the
+first implementation's road and an implementing resume's append the request or
+record anything (`task_snapshots`). The observation is analytics alone, raises
+nothing, and is read by nothing here, so it changes no capture.
 """
 from __future__ import annotations
 
@@ -66,6 +74,7 @@ from orchestrator.workflow.engine import (
     completion_routes as _routes,
     content_hash as _content_hash,
     prompt_delivery as _prompt_delivery,
+    task_snapshots as _task_snapshots,
     thread_delivery as _thread_delivery,
 )
 from orchestrator.workflow.stages.implementing import resume_batch as _resume_batch, session_read as _session_read
@@ -152,6 +161,23 @@ class CompletionRoad:
                 handoff.route, outcome.status.value,
             )
         return state.withheld
+
+    def asked(self, prompt: str) -> str:
+        """The prompt an attempt on this road is handed: `prompt`, with the task snapshot request where it asks one.
+
+        The first implementation's road and an implementing resume's ask it,
+        every attempt on them alike (`task_snapshots`).
+        """
+        return _task_snapshots.asked(self.handoff, prompt)
+
+    def observe(self, agent_result: AgentResult, stage: str) -> None:
+        """Hand the task snapshot a genuine return on this road carries to analytics, where the road asks one.
+
+        Asked of every attempt as it returns, ahead of anything that reads
+        it, and raises nothing: what it records is observation, and no
+        disposition, capture, or accounting reads it back.
+        """
+        _task_snapshots.observe(self.handoff, agent_result, stage)
 
     def source(self, agent_result: AgentResult) -> str | None:
         """The head `agent_result`'s report is about, read off the checkout as it returns; None where none qualifies.

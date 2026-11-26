@@ -200,6 +200,19 @@ the whole lifecycle in one place — ownership, identity and location, ready ver
 review-subject freshness, and the round each road spends:
 [`workflow/conversations.md#the-developer-report-lifecycle`](workflow/conversations.md#the-developer-report-lifecycle).
 
+## Task snapshot attachment in implementing prompts
+
+The first implementation and the replies and retries that continue it — every attempt the shared developer
+coordinator makes on those two roads, a poisoned session's fresh retry and an Antigravity command recovery included —
+close their prompt on one more request: a short description of the task in the developer's own words, written as one
+`ANALYTICS: task-snapshot v1 {"description": "..."}` line above the report outcome
+(`workflow/engine/task_snapshots.py`, `_TASK_SNAPSHOT_NOTE` in `workflow/engine/prompt_notes.py`). The line stays out of
+the report, its digest, and every report reading, and it decides nothing: a genuine return's attachment is read and
+recorded by the analytics observation owners as a `task_snapshot` bound to the run's invocation and the requirements
+revision its road froze before the launch, and a missing, malformed, or misplaced one is a diagnostic, never a retry, a
+park, or a rescued outcome. No other road asks. Full contract:
+[`workflow/conversations.md#the-task-snapshot-attachment`](workflow/conversations.md#the-task-snapshot-attachment).
+
 ## Reviewer verification contract in reviewer prompts
 
 Every reviewer is handed, beside the complete current developer report, the workflow verification evidence current for

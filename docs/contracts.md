@@ -239,6 +239,13 @@ earlier build counted keep no evidence and read as one record without it, their 
 completeness and their overlap unknown, nothing inferred from `issue_cost_sources`; the first run counted over them
 folds that reading in once and keeps their number in `issue_unevidenced_runs`, so no later run makes them known, and no
 posted receipt is rewritten.
+A task snapshot attachment is read only in its current form: one `ANALYTICS: task-snapshot v1` line above a developer
+reply's report outcome, over a JSON object holding one non-blank `description`. Another kind, version, or shape, a line
+inside the report block or past the outcome, two lines, or none beside an outcome is a diagnostic naming why, never a
+guessed, repaired, or merged observation. The `task_snapshot` and `observation_diagnostic` records carry
+`observation_version: 1` and their source invocation's identity whole; a text says how long it was and whether it was
+cut, a record past its limit drops its texts rather than cutting an identifier, and nothing backfills a snapshot for a
+run that recorded none.
 A recorded requirements fingerprint
 (`user_content_hash`, `observed_user_content_hash`) is compared with the current fingerprint alone, which leaves bare
 operator controls out: a value no current reading reproduces -- one an earlier producer wrote counting a bare
@@ -352,6 +359,7 @@ or lost write interrupted are current state, not historical compatibility.
 [usage evidence](observability/usage.md#usage-parser),
 [request usage](observability/usage.md#request-usage-observations),
 [trajectory records](observability/trajectories.md#trajectory-sink-trajectory_log_path),
+[task snapshot records](observability/event-streams.md#task-snapshot-records),
 [requirements baselines](state-machine/delivery-stages.md#user-content-drift-detection),
 [watermark initialization](state-machine/delivery-stages.md#_handle_in_review-label-in_review),
 [replay batches](state-machine/labels-and-state.md#pinned-state),
@@ -411,6 +419,9 @@ or lost write interrupted are current state, not historical compatibility.
 [request usage records](../tests/observability/analytics/trajectories/test_request_usage.py),
 [Claude request records](../tests/observability/analytics/trajectories/test_request_usage_claude.py),
 [Codex request records](../tests/observability/analytics/trajectories/test_request_usage_codex.py),
+[task snapshot attachments](../tests/observability/analytics/observations/test_attachments.py),
+[task snapshot records](../tests/observability/analytics/observations/test_recording.py),
+[task snapshot bounds](../tests/observability/analytics/observations/test_bounds.py),
 [verification artifacts](../tests/github/test_verification_artifacts.py),
 [requirements baselines](../tests/workflow/engine/test_drift.py),
 [late first baselines](../tests/workflow/stages/decomposition/test_late_first_baseline.py),
@@ -740,15 +751,21 @@ manifest the parser refuses with a concrete error, from a completed, accounted, 
 asked under the very output contract the decompose prompt closes on, beside that exact error, and the correction's
 answer is read by the same parser and earns none of its own; a question, silence, or a failed, incomplete, timed-out,
 interrupted, or dirty run earns none, and no dependency list is inferred from a child's prose. Session identity is
-covered by [C-14].
+covered by [C-14]. The task snapshot request the implementing roads append to every attempt is spelled from the
+vocabulary the one analytics attachment reader reads, and asks for its line above the report outcome, so the line is
+outside the report and its digest and every report reading is what it would be without it. A missing, malformed, or
+misplaced attachment earns a diagnostic and nothing else -- no retry, correction, park, or refusal -- and never makes
+an invalid report outcome valid.
 
-**Specs:** [reply protocols](workflow.md).
+**Specs:** [reply protocols](workflow.md), [task snapshots](workflow/conversations.md#the-task-snapshot-attachment).
 
 **Checks:** [report prompts](../tests/workflow/engine/test_prompts_developer_report.py),
 [manifest contract](../tests/workflow/stages/decomposition/test_manifest.py),
 [correction eligibility](../tests/workflow/stages/decomposition/test_correction_eligibility.py),
 [manifest corrections](../tests/workflow/stages/decomposition/test_correction_road.py),
-[fuzzed manifests](../tests/repository/test_fuzz_targets.py).
+[fuzzed manifests](../tests/repository/test_fuzz_targets.py),
+[task snapshot replies](../tests/workflow/engine/test_task_snapshot_replies.py),
+[task snapshot attempts](../tests/workflow/stages/implementing/test_task_snapshot_attempts.py).
 
 ## C-09: Reports, review subjects, and verification
 
@@ -965,11 +982,17 @@ run's accounting. The tracked spawn observes a Codex launch for that collection 
 behind a fail-open guard, changing nothing the CLI is launched with; with the trajectory sink off no launch is
 observed, no native log is looked up or read, and no collector runs. A stream
 the usage parser refuses still writes no `agent_exit` record and publishes no total; its request usage alone is
-recorded, on a trajectory record marked `stream_refused`.
+recorded, on a trajectory record marked `stream_refused`. A task snapshot and its diagnostics are observation alone:
+no usage total, accounting, completion capture, report settlement, or workflow decision reads one. They are collected
+wherever the analytics sink is on, needing no usage parse, trajectory sink, or database, from a genuine developer
+return alone -- so the recovery that finishes a captured report records none -- and behind one failure boundary from
+the parse through the append: a step that fails is a diagnostic, a diagnostic that cannot be written is one warning,
+and a lost observation owes no export, checkpoint, or agent run.
 
 **Specs:** [audit recovery](observability/event-streams.md#audit-event-log-event_log_path),
 [request usage](observability/usage.md#request-usage-observations),
-[request collection](observability/trajectories.md#trajectory-sink-trajectory_log_path).
+[request collection](observability/trajectories.md#trajectory-sink-trajectory_log_path),
+[task snapshot records](observability/event-streams.md#task-snapshot-records).
 
 **Checks:** [rewrite events](../tests/workflow/engine/test_rewrite_finish_event_stream.py),
 [rotation](../tests/github/test_event_log.py),
@@ -978,7 +1001,10 @@ recorded, on a trajectory record marked `stream_refused`.
 [request usage records](../tests/observability/analytics/trajectories/test_request_usage.py),
 [Claude request records](../tests/observability/analytics/trajectories/test_request_usage_claude.py),
 [Codex request records](../tests/observability/analytics/trajectories/test_request_usage_codex.py),
-[trajectory parsing](../tests/observability/usage/test_usage.py).
+[trajectory parsing](../tests/observability/usage/test_usage.py),
+[task snapshot isolation](../tests/workflow/stages/implementing/test_task_snapshot_dispatch.py),
+[observation failures](../tests/observability/analytics/observations/test_failures.py),
+[observation redaction](../tests/observability/analytics/observations/test_redaction.py).
 
 ## C-13: Module ownership and public surfaces
 

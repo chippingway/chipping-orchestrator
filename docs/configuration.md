@@ -1185,7 +1185,10 @@ Every sink path, retention window, and observability switch — `EVENT_LOG_PATH`
 `TRACK_SKILL_TRIGGERS`, and `DASHBOARD_PARALLEL_READS` — is documented in
 [`configuration/observability.md`](configuration/observability.md), together with where each is parsed and which
 process reads it. What the sinks record, and how the database, dashboards, and usage parser read them back, is on the
-pages [`observability.md`](observability.md) maps.
+pages [`observability.md`](observability.md) maps. The analytics sink is on by default at `LOG_DIR/analytics.jsonl`,
+and besides its metrics it collects the implementing developer's short task description, bounded and redacted of
+credentials but not of issue or repository content; the sink's disable values and retention window cover it too
+([`ANALYTICS_LOG_PATH`](configuration/observability.md#settings)).
 
 ### Analytics dashboard quickstart
 

@@ -30,6 +30,7 @@ _ANALYTICS = f"{_ROOT}.analytics"
 _PACKAGES = (
     _ROOT,
     _ANALYTICS,
+    f"{_ANALYTICS}.observations",
     f"{_ANALYTICS}.query",
     f"{_ANALYTICS}.recording",
     f"{_ANALYTICS}.sync",
