@@ -21,6 +21,8 @@ _HTTP_FORBIDDEN = 403
 _OBSOLETE_IMPLEMENTING = "implementing"
 _OBSOLETE_COMMUNITY_CONTRIBUTION = "community_contribution"
 _LABEL_SPECS = _labels.WORKFLOW_LABEL_SPECS + _labels.CONTROL_LABEL_SPECS
+# GitHub refuses to create a label whose description is longer than this.
+_GITHUB_LABEL_DESCRIPTION_LIMIT = 100
 # The one creation the bootstrap may make for each canonical label, in the
 # order it walks them: the exact name, color, and description of its spec.
 _CREATIONS = MappingProxyType({
@@ -275,6 +277,13 @@ class EnsureWorkflowLabelsTest(unittest.TestCase):
 
         self.gh.repo.create_label.assert_called_once()
         self._assert_untouched(definitions)
+        # GitHub also refuses a description past its length limit, which no
+        # double here enforces. The stop above means one such spec would leave
+        # every label after it in the walk uncreated, so every spec must fit.
+        self.assertEqual(
+            [name for name, _, description in _LABEL_SPECS if len(description) > _GITHUB_LABEL_DESCRIPTION_LIMIT],
+            [],
+        )
 
     def _define(self, *label_names: str) -> list[MagicMock]:
         """Give a fresh repository exactly these label definitions.

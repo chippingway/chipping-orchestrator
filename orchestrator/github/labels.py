@@ -51,7 +51,7 @@ WORKFLOW_LABEL_SPECS: tuple[tuple[WorkflowLabel, str, str], ...] = (
     (
         WorkflowLabel.DISCUSSION,
         "0ea5e9",
-        "Decomposer-led architecture discussion; the agent proposes, humans decide, nothing is implemented",
+        "Discuss design. Confirm in a comment to open a plan PR. Use workflow:implementing to build.",
     ),
     (WorkflowLabel.DONE, "cccccc", "Merged to main"),
     (WorkflowLabel.REJECTED, "5c0000", "Issue rejected / closed without merge"),

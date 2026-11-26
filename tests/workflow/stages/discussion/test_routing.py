@@ -20,6 +20,7 @@ from orchestrator.workflow.engine import (
     poll_models as _poll_models,
 )
 from orchestrator.workflow.stages.discussion import handler as _discussion
+from orchestrator.workflow.state import WorkflowLabel
 from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.workflow.fixtures import _TEST_SPEC, LABEL_DISCUSSION
 
@@ -37,9 +38,12 @@ class DiscussionLabelRoutingTest(unittest.TestCase):
     def test_discussion_label_is_in_bootstrap_specs(self) -> None:
         # Label bootstrap iterates WORKFLOW_LABEL_SPECS; without a spec entry
         # `ensure_workflow_labels` would never create the label on a fresh
-        # repo and an operator would have nothing to apply.
-        names = [name for name, _, _ in WORKFLOW_LABEL_SPECS]
-        self.assertIn(LABEL_DISCUSSION, names)
+        # repo and an operator would have nothing to apply. The description
+        # it is created with tells that operator which label builds directly,
+        # so it has to name that label by its current canonical spelling.
+        descriptions = {name: description for name, _, description in WORKFLOW_LABEL_SPECS}
+        self.assertIn(LABEL_DISCUSSION, descriptions)
+        self.assertIn(WorkflowLabel.IMPLEMENTING, descriptions[LABEL_DISCUSSION])
 
     def test_discussion_label_is_not_family_aware(self) -> None:
         # A discussion round reads and writes only its own issue and worktree,
