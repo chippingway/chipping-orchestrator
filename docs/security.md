@@ -493,6 +493,12 @@ on every push and pull request, but only to install the wheel and sdist and chec
 and the packaged `.env` templates read from each: no step uploads those artifacts, keeps them past the job, or holds a
 registry credential they could be pushed with
 ([`configuration/operations.md#continuous-integration`](configuration/operations.md#continuous-integration)).
+
+Maintainers publish to PyPI locally using an API token scoped to `chipping-orchestrator`. Store the token in a
+credential store outside the repository and expose it as `POETRY_PYPI_TOKEN_PYPI` only for the upload. Keep it out of
+`.env`, GitHub Actions secrets, and Poetry's saved configuration. For the procedure, see
+[Publishing to PyPI](../CONTRIBUTING.md#publishing-to-pypi).
+
 The [documentation workflow](../.github/workflows/docs.yml) publishes the static site on pushes to `main` and manual
 runs on `main`, through the `github-pages` environment. Restrict that environment's deployment branches to `main`
 ([`configuration/operations.md#github-pages-setup`](configuration/operations.md#github-pages-setup)).
