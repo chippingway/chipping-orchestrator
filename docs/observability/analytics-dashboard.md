@@ -57,7 +57,8 @@ a row never costs a connection factory, the configuration behind an omitted `db_
 an unset `ANALYTICS_DB_URL` still renders a page, while `TimeSeriesPoint` requires the `(day, event, count)` key its
 cost and token aggregates hang off; `cost_models.py` the spend breakdowns
 (`ReviewRoundBucketRow`, `BackendEfficiencyRow`, `RepoBreakdownRow`, `CostCoverageRow`), each group's spend the
-`CostCohort` its runs fold to; `run_models.py` the run,
+`CostCohort` its runs fold to, and the unpriced runs counted per model and reason (`UnpricedReasonRow`);
+`run_models.py` the run,
 issue, and traced-event rows (`StageBreakdown`, `EventBreakdown`, `AgentExitRow`, `IssueSummaryRow`, `IssueEventRow`)
 plus `public_event_result`, the accessor installed as the trace row's `result` property over its stored `event_result`
 column; and `skill_models.py` the skill cells (`SkillTriggerRateRow`, `SkillTriggerMatrixRow`, `SkillAdoptionRow`) with
@@ -458,8 +459,9 @@ previous key pair they are issued under,
 the render between them — one spinner over the pair, one banner and a stop when a read cannot reach the database, and
 one `dashboard.load:` line when the load comes back — `rollups.py` for the seven of those readers a
 headline or lifecycle section is drawn from — with the hundred-row cap the run list among them is read under, and the
-ranking depth the spend table borrows from the KPI owner — `breakdowns.py` for the six a comparison panel is drawn
-from, each naming the rollup or breakdown query owner that answers it, and `skills.py` for the three a skill panel is
+ranking depth the spend table borrows from the KPI owner — `breakdowns.py` for the seven a comparison panel or the
+Cost details section is drawn from, each naming the rollup or breakdown query owner that answers it, and `skills.py`
+for the three a skill panel is
 drawn from, each naming the skill query owner. What one read of that wave then goes through
 lives beside them: `scoped_reads.py` for the thread's analytics connection it is issued inside, `filter_binding.py`
 for the filters its cache key is read back as, and `static_metadata.py` for the extent and filter vocabulary a page
@@ -683,7 +685,7 @@ on the first rerun after that minute rather than on every widget interaction. `g
 `STATIC_METADATA_TTL_SECONDS = 300` (5 min) TTL so the sidebar / topbar only re-hit Postgres when a sync run
 ingests new events.
 
-**Two-wave loading.** The 16 widget reads are staged into two waves by `dashboard/read_plan.py`:
+**Two-wave loading.** The 17 widget reads are staged into two waves by `dashboard/read_plan.py`:
 
 - **First wave (7 reads).** `summary`, `prev_summary`, `ts_points`, `review_round_rows`, `throughput_rows`,
   `cost_coverage_rows`, `unpriced_reason_rows` — feeds the topbar, filter meta, Cost details section, insight banner,
@@ -946,8 +948,10 @@ with, and the strip itself — is `observability/dashboard/summary_html.py`, whi
 for the line a tile carries and `observability/dashboard/spend_text.py` for the status the topbar's spend is qualified
 by. The collapsed section under that filter line, the one place the page's money is explained, is
 `observability/dashboard/cost_details.py` — the selection's amount, sources, and run coverage read off the first
-wave, the plain-language glossary of sources and statuses, the coverage bar, and the unpriced-run warning its label
-carries. The bar the filter line sits under is `observability/dashboard/date_controls.py` for
+wave, its unpriced runs counted per model and reason, the plain-language glossary of sources, statuses, and unpriced
+reasons, the coverage bar, and the unpriced-run warning its label carries — with the words a reason is shown in, on
+that section and on a listed run alike, held by `observability/dashboard/unpriced_text.py`. The bar the filter line
+sits under is `observability/dashboard/date_controls.py` for
 the five slots it is laid
 out across, the label naming it, and the presets it offers inline, and
 `observability/dashboard/date_filter.py` for the window a preset opens its pickers on, the inclusive days they hand
