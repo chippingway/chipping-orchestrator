@@ -221,7 +221,10 @@ Gemini 3.7 Flash or 3.1 Pro run, another provider's model, mixed or unnamed mode
 are unpriced. Beside those fields the run records its cost
 evidence — monetary contributions by basis (`cli-reported`, or a provider's token-only API list-price estimate) and
 their completeness — and its token evidence, which counters were observed and whether the cache counters sit inside
-the input, with shared readers that fold costs per basis and total tokens without counting one twice. Malformed JSONL
+the input, with shared readers that fold costs per basis and total tokens without counting one twice. An unpriced run
+also records why, as `unpriced_reasons`: every reason its estimate gave, each beside the model it concerns — a
+missing model price, an indeterminate request tier, a missing cache-write count or lifetime, and the rest of a closed
+vocabulary — while a CLI-reported amount, a zero included, leaves none. Malformed JSONL
 lines are skipped, so one bad line never invalidates a stream. Two siblings ride the same
 stream under the same contract: the opt-in skill-trigger extractor behind `TRACK_SKILL_TRIGGERS`, and the trajectory
 classifier that reconstructs a run's timeline. That page carries the module layout, the per-backend parsers and their
