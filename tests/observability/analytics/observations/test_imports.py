@@ -25,7 +25,7 @@ _RECORDER = "recorder"
 # The declared inventory. A new owner is a deliberate edit here and a
 # paragraph in the module map, which is what the inventory check compares the
 # directory against.
-_OWNERS = ("attachments", "bounds", "records", _RECORDER)
+_OWNERS = ("attachments", "bounds", "records", _RECORDER, "redaction")
 
 # What an import of any owner here costs before it names anything: the root
 # package and the chain down to this one.
@@ -35,24 +35,28 @@ _ALWAYS_PLANTED = frozenset((
     "orchestrator.observability.analytics",
 ))
 
-# What each owner may reach beyond its own siblings. The reader and the bounds
-# are leaves; the payloads build on the shared envelope; the recorder adds
-# the configuration owner the sink knob is read through. The credential
-# redactor is reached inside the call that redacts, so no import plants it,
-# and the agent identity is a type alone: an owner here importing the agents
-# package would charge every producer for the runner behind it.
+# What each owner may reach beyond its own siblings. The reader, the bounds,
+# and the redaction are leaves; the payloads build on the shared envelope; the
+# recorder adds the configuration owner the sink knob is read through. The
+# credential redactor and the policy it masks by are reached inside the call
+# that redacts, so no import plants them, and the agent identity is a type
+# alone: an owner here importing the agents package would charge every
+# producer for the runner behind it.
 _REACHABLE = MappingProxyType({
     "attachments": (),
     "bounds": (),
     "records": (_SINK,),
     _RECORDER: (_CONFIG, _SINK),
+    "redaction": (),
 })
 
-# The producer that hands the recorder a reply, and the prompt note spelled
-# from the attachment vocabulary: each names the owner it reads.
+# The producer that hands the recorder a reply, the prompt note spelled from
+# the attachment vocabulary, and the reviewer prompt naming the task reference
+# the snapshot records spell: each names the owner it reads.
 _CALLERS = MappingProxyType({
     "orchestrator.workflow.engine.task_snapshots": _RECORDER,
     "orchestrator.workflow.engine.prompt_notes": "attachments",
+    "orchestrator.workflow.engine.review_prompts": "records",
 })
 
 

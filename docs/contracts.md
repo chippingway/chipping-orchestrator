@@ -239,10 +239,11 @@ earlier build counted keep no evidence and read as one record without it, their 
 completeness and their overlap unknown, nothing inferred from `issue_cost_sources`; the first run counted over them
 folds that reading in once and keeps their number in `issue_unevidenced_runs`, so no later run makes them known, and no
 posted receipt is rewritten.
-A task snapshot attachment is read only in its current form: one `ANALYTICS: task-snapshot v1` line above a developer
-reply's report outcome, over a JSON object holding one non-blank `description`. Another kind, version, or shape, a line
-inside the report block or past the outcome, two lines, or none beside an outcome is a diagnostic naming why, never a
-guessed, repaired, or merged observation. The `task_snapshot` and `observation_diagnostic` records carry
+A task snapshot attachment is read only in its current form, off the reply exactly as written: one
+`ANALYTICS: task-snapshot v1` line in a developer reply, above its report outcome where it has one, over a JSON object
+holding one non-blank `description` written once. Another kind, version, or shape, a key written twice, the line inside
+the report block or past the outcome, two lines anywhere, or none at all is a diagnostic naming why, never a guessed,
+repaired, or merged observation. The `task_snapshot` and `observation_diagnostic` records carry
 `observation_version: 1` and their source invocation's identity whole; a text says how long it was and whether it was
 cut, a record past its limit drops its texts rather than cutting an identifier, and nothing backfills a snapshot for a
 run that recorded none.
@@ -752,10 +753,12 @@ asked under the very output contract the decompose prompt closes on, beside that
 answer is read by the same parser and earns none of its own; a question, silence, or a failed, incomplete, timed-out,
 interrupted, or dirty run earns none, and no dependency list is inferred from a child's prose. Session identity is
 covered by [C-14]. The task snapshot request the implementing roads append to every attempt is spelled from the
-vocabulary the one analytics attachment reader reads, and asks for its line above the report outcome, so the line is
-outside the report and its digest and every report reading is what it would be without it. A missing, malformed, or
-misplaced attachment earns a diagnostic and nothing else -- no retry, correction, park, or refusal -- and never makes
-an invalid report outcome valid.
+vocabulary the one analytics attachment reader reads, and asks every finished reply for its line, above the report
+outcome where there is one. The workflow reads the reply with that line taken out above the outcome, so it is outside
+the report and its digest, no park reads or quotes it, and every report reading is what it would be without it --
+text after an outcome still refused. A missing, malformed, duplicated, or misplaced attachment earns a diagnostic and
+nothing else -- no retry, correction, park, or refusal -- and never makes an invalid report outcome valid. A reviewer
+handed a report is told the task snapshot reference that report's requirements revision spells.
 
 **Specs:** [reply protocols](workflow.md), [task snapshots](workflow/conversations.md#the-task-snapshot-attachment).
 
@@ -765,7 +768,9 @@ an invalid report outcome valid.
 [manifest corrections](../tests/workflow/stages/decomposition/test_correction_road.py),
 [fuzzed manifests](../tests/repository/test_fuzz_targets.py),
 [task snapshot replies](../tests/workflow/engine/test_task_snapshot_replies.py),
-[task snapshot attempts](../tests/workflow/stages/implementing/test_task_snapshot_attempts.py).
+[task snapshot attempts](../tests/workflow/stages/implementing/test_task_snapshot_attempts.py),
+[task snapshot readings](../tests/workflow/stages/implementing/test_task_snapshot_readings.py),
+[reviewer task reference](../tests/workflow/engine/test_prompts_review_report.py).
 
 ## C-09: Reports, review subjects, and verification
 
@@ -985,9 +990,11 @@ the usage parser refuses still writes no `agent_exit` record and publishes no to
 recorded, on a trajectory record marked `stream_refused`. A task snapshot and its diagnostics are observation alone:
 no usage total, accounting, completion capture, report settlement, or workflow decision reads one. They are collected
 wherever the analytics sink is on, needing no usage parse, trajectory sink, or database, from a genuine developer
-return alone -- so the recovery that finishes a captured report records none -- and behind one failure boundary from
-the parse through the append: a step that fails is a diagnostic, a diagnostic that cannot be written is one warning,
-and a lost observation owes no export, checkpoint, or agent run.
+return alone, judged by the run's status -- so the recovery that finishes a captured report records none -- and behind
+one failure boundary from the report reader's framing of the reply through the append: a step that fails is a
+diagnostic, a diagnostic that cannot be written is one warning, and a lost observation owes no export, checkpoint, or
+agent run. Only the telemetry copy is redacted, before it is cut: an excerpt masks every credential the whole reply
+holds, written raw or JSON-escaped.
 
 **Specs:** [audit recovery](observability/event-streams.md#audit-event-log-event_log_path),
 [request usage](observability/usage.md#request-usage-observations),

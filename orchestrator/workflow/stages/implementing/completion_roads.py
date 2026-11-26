@@ -50,10 +50,13 @@ checkout than a report (`CompletionRoad.source`).
 The two implementing routes are also the initial implementation request and
 its ordinary continuations, so a road is what decides who is asked for a task
 snapshot: the coordinator hands every attempt the prompt its road asks with
-(`asked`) and every return to its road's observation (`observe`), and only the
-first implementation's road and an implementing resume's append the request or
-record anything (`task_snapshots`). The observation is analytics alone, raises
-nothing, and is read by nothing here, so it changes no capture.
+(`asked`) and every return to its road (`received`), and only the first
+implementation's road and an implementing resume's append the request, record
+anything, or take the attachment out of the reply the workflow reads
+(`task_snapshots`). The observation is bound to what the attempt's prompt was
+handed -- for a retry's fresh conversation, the read it was re-grounded on --
+is analytics alone, raises nothing, and is read by nothing here, so it changes
+no capture.
 """
 from __future__ import annotations
 
@@ -112,10 +115,19 @@ class Attempt:
 
 @dataclass(frozen=True)
 class CompletionRoad:
-    """What one report-producing road froze before its launch, and the checkout it launched in."""
+    """What one report-producing road froze before its launch, and the checkout it launched in.
+
+    `fresh_requirements` is what a FRESH session's prompt on this road is
+    re-grounded with, where that is not the handoff's own: a retry hands a
+    resumed conversation nothing, while a replacement session's preamble
+    quotes the issue as it now reads. Only the task snapshot of an attempt
+    that opened a fresh conversation is bound to it; the capture and the
+    report keep the handoff's.
+    """
 
     handoff: _records.CompletionHandoff
     checkout: RoadCheckout
+    fresh_requirements: str | None = None
 
     def captures(
         self, gh: _client.GitHubClient, issue: Issue, state: _pinned_state.PinnedState, attempt: Attempt,
@@ -170,14 +182,22 @@ class CompletionRoad:
         """
         return _task_snapshots.asked(self.handoff, prompt)
 
-    def observe(self, agent_result: AgentResult, stage: str) -> None:
-        """Hand the task snapshot a genuine return on this road carries to analytics, where the road asks one.
+    def received(self, attempt: Attempt, stage: str) -> None:
+        """Receive an attempt's return on this road, where the road asks a task snapshot (`task_snapshots`).
 
         Asked of every attempt as it returns, ahead of anything that reads
-        it, and raises nothing: what it records is observation, and no
-        disposition, capture, or accounting reads it back.
+        it: a genuine return's snapshot goes to analytics, bound to what the
+        attempt's prompt was handed -- `fresh_requirements` where the
+        coordinated run opened a fresh conversation (`resumed` None) and the
+        road holds one, the handoff's otherwise -- and the result's message
+        is left as the workflow reads it, its attachment taken out above the
+        outcome. The recording raises nothing, and no disposition, capture,
+        or accounting reads it back.
         """
-        _task_snapshots.observe(self.handoff, agent_result, stage)
+        handed = self.handoff.requirements_revision
+        if attempt.resumed is None and self.fresh_requirements is not None:
+            handed = self.fresh_requirements
+        _task_snapshots.receive(self.handoff, attempt.agent_result, stage, handed)
 
     def source(self, agent_result: AgentResult) -> str | None:
         """The head `agent_result`'s report is about, read off the checkout as it returns; None where none qualifies.
@@ -224,7 +244,7 @@ def reply_road(issue: Issue, batch: _resume_batch._ReplyBatch, checkout: RoadChe
     ), checkout)
 
 
-def retry_road(batch: _resume_batch._ReplyBatch, checkout: RoadCheckout) -> CompletionRoad:
+def retry_road(issue: Issue, batch: _resume_batch._ReplyBatch, checkout: RoadCheckout) -> CompletionRoad:
     """An operator's `/orchestrator continue` retry, frozen over its batch: it consumes the commands it answered.
 
     A retry hands the developer no requirements: a resumed conversation reads
@@ -234,6 +254,11 @@ def retry_road(batch: _resume_batch._ReplyBatch, checkout: RoadCheckout) -> Comp
     requirements, and an edit beside the command stays owed to the drift
     road rather than becoming the report's revision unseen; a held return
     beside such an edit is past what the issue now asks for when recovered.
+
+    A retry that opens a fresh conversation -- no session left to resume,
+    or a poisoned one replaced -- re-grounds it on the batch's own read of
+    the issue, an edit beside the command included, so the task snapshot of
+    such an attempt is bound to that read's fingerprint instead.
     """
     consumed = max(seen.id for seen in batch.comments)
     baseline = batch.state.get(_prompt_delivery.PINNED_USER_CONTENT_HASH)
@@ -242,7 +267,7 @@ def retry_road(batch: _resume_batch._ReplyBatch, checkout: RoadCheckout) -> Comp
         origin=_IMPLEMENTING,
         requirements_revision=baseline if isinstance(baseline, str) else "",
         watermarks=((_prompt_delivery.PINNED_LAST_ACTION_COMMENT_ID, consumed),),
-    ), checkout)
+    ), checkout, fresh_requirements=_requirements(issue, batch))
 
 
 def _requirements(issue: Issue, batch: _resume_batch._ReplyBatch) -> str:

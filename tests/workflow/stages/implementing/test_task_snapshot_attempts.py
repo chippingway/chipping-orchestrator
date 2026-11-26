@@ -40,6 +40,14 @@ _CONVERSATION = "agy-convo"
 _UNFINISHED = (ToolLifecycle(step_index=1, tool_name="run_command", state="ACTIVE"),)
 _COMPLETION = "completion"
 
+# What a poisoned resume and the fresh retry behind it record, in order: the
+# empty reply's missing snapshot under the first charge, the snapshot under
+# the second.
+_RETRIED = (
+    (_support.DIAGNOSTIC_EVENT, (1, "resume")),
+    (_support.SNAPSHOT_EVENT, (2, "resume")),
+)
+
 # Runs nothing records: what each returned, the road it was frozen on, and
 # the prompt it was handed.
 _UNRECORDED = (
@@ -47,6 +55,11 @@ _UNRECORDED = (
     ("a fix round", {}, _routes.CompletionRoute.REQUESTED_CHANGES, _PROMPT),
     ("a timed-out attempt", {"timed_out": True}, _routes.CompletionRoute.IMPLEMENTATION, _ASKED),
 )
+
+
+def _recorded_as(record: dict) -> tuple:
+    """What one observation is: its kind, and the charge and road it names."""
+    return (record["event"], _support.charged(record))
 
 
 class CoordinatedAttemptTest(_support.SinkOfItsOwn):
@@ -61,8 +74,9 @@ class CoordinatedAttemptTest(_support.SinkOfItsOwn):
         self.state = self.github.read_pinned_state(self.issue)
 
     def test_a_fresh_retry_is_asked_and_observed(self) -> None:
-        # The poisoned attempt returns no reply worth a record; the fresh
-        # retry it buys is asked again and recorded under the second charge.
+        # The poisoned attempt completed on an empty reply, so it is a missing
+        # snapshot under the first charge; the fresh retry it buys is asked
+        # again and recorded under the second.
         attempts = MagicMock(side_effect=[
             _agent(session_id="", last_message="", stderr=f"No conversation found with session ID: {_POISONED}"),
             _agent(session_id="fresh-sess", last_message=_support.ATTACHED),
@@ -76,9 +90,7 @@ class CoordinatedAttemptTest(_support.SinkOfItsOwn):
         self.assertEqual(len(prompts), 2)
         for prompt in prompts:
             self.assertTrue(prompt.endswith(_notes._TASK_SNAPSHOT_NOTE))
-        snapshot = self.only(_support.SNAPSHOT_EVENT)
-        self.assertEqual(_support.charged(snapshot), (2, "resume"))
-        self.assertEqual(self.events(_support.DIAGNOSTIC_EVENT), [])
+        self.assertEqual(tuple(map(_recorded_as, self.observations())), _RETRIED)
 
     def test_an_antigravity_recovery_is_observed(self) -> None:
         # The first exit left a command running and records nothing; the

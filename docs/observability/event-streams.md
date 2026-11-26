@@ -798,19 +798,20 @@ bounded against. Either way one candidate's record is the whole cost: every cand
 
 ### Task snapshot records
 
-An implementing developer's own short description of its task, bound to the requirements its run was handed, and
-every reason a reply yielded none. Two event kinds share one payload version, `observation_version` (currently `1`),
+An implementing developer's own short description of its task, bound to the requirements its prompt was handed, and
+the reason a reply yielded none. Two event kinds share one payload version, `observation_version` (currently `1`),
 which moves whenever a field here changes meaning. Nothing in the workflow reads either back
 ([C-12](../contracts.md#c-12-observation-and-the-audit-recovery-exception)).
 
 **Who is asked, and which returns are recorded.** Every attempt the shared developer coordinator makes on the first
 implementation's road or an implementing resume's — a human's reply, an operator's `/orchestrator continue`, a
 poisoned session's fresh retry, and an Antigravity command recovery behind any of them — is asked for one attachment
-line above its report outcome ([the reply contract](../workflow/conversations.md#the-task-snapshot-attachment)). No
-other road asks, and no other run is recorded. Only a genuine return is: a run the tracked spawn started under a charge
-and stamped with its invocation, which completed. One never invoked, interrupted, timed out, refused by its provider,
-exited nonzero, left a tool step unfinished, or normalized to a failure writes nothing, nor does a result a stage
-synthesized or the recovery that finishes a captured report from its record, since no developer ran.
+line in every finished reply, above its report outcome where it ends on one
+([the reply contract](../workflow/conversations.md#the-task-snapshot-attachment)). No other road asks, and no other run
+is recorded. Only a genuine return is, judged by the run's status alone: a run the tracked spawn started under a charge
+and stamped with its invocation, which was invoked, neither interrupted nor timed out, exited 0, and left no tool step
+unfinished or failure normalized. Any other writes nothing, nor does a result a stage synthesized or the recovery that
+finishes a captured report from its record, since no developer ran.
 
 **Fields both kinds carry.** The `ts` / `repo` / `issue` / `event` / `stage` envelope, and:
 
@@ -820,54 +821,68 @@ synthesized or the recovery that finishes a captured report from its record, sin
   damaged), `ordinal` (the lifetime charge it was started under), and `nonce`. That is what joins the record to its
   run's own records, since a session id is shared by every resume and a round counter resets.
 - `route` — `implementation` or `resume`, the road the run came down.
-- `requirements_revision` — the requirements fingerprint the road froze before the launch: the read the prompt was
-  built from, never one an edit during the run moved the issue to, and the revision the run's report is stamped with.
-  Dropped where the road held none.
-- `task_ref` — `<repo>#<issue>@<requirements_revision>`, the reference a later reader names the snapshot by: a
-  reviewer handed a report stamped with that revision names exactly this one. Dropped with the revision.
+- `report_outcome` — what the report reader reads the reply's outcome as: `ready`, `verified`, `malformed`, or
+  `no_marker`. Dropped where the recording failed before reading it.
+- `requirements_revision` — the requirements fingerprint the attempt's prompt was handed, frozen before the launch:
+  the read the prompt was built from, never one an edit during the run moved the issue to. That is the revision the
+  run's report is stamped with, save on a retry that opens a fresh conversation: the report keeps the baseline the
+  issue recorded, while the snapshot is bound to the read the replacement session was re-grounded on, an edit beside
+  the command included. Dropped where the road held none.
+- `task_ref` — `<repo>#<issue>@<requirements_revision>`, the reference a later reader names the snapshot by. The
+  reviewer handed a report is told the reference that report's revision spells, beside the quoted report. Dropped
+  with the revision.
 
 `task_snapshot` adds `attachment_version` (`1`, the attachment format it was read from) and `description`.
 `observation_diagnostic` adds `item` (`task-snapshot`), `category`, `counts` — `found`, the attachment lines in the
-reply, and `recorded`, `0` or `1`; empty where the recording failed before it read any — an `excerpt` of the refused
-line where there is one, and `error`, the failed step's exception type, where the recorder itself failed:
+reply, and `readable`, how many of them read as a snapshot (`0` or `1`), which says nothing about what reached the
+sink; empty where the recording failed before it read any — an `excerpt` of the refused lines where there are any, and
+`error`, the failed step's exception type, where the recorder itself failed. A reply yields either one snapshot or one
+diagnostic:
 
 | `category` | What it means |
 | --- | --- |
-| `missing` | A report outcome and no attachment line; a reply with no outcome was asked for none. |
+| `missing` | No attachment line in the reply at all, whatever it ends on. |
 | `malformed` | The line is not the prefix, kind, and version over a JSON object of one non-blank `description`. |
 | `unsupported` | Another attachment kind or version than the one this build reads. |
-| `misplaced` | The line sits inside the report block or past the outcome; it is never read there. |
-| `duplicate` | Two or more lines above the outcome; none is read, since which was meant is a guess. |
+| `misplaced` | The one line sits inside the report block or past the outcome; it is never read there. |
+| `duplicate` | Two or more lines anywhere in the reply; none is read, since which was meant is a guess. |
 | `oversized` | The line is past 4,000 characters, refused before its JSON is decoded. |
-| `parse_failed` | Finding the outcome or reading the attachment raised. |
+| `parse_failed` | Framing the reply against its report outcome or reading the attachment raised. |
 | `redaction_failed` | The credential redactor raised; nothing it did not finish is excerpted. |
 | `serialization_failed` | A record would not serialize, or stayed past its limit with its texts dropped. |
 | `append_failed` | The filesystem refused the append; recorded only where the diagnostic's own append lands. |
 
+The line is read off the reply exactly as the agent wrote it: nothing is redacted or repaired first, so a key written
+twice is `malformed` rather than the last of its values, and a credential's line break written raw inside the JSON
+leaves the line as malformed as it was written.
+
 **Bounded text.** `description` and `excerpt` are objects: `text`, the head kept; `chars`, the whole length; and
-`truncated`, whether `text` is less than that. Both texts pass through the credential redactor before anything cuts or
-serializes them — the raw reply first, where a secret spanning lines is still one string, and the decoded description
-again, where a secret its JSON escaped is one again — so no fragment of a secret survives as halves the redactor no
-longer recognizes. A description keeps 1,000 characters and an excerpt 500; a record past 8,192 bytes drops both texts
-whole — `text` gone, `chars` kept, `truncated` true — and never cuts an identifier, and one still past it is a
-`serialization_failed` diagnostic. Only the telemetry copy is bounded: nothing shortens what an agent was handed or what
-the workflow publishes.
+`truncated`, whether `text` is less than that. Only these telemetry copies are redacted, and before anything cuts or
+serializes them. The decoded description passes through the credential redactor whole, a credential its JSON escaped
+decoded back into its value. An excerpt is a line of the reply, so the whole reply is searched first for every value
+the redactor masks — as written, and with its JSON string escapes decoded — and every part of a place one sits that
+the excerpt covers is shown as the redactor's mask, so neither a credential split across the reply's lines nor one
+escaped inside a refused line survives as text the redactor no longer recognizes. A description keeps 1,000
+characters and an excerpt 500; a record past 8,192 bytes drops its text whole — `text` gone, `chars` kept, `truncated`
+true — and never cuts an identifier, and one still past it is a `serialization_failed` diagnostic. Only the telemetry
+copy is bounded: nothing shortens what an agent was handed or what the workflow publishes.
 
 **Collected by default.** With the sink on — its default, `<LOG_DIR>/analytics.jsonl` — this text is collected with no
 switch of its own. `ANALYTICS_LOG_PATH` set empty or to `off` / `disabled` / `none` turns it off with the rest of the
-sink: nothing is read, redacted, or written. `ANALYTICS_RETENTION_DAYS` prunes it with every other record, and the
-sync replays it into `analytics_events`, `stage` in its column and every other field in `extras`, with no schema
+sink: nothing is framed, read, redacted, or written. `ANALYTICS_RETENTION_DAYS` prunes it with every other record, and
+the sync replays it into `analytics_events`, `stage` in its column and every other field in `extras`, with no schema
 change. The redactor masks secret-shaped environment values and the configured GitHub tokens, not issue or repository
 content, so the file and a database filled from it hold a developer's words in cleartext.
 
-**Best effort, behind one boundary.** The whole path — finding the outcome, redacting, reading, bounding, serializing,
-and appending — runs inside one guard (`observations/recorder.py`), and the lines go to disk through
-`sink.write_jsonl_lines` under the sink's own lock so a refused append reaches that guard instead of the sink's
-`log.warning`. A failed step becomes a diagnostic; a diagnostic that cannot be written either becomes one warning on
-`orchestrator.analytics` naming the issue, the invocation, and both failures' types, and nothing is tried again. A crash
-between a return and its record loses the record: there is no export queue, checkpoint, or agent run owed for it, and
-usage accounting, a completion capture, and the report's settlement each stand on their own evidence. Collection needs
-no usage parse, no trajectory sink, and no database.
+**Best effort, behind one boundary.** The whole path — the report reader's framing of the reply, reading the
+attachment, redacting, bounding, serializing, and appending — runs inside one guard (`observations/recorder.py`); the
+workflow asks nothing of the reply before handing it over, and the lines go to disk through `sink.write_jsonl_lines`
+under the sink's own lock so a refused append reaches that guard instead of the sink's `log.warning`. A failed step
+becomes a diagnostic; a diagnostic that cannot be written either becomes one warning on `orchestrator.analytics` naming
+the issue, the invocation, and both failures' types, and nothing is tried again. A crash between a return and its
+record loses the record: there is no export queue, checkpoint, or agent run owed for it, and usage accounting, a
+completion capture, and the report's settlement each stand on their own evidence. Collection needs no usage parse, no
+trajectory sink, and no database.
 
 ## Agent-run budget records (both sinks)
 

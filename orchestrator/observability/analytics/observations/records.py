@@ -11,15 +11,19 @@ spawn minted it -- repository, issue, the pinned comment its charge was
 written on, the workflow cycle, the charge's lifetime ordinal, and the
 random nonce -- so a record joins the run's own records by identity rather
 than by a session id or a round counter, neither of which names one
-process. `route` is the road the run came down.
+process. `route` is the road the run came down, and `report_outcome` what
+the reply's report outcome read as -- `ready`, `verified`, `malformed`, or
+`no_marker` -- where the recording got as far as reading it.
 
 * `task_snapshot` is a developer's description of its task, bounded, beside
   the requirements revision the run was handed and the task reference
   (`task_reference`) a later reader -- a reviewer handed a report stamped
   with that same revision -- names it by.
-* `observation_diagnostic` is why a reply yielded no observation, or not all
-  of one: the item it is about, the category, the counts the collection
-  reached, and a bounded excerpt of the refused line where there is one.
+* `observation_diagnostic` is why a reply yielded no observation: the item
+  it is about, the category, the counts the collection reached -- the
+  attachment lines `found`, and how many were `readable` as a snapshot, which
+  says nothing about what reached the sink -- and a bounded excerpt of the
+  refused lines where there are any.
 
 Identifiers are written whole and never cut; only a text is bounded, and the
 record limit drops texts rather than identifiers (`serialized`).
@@ -52,14 +56,17 @@ class ObservedRun:
 
     `invocation` is the process the reply came back from, `stage` the bare
     stage tag its records are attributed to, `route` the road it ran on, and
-    `requirements_revision` the requirements the run was handed -- None where
-    the road holds none.
+    `requirements_revision` the requirements the attempt's prompt was
+    handed -- None where the road holds none. `report_outcome` is what the
+    reply's report outcome read as, set once the recorder has read it and
+    None before.
     """
 
     invocation: AgentInvocation
     stage: str | None
     route: str
     requirements_revision: str | None
+    report_outcome: str | None = None
 
 
 def source_fields(invocation: AgentInvocation) -> dict:
@@ -145,6 +152,7 @@ def _observation(run: ObservedRun, event: str, **fields: object) -> dict:
         observation_version=OBSERVATION_VERSION,
         source=source_fields(invocation),
         route=run.route,
+        report_outcome=run.report_outcome,
         requirements_revision=run.requirements_revision,
         task_ref=task_reference(invocation.repo, invocation.issue, run.requirements_revision),
         **fields,

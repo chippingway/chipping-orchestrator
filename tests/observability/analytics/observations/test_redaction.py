@@ -1,14 +1,18 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""A secret in a reply is masked on the raw text, before anything cuts or escapes it.
+"""A secret in a reply is masked in the telemetry copy, never in the reply the attachment is read from.
 
 The redactor replaces each secret's literal value, so it has to see the
-secret whole: across the reply's raw lines, inside the description its JSON
-escaped, and before a field limit would cut it into halves the redactor no
-longer recognizes -- in a snapshot and in a refused line's excerpt alike.
+secret whole: across the reply's raw lines, inside a description or a
+refused line its JSON escaped -- canonically or not -- and before a field
+limit would cut it into halves the redactor no longer recognizes. The
+attachment itself is read off the reply as written, so a secret's raw line
+break inside the JSON leaves the line malformed rather than repaired by the
+mask.
 """
 from __future__ import annotations
 
+import json
 import os
 from unittest.mock import patch
 
@@ -18,7 +22,13 @@ from tests.observability.analytics.observations import observation_test_support 
 # A secret the process environment holds, spanning two lines, and the parts
 # none of which may reach the sink.
 _SECRET = "first-line-of-the-secret\nsecond-line-of-the-secret"
-_FRAGMENTS = ("first-line", "second-line", "of-the-secret")
+
+# A second one, spelling a backslash sequence of its own, which decoding the
+# reply's escapes would turn into another character.
+_BACKSLASHED_LINE = r"other-secret-first\tline"
+_BACKSLASHED = f"{_BACKSLASHED_LINE}\nother-secret-second"
+
+_FRAGMENTS = ("first-line", "second-line", "of-the-secret", "other-secret")
 
 # Room a case leaves beside a secret, under a field limit.
 _ROOM = 40
@@ -31,12 +41,25 @@ _NEAR_THE_EXCERPT_CUT = "d" * (bounds.EXCERPT_CHARS - _ROOM)
 _OPENING = 'ANALYTICS: task-snapshot v1 {"description": "'
 _CLOSING = '"}'
 _UNCLOSED = "ANALYTICS: task-snapshot v1 {"
+_UNQUOTED = 'ANALYTICS: task-snapshot v1 {"description": '
 
+# The secret as JSON spells it, and as an agent may spell it instead.
+_ESCAPED = json.dumps(_SECRET)
+_UNICODE_ESCAPED = _SECRET.replace("\n", r"\u000a").replace("-", r"\u002d")
+
+_SNAPSHOT = "task_snapshot"
+_MALFORMED = "malformed"
+
+# Each reply's preamble, and what its attachment reads as.
 _CASES = (
-    _support.snapshot_line(f"Uses {_SECRET} to log in."),
-    f"{_OPENING}{_SECRET}{_CLOSING}",
-    _support.snapshot_line(f"{_NEAR_THE_DESCRIPTION_CUT}{_SECRET}"),
-    f"{_UNCLOSED}{_NEAR_THE_EXCERPT_CUT}{_SECRET}",
+    (_support.snapshot_line(f"Uses {_SECRET} to log in."), _SNAPSHOT),
+    (f"{_OPENING}{_UNICODE_ESCAPED}{_CLOSING}", _SNAPSHOT),
+    (_support.snapshot_line(f"{_NEAR_THE_DESCRIPTION_CUT}{_SECRET}"), _SNAPSHOT),
+    (f"{_OPENING}{_SECRET}{_CLOSING}", _MALFORMED),
+    (f"{_UNCLOSED}{_NEAR_THE_EXCERPT_CUT}{_SECRET}", _MALFORMED),
+    (f"{_UNQUOTED}{_ESCAPED}", _MALFORMED),
+    (f"{_UNCLOSED}{_NEAR_THE_EXCERPT_CUT}{_UNICODE_ESCAPED}", _MALFORMED),
+    (f"{_UNCLOSED}{_BACKSLASHED}", _MALFORMED),
 )
 
 
@@ -45,17 +68,19 @@ class RedactionTest(_support.SinkCase):
 
     def setUp(self) -> None:
         super().setUp()
-        secret_set = patch.dict(os.environ, {"ANALYTICS_TEST_TOKEN": _SECRET})
+        secret_set = patch.dict(os.environ, {"ANALYTICS_TEST_TOKEN": _SECRET, "ANALYTICS_TEST_KEY": _BACKSLASHED})
         secret_set.start()
         self.addCleanup(secret_set.stop)
 
     def test_no_secret_fragment_reaches_the_sink(self) -> None:
         # Escaped inside the JSON, raw across the reply's lines, and where the
-        # field limit would cut it in two, in a snapshot and in an excerpt.
-        for preamble in _CASES:
+        # field limit would cut it in two, in a snapshot and in a refused
+        # line's excerpt; a raw line break inside the JSON is no snapshot.
+        for preamble, reading in _CASES:
             with self.subTest(preamble=preamble[-_ROOM:]):
                 self.path.unlink(missing_ok=True)
-                self.record(_support.reply(preamble))
+                recorded = self.record(_support.reply(preamble))[0]
                 written = self.path.read_text(encoding="utf-8")
+                self.assertEqual(recorded.get(_support.CATEGORY, recorded[_support.EVENT]), reading)
                 self.assertIn("***", written)
                 self.assertEqual([fragment for fragment in _FRAGMENTS if fragment in written], [])

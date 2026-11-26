@@ -6,8 +6,11 @@ The reviewer is handed the report rather than left to fetch one: quoted whole
 between the issue and the commands that inspect the branch, named by its
 revision and location, and said to be the complete, current report. Where the
 thread the reviewer reads has moved on since the report was written, the prompt
-says so; where no report is recorded, it says that instead. None of it teaches
-the reviewer a report outcome of the developer's own.
+says so; where no report is recorded, it says that instead. Beside the report,
+outside its quotation, the reviewer is told the task snapshot reference the
+report answers to -- the repository, the issue, and the requirements revision
+the report is stamped with -- however few repositories the prompt names. None of
+it teaches the reviewer a report outcome of the developer's own.
 """
 from __future__ import annotations
 
@@ -62,6 +65,9 @@ _COMPLETE_AND_CURRENT = "It is the complete, current report"
 _EDITED_NOTE = "The issue has changed since this report was written"
 
 _NO_REPORT = "No developer report is recorded for this pull request"
+
+# The task snapshot reference the report this prompt hands answers to.
+_REFERENCE = f"Task snapshot reference for this report: `{_TEST_SPEC.slug}#{_ISSUE_NUMBER}@{_REQUIREMENTS}`."
 
 
 def _subject(
@@ -144,6 +150,16 @@ class ReviewPromptReportTest(unittest.TestCase):
         self.assertIn(_EDITED_NOTE, prompt)
         self.assertIn(f"PR #{_PR_NUMBER}, its description", prompt)
 
+    def test_it_names_the_task_reference(self) -> None:
+        # Named on a line of its own between the heading and the quotation,
+        # over the report's own revision -- an edit since moves it nowhere --
+        # in a prompt that lists no other repository.
+        for requirements in (_REQUIREMENTS, _EDITED_REQUIREMENTS):
+            prompt = _prompt(_subject(requirements=requirements))
+            with self.subTest(requirements=requirements):
+                self.assertIn(f"\n\n{_REFERENCE}\n\n", prompt)
+                self.assertTrue(_ordered(prompt, _COMPLETE_AND_CURRENT, _REFERENCE, f"> {_REPORT_LINES[0]}"))
+
     def test_no_report_is_said_to_be_none(self) -> None:
         no_report = review_subjects.ReviewSubject(
             pr_number=_PR_NUMBER,
@@ -155,6 +171,7 @@ class ReviewPromptReportTest(unittest.TestCase):
                 prompt = _prompt(subject)
                 self.assertTrue(_ordered(prompt, _NO_REPORT, _INSPECTION))
                 self.assertNotIn(_COMPLETE_AND_CURRENT, prompt)
+                self.assertNotIn("Task snapshot reference", prompt)
 
 
 if __name__ == "__main__":

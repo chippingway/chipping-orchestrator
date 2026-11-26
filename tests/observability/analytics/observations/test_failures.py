@@ -26,7 +26,7 @@ _REDACTOR = "orchestrator.config.credentials.redact_secrets"
 # A reply whose snapshot reads: whatever is recorded instead is the failure's.
 _REPLY = _support.reply(f"Done.\n{_support.snapshot_line()}")
 
-_READ = MappingProxyType({"found": 1, "recorded": 1})
+_READ = MappingProxyType({"found": 1, "readable": 1})
 
 _UNREAD = MappingProxyType({})
 
@@ -34,7 +34,7 @@ _UNREAD = MappingProxyType({})
 # failed with, and the test's method failing it.
 _STEP_FAILURES = (
     ("parse_failed", _UNREAD, "RuntimeError", "_outcome_fails"),
-    ("redaction_failed", _UNREAD, "RuntimeError", "_redaction_fails"),
+    ("redaction_failed", _READ, "RuntimeError", "_redaction_fails"),
     ("serialization_failed", _READ, "TypeError", "_serialization_fails"),
     ("append_failed", _READ, "OSError", "_append_fails"),
 )

@@ -204,13 +204,15 @@ review-subject freshness, and the round each road spends:
 
 The first implementation and the replies and retries that continue it — every attempt the shared developer
 coordinator makes on those two roads, a poisoned session's fresh retry and an Antigravity command recovery included —
-close their prompt on one more request: a short description of the task in the developer's own words, written as one
-`ANALYTICS: task-snapshot v1 {"description": "..."}` line above the report outcome
-(`workflow/engine/task_snapshots.py`, `_TASK_SNAPSHOT_NOTE` in `workflow/engine/prompt_notes.py`). The line stays out of
-the report, its digest, and every report reading, and it decides nothing: a genuine return's attachment is read and
+close their prompt on one more request: a short description of the task in the developer's own words, written once in
+every finished reply as one `ANALYTICS: task-snapshot v1 {"description": "..."}` line, above the report outcome where
+the reply ends on one (`workflow/engine/task_snapshots.py`, `_TASK_SNAPSHOT_NOTE` in `workflow/engine/prompt_notes.py`).
+The workflow reads the reply with that line taken out above the outcome, so it stays out of the report, its digest,
+every report reading, and every park; and it decides nothing: a genuine return's attachment is read as written and
 recorded by the analytics observation owners as a `task_snapshot` bound to the run's invocation and the requirements
-revision its road froze before the launch, and a missing, malformed, or misplaced one is a diagnostic, never a retry, a
-park, or a rescued outcome. No other road asks. Full contract:
+its prompt was handed, and a missing, malformed, duplicated, or misplaced one is a diagnostic, never a retry, a park,
+or a rescued outcome. The reviewer handed the report is told the task snapshot reference it answers to. No other road
+asks. Full contract:
 [`workflow/conversations.md#the-task-snapshot-attachment`](workflow/conversations.md#the-task-snapshot-attachment).
 
 ## Reviewer verification contract in reviewer prompts

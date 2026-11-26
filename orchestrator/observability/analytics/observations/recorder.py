@@ -3,28 +3,34 @@
 """Record one reply's task snapshot, best-effort, behind one failure boundary.
 
 The whole path a reply takes to the analytics sink runs inside one guard:
-finding the report outcome in it, redacting it, reading its attachment,
-redacting what the attachment decodes to, bounding and serializing the
-records, and appending them. The sink's own `append_jsonl_record` catches
-only a filesystem error, and only around the file -- a serialization error
-before it would reach the caller -- so this path writes its lines itself
-(`sink.write_jsonl_lines`) and catches everything. Whatever fails is named by
-the step it failed in -- `parse_failed`, `redaction_failed`,
-`serialization_failed`, or `append_failed` -- and recorded as a diagnostic of
-its own; where that write fails too, the failure is logged once on the
-`orchestrator.analytics` channel and nothing is tried again.
+framing it -- where its report outcome begins and what that outcome reads
+as, which the workflow's report reader answers through the callable it hands
+over -- reading its attachment, redacting and bounding the telemetry copy,
+serializing the records, and appending them. The sink's own
+`append_jsonl_record` catches only a filesystem error, and only around the
+file -- a serialization error before it would reach the caller -- so this
+path writes its lines itself (`sink.write_jsonl_lines`) and catches
+everything. Whatever fails is named by the step it failed in --
+`parse_failed`, `redaction_failed`, `serialization_failed`, or
+`append_failed` -- and recorded as a diagnostic of its own; where that write
+fails too, the failure is logged once on the `orchestrator.analytics`
+channel and nothing is tried again.
 
-Redaction comes before anything reads the text. The credential redactor
-(`config.credentials.redact_secrets`) replaces each secret's literal value,
-so it runs over the raw reply, where a secret spanning lines is still one
-string, and again over the decoded description, where a secret the JSON
-escaped is one again -- in both cases before a text is cut, so no secret is
-kept as a fragment the redactor no longer recognizes, and before it is
-serialized, which would escape its line breaks. A failed redaction leaves
-no text to excerpt, so its diagnostic carries none.
+The attachment is read off the reply exactly as the agent wrote it, so
+nothing the telemetry copy needs can repair or reshape the framing it is
+validated against. Only what a record carries is redacted, and before it is
+cut or serialized (`redaction`): the decoded description, and each refused
+line's excerpt with every credential the whole reply holds masked, written
+raw or JSON-escaped. A failed redaction leaves no text to excerpt, so its
+diagnostic carries none.
+
+A diagnostic's `counts` say how far the reading got: the attachment lines
+`found`, and how many were `readable` as a snapshot. They never claim a
+write -- a snapshot record and the diagnostics of its reply are one append,
+so a diagnostic that landed after a failure landed without it.
 
 Collection follows the analytics sink alone: with `ANALYTICS_LOG_PATH` off,
-nothing is read, redacted, or written. It needs no usage parse, no
+nothing is framed, read, redacted, or written. It needs no usage parse, no
 trajectory sink, and no database; nothing reads an observation back, and a
 lost one -- a refused append, a crash between a run and its record -- is
 lost: no export, checkpoint, or agent run is owed for it.
@@ -32,12 +38,13 @@ lost: no export, checkpoint, or agent run is owed for it.
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 from pathlib import Path
+from typing import NamedTuple
 
 from orchestrator.observability.analytics import config as analytics_config, sink
-from orchestrator.observability.analytics.observations import attachments, bounds, records
+from orchestrator.observability.analytics.observations import attachments, bounds, records, redaction
 
 
 class Step(StrEnum):
@@ -49,22 +56,28 @@ class Step(StrEnum):
     APPEND = "append_failed"
 
 
+class Framing(NamedTuple):
+    """Where a reply's report outcome begins -- its length where it has none -- and what that outcome reads as."""
+
+    outcome_at: int
+    report_outcome: str
+
+
 @dataclass(frozen=True)
 class ObservedReply:
-    """A returned reply, and where its report outcome begins.
+    """A returned reply, and how the workflow's report reader frames it.
 
-    `outcome_at` is the workflow report reader's own answer to where the
-    outcome starts in `message` -- its length where there is none -- asked
-    inside the recorder's boundary, so a reading that fails is a failed parse
-    rather than an error in the caller's run.
+    `framing` is asked inside the recorder's boundary, so a reading that
+    fails is a failed parse rather than an error in the caller's run, and a
+    sink that is off asks it nothing.
     """
 
     message: str
-    outcome_at: Callable[[str], int]
+    framing: Callable[[str], Framing]
 
 
 def record_task_snapshot(run: records.ObservedRun, reply: ObservedReply) -> None:
-    """Record the task snapshot `reply` carries, and every problem with it, on the analytics sink.
+    """Record the task snapshot `reply` carries, or the problem that leaves it none, on the analytics sink.
 
     Returns nothing and raises nothing: a recording that fails is a
     diagnostic, or a warning where the diagnostic cannot be written.
@@ -93,35 +106,31 @@ class _Recording:
 
     def _recorded(self, reply: ObservedReply) -> None:
         self._step = Step.PARSE
-        halves = _split(reply)
+        framing = reply.framing(reply.message)
+        self._run = replace(self._run, report_outcome=framing.report_outcome)
+        reading = attachments.read_task_snapshot(reply.message, framing.outcome_at)
+        self._counts = {"found": reading.found, "readable": int(reading.description is not None)}
         self._step = Step.REDACTION
-        halves = tuple(_redacted(half) for half in halves)
-        self._step = Step.PARSE
-        reading = attachments.read_task_snapshot(*halves)
-        self._counts = {"found": reading.found, "recorded": int(reading.description is not None)}
-        self._step = Step.REDACTION
-        description = None if reading.description is None else _redacted(reading.description)
+        telemetry = redaction.sanitized(reply.message, reading)
         self._step = Step.SERIALIZATION
-        lines = self._lines(reading, description)
+        lines = self._lines(reading, telemetry)
         self._step = Step.APPEND
         sink.write_jsonl_lines(self._path, sink.ANALYTICS_FILE_LOCK, lines)
 
-    def _lines(self, reading: attachments.SnapshotReading, description: str | None) -> list[str]:
-        """The snapshot's record, where there is one, and one diagnostic per problem, serialized."""
-        written = [
-            records.diagnostic_record(
+    def _lines(self, reading: attachments.SnapshotReading, telemetry: redaction.Telemetry) -> list[str]:
+        """The snapshot's record where it read, else the diagnostic of the one problem that refused it, serialized."""
+        if telemetry.description is not None:
+            described = bounds.bounded(telemetry.description, bounds.DESCRIPTION_CHARS)
+            return [records.serialized(records.task_snapshot_record(self._run, described))]
+        return [
+            records.serialized(records.diagnostic_record(
                 self._run,
                 problem.category.value,
                 self._counts,
-                excerpt=None if problem.line is None else bounds.bounded(problem.line, bounds.EXCERPT_CHARS),
-            )
-            for problem in reading.problems
-        ]
-        if description is not None:
-            written.insert(0, records.task_snapshot_record(
-                self._run, bounds.bounded(description, bounds.DESCRIPTION_CHARS),
+                excerpt=None if excerpt is None else bounds.bounded(excerpt, bounds.EXCERPT_CHARS),
             ))
-        return [records.serialized(record) for record in written]
+            for problem, excerpt in zip(reading.problems, telemetry.excerpts, strict=True)
+        ]
 
     def _diagnose(self, error: Exception) -> None:
         """Write the diagnostic a failed step earns; warn once, and only, where that write fails too."""
@@ -141,22 +150,3 @@ class _Recording:
             self._run, self._step.value, self._counts, error=type(error).__name__,
         )
         sink.write_jsonl_lines(self._path, sink.ANALYTICS_FILE_LOCK, (records.serialized(diagnostic),))
-
-
-def _split(reply: ObservedReply) -> tuple[str, str]:
-    """The reply above its report outcome, and the outcome with everything after it."""
-    outcome_at = reply.outcome_at(reply.message)
-    return reply.message[:outcome_at], reply.message[outcome_at:]
-
-
-def _redacted(text: str) -> str:
-    """`text` with every credential the process holds masked.
-
-    The redactor is reached inside the call, as the trajectory writer reaches
-    it: it is the one thing this owner needs from outside the observability
-    tree, and a producer importing the recorder pays for it only once a
-    record is written.
-    """
-    from orchestrator.config import credentials
-
-    return credentials.redact_secrets(text)

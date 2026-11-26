@@ -46,6 +46,10 @@ DESCRIPTION = "Add a foo flag to the CLI so users can turn foo on."
 
 OUTCOME = "REPORT: READY\nAdds the foo flag.\nREPORT: END\n"
 
+# What a reply's report outcome reads as, as the framing here answers it.
+READY = "ready"
+NO_MARKER = "no_marker"
+
 # The fields a record carries, spelled once.
 EVENT = "event"
 SOURCE_FIELD = "source"
@@ -76,10 +80,12 @@ def reply(preamble: str, outcome: str = OUTCOME) -> str:
     return f"{preamble}\n\n{outcome}"
 
 
-def outcome_at(message: str) -> int:
-    """Where a reply's outcome begins, as the report reader finds it: its first marker line, else its end."""
+def framing(message: str) -> recorder.Framing:
+    """A reply framed as the report reader frames it: its first marker line, else its end, read as a report or none."""
     marker = _OUTCOME_LINE.search(message)
-    return len(message) if marker is None else marker.start()
+    if marker is None:
+        return recorder.Framing(len(message), NO_MARKER)
+    return recorder.Framing(marker.start(), READY)
 
 
 class SinkCase(unittest.TestCase):
@@ -95,7 +101,7 @@ class SinkCase(unittest.TestCase):
 
     def record(self, message: str, run: records.ObservedRun = RUN) -> list[dict]:
         """Record `message` as `run`'s reply; every record the sink holds afterwards."""
-        recorder.record_task_snapshot(run, recorder.ObservedReply(message, outcome_at))
+        recorder.record_task_snapshot(run, recorder.ObservedReply(message, framing))
         return self.written()
 
     def written(self) -> list[dict]:

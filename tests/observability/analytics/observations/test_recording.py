@@ -2,11 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """What one reply's task snapshot is recorded as on the analytics sink.
 
-A snapshot names its source invocation whole, the road it came down, the
-requirements revision its run was handed, and the task reference a reviewer
-of a report stamped with that revision names it by; every problem is a
-diagnostic naming the item, its category, the counts the collection
-reached, and a bounded excerpt where there is a line. The records ride the
+A snapshot names its source invocation whole, the road it came down, what
+the reply's report outcome read as, the requirements revision its prompt was
+handed, and the task reference a reviewer of a report stamped with that
+revision names it by; a reply with no snapshot is one diagnostic naming the
+item, its category, the attachment lines found and readable, and a bounded
+excerpt where there are lines. The records ride the
 sink's own encoding into the database's `extras`, and a sink that is off
 reads nothing at all.
 """
@@ -36,6 +37,7 @@ _COMMON = MappingProxyType({
     "observation_version": 1,
     _support.SOURCE_FIELD: _support.SOURCE,
     "route": "implementation",
+    "report_outcome": _support.READY,
     _REVISION: _support.REVISION,
     _TASK_REF: _support.TASK_REF,
 })
@@ -50,16 +52,34 @@ def _whole(text: str) -> dict:
     return {_support.TEXT: text, _support.CHARS: len(text), _support.TRUNCATED: False}
 
 
-def _diagnostic(category: str, counts: dict, line: str) -> dict:
-    """The diagnostic a refused `line` becomes, beside everything every record names."""
+def _diagnostic(category: str, found: int, excerpt: str) -> dict:
+    """The diagnostic `found` refused lines shown as `excerpt` become, beside everything every record names."""
     return {
         **_COMMON,
         _support.EVENT: _DIAGNOSTIC,
         "item": _ATTACHMENT_KIND,
         _support.CATEGORY: category,
-        _support.COUNTS: counts,
-        _support.EXCERPT_FIELD: _whole(line),
+        _support.COUNTS: {"found": found, "readable": 0},
+        _support.EXCERPT_FIELD: _whole(excerpt),
     }
+
+
+# A refused line, and two lines where one alone would read.
+_MALFORMED_LINE = "ANALYTICS: task-snapshot v1 {broken"
+_FIRST = _support.snapshot_line("first")
+_SECOND = _support.snapshot_line("second")
+
+# Replies with no snapshot, and the one diagnostic each becomes.
+_REFUSED = (
+    (_support.reply(f"Done.\n{_MALFORMED_LINE}"), _diagnostic("malformed", 1, _MALFORMED_LINE)),
+    (
+        _support.reply(_FIRST, f"{_support.OUTCOME}{_SECOND}\n"),
+        _diagnostic("duplicate", 2, f"{_FIRST}\n{_SECOND}"),
+    ),
+)
+
+# Replies carrying no attachment line, and what each one's outcome reads as.
+_UNATTACHED = ((_support.reply("Done."), _support.READY), ("A question?", _support.NO_MARKER))
 
 
 class SnapshotRecordTest(_support.SinkCase):
@@ -86,24 +106,25 @@ class SnapshotRecordTest(_support.SinkCase):
         self.assertNotIn(_REVISION, snapshot)
         self.assertNotIn(_TASK_REF, snapshot)
 
-    def test_each_problem_is_a_diagnostic(self) -> None:
-        malformed = "ANALYTICS: task-snapshot v1 {broken"
-        misplaced = _support.snapshot_line()
-        recorded = self.record(_support.reply(f"Done.\n{malformed}", f"{_support.OUTCOME}{misplaced}\n"))
-        counts = {"found": 2, "recorded": 0}
-        expected = [_diagnostic("malformed", counts, malformed), _diagnostic("misplaced", counts, misplaced)]
-        self.assertEqual([_without_ts(record) for record in recorded], expected)
+    def test_a_refused_reply_is_one_diagnostic(self) -> None:
+        # One refused line is excerpted; two lines -- one above the outcome
+        # that would read, one after it -- are a duplicate, excerpted together,
+        # and no snapshot.
+        for message, expected in _REFUSED:
+            with self.subTest(category=expected[_support.CATEGORY]):
+                self.path.unlink(missing_ok=True)
+                recorded = [_without_ts(record) for record in self.record(message)]
+                self.assertEqual(recorded, [expected])
 
     def test_a_missing_snapshot_has_no_excerpt(self) -> None:
-        # And a reply with no outcome was asked for nothing, so recording it
-        # adds no record.
-        missing = self.record(_support.reply("Done."))
-        read = [
-            (record[_support.CATEGORY], record[_support.COUNTS], _support.EXCERPT_FIELD in record)
-            for record in missing
-        ]
-        self.assertEqual(read, [("missing", {"found": 0, "recorded": 0}, False)])
-        self.assertEqual(self.record("A question for the human?"), missing)
+        # Whatever the reply ends on: a question is asked for one too.
+        for message, outcome in _UNATTACHED:
+            with self.subTest(outcome=outcome):
+                self.path.unlink(missing_ok=True)
+                missing = self.record(message)[0]
+                read = (missing[_support.CATEGORY], missing[_support.COUNTS], missing["report_outcome"])
+                self.assertEqual(read, ("missing", {"found": 0, "readable": 0}, outcome))
+                self.assertNotIn(_support.EXCERPT_FIELD, missing)
 
     def test_records_ride_the_sink_encoding(self) -> None:
         # Each line is the canonical encoding the sync hashes, so a replay of
@@ -121,8 +142,8 @@ class SnapshotRecordTest(_support.SinkCase):
             (_support.SOURCE, _support.TASK_REF, _whole(_support.DESCRIPTION)),
         )
 
-    def test_a_disabled_sink_reads_nothing(self) -> None:
-        finding = MagicMock(side_effect=_support.outcome_at)
+    def test_a_disabled_sink_frames_nothing(self) -> None:
+        finding = MagicMock(side_effect=_support.framing)
         observed = recorder.ObservedReply(_support.reply("Done."), finding)
         with patch.object(analytics_settings, "ANALYTICS_LOG_PATH", None):
             recorder.record_task_snapshot(_support.RUN, observed)

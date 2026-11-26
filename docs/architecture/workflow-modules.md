@@ -1918,10 +1918,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             implemented the work, the subject the validating stage resolved, and the verification
                             evidence it proved current for that subject -- with the developer report quoted whole
                             between the issue and the inspection commands, named by revision and location, and a note
-                            where the requirements have moved on since it was written; a subject with no report says
-                            none is recorded. The verification block follows the inspection commands, and the closing
-                            instructions put the declaration it teaches above the verdict line and each failure a
-                            numbered finding rests on under it, in the layout that block teaches
+                            where the requirements have moved on since it was written, and the task snapshot
+                            reference the report answers to, spelled by the analytics owner its description was
+                            recorded under; a subject with no report says none is recorded. The verification block
+                            follows the inspection commands, and the closing instructions put the declaration it
+                            teaches above the verdict line and each failure a numbered finding rests on under it, in
+                            the layout that block teaches
     review_evidence_prompts.py
                             what a reviewer is told about verification, which the reviewer prompt renders: the current
                             evidence handed for its subject (`HandedEvidence`, the settled record and its artifact
@@ -1945,11 +1947,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `Unavailable:` for each diagnostic not obtained, every entry outside the declaration
     task_snapshots.py       which developer attempts are asked for a task snapshot -- every one on the first
                             implementation's road or an implementing resume's, and none else -- the request appended
-                            to the prompt each is handed, and the observation of a genuine return: a tracked run that
-                            completed handed to the analytics recorder with its invocation, the requirements revision
-                            its road froze before the launch, and the report reader's own pattern for where the
-                            outcome begins, so the attachment is read above it and nothing a workflow decides reads
-                            the observation back
+                            to the prompt each is handed, and the receipt of each return on those roads: a genuine
+                            one, judged by the run's status alone, handed to the analytics recorder with its
+                            invocation, the requirements its prompt was handed, and the report reader's own framing
+                            of the reply, which the recorder asks inside its failure boundary; and every one left as
+                            the workflow reads it, its attachment lines above the outcome taken out, so no park or
+                            notice quotes the line and text after an outcome is still refused. Nothing a workflow
+                            decides reads the observation back
     review_subjects.py      what one review is of -- pull request, head, requirements revision, and report revision and
                             digest -- recorded as `review_subject` before the spawn, as `review_returned_subject` once a
                             reviewer returns, and as `review_approved_subject` once an approval passes the verify gate,
@@ -4768,8 +4772,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             stands; each attempt, behind its accounting, quota retirement, and live-pause reading,
                             asked of the road its caller froze, which captures a return that finished on its report
                             and holds the tick where that capture did not settle; the same road handing each attempt
-                            its prompt (`asked`) and its genuine return to analytics (`observe`) before anything reads
-                            it, so an implementing road's every attempt is asked for its task snapshot and recorded;
+                            its prompt (`asked`) and receiving its return (`received`) before anything reads it, so an
+                            implementing road's every attempt is asked for its task snapshot, recorded, and read by
+                            the workflow with the attachment taken out;
                             and the identity an attempt is charged under, spelled once
                             (`_launch_identity`), so the fingerprint a resume's first attempt would be charged under is
                             read without resuming (`_first_launch_fingerprint`) -- how a handed change request's
@@ -4814,8 +4819,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             freezes (`stages/decomposition/late_revision_road.py`), with the command, prompt digest, and
                             conversation it ran as and still pinned, and answers held where that capture left the
                             state withheld; and, through `engine/task_snapshots.py`, the task snapshot request an
-                            attempt on it is handed and the observation of its return, which only the first
-                            implementation's road and an implementing resume's ask for and record
+                            attempt on it is handed and the receipt of its return, which only the first
+                            implementation's road and an implementing resume's ask for, record, and take out of the
+                            reply the workflow reads -- the snapshot bound to the handoff's requirements, or, for an
+                            attempt that opened a fresh conversation on a retry's road, to the read that conversation
+                            was re-grounded on (`fresh_requirements`)
       captured_report.py    the run's own pending capture handed to the report delivery where the disposition records
                             a report -- what the tick settled around the run riding the transfer's own commit, so the
                             two land together or not at all; one refused for the report itself withdrawn and the run

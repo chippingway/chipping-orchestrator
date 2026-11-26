@@ -558,23 +558,32 @@ with, so what a developer is told to write and what the reader accepts cannot dr
 ANALYTICS: task-snapshot v1 {"description": "<one or two sentences>"}
 ```
 
-The description is asked for in one or two sentences, at most 300 characters, with no secrets. The line goes above the
-report outcome — never inside the report block or after the outcome, which still ends the message — and appears once.
-One line is the whole framing on purpose: a report marker, an `ACK:`, and a code fence each have to open a line, and a
-JSON string escapes its line breaks, so nothing a description says can open a line another reader sees. Above the
-outcome, the line is outside the `REPORT: READY` block and so outside the report that is published and the digest it is
-identified by; a `REPORT: VERIFIED` line names a report already on the pull request, which the attachment never
-touches. Every report reading is what it would be without the line: a well-formed outcome stays exactly that outcome,
-and a malformed one stays malformed.
+It is asked of every finished reply, a question included, exactly once: the description in one or two sentences, at
+most 300 characters, with no secrets. Where the reply ends on a report outcome the line goes above it — never inside
+the report block or after the outcome, which still ends the message. One line is the whole framing on purpose: a report
+marker, an `ACK:`, and a code fence each have to open a line, and a JSON string escapes its line breaks, so nothing a
+description says can open a line another reader sees. Above the outcome, the line is outside the `REPORT: READY` block
+and so outside the report that is published and the digest it is identified by; a `REPORT: VERIFIED` line names a
+report already on the pull request, which the attachment never touches.
 
-The attachment is read on its own terms and decides nothing. `task_snapshots.py` hands a genuine return — a run the
-tracked spawn started and stamped, which completed — to the one reader and recorder under
-`observability/analytics/observations/`, with the invocation the run came from, the requirements revision its road froze
-before the launch, and the report reader's own pattern for where the outcome starts. The reader takes the line above
-the outcome; one inside the report or past the outcome is misplaced, two are a duplicate, and a reply that reached for
-the report contract with no line at all is missing one. A missing, malformed, unsupported, or misplaced attachment is
-recorded as a diagnostic and nothing else: no retry, correction, park, or refusal follows from it, and a valid report
-outcome beside it stays valid, while an invalid one is not rescued by it. What the records hold is in
+The workflow reads the reply without it. Every return on those two roads has its attachment lines above the report
+outcome taken out of the message before any stage reads it, so a reply carrying nothing else is the silent failure an
+empty one is, no park or notice quotes the line, and every report reading is what it would be without it. A line at or
+past the outcome is left where it is, so text after an outcome is still refused and a report is still published as it
+was written.
+
+The attachment is read on its own terms and decides nothing. `task_snapshots.py` hands a genuine return — judged by the
+run's status alone: invoked under a tracked charge, neither interrupted nor timed out, exiting 0, with no tool step
+unfinished — to the one reader and recorder under `observability/analytics/observations/`, with the invocation the run
+came from, the requirements revision the attempt's prompt was handed, and the report reader's own framing of the reply,
+which the recorder asks inside its failure boundary. That revision is the one the road froze before the launch, save
+on a retry that opens a fresh conversation, whose snapshot is bound to the read the replacement session was re-grounded
+on. The reader reads the reply as written: exactly one line above the outcome is a snapshot; none is missing, two or
+more anywhere are a duplicate, the one line at or past the outcome is misplaced, and a line out of shape — a key
+written twice included — is malformed. Each of those is recorded as a diagnostic and nothing else: no retry,
+correction, park, or refusal follows from it, and a valid report outcome beside it stays valid, while an invalid one is
+not rescued by it. The reviewer later handed the report is told the task snapshot reference its revision spells,
+beside the quoted report (`workflow/engine/review_prompts.py`). What the records hold is in
 [`../observability/event-streams.md#task-snapshot-records`](../observability/event-streams.md#task-snapshot-records).
 
 ### The developer report lifecycle

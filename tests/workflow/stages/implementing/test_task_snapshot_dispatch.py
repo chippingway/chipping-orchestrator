@@ -51,15 +51,15 @@ class _EditsMidRun:
         return _agent(last_message=_support.ATTACHED)
 
 
-class _FailsOnAttachments:
-    """The credential redactor, failing on any text that carries an attachment line."""
+class _FailsOnTheDescription:
+    """The credential redactor, failing on the one text that carries the developer's description."""
 
     def __init__(self, redact) -> None:
         self._redact = redact
 
     def __call__(self, text: str) -> str:
-        """Redact `text`, unless it is the reply's."""
-        if "ANALYTICS:" in text:
+        """Redact `text`, unless it is the description's."""
+        if _support.DESCRIPTION in text:
             raise RuntimeError("redactor unavailable")
         return self._redact(text)
 
@@ -121,11 +121,11 @@ class DispatchedSnapshotTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
         self.assertEqual(self.events(_support.SNAPSHOT_EVENT), [])
 
     def test_a_failed_recording_costs_the_run_nothing(self) -> None:
-        # The redactor fails on the reply alone: the run is still accounted
+        # The redactor fails on the description alone: the run is still accounted
         # once, captured, and published, with no retry, and the observation
         # is its diagnostic.
         github, issue = self.seeded()
-        failing = _FailsOnAttachments(_credentials.redact_secrets)
+        failing = _FailsOnTheDescription(_credentials.redact_secrets)
         with patch.object(_credentials, "redact_secrets", failing):
             ran = self.dispatch(github, issue, _support.returning(), **self.committing)
         record = self.published(github)
