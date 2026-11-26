@@ -42,6 +42,7 @@ from orchestrator.observability.usage import (
     cost_evidence as usage_cost,
     metrics as usage_metrics,
     token_evidence as usage_tokens,
+    unpriced as usage_unpriced,
 )
 
 
@@ -53,7 +54,8 @@ def build_agent_exit_record(
     """Build the allowlisted baseline event without raw run content.
 
     The cost and token evidence ride as the same objects `UsageMetrics.to_dict()` serializes them as, and metrics
-    holding none leave both keys off, so the record reads back as one stating no basis.
+    holding none leave both keys off, so the record reads back as one stating no basis. The reasons an unpriced
+    cost has no amount ride the same way, and only on a run they explain.
     """
     usage_fields = metrics.to_dict()
     return events.build_record(
@@ -82,6 +84,7 @@ def build_agent_exit_record(
         cost_source=metrics.cost_source,
         cost_evidence=usage_fields[usage_cost.COST_EVIDENCE],
         token_evidence=usage_fields[usage_tokens.TOKEN_EVIDENCE],
+        unpriced_reasons=usage_fields.get(usage_unpriced.UNPRICED_REASONS),
         skills_triggered=skill_fields.skills_triggered,
         skills_triggered_count=skill_fields.skills_triggered_count,
         skills_available=skill_fields.skills_available,

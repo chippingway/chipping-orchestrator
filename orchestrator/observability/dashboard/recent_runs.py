@@ -31,7 +31,10 @@ evidence earns beside it -- a subtotal, or an unknown completeness -- or
 unpriced, no usage, or cost unknown where it states no amount, never a zero.
 Which source the amount came from, and the dates an estimate's rates were
 verified on, are the Cost details section's to explain once for the selection
-rather than every row's, and nothing is re-priced from the tokens. The token
+rather than every row's, and nothing is re-priced from the tokens. An unpriced
+run says beside its cost why it has no amount: each model its record names,
+with the reasons it gave (``unpriced_text``), or ``Reason unavailable`` for a
+run recorded without them; any other run leaves that cell empty. The token
 total is the run's non-overlapping one, left empty where its evidence cannot
 settle it, beside the raw input and output counters.
 
@@ -45,7 +48,7 @@ from datetime import timedelta
 from typing import Any
 
 from orchestrator.observability.analytics.query.run_models import AgentExitRow
-from orchestrator.observability.dashboard import filters, spend_text
+from orchestrator.observability.dashboard import filters, spend_text, unpriced_text
 
 NO_AGENT_EXITS_MESSAGE = "No `agent_exit` rows match the current filters."
 RECENT_RUNS_LABEL = "Recent agent runs"
@@ -72,6 +75,7 @@ def recent_run_row(
         "output tokens": exit_row.output_tokens,
         "total tokens": exit_row.total_tokens,
         "cost": spend_text.spend_line(exit_row.cost),
+        "unpriced reason": unpriced_text.run_reasons_text(exit_row.cost, exit_row.unpriced_reasons),
     }
 
 

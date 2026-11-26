@@ -41,7 +41,7 @@ _ISSUE = 42
 _TZ_OFFSET = 7
 
 # How many reads one page load issues across both waves.
-_TOTAL_READS = 16
+_TOTAL_READS = 17
 
 _TTL_ONE_MINUTE = 60
 
@@ -79,9 +79,10 @@ _PREV_KEY = filters.cache_key(
 _KEY_ONLY = (_KEY,)
 
 # Every entry of the first wave: the name its result is read back by, the
-# adapter it spends a key on, and the arguments bound into it. These six are
-# the reads the chrome above the fold is reduced from, so they are what has to
-# come back before the page can paint anything.
+# adapter it spends a key on, and the arguments bound into it. These seven are
+# the reads the chrome above the fold -- the Cost details section among it -- is
+# reduced from, so they are what has to come back before the page can paint
+# anything.
 _FIRST_WAVE = (
     ("summary", rollups.read_summary, _KEY_ONLY),
     ("prev_summary", rollups.read_prev_kpi, (_PREV_KEY,)),
@@ -89,6 +90,7 @@ _FIRST_WAVE = (
     ("review_round_rows", rollups.read_review_round, _KEY_ONLY),
     ("throughput_rows", breakdowns.read_throughput, _KEY_ONLY),
     ("cost_coverage_rows", breakdowns.read_cost_coverage, _KEY_ONLY),
+    ("unpriced_reason_rows", breakdowns.read_unpriced_reasons, _KEY_ONLY),
 )
 
 # The ten the panels beneath that chrome are drawn from. The heatmap is the one
@@ -150,7 +152,7 @@ class _WaveSupport(unittest.TestCase):
 class WaveRegistryTest(_WaveSupport):
     """Which read each entry of a wave spends its key on, and in what order."""
 
-    def test_the_first_wave_names_its_six_reads(self) -> None:
+    def test_the_first_wave_names_its_seven_reads(self) -> None:
         # The pair comes back above-the-fold first, because the caller renders
         # the chrome between the waves: swapping the two would leave the topbar
         # waiting on the ten panel reads it does not draw from.
@@ -175,7 +177,7 @@ class WaveRegistryTest(_WaveSupport):
 
     def test_every_task_is_cached_for_a_minute(self) -> None:
         # Streamlit reruns the whole script on every widget interaction, so an
-        # uncached wave would put all sixteen queries on Postgres for each
+        # uncached wave would put all seventeen queries on Postgres for each
         # nudge of the filter bar -- and without a spinner, because the load
         # is already bracketed by one the caller opens.
         self._waves()

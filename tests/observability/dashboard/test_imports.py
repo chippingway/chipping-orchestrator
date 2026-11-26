@@ -138,6 +138,8 @@ _THEME_OWNER = "theme"
 
 _TOKENS_OWNER = "tokens"
 
+_UNPRICED_TEXT_OWNER = "unpriced_text"
+
 _USAGE_PANEL_OWNER = "usage_panel"
 
 _WINDOWS_OWNER = "windows"
@@ -207,6 +209,7 @@ _OWNERS = (
     _TABLES_OWNER,
     _THEME_OWNER,
     _TOKENS_OWNER,
+    _UNPRICED_TEXT_OWNER,
     _USAGE_PANEL_OWNER,
     _WINDOWS_OWNER,
 )
@@ -220,12 +223,14 @@ _OWNERS = (
 # two waves it is drawn in, run one wave of them that way, drive both waves
 # around the render between them, check out the connection one of them runs on,
 # draw a headline or lifecycle section from one of the seven reads behind it, a
-# comparison panel from one of the six, or a skill panel from one of the three,
+# comparison panel or the cost section from one of the seven, or a skill panel
+# from one of the three,
 # open a page on the extent behind its filter bar, interrupt one with a banner,
 # word a cost with its basis and completeness on the trajectory viewer, word
 # every amount on the analytics page as its figure and own status and the move
 # between two windows, explain once what those amounts are made of in the
-# section under the filter bar, word one group of a spend breakdown on its bar
+# section under the filter bar, say why an unpriced run has no amount on its
+# listed row and by model and reason in that section, word one group of a spend breakdown on its bar
 # and note what a panel of them adds up to,
 # reduce its window to the four numbers a headline tile reports, plot the days
 # behind three of them, assemble all four into the strip a page opens with,
@@ -341,6 +346,7 @@ _SURFACES = MappingProxyType({
         "read_hourly_heatmap",
         "read_repo_breakdown",
         "read_throughput",
+        "read_unpriced_reasons",
     ),
     _CARD_HTML_OWNER: (
         "card_header_html",
@@ -621,6 +627,11 @@ _SURFACES = MappingProxyType({
     ),
     _THEME_OWNER: (),
     _TOKENS_OWNER: (),
+    _UNPRICED_TEXT_OWNER: (
+        "reason_label",
+        "run_reasons_text",
+        "unpriced_reasons_html",
+    ),
     _USAGE_PANEL_OWNER: (
         "backend_tokens_by_day",
         "render_hero_usage",

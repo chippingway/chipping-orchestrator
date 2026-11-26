@@ -13,13 +13,13 @@ That render is also where a load can end early. A window holding no rows has
 nothing for those panels to draw, so a first-wave render reporting nothing back
 short-circuits the second wave entirely and the load is left unlogged here: the
 caller that drew the empty-window banner is the one that measures it, because
-the reads it spent are the six already issued rather than all sixteen.
+the reads it spent are the seven already issued rather than all seventeen.
 
 A read that cannot reach the database is answered rather than reported. The
 first failing reader arrives as the connection owner's error and becomes one
 banner naming what to check, followed by the stop that ends the script -- a
 page whose window, tiles, and every panel below them each raised their own
-trace would say the same thing sixteen times.
+trace would say the same thing seventeen times.
 
 Every load that does complete emits one line, because the fan-out is an
 operator's switch rather than a setting: the wall clock it took, how many reads

@@ -1,7 +1,11 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Each Antigravity run priced on what it establishes: one mapped slug, its own steps, and one row's dates."""
+"""Each Antigravity run priced on what it establishes: one mapped slug, its own steps, and one row's dates.
 
+An unpriced run names every reason that applies, against each model it names, or `unknown` where it names none.
+"""
+
+import itertools
 import operator
 import unittest
 from datetime import date, datetime
@@ -13,6 +17,8 @@ from orchestrator.observability.usage import (
     cost_evidence as _cost,
     metrics as _metrics,
     price_catalogue,
+    protocol as _protocol,
+    unpriced as _unpriced,
 )
 from tests.observability.usage import usage_agy_stream_capture as _capture, usage_test_values as _usage_cases
 from tests.support import agy_stream as _stream
@@ -101,13 +107,7 @@ _ARGON_SPANS = (
     (("2026-12-01T12:00:00+00:00",), 1),
     (("2026-12-01T21:00:00+09:00",), 1),
 )
-# Usage nothing prices: a subagent's handoff beside priced usage, a negative
-# count, and a usage block reporting no count.
-_UNSETTLED = (
-    (_PRICED_STEP, _DELEGATING_STEP),
-    (_stream.step(1, usage={**_STEP_USAGE, _INPUT_FIELD: -1}),),
-    (_stream.step(1, usage={}),),
-)
+_NEGATIVE_STEP = _stream.step(1, usage={**_STEP_USAGE, _INPUT_FIELD: -1})
 
 
 def _span(started: str = _EARLIER, ended: str | None = None) -> price_catalogue.UsageSpan:
@@ -122,6 +122,24 @@ def _usd(counts: _Counts, page_row: _PageRow) -> float:
 def _run_on(slug: str, *lines: str) -> str:
     """A stream whose `init` names `slug`, followed by `lines`."""
     return "\n".join((_stream.event(agy_events.INIT, model=slug), *lines))
+
+
+# Usage nothing prices, and the reasons it gives: a subagent's handoff beside priced usage, a negative count, a usage
+# block reporting no count, and all three beside an unmapped slug.
+_UNSETTLED = (
+    (_run_on(_ARGON_HIGH, _PRICED_STEP, _DELEGATING_STEP), (_unpriced.SUBAGENT_USAGE,)),
+    (_run_on(_ARGON_HIGH, _NEGATIVE_STEP), (_unpriced.INVALID_TOKEN_COUNTS,)),
+    (_run_on(_ARGON_HIGH, _stream.step(1, usage={})), (_unpriced.MISSING_TOKEN_COUNT,)),
+    (
+        _run_on(_UNMAPPED[0], _NEGATIVE_STEP, _stream.step(3, usage={}), _DELEGATING_STEP),
+        (
+            _unpriced.SUBAGENT_USAGE,
+            _unpriced.MISSING_MODEL_PRICE,
+            _unpriced.MISSING_TOKEN_COUNT,
+            _unpriced.INVALID_TOKEN_COUNTS,
+        ),
+    ),
+)
 
 
 def _parse(
@@ -173,25 +191,28 @@ class AntigravityEstimateTest(unittest.TestCase):
                     self.assertAlmostEqual(usage.cost_usd, _usd(_COUNTS, _PAGE_ROWS[model][period]))
 
     def test_unestablished_attribution_stays_unpriced(self) -> None:
-        runs = [(_run_on(slug, _PRICED_STEP), (slug,)) for slug in _UNMAPPED]
-        runs.extend((("\n".join(_MIXED_LINES), _MIXED_MODELS), (_PRICED_STEP, ())))
-        for stdout, models in runs:
+        runs = [(_run_on(slug, _PRICED_STEP), (slug,), _unpriced.MISSING_MODEL_PRICE) for slug in _UNMAPPED]
+        runs.extend((
+            ("\n".join(_MIXED_LINES), _MIXED_MODELS, _unpriced.SEVERAL_MODELS),
+            (_PRICED_STEP, (), _unpriced.MISSING_MODEL_PRICE),
+        ))
+        for stdout, models, reason in runs:
             with self.subTest(models=models):
                 usage = _parse(stdout, _span())
                 self.assertEqual(usage.models, models)
-                self._assert_unpriced(usage)
+                self._assert_unpriced(usage, reason)
 
     def test_span_has_to_settle_one_row(self) -> None:
         # Gemini 4 Argon's rates change on 2026-12-01 in a time zone its page
         # does not name, so a span touching both dates in any zone -- UTC-12
         # through UTC+14 -- is unpriced, as is a run given no span at all.
         stdout = _run_on(_ARGON_HIGH, _PRICED_STEP)
-        self._assert_unpriced(_parse(stdout, None))
+        self._assert_unpriced(_parse(stdout, None), _unpriced.INDETERMINATE_RATE_PERIOD)
         for instants, period in _ARGON_SPANS:
             with self.subTest(instants=instants):
                 usage = _parse(stdout, _span(*instants))
                 if period is None:
-                    self._assert_unpriced(usage)
+                    self._assert_unpriced(usage, _unpriced.INDETERMINATE_RATE_PERIOD)
                 else:
                     self.assertAlmostEqual(usage.cost_usd, _usd(_COUNTS, _ARGON_PAGE_ROWS[period]))
 
@@ -202,10 +223,15 @@ class AntigravityEstimateTest(unittest.TestCase):
             with self.subTest(stdout=stdout):
                 usage = _parse(stdout, _span(), fallback_model=_ARGON_HIGH)
                 self.assertEqual((usage.cost_source, usage.cost_usd), (_cost.NO_USAGE_SOURCE, None))
-        for lines in _UNSETTLED:
-            with self.subTest(lines=lines):
-                self._assert_unpriced(_parse(_run_on(_ARGON_HIGH, *lines), _span()))
+        for unsettled, reasons in _UNSETTLED:
+            with self.subTest(reasons=reasons):
+                self._assert_unpriced(_parse(unsettled, _span()), *reasons)
 
-    def _assert_unpriced(self, usage: _metrics.UsageMetrics) -> None:
+    def _assert_unpriced(self, usage: _metrics.UsageMetrics, *reasons: str) -> None:
+        """The run states no amount, for each of `reasons` against each model it names."""
         self.assertEqual((usage.cost_source, usage.cost_usd), (_usage_cases.UNKNOWN_COST_SOURCE, None))
         self.assertEqual(usage.cost_evidence, _cost.CostEvidence(_cost.INCOMPLETE))
+        named = usage.models or (_protocol.UNKNOWN,)
+        pairs = itertools.product(named, reasons)
+        expected = tuple(sorted(itertools.starmap(_unpriced.UnpricedReason, pairs)))
+        self.assertEqual(usage.unpriced_reasons, expected)

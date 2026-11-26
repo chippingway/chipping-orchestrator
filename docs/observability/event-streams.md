@@ -492,7 +492,11 @@ every tracked agent run, distinct from (and in addition to) the audit `agent_spa
   [columns of their own](analytics-database.md#usage-evidence-columns). A record
   without them — every one an earlier build wrote — states no basis: `recorded_cost` reads its `cost_usd` under the
   `unknown` basis and `non_overlapping_total` totals it only when no cache counter is nonzero, inferring no provider
-  breakdown and backfilling nothing.
+  breakdown and backfilling nothing. An unpriced run's record also carries `unpriced_reasons`, why its estimate
+  established no amount: one `{"model", "reason"}` object per reason, each beside the model it concerns, as
+  [`usage.md`](usage.md#usage-parser) lists them. Every other record leaves the field off, and the database keeps it
+  verbatim in `extras`; an unpriced record without it — every one an earlier build wrote — gives no reason, and
+  nothing re-estimates it.
 - **Skill triggers (opt-in)** — only when `TRACK_SKILL_TRIGGERS` is on (default off): `skills_triggered` (distinct
   skill names, first-seen order), `skills_triggered_count` (total trigger count, so three `develop` pulls read `3` while
   the list carries `develop` once), `skills_evidence` (name → the per-load evidence tier: `confirmed` for a claude

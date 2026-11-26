@@ -17,8 +17,11 @@ was priced, and the bar sizing the selection by the cost source each run
 recorded. A selection whose runs left that much of it unpriced or only partly
 priced -- `UNPRICED_WARNING_THRESHOLD` of its runs or more -- says so in the
 section's own label, so the warning is read without opening it and is raised
-nowhere else. The evidence does not record why a run went unpriced, so neither
-the warning nor the explanation names a cause for any run.
+nowhere else. Why those runs have no amount is said here too, from a
+first-wave read of its own over the whole selection, uncapped: the runs counted
+under each model and each reason their records give (``unpriced_text``), the
+runs recorded with none counted as ``Reason unavailable``, and every reason
+explained once beneath.
 
 The body is one HTML block handed to ``st.markdown(unsafe_allow_html=True)``:
 Markdown would read a pair of dollar amounts as a formula, and a block opened
@@ -32,8 +35,8 @@ import html
 from collections.abc import Sequence
 
 from orchestrator.observability.analytics.query.cost_cohorts import CostCohort
-from orchestrator.observability.analytics.query.cost_models import CostCoverageRow
-from orchestrator.observability.dashboard import cost_text, coverage_card, page_models, spend_text
+from orchestrator.observability.analytics.query.cost_models import CostCoverageRow, UnpricedReasonRow
+from orchestrator.observability.dashboard import cost_text, coverage_card, page_models, spend_text, unpriced_text
 from orchestrator.observability.usage import cost_evidence as usage_cost
 
 COST_DETAILS_LABEL = "Cost details"
@@ -88,9 +91,9 @@ _NOTES = (
         " selection's."
     ),
     (
-        "A run is unpriced or partly priced when some of its usage has no amount, for example a model the price"
-        " catalogue has no active row for, or usage counters an estimate cannot price. The recorded evidence does"
-        " not say which applies to a given run."
+        "A run is unpriced or partly priced when some of its usage has no amount. An unpriced run records why, as one"
+        " or more of the reasons above, each beside the model it concerns. A run giving several reasons, or one"
+        " reason on several models, is counted under each, so the counts by model and reason overlap."
     ),
     (
         "The cache and non-cache segments of the stage and review-round bars split each amount by its runs' token"
@@ -106,6 +109,8 @@ _NOTES = (
 _SOURCES_LEAD = "No amount on this page is a verified charge. Each comes from one of these sources:"
 
 _STATUSES_LEAD = "Each value shows its amount and, where needed, one of these statuses:"
+
+_REASONS_LEAD = "An unpriced run records why it has no amount, as one or more of these reasons:"
 
 # One glossary entry: the term, then what it means.
 _TERM_HTML = "<li><b>{0}</b>: {1}</li>"
@@ -129,24 +134,35 @@ def selection_html(cost: CostCohort) -> str:
     return f"{spend}{listed}<p><b>Runs</b>: {_run_counts(cost)}</p>"
 
 
-def cost_details_html(cost: CostCohort, coverage_rows: Sequence[CostCoverageRow], *, theme) -> str:
-    """The section's body: the selection, the bar sizing it by recorded cost source, and what the page's words mean."""
+def cost_details_html(
+    cost: CostCohort,
+    coverage_rows: Sequence[CostCoverageRow],
+    reason_rows: Sequence[UnpricedReasonRow],
+    *,
+    theme,
+) -> str:
+    """The section's body: the selection, why its runs went unpriced, its source bar, and what the page's words mean."""
+    reasons = unpriced_text.unpriced_reasons_html(reason_rows)
     coverage = coverage_card.cost_coverage_bar_html(coverage_rows, theme=theme) if coverage_rows else ""
-    sources = _glossary_html(_SOURCES_LEAD, _SOURCES)
-    statuses = _glossary_html(_STATUSES_LEAD, _STATUSES)
+    glossaries = "".join((
+        _glossary_html(_SOURCES_LEAD, _SOURCES),
+        _glossary_html(_STATUSES_LEAD, _STATUSES),
+        _glossary_html(_REASONS_LEAD, unpriced_text.REASON_MEANINGS),
+    ))
     notes = "".join(f"<p>{html.escape(note)}</p>" for note in _NOTES)
-    return f'<div class="orch-cost-details">{selection_html(cost)}{coverage}{sources}{statuses}{notes}</div>'
+    return f'<div class="orch-cost-details">{selection_html(cost)}{reasons}{coverage}{glossaries}{notes}</div>'
 
 
 def render_cost_details(
     modules: page_models.DashboardModules,
     cost: CostCohort,
     coverage_rows: Sequence[CostCoverageRow],
+    reason_rows: Sequence[UnpricedReasonRow],
 ) -> None:
     """Draw the collapsed section for the selection the filters narrowed the page to."""
     with modules.st.expander(cost_details_label(cost), expanded=False):
         modules.st.markdown(
-            cost_details_html(cost, coverage_rows, theme=modules.theme),
+            cost_details_html(cost, coverage_rows, reason_rows, theme=modules.theme),
             unsafe_allow_html=True,
         )
 

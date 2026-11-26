@@ -53,7 +53,7 @@ def apply_usage(
     fallback_model: str | None,
     span: UsageSpan | None,
 ) -> None:
-    """Fill `metrics` from the run's completed steps, its estimate priced over `span` (`agy_requests.estimate`)."""
+    """Fill `metrics` from the run's completed steps, its estimate priced over `span` (`agy_requests.price`)."""
     records = usage_records(events)
     metrics.input_tokens = sum(row.get(protocol.INPUT_TOKENS, 0) for row in records)
     metrics.output_tokens = sum(row.get(protocol.OUTPUT_TOKENS, 0) for row in records)
@@ -74,7 +74,7 @@ def apply_usage(
     if not metrics.models and fallback_model:
         metrics.models = (fallback_model,)
     # The CLI prints no USD amount, so the run's cost is its steps' estimate or none.
-    estimate = None
-    if not agy_requests.delegates(events):
-        estimate = agy_requests.estimate(metrics.models, records, span)
-    metrics.apply_cost(event_stream.select_cost(None, estimate, bool(records)))
+    delegated = agy_requests.delegates(events)
+    pricing = agy_requests.price(metrics.models, records, span, delegated=delegated)
+    cost = event_stream.select_cost(None, pricing.estimate, bool(records))
+    metrics.apply_cost(cost, pricing.unpriced)

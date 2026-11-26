@@ -163,9 +163,9 @@ the read path can be wired into any UI. An unset `ANALYTICS_DB_URL` short-circui
 with no connection attempt, mirroring the sync's no-op contract, and every failure surfaces as one
 `AnalyticsReadError`. Every read interprets only what the current producers write, so a field no record reported
 stays unknown — a session that reported no offered skills joins no adoption denominator — while a NULL column, an
-unpriced cost, and a malformed `extras` blob keep their current readings. That page carries all twenty reads, the owner
-each is defined on, the typed request and filter contract they share, and the thread-local connection cache a caller
-reuses a socket through.
+unpriced cost, and a malformed `extras` blob keep their current readings, and an unpriced run recorded without reasons
+gives none. That page carries all twenty-one reads, the owner each is defined on, the typed request and filter
+contract they share, and the thread-local connection cache a caller reuses a socket through.
 
 ### Dashboard (`orchestrator/apps/analytics_dashboard.py`)
 
@@ -187,7 +187,9 @@ carries none, and no value repeats its sources or the selection's status. One co
 the filter bar, drawn off the same filtered first-wave read, states the selection's amount, each source's part of it
 with an estimate's rate dates, and its runs by coverage beside the cost-source coverage bar; explains once what a
 CLI-reported amount, an API token estimate (an AGY-only one a Gemini API token estimate), and a mix of them are, none a
-verified charge, and what every status means; and carries the unpriced-run warning in its label. Moves against the
+verified charge, and what every status means; counts the selection's unpriced runs by model and the reason each
+recorded, `Reason unavailable` for a run recorded without one; and carries the unpriced-run warning in its label. The
+recent-runs listing names an unpriced run's own reasons beside its cost. Moves against the
 window before keep a subtotal, an unknown completeness, or a change of sources, and each token is counted once. The
 costliest-issues table is drawn in the order SQL ranked it, ahead of its cap, on every amount the issue's runs state —
 a subtotal at its known part, an issue stating none last and worded `Unpriced` rather than free — and the recent-runs

@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Claude run aggregation, pricing, and turn counting.
 
-A run's estimate is its usage rows priced one by one, each on `claude_requests.ClaudeUsageRow.estimate`, and summed:
+A run's estimate is its usage rows priced one by one, each on `claude_requests.ClaudeUsageRow.price`, and summed:
 pricing per-model totals would charge a request-tiered model's rate on a sum of requests that no single request
-paid.
+paid. A run any of whose rows has no price states every reason its rows give, each beside the row's model.
 """
 
 from __future__ import annotations
@@ -16,10 +16,10 @@ from typing import TYPE_CHECKING, Any
 
 from orchestrator.observability.usage import (
     claude_requests,
-    cost_evidence,
     event_stream,
     protocol,
     token_evidence,
+    unpriced,
 )
 
 if TYPE_CHECKING:
@@ -71,17 +71,11 @@ def aggregate_by_model(
     return aggregate
 
 
-def estimate_total(
+def price_total(
     records: Iterable[claude_requests.ClaudeUsageRow],
-) -> cost_evidence.CostContribution | None:
-    """Every row priced on its own and summed, or None when any row has no price: an estimate is never partial."""
-    total: cost_evidence.CostContribution | None = None
-    for usage_row in records:
-        estimate = usage_row.estimate()
-        if estimate is None:
-            return None
-        total = estimate if total is None else total.plus(estimate)
-    return total
+) -> unpriced.Pricing:
+    """Every row priced on its own and summed, or every reason any row has no price: an estimate is never partial."""
+    return unpriced.summed(usage_row.price() for usage_row in records)
 
 
 def token_evidence_of(records: Iterable[Iterable[str]]) -> token_evidence.TokenEvidence:

@@ -107,6 +107,8 @@ _TIME_SERIES_OWNER = "time_series"
 
 _TOKEN_TOTALS_OWNER = "token_totals"
 
+_UNPRICED_REASONS_OWNER = "unpriced_reasons"
+
 # The result families, kept as their own group because what they must not do is
 # checked separately from what they answer for.
 _MODEL_OWNERS = (
@@ -162,6 +164,7 @@ _OWNERS = _MODEL_OWNERS + (
     _THROUGHPUT_DAYS_OWNER,
     _TIME_SERIES_OWNER,
     _TOKEN_TOTALS_OWNER,
+    _UNPRICED_REASONS_OWNER,
 )
 
 # What each owner answers for, declared rather than discovered so a new public
@@ -184,7 +187,7 @@ _OWNERS = _MODEL_OWNERS + (
 # the named rows the widest SELECT lists are read back through, and the
 # coercions a raw column is narrowed by. The rollup reads are the seven public
 # entry points under rollup_reads with one projection owner per read beneath
-# them, and the breakdown reads the four under breakdown_reads with one owner
+# them, and the breakdown reads the five under breakdown_reads with one owner
 # each beneath them too, plus the cell readings a row from either is narrowed
 # by. The skill reads are the three under skill_reads, the aggregate owner
 # behind each, the session identity and evidence the adoption one is built on,
@@ -264,6 +267,7 @@ _SURFACES = MappingProxyType({
         "CostCoverageRow",
         "RepoBreakdownRow",
         "ReviewRoundBucketRow",
+        "UnpricedReasonRow",
     ),
     _OVERVIEW_MODELS_OWNER: (
         "DataExtent",
@@ -384,6 +388,7 @@ _SURFACES = MappingProxyType({
         "get_cost_coverage",
         "get_hourly_heatmap",
         "get_review_round_breakdown",
+        "get_unpriced_reasons",
     ),
     _REVIEW_ROUNDS_OWNER: (
         "review_round_buckets",
@@ -393,6 +398,10 @@ _SURFACES = MappingProxyType({
     _COST_COVERAGE_OWNER: (
         "cost_coverage_from_row",
         "cost_coverage_rows",
+    ),
+    _UNPRICED_REASONS_OWNER: (
+        "unpriced_reason_from_row",
+        "unpriced_reason_rows",
     ),
     _BACKEND_TOKENS_OWNER: (
         "backend_daily_token_rows",

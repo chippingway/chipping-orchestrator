@@ -71,6 +71,7 @@ _OWNERS = (
     "trajectory_codex_items",
     "trajectory_codex_payloads",
     "trajectory_models",
+    "unpriced",
 )
 
 # Bound at module scope, so collecting this file is what plants every owner in

@@ -18,7 +18,10 @@ tag: a CLI-reported amount stays the amount its record ranked ahead of any
 estimate, an estimate keeps the dates its rates were verified on, and a row
 stored with no evidence reads `unknown`, its `cost_usd` under that basis. Its
 tokens are the stored non-overlapping total, NULL where the evidence leaves it
-unknown.
+unknown. Why an unpriced run has no amount is the `unpriced_reasons` its record
+carried into `extras`, read through the usage owner's reader, so an entry the
+current vocabulary does not write is no reason and a row an earlier build
+recorded without one states none.
 """
 
 from __future__ import annotations
@@ -37,11 +40,13 @@ from orchestrator.observability.analytics.query.predicates import build_window_w
 from orchestrator.observability.analytics.query.query_rows import agent_exit_row
 from orchestrator.observability.analytics.query.raw_values import (
     bool_or_none,
+    decoded_json,
     empty_filter_selected,
     float_or_none,
     int_or_none,
 )
 from orchestrator.observability.analytics.query.run_models import AgentExitRow
+from orchestrator.observability.usage.unpriced import stated_reasons
 
 
 def agent_exit_from_row(row: Sequence[Any]) -> AgentExitRow:
@@ -63,6 +68,7 @@ def agent_exit_from_row(row: Sequence[Any]) -> AgentExitRow:
         output_tokens=int_or_none(query_row.output_tokens),
         total_tokens=int_or_none(query_row.total_tokens),
         cost=cost_cohort(query_row.cost).evidence,
+        unpriced_reasons=stated_reasons(decoded_json(query_row.unpriced_reasons)),
     )
 
 
@@ -83,7 +89,8 @@ def recent_agent_exit_rows(
     rows = query.select(
         "SELECT ts, repo, issue, stage, agent_role, backend, "
         "duration_s, exit_code, timed_out, review_round, retry_count, "
-        f"input_tokens, output_tokens, total_tokens, {EVENT_RUN_COST_SQL} "
+        "input_tokens, output_tokens, total_tokens, extras->'unpriced_reasons', "
+        f"{EVENT_RUN_COST_SQL} "
         f"FROM analytics_events{where} "
         "ORDER BY ts DESC LIMIT %s",
         bindings,

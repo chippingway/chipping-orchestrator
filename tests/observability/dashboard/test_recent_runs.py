@@ -9,7 +9,9 @@ the columns and their order can be read straight back off it. A run's cost is
 read as its stored evidence states it -- a CLI-reported amount, one provider's
 estimate, a blended run, a subtotal, an unpriced run, a run with no usage, and
 an amount stored with no basis -- as its figure and its own status, never its
-source, which the page's Cost details section explains once.
+source, which the page's Cost details section explains once. Beside it, an
+unpriced run says why: the reasons its record gave, grouped by model, or
+`Reason unavailable` for a run recorded without them, and any other run nothing.
 """
 
 from __future__ import annotations
@@ -18,7 +20,8 @@ import unittest
 from datetime import UTC, datetime, timedelta
 
 from orchestrator.observability.analytics.query.run_models import AgentExitRow
-from orchestrator.observability.dashboard import recent_runs, spend_text
+from orchestrator.observability.dashboard import recent_runs, spend_text, unpriced_text
+from orchestrator.observability.usage import unpriced as usage_unpriced
 from tests.observability.analytics import analytics_usage_cases as cases
 
 _YEAR = 2026
@@ -57,6 +60,7 @@ _COLUMNS = (
     "output tokens",
     "total tokens",
     "cost",
+    "unpriced reason",
 )
 
 # What a run's cost cell reads for each cost its row can store.
@@ -70,6 +74,43 @@ _WORDED_RUNS = (
     (cases.UNPRICED, spend_text.UNPRICED),
     (cases.NO_USAGE, spend_text.NO_USAGE),
     (cases.ABSENT_BASIS, f"$0.07 · {spend_text.COMPLETENESS_UNKNOWN}"),
+)
+
+_ASTRA = "gpt-6-astra"
+
+_OPUS = "claude-opus-4-7"
+
+# Both reasons the observed GPT-6 Astra runs gave.
+_ASTRA_REASONS = (
+    usage_unpriced.UnpricedReason(_ASTRA, usage_unpriced.INDETERMINATE_REQUEST_TIER),
+    usage_unpriced.UnpricedReason(_ASTRA, usage_unpriced.MISSING_CACHE_WRITE_COUNT),
+)
+
+# A run's cost and the reasons its record gave, and what its reason cell reads: an unpriced run's reasons grouped by
+# model, `Reason unavailable` for one recorded without them, and nothing for a run whose cost is not unpriced -- a
+# CLI-reported amount, a zero included, whatever reasons stand beside it.
+_REASONED_RUNS = (
+    (
+        "observed astra",
+        cases.UNPRICED,
+        _ASTRA_REASONS,
+        f"{_ASTRA}: Indeterminate request tier, Missing cache-write count",
+    ),
+    (
+        "two models",
+        cases.UNPRICED,
+        (
+            usage_unpriced.UnpricedReason(_OPUS, usage_unpriced.MISSING_CACHE_WRITE_LIFETIME),
+            usage_unpriced.UnpricedReason("third-party-model-x", usage_unpriced.MISSING_MODEL_PRICE),
+        ),
+        f"{_OPUS}: Missing cache-write lifetime · third-party-model-x: Missing model price",
+    ),
+    ("recorded without reasons", cases.UNPRICED, (), unpriced_text.REASON_UNAVAILABLE),
+    ("subtotal without reasons", cases.INCOMPLETE_SUBTOTAL, (), unpriced_text.REASON_UNAVAILABLE),
+    ("reported", cases.REPORTED, _ASTRA_REASONS, None),
+    ("reported zero", cases.COMPLETE_ZERO, _ASTRA_REASONS, None),
+    ("no usage", cases.NO_USAGE, (), None),
+    ("no cost evidence", cases.ABSENT_BASIS, (), None),
 )
 
 
@@ -173,6 +214,7 @@ class RecentRunRowTest(unittest.TestCase):
                 exit_row.output_tokens,
                 exit_row.total_tokens,
                 "$0.42",
+                None,
             ),
         )
 
@@ -183,6 +225,14 @@ class RecentRunRowTest(unittest.TestCase):
             with self.subTest(cost=cost):
                 row = recent_runs.recent_run_row(_agent_exit(cost=cost), timedelta())
                 self.assertEqual(row["cost"], worded)
+
+    def test_an_unpriced_run_says_why(self) -> None:
+        # The observed GPT-6 Astra run reads Unpriced in the cost column, as
+        # every unpriced run does, with its two reasons beside it.
+        for name, cost, reasons, worded in _REASONED_RUNS:
+            with self.subTest(run=name):
+                row = recent_runs.recent_run_row(_agent_exit(cost=cost, unpriced_reasons=reasons), timedelta())
+                self.assertEqual(row["unpriced reason"], worded)
 
     def test_an_unknown_token_total_stays_empty(self) -> None:
         row = recent_runs.recent_run_row(_agent_exit(total_tokens=None), timedelta())

@@ -22,7 +22,7 @@ inside it.
 
 Every entry is cached rather than issued directly, and the TTL is the one
 number that decision carries. Streamlit reruns the whole script on every
-widget interaction, so an uncached wave would put sixteen queries on Postgres
+widget interaction, so an uncached wave would put seventeen queries on Postgres
 for each nudge of the filter bar. A minute bounds the other direction: a window
 nobody changes goes back to Postgres on the first rerun after that minute is
 up, so newly synced events reach a page left open on it within one, and every
@@ -85,7 +85,7 @@ def first_wave_readers(
     key: tuple,
     prev_key: tuple,
 ) -> list[fanout.NamedReader]:
-    """The six reads the chrome above the fold is drawn from."""
+    """The seven reads the chrome above the fold, the Cost details section among it, is drawn from."""
     return [
         widget_task(st, "summary", rollups.read_summary, key),
         widget_task(st, "prev_summary", rollups.read_prev_kpi, prev_key),
@@ -96,6 +96,12 @@ def first_wave_readers(
             st,
             "cost_coverage_rows",
             breakdowns.read_cost_coverage,
+            key,
+        ),
+        widget_task(
+            st,
+            "unpriced_reason_rows",
+            breakdowns.read_unpriced_reasons,
             key,
         ),
     ]

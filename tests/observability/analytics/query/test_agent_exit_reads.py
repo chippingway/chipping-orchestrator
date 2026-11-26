@@ -5,14 +5,17 @@
 A run's cost is the evidence the sync filed on its row, read back as it was filed: a CLI-reported amount stays the one
 its record ranked ahead of any estimate, an estimate keeps the dates its rates were verified on, and a row an earlier
 build stored with no evidence reads `unknown`, its amount under that basis -- none of it repriced from the tokens beside
-it.
+it. Why an unpriced run has no amount is the reasons its record carried into `extras`, read for only the entries the
+current vocabulary writes, and a row recorded without them states none.
 """
 from __future__ import annotations
 
 import unittest
 from datetime import UTC, datetime
+from types import MappingProxyType
 
 from orchestrator.observability.analytics.query.raw_reads import get_recent_agent_exits
+from orchestrator.observability.usage import unpriced as usage_unpriced
 from tests.observability.analytics import analytics_usage_cases as cases
 from tests.observability.analytics.analytics_assertions import assert_row_fields
 from tests.observability.analytics.query.query_fake_driver import (
@@ -66,8 +69,8 @@ _WINDOW_START = datetime(_YEAR, 5, 1, tzinfo=UTC)
 
 _WINDOW_END = datetime(_YEAR, 5, _WINDOW_END_DAY, tzinfo=UTC)
 
-# The columns of one row of the SELECT list ahead of its cost cells, in the
-# order the projection unpacks them.
+# The columns of one row of the SELECT list ahead of its reasons and cost cells,
+# in the order the projection unpacks them.
 _EXIT_COLUMNS = (
     _EXIT_TS,
     _REPO,
@@ -85,10 +88,40 @@ _EXIT_COLUMNS = (
     _TOTAL_TOKENS,
 )
 
-_EXIT_ROW = _EXIT_COLUMNS + run_cost_cells(cases.REPORTED)
+_UNPRICED_CELLS = run_cost_cells(cases.UNPRICED)
 
-# The same columns for a run whose token total its evidence left unknown.
-_UNTOTALLED_COLUMNS = (*_EXIT_COLUMNS[:-1], None)
+# A priced run's row: its columns, no unpriced reasons, then its cost cells.
+_EXIT_ROW = (*_EXIT_COLUMNS, None, *run_cost_cells(cases.REPORTED))
+
+# The same columns for a run whose token total its evidence left unknown, and no unpriced reasons.
+_UNTOTALLED_COLUMNS = (*_EXIT_COLUMNS[:-1], None, None)
+
+_ASTRA = "gpt-6-astra"
+
+_TIER = MappingProxyType({
+    usage_unpriced.MODEL: _ASTRA,
+    usage_unpriced.REASON: usage_unpriced.INDETERMINATE_REQUEST_TIER,
+})
+
+_COUNT = MappingProxyType({**_TIER, usage_unpriced.REASON: usage_unpriced.MISSING_CACHE_WRITE_COUNT})
+
+_ASTRA_REASONS = (
+    usage_unpriced.UnpricedReason(_ASTRA, usage_unpriced.INDETERMINATE_REQUEST_TIER),
+    usage_unpriced.UnpricedReason(_ASTRA, usage_unpriced.MISSING_CACHE_WRITE_COUNT),
+)
+
+# The `unpriced_reasons` cell an unpriced run's row can hold, and the reasons it reads back as: the list a driver
+# adapts, the same list as raw JSON text, one with entries the vocabulary does not write, and none at all.
+_STORED_REASONS = (
+    ("adapted", [dict(_COUNT), dict(_TIER)], _ASTRA_REASONS),
+    ("text", '[{"model": "gpt-6-astra", "reason": "missing-cache-write-count"}]', _ASTRA_REASONS[1:]),
+    (
+        "unwritten entries",
+        [{**_TIER, usage_unpriced.REASON: "too-expensive"}, usage_unpriced.MISSING_MODEL_PRICE, dict(_COUNT)],
+        _ASTRA_REASONS[1:],
+    ),
+    ("recorded without reasons", None, ()),
+)
 
 # The costs a run's row can store, each read back as that run's own evidence:
 # a reported amount, a reported zero, each provider's dated estimate, a run
@@ -218,6 +251,15 @@ class RecentRunCostTest(unittest.TestCase):
                 self.assertIn("total_tokens, ", scan_sql)
                 self.assertIn("anthropic_rates_verified_on", scan_sql)
                 self.assertNotIn("SUM(", scan_sql)
+
+    def test_an_unpriced_run_reads_back_its_reasons(self) -> None:
+        for name, stored, reasons in _STORED_REASONS:
+            with self.subTest(stored=name):
+                conn = FakeConnection(rows=((*_EXIT_COLUMNS, stored, *_UNPRICED_CELLS),))
+                with configured_db_url():
+                    run = get_recent_agent_exits(connect=conn.as_connect)[0]
+                self.assertEqual((run.cost, run.unpriced_reasons), (cases.UNPRICED, reasons))
+                self.assertIn("extras->'unpriced_reasons'", conn.executed[0][0])
 
     def test_a_row_of_another_width_raises(self) -> None:
         # The cost cells close the SELECT list, so a row short of one is a

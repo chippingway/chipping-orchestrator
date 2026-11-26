@@ -31,6 +31,7 @@ from typing import Any
 from orchestrator.observability.analytics.query.cache_shares import NO_TOKEN_SHARE, TokenShareBands
 from orchestrator.observability.analytics.query.cost_cohorts import EMPTY_COST_COHORT, CostCohort
 from orchestrator.observability.usage.cost_evidence import CostEvidence
+from orchestrator.observability.usage.unpriced import UnpricedReason
 
 RESULT_FIELD = "result"
 
@@ -98,6 +99,10 @@ class AgentExitRow:
     CLI-reported amount stays the amount its record ranked first, an
     estimate keeps the dates its rates were verified on, and a row stored
     with no evidence reads `unknown` with its `cost_usd` under that basis.
+    `unpriced_reasons` is why its record says an unpriced cost has no
+    amount, each reason beside its model, read off the record as stored;
+    an unpriced run an earlier build recorded states none, and nothing
+    re-estimates it to find one.
     """
 
     ts: datetime
@@ -115,6 +120,7 @@ class AgentExitRow:
     output_tokens: int | None
     total_tokens: int | None
     cost: CostEvidence
+    unpriced_reasons: tuple[UnpricedReason, ...] = ()
 
 
 @dataclass(frozen=True)

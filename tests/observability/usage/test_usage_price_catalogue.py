@@ -46,8 +46,8 @@ def _codex_record_run(model: str) -> _metrics.UsageMetrics:
     # publishing no cached-input rate, priced too.
     counts = {protocol.INPUT: 1000, protocol.CACHE_WRITE_UNKNOWN_LIFETIME: 0, protocol.OUTPUT: 100}
     metrics = _metrics.UsageMetrics(backend=_usage_cases.CODEX)
-    estimate = codex_requests.CodexUsageRow(model, counts).estimate()
-    metrics.apply_cost(event_stream.select_cost(None, estimate, has_usage=True))
+    pricing = codex_requests.CodexUsageRow(model, counts).price()
+    metrics.apply_cost(event_stream.select_cost(None, pricing.estimate, has_usage=True), pricing.unpriced)
     return metrics
 
 

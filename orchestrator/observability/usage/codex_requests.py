@@ -26,13 +26,19 @@ charges a cache write nothing of its own, so there a write is ordinary input. Re
 contradict it, and a negative count is no count: neither prices on any model. A request-tiered row prices a record at
 its base rates only where the record's input keeps every request at or under the tier's threshold; past it nothing
 says which of the requests crossed, so the record has no price.
+
+A record with no price states every reason that applies (`unpriced`): its model having no active row, which leaves
+no rates to read the rest at; its tier indeterminate; and -- read at the base rates where the tier is indeterminate,
+since a tier's rates publish the classes its base rates do -- whatever its counts leave unestablished. The observed
+GPT-6 Astra runs name two at once: a cumulative input past 272,000 tokens leaves the tier indeterminate, and the CLI's
+zero or missing write count leaves the cache-write count missing.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from orchestrator.observability.usage import cost_evidence, prices, protocol
+from orchestrator.observability.usage import cost_evidence, prices, protocol, unpriced
 
 CACHE_WRITE_CLASSES = (
     protocol.CACHE_WRITE_THIRTY_MIN,
@@ -72,19 +78,31 @@ class CodexUsageRow:
         """Whether the counts can all be right: none negative, and the reads and writes no more than the input."""
         return min(self.ordinary_input, *self.counts.values()) >= 0
 
-    def estimate(self) -> cost_evidence.CostContribution | None:
-        """The record priced as an OpenAI API estimate, or None when nothing establishes its price."""
+    def price(self) -> unpriced.Pricing:
+        """The record priced as an OpenAI API estimate, or every reason nothing establishes its price."""
         row = prices.codex_row(self.model)
         if row is None:
-            return None
+            return unpriced.Pricing.refused((self.model,), (unpriced.MISSING_MODEL_PRICE,))
         rates = row.rates_for_requests_within(self.counts.get(protocol.INPUT))
+        reasons = self.unpriced_at(row.rates if rates is None else rates)
         if rates is None:
-            return None
+            return unpriced.Pricing.refused((self.model,), (unpriced.INDETERMINATE_REQUEST_TIER, *reasons))
         billed = self.billed_counts(rates)
         amount = None if billed is None else prices.priced_amount(rates, billed)
         if amount is None:
-            return None
-        return cost_evidence.CostContribution(cost_evidence.OPENAI_API_ESTIMATE, amount, (row.verified_on,))
+            return unpriced.Pricing.refused((self.model,), reasons)
+        return unpriced.Pricing(
+            cost_evidence.CostContribution(cost_evidence.OPENAI_API_ESTIMATE, amount, (row.verified_on,)),
+        )
+
+    def unpriced_at(self, rates: protocol.RateMap) -> tuple[str, ...]:
+        """Why the record's counts establish no amount at `rates`; none where they do."""
+        billed = self.billed_counts(rates)
+        if billed is not None:
+            return unpriced.unrated(rates, billed)
+        if not self.consistent:
+            return (unpriced.INVALID_TOKEN_COUNTS,)
+        return (unpriced.MISSING_CACHE_WRITE_COUNT,)
 
     def billed_counts(self, rates: protocol.RateMap) -> protocol.TokenBucket | None:
         """The record's tokens by the class `rates` bill each at, or None where its counts cannot establish them."""

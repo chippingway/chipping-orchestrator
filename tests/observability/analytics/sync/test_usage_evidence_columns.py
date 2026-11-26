@@ -5,7 +5,8 @@
 The raw evidence rides in `extras`, where no view can fold it, so the row also carries what the record's cost and
 tokens mean, read through the same readers every usage surface uses: each basis's amount in its own column, an
 estimate's verification dates, the completeness, the cache overlap, and the non-overlapping token total. The cases
-name the answers downstream aggregation must keep apart, and read them off the row the INSERT is sent.
+name the answers downstream aggregation must keep apart, and read them off the row the INSERT is sent. Why an unpriced
+run has no amount fills no column: its reasons ride in `extras` as the record wrote them.
 """
 from __future__ import annotations
 
@@ -15,7 +16,11 @@ from typing import Any
 
 from orchestrator.observability.analytics.sync import columns, records, rows
 from orchestrator.observability.analytics.sync.evidence import derived_columns
-from orchestrator.observability.usage import cost_evidence as usage_cost, token_evidence as usage_tokens
+from orchestrator.observability.usage import (
+    cost_evidence as usage_cost,
+    token_evidence as usage_tokens,
+    unpriced as usage_unpriced,
+)
 from tests.observability.analytics import analytics_usage_cases as cases
 
 _COMPLETENESS = columns.COST_COMPLETENESS
@@ -197,6 +202,20 @@ class DerivedRowTest(unittest.TestCase):
             {usage_cost.COST_EVIDENCE: cases.BLENDED.to_dict(), "token_evidence": cases.WITHIN_INPUT.to_dict()},
         )
         self.assertEqual(prepared.columns[_TOTAL], cases.CODEX_TOTAL)
+
+    def test_unpriced_reasons_ride_in_extras(self) -> None:
+        # The recent-run listing and the reason count read them there, so the
+        # sync neither promotes nor reshapes them.
+        reasons = [
+            {usage_unpriced.MODEL: "gpt-6-astra", usage_unpriced.REASON: usage_unpriced.INDETERMINATE_REQUEST_TIER},
+            {usage_unpriced.MODEL: "gpt-6-astra", usage_unpriced.REASON: usage_unpriced.MISSING_CACHE_WRITE_COUNT},
+        ]
+        record = cases.usage_record(1, cases.UNPRICED, cases.WITHIN_INPUT, unpriced_reasons=reasons)
+        prepared, reason = rows.prepare_record(json.dumps(record, sort_keys=True))
+        self.assertIsNone(reason)
+        self.assertEqual(prepared.extras[usage_unpriced.UNPRICED_REASONS], reasons)
+        self.assertNotIn(usage_unpriced.UNPRICED_REASONS, prepared.columns)
+        self.assertEqual(prepared.columns[_COMPLETENESS], usage_cost.INCOMPLETE)
 
     def test_other_events_fill_no_evidence_cell(self) -> None:
         # Only an `agent_exit` states usage; a NULL here is no reading at all,

@@ -22,7 +22,8 @@ The banner's spend, the strip's money, and the Cost details section -- the one
 place the page explains its money, its unpriced-run warning included -- are all
 read off the window's one cost cohort, so the topbar, the tiles, and the
 section cannot disagree about a window's amount or about which of its runs left
-it short.
+it short. Why those runs are unpriced comes from the first wave's own count of
+them by model and reason, drawn in the same section.
 
 Every sibling a pass here calls is named directly, so a test intercepting a
 render patches the module that holds it and a page and a fix land on the same
@@ -100,7 +101,12 @@ def render_first_wave(
     """Draw the chrome and the strip, or leave through the empty window."""
     summary = read_results["summary"]
     render_topbar_and_meta(modules, page, summary)
-    cost_details.render_cost_details(modules, summary.cost, read_results["cost_coverage_rows"])
+    cost_details.render_cost_details(
+        modules,
+        summary.cost,
+        read_results["cost_coverage_rows"],
+        read_results["unpriced_reason_rows"],
+    )
     if summary.total_events == 0:
         page_states.render_empty_window(modules, page)
         return None
