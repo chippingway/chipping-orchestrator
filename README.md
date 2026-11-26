@@ -190,8 +190,9 @@ See the [question-stage contract][question-contract] and
 ## Discussing an issue's architecture
 
 Apply the `discussion` label to work through design choices before implementation. The decomposer presents options,
-continues the conversation from your replies, and writes only `plans/issue-<number>.md` after you confirm the design.
-The orchestrator then opens a plan pull request for a human to merge, reject, or route into implementation.
+continues the conversation from your replies, and writes only `plans/issue-<number>.md` after you confirm the design
+in a comment. The orchestrator then opens a plan pull request for a human to merge or reject. Relabel the issue to
+`workflow:implementing` to have it built, with or without a plan pull request.
 
 See the [discussion-stage contract][discussion-contract] and
 [handler behavior][discussion-handler].
