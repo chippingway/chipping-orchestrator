@@ -34,8 +34,7 @@ support, cost visibility.
 ## Priority 3 — Smaller on-page items
 
 - **Social preview image.** Create and upload a 1280×640 PNG in Settings → General → Social preview.
-- **Publish to PyPI.** Add relevant `keywords` to `pyproject.toml` and finish the remaining
-  [PyPI release preparation](pypi-release.md).
+- **PyPI search keywords.** Add relevant `keywords` to `pyproject.toml`.
 - **Code of conduct.** Add `.github/CODE_OF_CONDUCT.md`.
 
 ---

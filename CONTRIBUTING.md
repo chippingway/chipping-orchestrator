@@ -234,6 +234,9 @@ must stop the release:
 )
 ```
 
+Before uploading the retained wheel, run the
+[manual upgrade and rollback check](#check-saved-settings-across-an-upgrade-and-rollback).
+
 After all checks pass, enter the API token at the hidden Bash prompt. Run the publish block from the same tagged
 checkout, using the retained directory without rebuilding. Poetry uses the checkout's project name to select wheel
 and sdist filenames, then uploads only the latest version present in that directory. The fresh version-specific
@@ -308,6 +311,79 @@ require a new version. [Poetry publishing options][poetry-publish], [PyPI upload
 
 Keep the PyPI project after the initial upload: deleting it releases the name.
 [PyPI deletion rules](https://pypi.org/help/#project-deletion)
+
+### Check saved settings across an upgrade and rollback
+
+For each PyPI release, replace `A.B.C` with the exact previous published version operators will upgrade from. Run this
+block in the same Bash session as the build. It installs that version, the retained candidate wheel, and the previous
+version again in both pipx and a dedicated venv. All six checks use one disposable operator's settings outside the
+checkout. The placeholder token and agent paths are enough for `check --local`, which validates startup settings
+without contacting GitHub or starting a poller.
+
+```bash
+(
+  set -eu
+  umask 077
+  previous_version='A.B.C'
+  test "$previous_version" != "${RELEASE_VERSION:?}"
+  test -f "${RELEASE_WHEEL:?}"
+  check_dir=$(mktemp -d /tmp/chipping-release.XXXXXXXX)
+  cd "$check_dir"
+  printf 'Release check directory: %s\n' "$PWD"
+  check_home="$PWD/home"
+  settings="$check_home/.config/chipping-orchestrator/.env"
+  token_dir="$check_home/.config/example/release-check"
+  mkdir -p "$(dirname "$settings")" "$token_dir"
+  check_env=(env -i HOME="$check_home" USER=release-check PATH="$PATH"
+             PIPX_HOME="$PWD/pipx" PIPX_BIN_DIR="$PWD/bin" PIP_INDEX_URL=https://pypi.org/simple)
+  "${check_env[@]}" git init --quiet --initial-branch=main target
+  printf '%s\n' local-check-only > "$token_dir/token"
+  cat > "$settings" <<EOF
+REPOS=example/release-check|$PWD/target|main
+ALLOWED_ISSUE_AUTHORS=release-maintainer
+LOG_DIR=$PWD/logs
+CLAUDE_BIN=/usr/bin/true
+CODEX_BIN=/usr/bin/true
+EOF
+  cp "$settings" saved.env
+  "${check_env[@]}" python3.12 -m venv venv
+
+  for expected in "$previous_version" "$RELEASE_VERSION" "$previous_version"; do
+    package="chipping-orchestrator==$expected"
+    if [[ "$expected" == "$RELEASE_VERSION" ]]; then
+      package="$RELEASE_WHEEL"
+    fi
+    "${check_env[@]}" venv/bin/python -m pip install "$package"
+    "${check_env[@]}" pipx install --force --backend pip --python python3.12 "$package"
+    for bin_dir in "$PWD/venv/bin" "$PWD/pipx/venvs/chipping-orchestrator/bin"; do
+      cmp saved.env "$settings"
+      "${check_env[@]}" "$bin_dir/python" -I - "$expected" <<'PY'
+import sys
+from importlib.metadata import version
+from pathlib import Path
+
+from orchestrator import config
+
+assert version("chipping-orchestrator") == sys.argv[1]
+target, = config.default_repo_specs()
+assert (target.slug, target.target_root) == ("example/release-check", Path.cwd() / "target")
+assert config.ALLOWED_ISSUE_AUTHORS == ("release-maintainer",)
+assert config.LOG_DIR == Path.cwd() / "logs"
+PY
+      sed 's/^ALLOWED_ISSUE_AUTHORS=.*/ALLOWED_ISSUE_AUTHORS=/' saved.env > "$settings"
+      status=0
+      "${check_env[@]}" "$bin_dir/chipping-orchestrator" check --local 2>diagnostic || status=$?
+      cp saved.env "$settings"
+      test "$status" -eq 1
+      grep -F ALLOWED_ISSUE_AUTHORS diagnostic
+      "${check_env[@]}" "$bin_dir/chipping-orchestrator" check --local
+    done
+  done
+)
+```
+
+Proceed to upload only when both installations preserve the file, resolve its settings, report the empty allowlist,
+and pass the local check after the file is restored. The temporary directory can then be discarded.
 
 [github-releases]:
   https://docs.github.com/en/repositories/releasing-projects-on-github/managing-releases-in-a-repository
