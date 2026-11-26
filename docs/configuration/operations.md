@@ -1554,7 +1554,9 @@ On first start the orchestrator creates the workflow labels and the `backlog` / 
 `workflow:community_contribution` control labels on the repo, then begins polling open issues every `POLL_INTERVAL`
 seconds. It creates only the labels a repo lacks: on a repo it drove before the labels were namespaced, each
 namespaced label is created beside its pre-namespace one, which stays defined and stays on every issue carrying it as
-a repository label that routes nothing ([obsolete bare labels](../state-machine.md#obsolete-bare-labels)).
+a repository label that routes nothing ([obsolete bare labels](../state-machine.md#obsolete-bare-labels)). A label the
+repo already has keeps its color and description, so when an upgrade changes a label's default description, edit
+the existing label in the repo's label settings to match.
 
 ### Poetry migration for operators
 
