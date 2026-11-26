@@ -2,14 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 """What an implementing reply's task snapshot leaves the workflow to read, and what it is bound to on a retry.
 
-The workflow reads a reply with its attachment taken out: a reply carrying
-nothing else is silent, no park quotes the line, and one written inside the
-report block leaves the published report and its digest as they would be
-without it. Every finished reply was asked for one, so a reply without it --
-with no report outcome either -- is a missing snapshot. The report reader
-frames the reply inside the recorder's own boundary, so a framing that fails,
-once or every time it is asked, is a diagnostic and the report it spares is
-published as ever.
+The workflow reads a reply with its attachment lines kept out: a reply
+carrying nothing else is silent, no park quotes the line, and one written
+inside the report block leaves the published report and its digest as they
+would be without it. A line a fence encloses is code the report quotes, and
+is published with it; and no line makes a report publishable -- neither one
+a fence encloses above the markers nor one that is all a block holds -- each
+recorded as the verdict the workflow reached. Every finished reply was asked
+for one, so a reply without it -- with no report outcome either -- is a
+missing snapshot. The reply is framed inside the recorder's own boundary, so a
+framing that fails, once or every time it is asked, is a diagnostic and the
+report it spares is published as ever.
 
 An `/orchestrator continue` retry beside a body edit hands a resumed
 conversation nothing, so its snapshot keeps the baseline that conversation
@@ -25,10 +28,11 @@ import unittest
 from types import MappingProxyType
 from unittest.mock import MagicMock, patch
 
+from orchestrator.github import developer_reports as _developer_reports
 from orchestrator.workflow.engine import (
     content_hash as _content_hash,
     report_outcomes as _outcomes,
-    task_snapshots as _task_snapshots,
+    task_snapshot_replies as _replies,
 )
 from tests.support.fakes import FakeComment, FakeUser
 from tests.workflow.fixtures import _agent
@@ -83,7 +87,21 @@ def _unavailable() -> MagicMock:
 # Where a framing fails, and how: the report reader once, the outcome's start always.
 _FRAMING_FAILURES = (
     (_outcomes, "_parse_report_outcome", _ParsesAfterOneFailure),
-    (_task_snapshots, "_outcome_start", _unavailable),
+    (_replies, "_outcome_start", _unavailable),
+)
+
+
+# A report quoting an attachment line as code, which a fence encloses.
+_EXAMPLE = 'ANALYTICS: task-snapshot v1 {"description": "Example payload."}'
+_QUOTING_REPORT = f"Updated the example in the docs.\n\n```text\n{_EXAMPLE}\n```"
+
+# That report, the snapshot above it.
+_FENCED_EXAMPLE = f"{_support.SNAPSHOT}\n\nREPORT: READY\n{_QUOTING_REPORT}\nREPORT: END"
+
+# Replies whose report no attachment line may make publishable, and what their snapshot reads as.
+_UNPUBLISHABLE = (
+    (f"- ```text\n{_support.SNAPSHOT}\n  ```\nREPORT: READY\nImplemented.\nREPORT: END", "missing"),
+    (f"REPORT: READY\n{_support.SNAPSHOT}\nREPORT: END", "misplaced"),
 )
 
 
@@ -95,11 +113,6 @@ def _fingerprint(issue) -> str:
 def _replaced():
     """What the replacement conversation answers each retry with: the snapshot alone."""
     return _agent(session_id=_REPLACEMENT, last_message=_support.SNAPSHOT)
-
-
-def _quoting_it(github) -> list[str]:
-    """Every comment posted on the issue that quotes an attachment line."""
-    return [body for _issue, body in github.posted_comments if "ANALYTICS:" in body]
 
 
 class ReplyReadingTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
@@ -114,7 +127,7 @@ class ReplyReadingTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
             self.dispatch(github, issue, _support.returning(message), **silent)
             with self.subTest(message=message):
                 self.assertEqual(github.pinned_data(_held.ISSUE).get("park_reason"), "agent_silent")
-                self.assertEqual(_quoting_it(github), [])
+                self.assertEqual(_support.posted_attachments(github), [])
         self.assertEqual(self.only(_support.SNAPSHOT_EVENT)["report_outcome"], "no_marker")
 
     def test_a_reply_without_it_is_missing(self) -> None:
@@ -141,6 +154,32 @@ class ReplyReadingTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
         digests = [self._published_digest(""), self._published_digest(f"{_support.SNAPSHOT}\n")]
         self.assertEqual(digests[0], digests[1])
         self.assertEqual(self.diagnosed(), [("missing", False), ("misplaced", True)])
+
+    def test_a_fenced_example_is_published(self) -> None:
+        # Code the report quotes is the report's own text, the snapshot above it read.
+        github, issue = self.seeded()
+        self.dispatch(github, issue, _support.returning(_FENCED_EXAMPLE), **self.committing)
+        settled = self.published(github)["developer_report_current"]
+        quoting = _support.published_attachments(github)
+        self.assertEqual(len(quoting), 1)
+        self.assertIn(_EXAMPLE, quoting[0])
+        self.assertEqual(settled["content"], _developer_reports.content_digest(_QUOTING_REPORT))
+        snapshot = self.only(_support.SNAPSHOT_EVENT)
+        self.assertEqual(snapshot["description"]["text"], _support.DESCRIPTION)
+
+    def test_no_line_makes_a_report_publishable(self) -> None:
+        # A fence the line sits in, which taking it out would close above the
+        # markers, and a block of nothing else: each refused, and recorded
+        # as the verdict the workflow reached.
+        for reply, category in _UNPUBLISHABLE:
+            self.sink.unlink(missing_ok=True)
+            github, issue = self.seeded()
+            self.dispatch(github, issue, _support.returning(reply), **self.committing)
+            diagnostic = self.only(_support.DIAGNOSTIC_EVENT)
+            with self.subTest(category=category):
+                self.assertEqual(github.opened_prs, [])
+                self.assertEqual(diagnostic[_support.CATEGORY], category)
+                self.assertEqual(diagnostic["report_outcome"], "malformed")
 
     def _published_digest(self, inside: str) -> str:
         """The digest of the report a fresh issue publishes for a READY block carrying `inside`; none quotes a line."""

@@ -163,8 +163,9 @@ _RESPAWN_REPORT_NOTE = (
 # Asked of the implementing roads' attempts alone, beside the report contract
 # they carry (`task_snapshots`), and spelled from the vocabulary the attachment
 # reader reads. It is asked of every finished reply, a question included, since
-# the workflow reads a reply with the line taken out; placed above the outcome,
-# the line stays out of the report and its digest. The closing sentences keep
+# the workflow reads a reply with the line kept out of it
+# (`task_snapshot_replies`); placed above the outcome, the line stays out of
+# the report and its digest. The closing sentences keep
 # the outcome the message's last line, since this note is the last thing such a
 # prompt says.
 _TASK_SNAPSHOT_NOTE = (

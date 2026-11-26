@@ -11,9 +11,9 @@ spawn minted it -- repository, issue, the pinned comment its charge was
 written on, the workflow cycle, the charge's lifetime ordinal, and the
 random nonce -- so a record joins the run's own records by identity rather
 than by a session id or a round counter, neither of which names one
-process. `route` is the road the run came down, and `report_outcome` what
-the reply's report outcome read as -- `ready`, `verified`, `malformed`, or
-`no_marker` -- where the recording got as far as reading it.
+process. `route` is the road the run came down, and `report_outcome` the
+verdict the workflow reached on the reply it reads -- `ready`, `verified`,
+`malformed`, or `no_marker` -- where the recording got as far as reading it.
 
 * `task_snapshot` is a developer's description of its task, bounded, beside
   the requirements revision its conversation was handed and the task
@@ -62,8 +62,8 @@ class ObservedRun:
     in was handed -- None where the road holds none. `report_requirements`
     is the revision the run's report is stamped with -- the road's own,
     which a reviewer handed that report names -- and spells the task
-    reference. `report_outcome` is what the reply's report outcome read as,
-    set once the recorder has read it and None before.
+    reference. `report_outcome` is the verdict the workflow reached on the
+    reply it reads, set once the recorder has framed it and None before.
     """
 
     invocation: AgentInvocation

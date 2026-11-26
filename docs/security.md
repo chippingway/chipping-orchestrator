@@ -532,7 +532,9 @@ launch arms, `WORKTREES_DIR/.issue-writer-claims/repo-<id>-issue-<n>.quota-retir
 ([format and recovery](configuration/operations.md#running-more-than-one-poller)). Until the pinned comment takes the
 retirement of a conversation an account quota stopped, that record is the only place it is owed, and every developer
 launch on the issue reads it first. Restoring an Issue restores its progress, except for an owed retirement the
-comment never took: a host restored without the record could resume the stopped conversation.
+comment never took: a host restored without the record could resume the stopped conversation. With the analytics sink
+on, the same directory also holds each issue's `repo-<id>-issue-<n>.task-snapshot-grounding` record, analytics alone: a
+host restored without it records a later retry's task snapshot against the issue's baseline, and nothing else changes.
 
 Operator drill checklist (run at least once after setup, then on a recurring cadence):
 

@@ -8,14 +8,15 @@ records a diagnostic naming the step, the counts it had reached, and the
 failure's type, never the text the step could not finish with. Where that
 diagnostic cannot be written either, or the append itself is refused --
 taking a snapshot or a refused reply's diagnostic with it -- it warns once
-and writes nothing more.
+and writes nothing more; and so it does where the sink's settings will not
+read at all.
 """
 from __future__ import annotations
 
 import json
 from dataclasses import replace
 from types import MappingProxyType, SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from orchestrator.observability.analytics import settings as analytics_settings, sink
 from orchestrator.observability.analytics.observations import bounds, recorder, records
@@ -93,7 +94,7 @@ class StepFailureTest(_support.SinkCase):
                 self.assertNotIn(_support.DESCRIPTION, self.path.read_text(encoding="utf-8"))
 
     def _outcome_fails(self) -> None:
-        recorder.record_task_snapshot(_support.RUN, recorder.ObservedReply(_REPLY, _outcome_unfound))
+        recorder.record_task_snapshot(_support.RUN, recorder.ObservedReply(_REPLY, _outcome_unfound), self.path)
 
     def _redaction_fails(self) -> None:
         with patch(_REDACTOR, side_effect=RuntimeError("redactor unavailable")):
@@ -125,6 +126,14 @@ class LostDiagnosticTest(_support.SinkCase):
                 self.assertEqual(len(logged.output), 1)
                 self.assertIn(f"to {step}_failed", logged.output[0])
             self.assertEqual(self.written(), [])
+
+    def test_an_unreadable_sink_warns_once(self) -> None:
+        # Where the sink's own settings will not read, nothing is asked of the
+        # reply, written, or raised.
+        settings = SimpleNamespace(live_settings=MagicMock(side_effect=OSError("settings unavailable")))
+        with patch.object(recorder, "analytics_config", settings), self.assertLogs(_CHANNEL, level="WARNING") as logged:
+            self.assertEqual(self.record(_REPLY), [])
+            self.assertEqual(len(logged.output), 1)
 
     def _record_onto_a_directory(self) -> None:
         with patch.object(analytics_settings, "ANALYTICS_LOG_PATH", self.path.parent):

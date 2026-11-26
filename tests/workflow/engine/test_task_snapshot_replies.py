@@ -10,12 +10,14 @@ while every report reading stays exactly what it is without it: a READY
 report keeps its text, a VERIFIED line its location, a malformed outcome
 stays malformed, and a reply without an outcome stays one -- whatever the
 description says, since a JSON string escapes every line break a marker,
-an acknowledgement, or a fence would need. The workflow reads the reply with
-the line taken out above the outcome and inside a report block, and left
-where it is past the outcome, so the published report is the one written
-without it and text after an outcome is still refused; a reply nothing can
-take it out of is read as written. The recorder is handed the report reader's
-own framing of the reply.
+an acknowledgement, or a fence would need.
+
+The workflow reads the reply with every attachment line kept out of it and
+its framing unmoved: taken out of a reply with no marker line and out of a
+READY block, and replaced by a placeholder line everywhere else. A line a
+fence may enclose is code a report quotes, and stays. A reply nothing can
+take the lines out of is read as written. Where a line sits beside the
+outcome, and the verdict the recorder is told, are `test_task_snapshot_framing`.
 """
 from __future__ import annotations
 
@@ -24,14 +26,14 @@ import unittest
 from types import MappingProxyType
 from unittest.mock import patch
 
-from orchestrator.observability.analytics.observations import attachments, recorder as _recorder
+from orchestrator.observability.analytics.observations import attachments
 from orchestrator.workflow.engine import (
     completion_records as _completion_records,
     completion_routes as _routes,
     messages as _messages,
     prompt_notes as _prompt_notes,
-    report_outcome_models as _report_models,
     report_outcomes as _outcomes,
+    task_snapshot_replies as _replies,
     task_snapshots as _task_snapshots,
 )
 from orchestrator.workflow.state import WorkflowLabel
@@ -48,6 +50,15 @@ _VERIFIED = "verified"
 
 _BLOCK = f"REPORT: READY\n{_REPORT}\nREPORT: END\n"
 
+# The one reply whose outcome a fence opens just above: a line placed above
+# the outcome sits inside that fence, so it is code and no attachment.
+_FENCED = "fenced_outcome"
+
+# What the workflow reads of a reply with an attachment line above its
+# outcome: the line taken out where the reply has no marker, kept as code
+# where a fence may enclose it, and held by the placeholder otherwise.
+_NO_MARKER = "question"
+
 # Replies on every reading the report contract gives a completed run, keyed
 # by what each one is.
 _REPLIES = MappingProxyType({
@@ -59,17 +70,9 @@ _REPLIES = MappingProxyType({
     "text_after_the_outcome": f"Done.\n\n{_BLOCK}One more thing.\n",
     "unclosed_block": f"Done.\n\nREPORT: READY\n{_REPORT}\n",
     "ack_beside_it": f"ACK: nothing changed\n\n{_BLOCK}",
-    "fenced_outcome": f"Done.\n\n```\n{_BLOCK}",
-    "question": "Should the flag default to on?",
+    _FENCED: f"Done.\n\n```\n{_BLOCK}",
+    _NO_MARKER: "Should the flag default to on?",
 })
-
-# Replies, and what the report reader reads each one's outcome as.
-_FRAMED = (
-    (_READY, "ready"),
-    (_VERIFIED, "verified"),
-    ("text_after_the_outcome", "malformed"),
-    ("question", "no_marker"),
-)
 
 # Descriptions whose words, on a line of their own, would be read by another
 # reader: a JSON string escapes the break, so none of them is.
@@ -89,14 +92,26 @@ def _line(description: str) -> str:
 
 def _attached(reply: str, line: str) -> str:
     """`reply` with `line` on a line of its own just above its outcome."""
-    at = _task_snapshots._outcome_start(reply)
+    at = _replies._outcome_start(reply)
     head, tail = reply[:at], reply[at:]
     opened = head if not head or head.endswith("\n") else f"{head}\n"
     return f"{opened}{line}\n{tail}"
 
 
 def _snapshot_read(reply: str) -> attachments.SnapshotReading:
-    return attachments.read_task_snapshot(reply, _task_snapshots._outcome_start(reply))
+    framing = _replies.framing(reply)
+    return attachments.read_task_snapshot(reply, framing.outcome_at, framing.fenced)
+
+
+def _expected(kind: str, description: str) -> tuple[str, str | None]:
+    """What the workflow reads of `_REPLIES[kind]` with `description`'s line above its outcome, and what is read."""
+    line = _line(description)
+    attached = _attached(_REPLIES[kind], line)
+    if kind == _NO_MARKER:
+        return attached.replace(f"{line}\n", ""), description
+    if kind == _FENCED:
+        return attached, None
+    return _attached(_REPLIES[kind], _replies.PLACEHOLDER), description
 
 
 def _readings(reply: str) -> tuple:
@@ -132,15 +147,15 @@ class ProtocolIsolationTest(unittest.TestCase):
     """An attachment above the outcome changes no reading of the reply but its own."""
 
     def test_every_report_reading_is_unchanged(self) -> None:
-        # Read as written or as the workflow reads it -- the line taken out.
+        # Read as written or as the workflow reads it -- the line kept out.
         for kind, reply in _REPLIES.items():
             for description in _DESCRIPTIONS:
                 attached = _attached(reply, _line(description))
-                workflow_reply = _task_snapshots._workflow_reply(attached)
+                read = (_replies.workflow_reply(attached), _snapshot_read(attached).description)
                 with self.subTest(kind=kind, description=description):
                     self.assertEqual(_readings(attached), _readings(reply))
-                    self.assertEqual(workflow_reply.rstrip(), reply.rstrip())
-                    self.assertEqual(_snapshot_read(attached).description, description)
+                    self.assertEqual(_readings(read[0]), _readings(reply))
+                    self.assertEqual(read, _expected(kind, description))
 
     def test_a_ready_report_keeps_its_text(self) -> None:
         attached = _attached(_REPLIES[_READY], _line(_DESCRIPTION))
@@ -150,28 +165,14 @@ class ProtocolIsolationTest(unittest.TestCase):
         # The report the workflow publishes, and its digest, are the ones the
         # reply without the line would have.
         inside = f"Done.\n\nREPORT: READY\n{_REPORT}\n{_line(_DESCRIPTION)}\nREPORT: END\n"
-        self.assertEqual(_task_snapshots._workflow_reply(inside), _REPLIES[_READY])
+        self.assertEqual(_replies.workflow_reply(inside), _REPLIES[_READY])
 
     def test_an_unstrippable_reply_reads_as_written(self) -> None:
         attached = _attached(_REPLIES[_READY], _line(_DESCRIPTION))
-        failing = patch.object(attachments, "without_attachments", side_effect=ValueError("unreadable"))
+        failing = patch.object(attachments, "attachment_lines", side_effect=ValueError("unreadable"))
         with failing, self.assertLogs("orchestrator.workflow", level="WARNING") as logged:
-            self.assertEqual(_task_snapshots._workflow_reply(attached), attached)
+            self.assertEqual(_replies.workflow_reply(attached), attached)
             self.assertEqual(len(logged.output), 1)
-
-    def test_text_after_an_outcome_stays_refused(self) -> None:
-        # A line past the outcome stays in the reply the workflow reads, so
-        # the report reader still refuses the reply it ends.
-        trailing = f"{_REPLIES[_READY]}{_line(_DESCRIPTION)}\n"
-        self.assertEqual(_task_snapshots._workflow_reply(trailing), trailing)
-        self.assertIs(_outcomes._parse_report_outcome(trailing), _report_models._ReportRefusal.MALFORMED)
-
-    def test_the_recorder_gets_the_readers_framing(self) -> None:
-        for kind, outcome in _FRAMED:
-            reply = _REPLIES[kind]
-            with self.subTest(kind=kind):
-                expected = _recorder.Framing(_task_snapshots._outcome_start(reply), outcome)
-                self.assertEqual(_task_snapshots._framing(reply), expected)
 
 
 if __name__ == "__main__":

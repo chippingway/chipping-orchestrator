@@ -2,10 +2,14 @@
 # SPDX-License-Identifier: Apache-2.0
 """Record one reply's task snapshot, best-effort, behind one failure boundary.
 
-The whole path a reply takes to the analytics sink runs inside one guard:
-framing it -- where its report outcome begins and what that outcome reads
-as, which the workflow's report reader answers through the callable it hands
-over -- reading its attachment, redacting and bounding the telemetry copy,
+Where the sink is (`sink_path`) is read first, behind a guard of its own: a
+lookup that fails is warned of once and records nothing, so a caller that
+asks it before anything else -- the snapshot's grounding follows the same
+sink -- is never handed an error. The whole path a reply then takes to the
+analytics sink runs inside one guard: framing it -- where its report outcome
+begins, the verdict the workflow reaches on it, and which lines a code fence
+may enclose, which the workflow answers through the callable it hands over
+-- reading its attachment, redacting and bounding the telemetry copy,
 serializing the records, and appending them. The sink's own
 `append_jsonl_record` catches only a filesystem error, and only around the
 file -- a serialization error before it would reach the caller -- so this
@@ -21,10 +25,10 @@ again.
 The attachment is read off the reply exactly as the agent wrote it, so
 nothing the telemetry copy needs can repair or reshape the framing it is
 validated against. Only what a record carries is redacted, and before it is
-cut or serialized (`redaction`): the decoded description, and each refused
-line's excerpt with every credential the whole reply holds masked, written
-raw or JSON-escaped. A failed redaction leaves no text to excerpt, so its
-diagnostic carries none.
+made storable, cut, or serialized (`redaction`): the decoded description, and
+each refused line's excerpt with every credential the whole reply holds
+masked, written raw or JSON-escaped. A failed redaction leaves no text to
+excerpt, so its diagnostic carries none.
 
 A diagnostic's `counts` say how far the reading got: the attachment lines
 `found`, and how many were `readable` as a snapshot. They never claim a
@@ -59,10 +63,15 @@ class Step(StrEnum):
 
 
 class Framing(NamedTuple):
-    """Where a reply's report outcome begins -- its length where it has none -- and what that outcome reads as."""
+    """Where a reply's report outcome begins -- its length where it has none -- and what that outcome reads as.
+
+    `fenced` is the start of every line of the reply a code fence may
+    enclose, none of which is an attachment line.
+    """
 
     outcome_at: int
     report_outcome: str
+    fenced: frozenset[int] = attachments.NOTHING_FENCED
 
 
 @dataclass(frozen=True)
@@ -78,13 +87,28 @@ class ObservedReply:
     framing: Callable[[str], Framing]
 
 
-def record_task_snapshot(run: records.ObservedRun, reply: ObservedReply) -> None:
-    """Record the task snapshot `reply` carries, or the problem that leaves it none, on the analytics sink.
+def sink_path() -> Path | None:
+    """The file observations are written to: None where the analytics sink is off, or where that cannot be read.
 
-    Returns nothing and raises nothing: a recording that fails is a
+    Raises nothing: a lookup that fails is warned of once, and nothing is
+    recorded behind it.
+    """
+    try:
+        return analytics_config.live_settings().log_path
+    except Exception as error:  # noqa: BLE001 - an observation is lost, never the run that returned it
+        sink.log.warning(
+            "analytics: could not read where observations are written (%s); recording none", type(error).__name__,
+        )
+        return None
+
+
+def record_task_snapshot(run: records.ObservedRun, reply: ObservedReply, path: Path | None) -> None:
+    """Record the task snapshot `reply` carries, or the problem that leaves it none, on the sink at `path`.
+
+    `path` is what `sink_path` read; None records nothing and asks the reply
+    nothing. Returns nothing and raises nothing: a recording that fails is a
     diagnostic, or a warning where the diagnostic cannot be written.
     """
-    path = analytics_config.live_settings().log_path
     if path is None:
         return
     _Recording(run, path).record(reply)
@@ -110,7 +134,7 @@ class _Recording:
         self._step = Step.PARSE
         framing = reply.framing(reply.message)
         self._run = replace(self._run, report_outcome=framing.report_outcome)
-        reading = attachments.read_task_snapshot(reply.message, framing.outcome_at)
+        reading = attachments.read_task_snapshot(reply.message, framing.outcome_at, framing.fenced)
         self._counts = {"found": reading.found, "readable": int(reading.description is not None)}
         self._step = Step.REDACTION
         telemetry = redaction.sanitized(reply.message, reading)

@@ -7,7 +7,8 @@ field written once, is the snapshot; every other shape is one named problem
 carrying where its lines sit, and nothing is guessed: no line is missing, two
 anywhere are a duplicate, the one line at or past the outcome is misplaced, a
 line past the attachment limit is refused before it is decoded, and a key
-written twice is malformed. The reply is read as written.
+written twice is malformed. The reply is read as written, and a line a
+code fence may enclose is no attachment line at all.
 """
 from __future__ import annotations
 
@@ -148,12 +149,18 @@ class SnapshotReadingTest(unittest.TestCase):
                 self.assertEqual(_read(preamble, outcome), missing)
 
 
-class WorkflowReplyTest(unittest.TestCase):
-    """The reply the workflow reads, the attachment lines taken out."""
+class FencedLineTest(unittest.TestCase):
+    """A line a code fence may enclose is code a reply quotes, not an attachment."""
 
-    def test_the_workflow_reads_the_reply_without_it(self) -> None:
+    def test_a_fenced_line_is_not_one(self) -> None:
+        # Neither read nor counted.
         line = _support.snapshot_line()
-        self.assertEqual(attachments.without_attachments(f"Done.\n  {line}\r\nMore.\n{line}"), "Done.\nMore.\n")
+        example = _support.snapshot_line("An example the report quotes.")
+        message = f"{line}\n```text\n{example}\n```\n"
+        fenced = frozenset((message.index(example),))
+        self.assertEqual(attachments.attachment_lines(message, fenced), _at(message, line))
+        read = attachments.read_task_snapshot(message, len(message), fenced)
+        self.assertEqual(read, _READING(_DESCRIPTION, (), 1))
 
 
 if __name__ == "__main__":

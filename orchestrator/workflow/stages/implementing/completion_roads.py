@@ -52,12 +52,14 @@ its ordinary continuations, so a road is what decides who is asked for a task
 snapshot: the coordinator hands every attempt the prompt its road asks with
 (`asked`) and every return to its road (`received`), and only the first
 implementation's road and an implementing resume's append the request, record
-anything, or take the attachment out of the reply the workflow reads
+anything, or keep the attachment out of the reply the workflow reads
 (`task_snapshots`). The observation is bound to what the attempt's
-conversation was handed -- for a retry's fresh conversation, the read it was
-re-grounded on, and for a later attempt resuming it, that same grounding
-(`task_snapshot_grounding`) -- is analytics alone, raises nothing, and is read
-by nothing here, so it changes no capture.
+conversation was handed -- the road's own requirements where the road hands
+them, and on a retry, for a fresh conversation the read it was re-grounded
+on, and for a later retry resuming it that same grounding, kept on this host
+rather than the pinned comment (`task_snapshot_grounding`) -- is analytics
+alone, raises nothing, and is read by nothing here, so it changes no capture
+and no settlement.
 """
 from __future__ import annotations
 
@@ -121,9 +123,10 @@ class CompletionRoad:
     `fresh_requirements` is what a FRESH session's prompt on this road is
     re-grounded with, where that is not the handoff's own: a retry hands a
     resumed conversation nothing, while a replacement session's preamble
-    quotes the issue as it now reads. Only the task snapshot of an attempt
-    that opened a fresh conversation is bound to it; the capture and the
-    report keep the handoff's.
+    quotes the issue as it now reads. Only a task snapshot is bound to it --
+    that of an attempt that opened a fresh conversation, and of a later retry
+    resuming that conversation; the capture and the report keep the
+    handoff's.
     """
 
     handoff: _records.CompletionHandoff
@@ -183,20 +186,25 @@ class CompletionRoad:
         """
         return _task_snapshots.asked(self.handoff, prompt)
 
-    def received(self, attempt: Attempt, state: _pinned_state.PinnedState) -> None:
+    def received(
+        self, gh: _client.GitHubClient, issue: Issue, attempt: Attempt, state: _pinned_state.PinnedState,
+    ) -> None:
         """Receive an attempt's return on this road, where the road asks a task snapshot (`task_snapshots`).
 
         Asked of every attempt as it returns, ahead of anything that reads
-        it: a genuine return's snapshot goes to analytics, bound to what the
-        attempt's conversation was handed -- `fresh_requirements` where the
-        coordinated run opened a fresh conversation and the road holds one,
-        what a resumed conversation was grounded on where the pinned record
-        still says (`task_snapshot_grounding`), the handoff's otherwise -- and
-        the result's message is left as the workflow reads it, its attachment
-        taken out. The recording raises nothing, and no disposition, capture,
-        or accounting reads it back.
+        it: with the analytics sink on, a genuine return's snapshot goes to
+        analytics, bound to what the attempt's conversation was handed -- the
+        handoff's own on a road that hands requirements; on a retry,
+        `fresh_requirements` where the coordinated run opened a fresh
+        conversation, and what a resumed one was grounded on where this
+        host's record still says (`task_snapshot_grounding`), the handoff's
+        otherwise -- and the result's message is left as the workflow reads
+        it, its attachment lines kept out without moving its framing. The
+        recording raises nothing, and no disposition, capture, or accounting
+        reads it back; the pinned comment carries none of it.
         """
-        _task_snapshots.receive(self.handoff, attempt.agent_result, state, attempt.resumed, self.fresh_requirements)
+        conversation = _task_snapshots.Conversation(gh.repo_id, issue.number, attempt.resumed, self.fresh_requirements)
+        _task_snapshots.receive(self.handoff, attempt.agent_result, state, conversation)
 
     def source(self, agent_result: AgentResult) -> str | None:
         """The head `agent_result`'s report is about, read off the checkout as it returns; None where none qualifies.

@@ -9,9 +9,9 @@ the channel a refusal is reported on. They sit together because a reader
 asking "what shape does a record have and how does it get written" has one
 place to look, and because the two sinks cannot drift apart on any of it. A
 writer whose own failure boundary has to see a refusal -- the observation
-recorder, which turns one into a diagnostic -- writes the lines it serialized
-through the same lock itself (`write_jsonl_lines`), which raises what the
-filesystem raises.
+recorder, which warns of a refused append once and writes nothing more --
+writes the lines it serialized through the same lock itself
+(`write_jsonl_lines`), which raises what the filesystem raises.
 
 *Which* file a record lands in is the caller's, which is why the path arrives
 as an argument rather than being read here -- the ``config`` owner beside this
@@ -121,8 +121,8 @@ def write_jsonl_lines(
     The filesystem half of `append_jsonl_record`, taken under the same lock
     and reached directly by a writer whose own failure boundary has to see
     the `OSError` rather than have it swallowed here: the observation
-    recorder turns a refused append into a diagnostic of its own, or into its
-    one warning (`observations/recorder.py`).
+    recorder warns of a refused append once, and writes nothing more for it
+    (`observations/recorder.py`).
     """
     joined = "".join(f"{line}\n" for line in lines)
     with lock:

@@ -8,16 +8,19 @@ whatever the issue says by the time the run is back -- and named by the
 reference a reviewer of its settled report names. The observation is
 analytics alone: it reaches the sink with the usage parse failing and the
 trajectory sink and the database off, an invalid report outcome stays
-invalid beside it, a recording that fails costs the run nothing, and the
+invalid beside it and no notice quotes the line, a recording that fails --
+or a sink whose settings will not read -- costs the run nothing, and the
 recovery that finishes a captured report, running no developer, records
 nothing new.
 """
 from __future__ import annotations
 
 import unittest
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from orchestrator.config import credentials as _credentials
+from orchestrator.observability.analytics.observations import recorder as _recorder
 from orchestrator.workflow.engine import content_hash as _content_hash, prompt_notes as _notes
 from tests.workflow.fixtures import _agent, accounted
 from tests.workflow.report_values import _FINISHED_REPORT
@@ -68,27 +71,17 @@ class DispatchedSnapshotTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
     """Whole dispatches of a first implementation whose developer describes its task."""
 
     def test_the_first_implementation_is_recorded(self) -> None:
-        # The snapshot names the run's own charge, the road, and the
-        # description it returned.
-        github, issue = self.seeded()
-        self.dispatch(github, issue, _support.returning(), **self.committing)
-        ordinal, nonce = _support.receipt(self.published(github))
-        snapshot = self.only(_support.SNAPSHOT_EVENT)
-        self.assertEqual(_support.charged(snapshot), (ordinal, "implementation"))
-        self.assertEqual(snapshot[_support.SOURCE]["nonce"], nonce)
-        self.assertEqual(snapshot["stage"], "implementing")
-        self.assertEqual(snapshot["description"]["text"], _support.DESCRIPTION)
-
-    def test_a_reviewer_can_name_it(self) -> None:
-        # The prompt closes on the request; the report the pull request
-        # carries holds no attachment, and is stamped with the revision the
-        # snapshot's reference names.
+        # The prompt closes on the request; the snapshot names the run's own
+        # charge, the road, and the description it returned, under the
+        # reference the settled report's stamp spells; the pull request
+        # carries no attachment.
         github, issue = self.seeded()
         ran = self.dispatch(github, issue, _support.returning(), **self.committing)
-        settled = self.published(github)["developer_report_current"]
+        record = self.published(github)
         snapshot = self.only(_support.SNAPSHOT_EVENT)
         self.assertTrue(_support.prompt_of(ran).endswith(_notes._TASK_SNAPSHOT_NOTE))
-        self.assertEqual(snapshot[_support.TASK_REF], _support.reference(settled["requirements"]))
+        self.assertEqual(_named(snapshot), _named_by(record))
+        self.assertEqual(snapshot["description"]["text"], _support.DESCRIPTION)
         self.assertEqual(_support.published_attachments(github), [])
 
     def test_a_mid_run_edit_is_never_bound(self) -> None:
@@ -112,13 +105,23 @@ class DispatchedSnapshotTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
 
     def test_an_invalid_outcome_is_not_rescued(self) -> None:
         # The attachment after the outcome leaves the report malformed --
-        # exactly as any other line there does -- and is recorded as
-        # misplaced rather than read.
+        # exactly as any other line there does, though no notice quotes it
+        # -- and is recorded as misplaced rather than read.
         misplaced = _malformed_outcome(self, _support.SNAPSHOT)
         self.assertEqual(misplaced, _malformed_outcome(self, _TRAILING_PROSE))
         self.assertEqual(misplaced[:2], (0, []))
         self.assertEqual(self.diagnosed(), [("misplaced", True), ("missing", False)])
         self.assertEqual(self.events(_support.SNAPSHOT_EVENT), [])
+
+    def test_an_unreadable_sink_costs_the_run_nothing(self) -> None:
+        # The sink's settings will not read: one warning, and the report is
+        # published as ever.
+        github, issue = self.seeded()
+        settings = SimpleNamespace(live_settings=MagicMock(side_effect=OSError("settings unavailable")))
+        with patch.object(_recorder, "analytics_config", settings):
+            self.dispatch(github, issue, _support.returning(), **self.committing)
+        self.assertEqual(len(github.opened_prs), 1)
+        self.assertEqual(self.observations(), [])
 
     def test_a_failed_recording_costs_the_run_nothing(self) -> None:
         # The redactor fails on the description alone: the run is still accounted
@@ -148,14 +151,28 @@ class DispatchedSnapshotTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
         self.assertEqual(self.observations(), observed)
 
 
+def _named(snapshot: dict) -> tuple:
+    """What a snapshot names: its charge ordinal and road, its nonce and stage, and its task reference."""
+    nonce = snapshot[_support.SOURCE]["nonce"]
+    named = (nonce, snapshot["stage"], snapshot[_support.TASK_REF])
+    return (*_support.charged(snapshot), *named)
+
+
+def _named_by(record: dict) -> tuple:
+    """What the snapshot of the first implementation `record` settled names: its own charge, road, stage, and report."""
+    ordinal, nonce = record["issue_usage_receipts"]["recent"][0]
+    revision = record["developer_report_current"]["requirements"]
+    return (ordinal, "implementation", nonce, "implementing", _support.reference(revision))
+
+
 def _malformed_outcome(case: DispatchedSnapshotTest, trailer: str) -> tuple:
-    """A fresh issue's dispatch over a reply with `trailer` past its outcome: what the workflow did."""
+    """A fresh issue's dispatch over a reply with `trailer` past its outcome: what the workflow did and posted."""
     github, issue = case.seeded()
     message = f"Implemented.\n\n{_FINISHED_REPORT}\n{trailer}"
     case.dispatch(github, issue, _support.returning(message), **case.sunk)
     record = github.pinned_data(_held.ISSUE)
-    parked = record.get("park_reason")
-    return (len(github.opened_prs), github.label_history, parked, _held.capture_of(record))
+    parked = (record.get("park_reason"), _held.capture_of(record))
+    return (len(github.opened_prs), github.label_history, parked, _support.posted_attachments(github))
 
 
 if __name__ == "__main__":

@@ -74,7 +74,8 @@ orchestrator/
                         vocabulary prompts teach and the reader that types it off the reply as written, the bounds a
                         telemetry copy of text is held to and the redaction that masks every credential in it, the
                         versioned task snapshot and diagnostic payloads, and the best-effort recorder whose one failure
-                        boundary covers a reply from the report reader's framing of it through its append
+                        boundary covers a reply from the workflow's framing of it through its append, behind a guarded
+                        read of where the sink is
       recording/        the append side, publishing the seven recorders a producer appends through (`__all__`): the
                         envelope and the append beneath them, and the token, cost, skill, and catalog steps a
                         finished agent run is summarized by before one of them writes

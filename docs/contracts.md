@@ -240,16 +240,18 @@ completeness and their overlap unknown, nothing inferred from `issue_cost_source
 folds that reading in once and keeps their number in `issue_unevidenced_runs`, so no later run makes them known, and no
 posted receipt is rewritten.
 A task snapshot attachment is read only in its current form, off the reply exactly as written: one
-`ANALYTICS: task-snapshot v1` line in a developer reply, above its report outcome where it has one, over a JSON object
-holding one non-blank `description` written once. Another kind, version, or shape, a key written twice, the line inside
-the report block or past the outcome, two lines anywhere, or none at all is a diagnostic naming why, never a guessed,
-repaired, or merged observation. The `task_snapshot` and `observation_diagnostic` records carry
+`ANALYTICS: task-snapshot v1` line outside any code fence in a developer reply, above its report outcome where it has
+one, over a JSON object holding one non-blank `description` written once. Another kind, version, or shape, a key written
+twice, the line inside the report block or past the outcome, two lines anywhere, or none at all is a diagnostic naming
+why, never a guessed, repaired, or merged observation. The `task_snapshot` and `observation_diagnostic` records carry
 `observation_version: 1` and their source invocation's identity whole; a text says how long it was and whether it was
-cut, a character `jsonb` refuses is written as the replacement character, a record past its limit drops its texts
-rather than cutting an identifier, and nothing backfills a snapshot for a run that recorded none. A snapshot's
-`task_ref` is spelled from the revision its run's report is stamped with, and its `requirements_revision` names what
-its conversation was handed, which the pinned `task_snapshot_grounding` record carries to a later retry resuming that
-conversation only while its baseline stands.
+cut, a character `jsonb` refuses is written as the replacement character, a record past its limit drops its texts rather
+than cutting an identifier, and nothing backfills a snapshot for a run that recorded none. A snapshot's `task_ref` is
+spelled from the revision its run's report is stamped with, and its `requirements_revision` names what its conversation
+was handed. A host record beside the issue's writer claim, `repo-<id>-issue-<n>.task-snapshot-grounding` spelling
+`{"session_id", "requirements", "baseline"}`, carries a retry's re-grounding to a later retry resuming that conversation
+only while its baseline stands; it is written only with the analytics sink on, never on the pinned comment, and one that
+will not read is nothing, so its loss needs no migration and binds that snapshot to the baseline.
 A recorded requirements fingerprint
 (`user_content_hash`, `observed_user_content_hash`) is compared with the current fingerprint alone, which leaves bare
 operator controls out: a value no current reading reproduces -- one an earlier producer wrote counting a bare
@@ -757,9 +759,11 @@ answer is read by the same parser and earns none of its own; a question, silence
 interrupted, or dirty run earns none, and no dependency list is inferred from a child's prose. Session identity is
 covered by [C-14]. The task snapshot request the implementing roads append to every attempt is spelled from the
 vocabulary the one analytics attachment reader reads, and asks every finished reply for its line, above the report
-outcome where there is one. The workflow reads the reply with that line taken out above the outcome and inside a
-report block, so it is outside the published report and its digest, no park reads or quotes it, and every report
-reading is what it would be without it -- text after an outcome still refused. A missing, malformed, duplicated, or
+outcome where there is one. The workflow reads the reply with every such line outside a code fence kept out of it
+without moving its framing -- taken out where the reply has no report marker and inside a READY block, and replaced by
+a placeholder line elsewhere -- so it is outside the published report and its digest, no park or notice quotes it, a
+fenced example stays where it was, text after an outcome is still refused, a block holding nothing else is refused as
+empty, and the verdict the workflow reaches is the one the snapshot's record names. A missing, malformed, duplicated, or
 misplaced attachment earns a diagnostic and nothing else -- no retry, correction, park, or refusal -- and never makes
 an invalid report outcome valid. A reviewer handed a report is told the task snapshot reference that report's stamped
 requirements revision spells, the one the snapshot of the reply that wrote it was recorded under.
@@ -772,9 +776,11 @@ requirements revision spells, the one the snapshot of the reply that wrote it wa
 [manifest corrections](../tests/workflow/stages/decomposition/test_correction_road.py),
 [fuzzed manifests](../tests/repository/test_fuzz_targets.py),
 [task snapshot replies](../tests/workflow/engine/test_task_snapshot_replies.py),
+[task snapshot framing](../tests/workflow/engine/test_task_snapshot_framing.py),
 [task snapshot attempts](../tests/workflow/stages/implementing/test_task_snapshot_attempts.py),
 [task snapshot readings](../tests/workflow/stages/implementing/test_task_snapshot_readings.py),
 [task snapshot grounding](../tests/workflow/engine/test_task_snapshot_grounding.py),
+[task snapshot continuations](../tests/workflow/stages/implementing/test_task_snapshot_continuations.py),
 [reviewer task reference](../tests/workflow/engine/test_prompts_review_report.py).
 
 ## C-09: Reports, review subjects, and verification
@@ -996,11 +1002,13 @@ recorded, on a trajectory record marked `stream_refused`. A task snapshot and it
 no usage total, accounting, completion capture, report settlement, or workflow decision reads one. They are collected
 wherever the analytics sink is on, needing no usage parse, trajectory sink, or database, from a genuine developer
 return alone, judged by the run's status -- so the recovery that finishes a captured report records none -- and behind
-one failure boundary from the report reader's framing of the reply through the append: a step that fails before the
-append is a diagnostic, a refused append or a diagnostic that cannot be written is one warning, and a lost observation
-owes no export, checkpoint, or agent run. Only the telemetry copy is redacted, before it is cut: an excerpt masks every
-credential the whole reply holds, written raw or JSON-escaped, and every text is masked in the JSON spelling the sink
-writes it in as well. The pinned `task_snapshot_grounding` record is read by the snapshot alone and decides nothing.
+one failure boundary from the framing of the reply the workflow reads through the append, behind a guarded read of
+where the sink is: settings that will not read, a refused append, or a diagnostic that cannot be written is one
+warning, a step that fails before the append is a diagnostic, and a lost observation owes no export, checkpoint, or
+agent run. Only the telemetry copy is redacted, before it is made storable or cut: an excerpt masks every credential
+the whole reply holds, written raw or JSON-escaped, and every text is masked in the JSON spelling the sink writes it in
+as well. The host's task snapshot grounding record is read by the snapshot alone, kept only with the sink on, and
+never on the pinned comment, so no settlement measures it and it decides nothing.
 
 **Specs:** [audit recovery](observability/event-streams.md#audit-event-log-event_log_path),
 [request usage](observability/usage.md#request-usage-observations),

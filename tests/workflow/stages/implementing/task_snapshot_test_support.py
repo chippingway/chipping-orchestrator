@@ -52,15 +52,14 @@ def prompt_of(ran: dict) -> str:
     return called.args[1]
 
 
-def receipt(record: dict) -> list:
-    """The charge ordinal and nonce of the one exit an issue's pinned record accounted."""
-    recent = record["issue_usage_receipts"]["recent"]
-    return recent[0]
-
-
 def reference(revision: str) -> str:
     """The task reference a snapshot bound to `revision` is named by."""
     return f"{_TEST_SPEC.slug}#{_held.ISSUE}@{revision}"
+
+
+def posted_attachments(github) -> list[str]:
+    """Every comment posted on the issue that holds an attachment line."""
+    return [body for _issue, body in github.posted_comments if "ANALYTICS:" in body]
 
 
 def published_attachments(github) -> list[str]:

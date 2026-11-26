@@ -13,9 +13,11 @@ ends on one, which keeps it out of the report block and out of the digest the
 published report is identified by.
 
 The reader is handed the reply exactly as the agent wrote it, beside where
-its report outcome begins -- the report reader's own question, not this
-one's -- and reads every line opening on the prefix anywhere in it. A reply
-carries exactly one:
+its report outcome begins and which of its lines a code fence may enclose --
+the report reader's own questions, not this one's. An attachment line is a
+line opening on the prefix that no fence may enclose: one inside a fence is
+code -- an example a report quotes, say -- and is neither read nor counted.
+A reply carries exactly one:
 
 * none at all is `missing`, whatever else the reply says;
 * two or more are a `duplicate`, wherever they sit, and none of them is read,
@@ -34,12 +36,8 @@ repaired, or normalized before it is read, so a credential's line break
 written raw inside the JSON leaves the line as malformed as it was written.
 Nothing here bounds, redacts, or writes anything either: a problem names where
 its lines sit in the reply, and the redaction owner masks what it excerpts.
-
-`without_attachments` is the other half of the framing: the workflow reads a
-reply with its attachment lines taken out wherever it says they do not
-belong in what it publishes -- above the outcome and inside a report block --
-so a reply that says nothing else reads as saying nothing, no park or notice
-quotes it, and no published report carries one.
+The lines themselves (`attachment_lines`) are also what the workflow keeps out
+of the reply it reads (`workflow/engine/task_snapshot_replies`).
 """
 from __future__ import annotations
 
@@ -75,8 +73,11 @@ TASK_SNAPSHOT_TEMPLATE = (
 # Every line opening on the prefix, whatever follows it.
 _ATTACHMENT_LINE_RE = re.compile(rf"^[ \t]*{re.escape(PREFIX)}[^\r\n]*", re.MULTILINE)
 
-# The same lines with the break that ends each, as the workflow's reply leaves them out.
-_TAKEN_OUT_RE = re.compile(rf"^[ \t]*{re.escape(PREFIX)}[^\r\n]*(?:\r?\n)?", re.MULTILINE)
+# Where a line sits in a reply: `(start, end)`, its break aside.
+_Span = tuple[int, int]
+
+# The line starts of a reply no code fence may enclose any line of.
+NOTHING_FENCED: frozenset[int] = frozenset()
 
 # The kind and version spelling the one attachment this build reads.
 _CURRENT = (TASK_SNAPSHOT, str(TASK_SNAPSHOT_VERSION))
@@ -123,29 +124,31 @@ class SnapshotReading:
     found: int
 
 
-def read_task_snapshot(message: str, outcome_at: int) -> SnapshotReading:
+def read_task_snapshot(message: str, outcome_at: int, fenced: frozenset[int] = NOTHING_FENCED) -> SnapshotReading:
     """The task snapshot `message` carries, or the one problem that leaves it none.
 
     `outcome_at` is where the reply's report outcome begins: the length of
-    the message where it has none.
+    the message where it has none. `fenced` is the start of every line a code
+    fence may enclose (`attachment_lines`).
     """
-    lines = tuple(_ATTACHMENT_LINE_RE.finditer(message))
-    if not lines:
+    spans = attachment_lines(message, fenced)
+    if not spans:
         return SnapshotReading(None, (AttachmentProblem(Problem.MISSING),), 0)
-    spans = tuple(line.span() for line in lines)
-    if len(lines) > 1:
-        return SnapshotReading(None, (AttachmentProblem(Problem.DUPLICATE, spans),), len(lines))
-    if lines[0].start() >= outcome_at:
+    if len(spans) > 1:
+        return SnapshotReading(None, (AttachmentProblem(Problem.DUPLICATE, spans),), len(spans))
+    start, end = spans[0]
+    if start >= outcome_at:
         return SnapshotReading(None, (AttachmentProblem(Problem.MISPLACED, spans),), 1)
-    description = _description(lines[0].group())
+    description = _description(message[start:end])
     if isinstance(description, Problem):
         return SnapshotReading(None, (AttachmentProblem(description, spans),), 1)
     return SnapshotReading(description, (), 1)
 
 
-def without_attachments(text: str) -> str:
-    """`text` with every line opening on the prefix taken out, the break that ends each line with it."""
-    return _TAKEN_OUT_RE.sub("", text)
+def attachment_lines(message: str, fenced: frozenset[int] = NOTHING_FENCED) -> tuple[_Span, ...]:
+    """Where every attachment line of `message` sits: each line opening on the prefix that starts at no `fenced`."""
+    found = _ATTACHMENT_LINE_RE.finditer(message)
+    return tuple(line.span() for line in found if line.start() not in fenced)
 
 
 def _description(line: str) -> str | Problem:

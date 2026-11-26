@@ -156,7 +156,7 @@ class SnapshotRecordTest(_support.SinkCase):
         finding = MagicMock(side_effect=_support.framing)
         observed = recorder.ObservedReply(_support.reply("Done."), finding)
         with patch.object(analytics_settings, "ANALYTICS_LOG_PATH", None):
-            recorder.record_task_snapshot(_support.RUN, observed)
+            recorder.record_task_snapshot(_support.RUN, observed, recorder.sink_path())
         finding.assert_not_called()
         self.assertEqual(self.written(), [])
 

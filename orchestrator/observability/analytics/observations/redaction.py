@@ -2,10 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """The telemetry copy of a reply's text, with every credential in it masked before anything is cut or written.
 
-Every text is made storable first (`bounds.storable`), one character for one,
-so nothing below moves a position. The credential redactor
-(`config.credentials.redact_secrets`) replaces each credential's literal value
-in a text it is handed whole. A description is handed whole: it is one decoded
+Every credential is masked in the text as the agent wrote it, before anything
+normalizes it: a value holding a character the analytics database refuses --
+a byte the environment carried as a lone surrogate -- matches only there, so
+only the masked text is made storable, as it is bounded (`bounds.bounded`).
+The credential redactor (`config.credentials.redact_secrets`) replaces each
+credential's literal value in a text it is handed whole. A description is handed whole: it is one decoded
 JSON string, so the redactor runs over it as it is, a credential the JSON
 escaped decoded back into its value. Decoding can also do the opposite -- a
 credential whose value itself spells an escape, a backslash and an `n`, decodes
@@ -37,8 +39,6 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, NamedTuple
-
-from orchestrator.observability.analytics.observations import bounds
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -75,10 +75,10 @@ class Telemetry(NamedTuple):
 
 
 def sanitized(message: str, reading: SnapshotReading) -> Telemetry:
-    """The texts `reading` of `message` yields, storable, with every credential the process holds masked."""
+    """The texts `reading` of `message` yields, with every credential the process holds masked, not yet storable."""
     from orchestrator import config
 
-    masker = _Masker.over(bounds.storable(message), _credential_values(config))
+    masker = _Masker.over(message, _credential_values(config))
     redact = config.credentials.redact_secrets
     excerpts = (masker.excerpt(problem.spans) for problem in reading.problems)
     cleared = tuple(masker.cleared(excerpt, redact) for excerpt in excerpts)
@@ -169,7 +169,7 @@ class _Masker:
         return cls(message, cls._merged(found), secrets)
 
     def cleared(self, text: str | None, redact: _Redactor) -> str | None:
-        """`text` made storable and redacted, and masked in the JSON spelling the sink writes it in; None for none.
+        """`text` redacted as written, and masked in the JSON spelling the sink writes it in; None for none.
 
         A credential's value may itself spell an escape -- a backslash and an
         `n`, written by an agent inside a JSON string -- which decoding turned
@@ -179,7 +179,7 @@ class _Masker:
         """
         if text is None:
             return None
-        redacted = redact(bounds.storable(text))
+        redacted = redact(text)
         written = _Decoded.of(json.dumps(redacted)[1:-1])
         found = [span for secret in self.secrets for span in written.spans_of(secret)]
         return written.masked(self._merged(found)) if found else redacted

@@ -5,8 +5,9 @@
 The redactor replaces each secret's literal value, so it has to see the
 secret whole: across the reply's raw lines, inside a description or a
 refused line its JSON escaped -- canonically or not -- in the JSON spelling
-the sink writes a decoded description back in, and before a field limit would
-cut it into halves the redactor no longer recognizes. The
+the sink writes a decoded description back in, before a field limit would cut
+it into halves the redactor no longer recognizes, and before a character the
+database refuses is replaced inside it. The
 attachment itself is read off the reply as written, so a secret's raw line
 break inside the JSON leaves the line malformed rather than repaired by the
 mask.
@@ -34,7 +35,11 @@ _BACKSLASHED = f"{_BACKSLASHED_LINE}\nother-secret-second"
 # decodes to another character, and serializing spells it back exactly.
 _ESCAPE_SPELLING = r"spelled-token-first\nspelled-token-second"
 
-_FRAGMENTS = ("first-line", "second-line", "of-the-secret", "other-secret", "spelled-token")
+# A fourth, holding a byte the environment carries as a lone surrogate, which
+# the database refuses: masked as written, before the copy is made storable.
+_SURROGATE_ESCAPED = "carried-token-first\udcffcarried-token-last"
+
+_FRAGMENTS = ("first-line", "second-line", "of-the-secret", "other-secret", "spelled-token", "carried-token")
 
 # Room a case leaves beside a secret, under a field limit.
 _ROOM = 40
@@ -68,13 +73,16 @@ _CASES = (
     (f"{_UNCLOSED}{_BACKSLASHED}", _MALFORMED),
     (f"{_OPENING}Keep {_ESCAPE_SPELLING} out.{_CLOSING}", _SNAPSHOT),
     (f"{_UNCLOSED}{_ESCAPE_SPELLING}", _MALFORMED),
+    (_support.snapshot_line(f"Uses {_SURROGATE_ESCAPED} to log in."), _SNAPSHOT),
+    (f"{_UNCLOSED}{_SURROGATE_ESCAPED}", _MALFORMED),
 )
 
-# The process environment the cases run under: three credentials.
+# The process environment the cases run under: four credentials.
 _CREDENTIALS = MappingProxyType({
     "ANALYTICS_TEST_TOKEN": _SECRET,
     "ANALYTICS_TEST_KEY": _BACKSLASHED,
     "ANALYTICS_TEST_PASSWORD": _ESCAPE_SPELLING,
+    "ANALYTICS_TEST_SECRET": _SURROGATE_ESCAPED,
 })
 
 
@@ -99,3 +107,9 @@ class RedactionTest(_support.SinkCase):
                 self.assertEqual(recorded.get(_support.CATEGORY, recorded[_support.EVENT]), reading)
                 self.assertIn("***", written)
                 self.assertEqual([fragment for fragment in _FRAGMENTS if fragment in written], [])
+
+    def test_a_credential_is_masked_as_written(self) -> None:
+        # The byte the database refuses is replaced only once the credential
+        # around it is masked, so nothing of it is left to replace.
+        recorded = self.record(_support.reply(_support.snapshot_line(f"Use {_SURROGATE_ESCAPED} for the test.")))
+        self.assertEqual(recorded[0][_support.DESCRIPTION_FIELD][_support.TEXT], "Use *** for the test.")

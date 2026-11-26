@@ -51,9 +51,9 @@ attempt is handed the prompt its road asks with -- the task snapshot request
 appended on an implementing road -- and its return is received by the road
 before anything reads it: a task snapshot goes to analytics, which raises
 nothing and is read by nothing here, and the reply is left as the workflow
-reads it, its attachment taken out above the outcome. Every attempt is then asked of the road behind that
-attempt's accounting, quota retirement, and live-pause reading
-(`completion_roads`): one that finished on
+reads it, its attachment lines kept out without moving its framing. Every
+attempt is then asked of the road behind that attempt's accounting, quota
+retirement, and live-pause reading (`completion_roads`): one that finished on
 its road's report is captured whole as it returns, the poisoned attempt and
 an incomplete Antigravity exit never, so the report survives the hold the
 pause reading decided, and a capture that did not settle holds the tick as a
@@ -375,7 +375,7 @@ class _DevRunCoordinator:
             self._options.get(_RESUMED),
         )
         if road is not None:
-            road.received(attempt, self._state())
+            road.received(self._gh, self._issue(), attempt, self._state())
         paused = self._held_on_quota(agent_result, resume_session_id) or agent_result.unaccounted or (
             self._options.get("pause_guard", True)
             and _guards._paused_during_agent_run(self._gh, self._issue())

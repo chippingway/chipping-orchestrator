@@ -2,19 +2,25 @@
 # SPDX-License-Identifier: Apache-2.0
 """What an implementing conversation was handed, as a task snapshot of it is bound to.
 
-A fresh conversation is handed its prompt's requirements: the road's own, or
-what the road re-grounds a fresh one with. A resumed one is handed nothing
-new, so it holds what the pinned record says it was grounded on -- while that
-record still speaks for it: the same conversation, under the same baseline.
-Another conversation, a baseline a road has since settled, or a record no
-reading parses says nothing, and the road's own answers. The record is kept
-only where the conversation was handed something other than the baseline.
+A road that hands the developer requirements hands its own, whatever this
+host keeps. On a retry, a fresh conversation is handed what the road
+re-grounds it with, and a resumed one holds what the host's record says it
+was grounded on -- while that record still speaks for it: the same
+conversation, under the same baseline. Another conversation, a baseline a
+road has since settled, or a record no reading parses says nothing, and the
+road's own answers. The record is kept where the conversation was last
+handed something other than the baseline and taken away where it was handed
+the baseline; an unknown conversation leaves it as it stands, and a record
+the host will not take is warned of and lost.
 """
 from __future__ import annotations
 
+import json
 import unittest
+from unittest.mock import patch
 
 from orchestrator.github.pinned_state import PinnedState
+from orchestrator.scheduler import writer_claims
 from orchestrator.workflow.engine import task_snapshot_grounding as _grounding
 
 _BASELINE = "baseline-revision"
@@ -22,11 +28,14 @@ _EDITED = "edited-revision"
 _ROAD = "road-revision"
 _SESSION = "replacement-session"
 _OTHER = "another-session"
-_HASH = "user_content_hash"
+_REPO_ID = 7
+_ISSUE = 42
 
 
-def _state(**fields) -> PinnedState:
-    return PinnedState(comment_id=1, state_data={_HASH: _BASELINE, **fields})
+def _kept(baseline: str = _BASELINE) -> _grounding.Grounding:
+    """The issue's record on this host, read beside `baseline`."""
+    state = PinnedState(comment_id=1, state_data={"user_content_hash": baseline})
+    return _grounding.Grounding.of(_REPO_ID, _ISSUE, state)
 
 
 def _grounded(session: str = _SESSION, baseline: str = _BASELINE) -> dict:
@@ -36,47 +45,73 @@ def _grounded(session: str = _SESSION, baseline: str = _BASELINE) -> dict:
 
 # Records that speak for the resumed conversation, and those that do not.
 _SILENT_RECORDS = (
-    ("another conversation", _grounded(_OTHER)),
-    ("a settled baseline", _grounded(baseline=_ROAD)),
-    ("a damaged record", "not a record"),
-    ("a record without requirements", {"session_id": _SESSION, "baseline": _BASELINE}),
-    ("no record", None),
+    ("another conversation", json.dumps(_grounded(_OTHER))),
+    ("a settled baseline", json.dumps(_grounded(baseline=_ROAD))),
+    ("a damaged record", '{"session_id": '),
+    ("a record without requirements", json.dumps({"session_id": _SESSION, "baseline": _BASELINE})),
 )
 
 
-class HandedTest(unittest.TestCase):
+class _HostRecord(unittest.TestCase):
+    """A test reading and writing the issue's record on this host."""
+
+    def setUp(self) -> None:
+        self.kept = _kept()
+        self.path = self.kept.path
+
+    def recorded(self, spelled: str) -> None:
+        """The record spelling `spelled` on the host."""
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.write_text(spelled, encoding="utf-8")
+
+
+class HandedTest(_HostRecord):
     """What each attempt's conversation was handed."""
 
-    def test_a_fresh_conversation_has_its_prompts(self) -> None:
-        state = _state(**{_grounding.GROUNDING: _grounded()})
-        self.assertEqual(_grounding.handed(state, None, None, _ROAD), _ROAD)
-        self.assertEqual(_grounding.handed(state, None, _EDITED, _ROAD), _EDITED)
+    def test_the_record_sits_beside_the_claim(self) -> None:
+        claim = writer_claims.claim_path(_REPO_ID, _ISSUE)
+        self.assertEqual(self.path, claim.with_suffix(_grounding.GROUNDING_SUFFIX))
 
-    def test_a_resumed_one_keeps_its_grounding(self) -> None:
-        state = _state(**{_grounding.GROUNDING: _grounded()})
-        self.assertEqual(_grounding.handed(state, _SESSION, None, _ROAD), _EDITED)
+    def test_a_road_with_requirements_hands_its_own(self) -> None:
+        self.recorded(json.dumps(_grounded()))
+        self.assertEqual(self.kept.handed(None, None, _ROAD), _ROAD)
+        self.assertEqual(self.kept.handed(_SESSION, None, _ROAD), _ROAD)
+
+    def test_a_retry_keeps_the_grounding(self) -> None:
+        # A fresh conversation is handed the re-grounding; a resumed one what it was grounded on.
+        self.recorded(json.dumps(_grounded()))
+        self.assertEqual(self.kept.handed(None, _OTHER, _ROAD), _OTHER)
+        self.assertEqual(self.kept.handed(_SESSION, _OTHER, _ROAD), _EDITED)
 
     def test_a_stale_record_says_nothing(self) -> None:
-        for name, record in _SILENT_RECORDS:
+        self.assertEqual(self.kept.handed(_SESSION, _EDITED, _ROAD), _ROAD)
+        for name, spelled in _SILENT_RECORDS:
             with self.subTest(record=name):
-                state = _state(**{_grounding.GROUNDING: record})
-                self.assertEqual(_grounding.handed(state, _SESSION, _EDITED, _ROAD), _ROAD)
+                self.recorded(spelled)
+                self.assertEqual(self.kept.handed(_SESSION, _EDITED, _ROAD), _ROAD)
 
 
-class RememberTest(unittest.TestCase):
-    """The record staged beside an attempt's return."""
+class RememberTest(_HostRecord):
+    """The record kept beside an attempt's return."""
 
     def test_only_what_differs_is_kept(self) -> None:
-        state = _state()
-        _grounding.remember(state, _SESSION, _EDITED)
-        self.assertEqual(state.get(_grounding.GROUNDING), _grounded())
-        _grounding.remember(state, _OTHER, _BASELINE)
-        self.assertIsNone(state.get(_grounding.GROUNDING))
+        self.kept.remember(_SESSION, _EDITED)
+        record = json.loads(self.path.read_text(encoding="utf-8"))
+        self.assertEqual(record, _grounded())
+        self.kept.remember(_OTHER, _BASELINE)
+        self.assertFalse(self.path.exists())
 
-    def test_nothing_is_staged_without_a_conversation(self) -> None:
-        state = _state()
-        _grounding.remember(state, None, _EDITED)
-        self.assertFalse(state.carries(_grounding.GROUNDING))
+    def test_an_unknown_conversation_leaves_it(self) -> None:
+        self.kept.remember(_SESSION, _EDITED)
+        self.kept.remember(None, _BASELINE)
+        self.assertEqual(self.kept.handed(_SESSION, _OTHER, _ROAD), _EDITED)
+
+    def test_a_refused_write_is_warned_of(self) -> None:
+        refused = patch.object(_grounding, "_written", side_effect=OSError("read-only"))
+        with refused, self.assertLogs("orchestrator.workflow", level="WARNING") as logged:
+            self.kept.remember(_SESSION, _EDITED)
+            self.assertEqual(len(logged.output), 1)
+        self.assertFalse(self.path.exists())
 
 
 if __name__ == "__main__":

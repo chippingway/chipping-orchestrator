@@ -101,7 +101,7 @@ class SinkCase(unittest.TestCase):
 
     def record(self, message: str, run: records.ObservedRun = RUN) -> list[dict]:
         """Record `message` as `run`'s reply; every record the sink holds afterwards."""
-        recorder.record_task_snapshot(run, recorder.ObservedReply(message, framing))
+        recorder.record_task_snapshot(run, recorder.ObservedReply(message, framing), recorder.sink_path())
         return self.written()
 
     def written(self) -> list[dict]:
