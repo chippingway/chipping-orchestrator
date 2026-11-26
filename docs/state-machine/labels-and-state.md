@@ -290,7 +290,9 @@ Nothing migrates an obsolete label, neither the definition nor the issues carryi
 `runtime.startup.connect_clients` runs the bootstrap once per configured repo at process start, not mid-tick:
 `ensure_workflow_labels` lists the repository's labels once and creates each label of both vocabularies whose exact
 canonical name is not among them. Every other definition — an obsolete bare one or a name the repository picked for
-itself — is never looked up, edited, renamed, or deleted, so every issue carrying it keeps it. The unprefixed canonical
+itself — is never looked up, edited, renamed, or deleted, so every issue carrying it keeps it. A canonical label the
+repository already has keeps its color and description too: a default changed in `WORKFLOW_LABEL_SPECS` reaches only
+a repository that lacks the label, and a maintainer edits an existing one in place. The unprefixed canonical
 labels are skipped where they exist and created bare where they do not, never under the namespace. A PAT without
 `Issues: Read and write` cannot create: a refused listing skips the bootstrap, and a refused creation is logged and
 abandons the rest of it, leaving the repository without the labels it was missing until the permission is granted and
