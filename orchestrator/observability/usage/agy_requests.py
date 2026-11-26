@@ -23,7 +23,9 @@ whose model and usage the stream does not establish, so a run that spawned one h
 The estimate prices each class at its own rate -- ordinary input, cached input, and output with thinking -- on the
 active row in effect throughout the run's usage span (`prices.gemini_row`). A run with no span, or one reaching both
 sides of a scheduled rate change, finds no one row; a request-tiered row needs a request size no step is read for; and a
-negative count is no count. Each of those leaves the run unpriced.
+negative count is no count. Each of those leaves the run unpriced, and an unpriced run states every reason that applies
+(`unpriced`) -- its subagent, its model, and its steps' counts each answered on its own -- against each model it names,
+or `unknown` where it names none.
 """
 
 from __future__ import annotations
@@ -32,7 +34,7 @@ from collections.abc import Sequence
 from types import MappingProxyType
 from typing import Any
 
-from orchestrator.observability.usage import agy_events, cost_evidence, price_catalogue, prices, protocol
+from orchestrator.observability.usage import agy_events, cost_evidence, price_catalogue, prices, protocol, unpriced
 
 API_MODELS = MappingProxyType({
     "gemini-4-argon-high": "gemini-4-argon",
@@ -58,21 +60,21 @@ def delegates(events: list[dict[str, Any]]) -> bool:
     return any(step.get(agy_events.SUBAGENT_INFO) is not None for step in steps)
 
 
-def billed_tokens(records: Sequence[dict[str, int]]) -> protocol.TokenBucket | None:
-    """The steps' counts summed by the class each is billed at, or None where they establish no amount.
-
-    No step leaves nothing to price, and a step whose usage reports no count, or a negative one, establishes none.
-    """
-    if not records or not all(records):
-        return None
+def billed_tokens(records: Sequence[dict[str, int]]) -> protocol.TokenBucket:
+    """The steps' counts summed by the class each is billed at."""
     billed: protocol.TokenBucket = {}
     for record in records:
         for counter, count in record.items():
-            if count < 0:
-                return None
             token_class = _TOKEN_CLASSES[counter]
             billed[token_class] = billed.get(token_class, 0) + count
     return billed
+
+
+def count_reasons(records: Sequence[dict[str, int]]) -> tuple[str, ...]:
+    """Why the steps' counts establish no amount: a step whose usage reports no count, or a negative count."""
+    missing = () if all(records) else (unpriced.MISSING_TOKEN_COUNT,)
+    negative = any(count < 0 for record in records for count in record.values())
+    return (*missing, *((unpriced.INVALID_TOKEN_COUNTS,) if negative else ()))
 
 
 def api_model(models: tuple[str, ...]) -> str | None:
@@ -82,19 +84,63 @@ def api_model(models: tuple[str, ...]) -> str | None:
     return API_MODELS.get(models[0])
 
 
-def estimate(
+def model_reasons(
+    models: tuple[str, ...],
+    row: price_catalogue.PriceRow | None,
+) -> tuple[str, ...]:
+    """Why a run attributed to `models` has no Gemini API row; none where `row` is the one in effect for its span.
+
+    A mapped model whose active rows put no one of them in effect throughout the span lacks a rate period, not a price.
+    """
+    if len(models) > 1:
+        return (unpriced.SEVERAL_MODELS,)
+    model = api_model(models)
+    if model is None:
+        return (unpriced.MISSING_MODEL_PRICE,)
+    if row is not None:
+        return ()
+    catalogued = (candidate for candidate in prices.GEMINI_PRICES if candidate.answers_to(model))
+    priced = any(candidate.active for candidate in catalogued)
+    return (unpriced.INDETERMINATE_RATE_PERIOD if priced else unpriced.MISSING_MODEL_PRICE,)
+
+
+def price(
     models: tuple[str, ...],
     records: list[dict[str, int]],
     span: price_catalogue.UsageSpan | None,
-) -> cost_evidence.CostContribution | None:
-    """The steps' usage priced as a Gemini API estimate, or None when nothing establishes its price."""
+    *,
+    delegated: bool,
+) -> unpriced.Pricing:
+    """The steps' usage priced as a Gemini API estimate, or every reason nothing establishes its price.
+
+    `delegated` says the run spawned a subagent. A run with no step has no usage, so nothing to price.
+    """
+    if not records:
+        return unpriced.Pricing()
     model = api_model(models)
     row = None if model is None else prices.gemini_row(model, span)
-    rates = None if row is None else row.rates_for_request(None)
-    bucket = billed_tokens(records)
-    if row is None or rates is None or bucket is None:
-        return None
+    reasons = (
+        *((unpriced.SUBAGENT_USAGE,) if delegated else ()),
+        *model_reasons(models, row),
+        *count_reasons(records),
+    )
+    if row is None or reasons:
+        return unpriced.Pricing.refused(models or (protocol.UNKNOWN,), reasons)
+    return _priced_at(row, billed_tokens(records), models)
+
+
+def _priced_at(
+    row: price_catalogue.PriceRow,
+    bucket: protocol.TokenBucket,
+    models: tuple[str, ...],
+) -> unpriced.Pricing:
+    """The bucket priced at `row`, which no step's request size tiers, or why it has no amount there."""
+    rates = row.rates_for_request(None)
+    if rates is None:
+        return unpriced.Pricing.refused(models, (unpriced.INDETERMINATE_REQUEST_TIER,))
     amount = prices.priced_amount(rates, bucket)
     if amount is None:
-        return None
-    return cost_evidence.CostContribution(cost_evidence.GEMINI_API_ESTIMATE, amount, (row.verified_on,))
+        return unpriced.Pricing.refused(models, unpriced.unrated(rates, bucket))
+    return unpriced.Pricing(
+        cost_evidence.CostContribution(cost_evidence.GEMINI_API_ESTIMATE, amount, (row.verified_on,)),
+    )

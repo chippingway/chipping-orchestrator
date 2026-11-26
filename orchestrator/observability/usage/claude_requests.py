@@ -23,8 +23,9 @@ A row's scope says what its counts cover. A `message` row is one API message's u
 reads, and cache writes are that request's prompt, the size a request-tiered model's rates depend on. A
 `handback-output` row holds only the output count of the message that closed a subagent, and a `result-total` row the
 `result` frame's usage, a sum over the lead thread's requests: neither establishes any request's prompt. Each row is
-priced on its own (`ClaudeUsageRow.estimate`), so the run aggregate and every turn price their rows on one path and
-a run's estimate is its rows' estimates summed.
+priced on its own (`ClaudeUsageRow.price`), so the run aggregate and every turn price their rows on one path, a
+run's estimate is its rows' estimates summed, and a run with an unpriced row states every reason any of its rows
+gives.
 
 A row's settlement says which report its output count rests on: the count its message started with
 (`message-start`), the `message_delta` closing it (`message-delta`), what `modelUsage` leaves over for the sole open
@@ -38,7 +39,7 @@ from dataclasses import dataclass, replace
 from decimal import Decimal
 from typing import Any
 
-from orchestrator.observability.usage import cost_evidence, prices, protocol, token_evidence
+from orchestrator.observability.usage import prices, protocol, token_evidence, unpriced
 
 # A block's cache writes by lifetime, None for a lifetime it reports no count of, and whether its split contradicts
 # its aggregate.
@@ -93,11 +94,17 @@ class ClaudeUsageRow:
     def with_output(self, output: int, settlement: str) -> ClaudeUsageRow:
         return replace(self, counts={**self.counts, protocol.OUTPUT: output}, settlement=settlement)
 
-    def estimate(self) -> cost_evidence.CostContribution | None:
-        """The row priced on its own as an Anthropic API estimate, or None when nothing establishes its price."""
-        if self.conflicting_writes:
-            return None
-        return prices.claude_estimate(self.model, self.counts, self.prompt_tokens)
+    def price(self) -> unpriced.Pricing:
+        """The row priced on its own as an Anthropic API estimate, or every reason nothing establishes its price.
+
+        Counts that contradict each other price on no model, so beside that only a model with no row is named.
+        """
+        if not self.conflicting_writes:
+            return prices.claude_price(self.model, self.counts, self.prompt_tokens)
+        reasons = [unpriced.INVALID_TOKEN_COUNTS]
+        if prices.claude_row(self.model) is None:
+            reasons.append(unpriced.MISSING_MODEL_PRICE)
+        return unpriced.Pricing.refused((self.model,), reasons)
 
 
 def cache_writes(usage: dict[str, Any]) -> CacheWrites:

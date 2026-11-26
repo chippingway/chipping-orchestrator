@@ -1,6 +1,10 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Each Codex usage record priced on what it establishes: a write at a reported lifetime, a tier under its bound."""
+"""Each Codex usage record priced on what it establishes: a write at a reported lifetime, a tier under its bound.
+
+A record with no price states every reason that applies, each beside the model it was priced as, and a run keeps them
+only where its cost is unpriced: a CLI-reported amount, a zero included, outranks the estimate and leaves none.
+"""
 
 import json
 import unittest
@@ -13,6 +17,7 @@ from orchestrator.observability.usage import (
     event_stream as _event_stream,
     metrics as _metrics,
     protocol as _protocol,
+    unpriced as _unpriced,
 )
 from tests.observability.usage import (
     usage_codex_events as _codex,
@@ -39,6 +44,8 @@ _GPT_FIVE_SIX_SOL = _capture.GPT_FIVE_SIX_SOL
 _GPT_FIVE_ONE_CODEX = "gpt-5.1-codex"
 _GPT_FIVE_FOUR_MINI = "gpt-5.4-mini"
 _UNKNOWN_MODEL = "gpt-5.7"
+_GPT_SIX_ASTRA = "gpt-6-astra"
+_GPT_FIVE_FIVE_PRO = "gpt-5.5-pro"
 _THRESHOLD = 272_000
 _PAST_THRESHOLD = _THRESHOLD + 1
 _PLACES = 9
@@ -93,7 +100,14 @@ _CAPTURES = (
     (_capture.UNREPORTED_WRITES_STDOUT, _capture.UNREPORTED_WRITES_PROVIDER_USAGE),
 )
 
-# A captured stream, the model it is priced as, and the tokens it bills by class, or None where it has no price.
+# Why a record has no price, as the reasons it names.
+_MISSING_PRICE = (_unpriced.MISSING_MODEL_PRICE,)
+_INDETERMINATE_TIER = (_unpriced.INDETERMINATE_REQUEST_TIER,)
+_MISSING_COUNT = (_unpriced.MISSING_CACHE_WRITE_COUNT,)
+_MISSING_LIFETIME = (_unpriced.MISSING_CACHE_WRITE_LIFETIME,)
+_INVALID = (_unpriced.INVALID_TOKEN_COUNTS,)
+
+# A captured stream, the model it is priced as, and the tokens it bills by class, or the reasons it has no price.
 _CAPTURED_PRICES = (
     (
         "a single request's writes are ordinary input before GPT-5.6",
@@ -101,8 +115,13 @@ _CAPTURED_PRICES = (
         _GPT_FIVE_FIVE,
         {_INPUT: 8000, _CACHED: 4000, _OUTPUT: 500},
     ),
-    ("a write of no lifetime on GPT-5.6", _capture.ONE_REQUEST_STDOUT, _GPT_FIVE_SIX_SOL, None),
-    ("two requests under the threshold that sum past it", _capture.TWO_REQUEST_STDOUT, _GPT_FIVE_FIVE, None),
+    ("a write of no lifetime on GPT-5.6", _capture.ONE_REQUEST_STDOUT, _GPT_FIVE_SIX_SOL, _MISSING_LIFETIME),
+    (
+        "two requests under the threshold that sum past it",
+        _capture.TWO_REQUEST_STDOUT,
+        _GPT_FIVE_FIVE,
+        _INDETERMINATE_TIER,
+    ),
     (
         "the same two requests on a flat-rate model",
         _capture.TWO_REQUEST_STDOUT,
@@ -119,7 +138,7 @@ _CAPTURED_PRICES = (
         "the zero the CLI prints for a write count it was not given",
         _capture.UNREPORTED_WRITES_STDOUT,
         _GPT_FIVE_SIX_SOL,
-        None,
+        _MISSING_COUNT,
     ),
     (
         "the same zero before GPT-5.6",
@@ -127,7 +146,12 @@ _CAPTURED_PRICES = (
         _GPT_FIVE_FIVE,
         {_INPUT: 6952, _CACHED: 2048, _OUTPUT: 300},
     ),
-    ("codex-cli 0.148.0's zero write count on GPT-5.6", _tool_events.TOOL_RUN_STDOUT, _GPT_FIVE_SIX_SOL, None),
+    (
+        "codex-cli 0.148.0's zero write count on GPT-5.6",
+        _tool_events.TOOL_RUN_STDOUT,
+        _GPT_FIVE_SIX_SOL,
+        _MISSING_COUNT,
+    ),
     (
         "codex-cli 0.148.0's run before GPT-5.6",
         _tool_events.TOOL_RUN_STDOUT,
@@ -146,13 +170,17 @@ def _frame(model: str, usage: dict[str, int], output: int = 1000) -> dict:
 
 
 _SMALL_FRAME = _frame(_GPT_FIVE_FIVE, {_INPUT_FIELD: 100000, _CACHED_FIELD: 50000})
-# The frames a stream printed, priced as the model the last one names, and the tokens the run bills, or None.
+# What the observed GPT-6 Astra runs printed: a cumulative input past the tier, and the CLI's zero write count.
+_ASTRA_FRAME = _frame(_GPT_SIX_ASTRA, {_INPUT_FIELD: _PAST_THRESHOLD, _CACHED_FIELD: 200000, _WRITES_FIELD: 0})
+_ASTRA_REASONS = (_unpriced.INDETERMINATE_REQUEST_TIER, _unpriced.MISSING_CACHE_WRITE_COUNT)
+# The frames a stream printed, priced as the model the last one names, and the tokens the run bills, or the reasons
+# it has no price.
 _FRAME_PRICES = (
     ("a frame printed twice", (_SMALL_FRAME, _SMALL_FRAME), {_INPUT: 50000, _CACHED: 50000, _OUTPUT: 1000}),
     (
         "cumulative frames whose difference stays under the threshold",
         (_frame(_GPT_FIVE_FIVE, {_INPUT_FIELD: 150000}), _frame(_GPT_FIVE_FIVE, {_INPUT_FIELD: 300000})),
-        None,
+        _INDETERMINATE_TIER,
     ),
     (
         "the same frames on a flat-rate model",
@@ -164,9 +192,24 @@ _FRAME_PRICES = (
         (_frame(_GPT_FIVE_FIVE, {_INPUT_FIELD: _THRESHOLD}),),
         {_INPUT: _THRESHOLD, _OUTPUT: 1000},
     ),
-    ("a run past the threshold", (_frame(_GPT_FIVE_FIVE, {_INPUT_FIELD: _PAST_THRESHOLD}),), None),
-    ("a pro run past the threshold", (_frame("gpt-5.5-pro", {_INPUT_FIELD: _PAST_THRESHOLD}),), None),
-    ("a GPT-5.4 run past the threshold", (_frame("gpt-5.4", {_INPUT_FIELD: _PAST_THRESHOLD}),), None),
+    ("a run past the threshold", (_frame(_GPT_FIVE_FIVE, {_INPUT_FIELD: _PAST_THRESHOLD}),), _INDETERMINATE_TIER),
+    (
+        "a pro run past the threshold",
+        (_frame(_GPT_FIVE_FIVE_PRO, {_INPUT_FIELD: _PAST_THRESHOLD}),),
+        _INDETERMINATE_TIER,
+    ),
+    ("a GPT-5.4 run past the threshold", (_frame("gpt-5.4", {_INPUT_FIELD: _PAST_THRESHOLD}),), _INDETERMINATE_TIER),
+    ("the observed GPT-6 Astra run", (_ASTRA_FRAME,), _ASTRA_REASONS),
+    (
+        "positive writes past the threshold on GPT-5.6",
+        (_frame(_GPT_FIVE_SIX_SOL, {_INPUT_FIELD: _PAST_THRESHOLD, _WRITES_FIELD: 3000}),),
+        (_unpriced.INDETERMINATE_REQUEST_TIER, _unpriced.MISSING_CACHE_WRITE_LIFETIME),
+    ),
+    (
+        "cached input on a model publishing no cached rate",
+        (_frame(_GPT_FIVE_FIVE_PRO, {_INPUT_FIELD: 10000, _CACHED_FIELD: 4000}),),
+        (_unpriced.UNRATED_TOKEN_CLASS,),
+    ),
     (
         "positive writes before GPT-5.6",
         (_frame(_GPT_FIVE_FIVE, {_INPUT_FIELD: 10000, _CACHED_FIELD: 4000, _WRITES_FIELD: 3000}),),
@@ -175,28 +218,32 @@ _FRAME_PRICES = (
     (
         "positive writes on GPT-5.6",
         (_frame(_GPT_FIVE_SIX_SOL, {_INPUT_FIELD: 10000, _CACHED_FIELD: 4000, _WRITES_FIELD: 3000}),),
-        None,
+        _MISSING_LIFETIME,
     ),
-    ("no write field on GPT-5.6", (_frame(_GPT_FIVE_SIX_SOL, {_INPUT_FIELD: 10000, _CACHED_FIELD: 4000}),), None),
+    (
+        "no write field on GPT-5.6",
+        (_frame(_GPT_FIVE_SIX_SOL, {_INPUT_FIELD: 10000, _CACHED_FIELD: 4000}),),
+        _MISSING_COUNT,
+    ),
     (
         "reads and writes past the input",
         (_frame(_GPT_FIVE_FIVE, {_INPUT_FIELD: 10000, _CACHED_FIELD: 8000, _WRITES_FIELD: 3000}),),
-        None,
+        _INVALID,
     ),
     (
         "a negative write count before GPT-5.6",
         (_frame(_GPT_FIVE_FIVE, {_INPUT_FIELD: 10000, _CACHED_FIELD: 4000, _WRITES_FIELD: -1}),),
-        None,
+        _INVALID,
     ),
     (
         "a negative write count on a flat-rate model",
         (_frame(_GPT_FIVE_ONE_CODEX, {_INPUT_FIELD: 10000, _CACHED_FIELD: 4000, _WRITES_FIELD: -1}),),
-        None,
+        _INVALID,
     ),
-    ("an unknown model", (_frame(_UNKNOWN_MODEL, {_INPUT_FIELD: 10000}),), None),
+    ("an unknown model", (_frame(_UNKNOWN_MODEL, {_INPUT_FIELD: 10000}),), _MISSING_PRICE),
 )
 
-# A record, and the tokens it bills by class, or None where it has no price.
+# A record, and the tokens it bills by class, or the reasons it has no price.
 _ROW_PRICES = (
     (
         "both lifetimes",
@@ -226,11 +273,23 @@ _ROW_PRICES = (
         _UsageRow(_GPT_FIVE_FIVE, dict(_EXAMPLE)),
         {_INPUT: 8000, _CACHED: 4000, _OUTPUT: 500},
     ),
-    ("lifetimes short of a whole write count", _UsageRow(_GPT_FIVE_SIX_SOL, dict(_LIFETIMES_ALONE)), None),
-    ("a write of unknown lifetime", _UsageRow(_GPT_FIVE_SIX_SOL, {**_EXAMPLE, _UNKNOWN_LIFETIME: 1000}), None),
-    ("lifetimes past the input", _UsageRow(_GPT_FIVE_SIX_SOL, {**_EXAMPLE, _INPUT: 10000}), None),
-    ("lifetimes past the input before GPT-5.6", _UsageRow(_GPT_FIVE_FIVE, {**_EXAMPLE, _INPUT: 10000}), None),
-    ("a negative count", _UsageRow(_GPT_FIVE_FIVE, {_INPUT: _CAPTURED_INPUT, _CACHED: -4000, _OUTPUT: 500}), None),
+    (
+        "lifetimes short of a whole write count",
+        _UsageRow(_GPT_FIVE_SIX_SOL, dict(_LIFETIMES_ALONE)),
+        _MISSING_COUNT,
+    ),
+    (
+        "a write of unknown lifetime",
+        _UsageRow(_GPT_FIVE_SIX_SOL, {**_EXAMPLE, _UNKNOWN_LIFETIME: 1000}),
+        _MISSING_LIFETIME,
+    ),
+    ("lifetimes past the input", _UsageRow(_GPT_FIVE_SIX_SOL, {**_EXAMPLE, _INPUT: 10000}), _INVALID),
+    ("lifetimes past the input before GPT-5.6", _UsageRow(_GPT_FIVE_FIVE, {**_EXAMPLE, _INPUT: 10000}), _INVALID),
+    (
+        "a negative count",
+        _UsageRow(_GPT_FIVE_FIVE, {_INPUT: _CAPTURED_INPUT, _CACHED: -4000, _OUTPUT: 500}),
+        _INVALID,
+    ),
     (
         "a record at the threshold",
         _UsageRow(_GPT_FIVE_SIX_SOL, {_INPUT: _THRESHOLD, _UNKNOWN_LIFETIME: 0, _OUTPUT: 500}),
@@ -239,16 +298,19 @@ _ROW_PRICES = (
     (
         "a record past the threshold",
         _UsageRow(_GPT_FIVE_SIX_SOL, {_INPUT: _PAST_THRESHOLD, _UNKNOWN_LIFETIME: 0}),
-        None,
+        _INDETERMINATE_TIER,
     ),
-    ("a tiered record reporting no input", _UsageRow(_GPT_FIVE_FIVE, {_OUTPUT: 500}), None),
-    ("an unknown model", _UsageRow(_UNKNOWN_MODEL, {_INPUT: _CAPTURED_INPUT, _OUTPUT: 500}), None),
+    (
+        "a record past the threshold short of a whole write count",
+        _UsageRow(_GPT_FIVE_SIX_SOL, {_INPUT: _PAST_THRESHOLD, _OUTPUT: 500}),
+        (_unpriced.INDETERMINATE_REQUEST_TIER, _unpriced.MISSING_CACHE_WRITE_COUNT),
+    ),
+    ("a tiered record reporting no input", _UsageRow(_GPT_FIVE_FIVE, {_OUTPUT: 500}), _INDETERMINATE_TIER),
+    ("an unknown model", _UsageRow(_UNKNOWN_MODEL, {_INPUT: _CAPTURED_INPUT, _OUTPUT: 500}), _MISSING_PRICE),
 )
 
 
-def _amount(model: str, billed: dict[str, int] | None) -> float | None:
-    if billed is None:
-        return None
+def _amount(model: str, billed: dict[str, int]) -> float:
     rates = _RATES[model]
     charges = (rates[token_class] * count for token_class, count in billed.items())
     return sum(charges) / _usage_cases.TOKENS_PER_MILLION
@@ -263,17 +325,26 @@ def _provider_totals(provider_usage: tuple[dict, ...]) -> tuple[int, int, int]:
     )
 
 
-def _assert_priced(test_case: unittest.TestCase, cost: _cost.CostEvidence, expected: float | None) -> None:
-    """`cost` is an estimate of `expected` USD on OpenAI's basis, or unpriced usage stating no amount where None."""
-    if expected is None:
+def _assert_priced(
+    test_case: unittest.TestCase,
+    metrics: _metrics.UsageMetrics,
+    model: str,
+    answer: dict[str, int] | tuple[str, ...],
+) -> None:
+    """`metrics` is an estimate of what `answer` bills on OpenAI's basis, or unpriced for each reason it names."""
+    cost = metrics.cost_evidence
+    if isinstance(answer, tuple):
         observed = (cost.cost_source, cost.complete_usd, cost.contributions)
         test_case.assertEqual(observed, (_usage_cases.UNKNOWN_COST_SOURCE, None, ()))
+        named = tuple(sorted(_unpriced.UnpricedReason(model, reason) for reason in answer))
+        test_case.assertEqual(metrics.unpriced_reasons, named)
         return
     test_case.assertEqual(
         (cost.cost_source, cost.basis, cost.contributions[0].rates_verified_on),
         (_usage_cases.ESTIMATED_COST_SOURCE, _cost.OPENAI_API_ESTIMATE, _VERIFIED_ON),
     )
-    test_case.assertAlmostEqual(cost.complete_usd, expected, places=_PLACES)
+    test_case.assertAlmostEqual(cost.complete_usd, _amount(model, answer), places=_PLACES)
+    test_case.assertEqual(metrics.unpriced_reasons, ())
 
 
 class CodexCapturedUsageTest(unittest.TestCase):
@@ -298,18 +369,26 @@ class CodexCapturedUsageTest(unittest.TestCase):
         for description, stdout, model, billed in _CAPTURED_PRICES:
             with self.subTest(description):
                 metrics = _metrics.parse_codex_usage(stdout, fallback_model=model)
-                _assert_priced(self, metrics.cost_evidence, _amount(model, billed))
+                _assert_priced(self, metrics, model, billed)
 
     def test_reported_cost_outranks_an_unpriced_block(self) -> None:
-        for reported in (0, _usage_cases.CODEX_REPORTED_COST_USD):
-            with self.subTest(reported=reported):
-                report = json.dumps(_codex.task_complete(total_cost_usd=reported))
-                stdout = _jsonl.stdout_lines(_capture.ONE_REQUEST_STDOUT, report)
-                metrics = _metrics.parse_codex_usage(stdout, fallback_model=_GPT_FIVE_SIX_SOL)
-                self.assertEqual(
-                    (metrics.cost_source, metrics.cost_usd, metrics.cost_evidence.basis, metrics.input_tokens),
-                    (_usage_cases.REPORTED_COST_SOURCE, reported, _cost.CLI_REPORTED, _CAPTURED_INPUT),
-                )
+        # The block would be unpriced on its own -- a write of no lifetime on
+        # GPT-5.6, and the observed GPT-6 Astra run -- but the CLI's amount, a
+        # zero included, is the run's cost, so no reason stands beside it.
+        for stdout, model in (
+            (_capture.ONE_REQUEST_STDOUT, _GPT_FIVE_SIX_SOL),
+            (_jsonl.jsonl(_ASTRA_FRAME), _GPT_SIX_ASTRA),
+        ):
+            for reported in (0, _usage_cases.CODEX_REPORTED_COST_USD):
+                with self.subTest(model=model, reported=reported):
+                    report = json.dumps(_codex.task_complete(total_cost_usd=reported))
+                    metrics = _metrics.parse_codex_usage(_jsonl.stdout_lines(stdout, report), fallback_model=model)
+                    self.assertEqual(
+                        (metrics.cost_source, metrics.cost_usd, metrics.cost_evidence.basis),
+                        (_usage_cases.REPORTED_COST_SOURCE, reported, _cost.CLI_REPORTED),
+                    )
+                    self.assertEqual(metrics.unpriced_reasons, ())
+                    self.assertNotIn(_unpriced.UNPRICED_REASONS, metrics.to_dict())
 
 
 class CodexUsageFramesTest(unittest.TestCase):
@@ -321,7 +400,7 @@ class CodexUsageFramesTest(unittest.TestCase):
                 metrics = _metrics.parse_codex_usage(_jsonl.jsonl(*frames))
                 last = frames[-1]
                 self.assertEqual(metrics.input_tokens, last[_usage_cases.USAGE_FIELD][_INPUT_FIELD])
-                _assert_priced(self, metrics.cost_evidence, _amount(last[_usage_cases.MODEL_FIELD], billed))
+                _assert_priced(self, metrics, last[_usage_cases.MODEL_FIELD], billed)
 
     def test_a_run_counting_no_tokens_has_no_usage(self) -> None:
         for stdout in ("", _jsonl.jsonl(_codex.turn_complete(model=_GPT_FIVE_SIX_SOL, cache_write=0))):
@@ -339,12 +418,18 @@ class CodexUsageRowTest(unittest.TestCase):
     def test_records_price_each_write_at_its_lifetime(self) -> None:
         for description, row, billed in _ROW_PRICES:
             with self.subTest(description):
-                cost = _event_stream.select_cost(None, row.estimate(), has_usage=True)
-                _assert_priced(self, cost, _amount(row.model, billed))
+                _assert_priced(self, self._row_metrics(row), row.model, billed)
 
     def test_lifetimes_match_openai_worked_example(self) -> None:
         # The 7,000-token aggregate is never charged beside its two parts.
-        estimate = _UsageRow(_GPT_FIVE_SIX_SOL, dict(_EXAMPLE)).estimate()
+        estimate = _UsageRow(_GPT_FIVE_SIX_SOL, dict(_EXAMPLE)).price().estimate
         assert estimate is not None
         expected = _GUIDE_INPUT_COST_USD * _SOL_INPUT_RATE + _EXAMPLE_OUTPUT_COST_USD
         self.assertAlmostEqual(estimate.amount_usd, expected, places=_PLACES)
+
+    def _row_metrics(self, row: codex_requests.CodexUsageRow) -> _metrics.UsageMetrics:
+        """A run whose one record is `row`, its cost selected with no CLI-reported amount beside the estimate."""
+        pricing = row.price()
+        metrics = _metrics.UsageMetrics(backend=_protocol.CODEX)
+        metrics.apply_cost(_event_stream.select_cost(None, pricing.estimate, has_usage=True), pricing.unpriced)
+        return metrics

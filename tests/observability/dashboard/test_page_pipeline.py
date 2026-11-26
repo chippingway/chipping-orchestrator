@@ -9,7 +9,8 @@ back which region it wrote into, and in what order. The section is the one place
 the page explains its money, so it is read for being drawn once, collapsed,
 under the filter line, for whatever window the filters narrowed the page to --
 an empty one included -- with the unpriced-run warning in its label rather than
-in a banner of its own. The one case that is not about markup is the short
+in a banner of its own, and the first wave's count of why runs are unpriced in
+its body. The one case that is not about markup is the short
 circuit: a window that matched no row hands nothing back, and that return is
 what ends the load before the panels beneath it are paid for.
 """
@@ -20,6 +21,7 @@ import unittest
 from types import MappingProxyType, SimpleNamespace
 from unittest.mock import patch
 
+from orchestrator.observability.analytics.query.cost_models import UnpricedReasonRow
 from orchestrator.observability.analytics.query.overview_models import Summary
 from orchestrator.observability.dashboard import (
     card_html,
@@ -29,7 +31,9 @@ from orchestrator.observability.dashboard import (
     page_models,
     page_pipeline,
     page_states,
+    unpriced_text,
 )
+from orchestrator.observability.usage import unpriced as usage_unpriced
 from tests.observability.analytics import analytics_cohorts as cohort_cases, analytics_usage_cases as cases
 from tests.observability.dashboard.page_render_test_support import (
     LAST_COVERED_DATE,
@@ -78,6 +82,14 @@ _NARROWED = Summary(total_events=4, cost=cohort_cases.cohort(cases.REPORTED), to
 
 _WARNED_LABEL = "Cost details · 2 of 10 runs unpriced or partly priced"
 
+# Why the wide window's unpriced run is: the model it ran and both reasons its record gave.
+_ASTRA = "gpt-6-astra"
+
+_WIDE_REASONS = (
+    UnpricedReasonRow(_ASTRA, usage_unpriced.INDETERMINATE_REQUEST_TIER, 1),
+    UnpricedReasonRow(_ASTRA, usage_unpriced.MISSING_CACHE_WRITE_COUNT, 1),
+)
+
 # The sentence the section's explanation opens with, which no other region of
 # the page may repeat.
 _EXPLANATION = "No amount on this page is a verified charge."
@@ -105,6 +117,7 @@ _FIRST_WAVE_READS = (
     "review_round_rows",
     "throughput_rows",
     "ts_points",
+    "unpriced_reason_rows",
 )
 
 _BANNER = insights.InsightBanner(
@@ -126,11 +139,12 @@ _FIRST_WAVE_ATTRIBUTE = "render_first_wave"
 _UNSAFE_HTML = MappingProxyType({"unsafe_allow_html": True})
 
 
-def _read_results(summary: Summary) -> dict:
-    """One first wave, with only the window's own aggregates answered for."""
+def _read_results(summary: Summary, reasons: tuple[UnpricedReasonRow, ...] = ()) -> dict:
+    """One first wave, with only the window's own aggregates, and why its runs are unpriced, answered for."""
     answered: dict = {name: () for name in _FIRST_WAVE_READS}
     answered["prev_summary"] = Summary()
     answered["summary"] = summary
+    answered["unpriced_reason_rows"] = reasons
     return answered
 
 
@@ -289,23 +303,28 @@ class CostDetailsSectionTest(unittest.TestCase):
         # one issue explains that issue's money -- and a selection under the
         # warning share carries no warning.
         wide = _first_wave(_WIDE)[-1].markup[1][0]
-        narrowed = _first_wave(_NARROWED)[-1].markup
+        narrowed = _first_wave(_NARROWED, ())[-1].markup
 
         self.assertIn("<b>This selection</b>: $3.44 · Subtotal</p>", wide)
         self.assertIn("10 total · 8 fully priced · 2 unpriced or partly priced", wide)
+        self.assertIn(f"<li>{_ASTRA} · Indeterminate request tier · 1 run</li>", wide)
         self.assertEqual(narrowed[0], (cost_details.COST_DETAILS_LABEL, _COLLAPSED))
         self.assertIn("<b>This selection</b>: $0.42</p>", narrowed[1][0])
         self.assertIn("<ul><li>CLI-reported · $0.42</li></ul>", narrowed[1][0])
         self.assertIn("1 total · 1 fully priced · 0 unpriced or partly priced", narrowed[1][0])
+        self.assertNotIn(unpriced_text.UNPRICED_REASONS_HEADING, narrowed[1][0])
 
 
-def _first_wave(summary: Summary) -> tuple[RecordingRegion, RecordingRegion, RecordingRegion]:
-    """The topbar, filter line, and body one first-wave pass over `summary` wrote."""
+def _first_wave(
+    summary: Summary,
+    reasons: tuple[UnpricedReasonRow, ...] = _WIDE_REASONS,
+) -> tuple[RecordingRegion, RecordingRegion, RecordingRegion]:
+    """The topbar, filter line, and body one first-wave pass over `summary` and its unpriced reasons wrote."""
     regions = (RecordingRegion(), RecordingRegion(), RecordingRegion())
     page_pipeline.render_first_wave(
         modules(regions[-1]),
         page(topbar=regions[0], meta=regions[1]),
-        _read_results(summary),
+        _read_results(summary, reasons),
     )
     return regions
 

@@ -17,6 +17,7 @@ from orchestrator.observability.usage import (
     protocol,
     token_evidence as usage_tokens,
 )
+from orchestrator.observability.usage.unpriced import UNPRICED_REASONS, UnpricedReason
 
 if TYPE_CHECKING:
     from orchestrator.observability.usage.price_catalogue import UsageSpan
@@ -28,7 +29,9 @@ class UsageMetrics:
 
     The raw counters and the `cost_usd` / `cost_source` pair keep their meaning; `cost_evidence` and
     `token_evidence` state what they mean together. A parser always fills both, so a metrics object holding neither
-    was built with no evidence and reads back as unknown rather than as any provider's semantics.
+    was built with no evidence and reads back as unknown rather than as any provider's semantics. `unpriced_reasons`
+    says why an unpriced cost has no amount, each reason beside the model it concerns, and is empty for every other
+    cost; it is serialized only where it holds a reason, so a record carrying no unpriced cost carries no such field.
     """
 
     backend: str
@@ -43,12 +46,22 @@ class UsageMetrics:
     cost_source: str = usage_cost.NO_USAGE_SOURCE
     cost_evidence: usage_cost.CostEvidence | None = None
     token_evidence: usage_tokens.TokenEvidence | None = None
+    unpriced_reasons: tuple[UnpricedReason, ...] = ()
 
-    def apply_cost(self, cost: usage_cost.CostEvidence) -> None:
-        """Record one run's selected cost, its `cost_usd` and `cost_source` read off the same evidence."""
+    def apply_cost(
+        self,
+        cost: usage_cost.CostEvidence,
+        unpriced: tuple[UnpricedReason, ...] = (),
+    ) -> None:
+        """Record one run's selected cost, its `cost_usd` and `cost_source` read off the same evidence.
+
+        `unpriced` is why the estimate had no amount, kept only where the cost is unpriced: a CLI-reported amount, an
+        explicit zero included, ranks ahead of the estimate, so an estimate's reasons never stand beside one.
+        """
         self.cost_evidence = cost
         self.cost_usd = cost.complete_usd
         self.cost_source = cost.cost_source
+        self.unpriced_reasons = unpriced if cost.completeness == usage_cost.INCOMPLETE else ()
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -64,7 +77,13 @@ class UsageMetrics:
             "cost_source": self.cost_source,
             usage_cost.COST_EVIDENCE: None if self.cost_evidence is None else self.cost_evidence.to_dict(),
             usage_tokens.TOKEN_EVIDENCE: None if self.token_evidence is None else self.token_evidence.to_dict(),
+            **self._serialized_reasons(),
         }
+
+    def _serialized_reasons(self) -> dict[str, Any]:
+        if not self.unpriced_reasons:
+            return {}
+        return {UNPRICED_REASONS: [reason.to_dict() for reason in self.unpriced_reasons]}
 
 
 def parse_claude_usage(stdout: str) -> UsageMetrics:
@@ -74,12 +93,10 @@ def parse_claude_usage(stdout: str) -> UsageMetrics:
     records = claude_settlement.claude_usage_records(events)
     aggregate = claude_summary.aggregate_by_model(records)
     aggregate.apply_tokens(metrics)
+    pricing = claude_summary.price_total(records)
     metrics.apply_cost(
-        event_stream.select_cost(
-            event_stream.find_last_reported_cost(events),
-            claude_summary.estimate_total(records),
-            bool(records),
-        ),
+        event_stream.select_cost(event_stream.find_last_reported_cost(events), pricing.estimate, bool(records)),
+        pricing.unpriced,
     )
     metrics.turns = claude_summary.turn_count(events, records)
     return metrics

@@ -46,6 +46,7 @@ AgentExitQueryRow = NamedTuple("AgentExitQueryRow", (
     ("input_tokens", Any),
     ("output_tokens", Any),
     ("total_tokens", Any),
+    ("unpriced_reasons", Any),
     (_COST_FIELD, tuple),
 ))
 IssueSummaryQueryRow = NamedTuple("IssueSummaryQueryRow", (

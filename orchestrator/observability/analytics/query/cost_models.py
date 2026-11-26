@@ -3,7 +3,8 @@
 """The rows one window's spend is broken down into.
 
 Each row here answers "where did the money go" along one axis -- review round,
-backend, repo, or the pricing source the parser could attach -- so the NULL
+backend, repo, or the pricing source the parser could attach, and for the runs
+it could not price, the model and the reason -- so the NULL
 bucketing under `"unknown"` and the token totals a ratio divides by are
 declared once per axis rather than re-derived by every chart that plots one.
 
@@ -157,3 +158,21 @@ class CostCoverageRow:
     runs: int
     total_tokens: int = 0
     unknown_token_runs: int = 0
+
+
+@dataclass(frozen=True)
+class UnpricedReasonRow:
+    """How many of a selection's unpriced runs one model was left unpriced on for one reason.
+
+    Powers the by-model-and-reason list in the dashboard's Cost details
+    section. `reason` is one the usage estimators record
+    (`usage.unpriced`), or `None` for the runs whose record states no
+    reason -- every unpriced run an earlier build recorded -- counted
+    under each model the run names. A run giving several reasons, or
+    giving one on several models, is counted once under each pair, so the
+    rows overlap and never sum to the selection's unpriced runs.
+    """
+
+    model: str
+    reason: str | None
+    runs: int

@@ -49,8 +49,8 @@ before any of them, because it is what a window can be picked at all from --
 ``static_metadata`` for the extent and filter vocabulary a page opens on. The
 readers themselves arrive with the panels they are drawn for: ``rollups`` for
 the seven a headline or lifecycle section is built from, ``breakdowns`` for
-the six a comparison section is, and ``skills`` for the three a skill section
-is. Above all of them, ``insights`` holds the observation a window is worth
+the seven a comparison section or the Cost details section is, and ``skills``
+for the three a skill section is. Above all of them, ``insights`` holds the observation a window is worth
 interrupting a page for and the ratio it is raised at, and ``kpis``
 the four numbers that window is summarized by beneath them. ``kpi_series`` and
 ``kpi_strip`` are how those numbers reach the page: the per-day spend, token,
@@ -64,7 +64,10 @@ between two windows is read with. ``cost_details`` is the one place those
 sources are explained: the collapsed section under the filter bar stating the
 selection's amount by source and its runs by coverage, the bar sizing it by
 recorded cost source, what every status means, and the unpriced-run warning
-where a selection raises one. ``cost_text`` is how one cost reads with its
+where a selection raises one. ``unpriced_text`` is why an unpriced run has no
+amount: a listed run's reasons by model, or ``Reason unavailable`` where its
+record states none, and the selection's unpriced runs counted under each model
+and reason, every reason explained in that section. ``cost_text`` is how one cost reads with its
 basis -- on the trajectory viewer, on the workflow's usage receipt, and in that
 section's source names. ``breakdown_text`` is what a grouped breakdown's bar
 fits of the compact wording -- the figure drawn past it, the status under its

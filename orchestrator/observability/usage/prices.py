@@ -30,7 +30,7 @@ from __future__ import annotations
 from datetime import date
 from functools import partial
 
-from orchestrator.observability.usage import cost_evidence, price_catalogue, protocol
+from orchestrator.observability.usage import cost_evidence, price_catalogue, protocol, unpriced
 
 _VERIFIED_ON = date.fromisoformat("2026-10-29")
 # The page guarantees GPT-5.6 Sol's promotional rates at least through this
@@ -397,25 +397,33 @@ def claude_rates(model: str) -> protocol.RateMap | None:
     return None if row is None else row.rates
 
 
-def claude_estimate(
+def claude_price(
     model: str,
     bucket: protocol.TokenBucket,
     prompt_tokens: int | None,
-) -> cost_evidence.CostContribution | None:
-    """The bucket priced at the model's Anthropic API list rates, or None when nothing establishes its price.
+) -> unpriced.Pricing:
+    """The bucket priced at the model's Anthropic API list rates, or every reason nothing establishes its price.
 
     `prompt_tokens` is the prompt size of the one request the bucket counts, or None where it counts no request
     whose size is known; a request-tiered model prices only a bucket with one, as `PriceRow.rates_for_request`
     reads. Each class the bucket counts tokens of pays its own rate, so tokens of a class the rates do not
-    publish -- a cache write of unknown lifetime -- leave the estimate None rather than borrowing another class's
-    rate, while a class the bucket does not report, or reports zero of, costs nothing.
+    publish -- a cache write of unknown lifetime -- leave the bucket unpriced rather than borrowing another class's
+    rate, while a class the bucket does not report, or reports zero of, costs nothing. A bucket whose tier is
+    indeterminate is read for those classes at the row's base rates, which publish the classes its tier's rates do.
     """
     row = claude_row(model)
-    rates = None if row is None else row.rates_for_request(prompt_tokens)
-    amount = None if rates is None else priced_amount(rates, bucket)
-    if row is None or amount is None:
-        return None
-    return cost_evidence.CostContribution(cost_evidence.ANTHROPIC_API_ESTIMATE, amount, (row.verified_on,))
+    if row is None:
+        return unpriced.Pricing.refused((model,), (unpriced.MISSING_MODEL_PRICE,))
+    rates = row.rates_for_request(prompt_tokens)
+    reasons = unpriced.unrated(row.rates if rates is None else rates, bucket)
+    if rates is None:
+        return unpriced.Pricing.refused((model,), (unpriced.INDETERMINATE_REQUEST_TIER, *reasons))
+    amount = priced_amount(rates, bucket)
+    if amount is None:
+        return unpriced.Pricing.refused((model,), reasons)
+    return unpriced.Pricing(
+        cost_evidence.CostContribution(cost_evidence.ANTHROPIC_API_ESTIMATE, amount, (row.verified_on,)),
+    )
 
 
 def priced_amount(rates: protocol.RateMap, bucket: protocol.TokenBucket) -> float | None:

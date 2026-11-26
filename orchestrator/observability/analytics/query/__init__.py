@@ -55,15 +55,18 @@ and ``backend_efficiency`` the two axes a run's spend and duration are compared
 along; ``repo_breakdowns`` each repository's share of the window; and
 ``throughput_days`` the two terminal stages a day resolved or turned away.
 
-So is the third. ``breakdown_reads`` owns the four whose grouping key that
+So is the third. ``breakdown_reads`` owns the five whose grouping key that
 rollup threw away: a review round, a cost source, and one run's own token split
 are per-run facts the day bucket aggregated over, so those three scan the
-agent-run view, and an hour of day is what it rounded off, so the heatmap stays
-on the events table. ``review_rounds`` owns the bucketing a round is labelled
-by and the two roles each bucket is reported per, ``cost_coverage`` the sources
-a window's spend could be attributed to, ``backend_tokens`` the per-day stack
-each backend contributes, and ``hourly_heatmaps`` the weekday-and-hour cell,
-with the offset that cell is bucketed in bound rather than spliced.
+agent-run view; an hour of day is what it rounded off, so the heatmap stays on
+the events table; and why a run went unpriced rides in the `extras` blob only
+that table holds, so that count scans it too. ``review_rounds`` owns the
+bucketing a round is labelled by and the two roles each bucket is reported per,
+``cost_coverage`` the sources a window's spend could be attributed to,
+``unpriced_reasons`` the window's unpriced runs counted per model and reason,
+``backend_tokens`` the per-day stack each backend contributes, and
+``hourly_heatmaps`` the weekday-and-hour cell, with the offset that cell is
+bucketed in bound rather than spliced.
 
 So is the fourth. ``skill_reads`` owns the three answered from the `extras`
 JSONB blob no table above the events one carries: how often a cohort reaches

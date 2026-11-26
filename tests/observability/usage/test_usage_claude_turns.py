@@ -279,7 +279,7 @@ class ClaudeTurnUsageTest(unittest.TestCase):
 
     def test_per_turn_estimates_sum_to_run_estimate(self) -> None:
         # The per-turn builder and the run aggregate price each message's row
-        # through one call, `ClaudeUsageRow.estimate`, and the run sums its
+        # through one call, `ClaudeUsageRow.price`, and the run sums its
         # rows' prices -- so the per-turn estimates must sum to the run-level
         # estimated cost.
         stdout = _jsonl.jsonl(

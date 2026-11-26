@@ -177,7 +177,7 @@ class ReadWaveDispatchTest(_LoadSupport):
 
     def test_a_failed_read_stops_the_page(self) -> None:
         # A page whose window, tiles, and every panel each raised their own
-        # trace would say the same thing sixteen times, so the first failing
+        # trace would say the same thing seventeen times, so the first failing
         # reader becomes one banner naming what to check, and then the stop.
         with self.assertRaises(_PageStopped):
             self._run(self._plan(first_error=_READ_FAILED))

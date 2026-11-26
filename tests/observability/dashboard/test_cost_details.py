@@ -8,7 +8,8 @@ dates an estimate's rates were verified on, the runs counted by how much of thei
 it by recorded cost source -- for a mix of sources, a subtotal, an amount stated with no cost evidence, no usage, no
 run at all, and a complete zero alike. The explanation beneath names every status the page marks a value with and
 calls no amount a verified charge. The section's label carries the unpriced-run warning, read from both sides of its
-share.
+share. Why the selection's unpriced runs have no amount is listed by model and reason, as its own read counts them,
+the runs recorded without a reason under `Reason unavailable`, and every reason is explained beneath.
 
 The body is one HTML block, opened by a tag and holding no blank line, because Markdown would otherwise read two
 dollar amounts as a formula; that shape is pinned here too.
@@ -17,9 +18,9 @@ from __future__ import annotations
 
 import unittest
 
-from orchestrator.observability.analytics.query.cost_models import CostCoverageRow
-from orchestrator.observability.dashboard import cost_details, spend_text
-from orchestrator.observability.usage import cost_evidence as usage_cost
+from orchestrator.observability.analytics.query.cost_models import CostCoverageRow, UnpricedReasonRow
+from orchestrator.observability.dashboard import cost_details, spend_text, unpriced_text
+from orchestrator.observability.usage import cost_evidence as usage_cost, unpriced as usage_unpriced
 from tests.observability.analytics import analytics_cohorts as cohort_cases, analytics_usage_cases as cases
 from tests.observability.dashboard.card_test_support import COST_SOURCE_REPORTED, REPORTED_COLOR, card_theme
 from tests.observability.dashboard.page_render_test_support import RecordingRegion, markup_in, modules
@@ -85,6 +86,35 @@ _SELECTIONS = (
     ),
 )
 
+_ASTRA = "gpt-6-astra"
+
+_ASTRA_RUNS = 8
+
+# The observed selection: eight GPT-6 Astra runs, each unpriced for both reasons its record gave.
+_OBSERVED_REASONS = (
+    UnpricedReasonRow(_ASTRA, usage_unpriced.INDETERMINATE_REQUEST_TIER, _ASTRA_RUNS),
+    UnpricedReasonRow(_ASTRA, usage_unpriced.MISSING_CACHE_WRITE_COUNT, _ASTRA_RUNS),
+)
+
+# Reason counts as the read ranks them -- separate reasons on separate models, and the runs an earlier build recorded
+# with none, under the model they ran -- and the lines they are listed as.
+_REASON_ROWS = (
+    UnpricedReasonRow("third-party-model-x", usage_unpriced.MISSING_MODEL_PRICE, 3),
+    UnpricedReasonRow("gpt-5.6-sol", usage_unpriced.MISSING_CACHE_WRITE_COUNT, 2),
+    UnpricedReasonRow("claude-opus-4-7", usage_unpriced.MISSING_CACHE_WRITE_LIFETIME, 1),
+    UnpricedReasonRow(_ASTRA, None, 2),
+)
+
+_REASON_LINES = (
+    "third-party-model-x · Missing model price · 3 runs",
+    "gpt-5.6-sol · Missing cache-write count · 2 runs",
+    "claude-opus-4-7 · Missing cache-write lifetime · 1 run",
+    f"{_ASTRA} · {unpriced_text.REASON_UNAVAILABLE} · 2 runs",
+)
+
+# What the reason list opens with, ahead of its lines.
+_REASONS_HEADING = f"<p><b>{unpriced_text.UNPRICED_REASONS_HEADING}</b></p>"
+
 # Priced runs beside one short run: a tenth of ten, and a hundredth of a hundred.
 _TENTH = 9
 
@@ -105,13 +135,13 @@ _WARNINGS = (
 
 
 def _listed(sources: tuple[str, ...]) -> str:
-    """The source lines a selection lists under its amount."""
+    """The lines a selection lists, as its sources are listed under its amount or its reasons under its runs."""
     lines = "".join(f"<li>{source}</li>" for source in sources)
     return f"<ul>{lines}</ul>"
 
 
-def _details(*costs: usage_cost.CostEvidence, coverage=_COVERAGE) -> str:
-    return cost_details.cost_details_html(cohort_cases.cohort(*costs), coverage, theme=card_theme())
+def _details(*costs: usage_cost.CostEvidence, coverage=_COVERAGE, reasons=()) -> str:
+    return cost_details.cost_details_html(cohort_cases.cohort(*costs), coverage, reasons, theme=card_theme())
 
 
 class SelectionTest(unittest.TestCase):
@@ -164,9 +194,12 @@ class ExplanationTest(unittest.TestCase):
         self.assertIn("is not what anyone was billed", details)
         self.assertIn("Antigravity usage is priced as Gemini API usage", details)
 
-    def test_no_cause_is_asserted_for_a_short_run(self) -> None:
+    def test_every_reason_is_explained(self) -> None:
         details = _details(cases.UNPRICED)
-        self.assertIn("The recorded evidence does not say which applies to a given run.", details)
+        for label in (*unpriced_text.REASON_LABELS.values(), unpriced_text.REASON_UNAVAILABLE):
+            with self.subTest(reason=label):
+                self.assertIn(f"<li><b>{label}</b>: ", details)
+        self.assertIn("is counted under each, so the counts by model and reason overlap.", details)
 
     def test_the_token_share_split_is_an_allocation(self) -> None:
         self.assertIn("an allocation, not a measured cache charge", _details(cases.REPORTED))
@@ -182,6 +215,40 @@ class ExplanationTest(unittest.TestCase):
         self.assertTrue(details.startswith('<div class="orch-cost-details">'))
         self.assertTrue(details.endswith("</div>"))
         self.assertNotIn("\n\n", details)
+
+
+class UnpricedReasonsTest(unittest.TestCase):
+    """Why the selection's unpriced runs have no amount, counted by model and reason."""
+
+    def test_the_observed_runs_name_both_reasons(self) -> None:
+        # Eight GPT-6 Astra runs on an active catalogue row are Unpriced, and
+        # the section says why: each run's cumulative input left its request
+        # tier indeterminate and its CLI counters left its cache-write count
+        # missing, so all eight are counted under both reasons.
+        runs = (cases.UNPRICED,) * _ASTRA_RUNS
+        cost = cohort_cases.cohort(*runs)
+        details = _details(*runs, reasons=_OBSERVED_REASONS)
+        self.assertEqual(
+            cost_details.cost_details_label(cost),
+            f"{cost_details.COST_DETAILS_LABEL} · 8 of 8 runs unpriced or partly priced",
+        )
+        self.assertIn(_SELECTION.format(spend=spend_text.UNPRICED), details)
+        listed = _listed((
+            f"{_ASTRA} · Indeterminate request tier · 8 runs",
+            f"{_ASTRA} · Missing cache-write count · 8 runs",
+        ))
+        self.assertIn(f"{_REASONS_HEADING}{listed}", details)
+
+    def test_each_count_is_listed_as_read(self) -> None:
+        details = _details(cases.UNPRICED, reasons=_REASON_ROWS)
+        self.assertIn(f"{_REASONS_HEADING}{_listed(_REASON_LINES)}", details)
+
+    def test_no_unpriced_run_lists_nothing(self) -> None:
+        self.assertNotIn(unpriced_text.UNPRICED_REASONS_HEADING, _details(cases.REPORTED))
+
+    def test_a_model_name_is_escaped(self) -> None:
+        details = _details(cases.UNPRICED, reasons=(UnpricedReasonRow("<b>x</b>", None, 1),))
+        self.assertIn("<li>&lt;b&gt;x&lt;/b&gt; · Reason unavailable · 1 run</li>", details)
 
 
 class LabelTest(unittest.TestCase):
@@ -201,12 +268,15 @@ class RenderTest(unittest.TestCase):
     def test_it_is_drawn_collapsed_as_markup(self) -> None:
         st = RecordingRegion()
         cost = cohort_cases.cohort(cases.REPORTED, cases.UNPRICED)
-        cost_details.render_cost_details(modules(st), cost, ())
+        cost_details.render_cost_details(modules(st), cost, (), _OBSERVED_REASONS[:1])
         self.assertEqual(
             st.markup,
             [
                 (f"{_LABEL} · 1 of 2 runs unpriced or partly priced", {"expanded": False}),
-                (cost_details.cost_details_html(cost, (), theme=None), {"unsafe_allow_html": True}),
+                (
+                    cost_details.cost_details_html(cost, (), _OBSERVED_REASONS[:1], theme=None),
+                    {"unsafe_allow_html": True},
+                ),
             ],
         )
         self.assertIn(f"$0.42 · {spend_text.SUBTOTAL}", markup_in(st))

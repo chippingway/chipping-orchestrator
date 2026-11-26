@@ -15,6 +15,7 @@ from orchestrator.observability.usage import (
     metrics as _usage_metrics,
     price_catalogue as _price_catalogue,
     token_evidence as _tokens,
+    unpriced as _unpriced,
 )
 from orchestrator.workflow.engine import usage as engine_usage
 from tests.support import agy_stream as _agy
@@ -69,6 +70,13 @@ _FLASH_CHARGES = (
 _TOKENS_PER_MILLION = 1_000_000
 _AGY_STEP_USD = sum(tokens * rate for tokens, rate in _FLASH_CHARGES) / _TOKENS_PER_MILLION
 _AGY_ESTIMATE = _cost.CostContribution(_cost.GEMINI_API_ESTIMATE, _AGY_STEP_USD, (date.fromisoformat("2026-10-29"),))
+# The observed GPT-6 Astra run: a cumulative input past its 272,000-token tier, and no cache-write count printed.
+_ASTRA = "gpt-6-astra"
+_ASTRA_INPUT_TOKENS = 300_000
+_ASTRA_REASONS = (
+    _unpriced.UnpricedReason(_ASTRA, _unpriced.INDETERMINATE_REQUEST_TIER),
+    _unpriced.UnpricedReason(_ASTRA, _unpriced.MISSING_CACHE_WRITE_COUNT),
+)
 
 
 def _run_usage(
@@ -243,10 +251,27 @@ class AgentExitUsageEvidenceTest(unittest.TestCase):
             _cost.recorded_cost(record),
             _cost.CostEvidence(_cost.COMPLETE, (_cost.CostContribution(_cost.CLI_REPORTED, 0),)),
         )
+        self.assertNotIn(_unpriced.UNPRICED_REASONS, record)
         self.assertEqual(
             _tokens.non_overlapping_total(record),
             _CLAUDE_INPUT_TOKENS + _CLAUDE_OUTPUT_TOKENS + _CLAUDE_CACHE_READ_TOKENS + _CLAUDE_CACHE_WRITE_TOKENS,
         )
+
+    def test_unpriced_record_names_its_reasons(self) -> None:
+        # The estimator's reasons ride on the record beside its incomplete
+        # cost, serialized as the run's usage serializes them.
+        path = _analytics_path(self, "usage-unpriced-")
+        _, agent_result = _run_usage(
+            stdout=_codex_stdout_no_model(input_tokens=_ASTRA_INPUT_TOKENS),
+            backend=BACKEND_CODEX,
+            extra_args=("-m", _ASTRA),
+            analytics_path=path,
+        )
+        record = _analytics_records(path, event=EVENT_AGENT_EXIT)[0]
+        written = agent_result.usage.to_dict()[_unpriced.UNPRICED_REASONS]
+        self.assertEqual(record[_unpriced.UNPRICED_REASONS], written)
+        self.assertEqual(_unpriced.recorded_reasons(record), _ASTRA_REASONS)
+        self.assertEqual(_cost.recorded_cost(record), _cost.CostEvidence(_cost.INCOMPLETE))
 
     def test_antigravity_record_priced_at_its_exit(self) -> None:
         # The record is priced over the span the run's duration ends at its

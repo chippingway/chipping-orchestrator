@@ -1,6 +1,10 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The basis and completeness every usage cost is recorded with, how a record is read back, and the fold over many."""
+"""The basis and completeness every usage cost is recorded with, how a record is read back, and the fold over many.
+
+An unpriced run also records why, each reason beside its model, and a record is read back for only the reasons the
+current vocabulary writes: a record an earlier build wrote, stating none, reads as giving no reason at all.
+"""
 
 import json
 import math
@@ -10,7 +14,7 @@ from dataclasses import dataclass
 from datetime import date
 from types import MappingProxyType
 
-from orchestrator.observability.usage import cost_evidence as _cost, metrics as _metrics
+from orchestrator.observability.usage import cost_evidence as _cost, metrics as _metrics, unpriced as _unpriced
 from tests.observability.usage import (
     usage_claude_events as _claude,
     usage_codex_events as _codex,
@@ -56,6 +60,7 @@ class _Case:
     stdout: str
     evidence: dict
     legacy: tuple
+    reasons: list[dict] | None = None
 
 
 _SONNET_MILLION_INPUT = _claude.assistant(model=_usage_cases.SONNET, usage=_claude.usage(input=_MILLION_TOKENS))
@@ -87,6 +92,7 @@ _RUN_CASES = (
         _jsonl.jsonl(_UNPRICED_MODEL_INPUT),
         _INCOMPLETE,
         _UNPRICED,
+        [{_unpriced.MODEL: _usage_cases.UNKNOWN_MODEL, _unpriced.REASON: _unpriced.MISSING_MODEL_PRICE}],
     ),
     _Case("claude with no usage", _usage_cases.CLAUDE, "", _NO_USAGE, _NOTHING_TO_PRICE),
     _Case(
@@ -116,7 +122,14 @@ _RUN_CASES = (
         _NO_USAGE,
         _NOTHING_TO_PRICE,
     ),
-    _Case("antigravity usage given no span to date it", _agy.BACKEND, _agy.resumed_stream(), _INCOMPLETE, _UNPRICED),
+    _Case(
+        "antigravity usage given no span to date it",
+        _agy.BACKEND,
+        _agy.resumed_stream(),
+        _INCOMPLETE,
+        _UNPRICED,
+        [{_unpriced.MODEL: _agy.MODEL, _unpriced.REASON: _unpriced.INDETERMINATE_RATE_PERIOD}],
+    ),
     _Case("antigravity with no usage", _agy.BACKEND, "", _NO_USAGE, _NOTHING_TO_PRICE),
 )
 
@@ -144,6 +157,35 @@ _NOT_CURRENT_EVIDENCE = (
         _cost.COMPLETE,
         _contribution(_cost.CLI_REPORTED, _TWO_USD),
         _contribution(_cost.CLI_REPORTED, _HALF_USD),
+    ),
+)
+
+_ASTRA = "gpt-6-astra"
+_TIER_REASON = MappingProxyType({_unpriced.MODEL: _ASTRA, _unpriced.REASON: _unpriced.INDETERMINATE_REQUEST_TIER})
+_COUNT_REASON = MappingProxyType({**_TIER_REASON, _unpriced.REASON: _unpriced.MISSING_CACHE_WRITE_COUNT})
+# Serialized reasons, and the ones a reader takes from them: none from a field that is no list, and from a list only
+# the entries the vocabulary writes, each once and in order.
+_SERIALIZED_REASONS = (
+    ("an object", dict(_TIER_REASON), ()),
+    ("a word", _unpriced.INDETERMINATE_REQUEST_TIER, ()),
+    ("an empty list", [], ()),
+    (
+        "current entries, repeated and out of order",
+        [dict(_TIER_REASON), dict(_COUNT_REASON), dict(_TIER_REASON)],
+        (_unpriced.INDETERMINATE_REQUEST_TIER, _unpriced.MISSING_CACHE_WRITE_COUNT),
+    ),
+    (
+        "entries the vocabulary does not write",
+        [
+            _unpriced.INDETERMINATE_REQUEST_TIER,
+            {**_TIER_REASON, _unpriced.REASON: "too-expensive"},
+            {**_TIER_REASON, _unpriced.REASON: [_unpriced.INDETERMINATE_REQUEST_TIER]},
+            {**_TIER_REASON, _unpriced.MODEL: ""},
+            {**_TIER_REASON, _unpriced.MODEL: 6},
+            {_unpriced.REASON: _unpriced.INDETERMINATE_REQUEST_TIER},
+            dict(_COUNT_REASON),
+        ],
+        (_unpriced.MISSING_CACHE_WRITE_COUNT,),
     ),
 )
 
@@ -211,10 +253,25 @@ class RunCostEvidenceTest(unittest.TestCase):
                 self.assertEqual(serialized[_cost.COST_EVIDENCE], case.evidence)
                 self.assertEqual((serialized[_cost.COST_USD], serialized[_COST_SOURCE]), case.legacy)
                 self.assertEqual(_cost.recorded_cost(serialized), metrics.cost_evidence)
+                # Only an unpriced run carries reasons, so a priced one leaves the field off.
+                self.assertEqual(serialized.get(_unpriced.UNPRICED_REASONS), case.reasons)
+                self.assertEqual(_unpriced.recorded_reasons(serialized), metrics.unpriced_reasons)
 
 
 class RecordedCostTest(unittest.TestCase):
-    """A record stating no current evidence keeps its amount under an unknown basis, inferring nothing."""
+    """A record is read for the current evidence it states alone, inferring nothing in place of the rest.
+
+    One stating no current cost evidence keeps its amount under an unknown basis, and one stating no current reason its
+    cost is unpriced -- every record an earlier build wrote -- gives none.
+    """
+
+    def test_only_current_entries_are_reasons(self) -> None:
+        self.assertEqual(_unpriced.recorded_reasons(_HISTORICAL_RECORD), ())
+        for name, serialized, reasons in _SERIALIZED_REASONS:
+            with self.subTest(name):
+                read = _unpriced.recorded_reasons({_unpriced.UNPRICED_REASONS: serialized})
+                self.assertEqual(tuple(reason.reason for reason in read), reasons)
+                self.assertTrue(all(reason.model == _ASTRA for reason in read))
 
     def test_unstated_evidence_reads_unknown_basis(self) -> None:
         records = (

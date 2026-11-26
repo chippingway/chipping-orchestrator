@@ -140,13 +140,13 @@ _IDENTIFIED_ITEM_COUNT = CODEX_ACCOUNTING_COUNTS[_IDENTIFIED_ITEMS_KEY]
 # Three points in the draw-down of one accounting stream: a budget the six
 # accounting rows fit inside but the steps behind them do not, one that stops
 # partway through the rows, and one already spent before the first of them.
-_STEPS_CUT_BUDGET = 1070
+_STEPS_CUT_BUDGET = 1142
 
 
-_ACCOUNTING_PREFIX_BUDGET = 670
+_ACCOUNTING_PREFIX_BUDGET = 742
 
 
-_ACCOUNTING_SPENT_BUDGET = 470
+_ACCOUNTING_SPENT_BUDGET = 542
 
 
 # Each case names a point, the budget that reaches it, and whether the

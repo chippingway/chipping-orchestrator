@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """Codex cumulative usage pricing and run summary.
 
-A run's estimate is its authoritative record priced on its own (`codex_requests.CodexUsageRow.estimate`): every
-record sums the run's requests, so a difference between two of them sizes no request, and pricing the last one once
-charges no request twice.
+A run's estimate is its authoritative record priced on its own (`codex_requests.CodexUsageRow.price`): every record
+sums the run's requests, so a difference between two of them sizes no request, and pricing the last one once charges
+no request twice. Where that record has no price, the reasons it states are the run's.
 """
 
 from __future__ import annotations
@@ -17,10 +17,10 @@ from typing import TYPE_CHECKING, Any
 from orchestrator.observability.usage import (
     codex_requests,
     codex_rows,
-    cost_evidence,
     event_stream,
     protocol,
     token_evidence,
+    unpriced,
 )
 
 if TYPE_CHECKING:
@@ -37,15 +37,15 @@ COUNTER_NAMES = MappingProxyType({
 })
 
 
-def estimate_cost(
+def price_run(
     model: str | None,
     usage_events: list[protocol.CodexUsageEvent],
-) -> cost_evidence.CostContribution | None:
-    """The run's authoritative record -- the last of `usage_events` -- priced on its own, or None where it has none."""
+) -> unpriced.Pricing:
+    """The run's authoritative record -- the last of `usage_events` -- priced on its own; none is no usage."""
     if not usage_events:
-        return None
+        return unpriced.Pricing()
     record = usage_events[-1][1]
-    return codex_requests.CodexUsageRow(model or protocol.UNKNOWN, record).estimate()
+    return codex_requests.CodexUsageRow(model or protocol.UNKNOWN, record).price()
 
 
 def reported_turn_count(events: list[dict[str, Any]]) -> int | None:
@@ -124,11 +124,13 @@ class CodexUsageSummary:
         metrics.token_evidence = self.observed
         if self.model is not None:
             metrics.models = (self.model,)
+        pricing = price_run(self.model, self.usage_events)
         metrics.apply_cost(
             event_stream.select_cost(
                 event_stream.find_last_reported_cost(self.events),
-                estimate_cost(self.model, self.usage_events),
+                pricing.estimate,
                 bool(self.usage_events),
             ),
+            pricing.unpriced,
         )
         metrics.turns = turn_count(self.events)

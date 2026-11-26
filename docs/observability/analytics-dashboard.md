@@ -97,16 +97,18 @@ and output counters inside them), `repo_breakdowns.py` (each repository's cohort
 `done` / `rejected` terminals, the stage-selection intersection, and the two short-circuits that leave nothing to
 count).
 
-**Breakdown-read owners.** `breakdown_reads.py` owns the remaining four, the ones whose grouping key the rollup threw
-away — `get_review_round_breakdown`, `get_cost_coverage`, `get_backend_daily_tokens`, and `get_hourly_heatmap`. The
-first three read per-run facts a day bucket aggregated over, so they scan `analytics_agent_runs`; the fourth needs the
-hour that bucket rounded off, so it stays on `analytics_events`. It decides the same unconfigured-database answer the
-other two hubs do, and the agent-run event-filter short-circuit applies to the three view-backed reads only — the
-heatmap's scan has an `event` column, so the selection becomes an ordinary bound predicate there instead. One
-projection owner sits under each: `review_rounds.py` (the bucket labelling, the scan grouped by round and role, and
-the fold of each round's two roles, their cohorts and token-share bands side by side), `cost_coverage.py` (the
-per-source rollup that keeps `unknown-price` distinct from `unknown`), `backend_tokens.py` (the per-`(day, backend)`
-token cell), and `hourly_heatmaps.py` (the UTC normalization and the bound offset).
+**Breakdown-read owners.** `breakdown_reads.py` owns the remaining five, the ones whose grouping key the rollup threw
+away — `get_review_round_breakdown`, `get_cost_coverage`, `get_unpriced_reasons`, `get_backend_daily_tokens`, and
+`get_hourly_heatmap`. Three read per-run facts a day bucket aggregated over, so they scan `analytics_agent_runs`; the
+heatmap needs the hour that bucket rounded off, and the unpriced-reason count the `extras` blob only the events table
+holds, so both stay on `analytics_events`. It decides the same unconfigured-database answer the other two hubs do,
+and the agent-run event-filter short-circuit applies to the three view-backed reads and to the reason count, which
+pins `agent_exit` itself — the heatmap's selection becomes an ordinary bound predicate instead. One projection owner
+sits under each: `review_rounds.py` (the bucket labelling, the scan grouped by round and role, and the fold of each
+round's two roles, their cohorts and token-share bands side by side), `cost_coverage.py` (the per-source rollup that
+keeps `unknown-price` distinct from `unknown`), `unpriced_reasons.py` (the unpriced runs counted per model and
+reason), `backend_tokens.py` (the per-`(day, backend)` token cell), and `hourly_heatmaps.py` (the UTC normalization
+and the bound offset).
 
 **Skill-read owners.** `skill_reads.py` owns the last three — `get_skill_trigger_rates`, `get_skill_trigger_matrix`,
 and `get_skill_adoption`. Their fact is not a column: a skill name, a repository's offered set, and one run's load
@@ -208,7 +210,9 @@ on the events table only an `agent_exit` row counts as a run. Neither reprices a
   non-overlapping `total_tokens` (`None` where its evidence leaves it unknown) and its stored `cost` as a
   `CostEvidence` (`EVENT_RUN_COST_SQL`): a CLI-reported amount as its record ranked it ahead of any estimate, an
   estimate with the dates its rates were verified on, and a row stored with no evidence `unknown`, its `cost_usd`
-  under that basis — never repriced from its tokens or read off `cost_source`.
+  under that basis — never repriced from its tokens or read off `cost_source`. Each run also carries the
+  `unpriced_reasons` its record wrote into `extras`, read through `usage.unpriced.stated_reasons`, so only an entry
+  the current vocabulary writes is a reason and a row recorded without them states none.
 - `get_skill_trigger_rates` (base table) — per-`(agent_role, backend)` skill-trigger aggregate: `runs`, `skill_runs`
   (rows whose `extras` carries a `skills_triggered` key), and `total_triggers` (`SUM` of `skills_triggered_count`), with
   a derived `rate` property. Reads the base table because the skill fields live in `extras JSONB`, which the rollup does
@@ -328,6 +332,16 @@ on the events table only an `agent_exit` row counts as a run. Neither reprices a
   established for — Gemini 3.7 Flash and 3.1 Pro, the Claude and GPT-OSS models Antigravity serves — a run whose
   models are mixed or unnamed or that spawned a subagent, and a run whose span touches both sides of a scheduled rate
   change, besides every run an earlier build recorded. NULL `cost_source` buckets under `"unknown"`.
+- `get_unpriced_reasons` (base table) — the window's unpriced runs (`cost_completeness = 'incomplete'`, pinned beside
+  `event = 'agent_exit'`) counted per model and reason, uncapped, so a count covers every unpriced run the filters
+  select rather than the newest the run listing shows. Each `{"model", "reason"}` entry of a run's `unpriced_reasons`
+  in `extras` counts the run once under that pair (`COUNT(DISTINCT id)`), so a run giving two reasons counts under
+  both and the rows overlap; an entry that is no object, names no model, or gives a reason outside the vocabulary
+  `usage/unpriced.py` writes is none. An unpriced run stating no reason that way — every one an earlier build recorded
+  — counts with `reason = None` under each model its `models` names, `unknown` where it names none; nothing
+  re-estimates it. A run with no cost evidence is no unpriced run and counts nowhere. Rows come back ordered by `runs`
+  DESC, then model, then reason with the unrecorded one last, and the page keeps that order. The event-filter
+  short-circuit applies.
 
 **Filter contract.** The agent-run view has no `event` column (its WHERE `event = 'agent_exit'` is baked in), so
 view-backed functions cannot push an `event IN (...)` clause down. They honor the dashboard's event-filter contract by
@@ -477,8 +491,11 @@ rates were verified on, and the runs counted as fully priced, unpriced or partly
 evidence; draws the cost-source coverage bar; explains in plain language what a CLI-reported amount, an API token
 estimate, a mix of sources, and an amount of unknown basis are — none of them a verified charge — what every status
 above means, and that a token-share split is an allocation rather than a measured cache charge; and carries the
-unpriced-run warning in its label once a tenth of the selection's runs or more are unpriced or partly priced, without
-naming a cause the evidence does not record. `breakdown_text.py` says what fits on a grouped breakdown's bar: the
+unpriced-run warning in its label once a tenth of the selection's runs or more are unpriced or partly priced. Why
+those runs have no amount is `unpriced_text.py`'s to word: the label each reason the estimators record reads as, a
+listed run's reasons grouped by model or `Reason unavailable` for a run recorded without them, and the section's list
+of the selection's unpriced runs counted under each model and reason, every reason explained beneath it.
+`breakdown_text.py` says what fits on a grouped breakdown's bar: the
 figure drawn past it (the stated amount, or `Unpriced`, `No usage`, `Cost unknown`, or `No runs`, never a zero), the
 line under its label (the run count, then the group's own status, or one such line per role where a label heads a
 development and a review bar), and the note a panel closes on (what its bars add up to, on one line).
@@ -548,7 +565,8 @@ draws it now, and its prompt is unconditional, since trigger rates alone carry n
 two windows apart.
 `recent_runs.py` is the listing under those four panels rather than a fifth among them — the runs behind the readings
 above it, projected into the columns one is scanned by and the offset the sidebar picked — each run's cost read off
-its stored evidence as its figure and the status that evidence earns, never repriced and never its source, and its
+its stored evidence as its figure and the status that evidence earns, never repriced and never its source, beside it
+an unpriced run's reasons grouped by model, or `Reason unavailable` for one recorded without them, and its
 non-overlapping token total beside the raw input and output counters — drawn as `st.dataframe`
 because a raw listing carries no bar, pill, or sortable heading Streamlit's own table cannot already handle. It opens
 collapsed so a window's worth of rows does not push the per-issue drill-down off the screen the page ends on, and a
@@ -667,10 +685,10 @@ ingests new events.
 
 **Two-wave loading.** The 16 widget reads are staged into two waves by `dashboard/read_plan.py`:
 
-- **First wave (6 reads).** `summary`, `prev_summary`, `ts_points`, `review_round_rows`, `throughput_rows`,
-  `cost_coverage_rows` — feeds the topbar, filter meta, Cost details section, insight banner, and KPI strip, with
-  `cost_coverage_rows` riding in this wave for the coverage bar the Cost details section draws beside the summary's
-  cost cohort.
+- **First wave (7 reads).** `summary`, `prev_summary`, `ts_points`, `review_round_rows`, `throughput_rows`,
+  `cost_coverage_rows`, `unpriced_reason_rows` — feeds the topbar, filter meta, Cost details section, insight banner,
+  and KPI strip, with `cost_coverage_rows` and `unpriced_reason_rows` riding in this wave for the coverage bar and the
+  unpriced-run counts the Cost details section draws beside the summary's cost cohort.
 - **Second wave (10 reads).** `stage_rows`, `agent_exits`, `issues_rows`, `backend_rows`, `repo_rows`, `heatmap_rows`,
   `backend_daily_rows`, `skill_adoption_rows`, `skill_rows`, `skill_matrix_rows` — feeds the rest of the body.
 
@@ -689,13 +707,16 @@ section below.
 **Body layout, top to bottom:**
 
 1. **Cost details**, collapsed (`st.expander`, `expanded=False`) under the filter line and drawn before the
-   empty-window notice, off the first wave's `summary` and `cost_coverage_rows`, so it follows every filter. It states
-   the selection's amount and status, each source's part of it (CLI-reported, each provider's API token estimate with
-   its rate-verification dates, or an amount of unknown basis), the runs counted as fully priced, unpriced or partly
-   priced, no usage, and no cost evidence, and the cost-source coverage bar (sized by token share, or by run share
-   once a run's token total is unknown); then explains in plain language what each source, a mix of sources, and every
-   status means — no amount is a verified charge — and that a token-share split is an allocation, not a measured cache
-   charge. Where a tenth of the selection's runs or more are unpriced or partly priced, its label says how many
+   empty-window notice, off the first wave's `summary`, `cost_coverage_rows`, and `unpriced_reason_rows`, so it
+   follows every filter. It states the selection's amount and status, each source's part of it (CLI-reported, each
+   provider's API token estimate with its rate-verification dates, or an amount of unknown basis), the runs counted as
+   fully priced, unpriced or partly priced, no usage, and no cost evidence, the selection's unpriced runs counted under
+   each model and reason over the whole selection rather than the listed runs (`gpt-6-astra · Indeterminate request
+   tier · 8 runs`, a run giving two reasons counted under both, the runs recorded without a reason under `Reason
+   unavailable`), and the cost-source coverage bar (sized by token share, or by run share once a run's token total is
+   unknown); then explains in plain language what each source, a mix of sources, every status, and every reason means
+   — no amount is a verified charge — and that a token-share split is an allocation, not a measured cache charge.
+   Where a tenth of the selection's runs or more are unpriced or partly priced, its label says how many
    (`Cost details · 18 of 39 runs unpriced or partly priced`); no separate banner repeats that warning.
 2. Computed insight banner (failure rate ≥ 10 %).
 3. Four-tile KPI strip — total spend, total tokens (the runs' known non-overlapping totals), cost / resolved issue,
@@ -788,8 +809,9 @@ section below.
    rather than inside each of them, and the matrix shows its own fallback notice when no catalog-backed matrix can be
    built (no catalog records matched and no run fired a skill).
 10. Recent agent-runs table as a collapsible expander; the `ts` column is shifted to the wall-clock of the selected UTC
-    offset via `shift_ts`, each run's cost reads as its figure and the status its own evidence earns, and its token
-    total is the non-overlapping one, empty where unknown.
+    offset via `shift_ts`, each run's cost reads as its figure and the status its own evidence earns, an unpriced run
+    says beside it why (`gpt-6-astra: Indeterminate request tier, Missing cache-write count`, or `Reason unavailable`
+    for a run recorded without reasons), and its token total is the non-overlapping one, empty where unknown.
 11. Per-issue drill-down when a number is entered, each run's cost worded as in the listing.
 
 **Filter contract.** `build_window_where` distinguishes three cases for the event / stage selections: `None` is "no
@@ -1045,8 +1067,10 @@ as a labeled banner.
   stating one, and worded `Unpriced`, `Cost unknown`, or `No usage` rather than dropped.
 - `Cost details · <n> of <m> runs unpriced or partly priced` (collapsed section label) — *pricing* — At least a tenth
   of the selection's runs carry usage with no amount, so its spend and every value marked `Subtotal` count only what
-  was priced. The recorded evidence does not say why a run went short; open a run in the trajectory viewer to read its
-  own cost evidence, and check whether the price catalogue has an active row for the models it ran.
+  was priced. Open the section to read the unpriced runs counted by model and reason, and the recent-runs listing for
+  each run's own: a missing model price is a catalogue row to add or activate, while an indeterminate request tier or
+  a missing cache-write count or lifetime is usage the CLI reports too coarsely to price. `Reason unavailable` marks a
+  run recorded without reasons; nothing re-estimates it.
 - `No repos match the current filters.` — *data* — The per-repo activity chart is empty for this filter combination.
 - `Pick a specific repo in the sidebar before drilling into an issue number …` — *UI guard* — The issue-number
   input is inert with the repo filter on `All` because GitHub issue numbers are not unique across repos.

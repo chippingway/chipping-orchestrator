@@ -1,7 +1,11 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Each Claude API message priced on its own: its writes at their reported lifetimes, its tier on its own prompt."""
+"""Each Claude API message priced on its own: its writes at their reported lifetimes, its tier on its own prompt.
 
+A run any of whose messages has no price names every reason its messages give, each beside the message's model.
+"""
+
+import itertools
 import math
 import unittest
 from types import MappingProxyType
@@ -10,6 +14,7 @@ from orchestrator.observability.usage import (
     metrics as _metrics,
     protocol as _protocol,
     trajectory as _trajectory,
+    unpriced as _unpriced,
 )
 from tests.observability.usage import (
     usage_claude_events as _claude,
@@ -180,6 +185,40 @@ _HANDBACK_COSTS = (
 )
 
 
+# A split claiming more one-hour writes than its zero aggregate holds, on a model whose tier reads the prompt.
+_CONFLICTING_WRITES = MappingProxyType({
+    _usage_cases.INPUT_TOKENS_FIELD: 1,
+    "cache_read_input_tokens": 0,
+    _usage_cases.OUTPUT_TOKENS_FIELD: 1,
+    _AGGREGATE: 0,
+    _SPLIT: {_FIVE_MINUTE: 0, _ONE_HOUR: 100_001},
+})
+_CONFLICTING_RUN = _jsonl.jsonl(_claude.assistant(model=_HAIKU_FIVE_FIVE, usage=dict(_CONFLICTING_WRITES)))
+_UNKNOWN_MODEL = _usage_cases.UNKNOWN_MODEL
+_OPUS = _usage_cases.OPUS_FOUR_SEVEN
+
+# Unpriced runs, and the reasons each names beside the model of the message giving it. The first prices every message
+# on its own, so a message on a model with no row stops none of the others from being read.
+_UNPRICED_RUNS = (
+    (
+        "an unknown model beside a write of no lifetime",
+        _jsonl.jsonl(
+            _claude.assistant(id="msg_unknown", model=_UNKNOWN_MODEL, usage=dict(_ORDINARY)),
+            _claude.assistant(id="msg_opus", model=_OPUS, usage={**_ORDINARY, _AGGREGATE: 1000}),
+        ),
+        (
+            (_OPUS, _unpriced.MISSING_CACHE_WRITE_LIFETIME),
+            (_UNKNOWN_MODEL, _unpriced.MISSING_MODEL_PRICE),
+        ),
+    ),
+    ("writes contradicting their aggregate", _CONFLICTING_RUN, ((_HAIKU_FIVE_FIVE, _unpriced.INVALID_TOKEN_COUNTS),)),
+    *(
+        (label, stdout, ((_HAIKU_FIVE_FIVE, _unpriced.INDETERMINATE_REQUEST_TIER),))
+        for label, stdout in _requests.unestablished_runs(_HAIKU_FIVE_FIVE)
+    ),
+)
+
+
 class CacheWriteLifetimeTest(unittest.TestCase):
     """Every cache write is charged once, at the lifetime its usage block reports for it."""
 
@@ -253,15 +292,7 @@ class RequestTierTest(unittest.TestCase):
         # A one-hour split of 100,001 writes beside a zero aggregate cannot be
         # right on both counts, so the message's prompt is unknown and neither
         # of Haiku 5.5's tiers prices the run or its turn.
-        usage = {
-            _usage_cases.INPUT_TOKENS_FIELD: 1,
-            "cache_read_input_tokens": 0,
-            _usage_cases.OUTPUT_TOKENS_FIELD: 1,
-            _AGGREGATE: 0,
-            _SPLIT: {_FIVE_MINUTE: 0, _ONE_HOUR: 100_001},
-        }
-        stdout = _jsonl.jsonl(_claude.assistant(model=_HAIKU_FIVE_FIVE, usage=usage))
-        self.assertEqual(_costs(stdout), (None, None))
+        self.assertEqual(_costs(_CONFLICTING_RUN), (None, None))
 
     def test_unestablished_prompts_price_flat_rates(self) -> None:
         # A `result` total sums many requests, and a message reporting no
@@ -293,4 +324,25 @@ class RequestTierTest(unittest.TestCase):
                 self.assertEqual(
                     (_costs(stdout), handback_turn.token_evidence.observed),
                     (costs, (_protocol.OUTPUT_TOKENS,)),
+                )
+
+
+class UnpricedReasonTest(unittest.TestCase):
+    """Why a run's messages left it unpriced, and that a CLI-reported amount leaves no reason beside it."""
+
+    def test_a_run_names_every_message_reason(self) -> None:
+        for label, stdout, named in _UNPRICED_RUNS:
+            with self.subTest(label):
+                run_usage = _metrics.parse_claude_usage(stdout)
+                self.assertEqual(run_usage.cost_source, _usage_cases.UNKNOWN_COST_SOURCE)
+                self.assertEqual(run_usage.unpriced_reasons, tuple(itertools.starmap(_unpriced.UnpricedReason, named)))
+
+    def test_a_reported_amount_leaves_no_reason(self) -> None:
+        for reported in (0, _REPORTED_USD):
+            with self.subTest(reported=reported):
+                report = _jsonl.jsonl(_claude.terminal_result(total_cost_usd=reported))
+                run_usage = _metrics.parse_claude_usage(_jsonl.stdout_lines(_CONFLICTING_RUN, report))
+                self.assertEqual(
+                    (run_usage.cost_source, run_usage.cost_usd, run_usage.unpriced_reasons),
+                    (_usage_cases.REPORTED_COST_SOURCE, reported, ()),
                 )

@@ -2,8 +2,9 @@
 
 Pure-Python helpers that decode the JSONL stdout `agents.models.AgentResult` carries into a `UsageMetrics` dataclass —
 backend, distinct model(s), turn count, input / output / cached / cache-read / cache-write token totals, `cost_usd`, a
-`cost_source` tag of `reported` / `estimated` / `unknown-price` / `no-usage`, and the cost and token evidence that say
-what those amounts and counters mean (below). No external dependency: the parser is jq-free.
+`cost_source` tag of `reported` / `estimated` / `unknown-price` / `no-usage`, the cost and token evidence that say
+what those amounts and counters mean, and why an unpriced cost has no amount (below). No external dependency: the
+parser is jq-free.
 
 The pass runs once the audit `agent_exit` event has already fired, and `record_agent_exit` writes what it returns as
 the token / cost detail on the analytics [`agent_exit` record](event-streams.md#agent_exit-records) and the
@@ -21,10 +22,10 @@ Each dispatches across Codex, Claude, and Antigravity. The six result types come
 `UsageMetrics` and `SkillTriggers` from the first two, and `AgentTrajectory` / `TrajectoryStep` /
 `SourceItem` / `TurnUsage` from `trajectory_models.py`. Provider payload handling is split behind them: `protocol.py`
 holds the JSONL vocabulary and `event_stream.py` the resilient line decoder and the cost-precedence selection,
-`cost_evidence.py` the cost basis, completeness, and reduction and `token_evidence.py` the token-counter semantics every
-surface shares, `prices.py` the first-party API price
-catalogue over the dated rows and bounded lookup on `price_catalogue.py`, and `model_names.py` the nested model-name
-lookup, `claude_rows.py` / `claude_summary.py` and `codex_rows.py` /
+`cost_evidence.py` the cost basis, completeness, and reduction, `unpriced.py` the reasons an estimate leaves usage
+unpriced, and `token_evidence.py` the token-counter semantics every surface shares, `prices.py` the first-party API
+price catalogue over the dated rows and bounded lookup on `price_catalogue.py`, and `model_names.py` the nested
+model-name lookup, `claude_rows.py` / `claude_summary.py` and `codex_rows.py` /
 `codex_summary.py` the per-provider frame decoding and run summary, with `claude_settlement.py` settling each Claude
 message's final output count between the two and `claude_requests.py` holding each Claude usage row's scope, the
 lifetime of each of its cache writes, and the estimate it is priced at, and `codex_requests.py` what one Codex usage
@@ -107,7 +108,7 @@ zero is a count like any other.
 **Claude request pricing.** Each usage row carries a scope. A `message` row is one API message's usage block, so its
 input, cache reads, and cache writes are that request's prompt; a `handback-output` row holds only the output count
 of a subagent's closing message; a `result-total` row is the `result` frame's usage, a sum over the lead thread's
-requests. Every row is priced on its own (`ClaudeUsageRow.estimate`) and the run's estimate is those prices summed,
+requests. Every row is priced on its own (`ClaudeUsageRow.price`) and the run's estimate is those prices summed,
 one unpriced row leaving the whole estimate `unknown-price`; each turn is priced through the same call, and a
 CLI-reported cost still outranks the run's estimate, as the cost precedence below says. A request-tiered model is
 priced only on a row that establishes its prompt. Claude Haiku 5.5 charges its higher rates on every class, output
@@ -155,7 +156,7 @@ reported no write count at all, so a zero there, the 0.148.0 capture's included,
 written. `codex_rows.codex_usage_record` reads a positive count as that many writes of unknown lifetime and a zero or
 an absent field as no write count, and keeps a negative count, which then prices the run on no model. No nested
 lifetime field is parsed, since no CLI stream prints one.
-`codex_requests.CodexUsageRow.estimate` prices the authoritative record on its own, following
+`codex_requests.CodexUsageRow.price` prices the authoritative record on its own, following
 [OpenAI's cache accounting](https://developers.openai.com/api/docs/guides/prompt-caching#monitor-cache-performance),
 revalidated on 2026-10-31. A model whose row publishes cache-write rates — GPT-5.6 and later, a 30-minute write at
 1.25× ordinary input and a 12-hour one at 2.5× — bills as ordinary input the input less its reads and writes, and each
@@ -213,7 +214,7 @@ Gemini 3.7 Flash stays unpriced: the Developer API
 Antigravity still serves a 3.7 deployment, and neither is the other's price. Gemini 3.1 Pro stays unpriced too, since
 nothing confirms that it is the `gemini-3.1-pro-preview` SKU or sizes the requests its 200,000-token tier is charged
 on. So do the Claude and GPT-OSS models Antigravity also serves, a bare API ID, an unlisted thinking level, and any
-other spelling. `agy_requests.estimate` prices a run attributed to exactly one mapped slug: ordinary input at the
+other spelling. `agy_requests.price` prices a run attributed to exactly one mapped slug: ordinary input at the
 input rate, cache reads at the cached-input rate, and output, thinking included, at the output rate, on the active row
 in effect throughout the run's usage span (below). It states no amount for a run whose models are mixed or unnamed, a
 run any of whose steps spawned a subagent (`subagent_info`), since that conversation's model and usage are not on the
@@ -261,6 +262,49 @@ one dated row covers throughout, as the Antigravity paragraphs describe — the 
 tokens at the input rate, or choose a rate the usage does not establish. An empty stream — or one with
 no usage frames at all — yields `"no-usage"`. One selection, `event_stream.select_cost`, builds the run's cost
 evidence, and `UsageMetrics.apply_cost` reads `cost_usd` and `cost_source` off it, so the three never disagree.
+
+**Why a run is unpriced.** Each estimator answers an `unpriced.Pricing`: its estimate, or every reason no estimate is
+established, each an `UnpricedReason` naming the model the usage was priced as (`unknown` where the run named none).
+An estimator evaluates every check that applies rather than stopping at the first, so a run can give several reasons,
+and a Claude run gives each of its rows' reasons, a row on an unknown model stopping none of the others from being
+read. The vocabulary is closed:
+
+- `missing-model-price` — no active catalogue row answers to the model: an unknown, unnamed, or dormant one, or an
+  Antigravity slug no Gemini API model is mapped for.
+- `indeterminate-request-tier` — a request-tiered row, and usage sizing no request: a Codex input past 272,000, or a
+  Claude row that is not one message's whole prompt.
+- `missing-cache-write-count` — a row charging cache writes by lifetime, and no whole write count, such as the zero or
+  missing count the Codex CLI prints.
+- `missing-cache-write-lifetime` — cache writes of no reported lifetime on a row charging each lifetime its own rate.
+- `unrated-token-class` — tokens of a class the row publishes no rate for, such as cached input on a model whose page
+  lists no cached rate.
+- `invalid-token-counts` — a negative count, reads and writes past the input, or a lifetime split larger than its
+  aggregate.
+- `missing-token-count` — an Antigravity step reporting no count.
+- `indeterminate-rate-period` — no one dated Gemini row in effect throughout the run's span: no span, or one crossing
+  a scheduled change.
+- `subagent-usage` — an Antigravity run spawning a subagent, whose model and usage the stream does not establish.
+- `several-models` — an Antigravity run naming more than one model, given against each of them.
+
+A Codex row with no active row gives `missing-model-price` alone, since nothing is left to read its counts at; past
+the tier, a record's counts are read at the row's base rates, which publish the classes its tier's rates do. The
+observed GPT-6 Astra runs give two at once: a cumulative input past 272,000 leaves the tier indeterminate, and the
+CLI's zero or missing write count leaves the cache-write count missing. `UsageMetrics.apply_cost` keeps the reasons
+only where the selected cost is `incomplete`: a CLI-reported amount, an explicit zero included, outranks the estimate
+and leaves none, as does a complete estimate, and a run with no usage has none to give. `UsageMetrics.to_dict()`
+serializes them, sorted and each pair once, as `unpriced_reasons` and only where it holds one, so the `agent_exit`
+record and the trajectory `run_usage` carry the field on exactly the unpriced runs:
+
+```json
+{"unpriced_reasons": [
+  {"model": "gpt-6-astra", "reason": "indeterminate-request-tier"},
+  {"model": "gpt-6-astra", "reason": "missing-cache-write-count"}
+]}
+```
+
+A Claude turn's cost states no reasons of its own. `unpriced.recorded_reasons` reads a record back for only the entries
+this vocabulary writes, a model a non-empty string; an unpriced record carrying none — every one an earlier build
+wrote — gives no reason, which the analytics dashboard shows as `Reason unavailable`, and nothing re-estimates it.
 
 **Cost basis and completeness.** [v0.15.0](../release-timeline.md#v0150) introduces explicit cost and token evidence;
 records from v0.14.0 and earlier carry neither and retain the unknown readings described below.
@@ -566,7 +610,7 @@ the start count its frames carry where it does not — while its input and cache
 are read, a subagent's closing message, which printed no frame and so stamped no step, becomes a turn of its own
 numbered after every turn the steps carry, holding the hand-back's output count alone; the turns the frames gave keep
 their indices. Both builders settle their rows through `claude_settlement.ClaudeSettlement`, and each turn is priced on
-the same `claude_requests.ClaudeUsageRow.estimate` call the run estimate sums its rows through, each turn carrying its
+the same `claude_requests.ClaudeUsageRow.price` call the run estimate sums its rows through, each turn carrying its
 own Anthropic-basis cost evidence and the token evidence above. Unless the run totals fall back to the `result` frame,
 the per-turn token counts therefore sum to `parse_claude_usage`'s run totals, and the per-turn estimates to its estimate
 wherever every turn is priced; a turn that is not leaves the run's estimate `unknown-price` too.

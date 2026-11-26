@@ -202,7 +202,13 @@ cost and counters mean in its `cost_evidence` and `token_evidence`, which `Usage
 `agent_exit` record, and the trajectory `run_usage` serialize alike: a CLI-reported amount, an explicit zero included,
 outranks an estimate and is labelled CLI-reported, never a verified bill; an estimate is a token-only Standard API
 list-price equivalent on its provider's basis; an unpriced cost states no complete amount; no-usage stays its own
-answer; and a counter no usage payload reported is missing evidence, never a reported zero. A record without that
+answer; and a counter no usage payload reported is missing evidence, never a reported zero. An unpriced cost states
+why as well: the estimator evaluating a new run records every reason that applies from a closed vocabulary -- a
+missing model price, an indeterminate request tier, and a missing cache-write count or lifetime among them -- each
+beside the model it concerns, which `UsageMetrics`, the `agent_exit` record, and the trajectory `run_usage` carry as
+`unpriced_reasons` on exactly the unpriced runs; a CLI-reported amount, an explicit zero included, leaves none. An
+unpriced record without them -- every one an earlier build wrote -- gives no reason and reads `Reason unavailable`,
+an entry the vocabulary does not write is none, and nothing re-estimates or backfills one. A record without that
 evidence -- every one an earlier build wrote -- is read with an `unknown` basis and completeness, its `cost_usd` kept
 under that basis, and with a cache overlap nothing establishes, so its tokens total only where no cache counter is
 nonzero: no provider breakdown, completeness, or overlap is inferred from its `cost_source`, backend, or models, and
@@ -225,12 +231,14 @@ alike, in the shape a usage record's `cost_evidence` takes, and `issue_total_tok
 viewer does -- an Antigravity-only total a Gemini API token estimate, a mixed one blended with each basis's amount
 beside it, and a short one a subtotal -- never a merged figure. The analytics dashboard shows each amount as its figure
 and the short status its own runs earn -- a subtotal, an unknown completeness, or, where none is stated, unpriced,
-no usage, cost unknown, or no runs, never a zero -- and names bases, each basis's part of the filtered selection, and
-the selection's runs by completeness once, in its collapsed Cost details section, where neither an estimate nor a
-CLI-reported amount is called a verified charge. Totals an earlier build counted keep no evidence and
-read as one record without it, their cost under the `unknown` basis and completeness and their overlap unknown,
-nothing inferred from `issue_cost_sources`; the first run counted over them folds that reading in once and keeps
-their number in `issue_unevidenced_runs`, so no later run makes them known, and no posted receipt is rewritten.
+no usage, cost unknown, or no runs, never a zero -- and names bases, each basis's part of the filtered selection, the
+selection's runs by completeness, and its unpriced runs counted by model and recorded reason over the whole filtered
+selection rather than the listed runs once, in its collapsed Cost details section, where neither an estimate nor a
+CLI-reported amount is called a verified charge; a listed run names its own reasons beside its cost. Totals an
+earlier build counted keep no evidence and read as one record without it, their cost under the `unknown` basis and
+completeness and their overlap unknown, nothing inferred from `issue_cost_sources`; the first run counted over them
+folds that reading in once and keeps their number in `issue_unevidenced_runs`, so no later run makes them known, and no
+posted receipt is rewritten.
 A recorded requirements fingerprint
 (`user_content_hash`, `observed_user_content_hash`) is compared with the current fingerprint alone, which leaves bare
 operator controls out: a value no current reading reproduces -- one an earlier producer wrote counting a bare
@@ -381,6 +389,9 @@ or lost write interrupted are current state, not historical compatibility.
 [viewer evidence](../tests/observability/trajectory_viewer/test_usage_parsing.py),
 [dashboard costs](../tests/observability/dashboard/test_spend_text.py),
 [cost details](../tests/observability/dashboard/test_cost_details.py),
+[run reasons](../tests/observability/dashboard/test_recent_runs.py),
+[reason counts](../tests/observability/analytics/query/test_unpriced_reason_reads.py),
+[reasons in Postgres](../tests/observability/analytics/sync/test_live_unpriced_reasons.py),
 [request normalization](../tests/observability/usage/test_usage_request_normalization.py),
 [request coverage](../tests/observability/usage/test_usage_request_collection.py),
 [request records](../tests/observability/usage/test_usage_request_records.py),

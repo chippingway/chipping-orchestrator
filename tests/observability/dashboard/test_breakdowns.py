@@ -65,8 +65,8 @@ _KEY_AND_OFFSET = ("key", _TZ_OFFSET_PARAMETER)
 
 # Each panel read, the query owner's read it names, and what a page calls it
 # with. The rollup answers the three a whole day's bucket keeps the grouping
-# for; the breakdown family answers the three that bucket threw the column
-# away for.
+# for; the breakdown family answers the four that bucket threw the column away
+# for.
 _PANEL_READS = (
     (
         breakdowns.read_backend_efficiency,
@@ -86,6 +86,11 @@ _PANEL_READS = (
     (
         breakdowns.read_cost_coverage,
         breakdown_reads.get_cost_coverage,
+        _KEY_ONLY,
+    ),
+    (
+        breakdowns.read_unpriced_reasons,
+        breakdown_reads.get_unpriced_reasons,
         _KEY_ONLY,
     ),
     (

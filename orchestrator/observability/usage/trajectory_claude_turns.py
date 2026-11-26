@@ -4,7 +4,7 @@
 
 A turn is one API message, keyed the way the trajectory steps it produced are. Its output count is settled by the
 same `claude_settlement.ClaudeSettlement` the run aggregate reads, so the turns sum to the run. Each turn is priced on
-its own as an Anthropic API estimate, through the same `claude_requests.ClaudeUsageRow.estimate` the run estimate sums
+its own as an Anthropic API estimate, through the same `claude_requests.ClaudeUsageRow.price` the run estimate sums
 its rows with, so a priced run's turns sum to its estimate; and each observes the token classes its own row reported.
 """
 
@@ -64,7 +64,7 @@ def turn_usage_from_row(usage_row: claude_requests.ClaudeUsageRow) -> TurnUsage:
     its estimate prices the row as its scope allows, so a hand-back turn on a request-tiered model has none.
     """
     counts = usage_row.counts
-    cost = event_stream.select_cost(None, usage_row.estimate(), has_usage=True)
+    cost = event_stream.select_cost(None, usage_row.price().estimate, has_usage=True)
     return TurnUsage(
         turn=usage_row.ordinal,
         model=usage_row.model,

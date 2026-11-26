@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The six panel reads a page's comparison sections are drawn from.
+"""The seven panel reads a page's comparison sections are drawn from.
 
 Each one is a window already decided: the page hashed its filters into a cache
 key, and what is left to say is which read that key is spent on. So the whole
@@ -13,8 +13,8 @@ Each names the query owner that defines it, so a patch aimed at a read lands
 where the panel issues it. Which owner that is follows the column a
 read groups by: a backend comparison, a per-repository tally, and a daily
 resolved/rejected count are all day-bucketed, so they are the rollup's; a cost
-source, one run's own token split, and an hour of day are what that bucket
-threw away, so they are the breakdown family's.
+source, why a run went unpriced, one run's own token split, and an hour of day
+are what that bucket threw away, so they are the breakdown family's.
 
 The activity heatmap is the one adapter carrying a filter of its own. A display
 offset changes which weekday-and-hour cell a row is counted into rather than
@@ -44,6 +44,14 @@ def read_cost_coverage(key: tuple):
     """Read token volume grouped by the source its cost was priced from."""
     return filter_binding.read_filtered(
         breakdown_reads.get_cost_coverage,
+        key,
+    )
+
+
+def read_unpriced_reasons(key: tuple):
+    """Read the window's unpriced runs counted per model and the reason each gave."""
+    return filter_binding.read_filtered(
+        breakdown_reads.get_unpriced_reasons,
         key,
     )
 

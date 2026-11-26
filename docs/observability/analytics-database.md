@@ -115,7 +115,11 @@ matching `ANALYTICS_LOG_PATH`.
   The `agent_exit` usage evidence is a sixth: `cost_evidence` and `token_evidence` ride in `extras` verbatim, as the
   objects the sink wrote ([`usage.md`](usage.md#usage-parser)), beside the promoted `cost_usd`, `cost_source`, and
   token columns they qualify — and, unlike the others, the sync also files what they mean in
-  [columns of their own](#usage-evidence-columns), since SQL can neither validate nor fold the raw objects.
+  [columns of their own](#usage-evidence-columns), since SQL can neither validate nor fold the raw objects. Why an
+  unpriced run has no amount is a seventh: its `unpriced_reasons` ride in `extras` as the record wrote them, with no
+  column of their own and no view or rollup carrying them, and the read model reads them there, entry by entry, for
+  the recent-run listing and the count of a window's unpriced runs by model and reason
+  ([`analytics-dashboard.md`](analytics-dashboard.md#read-model-orchestratorobservabilityanalyticsquery)).
   `source_path` / `source_line` are
   forensic context; the authoritative dedup key is `content_hash` — SHA-256 over the canonical (`sort_keys=True`)
   JSON form of the record.
