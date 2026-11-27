@@ -228,7 +228,9 @@ class _Transfer:
         Refused, with nothing sent, where a record the road's handoff was
         frozen over has moved since, where a record `answering` is decided on
         reads otherwise afresh than the caller last read it, and where the
-        outcome earns no delivered report. `answering` is the caller's run,
+        outcome earns no delivered report -- a verification that does not
+        read back where it points among them, while work no report describes
+        is held (`report_minting.stands_where_it_points`). `answering` is the caller's run,
         retiring and decided on what it names. The recording below is guarded
         over the fresh reading, so what the caller decided its run on is held
         to the caller's own reading first -- the comment as its state was last
@@ -248,6 +250,10 @@ class _Transfer:
         delivered = _minting.minted_report(
             self.commit.issue.number, self.fresh, carried, _handed_run(self.captured),
         )
+        if self.fresh.get(_delivery.UNREPORTED_WORK) and not _minting.stands_where_it_points(
+            self.commit.gh, delivered,
+        ):
+            return self.commit.refused(_commits.CheckpointRefusal.UNRECORDABLE, reread=True)
         return self.records(delivered, self.handed(delivered, answering))
 
     def handed(self, delivered: DeliveredReport, answering: HandedRun) -> HandedRun:

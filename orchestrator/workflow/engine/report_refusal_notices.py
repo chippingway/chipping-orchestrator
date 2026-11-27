@@ -38,6 +38,12 @@ The log line carries the same cause beside its code -- the `RecordRefusal`
 value, or `comment_overflow` with the write measured and the later writes it
 was measured beside -- so an operator reading the log reads what the notice
 says rather than a second guess at it.
+
+A run that committed and handed over no usable report at all has no refusal to
+name, and is told apart from one that does (`explains_the_unreported_run`): its
+notice quotes what the run said instead (`last_message_quotes`), since the
+prompt tells a developer that cannot finish to end on its question, and the
+decision that question waits on is what the reply has to bring.
 """
 from __future__ import annotations
 
@@ -48,6 +54,7 @@ from types import MappingProxyType
 
 from orchestrator import config
 from orchestrator.workflow.engine import (
+    last_message_quotes as _last_message_quotes,
     report_record_room as _room,
     report_record_values as _record_values,
     report_records as _records,
@@ -73,6 +80,26 @@ _RESUMED = (
 )
 
 _LOGGED = "issue=#%d %s; publishing nothing and holding for a human"
+
+# What a finished run that committed and handed over no usable report is held
+# under, with what it said instead quoted where `{said}` stands.
+_UNREPORTED_PARK = (
+    "{mentions} this issue's developer run finished with committed work and "
+    "no completion report this orchestrator can publish -- no report outcome "
+    "at all, one that reached for the contract and missed, or one naming a "
+    "report this orchestrator could not verify where it points: on somebody "
+    "else's repository, gone, edited since, written by an author this "
+    "deployment does not trust, or behind a reading that could not be taken. "
+    "Nothing was published: {withheld}. "
+    "Handing this work to review would send a reviewer an "
+    "implementation nobody described, with no record of what was done and no "
+    "session left to ask.{said}\n\n"
+    "Reply -- with your decision, where the developer asked for one -- and "
+    "the orchestrator resumes the developer session on your reply. The "
+    "committed work stays held in the worktree until that session supplies a "
+    "valid completion report; the report it writes then is the one that gets "
+    "published, and it needs no new commit to deliver it."
+)
 
 
 @dataclass(frozen=True)
@@ -222,6 +249,21 @@ def explains_the_refusal(
         why=reading.why,
         withheld=withheld,
         recovery=reading.recovery,
+    )
+
+
+def explains_the_unreported_run(withheld: str, last_message: str) -> str:
+    """The notice over a finished run that committed and handed over no usable report.
+
+    `withheld` is what the road that held it kept back, as for a refusal, and
+    `last_message` is what the run ended on, quoted into the notice
+    (`last_message_quotes.quoting_the_last_message`).
+    """
+    return _last_message_quotes.quoting_the_last_message(
+        lambda said: _UNREPORTED_PARK.format(
+            mentions=config.HITL_MENTIONS, withheld=withheld, said=said,
+        ),
+        last_message,
     )
 
 

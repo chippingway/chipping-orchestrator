@@ -15,6 +15,11 @@ location a human owns stands down, so the routes behind the guard run while the
 transaction stays owed -- held instead, an issue whose report somebody edited
 would sit in front of every one of them for good.
 
+Over work a park held, the same reading is taken before the report is even
+recorded, and there no refusal is a hold: recording it would let the roads
+behind publish that work ahead of the settlement's own re-read, so only the
+reading the settlement would settle on lets it be recorded.
+
 The AUTHOR is two reads deep, and both are covered here. `user` comes off the
 object GitHub handed back and `login` comes off that, so on a worker that has
 not completed it either is a request that can fail -- and a failure is not an
@@ -25,6 +30,7 @@ dispatcher and out of the tick.
 from __future__ import annotations
 
 import unittest
+from contextlib import nullcontext
 from unittest.mock import patch
 
 from orchestrator import config
@@ -32,6 +38,7 @@ from orchestrator.github import comments as _trust
 from orchestrator.github.developer_reports import content_digest
 from orchestrator.github.pull_request_reports import ReportLocation
 from orchestrator.workflow.engine import (
+    report_minting as _minting,
     report_records as _records,
     report_settlement_state as _settlement,
 )
@@ -54,6 +61,33 @@ _LOGIN = "login"
 
 _AUTHOR_READS = (_LOGIN, "user")
 
+# The world a verification over held work is read in, as each reading of it
+# would find it, and whether the verification may be recorded there.
+_HELD_READINGS = (
+    ("a trusted match", lambda case: nullcontext(), True),
+    (
+        "an edited report",
+        lambda case: patch.object(case.human, "body", f"{_HUMAN_REPORT} Edited."),
+        False,
+    ),
+    (
+        "a report that is gone",
+        lambda case: patch.object(case.pull_request, "issue_comments", []),
+        False,
+    ),
+    (
+        "an untrusted author",
+        lambda case: patch.object(config, "ALLOWED_ISSUE_AUTHORS", ("mallory",)),
+        False,
+    ),
+    (
+        "an unreadable location",
+        lambda case: patch.object(case.gh.report_failures, "unreadable", {support.PR_NUMBER}),
+        False,
+    ),
+    ("an unreadable author", lambda case: _refuses_the_author_read(case, "user"), False),
+)
+
 
 def _refuses_the_author_read(case, read: str):
     """One of the two reads between a verified report and its author, failing.
@@ -68,6 +102,20 @@ def _refuses_the_author_read(case, read: str):
         return patch.object(config, "ALLOWED_ISSUE_AUTHORS", (_AUTHOR,))
     return patch.object(
         _trust, "is_trusted_author", side_effect=RuntimeError(_REFUSED),
+    )
+
+
+def _delivered(mode: _records.ReportMode) -> _records.DeliveredReport:
+    """A report a developer handed over work a park held: verified at the human's comment, or written out."""
+    return _records.DeliveredReport(
+        receipt="held-work-report",
+        report_revision=1,
+        mode=mode,
+        route=WorkflowLabel.FIXING,
+        requirements_revision="",
+        report="" if mode is _records.ReportMode.VERIFY else _HUMAN_REPORT,
+        location=ReportLocation(pr_number=support.PR_NUMBER, comment_id=_HUMAN_COMMENT_ID),
+        content_revision=content_digest(_HUMAN_REPORT),
     )
 
 
@@ -161,6 +209,34 @@ class VerifiedTransactionTest(unittest.TestCase, support.ReportTransactionCase):
 
         self.assertTrue(self.reconcile())
         support.assert_still_owed(self)
+
+
+
+class HeldWorkVerificationTest(unittest.TestCase, support.ReportTransactionCase):
+    """A verification over work a park held, read before it is recorded."""
+
+    def setUp(self) -> None:
+        support.ReportTransactionCase.setUp(self)
+        self.human = FakeComment(
+            id=_HUMAN_COMMENT_ID, body=_HUMAN_REPORT, user=FakeUser(_AUTHOR),
+        )
+        self.pull_request.issue_comments.append(self.human)
+
+    def test_only_a_trusted_match_is_recorded(self) -> None:
+        # Only a trusted match lets the verification be recorded: a refusal
+        # the settlement would stand down on and one it would hold on alike
+        # keep the work held, since the commits a recorded report lets out
+        # are not taken back by either. A written-out report reads nothing
+        # and stands as it is.
+        for described, spoiled, stands in _HELD_READINGS:
+            with self.subTest(world=described), spoiled(self):
+                self.assertEqual(
+                    (
+                        _minting.stands_where_it_points(self.gh, _delivered(_records.ReportMode.VERIFY)),
+                        _minting.stands_where_it_points(self.gh, _delivered(_records.ReportMode.PUBLISH)),
+                    ),
+                    (stands, True),
+                )
 
 
 if __name__ == "__main__":

@@ -30,7 +30,7 @@ from github.Issue import Issue
 
 from orchestrator.agents.models import AgentResult
 from orchestrator.github import client as _client, pinned_state as _pinned_state
-from orchestrator.github.pull_request_reports import ReportLocation
+from orchestrator.github.pull_request_reports import ReportLocation, ReportPresence
 from orchestrator.workflow.engine import (
     prompt_delivery as _prompt_delivery,
     report_delivery_state as _delivery_state,
@@ -250,6 +250,42 @@ def carried_by_outcome(
         )
         return None
     return outcome_fields(outcome)
+
+
+def stands_where_it_points(gh: _client.GitHubClient, delivered: _records.DeliveredReport) -> bool:
+    """Whether held work may be published on `delivered`: any written-out report, or a verified one that reads back.
+
+    A verification is the developer's assertion that a report is already
+    somewhere, and the transaction it becomes re-reads that place before it
+    settles -- after the push that publishes the commits it claims to describe.
+    That order is the one a caller holding work no report describes may not
+    take: the park that held the work told a human it stays unpublished until
+    a valid report describes it, and a report found gone, edited off the
+    revision named, or written by somebody this deployment does not trust only
+    stands down once the commits are out. So such a caller asks first, over
+    the same reading the settlement takes: the recording of a report over held
+    work, and the push of a fix under a verification already recorded
+    (`stages/validating/report_settlement._holds_the_push`). A reading nobody
+    could take answers False too, as the repository's does: nothing recorded,
+    and the run held for a human.
+    """
+    if delivered.mode is not _records.ReportMode.VERIFY:
+        return True
+    lookup = gh.reread_report_location(delivered.location, content_sha256=delivered.content_revision)
+    if lookup.presence is not ReportPresence.PRESENT:
+        log.error(
+            "a developer verified a report that reads %s at %s; no work is "
+            "published on its word", lookup.presence.value, delivered.location,
+        )
+        return False
+    if not lookup.author_trusted():
+        log.error(
+            "a developer verified a report at %s whose author this deployment "
+            "does not trust, or could not read; no work is published on its "
+            "word", delivered.location,
+        )
+        return False
+    return True
 
 
 def outcome_fields(outcome: _outcome_models._ReportOutcome) -> dict | None:

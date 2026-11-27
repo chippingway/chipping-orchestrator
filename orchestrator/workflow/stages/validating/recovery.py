@@ -91,6 +91,7 @@ from orchestrator.workflow.stages.implementing import (
 )
 from orchestrator.workflow.stages.validating import (
     drift_reports as _drift_reports,
+    report_settlement as _report_settlement,
     rounds as _rounds,
     state as _state,
     stranded as _stranded,
@@ -319,6 +320,12 @@ def _publish_recovered_fix(
     exactly that reading, so leaving the count to it is what ties the round to
     the push that earned it rather than to the poll that noticed.
 
+    A verified report recorded for the commit is asked again before the retry
+    pushes it (`report_settlement._holds_the_push`): it was read when it was
+    recorded, and the comment it names can have moved since the push that
+    failed -- pushed on that earlier reading, the work goes out under a
+    report the settlement then stands down on.
+
     WHICH round is `rounds`', not this owner's. A publication an `in_review`
     requirements edit already reset the budget for spends none of it: the park
     this retry is clearing is what delayed that same publication, so counting
@@ -326,6 +333,9 @@ def _publish_recovered_fix(
     of the edit whose push landed at once. Every other park leaves a commit no
     reviewer has read, which is the event the count is for.
     """
+    if _report_settlement._holds_the_push(gate.gh, gate.issue, gate.state):
+        gate.gh.write_pinned_state(gate.issue, gate.state)
+        return _state._OUTCOME_HELD
     branch = _naming._resolve_branch_name(
         gate.state, gate.spec, gate.issue.number,
     )

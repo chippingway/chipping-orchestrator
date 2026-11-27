@@ -44,7 +44,10 @@ leaves is the contract broken rather than a road this workflow answers -- and
 publishing it would send a reviewer an implementation nobody described, with no
 session left to ask. So it is held here too, exactly as an unrecordable report
 is: nothing published, the commit in the worktree, and a reply that resumes the
-session that can still write one.
+session that can still write one. Its notice quotes what the run said instead,
+since a developer that committed part of the work and needs a decision on the
+rest ends on its question with no report, and that decision is what the reply
+has to bring.
 
 A report this build cannot record HOLDS the tick instead, parked for a human.
 That is the one answer left: the record is what every later tick works from, so
@@ -93,7 +96,6 @@ import logging
 
 from github.Issue import Issue
 
-from orchestrator import config
 from orchestrator.agents.models import AgentResult
 from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
@@ -119,6 +121,7 @@ from orchestrator.workflow.engine.report_record_room import (
 )
 from orchestrator.workflow.engine.report_refusal_notices import (
     explains_the_refusal as _explains_the_refusal,
+    explains_the_unreported_run as _explains_the_unreported_run,
 )
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -238,20 +241,6 @@ INCOMPLETE_RUNS = frozenset((
     _outcome_models._ReportRefusal.NONZERO_EXIT,
 ))
 
-_UNREPORTED_PARK = (
-    "{mentions} this issue's developer run finished with committed work and "
-    "no completion report this orchestrator can publish -- no report outcome "
-    "at all, one that reached for the contract and missed, or one naming a "
-    "report this orchestrator cannot hold against its own repository, whether "
-    "because it is somebody else's or because the reading that would have "
-    "proved it could not be taken. Nothing was published: {withheld}. "
-    "Handing this work to review would send a reviewer an "
-    "implementation nobody described, with no record of what was done and no "
-    "session left to ask. Reply and the orchestrator resumes the session; the "
-    "report it writes then is the one that gets published, and it needs no "
-    "new commit to deliver it."
-)
-
 
 def owes_a_report(state: _pinned_state.PinnedState) -> bool:
     """Whether this issue still owes a pull request the report of a run.
@@ -351,6 +340,12 @@ def recording_stops_the_tick(
     existed; only a report written over the branch as it stands retires it,
     which is the report the reply to either notice brings.
 
+    While that flag stands, a `REPORT: VERIFIED` is read where it points
+    before it is recorded (`report_minting.stands_where_it_points`), since
+    recording it retires the flag and the roads behind publish the held work
+    ahead of the re-read that settles it. One that does not read back is no
+    usable report, and the run is held as one that brought none.
+
     And both carry the input the caller said this run's prompt delivered into
     the park's own write, so an issue left awaiting a human is never left
     awaiting one over feedback that still reads as unanswered.
@@ -358,7 +353,9 @@ def recording_stops_the_tick(
     handed = route if isinstance(route, _records.HandedRun) else _records.HandedRun(route)
     commit = _commits.ReportCommit(gh, issue, state)
     delivered = _minting.delivered_report(gh, issue, state, agent_result, handed)
-    if delivered is None:
+    if delivered is None or (
+        state.get(UNREPORTED_WORK) and not _minting.stands_where_it_points(gh, delivered)
+    ):
         return _unreported_run_holds(commit, agent_result, handed)
     refusal = records_the_report(commit, delivered, handed)
     if refusal is None:
@@ -476,6 +473,14 @@ def _unreported_run_holds(
     a report an earlier run left describes the branch before them, so a road
     reading the debt alone would publish them under it.
 
+    The notice quotes the run's last message
+    (`report_refusal_notices.explains_the_unreported_run`), because a run often
+    reaches here by ending on a question: a developer that committed part of
+    what it was asked and needs a human's decision on the rest ends on that
+    question with no report, as every developer prompt asks. Told only
+    that a report is missing, the human replies asking for one, and the report
+    that reply buys sends the work to review with the decision still unmade.
+
     What the notice says was withheld is the ROAD's, since the two roads hold
     back different things: a pull request that was never opened, and one that
     stands where it stood. `handed` carries that road, and the input the run's
@@ -501,12 +506,9 @@ def _unreported_run_holds(
     staged = commit.staging()
     staged.set(UNREPORTED_WORK, True)
     handed.retired_onto(staged)
-    parks_the_debt(commit, staged, _UNREPORTED_PARK.format(
-        mentions=config.HITL_MENTIONS,
-        withheld=(
-            _NOTHING_ADDED if handed.route in _UNDER_REVIEW
-            else _NOTHING_OPENED
-        ),
+    parks_the_debt(commit, staged, _explains_the_unreported_run(
+        _NOTHING_ADDED if handed.route in _UNDER_REVIEW else _NOTHING_OPENED,
+        agent_result.last_message,
     ), handed.watermarks, parking=PARKING.behind(handed))
     return True
 

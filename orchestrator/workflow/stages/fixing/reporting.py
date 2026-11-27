@@ -51,6 +51,7 @@ from orchestrator.git.verification import status as _worktree_status
 from orchestrator.git.worktrees import naming as _naming
 from orchestrator.workflow.engine import (
     guards as _guards,
+    last_message_quotes as _last_message_quotes,
     report_binding as _report_binding,
     report_delivery as _report_delivery,
     report_outcomes as _report_outcomes,
@@ -117,8 +118,12 @@ _MISREAD_PARK = (
     "and no report went onto the pull request. Read either half alone this "
     "would be wrong in a way nothing later could undo -- the `ACK:` returns "
     "the pull request to review as needing no change, and the report claims "
-    "work nobody published. Reply and the orchestrator resumes the session; "
-    "the answer it gives then is the one that counts."
+    "work nobody published.{said}\n\n"
+    "Reply -- with your decision, where the developer asked for one -- and "
+    "the orchestrator resumes the developer session on your reply; the answer "
+    "it gives then is the one that counts. Any committed work no report "
+    "describes stays held in the worktree until that session supplies a "
+    "valid completion report."
 )
 
 # What a round that committed and did not FINISH is held under. The engine's
@@ -154,29 +159,36 @@ _STALLED_PARK = (
     "that gets published. It needs no new commit to deliver it."
 )
 
-# What a round that committed over a report the issue still owes is held
-# under. The run is over, so what this asks for is a fresh report written over
-# the branch as it now stands -- which the reply's resume writes and which
-# supersedes the record nothing could bind.
+# What a round that leaves committed work no report describes is held under:
+# one that committed over a report the issue still owes, and one that answered
+# with no report while work an earlier run committed is still undescribed. The
+# run is over, so what this asks for is a fresh report written over the branch
+# as it now stands -- which the reply's resume writes and which supersedes the
+# record nothing could bind. The debt may be one nobody ever wrote: the round a
+# park over committed work with no report resumed, which commits again or asks
+# again, owes the report that park asked for.
 _UNDESCRIBED_PARK = (
-    "{mentions} this issue's developer run committed work while a report an "
-    "earlier run wrote is still owed to the pull request, and answered the "
-    "feedback with no report of its own. Nothing was published: the commit is "
-    "still in the worktree, the branch is untouched, and the earlier report is "
-    "still on the pinned comment exactly as it was. That report describes the "
-    "branch as it stood before this commit, so publishing it against the new "
+    "{mentions} this issue's branch carries committed work no report "
+    "describes, and the developer's run answered the feedback with no report "
+    "of its own. Nothing was published: that work is still in the worktree, "
+    "the branch is untouched, and any report an earlier run recorded is still "
+    "on the pinned comment exactly as it was. Such a report describes the "
+    "branch as it stood before that work, so publishing it against the new "
     "head would hand a reviewer a description of work it does not cover -- and "
-    "a report is the one thing this orchestrator cannot write for itself. "
-    "Reply and the orchestrator resumes the session; the report it writes then "
-    "describes the branch as it stands, supersedes the one that could not, and "
-    "is the one that gets published."
+    "a report is the one thing this orchestrator cannot write for itself.{said}\n\n"
+    "Reply -- with your decision, where the developer asked for one -- and "
+    "the orchestrator resumes the developer session on your reply. The "
+    "committed work stays held in the worktree until that session supplies a "
+    "valid completion report; the report it writes then describes the branch "
+    "as it stands, supersedes the one that could not, and is the one that "
+    "gets published."
 )
 
 
 def _holds_for_a_human(
     ctx: _models._FixingContext, run: _models._FixingResumeRun,
 ) -> bool:
-    """The two replies this round may act on no half of, held for a human.
+    """The replies this round may act on no half of, held for a human.
 
     True is a tick this call ended. Both roads announce once and hold the work
     exactly where it is: nothing published, any commit still in the worktree,
@@ -215,10 +227,43 @@ def _holds_for_a_human(
     written before it existed -- and the road that publishes it reads only the
     debt, which the earlier report still satisfies.
 
+    A round that brings no report while the undescribed-work flag already
+    stands is held the same way, whatever it committed. That flag is the
+    promise every park over such work makes -- nothing of it is published
+    until a report describes it -- and the disposition behind this publishes
+    a commit an earlier run stranded through its ordinary push tail, so the
+    round a human's answer resumes, asking its next question with no new
+    commit, would otherwise push the very work its park held. A run that did
+    not finish is held too, a timeout among them: the timeout park's
+    recovery is a push as well.
+
+    One that did not finish is left to its own park only where nothing it
+    leaves can publish: a command execution it left unfinished and ended on
+    by itself. That run publishes nothing -- no road behind this pushes past
+    an unfinished step -- and its park is the one whose `/orchestrator
+    continue` replays the reviewer's feedback on a fresh session, which a
+    park here would turn into a resume of the session that failed. Its work
+    is recorded as undescribed all the same, so the retry that answers with
+    no report is held here. One the timeout killed with a command still
+    running is a timeout like any other: the timeout park is where it would
+    go, and that park's recovery is a push.
+
     The work is then recorded as UNDESCRIBED, which is what stops every later
     road binding over it, and the reply the park earns resumes the developer:
     the report that session writes describes the branch as it stands and
     supersedes the one that could not.
+
+    Either notice quotes the run's last message
+    (`last_message_quotes.quoting_the_last_message`). A round resumed on a
+    human's answer to a park over a committed fix with no report reaches the
+    second of them when the developer commits more and asks the next
+    question: the debt that first park recorded is what reads the new commit
+    as undescribed. Told only that a report is owed, the human asks for one,
+    and the report it buys goes to review with the next decision unmade. A
+    run that did not FINISH quotes nothing -- the timeout this road holds
+    too, since a timeout is a way to commit, among them: what it last said is
+    wherever it was cut off, not a question it asked, and quoted under that
+    heading it would read as the decision the reply has to make.
 
     The two are asked INDEPENDENTLY and only the notice picks between them,
     because a reply can be both: a malformed message is no report, so a run
@@ -226,23 +271,30 @@ def _holds_for_a_human(
     as a plain question would. Answered on the misread alone, that round parks
     with the flag down and the old delivery still bindable -- and the commit,
     once some later road carries it to the pull request, gets the earlier
-    round's report published over it. The notice is the misread one there,
-    since the reply is what the human has to fix and the report their reply
-    earns retires both.
+    round's report published over it. A misread that committed is undescribed
+    work even with no report owed: the debt-free round a question park
+    resumed has a commit no report describes all the same, and with the flag
+    down the round the reply resumes, asking its next question with no new
+    commit, would push it through the same stranded-commit tail. A misread
+    whose head nobody could read is undescribed as well, unlike the second
+    reading's: it parks here whatever the head was, and the round its reply
+    resumes reads the head afresh and would push whatever this one left. The
+    notice is the misread one there, since the reply is what the human has
+    to fix and the report their reply earns retires both.
     """
-    misread = not run.reported and _report_outcomes._reached_for_a_report(
-        run.dev_result,
-    )
-    undescribed = (
-        not run.reported
-        and bool(run.after_sha)
-        and run.after_sha != run.before_sha
-        and _report_delivery.owes_a_report(ctx.state)
+    if run.reported:
+        return False
+    misread = _report_outcomes._reached_for_a_report(run.dev_result)
+    undescribed = bool(ctx.state.get(_report_delivery.UNREPORTED_WORK)) or (
+        run.may_have_committed
+        and (misread or (bool(run.after_sha) and _report_delivery.owes_a_report(ctx.state)))
     )
     if not misread and not undescribed:
         return False
     if undescribed:
         ctx.state.set(_report_delivery.UNREPORTED_WORK, True)
+    if run.ended_on_a_running_command:
+        return False
     if _dev_session_read._is_session_limit(run.dev_result):
         # The quota stopped this run, and the quota is what a human waits
         # out: the same debt, under the session limit a bare continue retries.
@@ -252,10 +304,14 @@ def _holds_for_a_human(
         ))
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return True
+    notice = _MISREAD_PARK if misread else _UNDESCRIBED_PARK
+    last_message = run.dev_result.last_message
+    if _report_outcomes._report_outcome_of_run(run.dev_result) in _report_delivery.INCOMPLETE_RUNS:
+        last_message = ""
     _report_delivery.parks_an_undeliverable_report(
-        ctx.gh, ctx.issue, ctx.state,
-        (_MISREAD_PARK if misread else _UNDESCRIBED_PARK).format(
-            mentions=_config.HITL_MENTIONS,
+        ctx.gh, ctx.issue, ctx.state, _last_message_quotes.quoting_the_last_message(
+            lambda said: notice.format(mentions=_config.HITL_MENTIONS, said=said),
+            last_message,
         ),
     )
     return True

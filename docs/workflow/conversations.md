@@ -317,6 +317,42 @@ invalid record is worded with no claim about size and points at the pinned comme
 where a size was measured and failed. Each recovery is the same resume: the reply's session writes the corrected report
 with no new commit, and that report is the one published.
 
+A run that completes and commits but ends with neither outcome parks under `report_undeliverable` as well, with nothing
+published. Most often it ended on a question: a developer that committed part of a reviewer's requested changes and
+needs a decision on the rest ends on that question, as above. So the notice quotes the run's last message, and the
+question and any choices it offered reach the human. A blank message is not quoted. The rest is quoted whole wherever
+one GitHub comment carries it beside the notice's own words and the comment marker, and only past that ceiling is the
+head cut, keeping the longest end that fits once quoted -- every line break spends its blockquote prefix too -- so the
+question at the end stays, with the line the cut went through marked by a leading `...`. Markdown hides text only
+through raw HTML, and raw HTML opens on `<`: an HTML comment opener nothing closes swallows every line after it. So a
+message carrying `<`, and every cut end, is shown as plain text inside a code fence. The cut can also drop the opening
+fence of a code example, and the fence keeps what that example held from being read as markdown. The fence is made one
+longer than any line inside it that could close it, from backticks or tildes, whichever is shorter, so a long run of
+one fence character before the question does not use up the room the question needs. The receipt prefix is quoted with
+its opening bracket escaped as an HTML entity, so the raw comment carries no receipt while the developer's words still
+read; inside a fence or a code span the entity shows as typed. A reply carrying the decision resumes the developer
+session, and the commit stays held in the worktree until that session supplies a valid report.
+
+The fixing stage holds the rounds that reply resumes the same way. Until a report describes the held work, a round
+that answers with no report is parked under `report_undeliverable` with nothing pushed, whether it committed again or
+only asked the next question; a round that committed nothing would otherwise publish the held commit as a stranded
+one. A message that reached for the report contract and missed, such as a fenced example of a report block above the
+question, parks under its own notice, and a commit it may have made -- the head moved, or could not be read -- is held
+as undescribed work too. An Antigravity round that ends on its own with a command unfinished publishes nothing and
+keeps its own `agent_execution_failed` park, whose `/orchestrator continue` replays the reviewer's feedback on a fresh
+session; the held work stays recorded as undescribed, so a retry that brings no report is held again. One the timeout
+kills with a command still running over held work is held like any other timeout, since the timeout park's recovery
+would push. A `REPORT: VERIFIED` over held work is read where it points before it is recorded: a report that is gone,
+edited since, written by an author this deployment does not trust, or that could not be read is no valid report, and
+the work stays held. A fix is pushed under a recorded verification only once it is asked again, both on the round's
+own push and on a retry of a push that failed: it has to name a report on this issue's own pull request, not that pull
+request's description unless the description closes the issue and names the session, and it has to still read back.
+Otherwise the commit stays in the worktree and the issue parks for a reply. Each of these notices
+quotes the run's last message the same way, so the next question and its choices reach the human, asks for the
+decision, and says the committed work stays held until a valid report describes it. A round that did not finish, such
+as one the timeout cut off after committing, parks the same way with nothing quoted: its last words are where it
+stopped, not a decision it asked for.
+
 Where the contract is carried:
 
 - **Whole** in the initial `_build_implement_prompt`, the automated-review `_build_fix_prompt`, the requirements-drift

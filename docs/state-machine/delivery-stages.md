@@ -348,7 +348,10 @@ Result routing in `_post_user_content_change_result`:
   tick holds was fetched before the resumed run and a title or body edited during it exists only on the new object.
   A run that completed and committed with no usable report parks under `report_undeliverable` with nothing pushed,
   under a notice naming what this road withheld: the pull request stays open on the commit it already carried, which
-  is what the same park says nothing was opened of on the implementing seam.
+  is what the same park says nothing was opened of on the implementing seam. The notice quotes the run's last
+  message, so a question the developer ended on beside a partial fix, and the choices it offered, reach the human:
+  a reply carrying the decision resumes the developer session, and the commit stays in the worktree until that
+  session supplies a valid report.
   A run that did NOT complete is parked the same way and publishes the same nothing. The engine exempts an
   incomplete run from the report contract — a nonzero exit, a provider refusal and a launch nothing invoked are
   failures other roads answer, and on the roads that exemption serves nothing is published either way — but this
@@ -5968,7 +5971,10 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        COMMITTED and handed over no usable report — including one that did not finish, which the engine exempts from
        the contract because the roads that exemption serves publish
        nothing either way — parks under `report_undeliverable` with nothing pushed, the commit in the worktree and
-       the round unspent, in this road's own words rather than the engine's; a run an account quota stopped, there
+       the round unspent. A run that finished parks under the engine's notice, which quotes its last message so a
+       question about the rest of the requested changes, and the choices it offered, reach the human whose reply
+       resumes the session; one that did not finish parks in this road's own words rather than the engine's; a run an
+       account quota stopped, there
        or over a report an earlier round still owes, leaves the same debt under the session limit instead, which a
        bare continue retries. Every park a reporting round earns carries
        the input its prompt delivered into the park's OWN write rather than a caller's afterwards: durable over
@@ -6901,7 +6907,30 @@ of those recoverable without telling a human twice
      answered for a report no reviewer has is the reading that fork refuses. Then the two replies this round may act
      on no half of, held for a human ahead of every road below (`stages/fixing/reporting.py`): a message that reached
      for the report contract and MISSED, and a round that COMMITTED over a report an earlier tick recorded, whose
-     record describes the branch before that commit. The head is read on every finished run for that second one, a
+     record describes the branch before that commit -- or that brings no report while work a park over committed work
+     with no report holds is still undescribed, committed or not, which is how a round resumed on a decision that asks
+     the next question reads. Left to the stranded-commit push below, a round that committed nothing would publish the
+     very commit that park held. A misread whose head moved or could not be read raises the same undescribed-work flag,
+     report owed or not, so the round its reply resumes is held the same way. An Antigravity command a run ended on by
+     itself is the exception: it publishes nothing, so it keeps its own `agent_execution_failed` park, whose
+     `/orchestrator continue` replays the feedback on a fresh session, with the flag recorded beside it so a retry that
+     brings no report is held. A run the timeout killed with a command still running over held work is no exception:
+     the timeout park's recovery is a push, so it is held like any timeout, and the feedback it consumed is settled,
+     so the next poll does not take that feedback for a reply and resume the session. Over work nothing held, such a
+     run keeps the `agent_timeout` park and leaves its feedback unread for the next poll to replay, as before. While
+     the flag stands, a `REPORT: VERIFIED` is read where it points before it is recorded
+     (`report_minting.stands_where_it_points`): recording it retires the flag, so one that does not read back PRESENT
+     under a trusted author is held as no report at all. And every push of a fix under a verification already
+     recorded -- the round's own, and the transient recovery's retry of a failed push or a timeout -- asks first what
+     the binding would (`validating/report_settlement._holds_the_push`): a report on this issue's own pull request,
+     not on a description that pull request needs for its closing reference and attribution, that still reads back.
+     A refusal keeps the commit in the worktree and parks under `report_undeliverable` with the flag raised; pushed
+     first, the binding's refusal or a comment edited since the first attempt would arrive with the commit already
+     out. Both notices quote a finished run's last message, so that
+     next question and its choices reach the human, and both ask for the decision and keep the committed work
+     unpublished until the resumed session supplies a valid report; a run that did not finish, a timeout among them,
+     is quoted nothing, since its last words are where it was cut off rather than a question it asked. The head is
+     read on every finished run for that second one, a
      timed-out one included: a timeout is a way to commit like any other, and the park it earns has a recovery that
      PUSHES what the run left -- read as a run that committed nothing, that work reaches the pull request under a
      report written before it existed, since the road that publishes it reads only the debt the earlier report still

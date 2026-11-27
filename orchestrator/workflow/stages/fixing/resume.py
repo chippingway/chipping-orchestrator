@@ -305,7 +305,7 @@ def _fixing_ack_fast_path(
         return False
     if _report_delivery.owes_a_report(ctx.state):
         return False
-    if not run.after_sha or run.after_sha != run.before_sha:
+    if run.may_have_committed:
         return False
     ack_reason = _messages._drift_ack_reason(run.dev_result.last_message or "")
     if not ack_reason or not _stranded._stranded_evidence(
@@ -513,13 +513,17 @@ def _resume_fixing_and_dispatch_result(
     # on the park path (the next fixing tick's `awaiting_human and not
     # new_feedback` gate would drop it). A run that DID write one records
     # nothing here at all -- both groups ride that report's record, frozen
-    # here before anything applies them. An unfinished command execution park
+    # here before anything applies them. An unfinished command execution
     # (`unfinished_steps`) leaves watermarks unsettled so review context
-    # remains intact until publication.
+    # remains intact until publication -- unless the timeout killed it over
+    # work a park held, which is held again for a human's reply: unread, the
+    # feedback would stand in for that reply on the next poll.
     consumed = ()
     if run.reported:
         consumed = _feedback._consumed_delivery(ctx.state, delivered).consumed_pairs(ctx.state)
-    elif not run.dev_result.unfinished_steps:
+    elif not run.dev_result.unfinished_steps or (
+        run.dev_result.timed_out and ctx.state.get(_report_delivery.UNREPORTED_WORK)
+    ):
         _feedback._settle_consumed_feedback(ctx.state, delivered)
     _finishes_the_run(ctx, run, consumed, owed, routed=pending_fix_at_was_set)
 

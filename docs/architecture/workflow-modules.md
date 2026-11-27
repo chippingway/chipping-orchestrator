@@ -1087,7 +1087,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `MINTED_FROM` names the records all of that is read from, which recording it is decided on.
                             `minted_report` is that minting alone, from what one outcome contributes, and
                             `outcome_fields` that contribution unchecked, for a captured completion's transfer and the
-                            room its capture reserves (`completion_handoff.py`)
+                            room its capture reserves (`completion_handoff.py`). `stands_where_it_points` is the
+                            reading a caller asks of a record before work goes out on its word -- the recording of a
+                            report over work no report describes, and the push of a fix under a verification already
+                            recorded (`stages/validating/report_settlement.py`): a written-out report stands, and a
+                            verification only where its location reads back PRESENT under a trusted author -- every
+                            other answer, an unread one included, holds the work, since the settlement's own re-read
+                            comes after the push
     report_delivery.py      the report one finished run earns, recorded before its code is published, as minted by
                             `report_minting.py`. The write is this owner's, because being durable before the size
                             gate and the push is the whole of what makes the report recoverable, and it is a
@@ -1117,7 +1123,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             names what its own road held back: the implementing seam publishes for the first time
                             and has no pull request yet, while a resume under review has one that stands on the
                             commit it stood on, so the initial wording there would deny an open pull request its
-                            human is reading. A run that did
+                            human is reading. The no-report notice also quotes the run's last message
+                            (`report_refusal_notices.explains_the_unreported_run`): a developer that committed part of
+                            the work and needs a decision on the rest ends on its question with no report, and a
+                            notice asking only for a report buys one that sends the work to review with the
+                            decision unmade. A run that did
                             NOT complete is left
                             alone: a launch nothing invoked (which is every synthesis an implementing recovery
                             makes for a publication no developer ran), a shutdown kill, a timeout, a provider
@@ -1372,7 +1382,23 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             room, its log line naming the route and the requirements revision the record was
                             stamped with for an operator to look for. Size is named only where a size was measured
                             and failed, and every recovery is the same resume: a reply whose session needs no new
-                            commit to deliver the report
+                            commit to deliver the report. It also words `report_delivery.py`'s notice over a run
+                            that committed and reported nothing (`explains_the_unreported_run`), which has no
+                            refusal to name and quotes the run's last message instead
+    last_message_quotes.py  what a park notice over a run that committed and reported nothing quotes of the message
+                            the run ended on -- `report_delivery.py`'s notice and the fixing stage's -- since the
+                            prompt has a developer that cannot finish end on its question: nothing for a blank
+                            message, the whole of it wherever one comment carries it beside the notice's own words
+                            and the comment marker, and past that ceiling only the longest end that fits once
+                            quoted, its first line marked as cut. Markdown hides text only through raw HTML, which
+                            opens on `<`, so a whole message carrying one and every cut end are quoted inside a
+                            fence of whichever character -- backtick or tilde -- needs the shorter one, one longer
+                            than any line of it that could close it: an HTML comment opener, or one whose fence
+                            the cut dropped, cannot hide the question and choices after it, and a long run of one
+                            fence character costs the decision no room. Line endings are made line feeds first,
+                            since a bare carriage return ends a markdown line without the blockquote prefix. The
+                            receipt prefix is quoted with its opening bracket escaped, so the raw comment carries
+                            no receipt while the developer's words still read
     report_settlement_state.py the current report and the handoff receipt, written in the one durable write that
                             drops the pending record, each refused rather than stored when this owner's own reader
                             would not hand it back. The handoff also names the workflow LABEL the issue was carrying
@@ -4453,7 +4479,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reported round through, a run an account quota stopped parked as the session limit over
                             the debt the missing-report parks would record. Which reply this is -- a report, an
                             ordinary answer, or one that reached for the contract and missed, an `ACK:` beside a
-                            report, which is held for a human rather than acted on by either half; whether a round
+                            report, which is held for a human rather than acted on by either half, as is a commit
+                            over a report still owed and any round with no report while work no report describes
+                            is held, committed or not -- a misread whose head moved or could not be read raising
+                            that hold itself -- both notices quoting a finished run's last message and nothing of
+                            one that did not finish, and both asking for the decision and keeping every such commit
+                            unpublished until a valid report describes it. An Antigravity command a run ended on by
+                            itself publishes nothing and keeps its own `agent_execution_failed` park, whose
+                            `/orchestrator continue` replays the feedback on a fresh session, with the hold
+                            recorded beside it; one the timeout killed with a command still running over held work
+                            is held like any timeout, whose own park's recovery is a push, its feedback settled so the
+                            next poll does not resume the session on it -- over work nothing held it keeps the timeout
+                            park and its feedback stays unread for the next poll to replay; whether a round
                             that committed nothing may publish onto the head its pull request already carries, on
                             the affirmative proof that the head read, never moved, is the one the pull request is
                             STANDING on, and left a tree proved clean.
@@ -6294,7 +6331,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the resumed run and an edit made during it exists only on the new object. Asked by both
                             drift callers behind their own bookkeeping and by the hold, so a delivery a later push
                             carried (a recovered failed push, a settled adjudication) is bound on the first tick
-                            that proves it; a refusal no retry changes parks once under `report_undeliverable`
+                            that proves it; a refusal no retry changes parks once under `report_undeliverable`.
+                            `_holds_the_push` is asked by `dev_fix.py`'s publication and the transient recovery's
+                            before either pushes a fix under a recorded verification: the binding's two refusals no
+                            retry changes -- a report on another pull request, one on the description this pull
+                            request needs -- and the settlement's re-read
+                            (`engine/report_minting.stands_where_it_points`) are taken before the push, so neither
+                            arrives with the commit already out. A refusal parks with the work recorded as
+                            undescribed; a reading nobody could take holds the push without parking
       report_hold.py        the hold that keeps the reviewer off while the issue still owes a report, settling what
                             it can through `report_settlement.py` first and parking for what no retry settles: a
                             report written against requirements the issue has moved past, a receipt naming another

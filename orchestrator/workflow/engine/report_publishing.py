@@ -54,7 +54,6 @@ from typing import Any
 from github.Issue import Issue
 
 from orchestrator.github import (
-    comments as _trust,
     developer_reports as _reports,
     labels as _labels,
     pull_request_reports as _pr_reports,
@@ -242,10 +241,11 @@ def verifies_the_report(
     transaction stays owed. Held instead, an issue whose report somebody edited
     would sit in front of every one of those routes for good.
 
-    The AUTHOR is read under a boundary of its own for that same split. It is
-    two lazy reads deep, so a read that failed is not an author this
-    deployment refuses -- it is nobody saying, and it holds with the content
-    read it stands beside rather than standing down on an answer nobody gave.
+    The AUTHOR is read under a boundary of its own for that same split
+    (`ReportLookup.author_trusted`). It is two lazy reads deep, so a read that
+    failed is not an author this deployment refuses -- it is nobody saying,
+    and it holds with the content read it stands beside rather than standing
+    down on an answer nobody gave.
     """
     lookup = gh.reread_report_location(
         pending.location, content_sha256=pending.content_revision,
@@ -256,7 +256,7 @@ def verifies_the_report(
             "issue=#%d cannot verify the developer report at %s (%s)",
             issue.number, pending.location, lookup.presence.value,
         )
-    trusted = _trusts_the_author(lookup.found)
+    trusted = lookup.author_trusted()
     if trusted is None:
         log.warning(
             "issue=#%d could not read who wrote the developer report at %s; "
@@ -277,27 +277,6 @@ def verifies_the_report(
         location=pending.location,
         mode=_records.ReportMode.VERIFY,
     ))
-
-
-def _trusts_the_author(found: Any) -> bool | None:
-    """Whether this deployment trusts who wrote the report, or None if unread.
-
-    The author is two lazy reads deep -- the `user` off the comment, and the
-    login off that -- so on a worker that has not completed the object either
-    is a request that can fail. Left outside a boundary they leave this guard
-    by an exception rather than by an answer, which is the one thing no
-    reading on this road may do.
-
-    None is that failure and it is NOT "untrusted". An author this deployment
-    refuses is a definite answer about a location a human owns and stands
-    down; an author nobody could read is a reading that did not happen, and
-    the caller holds on it exactly as it holds on the content read beside it.
-    """
-    try:
-        return _trust.is_trusted_author(getattr(found, "user", None))
-    except Exception:
-        log.exception("the author of a verified developer report would not read")
-        return None
 
 
 def _refuses_the_reading(

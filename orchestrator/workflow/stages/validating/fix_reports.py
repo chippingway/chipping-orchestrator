@@ -15,7 +15,11 @@ that resumes the session to write one, and that holds whether or not the run
 finished: the engine exempts an incomplete run from the contract because the
 roads it serves publish nothing either way, while this road publishes, so a
 nonzero exit, a provider refusal and a launch nothing invoked are each parked
-here as the missing report they also are.
+here as the missing report they also are. A run that finished parks under the
+engine's notice, which quotes the message it ended on: a developer that
+committed some of the reviewer's requests and needs a decision on the rest ends
+on that question, and the reply that resumes it has to bring the decision, not
+merely ask for the report.
 
 A run that committed NOTHING and wrote a report is the one publication with no
 code in it. The fix prompt asks for exactly that where a reviewer's item names

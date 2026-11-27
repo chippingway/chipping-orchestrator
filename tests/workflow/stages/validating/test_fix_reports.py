@@ -18,8 +18,11 @@ a shutdown keep the roads they always had.
 from __future__ import annotations
 
 import unittest
+from types import MappingProxyType
+from unittest.mock import MagicMock
 
 from orchestrator import config
+from orchestrator.agents.models import ToolLifecycle
 from orchestrator.workflow.engine import report_delivery as _report_delivery
 from tests.workflow import (
     drift_reports as _drift_world,
@@ -27,7 +30,7 @@ from tests.workflow import (
     fix_reports as world,
 )
 from tests.workflow.agent_failure_values import agy_quota_stop
-from tests.workflow.fixtures import LABEL_FIXING, LABEL_VALIDATING, _agent
+from tests.workflow.fixtures import LABEL_FIXING, LABEL_VALIDATING, SHA_LENGTH, _agent
 
 ISSUE = 1_794
 
@@ -67,6 +70,144 @@ SUPERSEDING_REPORT = "Answers the edited criteria as well as the reviewer's."
 PR_LAST_COMMENT_ID = "pr_last_comment_id"
 
 ISSUE_ACTION_ID = "last_action_comment_id"
+
+# A round that committed one requested fix and stops on a decision the other
+# needs: the question, then the two choices it offers, with no report.
+FIX_QUESTION = (
+    "Committed the null check the reviewer asked for. The reviewer also wants "
+    "the retry change landed on the base branch on its own first -- who lands "
+    "it?\n\n"
+    "1. I open a separate pull request against the base branch.\n"
+    "2. You land it there yourself and I rebase onto it."
+)
+
+# The human's decision on that question, and the next question it raises,
+# again with no report. The resumed round may ask it over a further commit,
+# with the first round's commit still the newest, or under a fenced example of
+# the report block, which reaches for the report contract without keeping it.
+FIX_DECISION = "Open a separate pull request for the retry change."
+
+NEXT_ASK = (
+    "Which base branch should the separate pull request use?\n\n"
+    "1. Use the release branch.\n"
+    "2. Use main."
+)
+
+NEXT_QUESTION = f"Committed the follow-up the decision needed.\n\n{NEXT_ASK}"
+
+NEXT_MISREAD = (
+    "Committed the follow-up. The review asks about this docs example:\n\n"
+    f"```text\nREPORT: READY\n```\n\n{NEXT_ASK}"
+)
+
+# Where a resumed round that commits again leaves the checkout: past the
+# commit the first round left, which the pull request has not got either.
+NEXT_HEAD = "a" * SHA_LENGTH
+
+ON_NEXT_HEAD = MappingProxyType({world.HEAD_SHAS: (world.FIXED_HEAD, NEXT_HEAD)})
+
+# The poll after a park over that checkout, with nobody having replied: the
+# branch two commits past the pull request, which nothing has published.
+QUIET_ON_NEXT_HEAD = MappingProxyType({
+    world.HEAD_SHAS: (NEXT_HEAD, NEXT_HEAD),
+    world.AHEAD_BEHIND: (2, 0),
+    _drift_world.FETCHED_TIP: world.PUBLISHED_HEAD,
+})
+
+# An Antigravity command a round left running, whether the round ended on it
+# or the timeout killed the round with it still running.
+RUNNING_STEP = ToolLifecycle(step_index=1, tool_name="run_command", state="ACTIVE")
+
+# Where a resumed round the orchestrator's timeout cut off had got to, which is
+# no question it asked.
+CUT_OFF = "The next choice is still being investigated."
+
+# What every notice over those rounds says of the reply and the commits: the
+# decision the reply brings resumes the session, and nothing committed is
+# published before a report describes it.
+HELD_WORDS = (
+    "with your decision",
+    "resumes the developer session on your reply",
+    "stays held in the worktree until that session supplies a valid completion report",
+)
+
+# Which of the fixing stage's two notices a park took, and what the engine's
+# says of a verified report nothing could find.
+UNDESCRIBED_WORDS = "branch carries committed work no report describes"
+
+UNVERIFIED_WORDS = "could not verify where it points"
+
+# A verified report naming a comment the pull request does not have.
+MISSING_REPORT_ID = 987_654_321
+
+MISSING_REPORT = world.verified(PR, MISSING_REPORT_ID, "Report for the held changes.")
+
+MISREAD_WORDS = "reaches for the completion-report contract"
+
+# The notice over a round that asked the next question: the hold, and the
+# question and its choices as a quote of them reads.
+NEXT_ASKED = dict.fromkeys(
+    (*HELD_WORDS, *(f"> {line}" for line in NEXT_ASK.splitlines() if line)), True,
+)
+
+# What a park over a round the timeout killed says: the hold, and nothing of
+# the last words it was cut off on.
+TIMED_OUT = MappingProxyType({
+    **dict.fromkeys((*HELD_WORDS, UNDESCRIBED_WORDS), True),
+    f"> {CUT_OFF}": False,
+})
+
+# The checkout a round that commits again leaves, and the one a round that
+# commits nothing does, each beside what the quiet poll after it reads.
+AGAIN = (ON_NEXT_HEAD, QUIET_ON_NEXT_HEAD)
+
+NOTHING_NEW = (_drift_world.STRANDED, _drift_world.STRANDED)
+
+# The rounds a decision resumes with no report the held work can be published
+# under, the checkout each leaves beside what the quiet poll after it reads,
+# and whether its notice carries each fragment: the next question and its
+# choices, and nothing of a timed-out round's last words.
+NEXT_ROUNDS = (
+    ("the next question over a new commit", NEXT_QUESTION, AGAIN, {**NEXT_ASKED, UNDESCRIBED_WORDS: True}),
+    ("the next question with no new commit", NEXT_ASK, NOTHING_NEW, {**NEXT_ASKED, UNDESCRIBED_WORDS: True}),
+    ("the next question under a report example", NEXT_MISREAD, AGAIN, {**NEXT_ASKED, MISREAD_WORDS: True}),
+    (
+        "a verified report nothing can find",
+        MISSING_REPORT, NOTHING_NEW, dict.fromkeys((*HELD_WORDS, UNVERIFIED_WORDS), True),
+    ),
+    (
+        "a timeout",
+        _agent(session_id=world.DEV_SESSION, last_message=CUT_OFF, timed_out=True),
+        AGAIN, TIMED_OUT,
+    ),
+    (
+        "a timeout with a command still running",
+        _agent(session_id=world.DEV_SESSION, last_message=CUT_OFF, timed_out=True, unfinished_steps=(RUNNING_STEP,)),
+        AGAIN, TIMED_OUT,
+    ),
+)
+
+
+# A first round that commits nothing and asks first, the answer to it, and
+# the next question of the round after the one that answer resumes.
+FIRST_ASK = "May I commit the first fix?"
+
+FIRST_ANSWER = "Yes, commit the first fix."
+
+LATER_ASK = "Should the follow-up also change the documentation?"
+
+# What a round answering under a fenced example of the report block leaves the
+# checkout on: a head that moved, or one nobody could read, which may carry a
+# commit all the same.
+MISREAD_HEADS = (("a new commit", world.FIXED_HEAD), ("an unread head", ""))
+
+# An Antigravity round that leaves a command running, so nothing can say what
+# it finished, and the operator's retry of the park that earns.
+UNFINISHED_COMMAND = _agent(session_id=world.DEV_SESSION, exit_code=1, unfinished_steps=(RUNNING_STEP,))
+
+RETRY = "/orchestrator continue"
+
+EXECUTION_FAILED = "agent_execution_failed"
 
 
 # Rounds that committed and did not finish, beside the park each takes and the
@@ -132,22 +273,28 @@ class RequestedFixReportTest(unittest.TestCase, world._FixReportMixin):
         # transaction re-reads that exact location, holds its text to the digest
         # the round named, and settles there with nothing posted -- so the pull
         # request carries one report rather than a duplicate of somebody's.
-        self.seeded(ISSUE, PR, LABEL_VALIDATING)
-        published = world.published_report(self, HUMAN_REPORT)
+        # Over work a park held it is read back before it is recorded as well,
+        # and one that reads back publishes that work under it.
+        for held in (False, True):
+            with self.subTest(held=held):
+                self.seeded(ISSUE, PR, LABEL_VALIDATING)
+                published = world.published_report(self, HUMAN_REPORT)
+                if held:
+                    self.requested_fix(FIX_QUESTION)
+                    world.replied(self, FIX_DECISION)
+                    self.parked_resume(world.verified(PR, published.id, HUMAN_REPORT), **_drift_world.STRANDED)
+                else:
+                    self.requested_fix(world.verified(PR, published.id, HUMAN_REPORT), committed=False)
 
-        self.requested_fix(
-            world.verified(PR, published.id, HUMAN_REPORT), committed=False,
-        )
-
-        current = self.records()[CURRENT]
-        self.assertEqual(current.location.comment_id, published.id)
-        self.assertEqual(
-            [posted.body for posted in self.pull_request.issue_comments].count(
-                HUMAN_REPORT,
-            ),
-            1,
-        )
-        self.assertEqual(_round(self), 1)
+                self.assertEqual(
+                    (
+                        self.records()[CURRENT].location.comment_id,
+                        [posted.body for posted in self.pull_request.issue_comments].count(HUMAN_REPORT),
+                        _round(self),
+                        self.pinned().get(_report_delivery.UNREPORTED_WORK),
+                    ),
+                    (published.id, 1, 1, None),
+                )
 
     def test_the_reviewer_waits_for_the_report(self) -> None:
         # The round hands the head back the moment its code is out, and the
@@ -232,28 +379,126 @@ class RequestedFixReportTest(unittest.TestCase, world._FixReportMixin):
                 )
 
 
+    def test_an_unfinished_command_keeps_its_retry(self) -> None:
+        # A round resumed over held work that leaves an Antigravity command
+        # unfinished publishes nothing, and its own park is the one whose
+        # retry replays the reviewer's feedback on a fresh session instead of
+        # resuming the session that failed. So it parks there, its work still
+        # recorded as undescribed, and the report that retry writes is the
+        # one that hands the held commit over.
+        self.seeded(ISSUE, PR, LABEL_VALIDATING, dev_agent="agy")
+        self.requested_fix(FIX_QUESTION)
+        world.replied(self, FIX_DECISION)
+
+        failed = self._ticked(
+            self._run_fixing, MagicMock(return_value=UNFINISHED_COMMAND), **_drift_world.STRANDED,
+        )
+
+        failed[PUSH_BRANCH].assert_not_called()
+        self.assertEqual(
+            (
+                self.pinned()[PARK_REASON],
+                self.pinned()[_report_delivery.UNREPORTED_WORK],
+                self.pull_request.head.sha,
+            ),
+            (EXECUTION_FAILED, True, world.PUBLISHED_HEAD),
+        )
+        world.replied(self, RETRY)
+
+        retried = self.parked_resume(world.reported(), **_drift_world.STRANDED)
+
+        retried[RUN_AGENT].assert_called_once()
+        attempt = retried[RUN_AGENT].call_args
+        self.assertEqual(
+            (
+                attempt.kwargs["options"].resume_session_id,
+                world.REPORT_ONLY_FEEDBACK in attempt.args[1],
+                retried[PUSH_BRANCH].call_count,
+                self.pull_request.head.sha,
+                self.pinned().get(_report_delivery.UNREPORTED_WORK),
+            ),
+            (None, True, 1, world.FIXED_HEAD, None),
+        )
+
+
 class RequestedFixRefusalTest(unittest.TestCase, world._FixReportMixin):
     """The rounds that publish nothing, and what each of them leaves."""
 
     def test_an_undescribed_commit_is_withheld(self) -> None:
-        # A round that committed and handed over no report breaks the contract
-        # every developer prompt teaches, and the reviewer behind it would be
-        # handed work nothing accounts for with no session left to ask. So
-        # nothing is pushed, the commit stays in the worktree, the round is
-        # unspent, and the issue holds on `fixing` for the reply that reports.
+        # A round that committed some of the requested fixes and ends on a
+        # question about the rest hands over no report, and the reviewer behind
+        # it would be handed work nothing accounts for with no session left to
+        # ask. So nothing is pushed, the commit stays in the worktree, the
+        # round is unspent, and the issue holds on `fixing` for a reply. The
+        # notice quotes the question and the choices it offered: told only that
+        # a report is missing, the human asks for one, and the report that
+        # reply buys sends the work back to review with the decision unmade.
         self.seeded(ISSUE, PR, LABEL_VALIDATING)
 
-        mocks = self.requested_fix("done -- see the diff")
+        mocks = self.requested_fix(FIX_QUESTION)
 
         mocks[PUSH_BRANCH].assert_not_called()
         self.assertEqual(
-            (self.pinned()[AWAITING_HUMAN], self.pinned()[PARK_REASON]),
-            (True, _report_delivery.UNDELIVERABLE_REPORT),
+            (
+                self.pinned()[AWAITING_HUMAN],
+                self.pinned()[PARK_REASON],
+                self.pinned()[_report_delivery.UNREPORTED_WORK],
+                _round(self),
+                self.pull_request.head.sha,
+            ),
+            (True, _report_delivery.UNDELIVERABLE_REPORT, True, 0, world.PUBLISHED_HEAD),
         )
-        self.assertTrue(self.pinned()[_report_delivery.UNREPORTED_WORK])
-        self.assertEqual(_round(self), 0)
-        self.assertEqual(self.pull_request.head.sha, world.PUBLISHED_HEAD)
         self.assertNotIn((ISSUE, LABEL_VALIDATING), self.github.label_history)
+        notice = _park_notice(self)
+        for said in (*(f"> {line}" for line in FIX_QUESTION.splitlines() if line), *HELD_WORDS):
+            self.assertIn(said, notice)
+
+    def test_the_next_question_parks_with_its_choices(self) -> None:
+        # The human answers the first question and the resumed session asks
+        # the next one, still with no report. The work the first park held is
+        # still undescribed, so this park is the fixing stage's own -- whether
+        # the round committed again or not, since a round that committed
+        # nothing would otherwise publish the held commit as a stranded one.
+        # Its notice quotes the new question and its choices as the first did,
+        # asks for the decision, and says every commit stays unpublished until
+        # a report describes the branch they leave; under a fenced example of
+        # the report block it is the misread notice, saying the same. A
+        # verified report naming a comment nothing can find is no report
+        # either: the held work is published on nothing's word until it reads
+        # back. A round the timeout cut off after committing parks the same
+        # way -- with a command still running too, whose own park's recovery
+        # would push -- but its last words are where it stopped rather than a
+        # decision it asked for, so none of them is quoted. And the poll after
+        # any of these, with nobody having replied, resumes nobody and
+        # publishes nothing.
+        for described, reply, checkouts, quoted in NEXT_ROUNDS:
+            with self.subTest(round=described):
+                self.seeded(ISSUE, PR, LABEL_VALIDATING)
+                self.requested_fix(FIX_QUESTION)
+                world.replied(self, FIX_DECISION)
+
+                mocks = self.parked_resume(reply, **checkouts[0])
+
+                mocks[RUN_AGENT].assert_called_once()
+                mocks[PUSH_BRANCH].assert_not_called()
+                self.assertEqual(
+                    (
+                        self.pinned()[AWAITING_HUMAN],
+                        self.pinned()[PARK_REASON],
+                        self.pinned()[_report_delivery.UNREPORTED_WORK],
+                        self.pinned()[REVIEW_ROUND],
+                        self.pull_request.head.sha,
+                    ),
+                    (True, _report_delivery.UNDELIVERABLE_REPORT, True, 0, world.PUBLISHED_HEAD),
+                )
+                self.assertEqual(_carried(self, quoted), quoted)
+
+                mocks = self._ticked(self._run_fixing, MagicMock(), **checkouts[1])
+
+                self.assertEqual(
+                    (mocks[RUN_AGENT].call_count, mocks[PUSH_BRANCH].call_count, self.pull_request.head.sha),
+                    (0, 0, world.PUBLISHED_HEAD),
+                )
 
     def test_an_unfinished_round_parks_for_a_report(self) -> None:
         # The engine exempts a run that did not COMPLETE from the report
@@ -422,6 +667,12 @@ def _handover(case) -> tuple:
 def _round(case) -> int:
     """The reviewer round this issue's pinned comment says it has spent."""
     return case.pinned()[REVIEW_ROUND]
+
+
+def _carried(case, fragments) -> dict:
+    """Which of `fragments` the notice this round's park posted carries."""
+    notice = _park_notice(case)
+    return {fragment: fragment in notice for fragment in fragments}
 
 
 def _park_notice(case) -> str:

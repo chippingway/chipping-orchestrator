@@ -1,0 +1,235 @@
+# Copyright 2026 Geser Dugarov
+# SPDX-License-Identifier: Apache-2.0
+"""What the park over a run that committed and reported nothing quotes of that run.
+
+A developer that committed part of the work and needs a human's decision on the
+rest ends on its question with no report, so the run's last message is what the
+reply to that park has to answer. It is quoted whole wherever one comment
+carries it, as text wherever markdown could hide part of it, and held to the
+rule every comment of this orchestrator's keeps: no receipt marker in its raw
+text, since a comment of ours carrying one reads as the step it names.
+"""
+
+from __future__ import annotations
+
+import unittest
+
+from orchestrator.github.comments import ORCHESTRATOR_COMMENT_MARKER, RECEIPT_MARKER_PREFIX
+from orchestrator.github.pinned_state import MAX_PINNED_BODY, PinnedState
+from tests.workflow.engine import report_commit_test_support as commit_support
+from tests.workflow.fixtures import _agent
+
+# How the notice opens its quote of the run's last message, and what it says
+# where only the end of that message fits.
+_QUOTE_HEADING = "The developer's last message"
+
+_CUT = "cut to the end of it that fits in this comment and shown as plain text"
+
+_AS_TEXT = "shown as plain text"
+
+# What a fence is built out of, either character, and the shortest one
+# markdown has.
+_FENCE_CHARACTERS = ("`", "~")
+
+_SHORTEST_FENCE = 3
+
+# A decision whose question and first choice open the message and whose second
+# choice closes it, with an account between them far longer than the budget a
+# report body is asked to keep under, and still far inside one comment.
+_ASKED = "Who should land the retry fix?"
+
+_FIRST_CHOICE = "1. I can open a separate pull request."
+
+_SECOND_CHOICE = "2. You can land it directly and I can rebase."
+
+_ACCOUNT_SENTENCES = 80
+
+_ACCOUNT = "The retry change is independent of the validation fix. " * _ACCOUNT_SENTENCES
+
+# A choice naming the receipt prefix, which the raw comment may not carry and
+# the human still has to read.
+_MARKER_CHOICE = f"1. Keep matching `{RECEIPT_MARKER_PREFIX}` as it is."
+
+# What the notice quotes of each last message, and what it may not.
+_QUOTED_MESSAGES = (
+    ("nothing at all", " \n ", (), (_QUOTE_HEADING,)),
+    (
+        "a decision around a long account",
+        f"{_ASKED}\n\n{_FIRST_CHOICE}\n\n{_ACCOUNT}\n\n{_SECOND_CHOICE}",
+        (f"> {_ASKED}", f"> {_FIRST_CHOICE}", f"> {_SECOND_CHOICE}"),
+        (_CUT,),
+    ),
+    (
+        "a choice naming the receipt prefix",
+        f"{_ASKED}\n\n{_MARKER_CHOICE}\n{_SECOND_CHOICE}",
+        (
+            f"> {_ASKED}",
+            "> 1. Keep matching `&lt;!--orchestrator-` as it is.",
+            f"> {_SECOND_CHOICE}",
+        ),
+        (),
+    ),
+)
+
+# The decision an oversized message ends on, as the prompt asks, and the
+# lines a human has to read of it.
+_DECISION = f"{_ASKED}\n\n{_FIRST_CHOICE}\n{_SECOND_CHOICE}"
+
+_DECISION_LINES = (_ASKED, _FIRST_CHOICE, _SECOND_CHOICE)
+
+# A decision behind an HTML comment opener nothing closes, which as markdown
+# would swallow every line after it.
+_BEHIND_AN_OPENER = f"The template begins with this line:\n\n<!-- release notes\n\n{_DECISION}"
+
+# Messages that fit whole, and whether each is quoted as text: one carrying
+# raw HTML is, its line endings made the ones the blockquote prefixes even
+# where they are bare carriage returns, and plain markdown renders as written.
+_RENDERED_MESSAGES = (
+    ("an HTML comment opener", _BEHIND_AN_OPENER, True),
+    ("that opener on bare carriage returns", _BEHIND_AN_OPENER.replace("\n", "\r"), True),
+    ("plain markdown", _DECISION, False),
+)
+
+# A code example whose opening fence the cut drops: what that fence kept as
+# text -- an HTML comment opener above all -- would otherwise be read again,
+# and an opener left standing swallows every line after it.
+_LOG_LINES = "log line\n" * (MAX_PINNED_BODY // len("log line\n"))
+
+_FENCED_EXAMPLE = f"```text\n{_LOG_LINES}<!-- example opener\n```"
+
+# A run of backticks too long for two backtick fences to fit in one comment
+# beside anything else, which the decision still has to fit after.
+_LONG_RUN = "`" * (MAX_PINNED_BODY // 2 + 1)
+
+# Heads one comment cannot carry before that decision, and how short of the
+# ceiling the cut notice may fall. With no line breaks every character cut
+# shortens the comment by exactly one, so the cut is exact; across many short
+# lines the character just past the cut may be a break, which spends its
+# blockquote prefix too -- and counted as one character apiece, those breaks
+# would cut the decision away with the head. The line a cut goes through is
+# marked as cut, so a run of the fence's own character it leaves cannot end
+# the fence early.
+_OVERSIZED_HEADS = (
+    ("no line breaks", "x" * MAX_PINNED_BODY, 1),
+    ("many short lines", "x\n" * (MAX_PINNED_BODY // 2), len("\n> ")),
+    ("a fenced example cut open", _FENCED_EXAMPLE, len("\n> ")),
+    ("a backtick run longer than half the comment", f"{_LOG_LINES}{_LONG_RUN}", len("\n> ")),
+    ("a backtick run the cut goes through", "`" * MAX_PINNED_BODY, 1),
+)
+
+
+class UnreportedRunNoticeTest(unittest.TestCase):
+    """The quote of the run's last message, at its edges."""
+
+    def test_the_last_message_is_quoted_whole(self) -> None:
+        # A run that said nothing gets no empty quote. A decision is quoted
+        # whole wherever the comment carries it, however long the account
+        # between its choices. A receipt prefix is escaped rather than
+        # dropped, so the choice naming it still reads while the raw comment
+        # carries no receipt of ours.
+        for described, message, said, unsaid in _QUOTED_MESSAGES:
+            with self.subTest(message=described):
+                notice = _notice(self, message)
+
+                self.assertEqual(
+                    (
+                        [fragment for fragment in said if fragment not in notice],
+                        [fragment for fragment in unsaid if fragment in notice],
+                        RECEIPT_MARKER_PREFIX in notice.replace(ORCHESTRATOR_COMMENT_MARKER, ""),
+                    ),
+                    ([], [], False),
+                )
+
+    def test_a_message_past_the_comment_keeps_its_end(self) -> None:
+        # Past what GitHub accepts in one comment, the head goes and the end
+        # the prompt puts the decision in stays -- cut to the ceiling, the
+        # notice's own words, the blockquote prefixes, the fences, and the
+        # comment marker counted, so nothing is dropped that the comment had
+        # room for. The end kept is fenced, so whatever the cut opened -- a
+        # code example's HTML comment opener among it -- reads as text and
+        # the decision after it stays on screen; and the fence is of the
+        # character that leaves it shorter, so a long run of backticks before
+        # the decision is fenced in tildes rather than leaving no room for it.
+        for described, head, slack in _OVERSIZED_HEADS:
+            with self.subTest(head=described):
+                notice = _notice(self, f"{head}\n{_DECISION}")
+
+                self.assertEqual(
+                    (
+                        [line for line in _DECISION_LINES if line not in _fenced_quote(notice)],
+                        _CUT in notice,
+                        MAX_PINNED_BODY - len(notice) in range(slack),
+                    ),
+                    ([], True, True),
+                )
+
+    def test_raw_html_is_quoted_as_text(self) -> None:
+        # Markdown hides text only through raw HTML: an HTML comment opener
+        # nothing closes swallows every line after it, the decision included,
+        # however short the message. A message carrying any is quoted inside a
+        # fence, where the decision reads as the text it is; one without any
+        # renders as the developer wrote it.
+        for described, message, as_text in _RENDERED_MESSAGES:
+            with self.subTest(message=described):
+                notice = _notice(self, message)
+
+                self.assertEqual(
+                    (
+                        [line for line in _DECISION_LINES if line in _fenced_quote(notice)],
+                        _AS_TEXT in notice,
+                        _CUT in notice,
+                    ),
+                    (list(_DECISION_LINES) if as_text else [], as_text, False),
+                )
+
+
+def _fenced_quote(notice: str) -> list[str]:
+    """The lines of the notice's quote inside the one fence that walls it off, or none where no fence does.
+
+    The quote's first and last lines are that fence, and no line between them
+    is a run of its character as long as it, which is the only line that could
+    end it early.
+    """
+    quoted = [_unquoted(line) for line in notice.splitlines() if line.startswith(">")]
+    fence = quoted[0] if quoted else ""
+    inside = quoted[1:-1]
+    if not _opens_a_fence(fence) or quoted[-1] != fence:
+        return []
+    if any(_closes(line, fence) for line in inside):
+        return []
+    return inside
+
+
+def _opens_a_fence(line: str) -> bool:
+    """Whether `line` is a fence: a run of one fence character alone, at least the shortest one long."""
+    character = line[:1]
+    return character in _FENCE_CHARACTERS and _closes(line, character * _SHORTEST_FENCE)
+
+
+def _closes(line: str, fence: str) -> bool:
+    """Whether `line` ends `fence`: a run of its character alone, at least as long, whitespace aside."""
+    run = line.strip()
+    if not run or run.strip(fence[0]):
+        return False
+    return len(run) >= len(fence)
+
+
+def _unquoted(line: str) -> str:
+    """One line of a blockquote as the text it quotes."""
+    return line.removeprefix(">").removeprefix(" ")
+
+
+def _notice(case: unittest.TestCase, message: str) -> str:
+    """The comment the park over a finished run ending on `message` posts, as posted."""
+    stopped, _github, issue = commit_support.records(
+        PinnedState(), _agent(last_message=message),
+    )
+    case.assertTrue(stopped)
+    return next(
+        posted.body for posted in issue.comments
+        if "developer run finished" in (posted.body or "")
+    )
+
+
+if __name__ == "__main__":
+    unittest.main()

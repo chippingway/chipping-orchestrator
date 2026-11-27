@@ -49,6 +49,7 @@ from orchestrator.workflow.stages.implementing import (
 )
 from orchestrator.workflow.stages.validating import (
     models as _models,
+    report_settlement as _report_settlement,
     state as _state,
     stranded as _stranded,
 )
@@ -210,6 +211,11 @@ def _publish_dev_fix(
     (`_DevFixRun.tree`) is the one proved here. A
     run an account quota stopped parks over such a tree as that session limit
     instead, whose bare continue the tree park would refuse.
+
+    A verified report recorded for the run is asked before the push too
+    (`report_settlement._holds_the_push`): the binding behind the push would
+    refuse one on another pull request or on a description this one needs,
+    and the settlement re-reads it, both only once the commit is out.
     """
     tree = run.tree or _worktree_status._worktree_status(run.worktree)
     if not tree.is_clean:
@@ -218,6 +224,8 @@ def _publish_dev_fix(
             _dev_parks._on_question(gh, issue, state, parked)
         else:
             _checkout_parks._on_unpublishable_tree(gh, issue, state, parked, tree)
+        return False
+    if _report_settlement._holds_the_push(gh, issue, state):
         return False
     # A tree proved clean is a session that produced publishable work, so
     # its silent-park streak comes down -- after the refusals, which reset it

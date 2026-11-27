@@ -656,7 +656,9 @@ orchestrator/
                         report sits. Two answers there leave a report recorded at a comment nothing recorded
                         posting. The read is guarded for the same reason every reading here is, since its
                         callers run inside a dispatch guard where a raise leaves by an exception rather than by
-                        an answer
+                        an answer. `ReportLookup.author_trusted` asks whether this deployment trusts who wrote
+                        what a reading found, under the same guard: the author is two lazy reads deep, and one
+                        that fails answers None -- nobody saying -- rather than an untrusted author
     pull_request_retirement.py
                         idempotent supersession notices followed by closure; an authenticated marker read can travel
                         from the caller so no extra request intervenes between its final proof and the write
