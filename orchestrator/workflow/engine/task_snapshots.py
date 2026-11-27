@@ -67,6 +67,7 @@ from orchestrator.agents import (
 )
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.observability.analytics.observations import (
+    attachments as _attachments,
     recorder as _recorder,
     records as _observation_records,
 )
@@ -92,12 +93,16 @@ class Conversation:
     `repo_id` and `issue_number` name the issue whose host records keep its
     grounding; `resumed` is the conversation the attempt's own launch
     resumed -- an Antigravity command recovery's the one the attempt before
-    it returned -- None for a fresh one; `fresh_requirements` fingerprints what a retry's
-    road re-grounds a fresh conversation with, asked only for such an
-    attempt, None on a road that hands its own; and `repository` is the
-    repository as configured -- the one the run's
-    report is published under, which its settled record keeps -- and spells
-    the task reference.
+    it returned -- None for a fresh one; `fresh_requirements` fingerprints what
+    the road re-grounded a conversation the run opened fresh with, asked only
+    for such an attempt, None where the attempt's conversation is handed the
+    road's own -- or, on a retry, which hands a resumed conversation nothing,
+    holds what it was last grounded on; `repository` is the repository as
+    configured -- the one the run's report is published under, which its
+    settled record keeps -- and spells the task reference; and `refused` is
+    the launching stage's reading of whether the attempt's CLI answered it
+    with a refusal of its own, asked of the return's own evidence
+    (`_evidence`).
     """
 
     repo_id: int
@@ -105,6 +110,7 @@ class Conversation:
     resumed: str | None
     fresh_requirements: _grounding.Fingerprint | None
     repository: str
+    refused: Callable[[_agent_models.AgentResult], bool]
 
 
 def asked(handoff: _completion_records.CompletionHandoff, prompt: str) -> str:
@@ -119,16 +125,16 @@ def receive(
     agent_result: _agent_models.AgentResult,
     state: PinnedState,
     conversation: Conversation,
-    *,
-    refused: Callable[[], bool],
 ) -> None:
     """Record the task snapshot a genuine return on `handoff`'s road carries, and leave the workflow its reply.
 
     The snapshot is bound to what `conversation` was handed
     (`task_snapshot_grounding.Grounding.handed`) and attributed to the stage
     the road reports under; the result's message becomes the reply the
-    workflow reads. `refused` asks the launching stage whether the CLI
-    answered the attempt with a refusal of its own: such a return is observed
+    workflow reads. The conversation's `refused` asks the launching stage
+    whether the CLI answered the attempt with a refusal of its own, read off
+    the CLI's own evidence (`_evidence`) -- never an attachment line echoed
+    onto stderr, which is the developer's text: such a return is observed
     nowhere and moves no grounding. It is asked inside the failure boundary,
     and only once the road asks for a snapshot and the sink is on, so a
     reading that fails is a lost observation like any other: warned of once,
@@ -140,11 +146,9 @@ def receive(
     path = _recorder.sink_path()
     if path is not None:
         try:
-            # A turn the CLI refused reached no agent, so nothing about it is observed.
-            if not refused():
-                _observe(handoff, agent_result, conversation, _grounding.Grounding.of(
-                    conversation.repo_id, conversation.issue_number, state,
-                ), path)
+            _observe(handoff, _evidence(agent_result), conversation, _grounding.Grounding.of(
+                conversation.repo_id, conversation.issue_number, state,
+            ), path)
         except Exception as error:  # noqa: BLE001 - an observation is lost, never the run that returned it
             # Attempted once: a logger that fails loses the warning with the
             # observation, never the reply's settlement below.
@@ -166,13 +170,14 @@ def _observe(
 ) -> None:
     """Keep the conversation's grounding current, then record a genuine return's snapshot on the sink at `path`.
 
-    Only an attempt that reached the agent touches the grounding: one that
-    never did was handed nothing, so the conversation it named is grounded
-    where it was. The grounding is kept first, so a record the host will not
-    read or a change it will not take fails the observation before anything
-    is recorded.
+    `agent_result` is the return as its own evidence reads (`_evidence`),
+    its message and status as the run left them. Only an attempt that
+    reached the agent touches the grounding: one that never did was handed
+    nothing, so the conversation it named is grounded where it was. The
+    grounding is kept first, so a record the host will not read or a change
+    it will not take fails the observation before anything is recorded.
     """
-    if not _reached(agent_result):
+    if not _reached(agent_result, conversation.refused):
         return
     handed = grounding.handed(conversation.resumed, conversation.fresh_requirements, handoff.requirements_revision)
     grounding.remember(agent_result.session_id or conversation.resumed, handed)
@@ -189,38 +194,51 @@ def _observe(
         _recorder.record_task_snapshot(run, reply, path)
 
 
-def _reached(agent_result: _agent_models.AgentResult) -> bool:
+def _reached(
+    agent_result: _agent_models.AgentResult, refused: Callable[[_agent_models.AgentResult], bool],
+) -> bool:
     """Whether `agent_result`'s launch reached the agent: a process started, its turn neither refused nor failed.
 
-    Refused by the provider as the backend's own verdict says
+    Refused by its CLI as the launching stage reads that (`refused`), by the
+    provider as the backend's own verdict says
     (`provider_failures.is_provider_refusal`), or a Codex turn that ended on
     `turn.failed`, whatever its code (`codex_events.codex_turn_failure`) --
-    both read off the stream's records that decode at all (`_decodable`).
-    The CLI's own refusals are the launching stage's to read, and arrive as
-    `receive`'s `refused`.
+    all read off the return's own evidence (`_evidence`).
     """
     if not agent_result.invoked:
         return False
-    read = replace(agent_result, stdout=_decodable(agent_result.stdout or ""))
-    return not (_provider_failures.is_provider_refusal(read) or _codex_events.codex_turn_failure(read.stdout))
+    # A turn the CLI refused reached no agent, so nothing about it is observed.
+    if refused(agent_result):
+        return False
+    return not (
+        _provider_failures.is_provider_refusal(agent_result) or _codex_events.codex_turn_failure(agent_result.stdout)
+    )
 
 
-def _decodable(stdout: str) -> str:
-    """`stdout` with only its lines JSON decodes at all.
+def _evidence(agent_result: _agent_models.AgentResult) -> _agent_models.AgentResult:
+    """`agent_result` as the CLI's own evidence reads: stdout's records that decode at all, stderr less echoed lines.
 
-    The terminal readers are handed these alone, so a record the usage parser
-    refuses -- an integer past the conversion limit, say -- hides no closing
-    event: the observation stands on the stream's terminal evidence, never on
-    a usage parse, and a refused or failed turn is still told apart.
+    The terminal readers are handed only the stdout lines JSON decodes, so a
+    record the usage parser refuses -- an integer past the conversion limit,
+    say -- hides no closing event: the observation stands on the stream's
+    terminal evidence, never on a usage parse, and a refused or failed turn is
+    still told apart. And every analytics attachment line a CLI echoed onto
+    stderr is taken out, line and break -- a stderr never naming the prefix
+    is not searched: it is the developer's own text, so a description quoting
+    a CLI's diagnostic is never read as that CLI refusing the turn. The
+    message and status are the run's as it left them.
     """
     decoded = []
-    for line in stdout.splitlines():
+    for line in (agent_result.stdout or "").splitlines():
         try:
             json.loads(line)
         except (ValueError, RecursionError):
             continue
         decoded.append(line)
-    return "\n".join(decoded)
+    stderr = agent_result.stderr or ""
+    echoed = _attachments.attachment_lines(stderr) if _attachments.PREFIX in stderr else ()
+    stderr = _replies._rewritten(stderr, echoed, frozenset(echoed))
+    return replace(agent_result, stdout="\n".join(decoded), stderr=stderr)
 
 
 def _returned(agent_result: _agent_models.AgentResult) -> bool:

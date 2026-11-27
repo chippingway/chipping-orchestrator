@@ -251,10 +251,10 @@ nothing backfills a snapshot for a run that recorded none. A snapshot's `task_re
 formatter from the repository its run's report is published under -- the configured slug its settled record keeps --
 and the revision that report is stamped with, and its `requirements_revision` names what its conversation was handed.
 A host record beside the issue's writer claim, `repo-<id>-issue-<n>.task-snapshot-grounding` spelling exactly
-`{"session_id", "requirements", "baseline"}`, carries a retry's re-grounding to a later retry resuming that
-conversation only while its baseline stands; it is written only with the analytics sink on, never on the pinned
-comment, and one that will not decode or holds any other set of members -- a missing `baseline` or a member written
-twice included -- is nothing,
+`{"session_id", "requirements", "baseline"}`, carries what a retry's or a reply's fresh conversation was
+re-grounded on to a later retry resuming that conversation only while its baseline stands; it is written only with
+the analytics sink on, never on the pinned comment, and one that will not decode or holds any other set of members --
+a missing `baseline` or a member written twice included -- is nothing,
 so its loss needs no migration and binds that snapshot to the baseline. One the host will not let be read, or a change
 to it the host will not take, instead records nothing for the snapshot that asked.
 A recorded requirements fingerprint
@@ -767,8 +767,8 @@ vocabulary the one analytics attachment reader reads, and asks every finished re
 outcome where there is one. The workflow reads the reply with every such line outside a code fence kept out of it
 without moving its framing -- taken out where the reply has no report marker and inside a READY block, and replaced by
 a placeholder line elsewhere -- so it is outside the published report and its digest, no park or notice quotes it --
-nor the stderr a park quotes, the CLI echoing the reply there included, where a note stands in its place and hides
-any credential overlapping the line with it, a stderr nothing can tell apart being withheld instead -- a
+nor the stderr a park quotes or logs, the CLI echoing the reply there included, where a note stands in its place and
+hides any credential overlapping the line with it, a stderr nothing can tell apart being withheld instead -- a
 fenced example stays where it was, text after an outcome is still refused, a block holding nothing else is refused as
 empty, and the verdict the workflow reaches is the one the snapshot's record names; a reply those readers fail on is
 never read as written, its lines opening on the prefix that no readable fence may enclose kept out by its marker
@@ -1018,7 +1018,8 @@ no usage total, accounting, completion capture, report settlement, or workflow d
 wherever the analytics sink is on, needing no usage parse, trajectory sink, or database, from a genuine developer
 return alone, judged by the run's status, the stream's terminal evidence -- a provider's refusal, a Codex turn ending
 on `turn.failed` -- read off the records that decode at all and so on no usage parse, and the implementing stage's
-reading of a CLI's refusal (a conversation it could not open or that overflowed, an exhausted quota) -- so neither a
+reading of a CLI's refusal (a conversation it could not open or that overflowed, an exhausted quota), off stderr less
+any attachment line the CLI echoed there -- so neither a
 turn the provider or the CLI refused nor the recovery that finishes a captured report records one, and
 only an attempt that reached the agent moves the host's grounding record -- behind a guarded read of where the sink
 is, whose settings that will not read are one warning, and two failure boundaries. The producer's covers what decides
@@ -1064,6 +1065,7 @@ kept only with the sink on, and never on the pinned comment, so no settlement me
 [task snapshot isolation](../tests/workflow/stages/implementing/test_task_snapshot_dispatch.py),
 [task snapshot receipt](../tests/workflow/engine/test_task_snapshot_receipt.py),
 [task snapshot grounded runs](../tests/workflow/stages/implementing/test_task_snapshot_grounded_runs.py),
+[task snapshot echoes](../tests/workflow/stages/implementing/test_task_snapshot_echoes.py),
 [observation failures](../tests/observability/analytics/observations/test_failures.py),
 [observation redaction](../tests/observability/analytics/observations/test_redaction.py).
 

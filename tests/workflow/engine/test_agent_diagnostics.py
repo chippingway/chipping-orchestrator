@@ -145,7 +145,7 @@ class DiagnosticsRedactionTest(unittest.TestCase):
 
 
 class AttachmentLineTest(unittest.TestCase):
-    """A task snapshot line a CLI echoed on stderr, kept out of the block a park comment quotes."""
+    """A task snapshot line a CLI echoed on stderr, kept out of the block a park comment quotes and the line it logs."""
 
     def test_a_line_is_taken_out_before_the_cut(self) -> None:
         # Inside the tail, or where the 1KB tail would cut into its
@@ -181,6 +181,11 @@ class AttachmentLineTest(unittest.TestCase):
             block = agent_diagnostics._format_stderr_diagnostics(_agent_result(stderr))
         self.assertNotIn("example-secret", block)
         self.assertIn(attachments.TAKEN_OUT, block)
+
+    def test_the_logged_tail_takes_it_out_too(self) -> None:
+        tail = agent_diagnostics._stderr_log_tail(_agent_result(_ECHOED[0]))
+        self.assertNotIn(attachments.PREFIX, tail)
+        self.assertIn(attachments.TAKEN_OUT, tail)
 
     def test_an_unreadable_stderr_is_withheld(self) -> None:
         # A reading that fails withholds the stderr behind a note of its own

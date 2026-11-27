@@ -63,12 +63,12 @@ def _received(stdout: str, refused=None) -> AgentResult:
         invocation=AgentInvocation("owner/repo", _ISSUE, 1, 0, 1, "nonce"),
     )
     handoff = _completion_records.CompletionHandoff(_routes.CompletionRoute.RESUME, WorkflowLabel.IMPLEMENTING, "")
-    conversation = _task_snapshots.Conversation(_REPO_ID, _ISSUE, _SESSION, None, "owner/repo")
-    _task_snapshots.receive(handoff, returned, _STATE, conversation, refused=refused or _unrefused)
+    conversation = _task_snapshots.Conversation(_REPO_ID, _ISSUE, _SESSION, None, "owner/repo", refused or _unrefused)
+    _task_snapshots.receive(handoff, returned, _STATE, conversation)
     return returned
 
 
-def _unrefused() -> bool:
+def _unrefused(_evidence: AgentResult) -> bool:
     """The launching stage's reading that its CLI refused nothing."""
     return False
 

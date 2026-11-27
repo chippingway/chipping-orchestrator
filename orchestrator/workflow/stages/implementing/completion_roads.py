@@ -55,9 +55,9 @@ implementation's road and an implementing resume's append the request, record
 anything, or keep the attachment out of the reply the workflow reads
 (`task_snapshots`). The observation is bound to what the attempt's
 conversation was handed -- the road's own requirements where the road hands
-them, and on a retry, for a fresh conversation the read it was re-grounded
-on, and for a later retry resuming it that same grounding, kept on this host
-rather than the pinned comment (`task_snapshot_grounding`) -- is analytics
+them, and on a reply or a retry, for a fresh conversation the read it was
+re-grounded on, and for a later retry resuming it that same grounding, kept
+on this host rather than the pinned comment (`task_snapshot_grounding`) -- is analytics
 alone, raises nothing, and is read by nothing here, so it changes no capture
 and no settlement.
 """
@@ -119,20 +119,22 @@ class Attempt:
     backend: str
     launched: str | None = None
 
-    def refused(self) -> bool:
+    def refused(self, returned: _agent_models.AgentResult) -> bool:
         """Whether the attempt's CLI answered it with a refusal of its own rather than the agent's turn.
 
-        Read as this stage reads such a return everywhere else
-        (`session_read`): a conversation the CLI could not open or whose
-        transcript overflowed the context -- the two a poisoned-session retry
-        is bought by -- or an exhausted account quota. A turn the provider
-        refused or a Codex turn that failed is the snapshot's own to read off
-        the stream (`task_snapshots`). Asked only inside the snapshot's
-        failure boundary (`task_snapshots.receive`), once the road asks for a
-        snapshot and the sink is on, so a reading that fails costs the attempt
-        nothing.
+        `returned` is this attempt's return as the CLI's own evidence reads
+        (`task_snapshots._evidence`): any analytics attachment line the CLI
+        echoed onto stderr is out of it, since that is the developer's text,
+        never the CLI's diagnostic. Read with the readers this stage reads
+        such a return by everywhere else (`session_read`): a conversation the
+        CLI could not open or whose transcript overflowed the context -- the
+        two a poisoned-session retry is bought by -- or an exhausted account
+        quota. A turn the provider refused or a Codex turn that failed is the
+        snapshot's own to read off the stream (`task_snapshots`). Asked only
+        inside the snapshot's failure boundary (`task_snapshots.receive`),
+        once the road asks for a snapshot and the sink is on, so a reading
+        that fails costs the attempt nothing.
         """
-        returned = self.agent_result
         return (
             _session_read._is_session_limit(returned)
             or _session_read._is_stale_session_failure(self.backend, returned)
@@ -145,15 +147,19 @@ class CompletionRoad:
     """What one report-producing road froze before its launch, and the checkout it launched in.
 
     `regrounding` is the reply batch a FRESH session's prompt on this road is
-    re-grounded beside, where that is not the handoff's own: a retry hands a
-    resumed conversation nothing, while a replacement session's preamble
-    quotes the issue beside the batch's read of the thread, which the batch
-    keeps as copies so a comment edited mid-run moves nothing. None on a road
-    that hands its own. `quoted` is the one read of the issue a fresh prompt
-    on it was built from (`regrounded`), which `fresh_requirements`
-    fingerprints. Only a task snapshot is bound to that -- that of an attempt
-    that opened a fresh conversation, and of a later retry resuming that
-    conversation; the capture and the report keep the handoff's.
+    re-grounded beside: a replacement session's preamble quotes the issue as
+    it reads then beside the batch's read of the thread, which the batch
+    keeps as copies so a comment edited mid-run moves nothing -- not what the
+    handoff fingerprints, where the issue was edited since the batch was
+    read. None on the first implementation, whose fresh prompt is the road's
+    own. `quoted` is the one read of the issue a fresh prompt on it was
+    built from (`regrounded`), which `fresh_requirements` fingerprints.
+    `hands_resumed` is whether a conversation the run resumes is handed the
+    road's own requirements, as a reply's batch is; a retry hands it nothing,
+    so such a conversation holds what it was last grounded on. Only a task
+    snapshot is bound to any of that -- that of an attempt in a conversation
+    the run opened fresh, and of a later retry resuming that conversation;
+    the capture and the report keep the handoff's.
     `repository` is the repository as configured, the one a report a return
     finishes on is published under and its settled record keeps: with the
     handoff's revision, it spells the task reference a snapshot of an attempt
@@ -165,6 +171,7 @@ class CompletionRoad:
     repository: str = ""
     regrounding: _resume_batch._ReplyBatch | None = None
     quoted: Issue | None = None
+    hands_resumed: bool = True
 
     def captures(
         self, gh: _client.GitHubClient, issue: Issue, state: _pinned_state.PinnedState, attempt: Attempt,
@@ -251,24 +258,27 @@ class CompletionRoad:
 
         Asked of every attempt as it returns, ahead of anything that reads
         it: with the analytics sink on, a genuine return's snapshot goes to
-        analytics, bound to what the attempt's conversation was handed -- the
-        handoff's own on a road that hands requirements; on a retry,
-        `fresh_requirements` where the coordinated run opened a fresh
-        conversation -- asked then alone -- and what a resumed one was grounded on where this
-        host's record still says (`task_snapshot_grounding`), the handoff's
-        otherwise -- and the result's message is left as the workflow reads
-        it, its attachment lines kept out without moving its framing. A
+        analytics, bound to what the attempt's conversation was handed -- on
+        a road keeping a batch to re-ground with, `fresh_requirements` where
+        the coordinated run opened a fresh conversation, asked then alone,
+        and for a command recovery resuming that conversation what this
+        host's record says it was grounded on (`task_snapshot_grounding`);
+        on a retry, which hands a resumed conversation nothing, that record
+        for one it resumed too; the handoff's own otherwise -- and the
+        result's message is left as the workflow reads it, its attachment
+        lines kept out without moving its framing. A
         return its CLI refused (`Attempt.refused`, asked inside the snapshot's
         failure boundary) is no turn of the agent's, so it is neither recorded
         nor lets the grounding move. The
         recording raises nothing, and no disposition, capture, or accounting
         reads it back; the pinned comment carries none of it.
         """
-        regrounds = None if self.regrounding is None else self.fresh_requirements
+        opened = attempt.resumed is None or not self.hands_resumed
+        regrounds = self.fresh_requirements if opened and self.regrounding is not None else None
         conversation = _task_snapshots.Conversation(
-            gh.repo_id, issue.number, attempt.launched, regrounds, self.repository,
+            gh.repo_id, issue.number, attempt.launched, regrounds, self.repository, attempt.refused,
         )
-        _task_snapshots.receive(self.handoff, attempt.agent_result, state, conversation, refused=attempt.refused)
+        _task_snapshots.receive(self.handoff, attempt.agent_result, state, conversation)
 
     def source(self, agent_result: _agent_models.AgentResult) -> str | None:
         """The head `agent_result`'s report is about, read off the checkout as it returns; None where none qualifies.
@@ -309,13 +319,23 @@ def implementation_road(
 def reply_road(
     issue: Issue, batch: _resume_batch._ReplyBatch, checkout: RoadCheckout, repository: str,
 ) -> CompletionRoad:
-    """A human reply's resume, frozen over the one read its batch was cut from: it settles the batch it delivers."""
+    """A human reply's resume, frozen over the one read its batch was cut from: it settles the batch it delivers.
+
+    A resumed conversation is handed that batch, so the task snapshot of such
+    an attempt is bound to the road's requirements. Where the run opens a
+    fresh conversation instead -- its session stale or overflowed -- the
+    replacement prompt quotes the issue as it reads then beside the batch's
+    thread, an edit landed since the batch was read included, so that
+    conversation's snapshot is bound to that read
+    (`CompletionRoad.fresh_requirements`), as a retry's is; the report keeps
+    the road's revision and the task reference names it.
+    """
     return CompletionRoad(_records.CompletionHandoff(
         route=_routes.CompletionRoute.RESUME,
         origin=_IMPLEMENTING,
         requirements_revision=_requirements(issue, batch),
         watermarks=batch.delivery.consumed_pairs(batch.state),
-    ), checkout, repository=repository)
+    ), checkout, repository=repository, regrounding=batch)
 
 
 def retry_road(batch: _resume_batch._ReplyBatch, checkout: RoadCheckout, repository: str) -> CompletionRoad:
@@ -346,7 +366,7 @@ def retry_road(batch: _resume_batch._ReplyBatch, checkout: RoadCheckout, reposit
         origin=_IMPLEMENTING,
         requirements_revision=baseline if isinstance(baseline, str) else "",
         watermarks=((_prompt_delivery.PINNED_LAST_ACTION_COMMENT_ID, consumed),),
-    ), checkout, repository=repository, regrounding=batch)
+    ), checkout, repository=repository, regrounding=batch, hands_resumed=False)
 
 
 def _requirements(issue: Issue, batch: _resume_batch._ReplyBatch) -> str:

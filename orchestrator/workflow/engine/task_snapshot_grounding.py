@@ -7,11 +7,12 @@ handed. A road that hands the developer requirements -- the first
 implementation, and a human reply whose batch it delivers -- hands its own,
 which that road settles as the baseline the issue records
 (`user_content_hash`). An `/orchestrator continue` retry hands none: a
-resumed conversation reads its own transcript, while a fresh one is
-re-grounded on the read of the issue its preamble quoted -- an edit beside
-the command included -- and the baseline, which stamps the retry's report,
-stays where it was, the edit owed to the drift road. So a retry that resumes
-a conversation is the one attempt whose requirements nothing on the issue
+resumed conversation reads its own transcript, and the baseline, which
+stamps the retry's report, stays where it was. Where a reply's or a retry's
+run opens a fresh conversation instead, it is re-grounded on the read of
+the issue its preamble quoted -- an edit landed since the road was frozen
+included, owed to the drift road all the same. So a retry that resumes a
+conversation is the one attempt whose requirements nothing on the issue
 says once the conversation was last handed something other than the
 baseline.
 
@@ -91,12 +92,13 @@ class Grounding:
     ) -> str:
         """The requirements an attempt's conversation was handed.
 
-        `fresh_requirements` fingerprints what a retry's road re-grounds a
-        fresh conversation with, None on a road that hands its own
-        (`road_requirements`). On a retry, a fresh conversation (`resumed`
-        None) is handed those -- the one case they are asked for -- and a
-        resumed one what this record says it was grounded on, the road's own
-        where it says nothing.
+        `fresh_requirements` fingerprints what the road re-grounded a
+        conversation the run opened fresh with, None where the conversation
+        is handed the road's own (`road_requirements`). Where given, a fresh
+        conversation (`resumed` None) is handed those -- the one case they
+        are asked for -- and a resumed one -- a retry's, or a command recovery
+        of a fresh one -- what this record says it was grounded on, the
+        road's own where it says nothing.
         """
         if fresh_requirements is None:
             return road_requirements

@@ -588,11 +588,11 @@ no outcome the report reader refuses is made one it accepts. Where neither readi
 such a line, which of its lines are code is unknown: every one is held by the placeholder, and the line `(analytics
 attachment lines could not be told from code in this report, so it is not published)` follows the outcome, so the report
 reader refuses it and nothing is published on a guess. No notice quotes an attachment line on any reading, nor does the
-stderr a park quotes: a CLI can echo the reply it wrote there, so the stderr a park quotes is rendered from what is
-found in it as written — every line opening on the prefix and every place a credential sits, overlapping ones hidden as
-one and a join holding such a line shown as the note — before the redactor runs and the tail is cut
-(`workflow/engine/agent_diagnostics.py`); a stderr whose reading fails is withheld behind a note of its own, so the park
-still settles, and the stderr a run is classified by stays as written.
+stderr a park quotes or the warning it logs: a CLI can echo the reply it wrote there, so the stderr a park quotes and
+logs is rendered from what is found in it as written — every line opening on the prefix and every place a credential
+sits, overlapping ones hidden as one and a join holding such a line shown as the note — before the redactor runs and the
+tail is cut (`workflow/engine/agent_diagnostics.py`); a stderr whose reading fails is withheld behind a note of its own,
+so the park still settles, and the stderr the stage classifies a run by stays as written.
 
 The attachment is read on its own terms and decides nothing. With the analytics sink on, `task_snapshots.py` hands a
 genuine return — invoked under a tracked charge; its turn refused neither by the provider (the backend's own verdict
@@ -600,19 +600,21 @@ deciding where it gives one, so a clean exit carrying Claude's `is_error` refusa
 `turn.failed` — both read off the stream's records that decode at all, so a record the usage parser refuses hides no
 closing event — nor refused by the CLI, as the implementing stage reads that with the readers it parks and retries on
 (`session_read`: a conversation the CLI could not open or whose transcript overflowed the context, or an exhausted
-quota, each on a clean exit too) — a reading asked inside the snapshot's failure boundary; neither interrupted nor timed
-out, exiting 0, with no tool step unfinished or failure normalized — to the one reader and recorder under
-`observability/analytics/observations/`, with the invocation the run came from, the requirements revision the attempt's
-conversation was handed, and the framing of the reply the workflow reads — where its outcome begins, which lines a fence
-may enclose, and the verdict the report reader reaches on it — which the recorder asks inside its failure boundary. That
-revision is the one the road froze before the launch on a road that hands the developer requirements: the first
-implementation, and a human reply whose batch it delivers and settles. An `/orchestrator continue` retry hands none, so
-a retry that opens a fresh conversation is bound to the issue as the replacement session's prompt quoted it — the one
-read of the issue that prompt was rendered from, beside the retry's own read of the thread, fingerprinted only as the
-snapshot is recorded, inside its failure boundary — and a later retry resuming that same conversation to what it was
-last handed — an Antigravity command recovery to what the conversation it resumes, under the id the attempt before it
-returned, was. This host keeps that beside the issue's writer claim, as `repo-<id>-issue-<n>.task-snapshot-grounding`,
-only while the analytics sink is on and never on the pinned comment, so no settlement measures it
+quota, each on a clean exit too), off its stderr less every attachment line the CLI echoed there, which is the
+developer's text and never the CLI's diagnostic — a reading asked inside the snapshot's failure boundary; neither
+interrupted nor timed out, exiting 0, with no tool step unfinished or failure normalized — to the one reader and
+recorder under `observability/analytics/observations/`, with the invocation the run came from, the requirements revision
+the attempt's conversation was handed, and the framing of the reply the workflow reads — where its outcome begins, which
+lines a fence may enclose, and the verdict the report reader reaches on it — which the recorder asks inside its failure
+boundary. That revision is the one the road froze before the launch on a road that hands the developer requirements: the
+first implementation, and a human reply whose batch it delivers and settles to the conversation it resumes. An
+`/orchestrator continue` retry hands none, so a retry that opens a fresh conversation — and a reply's run that does, its
+session gone — is bound to the issue as the replacement session's prompt quoted it — the one read of the issue that
+prompt was rendered from, beside the batch's own read of the thread, fingerprinted only as the snapshot is recorded,
+inside its failure boundary — and a later retry resuming that same conversation to what it was last handed — an
+Antigravity command recovery to what the conversation it resumes, under the id the attempt before it returned, was. This
+host keeps that beside the issue's writer claim, as `repo-<id>-issue-<n>.task-snapshot-grounding`, only while the
+analytics sink is on and never on the pinned comment, so no settlement measures it
 (`workflow/engine/task_snapshot_grounding.py`); it speaks while the conversation and the issue's baseline stand, an
 attempt that names no conversation leaves it as it is, as does a launch refused before it started or a turn its provider
 or CLI refused, which hand the conversation nothing, and a lost one binds the retry to the baseline. The task reference

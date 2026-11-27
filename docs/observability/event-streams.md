@@ -845,11 +845,11 @@ written raw inside the JSON leaves the line as malformed as it was written.
 - `requirements_revision` — the requirements fingerprint the conversation that wrote the reply was handed, frozen
   before the launch: the read the prompt was built from, never one an edit during the run moved the issue to.
   Ordinarily that is the revision the run's report is stamped with, and on a road that hands the developer
-  requirements — the first implementation, a human reply — it always is. A retry that opens a fresh conversation
-  re-grounds it on the issue as its fresh prompt quotes it — the one read of the issue that prompt was rendered from,
-  fingerprinted only as the snapshot is recorded, an edit beside the command or one landing while a stale session it
-  replaces ran included — while its report keeps the
-  baseline the issue recorded; the snapshot is bound to that read, and so is the snapshot of a later retry resuming
+  requirements — the first implementation, a human reply resuming its conversation — it always is. A retry, or a
+  human reply whose session is gone, that opens a fresh conversation re-grounds it on the issue as its fresh prompt
+  quotes it — the one read of the issue that prompt was rendered from, fingerprinted only as the snapshot is recorded,
+  an edit beside the command or one landing while a stale session it replaces ran included — while its report keeps the
+  revision its road froze; the snapshot is bound to that read, and so is the snapshot of a later retry resuming
   the same conversation, which is handed nothing new — carried by a host record beside the issue's writer claim
   ([the task snapshot attachment](../workflow/conversations.md#the-task-snapshot-attachment)), never by the pinned
   comment. Dropped where the road held none.

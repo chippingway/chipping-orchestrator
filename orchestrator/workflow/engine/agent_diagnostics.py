@@ -94,7 +94,7 @@ def _format_stderr_diagnostics(
     if not stderr.strip():
         return ""
     try:
-        tail = _credentials.redact_secrets(_Quoted(stderr).text()).rstrip()
+        tail = _Quoted(stderr).shown()
     except Exception:  # noqa: BLE001 - a stderr that cannot be quoted safely is withheld, never the park
         tail = _WITHHELD
     if not tail:
@@ -116,6 +116,10 @@ class _Quoted:
 
     def __init__(self, stderr: str) -> None:
         self._stderr = stderr
+
+    def shown(self) -> str:
+        """The stderr as a comment or a log line shows it: every hidden place replaced, then redacted, right-trimmed."""
+        return _credentials.redact_secrets(self.text()).rstrip()
 
     def text(self) -> str:
         """The stderr with every hidden place replaced, the text between them as written."""
@@ -175,15 +179,17 @@ def _stderr_log_tail(agent_result: AgentResult, max_chars: int = 400) -> str:
     r"""Short stderr tail for log lines -- tighter than the park-comment cap
     so a single WARNING fits on one screen.
 
-    Redact before trimming for the same reason as `_format_stderr_diagnostics`:
-    a multi-line secret value ending in `\\n` would not match `str.replace`
-    if `rstrip` ate the trailing newline first. A stderr the redactor fails
-    on is withheld from the line, as from the comment, so the park the line
-    reports is still recorded.
+    Shown as the park comment quotes it, and for the same reasons
+    (`_format_stderr_diagnostics`): attachment lines and credentials are
+    hidden where they sit in the stderr as written, before any trimming, so
+    an echoed task description reaches no log line whether or not analytics
+    collects it, and a multi-line secret value ending in `\\n` still
+    matches. A stderr that cannot be shown so is withheld from the line, as
+    from the comment, so the park the line reports is still recorded.
     """
     try:
-        tail = _credentials.redact_secrets(agent_result.stderr or "").rstrip()
-    except Exception:  # noqa: BLE001 - a stderr that cannot be redacted is withheld, never the park it logs
+        tail = _Quoted(agent_result.stderr or "").shown()
+    except Exception:  # noqa: BLE001 - a stderr that cannot be quoted safely is withheld, never the park it logs
         return _WITHHELD
     if len(tail) > max_chars:
         tail = tail[-max_chars:]

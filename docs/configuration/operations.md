@@ -1692,11 +1692,11 @@ need the isolation described under
 - **A task snapshot grounding.** With the analytics sink on, `repo-<id>-issue-<n>.task-snapshot-grounding` beside the
   claim file holds `{"session_id", "requirements", "baseline"}`: the requirements the issue's developer conversation
   was last handed where they are not the baseline the issue records -- a fresh conversation an `/orchestrator continue`
-  retry re-grounded on an edit beside the command -- written in place under the claim and taken away once the
-  conversation is handed the baseline. Only the task snapshot of a later retry resuming that conversation reads it,
-  while the baseline it names stands; it is analytics alone, never on the pinned comment. A record the host will not
-  let be read, or a write it refuses, costs that run its task snapshot -- one warning, nothing recorded -- and a refused
-  write takes the record it would have replaced away with it.
+  retry, or a human reply whose session was gone, re-grounded on an edit -- written in place under the claim and taken
+  away once the conversation is handed the baseline. Only the task snapshot of a later retry resuming that conversation
+  reads it, while the baseline it names stands; it is analytics alone, never on the pinned comment. A record the host
+  will not let be read, or a write it refuses, costs that run its task snapshot -- one warning, nothing recorded -- and
+  a refused write takes the record it would have replaced away with it.
 - **Release.** A claim ends when the dispatch or base-refresh route that took it ends, however it ends, and the kernel
   drops it when a process dies, so a crashed poller leaves nothing held; its descriptor is closed with it and is not
   inherited by an agent the holder spawns. The files stay: never delete the directory or a file in it while any poller
