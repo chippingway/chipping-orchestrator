@@ -592,7 +592,8 @@ stderr a park quotes or the warning it logs: a CLI can echo the reply it wrote t
 logs is rendered from what is found in it as written — every line opening on the prefix and every place a credential
 sits, overlapping ones hidden as one and a join holding such a line shown as the note — before the redactor runs and the
 tail is cut (`workflow/engine/agent_diagnostics.py`); a stderr whose reading fails is withheld behind a note of its own,
-so the park still settles, and the stderr the stage classifies a run by stays as written.
+so the park still settles. The stage's own poisoned-session and overflow readers search the stderr with every line
+opening on the prefix left out, the analytics sink on or off, so an echoed attachment buys no retry.
 
 The attachment is read on its own terms and decides nothing. With the analytics sink on, `task_snapshots.py` hands a
 genuine return — invoked under a tracked charge; its turn refused neither by the provider (the backend's own verdict
@@ -615,7 +616,9 @@ inside its failure boundary — and a later retry resuming that same conversatio
 Antigravity command recovery to what the conversation it resumes, under the id the attempt before it returned, was. This
 host keeps that beside the issue's writer claim, as `repo-<id>-issue-<n>.task-snapshot-grounding`, only while the
 analytics sink is on and never on the pinned comment, so no settlement measures it
-(`workflow/engine/task_snapshot_grounding.py`); it speaks while the conversation and the issue's baseline stand, an
+(`workflow/engine/task_snapshot_grounding.py`), keyed to the baseline the issue records once the road that grounded it
+settles — so a reply whose fresh conversation took an edit leaves it speaking for the retry that resumes that
+conversation after the reply settled; it speaks while the conversation and that baseline stand, an
 attempt that names no conversation leaves it as it is, as does a launch refused before it started or a turn its provider
 or CLI refused, which hand the conversation nothing, and a lost one binds the retry to the baseline. The task reference
 is spelled instead from the report the run finished on: the repository it is published under — the configured slug the

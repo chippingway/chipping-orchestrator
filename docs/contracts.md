@@ -252,7 +252,8 @@ formatter from the repository its run's report is published under -- the configu
 and the revision that report is stamped with, and its `requirements_revision` names what its conversation was handed.
 A host record beside the issue's writer claim, `repo-<id>-issue-<n>.task-snapshot-grounding` spelling exactly
 `{"session_id", "requirements", "baseline"}`, carries what a retry's or a reply's fresh conversation was
-re-grounded on to a later retry resuming that conversation only while its baseline stands; it is written only with
+re-grounded on to a later retry resuming that conversation only while its baseline -- the one the issue records once
+the road that grounded it settles -- stands; it is written only with
 the analytics sink on, never on the pinned comment, and one that will not decode or holds any other set of members --
 a missing `baseline` or a member written twice included -- is nothing,
 so its loss needs no migration and binds that snapshot to the baseline. One the host will not let be read, or a change
@@ -776,7 +777,8 @@ lines alone -- taken out where it has none and between its first and last, held 
 fences read off the whole reply, else off its report body alone; so a READY report and its digest read as without
 them, a block holding nothing else stays refused, and a fenced example stays. Where neither reads and the body holds
 such a line, every one is held by the placeholder and a line past the outcome refuses the report, which is published
-on no guess, and no attachment text reaches a notice on any reading. A missing,
+on no guess, and no attachment text reaches a notice on any reading, nor buys a retry: the implementing stage's
+poisoned-session and overflow readers search stderr with every line opening on the prefix left out. A missing,
 malformed, duplicated, or misplaced attachment earns a diagnostic and nothing else -- no retry, correction, park, or
 refusal -- and never makes an invalid report outcome valid. A reviewer handed a report is told the task snapshot
 reference that report's stamped requirements revision spells over the repository its settled record names it

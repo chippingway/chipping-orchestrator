@@ -67,7 +67,6 @@ from orchestrator.agents import (
 )
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.observability.analytics.observations import (
-    attachments as _attachments,
     recorder as _recorder,
     records as _observation_records,
 )
@@ -102,7 +101,7 @@ class Conversation:
     settled record keeps -- and spells the task reference; and `refused` is
     the launching stage's reading of whether the attempt's CLI answered it
     with a refusal of its own, asked of the return's own evidence
-    (`_evidence`).
+    (`_evidence`) with the readers that stage retries and parks on.
     """
 
     repo_id: int
@@ -132,9 +131,9 @@ def receive(
     (`task_snapshot_grounding.Grounding.handed`) and attributed to the stage
     the road reports under; the result's message becomes the reply the
     workflow reads. The conversation's `refused` asks the launching stage
-    whether the CLI answered the attempt with a refusal of its own, read off
-    the CLI's own evidence (`_evidence`) -- never an attachment line echoed
-    onto stderr, which is the developer's text: such a return is observed
+    whether the CLI answered the attempt with a refusal of its own, read as
+    that stage reads it -- never off an attachment line echoed onto stderr,
+    which is the developer's text (`session_read`): such a return is observed
     nowhere and moves no grounding. It is asked inside the failure boundary,
     and only once the road asks for a snapshot and the sink is on, so a
     reading that fails is a lost observation like any other: warned of once,
@@ -147,7 +146,7 @@ def receive(
     if path is not None:
         try:
             _observe(handoff, _evidence(agent_result), conversation, _grounding.Grounding.of(
-                conversation.repo_id, conversation.issue_number, state,
+                conversation.repo_id, conversation.issue_number, state, handoff.watermarks,
             ), path)
         except Exception as error:  # noqa: BLE001 - an observation is lost, never the run that returned it
             # Attempted once: a logger that fails loses the warning with the
@@ -216,17 +215,13 @@ def _reached(
 
 
 def _evidence(agent_result: _agent_models.AgentResult) -> _agent_models.AgentResult:
-    """`agent_result` as the CLI's own evidence reads: stdout's records that decode at all, stderr less echoed lines.
+    """`agent_result` as its own terminal evidence reads: its stdout's records that decode at all, the rest as run.
 
     The terminal readers are handed only the stdout lines JSON decodes, so a
     record the usage parser refuses -- an integer past the conversion limit,
     say -- hides no closing event: the observation stands on the stream's
     terminal evidence, never on a usage parse, and a refused or failed turn is
-    still told apart. And every analytics attachment line a CLI echoed onto
-    stderr is taken out, line and break -- a stderr never naming the prefix
-    is not searched: it is the developer's own text, so a description quoting
-    a CLI's diagnostic is never read as that CLI refusing the turn. The
-    message and status are the run's as it left them.
+    still told apart.
     """
     decoded = []
     for line in (agent_result.stdout or "").splitlines():
@@ -235,10 +230,7 @@ def _evidence(agent_result: _agent_models.AgentResult) -> _agent_models.AgentRes
         except (ValueError, RecursionError):
             continue
         decoded.append(line)
-    stderr = agent_result.stderr or ""
-    echoed = _attachments.attachment_lines(stderr) if _attachments.PREFIX in stderr else ()
-    stderr = _replies._rewritten(stderr, echoed, frozenset(echoed))
-    return replace(agent_result, stdout="\n".join(decoded), stderr=stderr)
+    return replace(agent_result, stdout="\n".join(decoded))
 
 
 def _returned(agent_result: _agent_models.AgentResult) -> bool:

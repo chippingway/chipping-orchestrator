@@ -94,6 +94,14 @@ class HandedTest(_HostRecord):
         claim = writer_claims.claim_path(_REPO_ID, _ISSUE)
         self.assertEqual(self.path, claim.with_suffix(_grounding.GROUNDING_SUFFIX))
 
+    def test_it_sits_beside_the_settled_baseline(self) -> None:
+        # Beside the baseline a road's settlement writes, the issue's own
+        # where it writes none.
+        state = PinnedState(comment_id=1, state_data={"user_content_hash": _BASELINE})
+        settles = (("last_action_comment_id", 900), ("user_content_hash", _ROAD))
+        settled = _grounding.Grounding.of(_REPO_ID, _ISSUE, state, settles)
+        self.assertEqual((settled.baseline, self.kept.baseline), (_ROAD, _BASELINE))
+
     def test_a_road_with_requirements_hands_its_own(self) -> None:
         self.recorded(json.dumps(_grounded()))
         self.assertEqual(self.kept.handed(None, None, _ROAD), _ROAD)

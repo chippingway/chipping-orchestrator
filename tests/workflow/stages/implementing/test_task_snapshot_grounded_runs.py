@@ -11,17 +11,19 @@ as. A human reply whose session is gone opens a fresh conversation the same
 way: its snapshot, and the grounding kept for it, are bound to the issue as
 the replacement prompt quoted it -- a body edit landed as the stale run
 failed included -- under the reference the reply's report is stamped with.
+That grounding is kept beside the baseline the reply settles, so the
+operator's retry resuming the replacement once the reply settled is bound to
+the edit too.
 
-A human reply resuming the conversation hands it requirements its
-settlement has yet to record as the baseline, which this host keeps as the
-conversation's grounding. Where the host will not keep it, the snapshot is a
-lost observation -- one warning and nothing recorded, never a snapshot a
-later one's grounding could contradict -- and the run is accounted,
+A human reply resuming the conversation hands it the requirements its
+settlement records as the baseline, so whatever this host kept for that
+conversation is taken away. Where the host will not take that change, the
+snapshot is a lost observation -- one warning and nothing recorded, never a
+snapshot a stale grounding could contradict -- and the run is accounted,
 captured, and its report published as ever.
 """
 from __future__ import annotations
 
-import json
 import unittest
 from pathlib import Path
 from types import MappingProxyType
@@ -61,6 +63,14 @@ _RETRY = FakeComment(id=_RETRY_ID, body="/orchestrator continue", user=FakeUser(
 # Their answer to the developer's question.
 _REPLY = FakeComment(id=1000, body=_GUIDANCE, user=FakeUser(_ALICE))
 
+# The seams of a tick whose branch the run left where it was.
+_UNMOVED = MappingProxyType({"has_new_commits": False, "head_shas": _held.UNMOVED})
+
+_REPLACEMENT = "replacement-session"
+
+# What a reply's launches resume: the stale conversation, a fresh one, then the retry's of that.
+_LAUNCHES = (_ASKED["dev_session_id"], None, _REPLACEMENT)
+
 
 class _EditedMidRun:
     """A fresh retry's run, which revises a comment the thread already held once it has its prompt."""
@@ -77,17 +87,22 @@ class _EditedMidRun:
 
 
 class _StaleThenFresh:
-    """A reply's runs: the conversation it resumes gone, the body edited as that run fails; then the replacement's."""
+    """A reply's runs: the conversation it resumes gone, the body edited as that run fails; then the replacement's.
+
+    Keeps every prompt it was handed and the conversation each launch resumed, in order.
+    """
 
     def __init__(self, issue) -> None:
         self._issue = issue
         self.prompts: list[str] = []
+        self.resumed: list[str | None] = []
 
-    def __call__(self, _backend, prompt, *_spawn, **_options):
-        """Edit the body and fail as a stale session the first time; ask a question with the snapshot after."""
+    def __call__(self, _backend, prompt, *_spawn, **options):
+        """Edit the body and fail as a stale session the first time; return the snapshot alone after."""
         self.prompts.append(prompt)
+        self.resumed.append(options["options"].resume_session_id)
         if len(self.prompts) > 1:
-            return _agent(session_id="replacement-session", last_message=f"{_support.SNAPSHOT}\nWhich label?")
+            return _agent(session_id=_REPLACEMENT, last_message=_support.SNAPSHOT)
         body = self._issue.body
         self._issue.body = f"{body}\n{_EDIT}"
         return _agent(last_message="", exit_code=1, stderr="No conversation found with session ID: asked-session")
@@ -99,15 +114,12 @@ def _grounding_of(github) -> Path:
     return claim.with_suffix(_grounding.GROUNDING_SUFFIX)
 
 
-def _kept(github) -> dict:
-    """The grounding this host keeps for `github`'s issue."""
-    return json.loads(_grounding_of(github).read_text(encoding="utf-8"))
-
-
-def _bound(case: GroundedRunTest) -> tuple:
-    """The requirements revision and task reference the one snapshot on `case`'s sink is bound to."""
-    snapshot = case.only(_support.SNAPSHOT_EVENT)
-    return (snapshot[_support.REVISION], snapshot[_support.TASK_REF])
+def _bound(case: GroundedRunTest) -> list[tuple]:
+    """The requirements revision and task reference each snapshot on `case`'s sink is bound to, in order."""
+    return [
+        (snapshot[_support.REVISION], snapshot[_support.TASK_REF])
+        for snapshot in case.events(_support.SNAPSHOT_EVENT)
+    ]
 
 
 class GroundedRunTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
@@ -126,22 +138,28 @@ class GroundedRunTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
         self.assertNotIn(_REVISED, run.prompt)
         self.assertEqual(self.only(_support.SNAPSHOT_EVENT)[_support.REVISION], handed)
 
-    def test_a_fresh_reply_takes_the_edit(self) -> None:
+    def test_a_fresh_reply_keeps_the_edit(self) -> None:
+        # The reply's tick, then the operator's retry of the silence it
+        # parked on, resuming the replacement past the reply's settlement:
+        # both bound to the edit the replacement's prompt quoted, under the
+        # reference the reply settled.
+        self.enterContext(patch.object(config, "ALLOWED_ISSUE_AUTHORS", (_ALICE,)))
         github, issue = self.seeded(**_ASKED)
         issue.comments.append(_REPLY)
         runs = _StaleThenFresh(issue)
-        with patch.object(config, "ALLOWED_ISSUE_AUTHORS", (_ALICE,)):
-            delivered = _content_hash._compute_user_content_hash(issue, set())
-            self.dispatch(github, issue, runs, **self.sunk, has_new_commits=False)
-            edited = _content_hash._compute_user_content_hash(issue, set())
-        self.assertIn(_EDIT, runs.prompts[-1])
-        self.assertNotEqual(edited, delivered)
-        self.assertEqual(_bound(self), (edited, _support.reference(delivered)))
-        self.assertEqual(_kept(github)["requirements"], edited)
+        self.dispatch(github, issue, runs, **self.sunk, **_UNMOVED)
+        issue.comments.append(_RETRY)
+        self.dispatch(github, issue, runs, **self.sunk, **_UNMOVED)
+        settled = github.pinned_data(_held.ISSUE)["user_content_hash"]
+        bound = (_content_hash._compute_user_content_hash(issue, set()), _support.reference(settled))
+        self.assertEqual(runs.resumed, list(_LAUNCHES))
+        self.assertIn(_EDIT, runs.prompts[1])
+        self.assertNotEqual(bound[0], settled)
+        self.assertEqual(_bound(self), [bound, bound])
 
     def test_a_refused_grounding_records_nothing(self) -> None:
-        # The reply's grounding is owed a place a directory takes, which the
-        # host neither writes over nor takes away.
+        # The reply clears the conversation's grounding from a place a
+        # directory takes, which the host neither writes over nor takes away.
         github, issue = self.seeded(**_ASKED)
         issue.comments.append(_REPLY)
         _grounding_of(github).mkdir(parents=True)

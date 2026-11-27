@@ -19,10 +19,15 @@ baseline.
 This host keeps that beside the issue's writer claim
 (`writer_claims.claim_path`), as `repo-<id>-issue-<n>.task-snapshot-grounding`:
 `{"session_id", "requirements", "baseline"}` -- the conversation, what it was
-last handed, and the baseline the issue recorded then. Every attempt on a
-road that asks for a snapshot that reached the agent keeps it current where
-the conversation is known, the id it returned or the one it resumed: written
-where what it was handed is not the baseline, and taken away where it is. A
+last handed, and the baseline the issue records once the road that handed it
+settles: the revision a reply's settlement writes as `user_content_hash`, and
+the baseline as it stands on a road whose settlement writes none, a retry's.
+So a reply whose stale session a fresh conversation replaced, settled since,
+leaves that conversation's grounding speaking for the retry that resumes it.
+Every attempt on a road that asks for a snapshot that reached the agent keeps
+it current where the conversation is known, the id it returned or the one it
+resumed: written where what it was handed is not that baseline, and taken
+away where it is. A
 conversation that returned no id and resumed none changes nothing, so the
 record of whichever conversation stays pinned stands, and neither does a
 launch refused before it started or a turn its provider or CLI refused,
@@ -75,16 +80,22 @@ _MEMBERS = frozenset((_SESSION, _REQUIREMENTS, _BASELINE))
 
 @dataclass(frozen=True)
 class Grounding:
-    """One issue's grounding record on this host, beside the baseline the issue records now."""
+    """One issue's grounding record on this host, beside the baseline the issue records once its road settles."""
 
     path: Path
     baseline: str | None
 
     @classmethod
-    def of(cls, repo_id: int, issue_number: int, state: PinnedState) -> Grounding:
-        """The record of the issue `repo_id` and `issue_number` name, read beside `state`'s baseline."""
+    def of(cls, repo_id: int, issue_number: int, state: PinnedState, settles: tuple = ()) -> Grounding:
+        """The record of the issue `repo_id` and `issue_number` name, read beside the baseline its road settles.
+
+        That is the `user_content_hash` the road's `settles` pairs write --
+        the pinned fields its settlement moves forward -- and `state`'s own
+        where they write none.
+        """
         claim = _writer_claims.claim_path(repo_id, issue_number)
-        baseline = state.get(_prompt_delivery.PINNED_USER_CONTENT_HASH)
+        field = _prompt_delivery.PINNED_USER_CONTENT_HASH
+        baseline = dict(settles).get(field, state.get(field))
         return cls(claim.with_suffix(GROUNDING_SUFFIX), baseline if isinstance(baseline, str) else None)
 
     def handed(

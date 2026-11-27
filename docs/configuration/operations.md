@@ -1691,7 +1691,8 @@ need the isolation described under
   does too, except that a poller still holding the resolution in memory writes it again.
 - **A task snapshot grounding.** With the analytics sink on, `repo-<id>-issue-<n>.task-snapshot-grounding` beside the
   claim file holds `{"session_id", "requirements", "baseline"}`: the requirements the issue's developer conversation
-  was last handed where they are not the baseline the issue records -- a fresh conversation an `/orchestrator continue`
+  was last handed where they are not the baseline the issue records once that run's road settles -- a fresh
+  conversation an `/orchestrator continue`
   retry, or a human reply whose session was gone, re-grounded on an edit -- written in place under the claim and taken
   away once the conversation is handed the baseline. Only the task snapshot of a later retry resuming that conversation
   reads it, while the baseline it names stands; it is analytics alone, never on the pinned comment. A record the host

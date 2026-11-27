@@ -122,11 +122,11 @@ class Attempt:
     def refused(self, returned: _agent_models.AgentResult) -> bool:
         """Whether the attempt's CLI answered it with a refusal of its own rather than the agent's turn.
 
-        `returned` is this attempt's return as the CLI's own evidence reads
-        (`task_snapshots._evidence`): any analytics attachment line the CLI
-        echoed onto stderr is out of it, since that is the developer's text,
-        never the CLI's diagnostic. Read with the readers this stage reads
-        such a return by everywhere else (`session_read`): a conversation the
+        `returned` is this attempt's return as its own terminal evidence
+        reads (`task_snapshots._evidence`), read with the readers this stage
+        reads such a return by everywhere else (`session_read`), which never
+        take an analytics attachment line the CLI echoed onto stderr for the
+        CLI's own diagnostic: a conversation the
         CLI could not open or whose transcript overflowed the context -- the
         two a poisoned-session retry is bought by -- or an exhausted account
         quota. A turn the provider refused or a Codex turn that failed is the
