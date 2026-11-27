@@ -348,7 +348,10 @@ Result routing in `_post_user_content_change_result`:
   tick holds was fetched before the resumed run and a title or body edited during it exists only on the new object.
   A run that completed and committed with no usable report parks under `report_undeliverable` with nothing pushed,
   under a notice naming what this road withheld: the pull request stays open on the commit it already carried, which
-  is what the same park says nothing was opened of on the implementing seam.
+  is what the same park says nothing was opened of on the implementing seam. The notice quotes the run's last
+  message, so a question the developer ended on beside a partial fix, and the choices it offered, reach the human:
+  a reply carrying the decision resumes the developer session, and the commit stays in the worktree until that
+  session supplies a valid report.
   A run that did NOT complete is parked the same way and publishes the same nothing. The engine exempts an
   incomplete run from the report contract — a nonzero exit, a provider refusal and a launch nothing invoked are
   failures other roads answer, and on the roads that exemption serves nothing is published either way — but this
@@ -5968,7 +5971,10 @@ approval the reconciliation ahead of the next handler pays as a leased no-op and
        COMMITTED and handed over no usable report — including one that did not finish, which the engine exempts from
        the contract because the roads that exemption serves publish
        nothing either way — parks under `report_undeliverable` with nothing pushed, the commit in the worktree and
-       the round unspent, in this road's own words rather than the engine's; a run an account quota stopped, there
+       the round unspent. A run that finished parks under the engine's notice, which quotes its last message so a
+       question about the rest of the requested changes, and the choices it offered, reach the human whose reply
+       resumes the session; one that did not finish parks in this road's own words rather than the engine's; a run an
+       account quota stopped, there
        or over a report an earlier round still owes, leaves the same debt under the session limit instead, which a
        bare continue retries. Every park a reporting round earns carries
        the input its prompt delivered into the park's OWN write rather than a caller's afterwards: durable over

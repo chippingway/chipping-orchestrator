@@ -68,6 +68,16 @@ PR_LAST_COMMENT_ID = "pr_last_comment_id"
 
 ISSUE_ACTION_ID = "last_action_comment_id"
 
+# A round that committed one requested fix and stops on a decision the other
+# needs: the question, then the two choices it offers, with no report.
+FIX_QUESTION = (
+    "Committed the null check the reviewer asked for. The reviewer also wants "
+    "the retry change landed on the base branch on its own first -- who lands "
+    "it?\n\n"
+    "1. I open a separate pull request against the base branch.\n"
+    "2. You land it there yourself and I rebase onto it."
+)
+
 
 # Rounds that committed and did not finish, beside the park each takes and the
 # words its notice carries: a failed exit parks for the missing report, and an
@@ -236,24 +246,37 @@ class RequestedFixRefusalTest(unittest.TestCase, world._FixReportMixin):
     """The rounds that publish nothing, and what each of them leaves."""
 
     def test_an_undescribed_commit_is_withheld(self) -> None:
-        # A round that committed and handed over no report breaks the contract
-        # every developer prompt teaches, and the reviewer behind it would be
-        # handed work nothing accounts for with no session left to ask. So
-        # nothing is pushed, the commit stays in the worktree, the round is
-        # unspent, and the issue holds on `fixing` for the reply that reports.
+        # A round that committed some of the requested fixes and ends on a
+        # question about the rest hands over no report, and the reviewer behind
+        # it would be handed work nothing accounts for with no session left to
+        # ask. So nothing is pushed, the commit stays in the worktree, the
+        # round is unspent, and the issue holds on `fixing` for a reply. The
+        # notice quotes the question and the choices it offered: told only that
+        # a report is missing, the human asks for one, and the report that
+        # reply buys sends the work back to review with the decision unmade.
         self.seeded(ISSUE, PR, LABEL_VALIDATING)
 
-        mocks = self.requested_fix("done -- see the diff")
+        mocks = self.requested_fix(FIX_QUESTION)
 
         mocks[PUSH_BRANCH].assert_not_called()
         self.assertEqual(
-            (self.pinned()[AWAITING_HUMAN], self.pinned()[PARK_REASON]),
-            (True, _report_delivery.UNDELIVERABLE_REPORT),
+            (
+                self.pinned()[AWAITING_HUMAN],
+                self.pinned()[PARK_REASON],
+                self.pinned()[_report_delivery.UNREPORTED_WORK],
+                _round(self),
+                self.pull_request.head.sha,
+            ),
+            (True, _report_delivery.UNDELIVERABLE_REPORT, True, 0, world.PUBLISHED_HEAD),
         )
-        self.assertTrue(self.pinned()[_report_delivery.UNREPORTED_WORK])
-        self.assertEqual(_round(self), 0)
-        self.assertEqual(self.pull_request.head.sha, world.PUBLISHED_HEAD)
         self.assertNotIn((ISSUE, LABEL_VALIDATING), self.github.label_history)
+        notice = _park_notice(self)
+        for said in (
+            *(f"> {line}" for line in FIX_QUESTION.splitlines() if line),
+            "resumes the developer session on your reply",
+            "committed work stays held in the worktree",
+        ):
+            self.assertIn(said, notice)
 
     def test_an_unfinished_round_parks_for_a_report(self) -> None:
         # The engine exempts a run that did not COMPLETE from the report

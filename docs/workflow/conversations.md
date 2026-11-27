@@ -317,6 +317,14 @@ invalid record is worded with no claim about size and points at the pinned comme
 where a size was measured and failed. Each recovery is the same resume: the reply's session writes the corrected report
 with no new commit, and that report is the one published.
 
+A run that completes and commits but ends with neither outcome parks under `report_undeliverable` as well, with nothing
+published. Most often it ended on a question: a developer that committed part of a reviewer's requested changes and
+needs a decision on the rest ends on that question, as above. So the notice quotes the run's last message, and the
+question and any choices it offered reach the human. A blank message is not quoted, a longer one keeps its last 4,000
+characters (the report body budget), and one carrying the receipt prefix is described rather than quoted. A reply
+carrying the decision resumes the developer session, and the commit stays held in the worktree until that session
+supplies a valid report.
+
 Where the contract is carried:
 
 - **Whole** in the initial `_build_implement_prompt`, the automated-review `_build_fix_prompt`, the requirements-drift

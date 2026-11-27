@@ -38,6 +38,17 @@ The log line carries the same cause beside its code -- the `RecordRefusal`
 value, or `comment_overflow` with the write measured and the later writes it
 was measured beside -- so an operator reading the log reads what the notice
 says rather than a second guess at it.
+
+A run that committed and handed over no usable report at all has no refusal to
+name, and its notice is `report_delivery`'s own. What that notice owes the
+human is the run's last message (`quotes_the_last_message`), because the
+prompt tells a developer that cannot finish to end on its question: a decision
+it is waiting on, and the choices it offered, are what the reply has to
+answer. The quote is held to the rule above -- a message carrying a receipt
+marker is described rather than quoted -- and to a budget, since nothing
+bounds a message the way a recorded report is bounded and a notice GitHub
+refuses parks nothing. The budget keeps the tail, where that prompt puts the
+question.
 """
 from __future__ import annotations
 
@@ -47,7 +58,10 @@ from dataclasses import dataclass, replace
 from types import MappingProxyType
 
 from orchestrator import config
+from orchestrator.github import comments as _github_comments
 from orchestrator.workflow.engine import (
+    messages as _messages,
+    prompt_notes as _prompt_notes,
     report_record_room as _room,
     report_record_values as _record_values,
     report_records as _records,
@@ -73,6 +87,25 @@ _RESUMED = (
 )
 
 _LOGGED = "issue=#%d %s; publishing nothing and holding for a human"
+
+# The most of a run's last message the notice quotes: the report body the
+# developer prompt asks for, which a question and its choices fit in too.
+_QUOTED_BUDGET = _prompt_notes._DEVELOPER_REPORT_CHAR_BUDGET
+
+_QUOTED = (
+    "\n\nThe developer's last message{cut}, with any question it is waiting on "
+    "and the choices it offered:\n\n{quoted}"
+)
+
+_QUOTED_CUT = f", cut to its last {_QUOTED_BUDGET:,} characters"
+
+_UNQUOTED = (
+    "\n\nThe developer's last message is not quoted here: it carries the "
+    "literal text that opens every hidden receipt this orchestrator records "
+    "its own steps with, which a comment of this orchestrator's own would read "
+    "as the step it names. Reply asking for it again with that text described "
+    "in prose."
+)
 
 
 @dataclass(frozen=True)
@@ -222,6 +255,26 @@ def explains_the_refusal(
         why=reading.why,
         withheld=withheld,
         recovery=reading.recovery,
+    )
+
+
+def quotes_the_last_message(message: str) -> str:
+    """The paragraph a notice quotes a run's last message in, or "" for a run that said nothing.
+
+    Opens on its own blank line, so a caller appends it to a sentence. The
+    budget is applied before the marker is looked for, so a receipt marker the
+    cut dropped refuses nothing.
+    """
+    said = message.strip()
+    if not said:
+        return ""
+    cut = len(said) > _QUOTED_BUDGET
+    if cut:
+        said = said[-_QUOTED_BUDGET:]
+    if _github_comments.carries_reserved_marker(said):
+        return _UNQUOTED
+    return _QUOTED.format(
+        cut=_QUOTED_CUT if cut else "", quoted=_messages._as_blockquote(said),
     )
 
 

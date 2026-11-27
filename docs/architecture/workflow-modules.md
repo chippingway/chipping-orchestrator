@@ -1117,7 +1117,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             names what its own road held back: the implementing seam publishes for the first time
                             and has no pull request yet, while a resume under review has one that stands on the
                             commit it stood on, so the initial wording there would deny an open pull request its
-                            human is reading. A run that did
+                            human is reading. The no-report notice also quotes the run's last message
+                            (`report_refusal_notices.quotes_the_last_message`): a developer that committed part of
+                            the work and needs a decision on the rest ends on its question with no report, and a
+                            notice asking only for a report buys one that sends the work to review with the
+                            decision unmade. A run that did
                             NOT complete is left
                             alone: a launch nothing invoked (which is every synthesis an implementing recovery
                             makes for a publication no developer ran), a shutdown kill, a timeout, a provider
@@ -1372,7 +1376,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             room, its log line naming the route and the requirements revision the record was
                             stamped with for an operator to look for. Size is named only where a size was measured
                             and failed, and every recovery is the same resume: a reply whose session needs no new
-                            commit to deliver the report
+                            commit to deliver the report. It also words what `report_delivery.py`'s park over a run
+                            that reported nothing quotes of that run's last message: nothing for a message that is
+                            blank, its tail within the report body budget the developer prompt sets for one past
+                            it, and prose instead of a quote for one carrying a receipt marker
     report_settlement_state.py the current report and the handoff receipt, written in the one durable write that
                             drops the pending record, each refused rather than stored when this owner's own reader
                             would not hand it back. The handoff also names the workflow LABEL the issue was carrying
