@@ -93,6 +93,35 @@ NEXT_QUESTION = (
 # left, which the pull request has not got either.
 NEXT_HEAD = "a" * SHA_LENGTH
 
+# Where a resumed round the orchestrator's timeout cut off had got to, which is
+# no question it asked.
+CUT_OFF = "The next choice is still being investigated."
+
+# What every notice over those rounds says of the reply and the commits.
+HELD_WORDS = (
+    "resumes the developer session on your reply",
+    "committed work stays held in the worktree",
+)
+
+# The lines of the next question and its choices, as a quote of them reads.
+NEXT_QUESTION_QUOTED = tuple(f"> {line}" for line in NEXT_QUESTION.splitlines() if line)
+
+# The rounds a decision resumes that commit again with no report, and whether
+# the notice quotes each fragment: the next question and its choices, and
+# nothing of the timed-out round's last words.
+NEXT_ROUNDS = (
+    (
+        "the next question",
+        NEXT_QUESTION,
+        dict.fromkeys((*HELD_WORDS, *NEXT_QUESTION_QUOTED), True),
+    ),
+    (
+        "a timeout",
+        _agent(session_id=world.DEV_SESSION, last_message=CUT_OFF, timed_out=True),
+        {**dict.fromkeys(HELD_WORDS, True), f"> {CUT_OFF}": False},
+    ),
+)
+
 
 # Rounds that committed and did not finish, beside the park each takes and the
 # words its notice carries: a failed exit parks for the missing report, and an
@@ -299,34 +328,34 @@ class RequestedFixRefusalTest(unittest.TestCase, world._FixReportMixin):
         # park recorded is what reads that commit as undescribed, so this park
         # is the fixing stage's own -- and its notice quotes the new question
         # and its choices as the first did, with both commits held unpublished
-        # until a report describes the branch they leave.
-        self.seeded(ISSUE, PR, LABEL_VALIDATING)
-        self.requested_fix(FIX_QUESTION)
-        world.replied(self, FIX_DECISION)
+        # until a report describes the branch they leave. A round the timeout
+        # cut off after committing parks the same way, but its last words are
+        # where it stopped rather than a decision it asked for, so none of
+        # them is quoted.
+        for described, reply, quoted in NEXT_ROUNDS:
+            with self.subTest(round=described):
+                self.seeded(ISSUE, PR, LABEL_VALIDATING)
+                self.requested_fix(FIX_QUESTION)
+                world.replied(self, FIX_DECISION)
 
-        mocks = self.parked_resume(
-            NEXT_QUESTION, **{world.HEAD_SHAS: (world.FIXED_HEAD, NEXT_HEAD)},
-        )
+                mocks = self.parked_resume(
+                    reply, **{world.HEAD_SHAS: (world.FIXED_HEAD, NEXT_HEAD)},
+                )
 
-        mocks[RUN_AGENT].assert_called_once()
-        mocks[PUSH_BRANCH].assert_not_called()
-        self.assertEqual(
-            (
-                self.pinned()[AWAITING_HUMAN],
-                self.pinned()[PARK_REASON],
-                self.pinned()[_report_delivery.UNREPORTED_WORK],
-                self.pinned()[REVIEW_ROUND],
-                self.pull_request.head.sha,
-            ),
-            (True, _report_delivery.UNDELIVERABLE_REPORT, True, 0, world.PUBLISHED_HEAD),
-        )
-        notice = _park_notice(self)
-        for said in (
-            *(f"> {line}" for line in NEXT_QUESTION.splitlines() if line),
-            "resumes the developer session on your reply",
-            "committed work stays held in the worktree",
-        ):
-            self.assertIn(said, notice)
+                mocks[RUN_AGENT].assert_called_once()
+                mocks[PUSH_BRANCH].assert_not_called()
+                self.assertEqual(
+                    (
+                        self.pinned()[AWAITING_HUMAN],
+                        self.pinned()[PARK_REASON],
+                        self.pinned()[_report_delivery.UNREPORTED_WORK],
+                        self.pinned()[REVIEW_ROUND],
+                        self.pull_request.head.sha,
+                    ),
+                    (True, _report_delivery.UNDELIVERABLE_REPORT, True, 0, world.PUBLISHED_HEAD),
+                )
+                notice = _park_notice(self)
+                self.assertEqual({fragment: fragment in notice for fragment in quoted}, quoted)
 
     def test_an_unfinished_round_parks_for_a_report(self) -> None:
         # The engine exempts a run that did not COMPLETE from the report

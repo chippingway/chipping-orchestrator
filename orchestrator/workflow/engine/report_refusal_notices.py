@@ -55,6 +55,7 @@ question and its choices -- are still quoted.
 """
 from __future__ import annotations
 
+import itertools
 import json
 import logging
 from collections.abc import Callable
@@ -98,6 +99,16 @@ _QUOTED = (
 )
 
 _QUOTED_CUT = ", cut to the end of it that fits in this comment"
+
+# The blockquote prefix a quote's first line opens on.
+_QUOTE_PREFIX = _messages._as_blockquote("")
+
+# What a cut quote spends before the message: its heading and that prefix.
+_CUT_QUOTE_OPENING = len(_QUOTED.format(cut=_QUOTED_CUT, quoted=_QUOTE_PREFIX))
+
+# What one line break of the message spends once quoted: the break and the
+# blockquote prefix the next line opens on. Every other character spends one.
+_QUOTED_LINE_BREAK = len(_messages._as_blockquote("\n")) - len(_QUOTE_PREFIX)
 
 # The receipt prefix with its opening bracket escaped: what GitHub renders as
 # the developer wrote it outside code (inside code the entity shows as typed),
@@ -264,9 +275,12 @@ def quoting_the_last_message(render: Callable[[str], str], message: str) -> str:
 
     Measured over the body the post sends -- the notice's own words, the
     quote's blockquote prefixes, and the comment marker appended to it -- so
-    nothing is cut that the comment had room for. Cutting characters off the
-    head shortens that body by at least as many, so one cut past the overflow
-    always fits.
+    nothing is cut that the comment had room for. Past that room the end kept
+    is the longest one whose QUOTED length fits, counted character by
+    character from the end: a line break spends its blockquote prefix as well,
+    so a message of many short lines quotes far fewer characters than its
+    length alone would allow, and a cut counted in raw characters would take
+    the question with it.
     """
     said = message.strip().replace(_github_comments.RECEIPT_MARKER_PREFIX, _ESCAPED_RECEIPT_PREFIX)
     if not said:
@@ -274,10 +288,14 @@ def quoting_the_last_message(render: Callable[[str], str], message: str) -> str:
     room = _pinned_state.MAX_PINNED_BODY - len(_comments._with_orch_marker(render("")))
     quoted = _QUOTED.format(cut="", quoted=_messages._as_blockquote(said))
     if len(quoted) > room:
-        tail = said[len(quoted) + len(_QUOTED_CUT) - room:]
-        if not tail:
+        spent = itertools.accumulate(
+            _QUOTED_LINE_BREAK if character == "\n" else 1 for character in reversed(said)
+        )
+        kept = sum(1 for total in spent if total <= room - _CUT_QUOTE_OPENING)
+        if not kept:
             return render("")
-        quoted = _QUOTED.format(cut=_QUOTED_CUT, quoted=_messages._as_blockquote(tail))
+        said = said[len(said) - kept:]
+        quoted = _QUOTED.format(cut=_QUOTED_CUT, quoted=_messages._as_blockquote(said))
     return render(quoted)
 
 

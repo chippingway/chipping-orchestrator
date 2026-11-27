@@ -233,7 +233,11 @@ def _holds_for_a_human(
     second of them when the developer commits more and asks the next
     question: the debt that first park recorded is what reads the new commit
     as undescribed. Told only that a report is owed, the human asks for one,
-    and the report it buys goes to review with the next decision unmade.
+    and the report it buys goes to review with the next decision unmade. A
+    run that did not FINISH quotes nothing -- the timeout this road holds
+    too, since a timeout is a way to commit, among them: what it last said is
+    wherever it was cut off, not a question it asked, and quoted under that
+    heading it would read as the decision the reply has to make.
 
     The two are asked INDEPENDENTLY and only the notice picks between them,
     because a reply can be both: a malformed message is no report, so a run
@@ -268,10 +272,12 @@ def _holds_for_a_human(
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return True
     notice = _MISREAD_PARK if misread else _UNDESCRIBED_PARK
+    outcome = _report_outcomes._report_outcome_of_run(run.dev_result)
+    last_message = "" if outcome in _report_delivery.INCOMPLETE_RUNS else run.dev_result.last_message
     _report_delivery.parks_an_undeliverable_report(
         ctx.gh, ctx.issue, ctx.state, _refusal_notices.quoting_the_last_message(
             lambda said: notice.format(mentions=_config.HITL_MENTIONS, said=said),
-            run.dev_result.last_message,
+            last_message,
         ),
     )
     return True

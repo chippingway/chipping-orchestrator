@@ -322,12 +322,15 @@ published. Most often it ended on a question: a developer that committed part of
 needs a decision on the rest ends on that question, as above. So the notice quotes the run's last message, and the
 question and any choices it offered reach the human. A blank message is not quoted. The rest is quoted whole wherever
 one GitHub comment carries it beside the notice's own words and the comment marker, and only past that ceiling is the
-head cut, keeping the end where the question sits. The receipt prefix is quoted with its opening bracket escaped as an
+head cut, keeping the longest end that fits once quoted -- every line break spends its blockquote prefix too -- so the
+question at the end stays. The receipt prefix is quoted with its opening bracket escaped as an
 HTML entity, so the raw comment carries no receipt while the developer's words still render. A reply carrying the
 decision resumes the developer session, and the commit stays held in the worktree until that session supplies a valid
 report. The fixing stage's own park over a later round's commit quotes it the same way: a decision answered, a further
 commit, and the next question with no report leave the report the first park asked for still owed, so that commit
-reads as undescribed work, and its notice shows the next question and its choices.
+reads as undescribed work, and its notice shows the next question and its choices. A round that did not finish, such
+as one the timeout cut off after committing, parks the same way with nothing quoted: its last words are where it
+stopped, not a decision it asked for.
 
 Where the contract is carried:
 

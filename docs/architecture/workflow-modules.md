@@ -1379,9 +1379,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             commit to deliver the report. It also quotes a run's last message into the notices
                             over a run that committed and reported nothing -- `report_delivery.py`'s and the fixing
                             stage's -- nothing for a blank message, the whole of it wherever one comment carries it
-                            beside the notice's own words and the comment marker, only the end that fits past that
-                            ceiling, and the receipt prefix with its opening bracket escaped, so the raw comment
-                            carries no receipt while the developer's words still render
+                            beside the notice's own words and the comment marker, only the longest end that fits
+                            once quoted past that ceiling, and the receipt prefix with its opening bracket escaped,
+                            so the raw comment carries no receipt while the developer's words still render
     report_settlement_state.py the current report and the handoff receipt, written in the one durable write that
                             drops the pending record, each refused rather than stored when this owner's own reader
                             would not hand it back. The handoff also names the workflow LABEL the issue was carrying
@@ -4463,7 +4463,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the debt the missing-report parks would record. Which reply this is -- a report, an
                             ordinary answer, or one that reached for the contract and missed, an `ACK:` beside a
                             report, which is held for a human rather than acted on by either half, as is a commit
-                            over a report still owed, both notices quoting the run's last message; whether a round
+                            over a report still owed, both notices quoting a finished run's last message and
+                            nothing of one that did not finish; whether a round
                             that committed nothing may publish onto the head its pull request already carries, on
                             the affirmative proof that the head read, never moved, is the one the pull request is
                             STANDING on, and left a tree proved clean.

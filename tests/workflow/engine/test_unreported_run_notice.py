@@ -63,12 +63,19 @@ _QUOTED_MESSAGES = (
     ),
 )
 
-# A message one comment cannot carry: a head with no line breaks, so every
-# character cut from it shortens the comment by exactly one, and the question
-# it ends on.
-_OVERSIZED_HEAD = "x" * MAX_PINNED_BODY
+# The decision an oversized message ends on, as the prompt asks.
+_DECISION = f"{_ASKED}\n\n{_FIRST_CHOICE}\n{_SECOND_CHOICE}"
 
-_OVERSIZED = f"{_OVERSIZED_HEAD}\n{_ASKED}"
+# Heads one comment cannot carry before that decision, and how short of the
+# ceiling the cut notice may fall. With no line breaks every character cut
+# shortens the comment by exactly one, so the cut is exact; across many short
+# lines the character just past the cut may be a break, which spends its
+# blockquote prefix too -- and counted as one character apiece, those breaks
+# would cut the decision away with the head.
+_OVERSIZED_HEADS = (
+    ("no line breaks", "x" * MAX_PINNED_BODY, 1),
+    ("many short lines", "x\n" * (MAX_PINNED_BODY // 2), len("\n> ")),
+)
 
 
 class UnreportedRunNoticeTest(unittest.TestCase):
@@ -95,15 +102,21 @@ class UnreportedRunNoticeTest(unittest.TestCase):
 
     def test_a_message_past_the_comment_keeps_its_end(self) -> None:
         # Past what GitHub accepts in one comment, the head goes and the end
-        # the prompt puts the question in stays -- cut exactly to the ceiling,
-        # the notice's own words and the comment marker counted, so nothing
-        # is dropped that the comment had room for.
-        notice = _notice(self, _OVERSIZED)
+        # the prompt puts the decision in stays -- cut to the ceiling, the
+        # notice's own words, the blockquote prefixes, and the comment marker
+        # counted, so nothing is dropped that the comment had room for.
+        for described, head, slack in _OVERSIZED_HEADS:
+            with self.subTest(head=described):
+                notice = _notice(self, f"{head}\n{_DECISION}")
 
-        self.assertEqual(
-            (len(notice), f"> {_ASKED}" in notice, _CUT in notice),
-            (MAX_PINNED_BODY, True, True),
-        )
+                self.assertEqual(
+                    (
+                        [line for line in _DECISION.splitlines() if line and f"> {line}" not in notice],
+                        _CUT in notice,
+                        MAX_PINNED_BODY - len(notice) in range(slack),
+                    ),
+                    ([], True, True),
+                )
 
 
 def _notice(case: unittest.TestCase, message: str) -> str:

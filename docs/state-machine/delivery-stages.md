@@ -6909,8 +6909,10 @@ of those recoverable without telling a human twice
      for the report contract and MISSED, and a round that COMMITTED over a report an earlier tick recorded, whose
      record describes the branch before that commit -- or that still owes the report a park over committed work with
      no report asked for, which is how a round resumed on a decision that commits again and asks the next question
-     reads. Both notices quote the run's last message, so that next question and its choices reach the human whose
-     reply resumes the session. The head is read on every finished run for that second one, a
+     reads. Both notices quote a finished run's last message, so that next question and its choices reach the human
+     whose reply resumes the session; a run that did not finish, a timeout among them, is quoted nothing, since its last
+     words are where it was cut off rather than a question it asked. The head is read on every finished run for that
+     second one, a
      timed-out one included: a timeout is a way to commit like any other, and the park it earns has a recovery that
      PUSHES what the run left -- read as a run that committed nothing, that work reaches the pull request under a
      report written before it existed, since the road that publishes it reads only the debt the earlier report still
