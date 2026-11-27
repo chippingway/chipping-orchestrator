@@ -45,14 +45,14 @@ from __future__ import annotations
 
 import unittest
 
-from tests.git.publication import squash_git_support as squash_support
-from tests.git.publication.squash_gate_support import (
+from tests.workflow.stages.validating import squash_git_support as squash_support
+from tests.workflow.stages.validating.squash_gate_support import (
     SQUASH_PR_NUMBER,
     PublicationSeed,
 )
-from tests.git.publication.squash_race_doubles import _CommitsWhileThePullRequestIsRead
-from tests.git.publication.squash_recovery_support import MOVED_HEAD, SQUASH_ON_APPROVAL, SquashRecoveryMixin
-from tests.git.publication.test_squash_gate import (
+from tests.workflow.stages.validating.squash_race_doubles import _CommitsWhileThePullRequestIsRead
+from tests.workflow.stages.validating.squash_recovery_support import MOVED_HEAD, SQUASH_ON_APPROVAL, SquashRecoveryMixin
+from tests.workflow.stages.validating.test_squash_gate import (
     CLOSED,
     PAST_THE_CEILING,
     _MovesPastTheFirstProof,

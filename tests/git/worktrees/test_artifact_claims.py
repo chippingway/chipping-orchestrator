@@ -22,11 +22,11 @@ from unittest.mock import patch
 
 from orchestrator.git.worktrees import claims
 from orchestrator.git.worktrees.models import Retention, RetentionReason
+from orchestrator.github.pinned_comments import GitHubStateMixin
 from orchestrator.github.pinned_state import (
     PINNED_STATE_TEMPLATE,
     SCHEMA_VERSION_KEY,
     SUPPORTED_SCHEMA_VERSION,
-    GitHubStateMixin,
     PinnedState,
     pinned_state_body,
     pinned_state_from_comment,

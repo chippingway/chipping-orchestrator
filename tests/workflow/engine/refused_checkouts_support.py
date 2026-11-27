@@ -28,7 +28,7 @@ from unittest.mock import patch
 
 from orchestrator.git import branch_transport as _branch_transport
 from orchestrator.git.worktrees import naming as _worktree_naming, paths as _worktree_paths
-from orchestrator.github.pinned_state import SUPPORTED_SCHEMA_VERSION, GitHubStateMixin, pinned_state_body
+from orchestrator.github import pinned_comments as _pinned_comments, pinned_state as _pinned_state
 from tests.git.base_sync.gate_reads_support import _gate_base_reads, _remote_on_disk
 from tests.git.base_sync.recovery_git_support import _local_fetch, _LocalLeasePush
 from tests.git.worktrees import real_git_test_support as _real_git
@@ -42,7 +42,7 @@ INTERRUPTED = 43
 REFUSED = (PUBLISHED, PRE_PR, INTERRUPTED)
 
 # The version a record is pinned under to be admitted.
-SUPPORTED_VERSION = SUPPORTED_SCHEMA_VERSION
+SUPPORTED_VERSION = _pinned_state.SUPPORTED_SCHEMA_VERSION
 
 # What the refresh and the dispatch each say they do with a refused record.
 LEFT_STANDING = "running no base refresh route over it"
@@ -165,7 +165,7 @@ class RefusedCheckouts:
         self.disk = _Disk(case)
         self._github = github
         for road in _PRODUCTION_PINNED_ROADS:
-            production = getattr(GitHubStateMixin, road)
+            production = getattr(_pinned_comments.GitHubStateMixin, road)
             case.enterContext(patch.object(type(github), road, production))
         self._pinned_under: dict[int, int | None] = {}
         self._pins: dict[int, object] = {}
@@ -186,7 +186,7 @@ class RefusedCheckouts:
         """
         self._pinned_under[number] = version
         stamped = {} if version is None else {"schema_version": version}
-        body = pinned_state_body({**self.records[number], "agent_runs_used": _RUNS_USED, **stamped})
+        body = _pinned_state.pinned_state_body({**self.records[number], "agent_runs_used": _RUNS_USED, **stamped})
         pinned = self._pins.get(number)
         if pinned is None:
             self._pins[number] = self._github.get_issue(number).create_comment(body)
@@ -251,7 +251,7 @@ def _outcomes(
 ) -> set[str]:
     """Which of the two outcomes the warnings naming this issue's refused record, and its version, say."""
     named = f"repo={repo_slug} issue=#{issue_number} pinned comment"
-    versions = f"found schema_version {version!r}, supported {SUPPORTED_SCHEMA_VERSION}"
+    versions = f"found schema_version {version!r}, supported {SUPPORTED_VERSION}"
     lines = [line for line in output if named in line and versions in line]
     return {outcome for outcome in _OUTCOMES for line in lines if outcome in line}
 

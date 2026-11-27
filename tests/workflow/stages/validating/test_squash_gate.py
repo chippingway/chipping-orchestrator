@@ -24,8 +24,8 @@ from unittest.mock import patch
 from orchestrator.git import commands as _git_commands
 from orchestrator.git.measurement import commits as _measurement_commits
 from orchestrator.git.verification import probes as _verification_probes
-from tests.git.publication import squash_git_support as squash_support
-from tests.git.publication.squash_gate_support import (
+from tests.workflow.stages.validating import squash_git_support as squash_support
+from tests.workflow.stages.validating.squash_gate_support import (
     SQUASH_PR_NUMBER,
     PublicationSeed,
     _squash_gate,

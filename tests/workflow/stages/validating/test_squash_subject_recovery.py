@@ -25,12 +25,12 @@ import unittest
 from unittest.mock import patch
 
 from orchestrator import config
-from tests.git.publication import (
+from tests.workflow.stages.validating import (
     squash_crash_doubles as _squash_crashes,
     squash_git_support as squash_support,
     squash_recovery_support as _support,
 )
-from tests.git.publication.squash_recovery_support import SquashRecoveryMixin
+from tests.workflow.stages.validating.squash_recovery_support import SquashRecoveryMixin
 
 # The switch a one-commit branch's only rewrite hangs on, set rather than
 # inherited so an operator environment that turned it off cannot decide what

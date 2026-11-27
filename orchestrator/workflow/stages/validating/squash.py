@@ -3,8 +3,8 @@
 """The composed squash-and-publish entry point stage handlers call.
 
 Sequencing the steps is the whole job: `planning` runs every probe while the
-branch is still intact, `resume` answers a squash an earlier tick did not
-finish, the size gate is entered on the publication the squash is about to
+branch is still intact, `squash_publication` answers a squash an earlier tick
+did not finish, the size gate is entered on the publication the squash is about to
 force-push onto, the terms of the rewrite go onto the pinned comment, and only
 a plan that survived all of it and has a rewrite to make reaches the destructive
 `rewrite`. Keeping that order here means no owner has to know when the next one
@@ -41,20 +41,24 @@ issue's own last of all, since a tree switched onto the flat branch at the
 planned head, clean, passes every reading of the head and the tree -- and
 `rewrite` proves it once more between its soft reset and the commit.
 
-Where a refusal LEFT the branch is not a step in that sequence, and `standing`
-owns it: it is a reading over the pinned record and the checkout, taken once
-on the way out of here over an outcome this module has already decided. The
-same owner answers whether a collapse is claimed at all, which is what decides
-whether an install with the switch off still owes the entry a rewrite would
-have taken.
+If a squash fails while the issue still claims a collapse, this workflow reads
+the pinned record and passes its original head to `standing`, or `None` if the
+record is unreadable. `standing` compares that head with the checkout to locate
+the approved commits for the park notice.
+The pinned collapse claim also determines whether an install with the switch
+off still owes the entry a rewrite would have taken.
 """
 from __future__ import annotations
 
+from dataclasses import replace
+
 from orchestrator import config
 from orchestrator.git.measurement import commits as measurement_commits
-from orchestrator.git.publication import models, planning, resume, rewrite, standing
+from orchestrator.git.publication import models, planning, standing
 from orchestrator.git.verification import status as _worktree_status
-from orchestrator.git.worktrees import creation as _worktree_creation
+from orchestrator.workflow.stages.implementing import late_collapse_state, late_rewrite
+from orchestrator.workflow.stages.implementing.late_gate_models import _Gate
+from orchestrator.workflow.stages.validating import squash_publication
 
 # The revision a checkout's own head is named by.
 _HEAD = "HEAD"
@@ -85,16 +89,13 @@ _UNRECORDED_COLLAPSE = "{refusal}; the approved commits are still on the branch"
 
 
 def _squash_and_force_push(
-    gate, branch: str, pr_number: int | None,
+    gate: _Gate, branch: str, pr_number: int | None,
 ) -> models._SquashOutcome:
     """Squash all commits since `origin/<base>` into one, force-push with lease.
 
-    `gate` is the subject the size gate decides about -- the issue, its pinned
-    state, and the checkout -- built by the caller, which is in the layer this
-    module would otherwise have to reach up into for it. `pr_number` is handed
-    in on the same terms: the pull request the squash subject references --
-    the reviewer run's on an approval, the pinned one on a recovery -- or None
-    where there is no number to reference.
+    The approval supplies the issue, its pinned state and the checkout in
+    `gate`. The squash subject references the reviewer's pull request on a
+    fresh approval and the pinned pull request on recovery, when one is known.
 
     Returns one `_SquashOutcome`, in the four shapes a squash can end in:
       * `success` with `sha` and `count=0` — nothing for this call to rewrite:
@@ -107,7 +108,7 @@ def _squash_and_force_push(
         `count>1` says history was replaced by less of it.
       * `error` — squash refused, or squash / push failed. Caller parks
         awaiting_human and the remote was not updated. `standing` says where
-        that leaves the branch, in one of three: INTACT is the ordinary
+        that leaves the branch, in one of four: INTACT is the ordinary
         failure, which aborted before anything destructive or restored what it
         rewound, so the original commits are on the branch; COLLAPSED is a
         failure taken over a collapse an earlier tick left, which stays where
@@ -197,13 +198,16 @@ def _squash_and_force_push(
     The commit is authored under the AGENT_GIT_* identity (via env vars) so
     attribution matches the per-step commits this squash replaces.
     """
-    return standing._tells_the_caller_where_the_branch_is(
-        gate, _squashed_or_resumed(gate, branch, pr_number),
-    )
+    outcome = _squashed_or_resumed(gate, branch, pr_number)
+    if outcome.error and late_collapse_state._claims_a_collapse(gate.state):
+        recorded = late_collapse_state._recorded_collapse(gate.state)
+        location = standing._where_the_branch_stands(gate.worktree, recorded.head if recorded else None)
+        return replace(outcome, standing=location)
+    return outcome
 
 
 def _squashed_or_resumed(
-    gate, branch: str, pr_number: int | None,
+    gate: _Gate, branch: str, pr_number: int | None,
 ) -> models._SquashOutcome:
     """Finish a collapse this issue began, or make one out of what is here.
 
@@ -232,7 +236,7 @@ def _squashed_or_resumed(
     that references nothing, where nothing is normalized -- leaves the plan
     with no message and this call with the no-op it has always been.
     """
-    claimed = standing._claims_a_collapse(gate)
+    claimed = late_collapse_state._claims_a_collapse(gate.state)
     if not config.SQUASH_ON_APPROVAL and not claimed:
         return models._SquashOutcome(success=True)
     try:
@@ -241,8 +245,8 @@ def _squashed_or_resumed(
             pr_number if config.PR_REF_IN_SUBJECT else None,
         )
     except planning._SquashPreparationError as error:
-        return rewrite._squash_failure(str(error))
-    resumed = resume._resumed_squash(gate, branch, plan)
+        return models._SquashOutcome(error=str(error))
+    resumed = squash_publication._resumed_squash(gate, branch, plan)
     if resumed is not None:
         return resumed
     if plan.rewrites and config.SQUASH_ON_APPROVAL:
@@ -251,7 +255,7 @@ def _squashed_or_resumed(
 
 
 def _handed_back(
-    gate, plan: planning._SquashPlan, claimed: bool,
+    gate: _Gate, plan: planning._SquashPlan, claimed: bool,
 ) -> models._SquashOutcome:
     """The branch this call will not rewrite, once a record is off it.
 
@@ -295,16 +299,16 @@ def _handed_back(
     handed = models._SquashOutcome(success=True, sha=plan.original_head)
     if not claimed:
         return handed
-    entry = rewrite._gated_rewrite()._proved_publication(
+    entry = late_rewrite._proved_publication(
         gate, plan.original_head,
     )
     if not entry.is_frozen:
-        return rewrite._squash_failure(entry.refusal)
+        return models._SquashOutcome(error=entry.refusal)
     return _moved_under_the_reading(gate, plan) or handed
 
 
 def _moved_under_the_reading(
-    gate, plan: planning._SquashPlan,
+    gate: _Gate, plan: planning._SquashPlan,
 ) -> models._SquashOutcome | None:
     """Refuse a checkout that moved while the publication was being read.
 
@@ -331,7 +335,7 @@ def _moved_under_the_reading(
     )
 
 
-def _still_the_planned_checkout(gate, planned: str) -> tuple[bool, str]:
+def _still_the_planned_checkout(gate: _Gate, planned: str) -> tuple[bool, str]:
     """Whether the worktree is still the one a plan was taken over.
 
     Both halves are read, because a plan is about a head AND a tree: the reset
@@ -358,7 +362,7 @@ def _still_the_planned_checkout(gate, planned: str) -> tuple[bool, str]:
 
 
 def _rewrites_the_branch(
-    gate, branch: str, plan: planning._SquashPlan,
+    gate: _Gate, branch: str, plan: planning._SquashPlan,
 ) -> models._SquashOutcome:
     """Enter the publication, say what the rewrite is, and then make it.
 
@@ -392,12 +396,9 @@ def _rewrites_the_branch(
     died before the reset leaves it, for the recovery that finds the
     checkout restored.
     """
-    from orchestrator.workflow.stages.implementing import late_collapse_state
-
-    gated = rewrite._gated_rewrite()
-    entry = gated._entered_rewrite(gate, plan.original_head)
+    entry = late_rewrite._entered_rewrite(gate, plan.original_head)
     if not entry.is_frozen:
-        return rewrite._squash_failure(entry.refusal)
+        return models._SquashOutcome(error=entry.refusal)
     unrecorded = late_collapse_state._records_the_collapse(
         gate,
         head=plan.original_head,
@@ -405,18 +406,17 @@ def _rewrites_the_branch(
         count=plan.count,
     )
     if unrecorded:
-        return rewrite._squash_failure(
-            _UNRECORDED_COLLAPSE.format(refusal=unrecorded),
+        return models._SquashOutcome(
+            error=_UNRECORDED_COLLAPSE.format(refusal=unrecorded),
         )
     raced = _raced_the_record(gate, plan)
     if raced is not None:
         return raced
-    _worktree_creation._proven_checkout(gate.spec, gate.issue.number, gate.worktree)
-    return rewrite._rewrite_squash(gate, branch, plan, entry)
+    return squash_publication._rewrite_and_publish(gate, branch, plan, entry)
 
 
 def _raced_the_record(
-    gate, plan: planning._SquashPlan,
+    gate: _Gate, plan: planning._SquashPlan,
 ) -> models._SquashOutcome | None:
     """Refuse a checkout that moved while its terms were being recorded.
 
@@ -445,8 +445,6 @@ def _raced_the_record(
     either place would be inventing one: it is unknown, and the reading that
     found it is what the error already says.
     """
-    from orchestrator.workflow.stages.implementing import late_collapse_state
-
     unmoved, refusal = _still_the_planned_checkout(gate, plan.original_head)
     if not refusal:
         return None

@@ -18,12 +18,12 @@ from unittest.mock import patch
 
 from orchestrator.git.measurement import fingerprint as _fingerprint
 from orchestrator.workflow.late_split import exemption as _exemption, exemption_reading as _exemption_reading
-from tests.git.publication import squash_git_support as squash_support
-from tests.git.publication.squash_gate_support import (
+from tests.support.authorization import _authorize
+from tests.workflow.stages.validating import squash_git_support as squash_support
+from tests.workflow.stages.validating.squash_gate_support import (
     PublicationSeed,
     _squash_gate,
 )
-from tests.support.authorization import _authorize
 
 MAX_ADDED_LINES = "MAX_ADDED_LINES"
 

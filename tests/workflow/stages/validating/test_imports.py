@@ -57,6 +57,8 @@ _OWNERS = (
     "review_verdicts",
     "review_writes",
     "reviewer",
+    "squash",
+    "squash_publication",
     "squash_writes",
     "state",
     "stranded",

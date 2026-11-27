@@ -18,7 +18,7 @@ _PACKAGE = "orchestrator.git.publication"
 
 _OWNERS = (
     "commits", "models", "planning", "pr_references", "probes", "resume",
-    "rewrite", "squash", "standing", "titles",
+    "rewrite", "standing", "titles",
 )
 
 _MODULES = (_PACKAGE, *(f"{_PACKAGE}.{owner}" for owner in _OWNERS))
@@ -74,13 +74,11 @@ _DEFINED = MappingProxyType({
         "_fork_point",
     ),
     "rewrite": (
-        "_UNCONFIRMED_PUBLICATION",
+        "_SquashCommitError",
+        "_SquashResetError",
         "_create_squash_commit",
-        "_gated_rewrite",
-        "_published_squash",
         "_rewrite_squash",
         "_rollback_squash",
-        "_squash_failure",
         "log",
     ),
     "resume": (
@@ -88,39 +86,18 @@ _DEFINED = MappingProxyType({
         "_MISCOUNTED_HISTORY",
         "_UNEQUAL_COLLAPSE",
         "_UNPROVABLE_TREE",
-        "_UNREADABLE_COLLAPSE",
         "_VANISHED_COLLAPSE",
         "_UNBURIED_COLLAPSE",
         "_UNCOLLAPSED_BRANCH",
         "_UNCOLLAPSED_PARENTS",
         "_UNREADABLE_SHAPE",
         "_UNRELATED_PAIR",
-        "_finished_collapse",
         "_is_ancestor",
-        "_outstanding_collapse",
-        "_resumed_squash",
         "_unaccountable_branch",
         "_unprovable_claim",
         "_unrecovered_collapse",
     ),
-    "squash": (
-        "_DIRTIED_UNDER_THE_RECORD",
-        "_HEAD",
-        "_MOVED_UNDER_THE_READING",
-        "_MOVED_UNDER_THE_RECORD",
-        "_RACED_THE_RECORD",
-        "_UNRECORDED_COLLAPSE",
-        "_handed_back",
-        "_moved_under_the_reading",
-        "_raced_the_record",
-        "_rewrites_the_branch",
-        "_squash_and_force_push",
-        "_squashed_or_resumed",
-        "_still_the_planned_checkout",
-    ),
     "standing": (
-        "_claims_a_collapse",
-        "_tells_the_caller_where_the_branch_is",
         "_where_the_branch_stands",
     ),
     "titles": (
@@ -199,7 +176,7 @@ class CleanProcessImportTest(unittest.TestCase):
     `pr_references` depends on nothing, `commits` and `probes` each only on the
     config and git command owners, `titles` on those plus `pr_references`,
     `planning` on `titles` and `pr_references` plus the verification probes, and
-    `rewrite` / `resume` / `standing` / `squash` layer on top, so importing any
+    `rewrite` / `resume` / `standing` layer on top, so importing any
     one of them first must not need a name a half-run module has not defined
     yet. A subprocess per module gives each a clean `sys.modules` no other test
     has already populated, exposing an import-order cycle a package-first suite

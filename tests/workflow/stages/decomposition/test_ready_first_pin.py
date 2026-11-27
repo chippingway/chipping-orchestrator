@@ -19,7 +19,8 @@ from functools import partial
 from types import MappingProxyType
 from unittest.mock import patch
 
-from orchestrator.github.pinned_state import PINNED_STATE_MARKER, GitHubStateMixin, pinned_state_body
+from orchestrator.github.pinned_comments import GitHubStateMixin
+from orchestrator.github.pinned_state import PINNED_STATE_MARKER, pinned_state_body
 from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.workflow.fixtures import LABEL_READY, _PatchedWorkflowMixin
 from tests.workflow.stages.decomposition import child_baseline_support as _baseline, ready_test_support as _support

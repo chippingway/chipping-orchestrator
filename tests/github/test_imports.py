@@ -12,6 +12,7 @@ from orchestrator.github import (
     client as _github_client,
     comments as _comments,
     issue_polling as _issue_polling,
+    pinned_comments as _pinned_comments,
     pinned_state as _pinned_state,
 )
 from tests.support.import_probes import probe_import
@@ -34,6 +35,7 @@ _MODULES = (
     "orchestrator.github.issue_polling",
     "orchestrator.github.issues",
     "orchestrator.github.labels",
+    "orchestrator.github.pinned_comments",
     "orchestrator.github.pinned_refusal",
     "orchestrator.github.pinned_state",
     "orchestrator.github.pull_requests",
@@ -169,7 +171,7 @@ class PublicSurfaceTest(unittest.TestCase):
         # The pinned-state read/write and comment-watermark methods reach the
         # client through the owner's mixin, so the owner class stays in the MRO.
         self.assertIn(
-            _pinned_state.GitHubStateMixin,
+            _pinned_comments.GitHubStateMixin,
             _github.GitHubClient.__mro__,
         )
 

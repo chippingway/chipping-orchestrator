@@ -51,6 +51,7 @@ _OWNERS = (
     "request_codex_counters",
     "request_codex_fold",
     "request_codex_scope",
+    "request_codex_settlement",
     "request_codex_turns",
     "request_coverage",
     "request_models",

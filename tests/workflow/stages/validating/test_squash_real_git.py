@@ -6,8 +6,8 @@ from __future__ import annotations
 
 import unittest
 
-from tests.git.publication import squash_git_support as squash_support
-from tests.git.publication.squash_gate_support import SQUASH_PR_NUMBER, PublicationSeed
+from tests.workflow.stages.validating import squash_git_support as squash_support
+from tests.workflow.stages.validating.squash_gate_support import SQUASH_PR_NUMBER, PublicationSeed
 
 GIT_LOG = "log"
 LAST_COMMIT = "-1"

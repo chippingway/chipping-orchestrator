@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """The question a caller asks immediately before a strict rewrite of the pinned comment leaves this host.
 
-The strict editor (`pinned_state.GitHubStateMixin.edit_pinned_state`) walks
+The strict editor (`pinned_comments.GitHubStateMixin.edit_pinned_state`) walks
 the thread to the comment it rewrites, and that walk is the last reading
 before the edit. A caller whose edit is only right while what it read
 elsewhere still stands -- a recovery finishing a captured completion, whose

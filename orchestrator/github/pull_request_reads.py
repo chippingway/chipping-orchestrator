@@ -14,7 +14,7 @@ from collections.abc import Iterable
 from github import GithubException
 from github.PullRequest import PullRequest
 
-from orchestrator.github.pinned_state import GitHubStateMixin
+from orchestrator.github.pinned_comments import GitHubStateMixin
 
 log = logging.getLogger("orchestrator.github")
 

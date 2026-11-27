@@ -40,8 +40,8 @@ from orchestrator.git.worktrees.models import ProbeAnswer
 from orchestrator.workflow.stages.implementing import (
     late_reconcile as _reconcile,
 )
-from tests.git.publication import squash_git_support as squash_support
-from tests.git.publication.squash_gate_support import (
+from tests.workflow.stages.validating import squash_git_support as squash_support
+from tests.workflow.stages.validating.squash_gate_support import (
     MOVED_HEAD,
     SQUASH_LABEL,
     SQUASH_PR_NUMBER,

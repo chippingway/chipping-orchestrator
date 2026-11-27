@@ -8,11 +8,9 @@ success a caller hands on nor the failure it parks over, and reading it as
 either is how an adjudication ends up with a park notice on top of it or a
 handoff underneath it.
 
-It sits here rather than beside the owner that builds it because three owners
-read it -- the entry point that composes the squash, the rewrite that produces
-it, and the stage handler that acts on it -- and a record every one of them is
-typed by belongs to none of them. `planning._SquashPlan` stays with the owner
-that builds it for the opposite reason: nothing outside that step reads a plan.
+The validating workflow returns this outcome for both fresh and recovered
+squashes. Its approval handoff uses the count for the publication notice and
+the branch's standing for a failure notice.
 """
 from __future__ import annotations
 

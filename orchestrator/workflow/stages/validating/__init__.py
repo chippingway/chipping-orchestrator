@@ -14,7 +14,10 @@ local verify gate at the head of it is the last thing standing between a
 branch that does not build and `in_review`; the optional squash, the notice
 its count is worded from, the end of the collapse record, and the relabel to
 `documenting` follow it, in that order, each held to the subject and the
-pinned records still standing behind the requests ahead of it. `verify` holds
+pinned records still standing behind the requests ahead of it. `squash` plans the
+rewrite and records its terms. `squash_publication` publishes a fresh or
+recovered commit through the size gate and decides when to restore the original
+head. `verify` holds
 the gate's run and the other side of it -- how a refused result reads, and
 the words of the park it earns; ``ok`` and the ``not_run`` an empty
 `VERIFY_COMMANDS` returns both advance. `squash_evidence` carries the evidence

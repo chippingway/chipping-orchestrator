@@ -335,8 +335,8 @@ env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m coverage run --branch --
 env -u VIRTUAL_ENV -u CONDA_PREFIX poetry run python -m coverage report -m --data-file=/tmp/manifest.coverage
 ```
 
-For the admission target, include `orchestrator/github/pinned_state.py` and use its corpus; the client methods that
-walk a thread and write the comment are no part of it. Lines the seeds leave uncovered are what a new seed is for.
+For the admission target, include `orchestrator/github/pinned_state.py` and use its corpus. Lines the seeds leave
+uncovered are what a new seed is for.
 
 ### Bounded fuzzing
 

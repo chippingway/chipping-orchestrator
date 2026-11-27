@@ -5,8 +5,11 @@ from __future__ import annotations
 
 from unittest import mock
 
-from tests.git.publication import squash_crash_doubles as _squash_crashes, squash_git_support as squash_support
-from tests.git.publication.squash_gate_support import (
+from tests.workflow.stages.validating import (
+    squash_crash_doubles as _squash_crashes,
+    squash_git_support as squash_support,
+)
+from tests.workflow.stages.validating.squash_gate_support import (
     SQUASH_PR_NUMBER,
 )
 

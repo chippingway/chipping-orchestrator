@@ -26,10 +26,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 from orchestrator.git.worktrees import paths as _paths
+from orchestrator.github.pinned_comments import GitHubStateMixin
 from orchestrator.github.pinned_state import (
     SCHEMA_VERSION_KEY,
     SUPPORTED_SCHEMA_VERSION,
-    GitHubStateMixin,
     pinned_state_body,
 )
 from tests.git.worktrees import maintenance_host as _maintenance_host

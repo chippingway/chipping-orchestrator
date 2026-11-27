@@ -567,8 +567,8 @@ derives a candidate over a fresh reading of the comment its caller captured, ref
 comment or a record the decision rests on moved, where admission refuses that comment or the candidate, or where
 another writer moved a field the caller is changing, measures
 the whole rendered candidate against the comment limit before any dependent effect, and lands through the strict
-in-place edit on `github/pinned_state.py`, reporting an edit nobody confirmed as neither answer. It narrows the window
-between a reading and the write over it; it does not serialize two pollers, since GitHub's comment edit takes no
+in-place edit on `github/pinned_comments.py`, reporting an edit nobody confirmed as neither answer. It narrows the
+window between a reading and the write over it; it does not serialize two pollers, since GitHub's comment edit takes no
 condition. The contract is on [`state-machine/labels-and-state.md`][pinned-state].
 
 For the full per-tick sequence — eligible-issue enumeration, the cap exemption a no-agent bucket earns, what the base

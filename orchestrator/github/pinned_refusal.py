@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """The refusal raised where something meant to act on a pinned record admission refuses.
 
-The whole-state writer (`pinned_state.GitHubStateMixin.write_pinned_state`)
+The whole-state writer (`pinned_comments.GitHubStateMixin.write_pinned_state`)
 never writes over such a record, creates one beside it, or stamps it as
 current, and it raises this rather than answering quietly: a caller told
 nothing would go on to whatever the write was for -- a notice, a relabel, an

@@ -153,7 +153,7 @@ from types import MappingProxyType
 
 from github.Issue import Issue
 
-from orchestrator.git.publication import models as _publication, squash as _squash
+from orchestrator.git.publication import models as _publication
 from orchestrator.github import (
     client as _client,
     pinned_state as _pinned_state,
@@ -174,11 +174,12 @@ from orchestrator.workflow.stages.validating import (
     review_coverage as _review_coverage,
     review_parks as _review_parks,
     review_verdicts as _verdicts,
+    squash as _squash,
     squash_evidence as _squash_evidence,
-    state as _state,
     verify as _verify,
 )
 from orchestrator.workflow.stages.validating.models import _ReviewerRun
+from orchestrator.workflow.stages.validating.state import _PARK_REASON, _REASON_SQUASH_FAILED
 from orchestrator.workflow.state import WorkflowLabel
 
 log = logging.getLogger("orchestrator.workflow")
@@ -293,7 +294,7 @@ def _park_squash_failure(
     down (`parks_the_failed_squash`). A park already standing for this reason
     retires the verdict in a guarded commit of its own (`handoff.RETIRES`).
     """
-    if state.get(_AWAITING_HUMAN) and state.get(_state._PARK_REASON) == _state._REASON_SQUASH_FAILED:
+    if state.get(_AWAITING_HUMAN) and state.get(_PARK_REASON) == _REASON_SQUASH_FAILED:
         # Already parked on a squash that would not go: the notice is on the
         # thread and the condition behind it is one only a human ends. The
         # recovery retries every tick, so a fresh mention here would be one
@@ -487,7 +488,7 @@ def _persists_then_relabels(gate, sha, held: _handoff._Held) -> None:
     """
     gh, issue, state = gate.gh, gate.issue, gate.state
     state.set(_AWAITING_HUMAN, False)
-    state.set(_state._PARK_REASON, None)
+    state.set(_PARK_REASON, None)
     _collapses.settle_pending_collapse(state, sha)
     published = sha or _review_subjects.ReviewSubject.commit_recorded_in(
         state.get(_review_subjects.APPROVED_SUBJECT),
