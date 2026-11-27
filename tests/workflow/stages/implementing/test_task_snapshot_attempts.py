@@ -10,8 +10,8 @@ under none. A run frozen on no road, or on a road other than the
 implementing two, is neither asked nor observed, and an attempt that
 returned no finished reply -- timed out, left a command running, or answered
 on a clean exit by its provider's refusal or its CLI's own, an exhausted
-quota -- Codex's coded usage-limit stop included -- or an overflowed
-transcript -- records nothing.
+quota, an overflowed transcript, or a Codex turn ending on `turn.failed`
+whatever its code -- records nothing.
 """
 from __future__ import annotations
 
@@ -53,8 +53,10 @@ _COMPLETION = "completion"
 # Claude's own verdict on a turn its provider refused, beside a clean exit.
 _REFUSED = json.dumps({"type": "result", "is_error": True, "result": "API Error: 529 Overloaded."})
 
-# A Codex turn its account's usage limit stopped, coded as such, beside a clean exit and no final message.
+# Codex turns ending on `turn.failed` beside a clean exit and no final message: the account's usage limit, and an
+# overloaded server.
 _CODEX_STOPPED = codex_jsonl(turn_started(), turn_failed("Quota exhausted.", codex_error_info="usage_limit_exceeded"))
+_CODEX_FAILED = codex_jsonl(turn_started(), turn_failed("Server overloaded.", codex_error_info="server_overloaded"))
 
 # What a poisoned resume and the fresh retry behind it record: nothing for the
 # conversation the CLI could not open, the snapshot under the second charge.
@@ -78,6 +80,7 @@ _UNRECORDED = (
     ("an exhausted quota", {_SAID: "You've hit your 5-hour limit"}, _RESUME, _ASKED, False),
     ("an overflowed transcript", {_SAID: "Prompt is too long"}, _RESUME, _ASKED, False),
     ("a Codex usage limit", {_SAID: "", "stdout": _CODEX_STOPPED}, _RESUME, _ASKED, False),
+    ("a failed Codex turn", {_SAID: "", "stdout": _CODEX_FAILED}, _IMPLEMENTATION, _ASKED, False),
 )
 
 

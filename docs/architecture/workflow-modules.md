@@ -1960,10 +1960,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             else -- so no park, notice, or published report quotes one, a fenced example stays, text
                             past an outcome is still refused, and a block of nothing else is refused as empty; a reply
                             those readers fail on never read as written but kept out by its marker lines alone, outside
-                            the fences of the whole reply or, where those do not read, of its report body, and taking
-                            nothing out of a report where neither reads, with one warning; and the framing the recorder
-                            is told -- where the outcome begins, the lines a fence may enclose, and the verdict the
-                            workflow reaches on that reply
+                            the fences of the whole reply or, where those do not read, of its report body, and, where
+                            neither reads and the report body holds such a line, every one held by the placeholder and
+                            the report refused by a line past its outcome, with one warning; and the framing the
+                            recorder is told -- where the outcome begins, the lines a fence may enclose, and the
+                            verdict the workflow reaches on that reply
     task_snapshots.py       which developer attempts are asked for a task snapshot -- every one on the first
                             implementation's road or an implementing resume's, and none else -- the request appended to
                             the prompt each is handed, and the receipt of each return on those roads: with the analytics
@@ -4831,22 +4832,22 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       completion_roads.py   what a report-producing implementing road freezes before its launch -- the route, the
                             requirements its run is handed (for a retry, which hands none, the baseline the issue
                             records, so an edit beside the command never stamps its report), the input its prompt
-                            delivers (the first implementation's thread stretch and an edit it answers, a reply
-                            batch's consumed pairs, a retry's consumed commands), and the checkout, branch, and head
-                            it launches from -- and
-                            the capture an attempt on it earns: asked by `execution.py` of every attempt, it captures
-                            only a return the road's contract takes, at the head it left (`source`, which a road
-                            asking more of the checkout a run returns over answers None for where that was not met
-                            -- `stages/validating/refresh_road.py`) -- and the road the late developer revision
-                            freezes (`stages/decomposition/late_revision_road.py`), with the command, prompt digest, and
-                            conversation it ran as and still pinned, and answers held where that capture left the
-                            state withheld; and, through `engine/task_snapshots.py`, the task snapshot request an
-                            attempt on it is handed and the receipt of its return, which only the first
-                            implementation's road and an implementing resume's ask for, record, and keep out of the
-                            reply the workflow reads -- the snapshot bound to the handoff's requirements, or, for an
-                            attempt that opened a fresh conversation on a retry's road, to the read that conversation
-                            was re-grounded on (`fresh_requirements`), and for a later retry resuming it, to what this
-                            host's grounding record says (`engine/task_snapshot_grounding.py`)
+                            delivers (the first implementation's thread stretch and an edit it answers, a reply batch's
+                            consumed pairs, a retry's consumed commands), and the checkout, branch, and head it
+                            launches from -- and the capture an attempt on it earns: asked by `execution.py` of every
+                            attempt, it captures only a return the road's contract takes, at the head it left
+                            (`source`, which a road asking more of the checkout a run returns over answers None for
+                            where that was not met -- `stages/validating/refresh_road.py`) -- and the road the late
+                            developer revision freezes (`stages/decomposition/late_revision_road.py`), with the
+                            command, prompt digest, and conversation it ran as and still pinned, and answers held where
+                            that capture left the state withheld; and, through `engine/task_snapshots.py`, the task
+                            snapshot request an attempt on it is handed and the receipt of its return, which only the
+                            first implementation's road and an implementing resume's ask for, record, and keep out of
+                            the reply the workflow reads -- the snapshot bound to the handoff's requirements, or, for
+                            an attempt that opened a fresh conversation on a retry's road, to the issue as that
+                            conversation's prompt quoted it, fingerprinted as the prompt is built (`regrounded`,
+                            `fresh_requirements`), and for a later retry resuming it, to what this host's grounding
+                            record says (`engine/task_snapshot_grounding.py`)
       captured_report.py    the run's own pending capture handed to the report delivery where the disposition records
                             a report -- what the tick settled around the run riding the transfer's own commit, so the
                             two land together or not at all; one refused for the report itself withdrawn and the run

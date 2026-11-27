@@ -22,8 +22,9 @@ line is still refused.
 An `/orchestrator continue` retry beside a body edit hands a resumed
 conversation nothing, so its snapshot keeps the baseline that conversation
 was last handed; a retry that opens a fresh conversation re-grounds it on the
-issue as it now reads, so its snapshot is bound to that edit -- and so is the
-snapshot of a later retry resuming that same conversation. Either way the
+issue as its fresh prompt quotes it -- an edit landing while a stale session
+it replaces ran included -- so its snapshot is bound to that edit, and so is
+the snapshot of a later retry resuming that same conversation. Either way the
 task reference names the revision the retry's report is stamped with, the
 baseline a reviewer handed that report is told.
 """
@@ -31,6 +32,7 @@ from __future__ import annotations
 
 import contextlib
 import unittest
+from functools import partial
 from types import MappingProxyType
 from unittest.mock import MagicMock, patch
 
@@ -52,6 +54,9 @@ from tests.workflow.stages.implementing import (
 _EDITED = "Require the red variant rather than blue."
 
 _SESSION = "original-session"
+
+# A further edit, landing while a retry's first run is out.
+_MOVED = "Name the flag foo-mode instead."
 
 # The trusted human's bare retry, above the park.
 _RETRY_ID = 1100
@@ -93,9 +98,28 @@ class _ParsesAfterOneFailure:
         return self._parse(message)
 
 
-def _unavailable() -> MagicMock:
-    """The outcome's start, failing every time it is asked."""
-    return MagicMock(side_effect=ValueError("framing unavailable"))
+# A reader failing every time it is asked.
+_UNAVAILABLE = partial(MagicMock, side_effect=ValueError("framing unavailable"))
+
+
+class _EditedWhilePoisoned:
+    """A retry's runs resuming a session its CLI cannot open, the issue edited as that one runs; then the replacement's.
+
+    Keeps every prompt it was handed, in order.
+    """
+
+    def __init__(self, issue) -> None:
+        self._issue = issue
+        self.prompts: list[str] = []
+
+    def __call__(self, _backend, prompt, *_spawn, **_options):
+        """Edit the body and fail as a stale session the first time; return the snapshot and report after."""
+        self.prompts.append(prompt)
+        if len(self.prompts) > 1:
+            return _agent(session_id=_REPLACEMENT, last_message=_support.ATTACHED)
+        body = self._issue.body
+        self._issue.body = f"{body}\n{_MOVED}"
+        return _agent(last_message="", stderr=f"No conversation found with session ID: {_SESSION}")
 
 
 # The readers of a reply that may fail on it, by name, and their owners.
@@ -107,8 +131,8 @@ _READERS = MappingProxyType({_SCAN: _attachments, _FENCES: _fences})
 # and the scan for attachment lines always.
 _FRAMING_FAILURES = (
     (_outcomes, "_parse_report_outcome", _ParsesAfterOneFailure),
-    (_replies, "_outcome_start", _unavailable),
-    (_attachments, _SCAN, _unavailable),
+    (_replies, "_outcome_start", _UNAVAILABLE),
+    (_attachments, _SCAN, _UNAVAILABLE),
 )
 
 # A READY report carrying the attachment line inside its block, where it is misplaced.
@@ -124,6 +148,9 @@ _FENCED_EXAMPLE = f"{_support.SNAPSHOT}\n\nREPORT: READY\n{_QUOTING_REPORT}\nREP
 
 # A READY block holding nothing but the attachment line.
 _ALONE = f"REPORT: READY\n{_support.SNAPSHOT}\nREPORT: END"
+
+# A report the line sits inside of, with text past its outcome.
+_TRAILED = f"REPORT: READY\nImplemented.\n{_support.SNAPSHOT}\nREPORT: END\nTrailing prose."
 
 # Replies whose report no attachment line may make publishable, and what their snapshot reads as.
 _UNPUBLISHABLE = (
@@ -144,15 +171,18 @@ _SCANS = (
 
 
 class _FailsOn:
-    """A reader failing on one reply as written, and reading every other text as it does."""
+    """A reader failing on every text holding the snapshot's line, and reading every other text as it does.
 
-    def __init__(self, reply: str, read) -> None:
-        self._reply = reply
+    So it fails on a reply as written and on the report it ends on, and reads
+    the reply the workflow reads, the line kept out of it.
+    """
+
+    def __init__(self, read) -> None:
         self._read = read
 
     def __call__(self, text: str, *args, **kwargs):
-        """Fail on the reply; read anything else."""
-        if text == self._reply:
+        """Fail on a text holding the line; read anything else."""
+        if _support.SNAPSHOT in text:
             raise ValueError("unreadable reply")
         return self._read(text, *args, **kwargs)
 
@@ -164,7 +194,7 @@ def _scanned(case: ReplyReadingTest, reply: str, failing: str | None, sink: bool
     scanning = contextlib.nullcontext()
     if failing:
         owner = _READERS[failing]
-        scanning = patch.object(owner, failing, _FailsOn(reply, getattr(owner, failing)))
+        scanning = patch.object(owner, failing, _FailsOn(getattr(owner, failing)))
     with scanning:
         case.dispatch(github, issue, _support.returning(reply), **seams)
     return github
@@ -244,8 +274,9 @@ class ReplyReadingTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
         # A fence the line sits in, which taking it out would close above the
         # markers, and a block of nothing else: each refused, and recorded
         # as the verdict the workflow reached -- and the block of nothing
-        # else refused still where the scan for attachment lines fails, the
-        # sink on or off.
+        # else, like a report with text past it, refused still where the
+        # scan for attachment lines or the fence reader fails on the reply
+        # and its report, the sink on or off, with no notice quoting the line.
         for reply, category in _UNPUBLISHABLE:
             self.sink.unlink(missing_ok=True)
             github = _scanned(self, reply, *_SCANS[0])
@@ -255,8 +286,10 @@ class ReplyReadingTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
                 self.assertEqual(diagnostic[_support.CATEGORY], category)
                 self.assertEqual(diagnostic["report_outcome"], "malformed")
         for scan in _SCANS[1:]:
-            with self.subTest(scan=scan):
-                self.assertEqual(_scanned(self, _ALONE, *scan).opened_prs, [])
+            for reply in (_ALONE, _TRAILED):
+                github = _scanned(self, reply, *scan)
+                with self.subTest(scan=scan, reply=reply):
+                    self.assertEqual((github.opened_prs, _support.posted_attachments(github)), ([], []))
 
     def _published_digest(self, inside: str, **seams) -> str:
         """The digest of the report a fresh issue publishes for a READY block carrying `inside`; none quotes a line."""
@@ -280,11 +313,14 @@ class RetrySnapshotTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
         self.assertEqual(self.only(_support.SNAPSHOT_EVENT)[_support.REVISION], baseline)
 
     def test_a_fresh_retry_takes_the_edit(self) -> None:
-        # Bound to the edit its preamble quoted; named by the baseline its
-        # report is stamped with.
-        github, issue, baseline = self._edited()
-        ran = self.dispatch(github, issue, _support.returning(), **self._committed())
-        self.assertIn(_EDITED, _support.prompt_of(ran))
+        # A poisoned session's fresh retry, the issue edited again while the
+        # stale one ran: bound to the issue as its preamble quoted it, both
+        # edits included, not as the retry first read it; named by the
+        # baseline its report is stamped with. The stale run records nothing.
+        github, issue, baseline = self._edited(dev_session_id=_SESSION)
+        runs = _EditedWhilePoisoned(issue)
+        self.dispatch(github, issue, runs, **self._committed(commits=False))
+        self.assertIn(f"{_EDITED}\n{_MOVED}", runs.prompts[-1])
         edited = _content_hash._compute_user_content_hash(issue, set())
         self.assertNotEqual(edited, baseline)
         self.assertEqual(self._bound(), (edited, _support.reference(baseline)))

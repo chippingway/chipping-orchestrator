@@ -812,8 +812,8 @@ is recorded. Only a genuine return is: a run the tracked spawn started under a c
 invocation, which was invoked; whose turn the provider did not refuse — the backend's own verdict deciding where it
 gives one, so a clean exit carrying Claude's `is_error` refusal is none — and the CLI did not refuse either, as the
 implementing stage reads that with the readers it parks and retries on: a conversation the CLI could not open or whose
-transcript overflowed the context, or an exhausted quota — Codex's coded usage-limit stop included — each on a clean
-exit too; and which was neither interrupted
+transcript overflowed the context, an exhausted quota, or a Codex turn that ended on `turn.failed` whatever its code,
+each on a clean exit too; and which was neither interrupted
 nor timed out, exited 0, and left no tool step unfinished or failure normalized. A question and a malformed report
 outcome are included. Any other writes nothing — a poisoned conversation's fresh retry is recorded, the stale attempt
 before it not — nor does a result a stage synthesized or the recovery that finishes a captured report from its record,
@@ -845,7 +845,8 @@ written raw inside the JSON leaves the line as malformed as it was written.
   before the launch: the read the prompt was built from, never one an edit during the run moved the issue to.
   Ordinarily that is the revision the run's report is stamped with, and on a road that hands the developer
   requirements — the first implementation, a human reply — it always is. A retry that opens a fresh conversation
-  re-grounds it on the issue as it then reads, an edit beside the command included, while its report keeps the
+  re-grounds it on the issue as its fresh prompt quotes it — fingerprinted as that prompt is built, an edit beside the
+  command or one landing while a stale session it replaces ran included — while its report keeps the
   baseline the issue recorded; the snapshot is bound to that read, and so is the snapshot of a later retry resuming
   the same conversation, which is handed nothing new — carried by a host record beside the issue's writer claim
   ([the task snapshot attachment](../workflow/conversations.md#the-task-snapshot-attachment)), never by the pinned
@@ -927,9 +928,10 @@ record for a retry's snapshot, while the reply the workflow reads still has its 
 every other record.
 
 **Best effort, behind one boundary.** Where the sink is is read first, behind a guard of its own: settings that will not
-read are one warning, and nothing is recorded. The whole path then — the framing of the reply the workflow reads,
-handed over as a callable so it runs inside the guard, reading the attachment, redacting, bounding, serializing, and
-appending — runs inside one guard (`observations/recorder.py`); the workflow asks nothing of the reply before handing
+read are one warning, and nothing is recorded. The whole path then — the implementing stage's reading of whether the
+CLI refused the turn, the framing of the reply the workflow reads, handed over as a callable so it runs inside the
+guard, reading the attachment, redacting, bounding, serializing, and appending — runs inside one guard
+(`task_snapshots.receive`, then `observations/recorder.py`); the workflow asks nothing of the reply before handing
 it over, and the lines go to disk through `sink.write_jsonl_lines` under the sink's own lock
 so a refused append reaches that guard instead of the sink's `log.warning`. A step that fails before the append becomes
 a diagnostic. A refused append — the snapshot or a refused reply's diagnostic lost with it — and a diagnostic that

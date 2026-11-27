@@ -19,9 +19,10 @@ fence may enclose is code a report quotes, and stays. A reply the attachment
 scan fails on is never read as written: its lines are kept out by the marker
 lines alone, which reads every reply here exactly as the full reading does --
 a block holding nothing else still empty, a fenced example kept -- and where
-no fence reads at all, no line is taken out of a report on a guess while
-every one outside it is still kept out. Where a line sits beside the outcome, and the verdict the
-recorder is told, are `test_task_snapshot_framing`.
+no fence reads at all, no line opening on the prefix is left anywhere and a
+report whose body holds one is refused rather than read on a guess. Where a
+line sits beside the outcome, and the verdict the recorder is told, are
+`test_task_snapshot_framing`.
 """
 from __future__ import annotations
 
@@ -41,6 +42,7 @@ from orchestrator.workflow.engine import (
     task_snapshot_replies as _replies,
     task_snapshots as _task_snapshots,
 )
+from orchestrator.workflow.engine.report_outcome_models import _ReportRefusal
 from orchestrator.workflow.state import WorkflowLabel
 
 _PROMPT = "Implement the issue."
@@ -116,6 +118,8 @@ _HELD_REPLIES = (
 )
 
 _UNREADABLE = ValueError("unreadable")
+
+_MALFORMED = _ReportRefusal.MALFORMED
 
 
 def _snapshot_read(reply: str) -> attachments.SnapshotReading:
@@ -198,19 +202,19 @@ class ProtocolIsolationTest(unittest.TestCase):
                 self.assertEqual(_replies.workflow_reply(reply), read)
                 self.assertEqual(len(logged.output), 1)
 
-    def test_a_failed_fence_reading_guesses_nothing(self) -> None:
-        # No fence reads, of the reply or of its report: no line of a report
-        # is taken out on a guess -- the report reader, reading the same
-        # fences, decides what it is -- so every outcome reads as written,
-        # and every line outside the report is still kept out.
+    def test_an_unread_report_is_refused(self) -> None:
+        # No fence reads, of the reply or of its report: no line opening on
+        # the prefix is left anywhere, a report whose body holds one is
+        # refused rather than read on a guess, and every other outcome reads
+        # as written.
         for reply in _HELD_REPLIES:
             with patch.object(_fences, "_fenced_line_starts", side_effect=_UNREADABLE):
                 held = _replies.workflow_reply(reply)
-            written = _outcomes._parse_report_outcome(held)
-            outside = held.replace(getattr(written, "report", ""), "", 1)
+            written = _outcomes._parse_report_outcome(reply)
+            unread = attachments.PREFIX in getattr(written, "report", "")
             with self.subTest(reply=reply):
-                self.assertEqual(written, _outcomes._parse_report_outcome(reply))
-                self.assertNotIn(attachments.PREFIX, outside)
+                self.assertNotIn(attachments.PREFIX, held)
+                self.assertEqual(_outcomes._parse_report_outcome(held), _MALFORMED if unread else written)
 
 
 if __name__ == "__main__":

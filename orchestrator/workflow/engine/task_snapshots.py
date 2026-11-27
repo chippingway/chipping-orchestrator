@@ -23,15 +23,16 @@ neither the provider nor the CLI refusing the turn: not a provider refusal
 (`provider_failures.is_provider_refusal`, which settles that from the
 backend's own verdict where there is one), and not a return the launching
 stage reads as its CLI's own refusal -- a conversation the CLI could not open
-or whose transcript overflowed, or an exhausted quota -- which that stage
-classifies with the readers it parks and retries on and hands in as
-`refused`. Completing on its own terms means neither interrupted nor timed
-out, exiting 0, and leaving no tool step unfinished or failure normalized.
-The recorder is handed it with its invocation, the requirements its
-conversation was handed (`task_snapshot_grounding`), the repository the run's
-report is published under and the revision it is stamped with -- the road's
-own, which spell the task reference a reviewer of that report is told -- and
-the framing of the reply the workflow reads
+or whose transcript overflowed, an exhausted quota, or a Codex turn that
+ended on `turn.failed` -- which that stage classifies with the readers it
+parks and retries on and hands in as `refused`, asked inside the failure
+boundary below. Completing on its own terms means neither interrupted nor
+timed out, exiting 0, and leaving no tool step unfinished or failure
+normalized. The recorder is handed it with its invocation, the requirements
+its conversation was handed (`task_snapshot_grounding`), the repository the
+run's report is published under and the revision it is stamped with -- the
+road's own, which spell the task reference a reviewer of that report is told
+-- and the framing of the reply the workflow reads
 (`task_snapshot_replies.framing`), which the recorder asks inside its own
 failure boundary; nothing about the reply is read here first. A run that
 never started, a synthesized result, and the recovery that finishes a
@@ -51,6 +52,7 @@ recording one raises nothing into the attempt it observes.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -109,26 +111,29 @@ def receive(
     state: PinnedState,
     conversation: Conversation,
     *,
-    refused: bool,
+    refused: Callable[[], bool],
 ) -> None:
     """Record the task snapshot a genuine return on `handoff`'s road carries, and leave the workflow its reply.
 
     The snapshot is bound to what `conversation` was handed
     (`task_snapshot_grounding.Grounding.handed`) and attributed to the stage
     the road reports under; the result's message becomes the reply the
-    workflow reads. `refused` is the launching stage's reading that the CLI
+    workflow reads. `refused` asks the launching stage whether the CLI
     answered the attempt with a refusal of its own: such a return is observed
-    nowhere and moves no grounding.
+    nowhere and moves no grounding. It is asked inside the failure boundary,
+    and only once the road asks for a snapshot and the sink is on, so a
+    reading that fails is a lost observation like any other.
     """
     if handoff.route not in _DESCRIBING:
         return
-    # A turn the CLI refused reached no agent, so nothing about it is observed.
-    path = None if refused else _recorder.sink_path()
+    path = _recorder.sink_path()
     if path is not None:
         try:
-            _observe(handoff, agent_result, conversation, _grounding.Grounding.of(
-                conversation.repo_id, conversation.issue_number, state,
-            ), path)
+            # A turn the CLI refused reached no agent, so nothing about it is observed.
+            if not refused():
+                _observe(handoff, agent_result, conversation, _grounding.Grounding.of(
+                    conversation.repo_id, conversation.issue_number, state,
+                ), path)
         except Exception as error:  # noqa: BLE001 - an observation is lost, never the run that returned it
             log.warning(
                 "issue=#%d could not observe a developer reply's task snapshot (%s)",

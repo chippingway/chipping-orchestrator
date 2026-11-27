@@ -769,9 +769,10 @@ fenced example stays where it was, text after an outcome is still refused, a blo
 empty, and the verdict the workflow reaches is the one the snapshot's record names; a reply those readers fail on is
 never read as written, its lines opening on the prefix that no readable fence may enclose kept out by its marker
 lines alone -- taken out where it has none and between its first and last, held by the placeholder elsewhere -- the
-fences read off the whole reply, else off its report body alone, and where neither reads no line of the report taken
-out on a guess; so a READY report and its digest read as without them, a block holding nothing else stays refused, and
-a fenced example stays. A missing,
+fences read off the whole reply, else off its report body alone; so a READY report and its digest read as without
+them, a block holding nothing else stays refused, and a fenced example stays. Where neither reads and the body holds
+such a line, every one is held by the placeholder and a line past the outcome refuses the report, which is published
+on no guess, and no attachment text reaches a notice on any reading. A missing,
 malformed, duplicated, or misplaced attachment earns a diagnostic and nothing else -- no retry, correction, park, or
 refusal -- and never makes an invalid report outcome valid. A reviewer handed a report is told the task snapshot
 reference that report's stamped requirements revision spells over the repository its settled record names it
@@ -1012,12 +1013,11 @@ recorded, on a trajectory record marked `stream_refused`. A task snapshot and it
 no usage total, accounting, completion capture, report settlement, or workflow decision reads one. They are collected
 wherever the analytics sink is on, needing no usage parse, trajectory sink, or database, from a genuine developer
 return alone, judged by the run's status, its provider's own verdict, and the implementing stage's reading of a CLI's
-refusal (a conversation it could not open or that overflowed, an exhausted quota -- Codex's coded usage-limit stop
-included) -- so neither a turn the provider or
-the CLI refused nor the recovery that finishes a captured report records one, and only an attempt that reached the
-agent moves the host's grounding record -- and behind
-one failure boundary from the framing of the reply the workflow reads through the append, behind a guarded read of
-where the sink is:
+refusal (a conversation it could not open or that overflowed, an exhausted quota, a Codex turn ending on `turn.failed`)
+-- so neither a turn the provider or the CLI refused nor the recovery that finishes a captured report records one, and
+only an attempt that reached the agent moves the host's grounding record -- and behind one failure boundary from that
+reading of the CLI's refusal and the framing of the reply the workflow reads through the append, behind a guarded read
+of where the sink is:
 settings that will not read, a refused append, or a diagnostic that cannot be written is one warning, a step that
 fails before the append is a diagnostic, and a lost observation owes no export, checkpoint, or agent run. Only the
 telemetry copy is redacted, with the credential redactor, before it is made storable, cut, or serialized: every

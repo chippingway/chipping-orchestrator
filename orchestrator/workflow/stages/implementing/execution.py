@@ -188,6 +188,11 @@ class _DevResumeContext:
     ) -> tuple[AgentResult, bool]:
         session = self.plan.session
         request = self.request
+        prompt = _session._build_dev_spawn_prompt(request, self.split_rationale, fresh=fresh)
+        completion = request.completion
+        if fresh and completion is not None:
+            # Fingerprinted off the issue the fresh prompt was just built from.
+            completion = completion.regrounded(request.issue)
         return _coordinate_developer_run(
             request.gh,
             _run_charge_state.AgentRunBudget(
@@ -196,10 +201,10 @@ class _DevResumeContext:
             issue=request.issue,
             state=request.state,
             worktree=self.worktree,
-            prompt=_session._build_dev_spawn_prompt(request, self.split_rationale, fresh=fresh),
+            prompt=prompt,
             extra_args=session.extra_args,
             pause_guard=request.pause_guard,
-            completion=request.completion,
+            completion=completion,
             **_launch_identity(request.state, self.stage, session, session_id),
         )
 

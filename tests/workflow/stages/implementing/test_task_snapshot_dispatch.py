@@ -20,6 +20,7 @@ from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import MagicMock, PropertyMock, patch
 
+from orchestrator.agents import codex_events as _codex_events
 from orchestrator.config import credentials as _credentials
 from orchestrator.observability.analytics.observations import recorder as _recorder
 from orchestrator.workflow.engine import content_hash as _content_hash, prompt_notes as _notes
@@ -68,6 +69,17 @@ class _FailsOnTheDescription:
         if _support.DESCRIPTION in text:
             raise RuntimeError("redactor unavailable")
         return self._redact(text)
+
+
+# Where a recording fails, and the observation it leaves: the redactor on the
+# description, and the reading of whether the CLI refused the turn.
+_RECORDING_FAILURES = (
+    (
+        (_credentials, "redact_secrets", _FailsOnTheDescription(_credentials.redact_secrets)),
+        [("redaction_failed", False)],
+    ),
+    ((_codex_events, "codex_turn_failure", MagicMock(side_effect=ValueError("classification unavailable"))), []),
+)
 
 
 class DispatchedSnapshotTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
@@ -137,19 +149,22 @@ class DispatchedSnapshotTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
         self.assertEqual(self.observations(), [])
 
     def test_a_failed_recording_costs_the_run_nothing(self) -> None:
-        # The redactor fails on the description alone: the run is still accounted
-        # once, captured, and published, with no retry, and the observation
-        # is its diagnostic.
-        github, issue = self.seeded()
-        failing = _FailsOnTheDescription(_credentials.redact_secrets)
-        with patch.object(_credentials, "redact_secrets", failing):
-            ran = self.dispatch(github, issue, _support.returning(), **self.committing)
-        record = self.published(github)
-        ran[_held.RUN_AGENT].assert_called_once()
-        self.assertEqual(accounted(record), (1, 1))
-        self.assertEqual(record[_held.CAPTURED]["stage"], _held.HANDED_OFF)
-        self.assertEqual(self.events(_support.SNAPSHOT_EVENT), [])
-        self.assertEqual(self.diagnosed(), [("redaction_failed", False)])
+        # The redactor failing on the description alone, or the reading of
+        # whether the CLI refused the turn failing: either way the run is
+        # still charged and accounted once -- no retry -- captured, and
+        # published, and the observation is the redactor's diagnostic or
+        # nothing at all.
+        for failing, diagnosed in _RECORDING_FAILURES:
+            self.sink.unlink(missing_ok=True)
+            github, issue = self.seeded()
+            with patch.object(*failing):
+                self.dispatch(github, issue, _support.returning(), **self.committing)
+            record = self.published(github)
+            with self.subTest(failing=failing[1]):
+                self.assertEqual(accounted(record), (1, 1))
+                self.assertEqual(record[_held.CAPTURED]["stage"], _held.HANDED_OFF)
+                self.assertEqual(self.events(_support.SNAPSHOT_EVENT), [])
+                self.assertEqual(self.diagnosed(), diagnosed)
 
     def test_a_recovered_capture_records_nothing_new(self) -> None:
         # The held return is observed as it comes back; the recovery that

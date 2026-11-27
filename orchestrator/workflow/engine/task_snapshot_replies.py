@@ -39,15 +39,19 @@ sits; replaced by `PLACEHOLDER` everywhere else. The fences are the whole
 reply's where they read; where they do not, the report body's alone -- the
 text between those markers, which holds every fence of a READY report, since
 one open at either marker would leave the outcome unreadable -- every line
-outside the body then read as no code; and where neither reads, no line of
-the body is taken out at all, so nothing leaves a report on a guess and the
-report reader, which reads the same fences, decides what it is. So a READY
-report reads as written without the lines, its digest with it, a block
-holding nothing else stays the empty block the report reader refuses, a
-fenced example stays, and no attachment text reaches a notice. Taking a line
-out between the markers of an outcome that does not read changes no marker,
-fence, or acknowledgement line, so no outcome the report reader refuses is
-made one it accepts.
+outside the body then read as no code. So a READY report reads as written
+without the lines, its digest with it, a block holding nothing else stays the
+empty block the report reader refuses, and a fenced example stays. Taking a
+line out between the markers of an outcome that does not read changes no
+marker, fence, or acknowledgement line, so no outcome the report reader
+refuses is made one it accepts.
+
+Where neither the reply's fences nor the body's read and the body holds a
+prefixed line, which of its lines are code is unknown, so no report is
+published on that reading: every prefixed line is replaced by `PLACEHOLDER`
+and `UNREAD_REPORT` is added after the outcome, text past it the report
+reader refuses whatever else it reads. No attachment text reaches a report,
+a digest, or a notice on any reading.
 """
 from __future__ import annotations
 
@@ -67,6 +71,9 @@ log = logging.getLogger("orchestrator.workflow")
 
 # What a notice shows in place of an attachment line the reply's framing keeps a line for.
 PLACEHOLDER = "(analytics attachment line taken out)"
+
+# What follows a reply whose report body could not be told from its attachment lines, so no report is read off it.
+UNREAD_REPORT = "(analytics attachment lines could not be told from code in this report, so it is not published)"
 
 # What an outcome the report reader accepts is read as.
 _OUTCOME_KINDS = MappingProxyType({_report_models._ReadyReport: "ready", _report_models._VerifiedReport: "verified"})
@@ -130,11 +137,11 @@ class _MarkerReading:
     """A reply its readers failed on, its attachment lines kept out by the marker lines alone (`workflow_reply`).
 
     Its lines are those opening on the prefix that may be no code, read the
-    best way the fence reader answers, each reading below replacing the one
-    before where it does: every prefixed line of the report body -- between
-    the first and last marker lines -- taken for code, so none is removed on a
-    guess; the body's own fences, every line outside it read as no code; and
-    the whole reply's fences.
+    best way the fence reader answers, the later reading replacing the earlier
+    where it does: the report body's own fences -- between the first and last
+    marker lines -- every line outside it read as no code; the whole reply's
+    fences. Where neither reads, every prefixed line is held by the
+    placeholder, and a report body holding one is refused (`UNREAD_REPORT`).
     """
 
     def __init__(self, message: str) -> None:
@@ -145,25 +152,26 @@ class _MarkerReading:
     def held(self) -> str:
         """The reply, its lines taken out with no marker line or between the markers, held by the placeholder else."""
         code = self._code()
-        lines = tuple(line for line in self._prefixed if line[0] not in code)
+        lines = self._outside(code or frozenset())
         if not self._markers:
             return _rewritten(self._message, lines, frozenset(lines))
-        return _rewritten(self._message, lines, _in_the_block(self._message, lines))
+        block = _in_the_block(self._message, lines)
+        if code is None and block:
+            return f"{_rewritten(self._message, lines, frozenset())}\n{UNREAD_REPORT}"
+        return _rewritten(self._message, lines, block)
 
-    def _code(self) -> frozenset[int]:
-        """The start of every line that may be code, in the best reading the fence reader answers."""
-        code = self._body_lines()
+    def _outside(self, code: frozenset[int]) -> tuple[_Span, ...]:
+        """The prefixed lines `code` holds none of."""
+        return tuple(line for line in self._prefixed if line[0] not in code)
+
+    def _code(self) -> frozenset[int] | None:
+        """The start of every line that may be code, in the best reading the fence reader answers; None for none."""
+        code = None
         with contextlib.suppress(Exception):
             code = self._body_fences()
         with contextlib.suppress(Exception):
             code = _fences._fenced_line_starts(self._message)
         return code
-
-    def _body_lines(self) -> frozenset[int]:
-        """Every prefixed line of the report body, each taken for code."""
-        if not self._markers:
-            return frozenset()
-        return frozenset(line[0] for line in _in_the_block(self._message, self._prefixed))
 
     def _body_fences(self) -> frozenset[int]:
         """The fences of the report body read alone, at the offsets the reply holds them; none without a marker line."""
