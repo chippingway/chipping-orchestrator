@@ -451,8 +451,10 @@ orchestrator/
     _dotenv.py          the non-secret `.env` loader, reading a source checkout's own file or else the user location,
                         as `service/paths.py` tells the two layouts apart and places that location
     layout.py           the worktree root's default beside the first configured target
-    credentials.py      process / token-file credential resolution per repository and the secret redactor the verify
-                        output, the agent stderr diagnostics, and the trajectory writer mask with
+    credentials.py      process / token-file credential resolution per repository, and the secret redactor the verify
+                        output, the agent stderr diagnostics, the trajectory writer, and the observation redaction
+                        mask with, beside the one selection of values it masks (`secret_values`), which the
+                        observation redaction's credential search reads too
     models.py           the `RepoSpec` / `RepoEnvEntry` repository-config types
     repositories.py     `REPOS` entry parsing and validation, the choice between `REPOS` and the developer fallback
                         only a source checkout is offered, and the refusal of every selected target that is not a
