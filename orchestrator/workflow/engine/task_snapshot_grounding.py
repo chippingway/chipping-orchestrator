@@ -61,6 +61,9 @@ _REQUIREMENTS = "requirements"
 
 _BASELINE = "baseline"
 
+# What fingerprints the requirements a fresh conversation was re-grounded with, asked only once one opened.
+Fingerprint = Callable[[], str]
+
 # Every member a record carries, and nothing else.
 _MEMBERS = frozenset((_SESSION, _REQUIREMENTS, _BASELINE))
 
@@ -79,19 +82,22 @@ class Grounding:
         baseline = state.get(_prompt_delivery.PINNED_USER_CONTENT_HASH)
         return cls(claim.with_suffix(GROUNDING_SUFFIX), baseline if isinstance(baseline, str) else None)
 
-    def handed(self, resumed: str | None, fresh_requirements: str | None, road_requirements: str) -> str:
+    def handed(
+        self, resumed: str | None, fresh_requirements: Fingerprint | None, road_requirements: str,
+    ) -> str:
         """The requirements an attempt's conversation was handed.
 
-        `fresh_requirements` is what a retry's road re-grounds a fresh
-        conversation with, None on a road that hands its own
+        `fresh_requirements` fingerprints what a retry's road re-grounds a
+        fresh conversation with, None on a road that hands its own
         (`road_requirements`). On a retry, a fresh conversation (`resumed`
-        None) is handed those, and a resumed one what this record says it was
-        grounded on, the road's own where it says nothing.
+        None) is handed those -- the one case they are asked for -- and a
+        resumed one what this record says it was grounded on, the road's own
+        where it says nothing.
         """
         if fresh_requirements is None:
             return road_requirements
         if resumed is None:
-            return fresh_requirements
+            return fresh_requirements()
         return self._grounded(resumed) or road_requirements
 
     def remember(self, session_id: str | None, requirements: str) -> None:

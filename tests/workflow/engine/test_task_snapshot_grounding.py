@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import json
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.scheduler import writer_claims
@@ -36,6 +36,11 @@ def _kept(baseline: str | None = _BASELINE) -> _grounding.Grounding:
     """The issue's record on this host, read beside `baseline`."""
     state = PinnedState(comment_id=1, state_data={"user_content_hash": baseline})
     return _grounding.Grounding.of(_REPO_ID, _ISSUE, state)
+
+
+def _regrounding() -> str:
+    """What a retry's road re-grounds a fresh conversation with."""
+    return _OTHER
 
 
 def _grounded(session: str = _SESSION, baseline: str = _BASELINE) -> dict:
@@ -85,28 +90,31 @@ class HandedTest(_HostRecord):
         self.assertEqual(self.kept.handed(_SESSION, None, _ROAD), _ROAD)
 
     def test_a_retry_keeps_the_grounding(self) -> None:
-        # A fresh conversation is handed the re-grounding; a resumed one what it was grounded on.
+        # A fresh conversation is handed the re-grounding, fingerprinted for it
+        # alone; a resumed one what it was grounded on, nothing fingerprinted.
         self.recorded(json.dumps(_grounded()))
-        self.assertEqual(self.kept.handed(None, _OTHER, _ROAD), _OTHER)
-        self.assertEqual(self.kept.handed(_SESSION, _OTHER, _ROAD), _EDITED)
+        regrounding = MagicMock(return_value=_OTHER)
+        self.assertEqual(self.kept.handed(_SESSION, regrounding, _ROAD), _EDITED)
+        regrounding.assert_not_called()
+        self.assertEqual(self.kept.handed(None, regrounding, _ROAD), _OTHER)
 
     def test_a_stale_record_says_nothing(self) -> None:
-        self.assertEqual(self.kept.handed(_SESSION, _EDITED, _ROAD), _ROAD)
+        self.assertEqual(self.kept.handed(_SESSION, _regrounding, _ROAD), _ROAD)
         for name, spelled in _SILENT_RECORDS:
             with self.subTest(record=name):
                 self.recorded(spelled)
-                self.assertEqual(self.kept.handed(_SESSION, _EDITED, _ROAD), _ROAD)
+                self.assertEqual(self.kept.handed(_SESSION, _regrounding, _ROAD), _ROAD)
 
     def test_only_a_whole_record_speaks(self) -> None:
         # On an issue recording no baseline, the whole record -- its baseline
         # null -- speaks for the conversation, and no other shape does.
         unset = _kept(baseline=None)
         self.recorded(json.dumps(_grounded(baseline=None)))
-        self.assertEqual(unset.handed(_SESSION, _OTHER, _ROAD), _EDITED)
+        self.assertEqual(unset.handed(_SESSION, _regrounding, _ROAD), _EDITED)
         for name, spelled in _UNSHAPED_RECORDS:
             with self.subTest(record=name):
                 self.recorded(spelled)
-                self.assertEqual(unset.handed(_SESSION, _OTHER, _ROAD), _ROAD)
+                self.assertEqual(unset.handed(_SESSION, _regrounding, _ROAD), _ROAD)
 
 
 class RememberTest(_HostRecord):
@@ -122,7 +130,7 @@ class RememberTest(_HostRecord):
     def test_an_unknown_conversation_leaves_it(self) -> None:
         self.kept.remember(_SESSION, _EDITED)
         self.kept.remember(None, _BASELINE)
-        self.assertEqual(self.kept.handed(_SESSION, _OTHER, _ROAD), _EDITED)
+        self.assertEqual(self.kept.handed(_SESSION, _regrounding, _ROAD), _EDITED)
 
     def test_a_refused_write_is_warned_of(self) -> None:
         refused = patch.object(_grounding, "_written", side_effect=OSError("read-only"))

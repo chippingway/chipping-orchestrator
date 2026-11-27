@@ -70,7 +70,7 @@ from orchestrator.workflow.engine import (
 log = logging.getLogger("orchestrator.workflow")
 
 # What a notice shows in place of an attachment line the reply's framing keeps a line for.
-PLACEHOLDER = "(analytics attachment line taken out)"
+PLACEHOLDER = _attachments.TAKEN_OUT
 
 # What follows a reply whose report body could not be told from its attachment lines, so no report is read off it.
 UNREAD_REPORT = "(analytics attachment lines could not be told from code in this report, so it is not published)"

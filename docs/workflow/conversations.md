@@ -587,38 +587,43 @@ same digest, a block holding nothing else stays the empty block the report reade
 no outcome the report reader refuses is made one it accepts. Where neither reading answers and the report body holds
 such a line, which of its lines are code is unknown: every one is held by the placeholder, and the line `(analytics
 attachment lines could not be told from code in this report, so it is not published)` follows the outcome, so the report
-reader refuses it and nothing is published on a guess. No notice quotes an attachment line on any reading.
+reader refuses it and nothing is published on a guess. No notice quotes an attachment line on any reading, nor does the
+stderr a park quotes: a CLI can echo the reply it wrote there, so every line opening on the prefix is replaced by a note
+before the tail is cut (`workflow/engine/agent_diagnostics.py`), while the stderr a run is classified by stays as
+written.
 
 The attachment is read on its own terms and decides nothing. With the analytics sink on, `task_snapshots.py` hands a
 genuine return — invoked under a tracked charge; its turn refused neither by the provider (the backend's own verdict
-deciding where it gives one, so a clean exit carrying Claude's `is_error` refusal is none) nor by the CLI, as the
-implementing stage reads that with the readers it parks and retries on (`session_read`: a conversation the CLI could not
-open or whose transcript overflowed the context, or an exhausted quota, and `codex_events`: a Codex turn that ended on
-`turn.failed`, each on a clean exit too) — a reading asked inside the snapshot's failure boundary; neither interrupted
-nor timed out, exiting 0, with no tool step unfinished or failure normalized — to the one reader and recorder under
+deciding where it gives one, so a clean exit carrying Claude's `is_error` refusal is none), nor ending on a Codex
+`turn.failed` — both read off the stream's records that decode at all, so a record the usage parser refuses hides no
+closing event — nor refused by the CLI, as the implementing stage reads that with the readers it parks and retries on
+(`session_read`: a conversation the CLI could not open or whose transcript overflowed the context, or an exhausted
+quota, each on a clean exit too) — a reading asked inside the snapshot's failure boundary; neither interrupted nor timed
+out, exiting 0, with no tool step unfinished or failure normalized — to the one reader and recorder under
 `observability/analytics/observations/`, with the invocation the run came from, the requirements revision the attempt's
 conversation was handed, and the framing of the reply the workflow reads — where its outcome begins, which lines a fence
 may enclose, and the verdict the report reader reaches on it — which the recorder asks inside its failure boundary. That
 revision is the one the road froze before the launch on a road that hands the developer requirements: the first
 implementation, and a human reply whose batch it delivers and settles. An `/orchestrator continue` retry hands none, so
-a retry that opens a fresh conversation is bound to the issue as the replacement session's prompt quoted it,
-fingerprinted as that prompt is built beside the retry's own read of the thread, and a later retry resuming that same
-conversation to what it was last handed. This host keeps that beside the issue's writer claim, as
-`repo-<id>-issue-<n>.task-snapshot-grounding`, only while the analytics sink is on and never on the pinned comment, so
-no settlement measures it (`workflow/engine/task_snapshot_grounding.py`); it speaks while the conversation and the
-issue's baseline stand, an attempt that names no conversation leaves it as it is, as does a launch refused before it
-started or a turn its provider or CLI refused, which hand the conversation nothing, and a lost one binds the retry to
-the baseline. The task reference is spelled instead from the report the run finished on: the repository it is published
-under — the configured slug the settled report keeps on its pinned record — and the revision it is stamped with, which
-is what a reviewer is handed. The reader reads the reply as written: exactly one attachment line above the outcome is a
-snapshot; none is missing, two or more anywhere are a duplicate, the one line reaching past where the outcome begins is
-misplaced, and a line out of shape — a key written twice included — is malformed. Each of those is recorded as a
-diagnostic and nothing else: no retry, correction, park, or refusal follows from it, and a valid report outcome beside
-it stays valid, while an invalid one is not rescued by it. The reviewer later handed the report is told, beside the
-quoted report (`workflow/engine/review_prompts.py`), the reference the snapshot was recorded under: the repository the
-settled report records it was published under, read off that record rather than from GitHub, so neither a configured
-slug cased otherwise than GitHub's nor a rename since moves it, the issue, and the report's stamped revision. What the
-records hold is in
+a retry that opens a fresh conversation is bound to the issue as the replacement session's prompt quoted it — the one
+read of the issue that prompt was rendered from, beside the retry's own read of the thread, fingerprinted only as the
+snapshot is recorded, inside its failure boundary — and a later retry resuming that same conversation to what it was
+last handed. This host keeps that beside the issue's writer claim, as `repo-<id>-issue-<n>.task-snapshot-grounding`,
+only while the analytics sink is on and never on the pinned comment, so no settlement measures it
+(`workflow/engine/task_snapshot_grounding.py`); it speaks while the conversation and the issue's baseline stand, an
+attempt that names no conversation leaves it as it is, as does a launch refused before it started or a turn its provider
+or CLI refused, which hand the conversation nothing, and a lost one binds the retry to the baseline. The task reference
+is spelled instead from the report the run finished on: the repository it is published under — the configured slug the
+settled report keeps on its pinned record — and the revision it is stamped with, which is what a reviewer is handed. The
+reader reads the reply as written: exactly one attachment line above the outcome is a snapshot; none is missing, two or
+more anywhere are a duplicate, the one line reaching past where the outcome begins is misplaced, and a line out of shape
+— a key written twice included — is malformed. Each of those is recorded as a diagnostic and nothing else: no retry,
+correction, park, or refusal follows from it, and a valid report outcome beside it stays valid, while an invalid one is
+not rescued by it. The reviewer later handed the report is told, beside the quoted report
+(`workflow/engine/review_prompts.py`), the reference the snapshot was recorded under: the repository the settled report
+records it was published under, read off that record rather than from GitHub, so neither a configured slug cased
+otherwise than GitHub's nor a rename since moves it, the issue, and the report's stamped revision. What the records hold
+is in
 [`../observability/event-streams.md#task-snapshot-records`](../observability/event-streams.md#task-snapshot-records).
 
 ### The developer report lifecycle

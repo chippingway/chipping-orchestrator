@@ -764,7 +764,8 @@ covered by [C-14]. The task snapshot request the implementing roads append to ev
 vocabulary the one analytics attachment reader reads, and asks every finished reply for its line, above the report
 outcome where there is one. The workflow reads the reply with every such line outside a code fence kept out of it
 without moving its framing -- taken out where the reply has no report marker and inside a READY block, and replaced by
-a placeholder line elsewhere -- so it is outside the published report and its digest, no park or notice quotes it, a
+a placeholder line elsewhere -- so it is outside the published report and its digest, no park or notice quotes it --
+nor the stderr a park quotes, the CLI echoing the reply there included, where a note stands in its place -- a
 fenced example stays where it was, text after an outcome is still refused, a block holding nothing else is refused as
 empty, and the verdict the workflow reaches is the one the snapshot's record names; a reply those readers fail on is
 never read as written, its lines opening on the prefix that no readable fence may enclose kept out by its marker
@@ -1012,9 +1013,10 @@ the usage parser refuses still writes no `agent_exit` record and publishes no to
 recorded, on a trajectory record marked `stream_refused`. A task snapshot and its diagnostics are observation alone:
 no usage total, accounting, completion capture, report settlement, or workflow decision reads one. They are collected
 wherever the analytics sink is on, needing no usage parse, trajectory sink, or database, from a genuine developer
-return alone, judged by the run's status, its provider's own verdict, and the implementing stage's reading of a CLI's
-refusal (a conversation it could not open or that overflowed, an exhausted quota, a Codex turn ending on `turn.failed`)
--- so neither a turn the provider or the CLI refused nor the recovery that finishes a captured report records one, and
+return alone, judged by the run's status, the stream's terminal evidence -- a provider's refusal, a Codex turn ending
+on `turn.failed` -- read off the records that decode at all and so on no usage parse, and the implementing stage's
+reading of a CLI's refusal (a conversation it could not open or that overflowed, an exhausted quota) -- so neither a
+turn the provider or the CLI refused nor the recovery that finishes a captured report records one, and
 only an attempt that reached the agent moves the host's grounding record -- and behind one failure boundary from that
 reading of the CLI's refusal and the framing of the reply the workflow reads through the append, behind a guarded read
 of where the sink is:
@@ -1054,6 +1056,7 @@ kept only with the sink on, and never on the pinned comment, so no settlement me
 [Codex request records](../tests/observability/analytics/trajectories/test_request_usage_codex.py),
 [trajectory parsing](../tests/observability/usage/test_usage.py),
 [task snapshot isolation](../tests/workflow/stages/implementing/test_task_snapshot_dispatch.py),
+[task snapshot receipt](../tests/workflow/engine/test_task_snapshot_receipt.py),
 [observation failures](../tests/observability/analytics/observations/test_failures.py),
 [observation redaction](../tests/observability/analytics/observations/test_redaction.py).
 

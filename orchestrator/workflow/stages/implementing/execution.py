@@ -61,8 +61,9 @@ pause does. A capture nothing has decided yet holds every later launch.
 """
 from __future__ import annotations
 
+import copy
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from github.Issue import Issue
@@ -188,11 +189,14 @@ class _DevResumeContext:
     ) -> tuple[AgentResult, bool]:
         session = self.plan.session
         request = self.request
-        prompt = _session._build_dev_spawn_prompt(request, self.split_rationale, fresh=fresh)
+        # A fresh prompt quotes one read of the issue, frozen before it is
+        # built, and its road keeps that same read for the snapshot to
+        # fingerprint: an edit landing while the prompt renders is in neither.
+        quoted = copy.copy(request.issue) if fresh else request.issue
+        prompt = _session._build_dev_spawn_prompt(replace(request, issue=quoted), self.split_rationale, fresh=fresh)
         completion = request.completion
         if fresh and completion is not None:
-            # Fingerprinted off the issue the fresh prompt was just built from.
-            completion = completion.regrounded(request.issue)
+            completion = completion.regrounded(quoted)
         return _coordinate_developer_run(
             request.gh,
             _run_charge_state.AgentRunBudget(

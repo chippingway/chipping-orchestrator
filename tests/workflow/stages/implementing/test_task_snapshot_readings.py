@@ -55,8 +55,17 @@ _EDITED = "Require the red variant rather than blue."
 
 _SESSION = "original-session"
 
+# What fingerprints the requirements a retry's fresh conversation is re-grounded with.
+_FINGERPRINT = "orchestrator.workflow.stages.implementing.completion_roads._requirements"
+
 # A further edit, landing while a retry's first run is out.
 _MOVED = "Name the flag foo-mode instead."
+
+# One more, landing while the fresh prompt renders.
+_LATE = "Also document the flag."
+
+# Where the fresh preamble lists the tracked repositories, after it read the body.
+_TRACKED = "orchestrator.workflow.engine.prompt_context._build_tracked_repos_context"
 
 # The trusted human's bare retry, above the park.
 _RETRY_ID = 1100
@@ -105,7 +114,8 @@ _UNAVAILABLE = partial(MagicMock, side_effect=ValueError("framing unavailable"))
 class _EditedWhilePoisoned:
     """A retry's runs resuming a session its CLI cannot open, the issue edited as that one runs; then the replacement's.
 
-    Keeps every prompt it was handed, in order.
+    Keeps every prompt it was handed, in order, and edits the issue once more
+    as a fresh prompt renders, after that prompt read the body (`rendering`).
     """
 
     def __init__(self, issue) -> None:
@@ -120,6 +130,12 @@ class _EditedWhilePoisoned:
         body = self._issue.body
         self._issue.body = f"{body}\n{_MOVED}"
         return _agent(last_message="", stderr=f"No conversation found with session ID: {_SESSION}")
+
+    def rendering(self, *_context, **_options) -> str:
+        """Edit the body while the fresh preamble renders, past its read of the body; list no tracked repositories."""
+        body = self._issue.body
+        self._issue.body = f"{body}\n{_LATE}"
+        return ""
 
 
 # The readers of a reply that may fail on it, by name, and their owners.
@@ -210,12 +226,16 @@ class ReplyReadingTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
 
     def test_an_attachment_alone_reads_as_silence(self) -> None:
         # Parked as the silent failure an empty reply is, with no notice
-        # quoting the line, the sink on or off -- and the description
-        # recorded only where it is on.
+        # quoting the line -- not the reply, nor the stderr the CLI echoed it
+        # on -- the sink on or off, and the description recorded only where
+        # it is on.
         for message, sink in _SILENT_REPLIES:
             github, issue = self.seeded()
-            silent = {_SINK: self.sink if sink else None, _NEW_COMMITS: False}
-            self.dispatch(github, issue, _support.returning(message), **silent)
+            echoed = _agent(last_message=message, stderr=f"The CLI echoed its reply:\n{message}")
+            self.dispatch(
+                github, issue, echoed,
+                analytics_log_path=self.sink if sink else None, has_new_commits=False,
+            )
             with self.subTest(message=message, sink=sink):
                 self.assertEqual(github.pinned_data(_held.ISSUE).get("park_reason"), "agent_silent")
                 self.assertEqual(_support.posted_attachments(github), [])
@@ -306,21 +326,29 @@ class RetrySnapshotTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
     """An operator's retry beside a body edit, resumed and fresh."""
 
     def test_a_resumed_retry_keeps_the_baseline(self) -> None:
+        # A resumed conversation is handed nothing, so no fresh fingerprint is
+        # taken for it: one that could not be taken costs it nothing, its
+        # snapshot recorded under the baseline as ever.
         github, issue, baseline = self._edited(dev_session_id=_SESSION)
-        committed = self._committed()
-        ran = self.dispatch(github, issue, _support.returning(), **committed)
+        with patch(_FINGERPRINT, side_effect=OSError("fingerprint unavailable")):
+            ran = self.dispatch(github, issue, _support.returning(), **self._committed())
         self.assertNotIn(_EDITED, _support.prompt_of(ran))
         self.assertEqual(self.only(_support.SNAPSHOT_EVENT)[_support.REVISION], baseline)
 
     def test_a_fresh_retry_takes_the_edit(self) -> None:
         # A poisoned session's fresh retry, the issue edited again while the
         # stale one ran: bound to the issue as its preamble quoted it, both
-        # edits included, not as the retry first read it; named by the
-        # baseline its report is stamped with. The stale run records nothing.
+        # edits included, not as the retry first read it -- and not as an
+        # edit landing while that preamble rendered left it, which the prompt
+        # does not quote either; named by the baseline its report is stamped
+        # with. The stale run records nothing.
         github, issue, baseline = self._edited(dev_session_id=_SESSION)
         runs = _EditedWhilePoisoned(issue)
-        self.dispatch(github, issue, runs, **self._committed(commits=False))
+        with patch(_TRACKED, side_effect=runs.rendering):
+            self.dispatch(github, issue, runs, **self._committed(commits=False))
         self.assertIn(f"{_EDITED}\n{_MOVED}", runs.prompts[-1])
+        self.assertNotIn(_LATE, runs.prompts[-1])
+        issue.body = issue.body.removesuffix(f"\n{_LATE}")
         edited = _content_hash._compute_user_content_hash(issue, set())
         self.assertNotEqual(edited, baseline)
         self.assertEqual(self._bound(), (edited, _support.reference(baseline)))

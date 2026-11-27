@@ -810,10 +810,11 @@ line in every finished reply, above its report outcome where it ends on one
 ([the reply contract](../workflow/conversations.md#the-task-snapshot-attachment)). No other road asks, and no other run
 is recorded. Only a genuine return is: a run the tracked spawn started under a charge and stamped with its
 invocation, which was invoked; whose turn the provider did not refuse — the backend's own verdict deciding where it
-gives one, so a clean exit carrying Claude's `is_error` refusal is none — and the CLI did not refuse either, as the
-implementing stage reads that with the readers it parks and retries on: a conversation the CLI could not open or whose
-transcript overflowed the context, an exhausted quota, or a Codex turn that ended on `turn.failed` whatever its code,
-each on a clean exit too; and which was neither interrupted
+gives one, so a clean exit carrying Claude's `is_error` refusal is none — and that did not end on a Codex `turn.failed`
+whatever its code, both read off the stream's records that decode at all, so a record the usage parser refuses hides
+no closing event; that the CLI did not refuse either, as the implementing stage reads that with the readers it parks
+and retries on: a conversation the CLI could not open or whose transcript overflowed the context, or an exhausted
+quota, each on a clean exit too; and which was neither interrupted
 nor timed out, exited 0, and left no tool step unfinished or failure normalized. A question and a malformed report
 outcome are included. Any other writes nothing — a poisoned conversation's fresh retry is recorded, the stale attempt
 before it not — nor does a result a stage synthesized or the recovery that finishes a captured report from its record,
@@ -845,8 +846,9 @@ written raw inside the JSON leaves the line as malformed as it was written.
   before the launch: the read the prompt was built from, never one an edit during the run moved the issue to.
   Ordinarily that is the revision the run's report is stamped with, and on a road that hands the developer
   requirements — the first implementation, a human reply — it always is. A retry that opens a fresh conversation
-  re-grounds it on the issue as its fresh prompt quotes it — fingerprinted as that prompt is built, an edit beside the
-  command or one landing while a stale session it replaces ran included — while its report keeps the
+  re-grounds it on the issue as its fresh prompt quotes it — the one read of the issue that prompt was rendered from,
+  fingerprinted only as the snapshot is recorded, an edit beside the command or one landing while a stale session it
+  replaces ran included — while its report keeps the
   baseline the issue recorded; the snapshot is bound to that read, and so is the snapshot of a later retry resuming
   the same conversation, which is handed nothing new — carried by a host record beside the issue's writer claim
   ([the task snapshot attachment](../workflow/conversations.md#the-task-snapshot-attachment)), never by the pinned

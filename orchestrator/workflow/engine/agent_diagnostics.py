@@ -30,12 +30,20 @@ through the same stderr block, under the reset interval the record kept.
 The comment block renders through `messages._as_blockquote`, the one quoting
 form every agent output an issue carries is rendered with, so a diagnostic
 block reads the same as the last-message body it is appended under.
+
+No comment quotes an analytics attachment line (`ANALYTICS:` opening a line):
+a CLI can echo the reply it wrote on stderr, the task snapshot an
+implementing developer is asked for included, so every such line of the
+stderr a comment quotes is replaced by a note before the tail is cut, where a
+line cut short would no longer open on the prefix. The stderr a run is
+classified by stays as the CLI wrote it.
 """
 from __future__ import annotations
 
 from orchestrator.agents import provider_failures as _provider_failures
 from orchestrator.agents.models import AgentResult
 from orchestrator.config import credentials as _credentials
+from orchestrator.observability.analytics.observations import attachments as _attachments
 from orchestrator.workflow.engine import messages as _messages
 
 _STDERR_TAIL_BUDGET = 1024
@@ -64,13 +72,24 @@ def _format_stderr_diagnostics(
     stripped first, so `str.replace` would no longer find the env value
     verbatim and the secret would leak.
     """
-    tail = _credentials.redact_secrets(agent_result.stderr or "").rstrip()
+    tail = _without_attachments(_credentials.redact_secrets(agent_result.stderr or "")).rstrip()
     if not tail:
         return ""
     if len(tail) > _STDERR_TAIL_BUDGET:
         tail = tail[-_STDERR_TAIL_BUDGET:]
     quoted = _messages._as_blockquote(tail)
     return f"\n\n_{label} stderr (last 1KB):_\n\n{quoted}\n\n{_exit_code_line(agent_result, label)}"
+
+
+def _without_attachments(text: str) -> str:
+    """`text` with every line opening on the analytics attachment prefix replaced by a note, its break kept."""
+    pieces = []
+    cursor = 0
+    for start, end in _attachments.attachment_lines(text):
+        pieces.extend((text[cursor:start], _attachments.TAKEN_OUT))
+        cursor = end
+    pieces.append(text[cursor:])
+    return "".join(pieces)
 
 
 def _exit_code_line(agent_result: AgentResult, label: str) -> str:

@@ -66,22 +66,22 @@ workflow/                   publishes labels, transition guards, and the lazy pe
   transition_guard.py       the same-label allowance and off/warn/enforce write guard, with strict rejection details and
                             the literal `orchestrator.state_machine` channel operators filter on
   engine/                   what every stage is driven by
-    agent_diagnostics.py    what a park comment and a WARNING say about a run that left no usable message: the
-                            agent's stderr under two budgets -- 1KB for the human who came to the issue, 400
-                            characters so a log line still fits a screen -- and the exit code beside the first,
-                            split into the subprocess's own return and the normalized failure code where the
-                            result carries a failure record -- the return named not captured where the timeout
-                            killed the run -- and left the plain code where it does not.
-                            The shared redactor runs over the RAW stderr before either trim, since a secret sliced
-                            by the cut survives as a fragment the redactor no longer matches, and that fragment is
-                            what leaks; the same ordering puts it ahead of the `rstrip`, so a multi-line env value
-                            ending in a newline still matches verbatim. A Codex usage-limit stop gets a block of
-                            its own -- the reset the provider named, then its message -- redacted whole before a
-                            1KB budget cuts the message, the reset read off that redacted text under a budget of
-                            its own. An account-quota stop a failure record names gets the reset interval that
-                            record kept, under the same budget, above the stderr block. Each block is quoted
-                            through `messages.py`'s blockquote, so it reads as the last-message body it is
-                            appended under
+    agent_diagnostics.py    what a park comment and a WARNING say about a run that left no usable message: the agent's
+                            stderr under two budgets -- 1KB for the human who came to the issue, 400 characters so a log
+                            line still fits a screen -- and the exit code beside the first, split into the subprocess's
+                            own return and the normalized failure code where the result carries a failure record -- the
+                            return named not captured where the timeout killed the run -- and left the plain code where
+                            it does not; every analytics attachment line in the stderr a comment quotes replaced by a
+                            note before the trim, since a CLI can echo the reply it wrote there, the stderr a run is
+                            classified by left as written. The shared redactor runs over the RAW stderr before either
+                            trim, since a secret sliced by the cut survives as a fragment the redactor no longer
+                            matches, and that fragment is what leaks; the same ordering puts it ahead of the `rstrip`,
+                            so a multi-line env value ending in a newline still matches verbatim. A Codex usage-limit
+                            stop gets a block of its own -- the reset the provider named, then its message -- redacted
+                            whole before a 1KB budget cuts the message, the reset read off that redacted text under a
+                            budget of its own. An account-quota stop a failure record names gets the reset interval that
+                            record kept, under the same budget, above the stderr block. Each block is quoted through
+                            `messages.py`'s blockquote, so it reads as the last-message body it is appended under
     comments.py             the orchestrator marker, bound from the GitHub trust owner, and the bounded id ledger
                             shared by issue and pull-request comment posts; a developer report enters the ledger on
                             whichever reading finds it on the thread, since a post whose response was lost hands
@@ -4845,8 +4845,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             first implementation's road and an implementing resume's ask for, record, and keep out of
                             the reply the workflow reads -- the snapshot bound to the handoff's requirements, or, for
                             an attempt that opened a fresh conversation on a retry's road, to the issue as that
-                            conversation's prompt quoted it, fingerprinted as the prompt is built (`regrounded`,
-                            `fresh_requirements`), and for a later retry resuming it, to what this host's grounding
+                            conversation's prompt quoted it -- the one read the prompt was rendered from, kept on the
+                            road (`regrounded`) and fingerprinted only as the snapshot is recorded
+                            (`fresh_requirements`) -- and for a later retry resuming it, to what this host's grounding
                             record says (`engine/task_snapshot_grounding.py`)
       captured_report.py    the run's own pending capture handed to the report delivery where the disposition records
                             a report -- what the tick settled around the run riding the transfer's own commit, so the

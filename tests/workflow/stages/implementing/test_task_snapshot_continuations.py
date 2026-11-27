@@ -11,7 +11,10 @@ those. A retry that times out without naming its conversation leaves the
 grounding of the one still pinned, so the next retry resuming it is bound to
 the edit still, and a reply whose launch the run budget refuses hands the
 conversation nothing and leaves the grounding as it was. With the analytics
-sink off, the host keeps nothing.
+sink off, the fresh conversation's fingerprint is never taken and the host
+keeps nothing; with it on and that fingerprint failing, the failure stays
+inside the observation's boundary: the retry launches all the same, and
+nothing is recorded or kept.
 """
 from __future__ import annotations
 
@@ -45,6 +48,9 @@ _SILENT = MappingProxyType({
 # The seams of a tick whose branch the run left where it was.
 _UNMOVED = MappingProxyType({"has_new_commits": False, "head_shas": _held.UNMOVED})
 
+# What fingerprints the requirements a retry's fresh conversation is re-grounded with.
+_FINGERPRINT = "orchestrator.workflow.stages.implementing.completion_roads._requirements"
+
 # The ids of the comments each tick answers, in order.
 _FIRST, _SECOND, _THIRD = 1100, 2000, 3000
 
@@ -64,6 +70,14 @@ def _resumed(called) -> str | None:
     return called.kwargs["options"].resume_session_id
 
 
+def _parked(case: ContinuationTest) -> None:
+    """Park `case`'s issue on a session failure, its body edited for the fresh conversation a retry will open."""
+    github, issue = case.seeded(**_SILENT)
+    issue.body = f"{issue.body}\n{_EDIT}"
+    case.github = github
+    case.issue = issue
+
+
 def _revisions(case: _support.SinkOfItsOwn) -> list[str]:
     """The requirements revision of every snapshot on `case`'s sink, in order."""
     return [snapshot[_support.REVISION] for snapshot in case.events(_support.SNAPSHOT_EVENT)]
@@ -73,13 +87,8 @@ class ContinuationTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
     """A replacement conversation's continuations, dispatched as a poll does."""
 
     def setUp(self) -> None:
-        # The session failure parked, its body edited for the fresh
-        # conversation a retry will open.
         super().setUp()
-        github, issue = self.seeded(**_SILENT)
-        issue.body = f"{issue.body}\n{_EDIT}"
-        self.github = github
-        self.issue = issue
+        _parked(self)
 
     def test_guidance_binds_its_own_revision(self) -> None:
         self._ticked(_replying(f"Which variant?\n{_support.SNAPSHOT}"), _said(_CONTINUE, _FIRST))
@@ -124,9 +133,16 @@ class ContinuationTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
         self.assertEqual(len(self.observations()), 1)
         self.assertEqual(self._kept().read_text(encoding="utf-8"), kept)
 
-    def test_a_sink_that_is_off_keeps_nothing(self) -> None:
-        self._ticked(_replying(_support.SNAPSHOT), _said(_CONTINUE, _FIRST), analytics_log_path=None)
-        self.assertFalse(self._kept().exists())
+    def test_an_unobserved_retry_keeps_nothing(self) -> None:
+        for sink in (None, self.sink):
+            _parked(self)
+            retried = _replying(_support.SNAPSHOT)
+            with patch(_FINGERPRINT, side_effect=OSError("fingerprint unavailable")):
+                ran = self._ticked(retried, _said(_CONTINUE, _FIRST), analytics_log_path=sink)
+            with self.subTest(sink=sink):
+                ran[_held.RUN_AGENT].assert_called_once()
+                self.assertFalse(self._kept().exists())
+        self.assertEqual(self.observations(), [])
 
     def _ticked(self, runner, said: FakeComment, **seams) -> dict:
         """One tick answering `said`, the branch unmoved and the sink this test's; its seams."""

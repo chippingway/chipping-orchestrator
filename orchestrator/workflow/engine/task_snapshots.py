@@ -21,18 +21,20 @@ and stamped that reached the agent, and completed on its own terms -- is
 handed to the analytics recorder. Reaching the agent means invoked, with
 neither the provider nor the CLI refusing the turn: not a provider refusal
 (`provider_failures.is_provider_refusal`, which settles that from the
-backend's own verdict where there is one), and not a return the launching
-stage reads as its CLI's own refusal -- a conversation the CLI could not open
-or whose transcript overflowed, an exhausted quota, or a Codex turn that
-ended on `turn.failed` -- which that stage classifies with the readers it
-parks and retries on and hands in as `refused`, asked inside the failure
-boundary below. Completing on its own terms means neither interrupted nor
-timed out, exiting 0, and leaving no tool step unfinished or failure
-normalized. The recorder is handed it with its invocation, the requirements
-its conversation was handed (`task_snapshot_grounding`), the repository the
-run's report is published under and the revision it is stamped with -- the
-road's own, which spell the task reference a reviewer of that report is told
--- and the framing of the reply the workflow reads
+backend's own verdict where there is one) nor a Codex turn that ended on
+`turn.failed`, both read off the stream's records that decode at all, so a
+record the usage parser refuses hides no closing event and the observation
+stands on no usage parse; and not a return the launching stage reads as its
+CLI's own refusal -- a conversation the CLI could not open or whose
+transcript overflowed, or an exhausted quota -- which that stage classifies
+with the readers it parks and retries on and hands in as `refused`, asked
+inside the failure boundary below. Completing on its own terms means neither
+interrupted nor timed out, exiting 0, and leaving no tool step unfinished or
+failure normalized. The recorder is handed it with its invocation, the
+requirements its conversation was handed (`task_snapshot_grounding`), the
+repository the run's report is published under and the revision it is stamped
+with -- the road's own, which spell the task reference a reviewer of that
+report is told -- and the framing of the reply the workflow reads
 (`task_snapshot_replies.framing`), which the recorder asks inside its own
 failure boundary; nothing about the reply is read here first. A run that
 never started, a synthesized result, and the recovery that finishes a
@@ -51,12 +53,13 @@ recording one raises nothing into the attempt it observes.
 """
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
-from orchestrator.agents import provider_failures as _provider_failures
+from orchestrator.agents import codex_events as _codex_events, provider_failures as _provider_failures
 from orchestrator.agents.models import AgentResult
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.observability.analytics.observations import (
@@ -84,9 +87,10 @@ class Conversation:
 
     `repo_id` and `issue_number` name the issue whose host records keep its
     grounding; `resumed` is the conversation the coordinated run resumed,
-    None for a fresh one; `fresh_requirements` is what a retry's road
-    re-grounds a fresh conversation with, None on a road that hands its own;
-    and `repository` is the repository as configured -- the one the run's
+    None for a fresh one; `fresh_requirements` fingerprints what a retry's
+    road re-grounds a fresh conversation with, asked only for such an
+    attempt, None on a road that hands its own; and `repository` is the
+    repository as configured -- the one the run's
     report is published under, which its settled record keeps -- and spells
     the task reference.
     """
@@ -94,7 +98,7 @@ class Conversation:
     repo_id: int
     issue_number: int
     resumed: str | None
-    fresh_requirements: str | None
+    fresh_requirements: _grounding.Fingerprint | None
     repository: str
 
 
@@ -174,12 +178,37 @@ def _observe(
 
 
 def _reached(agent_result: AgentResult) -> bool:
-    """Whether `agent_result`'s launch reached the agent: a process started, its turn not refused by the provider.
+    """Whether `agent_result`'s launch reached the agent: a process started, its turn neither refused nor failed.
 
+    Refused by the provider as the backend's own verdict says
+    (`provider_failures.is_provider_refusal`), or a Codex turn that ended on
+    `turn.failed`, whatever its code (`codex_events.codex_turn_failure`) --
+    both read off the stream's records that decode at all (`_decodable`).
     The CLI's own refusals are the launching stage's to read, and arrive as
     `receive`'s `refused`.
     """
-    return agent_result.invoked and not _provider_failures.is_provider_refusal(agent_result)
+    if not agent_result.invoked:
+        return False
+    read = replace(agent_result, stdout=_decodable(agent_result.stdout or ""))
+    return not (_provider_failures.is_provider_refusal(read) or _codex_events.codex_turn_failure(read.stdout))
+
+
+def _decodable(stdout: str) -> str:
+    """`stdout` with only its lines JSON decodes at all.
+
+    The terminal readers are handed these alone, so a record the usage parser
+    refuses -- an integer past the conversion limit, say -- hides no closing
+    event: the observation stands on the stream's terminal evidence, never on
+    a usage parse, and a refused or failed turn is still told apart.
+    """
+    decoded = []
+    for line in stdout.splitlines():
+        try:
+            json.loads(line)
+        except (ValueError, RecursionError):
+            continue
+        decoded.append(line)
+    return "\n".join(decoded)
 
 
 def _returned(agent_result: AgentResult) -> bool:

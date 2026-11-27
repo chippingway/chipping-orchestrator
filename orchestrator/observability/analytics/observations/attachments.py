@@ -70,6 +70,9 @@ DESCRIPTION_REQUEST_CHARS = 300
 # only where it is far from what was asked for.
 ATTACHMENT_CHARS = 4000
 
+# What text a human reads shows in place of an attachment line kept out of it.
+TAKEN_OUT = "(analytics attachment line taken out)"
+
 # The line the prompt teaches, spelled from the vocabulary it is read by.
 TASK_SNAPSHOT_TEMPLATE = (
     f'{PREFIX} {TASK_SNAPSHOT} v{TASK_SNAPSHOT_VERSION} {{"{DESCRIPTION}": "<one or two sentences>"}}'

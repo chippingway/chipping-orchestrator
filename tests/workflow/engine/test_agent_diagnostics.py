@@ -8,7 +8,8 @@ One behavior carries the weight here: the redactor runs over the raw text
 before any budget trims it, so a secret straddling the cut cannot survive as a
 fragment the redactor no longer recognizes -- in the park comment a human
 reads, or in the shorter tail a WARNING line carries. Beside it, the exit code
-a park names is the subprocess's own only where a failure record kept it.
+a park names is the subprocess's own only where a failure record kept it, and
+no analytics attachment line a CLI echoed on stderr is quoted, whole or cut.
 """
 from __future__ import annotations
 
@@ -18,6 +19,7 @@ from unittest.mock import patch
 
 from orchestrator.agents.models import AgentResult, TerminalFailure
 from orchestrator.agents.provider_failures import CodexUsageLimitFailure
+from orchestrator.observability.analytics.observations import attachments
 from orchestrator.workflow.engine import agent_diagnostics
 
 _AGENT_SESSION_ID = "s"
@@ -56,6 +58,17 @@ _RESET_LINES = (
     (f"{_LIMIT_OPENING} Try again at {_LONG_RESET}.", f"{_NAMED_RESET} {_SHOWN_LONG_RESET}{_CUT_MARKER} "),
     (_LIMIT_OPENING, _NO_RESET),
     ("", _NO_RESET),
+)
+
+
+# A task snapshot line, and stderr echoing it: inside the quoted tail, and
+# where the tail's cut falls inside its description.
+_ATTACHMENT = 'ANALYTICS: task-snapshot v1 {"description": "Add a foo flag to the CLI."}'
+_CUT_INTO = 'the CLI."}'
+_PAST_THE_CUT = "Z" * (agent_diagnostics._STDERR_TAIL_BUDGET - len(_CUT_INTO) - 1)
+_ECHOED = (
+    f"The CLI echoed its reply:\n{_ATTACHMENT}\nand exited.",
+    f"{_ATTACHMENT}\n{_PAST_THE_CUT}",
 )
 
 
@@ -121,6 +134,23 @@ class DiagnosticsRedactionTest(unittest.TestCase):
         with patch.dict(os.environ, {"API_TOKEN": secret}, clear=False):
             tail = agent_diagnostics._stderr_log_tail(_agent_result(f"leaked: {secret}"))
         self.assertNotIn("line2-of-secret-value", tail)
+
+
+class AttachmentLineTest(unittest.TestCase):
+    """A task snapshot line a CLI echoed on stderr, kept out of the block a park comment quotes."""
+
+    def test_a_line_is_taken_out_before_the_cut(self) -> None:
+        # Inside the tail, or where the 1KB tail would cut into its
+        # description: the note stands in its place before the cut, so no part
+        # of the line is quoted, and the stderr the run is classified by is as
+        # the CLI wrote it.
+        for echo, stderr in enumerate(_ECHOED):
+            echoed = _agent_result(stderr)
+            block = agent_diagnostics._format_stderr_diagnostics(echoed)
+            with self.subTest(echo=echo):
+                self.assertNotIn(attachments.PREFIX, block)
+                self.assertNotIn(_CUT_INTO, block)
+                self.assertEqual(echoed.stderr, stderr)
 
 
 class UsageLimitDiagnosticsTest(unittest.TestCase):
