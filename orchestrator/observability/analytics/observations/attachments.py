@@ -41,8 +41,8 @@ Nothing here bounds, redacts, or writes anything either: a problem names where
 its lines sit in the reply, and a snapshot where its description's JSON string
 is written, so the redaction owner masks what it excerpts and every character
 of a description decoded from a credential as the agent spelled it.
-The lines themselves (`attachment_lines`) are what a caller sets aside from
-the rest of a reply.
+The lines themselves (`attachment_lines`) are also what the workflow keeps out
+of the reply it reads (`workflow/engine/task_snapshot_replies`).
 """
 from __future__ import annotations
 

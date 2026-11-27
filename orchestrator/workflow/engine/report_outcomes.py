@@ -32,6 +32,11 @@ fence may enclose it.
 A VERIFIED location is a `github.com` pull request URL, optionally anchored at
 one of its conversation comments, and its revision a lowercase SHA-256 digest.
 Parsing establishes their shape, not their truth.
+
+The marker-line pattern and the fence reading are also where a task
+snapshot's reader finds the outcome to read above and the lines that are code
+(`task_snapshot_replies`), so an attachment is never taken from a line this
+reader counts as part of the outcome, nor from one a fence may enclose.
 """
 from __future__ import annotations
 

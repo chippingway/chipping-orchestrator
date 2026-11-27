@@ -11,9 +11,11 @@ Single-process **polling orchestrator** that drives GitHub issues through a labe
 work to a configurable coding-agent CLI (`codex`, `claude`, or `agy`) running as a subprocess in isolated git worktrees.
 
 State lives in GitHub: a workflow label exposes the current stage and a pinned JSON comment holds per-issue durable
-state. The orchestrator process can restart at any time. Beside GitHub it keeps one per-issue record on the host, an
-Antigravity launch's quota retirement record, and -- while that record will not take a write -- the resolution its
-poller holds in memory until it does; both are covered under [Design constraints](#design-constraints).
+state. The orchestrator process can restart at any time. Beside GitHub it keeps one per-issue record on the host that
+the workflow reads, an Antigravity launch's quota retirement record, and -- while that record will not take a write --
+the resolution its poller holds in memory until it does; both are covered under
+[Design constraints](#design-constraints), beside the analytics-only task snapshot grounding record no workflow
+decision reads.
 
 This page is the system overview: the design constraints, the top-level module map, the process model, the agent
 subprocess and the environment boundary around it, the hardened git and push path, and the schema diagram. Every
@@ -42,7 +44,10 @@ it does, holding that issue's launches meanwhile. And an arming whose outcome ne
 killed mid-run -- holds that issue's developer launches until an operator writes the retirement it owes or settles
 it, as the [operations runbook](configuration/operations.md#running-more-than-one-poller) describes, so such a restart
 is not recovered from GitHub alone ([what survives a restart](configuration/operations.md#what-survives-a-restart);
-[backups](security.md#backup-and-restore-drills)).
+[backups](security.md#backup-and-restore-drills)). Beside it, and only with the analytics sink on, the host keeps what a
+developer conversation a retry re-grounded was handed, for the task snapshots of later retries resuming it
+(`workflow/engine/task_snapshot_grounding.py`): analytics alone, written under the claim and never on the pinned
+comment, read by no workflow decision, and lost with nothing owed but that snapshot's binding to the baseline.
 
 Each issue has one orchestrator writer at a time. Different issues are worked in parallel, but every dispatch, every
 per-tick base refresh, and every artifact maintenance candidate takes the issue's host-local
@@ -372,7 +377,8 @@ interpreter of its own finds nothing wrong, and exit.
   `WORKTREES_DIR/.issue-writer-claims/`, keyed by the repository's numeric GitHub id (the client's `repo_id`, never a
   name: neither the configured slug nor the `owner/name` a poller fetched before a rename) and the issue number. The
   same namespace keeps each issue's quota retirement record beside its claim file, written only under the claim and
-  host state rather than lock bookkeeping ([design constraints](#design-constraints)). Every
+  host state rather than lock bookkeeping ([design constraints](#design-constraints)), and, with the analytics sink
+  on, its analytics-only task snapshot grounding record, written under the claim too. Every
   dispatch path takes it before anything it does for the issue — the worker's refetch, the pinned-state guards, the
   close recovery wrapped around the pass, and the handler — and the enumeration takes it for the close receipt it posts,
   so two pollers sharing a checkout root never write one issue's pinned comment and labels at once. A family handler's

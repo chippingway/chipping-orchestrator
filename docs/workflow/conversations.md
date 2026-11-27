@@ -540,6 +540,68 @@ settlement prepared before the report is posted and committed behind the post: o
 the tick, and the next tick finds that same record, transaction or settlement and carries it on with no second run, no
 second revision, and no second report.
 
+### The task snapshot attachment
+
+The initial implementation request and its ordinary continuations ask the developer for one thing beside the report:
+a short description of the task in its own words, for analytics. Which attempts are asked is decided by the road the
+shared developer coordinator was handed (`workflow/stages/implementing/completion_roads.py`): every attempt on the first
+implementation's road and on an implementing resume's — a human's reply, an operator's `/orchestrator continue`, a
+poisoned session's fresh retry, and an Antigravity command recovery behind any of them — is handed its prompt with
+`_TASK_SNAPSHOT_NOTE` (`workflow/engine/prompt_notes.py`) appended last, by `workflow/engine/task_snapshots.py`. A fix
+round, a drift resume, a report refresh, a late revision, a documentation pass, and every run that freezes no road are
+not asked.
+
+The note teaches one line, spelled from the vocabulary `observability/analytics/observations/attachments.py` reads it
+with, so what a developer is told to write and what the reader accepts cannot drift apart:
+
+```text
+ANALYTICS: task-snapshot v1 {"description": "<one or two sentences>"}
+```
+
+It is asked of every finished reply, a question included, exactly once: the description in one or two sentences, at
+most 300 characters, with no secrets. Where the reply ends on a report outcome the line goes above it — never inside
+the report block or after the outcome, which still ends the message. One line is the whole framing on purpose: a report
+marker, an `ACK:`, and a code fence each have to open a line, and a JSON string escapes its line breaks, so nothing a
+description says can open a line another reader sees. Above the outcome, the line is outside the `REPORT: READY` block
+and so outside the report that is published and the digest it is identified by; a `REPORT: VERIFIED` line names a
+report already on the pull request, which the attachment never touches.
+
+The workflow reads the reply without it (`workflow/engine/task_snapshot_replies.py`). An attachment line is a line
+opening on `ANALYTICS:` that no code fence may enclose, as the report reader's own fence reading
+(`workflow/engine/report_fences.py`) decides; one inside a fence is code — an example a report quotes — and stays.
+Every return on those two roads has its attachment lines kept out of the message before any stage reads it, in a way
+that never moves the reply's framing. A reply with no report marker line has them taken out whole, so a reply carrying
+nothing else is the silent failure an empty one is. A `REPORT: READY` block has them taken out whole, so the report
+published, with the digest it is identified by, is the one written without them, and a block holding nothing else is
+the empty block the report reader refuses. Every other one — above an outcome, past it, or beside markers that do not
+read — is replaced by the line `(analytics attachment line taken out)` at its own indentation, so every line stays a
+line of the same kind: a fence opens and closes where it did, text after an outcome is still refused, and a malformed
+outcome stays malformed. No park, notice, or published report quotes an attachment line. A reply nothing can take the
+lines out of is read as written, with one warning.
+
+The attachment is read on its own terms and decides nothing. With the analytics sink on, `task_snapshots.py` hands a
+genuine return — judged by the run's status alone: invoked under a tracked charge, neither interrupted nor timed out,
+exiting 0, with no tool step unfinished or failure normalized — to the one reader and recorder under
+`observability/analytics/observations/`, with the invocation the run came from, the requirements revision the attempt's
+conversation was handed, and the framing of the reply the workflow reads — where its outcome begins, which lines a fence
+may enclose, and the verdict the report reader reaches on it — which the recorder asks inside its failure boundary. That
+revision is the one the road froze before the launch on a road that hands the developer requirements: the first
+implementation, and a human reply whose batch it delivers and settles. An `/orchestrator continue` retry hands none, so
+a retry that opens a fresh conversation is bound to the read the replacement session was re-grounded on, and a later
+retry resuming that same conversation to what it was last handed. This host keeps that beside the issue's writer claim,
+as `repo-<id>-issue-<n>.task-snapshot-grounding`, only while the analytics sink is on and never on the pinned comment,
+so no settlement measures it (`workflow/engine/task_snapshot_grounding.py`); it speaks while the conversation and the
+issue's baseline stand, an attempt that names no conversation leaves it as it is, and a lost one binds the retry to the
+baseline. The task reference is spelled from the revision the run's report is stamped with instead, which is what a
+reviewer is handed. The reader reads the reply as written: exactly one attachment line above the outcome is a snapshot;
+none is missing, two or more anywhere are a duplicate, the one line reaching past where the outcome begins is misplaced,
+and a line out of shape — a key written twice included — is malformed. Each of those is recorded as a diagnostic and
+nothing else: no retry, correction, park, or refusal follows from it, and a valid report outcome beside it stays valid,
+while an invalid one is not rescued by it. The reviewer later handed the report is told the task snapshot reference its
+stamped revision spells, beside the quoted report (`workflow/engine/review_prompts.py`), which is the reference the
+snapshot was recorded under. What the records hold is in
+[`../observability/event-streams.md#task-snapshot-records`](../observability/event-streams.md#task-snapshot-records).
+
 ### The developer report lifecycle
 
 Read end to end rather than road by road, one report passes the same stations whichever road produced it, and the

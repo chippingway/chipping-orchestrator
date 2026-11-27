@@ -29,9 +29,17 @@ parser read them back is in [`../observability/analytics-database.md`](../observ
   as one: a `stage_evaluation` with `result="ok"` says the stage handler completed without raising, not that the
   issue moved — a handler that parked the issue for a human evaluates `ok` — while a `park_awaiting_human` record
   says the workflow is now waiting on a human and why. A park is a workflow-progress record, not an execution error.
-- `ANALYTICS_RETENTION_DAYS` — default `90`. retention window for `ANALYTICS_LOG_PATH`. The polling loop calls
-  `retention.prune_with_retention_logging()` once per tick. Set to `0` (or any non-positive value) to keep raw data
-  indefinitely.
+  **Bounded text by default:** with the sink on — its default — the sink also collects text an agent wrote: the
+  short task description the implementing developer appends to its reply, at most 1,000 characters of it, and up to
+  500 characters of an attachment line the reader refused, each masked by the credential redactor first and marked
+  where it was cut. The redactor masks secret-shaped environment values and the configured GitHub tokens, not issue or
+  repository content, so the file and a database the sync fills from it hold those words in cleartext; scope their
+  permissions accordingly. The same disable values turn that collection off with the rest of the sink, and
+  `ANALYTICS_RETENTION_DAYS` prunes it with every other record. There is no separate switch. See
+  [`event-streams.md#task-snapshot-records`](../observability/event-streams.md#task-snapshot-records).
+- `ANALYTICS_RETENTION_DAYS` — default `90`. retention window for `ANALYTICS_LOG_PATH`, the task snapshot text
+  included. The polling loop calls `retention.prune_with_retention_logging()` once per tick. Set to `0` (or any
+  non-positive value) to keep raw data indefinitely.
 - `ANALYTICS_DB_URL` — default _(unset)_. libpq connection string for the analytics Postgres service in
   [`../../analytics-db/compose.yml`](../../analytics-db/compose.yml). NOT read by the polling loop — orchestrator
   correctness does not depend on database availability. Empty / `off` / `disabled` / `none` disables both the sync CLI

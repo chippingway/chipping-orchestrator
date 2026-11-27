@@ -1146,7 +1146,8 @@ error.
   pollers list their repositories differently, since every poller on one host has to resolve the same root — see
   [running more than one poller](configuration/operations.md#running-more-than-one-poller). Its `.issue-writer-claims/`
   directory also keeps each issue's Antigravity quota retirement record, which a restore has to carry over
-  ([backups](security.md#backup-and-restore-drills)).
+  ([backups](security.md#backup-and-restore-drills)), and, with the analytics sink on, its analytics-only task snapshot
+  grounding record, which a restore may drop.
 - `LOG_DIR` — default `<REPO_ROOT>/logs`. directory `runtime/logs.py` attaches its `FileHandler` under
   (`orchestrator.log`, rotated ~10 MiB × 5). Also the default parent for `ANALYTICS_LOG_PATH`
   (`LOG_DIR/analytics.jsonl`). In a source checkout this is `<checkout>/logs`; in an installed package it is inside
@@ -1185,7 +1186,10 @@ Every sink path, retention window, and observability switch — `EVENT_LOG_PATH`
 `TRACK_SKILL_TRIGGERS`, and `DASHBOARD_PARALLEL_READS` — is documented in
 [`configuration/observability.md`](configuration/observability.md), together with where each is parsed and which
 process reads it. What the sinks record, and how the database, dashboards, and usage parser read them back, is on the
-pages [`observability.md`](observability.md) maps.
+pages [`observability.md`](observability.md) maps. The analytics sink is on by default at `LOG_DIR/analytics.jsonl`,
+and besides its metrics it collects the implementing developer's short task description, bounded and redacted of
+credentials but not of issue or repository content; the sink's disable values and retention window cover it too
+([`ANALYTICS_LOG_PATH`](configuration/observability.md#settings)).
 
 ### Analytics dashboard quickstart
 

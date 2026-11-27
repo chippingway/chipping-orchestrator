@@ -50,6 +50,15 @@ _REACHABLE = MappingProxyType({
     "redaction": (),
 })
 
+# The producer that hands the recorder a reply, the prompt note spelled from
+# the attachment vocabulary, and the reviewer prompt naming the task reference
+# the snapshot records spell: each names the owner it reads.
+_CALLERS = MappingProxyType({
+    "orchestrator.workflow.engine.task_snapshots": _RECORDER,
+    "orchestrator.workflow.engine.prompt_notes": "attachments",
+    "orchestrator.workflow.engine.review_prompts": "records",
+})
+
 
 def _qualified(owner: str) -> str:
     return f"{_PACKAGE}.{owner}"
@@ -85,12 +94,17 @@ class OwnerInventoryTest(unittest.TestCase):
 
 
 class LayeringTest(unittest.TestCase):
-    """The owners reach only what they compose."""
+    """The owners reach only what they compose, and every caller names them."""
 
     def test_no_owner_reaches_past_what_it_composes(self) -> None:
         for owner in _OWNERS:
             with self.subTest(owner=owner):
                 self.assertEqual(_reaches_beyond(owner), ())
+
+    def test_every_caller_names_the_owner(self) -> None:
+        for caller, owner in _CALLERS.items():
+            with self.subTest(caller=caller):
+                self.assertIn(_qualified(owner), _imported_orchestrator_modules(caller))
 
 
 if __name__ == "__main__":

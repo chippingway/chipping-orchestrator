@@ -46,8 +46,13 @@ reader asking which launch a resume over the pinned state would charge -- a
 handed change request's recovery telling that developer's charge from another
 road's -- reads it without resuming (`_first_launch_fingerprint`).
 
-A report-producing caller freezes its road on the request (`completion`), and
-every attempt is asked of it behind that attempt's accounting, quota
+A report-producing caller freezes its road on the request (`completion`): each
+attempt is handed the prompt its road asks with -- the task snapshot request
+appended on an implementing road -- and its return is received by the road
+before anything reads it: a task snapshot goes to analytics, which raises
+nothing and is read by nothing here, and the reply is left as the workflow
+reads it, its attachment lines kept out without moving its framing. Every
+attempt is then asked of the road behind that attempt's accounting, quota
 retirement, and live-pause reading (`completion_roads`): one that finished on
 its road's report is captured whole as it returns, the poisoned attempt and
 an incomplete Antigravity exit never, so the report survives the hold the
@@ -341,6 +346,9 @@ class _DevRunCoordinator:
     ) -> tuple[AgentResult, bool]:
         if self._launch_held(resume_session_id):
             return _run_circuit._refused_run(), False
+        road = self._options.get("completion")
+        if road is not None:
+            prompt = road.asked(prompt)
         agent_result = _usage._run_agent_tracked(
             self._gh,
             self._resolved_budget(),
@@ -360,19 +368,20 @@ class _DevRunCoordinator:
                 "retry_count", self._state().get(_state._RETRY_COUNT),
             ),
         )
-        paused = self._held_on_quota(agent_result, resume_session_id) or agent_result.unaccounted or (
-            self._options.get("pause_guard", True)
-            and _guards._paused_during_agent_run(self._gh, self._issue())
-        )
-        road = self._options.get("completion")
-        if road is None:
-            return agent_result, bool(paused)
         attempt = _roads.Attempt(
             agent_result,
             str(self._options.get("agent_spec") or ""),
             prompt,
             self._options.get(_RESUMED),
         )
+        if road is not None:
+            road.received(self._gh, self._issue(), attempt, self._state())
+        paused = self._held_on_quota(agent_result, resume_session_id) or agent_result.unaccounted or (
+            self._options.get("pause_guard", True)
+            and _guards._paused_during_agent_run(self._gh, self._issue())
+        )
+        if road is None:
+            return agent_result, bool(paused)
         if road.captures(self._gh, self._issue(), self._state(), attempt):
             paused = True
         return agent_result, bool(paused)

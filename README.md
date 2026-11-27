@@ -218,11 +218,14 @@ effects.
 ## Observability
 
 `orchestrator.log` records process and issue activity, while `analytics.jsonl` records transitions, timing, agent
-outcomes, usage, and cost estimates. Both live under `LOG_DIR`, set to `~/.local/state/chipping-orchestrator/logs`
-by [package setup][installation]. An explicit `ANALYTICS_LOG_PATH` can place analytics elsewhere. Optional surfaces
-add an audit log, a Postgres-backed analytics dashboard, and a file-backed trajectory viewer without becoming part
-of workflow state. The dashboards are source-checkout developer tools; their dependencies and launch commands are
-in the [developer guide][development].
+outcomes, usage, cost estimates, and the implementing developer's short task description, redacted of credentials
+and bounded. Both live under `LOG_DIR`, set to `~/.local/state/chipping-orchestrator/logs` by
+[package setup][installation]. An explicit `ANALYTICS_LOG_PATH` can place analytics elsewhere, and setting it empty or
+to `off`, `disabled`, or `none` turns it off, task descriptions included. `ANALYTICS_RETENTION_DAYS` prunes analytics
+records after 90 days by default; `0` or a negative value keeps them indefinitely.
+Optional surfaces add an audit log, a Postgres-backed analytics dashboard, and a file-backed trajectory viewer
+without becoming part of workflow state. The dashboards are source-checkout developer tools; their dependencies and
+launch commands are in the [developer guide][development].
 
 ![Analytics page with spend and token usage over time categorized by different dimensions][analytics-image]
 

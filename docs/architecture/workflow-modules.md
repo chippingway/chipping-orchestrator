@@ -1906,8 +1906,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             never one of them -- the developer report contract spelled from the report vocabulary with
                             its fresh-respawn counterpart, both scoping the report to the final change, its rationale,
                             and unresolved risks with verification left out and forbidding the receipt prefix
-                            `github/comments.py` refuses anywhere in a report, and the continuation notes for a
-                            session-limit retry
+                            `github/comments.py` refuses anywhere in a report, the task snapshot request spelled from
+                            the analytics attachment vocabulary, and the continuation notes for a session-limit retry
     prompts.py              implementation, documentation, fixing, conflict-resolution, fresh-session, and
                             report-refresh prompt builders; each response marker agrees with the parser that settles
                             its stage, and the report refresh asks for a `REPORT: READY` report of the rewritten head
@@ -1918,10 +1918,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             implemented the work, the subject the validating stage resolved, and the verification
                             evidence it proved current for that subject -- with the developer report quoted whole
                             between the issue and the inspection commands, named by revision and location, and a note
-                            where the requirements have moved on since it was written; a subject with no report says
-                            none is recorded. The verification block follows the inspection commands, and the closing
-                            instructions put the declaration it teaches above the verdict line and each failure a
-                            numbered finding rests on under it, in the layout that block teaches
+                            where the requirements have moved on since it was written, and the task snapshot
+                            reference the report answers to, spelled by the analytics owner its description was
+                            recorded under; a subject with no report says none is recorded. The verification block
+                            follows the inspection commands, and the closing instructions put the declaration it
+                            teaches above the verdict line and each failure a numbered finding rests on under it, in
+                            the layout that block teaches
     review_evidence_prompts.py
                             what a reviewer is told about verification, which the reviewer prompt renders: the current
                             evidence handed for its subject (`HandedEvidence`, the settled record and its artifact
@@ -1943,6 +1945,32 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             it, then `Error:`, `Expected:` and `Observed:` where needed, `Reproduce:` -- a
                             self-contained snippet for a probe, since a stdin command alone reproduces nothing -- and
                             `Unavailable:` for each diagnostic not obtained, every entry outside the declaration
+    task_snapshot_grounding.py
+                            what an implementing developer conversation was handed, for its task snapshot: on a road
+                            that hands requirements, the road's own; on a retry, a fresh conversation the read it was
+                            re-grounded on, and a resumed one what this host's record says it was grounded on while
+                            the conversation and the baseline stand, the road's revision otherwise; and that record,
+                            `repo-<id>-issue-<n>.task-snapshot-grounding` beside the issue's writer claim, kept only
+                            with the analytics sink on and never on the pinned comment. Only the snapshot reads it
+    task_snapshot_replies.py
+                            the reply the workflow reads where a snapshot was asked for: every attachment line outside
+                            a code fence kept out of it without moving its framing -- taken out where the reply has no
+                            report marker and inside a READY block, a placeholder line holding its place everywhere
+                            else -- so no park, notice, or published report quotes one, a fenced example stays, text
+                            past an outcome is still refused, and a block of nothing else is refused as empty; a reply
+                            nothing can rewrite read as written, with one warning; and the framing the recorder is
+                            told -- where the outcome begins, the lines a fence may enclose, and the verdict the
+                            workflow reaches on that reply
+    task_snapshots.py       which developer attempts are asked for a task snapshot -- every one on the first
+                            implementation's road or an implementing resume's, and none else -- the request appended
+                            to the prompt each is handed, and the receipt of each return on those roads: with the
+                            analytics sink on, a genuine one, judged by the run's status alone, handed to the
+                            analytics recorder with its invocation, the requirements its conversation was handed
+                            (`task_snapshot_grounding.py`), the revision its report is stamped with -- which spells
+                            the task reference -- and the framing of the reply the workflow reads
+                            (`task_snapshot_replies.py`), which the recorder asks inside its failure boundary, and
+                            every attempt's grounding kept current; and, sink on or off, every one left as the
+                            workflow reads it. Nothing a workflow decides reads the observation back
     review_subjects.py      what one review is of -- pull request, head, requirements revision, and report revision and
                             digest -- recorded as `review_subject` before the spawn, as `review_returned_subject` once a
                             reviewer returns, and as `review_approved_subject` once an approval passes the verify gate,
@@ -4760,7 +4788,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             retired never launched, and no launch made at all while a capture nothing has decided
                             stands; each attempt, behind its accounting, quota retirement, and live-pause reading,
                             asked of the road its caller froze, which captures a return that finished on its report
-                            and holds the tick where that capture did not settle;
+                            and holds the tick where that capture did not settle; the same road handing each attempt
+                            its prompt (`asked`) and receiving its return (`received`) before anything reads it, so an
+                            implementing road's every attempt is asked for its task snapshot, recorded, and read by
+                            the workflow with its attachment lines kept out;
                             and the identity an attempt is charged under, spelled once
                             (`_launch_identity`), so the fingerprint a resume's first attempt would be charged under is
                             read without resuming (`_first_launch_fingerprint`) -- how a handed change request's
@@ -4804,7 +4835,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             -- `stages/validating/refresh_road.py`) -- and the road the late developer revision
                             freezes (`stages/decomposition/late_revision_road.py`), with the command, prompt digest, and
                             conversation it ran as and still pinned, and answers held where that capture left the
-                            state withheld
+                            state withheld; and, through `engine/task_snapshots.py`, the task snapshot request an
+                            attempt on it is handed and the receipt of its return, which only the first
+                            implementation's road and an implementing resume's ask for, record, and keep out of the
+                            reply the workflow reads -- the snapshot bound to the handoff's requirements, or, for an
+                            attempt that opened a fresh conversation on a retry's road, to the read that conversation
+                            was re-grounded on (`fresh_requirements`), and for a later retry resuming it, to what this
+                            host's grounding record says (`engine/task_snapshot_grounding.py`)
       captured_report.py    the run's own pending capture handed to the report delivery where the disposition records
                             a report -- what the tick settled around the run riding the transfer's own commit, so the
                             two land together or not at all; one refused for the report itself withdrawn and the run

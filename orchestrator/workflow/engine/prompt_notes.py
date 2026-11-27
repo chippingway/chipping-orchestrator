@@ -12,10 +12,15 @@ rationale, and unresolved risks, with no account of the verification run --
 narrows what a report says and nothing a developer runs. The content restriction
 is spelled from the receipt prefix `github.comments.carries_reserved_marker`
 refuses by substring, so the text a developer is warned off is the text a report
-record refuses, wherever in the report it sits."""
+record refuses, wherever in the report it sits. The task snapshot request, which
+only the implementing roads append (`task_snapshots`), is spelled from the
+analytics attachment vocabulary its reader reads, and asks every finished reply
+for its one line, above the report outcome where there is one, so the report
+and every reading of it stay as they are."""
 from __future__ import annotations
 
 from orchestrator.github import comments as _github_comments
+from orchestrator.observability.analytics.observations import attachments as _attachments
 from orchestrator.workflow.engine import report_outcome_models as _report_models
 
 _NO_BODY = "(no body)"
@@ -153,6 +158,30 @@ _RESPAWN_REPORT_NOTE = (
     f"`{_report_models._REPORT_END_MARKER}` block or the "
     f"`{_report_models._REPORT_VERIFIED_MARKER} <location> <revision>` line.\n\n"
     f"{_REPORT_RECEIPT_NOTE}"
+)
+
+# Asked of the implementing roads' attempts alone, beside the report contract
+# they carry (`task_snapshots`), and spelled from the vocabulary the attachment
+# reader reads. It is asked of every finished reply, a question included, since
+# the workflow reads a reply with the line kept out of it
+# (`task_snapshot_replies`); placed above the outcome, the line stays out of
+# the report and its digest. The closing sentences keep
+# the outcome the message's last line, since this note is the last thing such a
+# prompt says.
+_TASK_SNAPSHOT_NOTE = (
+    "Task snapshot: whatever your final message ends on -- a report outcome "
+    "or a question -- also describe this task in your own words for the "
+    "orchestrator's analytics: what the issue asks for, in one or two "
+    f"sentences and at most {_attachments.DESCRIPTION_REQUEST_CHARS} "
+    "characters, with no secrets in it. Write it as the JSON string on this "
+    "single line, escaping quotes and line breaks, and put the line ABOVE "
+    "your report outcome where you end on one:\n\n"
+    f"  {_attachments.TASK_SNAPSHOT_TEMPLATE}\n\n"
+    "Write the line exactly once. A report outcome must still end your "
+    "message: never put this line inside the report block or after the "
+    "outcome. The line is not part of your report or your question and is "
+    "never published, and nothing about how your work is handled depends on "
+    "it."
 )
 
 _CONTINUE_RETRY_PROMPT = (

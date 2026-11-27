@@ -72,12 +72,15 @@ Summarized here; the reference is
 Project-local JSONL of raw metric records — the raw foundation layer the Postgres aggregation below replays — opting
 in and out independently of the audit log via `ANALYTICS_LOG_PATH` / `ANALYTICS_RETENTION_DAYS`. It shares the audit
 sink's envelope and bare-stage-tag spelling, so `WHERE stage = 'validating'` is the form that matches both here and in
-the Postgres column the sync loads it into. Five kinds are written today — `stage_enter`, `stage_evaluation`,
+the Postgres column the sync loads it into. Seven kinds are written today — `stage_enter`, `stage_evaluation`,
 [`agent_exit`](observability/event-streams.md#agent_exit-records),
-[`repo_skill_catalog`](observability/event-streams.md#repo_skill_catalog-records), and the one record each candidate
+[`repo_skill_catalog`](observability/event-streams.md#repo_skill_catalog-records), the one record each candidate
 of the daily terminal-artifact maintenance pass earns,
 [`terminal_artifact_cleanup`](observability/event-streams.md#terminal_artifact_cleanup-records) (analytics only: that
-pass writes no workflow state, so it has no audit twin) — beside three families written to
+pass writes no workflow state, so it has no audit twin), and an implementing developer's
+[`task_snapshot` and `observation_diagnostic`](observability/event-streams.md#task-snapshot-records) records, the one
+family carrying bounded, redacted text an agent wrote, collected by default with the sink — beside three families
+written to
 this sink and the audit log alike, so the JSONL copy answers offline what the database answers: human-wait
 transitions (`park_awaiting_human`), the per-issue lifetime ledger's
 [`agent_run_budget`](observability/event-streams.md#agent-run-budget-records-both-sinks) transitions, and the late

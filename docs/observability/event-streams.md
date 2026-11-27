@@ -359,7 +359,8 @@ copy or truncating the log with none kept, done while a lost finish is still to 
 ## Analytics sink (`ANALYTICS_LOG_PATH`)
 
 Project-local JSONL sink for raw metric records, separate from `EVENT_LOG_PATH`. Opts in or out independently via
-`ANALYTICS_LOG_PATH` / `ANALYTICS_RETENTION_DAYS`.
+`ANALYTICS_LOG_PATH` / `ANALYTICS_RETENTION_DAYS`. Its records are metrics and identities, with one exception: the
+[task snapshot records](#task-snapshot-records) carry bounded, redacted text an agent wrote, collected by default.
 
 **Ownership.** The recorders that append this sink, the by-age prune beside them, and the read and sync paths over
 the Postgres target all live under `orchestrator/observability/analytics/`. Every knob named on this page —
@@ -439,6 +440,10 @@ foundation layer for the Postgres aggregation step.
   maintenance pass decided about; carries `outcome`, `reason`, `layout`, and a `branch` only where the reason names
   one — see [`terminal_artifact_cleanup` records](#terminal_artifact_cleanup-records). No `stage`: the pass is host
   maintenance between polling passes rather than a workflow stage, and the issues it is about have already ended.
+- `task_snapshot` / `observation_diagnostic` — `workflow/engine/task_snapshots.py`, through the shared developer
+  coordinator, as an implementing developer's attempt returns: one snapshot per reply carrying a readable one, and one
+  diagnostic per problem with it — see [Task snapshot records](#task-snapshot-records). The one family that carries
+  text an agent wrote, redacted and bounded, and collected by default with the sink.
 
 **Append.** `recording.append_record(record)` reopens the file in append mode for every record after
 `path.parent.mkdir(parents=True, exist_ok=True)`. An `OSError` is caught and downgraded to a `log.warning`.
@@ -793,12 +798,21 @@ bounded against. Either way one candidate's record is the whole cost: every cand
 
 ### Task snapshot records
 
-A developer's own short description of its task, bound to the requirements revision its conversation was handed, and
-the reason a reply yielded none. The recorder that writes them, `observations/recorder.py`, is complete and tested, but
-no producer calls it yet, so no current build writes either kind: this section is the format and the guarantees that
-writer keeps. Two event kinds share one payload version, `observation_version` (currently `1`), which moves whenever a
-field here changes meaning. Nothing in the workflow reads either back
+An implementing developer's own short description of its task, bound to the requirements revision its conversation
+was handed, and the reason a reply yielded none. Two event kinds share one payload version, `observation_version`
+(currently `1`), which moves whenever a field here changes meaning. Nothing in the workflow reads either back
 ([C-12](../contracts.md#c-12-observation-and-the-audit-recovery-exception)).
+
+**Who is asked, and which returns are recorded.** Every attempt the shared developer coordinator makes on the first
+implementation's road or an implementing resume's — a human's reply, an operator's `/orchestrator continue`, a
+poisoned session's fresh retry, and an Antigravity command recovery behind any of them — is asked for one attachment
+line in every finished reply, above its report outcome where it ends on one
+([the reply contract](../workflow/conversations.md#the-task-snapshot-attachment)). No other road asks, and no other run
+is recorded. Only a genuine return is, judged by the run's status alone: a run the tracked spawn started under a charge
+and stamped with its invocation, which was invoked, neither interrupted nor timed out, exited 0, and left no tool step
+unfinished or failure normalized — a question and a malformed report outcome included. Any other writes nothing, nor
+does a result a stage synthesized or the recovery that finishes a captured report from its record, since no developer
+ran.
 
 **The attachment.** A reply carries a snapshot as one line: the `ANALYTICS:` prefix, the kind, the version, and a JSON
 object, `ANALYTICS: task-snapshot v1 {"description": "..."}`. A JSON string escapes its line breaks, so nothing inside
@@ -818,14 +832,23 @@ written raw inside the JSON leaves the line as malformed as it was written.
   `issue`, `comment` (the pinned comment its charge was written on), `cycle` (`0` where the record named none, `null`
   where it was damaged), `ordinal` (the lifetime charge it was started under), and `nonce`. That is what joins the
   record to its run's own records, since a session id is shared by every resume and a round counter resets.
-- `route` — the road the run came down, as its caller names it.
-- `report_outcome` — the verdict the caller's report reader reaches on the reply: `ready`, `verified`, `malformed`,
-  or `no_marker`. Dropped where the recording failed before framing the reply.
-- `requirements_revision` — the requirements fingerprint the conversation that wrote the reply was handed, as its
-  caller hands it. Dropped where it holds none.
+- `route` — `implementation` or `resume`, the road the run came down.
+- `report_outcome` — what the report reader reads the outcome of the reply the workflow reads as — its attachment
+  lines kept out of it — the verdict the workflow reaches: `ready`, `verified`, `malformed`, or `no_marker`. Dropped
+  where the recording failed before framing the reply.
+- `requirements_revision` — the requirements fingerprint the conversation that wrote the reply was handed, frozen
+  before the launch: the read the prompt was built from, never one an edit during the run moved the issue to.
+  Ordinarily that is the revision the run's report is stamped with, and on a road that hands the developer
+  requirements — the first implementation, a human reply — it always is. A retry that opens a fresh conversation
+  re-grounds it on the issue as it then reads, an edit beside the command included, while its report keeps the
+  baseline the issue recorded; the snapshot is bound to that read, and so is the snapshot of a later retry resuming
+  the same conversation, which is handed nothing new — carried by a host record beside the issue's writer claim
+  ([the task snapshot attachment](../workflow/conversations.md#the-task-snapshot-attachment)), never by the pinned
+  comment. Dropped where the road held none.
 - `task_ref` — `<repo>#<issue>@<revision>`, the reference a later reader names the snapshot by, spelled by the one
-  formatter (`records.task_reference`) from the revision the run's report is stamped with. Dropped where the
-  repository or that revision is unknown.
+  formatter (`records.task_reference`) from the revision the run's report is stamped with: the reviewer handed that
+  report is told exactly this reference, beside the quoted report. Dropped where the repository or that revision is
+  unknown.
 
 `task_snapshot` adds `attachment_version` (`1`, the attachment format it was read from) and `description`.
 `observation_diagnostic` adds `item` (`task-snapshot`), `category`, `counts` — `found`, the attachment lines in the
@@ -889,18 +912,26 @@ field in `extras` — with no schema change. The credentials searched for are th
 (`config.credentials.secret_values`): secret-shaped environment values and the configured GitHub tokens, not issue or
 repository content, so a description is a developer's words in cleartext.
 
+**Collected by default.** With the sink on — its default, `<LOG_DIR>/analytics.jsonl` — this text is collected with no
+switch of its own. `ANALYTICS_LOG_PATH` set empty or to `off` / `disabled` / `none` turns it off with the rest of the
+sink: no reply is framed for the recorder, read for a snapshot, redacted, or written, and the host keeps no grounding
+record for a retry's snapshot, while the reply the workflow reads still has its attachment lines kept out.
+`ANALYTICS_RETENTION_DAYS` — `90` by default, `0` or any negative value keeping records indefinitely — prunes it with
+every other record.
+
 **Best effort, behind one boundary.** Where the sink is is read first, behind a guard of its own: settings that will not
-read are one warning, and nothing is recorded. With the sink off — `ANALYTICS_LOG_PATH` empty or `off` / `disabled` /
-`none` — nothing is framed, read, redacted, or written. The whole path then — the caller's framing of the reply, handed
-over as a callable so it runs inside the guard, reading the attachment, redacting, bounding, serializing, and
-appending — runs inside one guard, and the lines go to disk through `sink.write_jsonl_lines` under the sink's own lock
+read are one warning, and nothing is recorded. The whole path then — the framing of the reply the workflow reads,
+handed over as a callable so it runs inside the guard, reading the attachment, redacting, bounding, serializing, and
+appending — runs inside one guard (`observations/recorder.py`); the workflow asks nothing of the reply before handing
+it over, and the lines go to disk through `sink.write_jsonl_lines` under the sink's own lock
 so a refused append reaches that guard instead of the sink's `log.warning`. A step that fails before the append becomes
 a diagnostic. A refused append — the snapshot or a refused reply's diagnostic lost with it — and a diagnostic that
 cannot be written either each become one warning on `orchestrator.analytics`, naming the issue, the invocation's
 charge ordinal, and the failures' types — no field a refused line could have held a credential in — and nothing more
 is written or tried again. The warning is attempted once inside the recorder's guard: a logger that fails loses it
-with the observation, never the caller's run. A lost record owes no export queue, checkpoint, or agent
-run, and the recorder needs no usage parse, no trajectory sink, and no database.
+with the observation, never the caller's run. A crash between a return and its record loses the record: there is no
+export queue, checkpoint, or agent run owed for it, and usage accounting, a completion capture, and the report's
+settlement each stand on their own evidence. Collection needs no usage parse, no trajectory sink, and no database.
 
 ## Agent-run budget records (both sinks)
 
