@@ -1384,10 +1384,15 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             prompt has a developer that cannot finish end on its question: nothing for a blank
                             message, the whole of it wherever one comment carries it beside the notice's own words
                             and the comment marker, and past that ceiling only the longest end that fits once
-                            quoted, fenced longer than any fence line it keeps, so an opener whose fence the cut
-                            dropped -- an HTML comment above all -- cannot hide the question and choices after it.
-                            The receipt prefix is quoted with its opening bracket escaped, so the raw comment
-                            carries no receipt while the developer's words still render
+                            quoted, its first line marked as cut. Markdown hides text only through raw HTML, which
+                            opens on `<`, so a whole message carrying one and every cut end are quoted inside a
+                            fence of whichever character -- backtick or tilde -- needs the shorter one, one longer
+                            than any line of it that could close it: an HTML comment opener, or one whose fence
+                            the cut dropped, cannot hide the question and choices after it, and a long run of one
+                            fence character costs the decision no room. Line endings are made line feeds first,
+                            since a bare carriage return ends a markdown line without the blockquote prefix. The
+                            receipt prefix is quoted with its opening bracket escaped, so the raw comment carries
+                            no receipt while the developer's words still read
     report_settlement_state.py the current report and the handoff receipt, written in the one durable write that
                             drops the pending record, each refused rather than stored when this owner's own reader
                             would not hand it back. The handoff also names the workflow LABEL the issue was carrying
@@ -4470,10 +4475,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             ordinary answer, or one that reached for the contract and missed, an `ACK:` beside a
                             report, which is held for a human rather than acted on by either half, as is a commit
                             over a report still owed and any round with no report while work no report describes
-                            is held, committed or not -- a misread that committed raising that hold itself -- both
-                            notices quoting a finished run's last message and nothing of one that did not finish,
-                            and both asking for the decision and keeping every such commit unpublished until a
-                            valid report describes it; whether a round
+                            is held, committed or not -- a misread whose head moved or could not be read raising
+                            that hold itself -- both notices quoting a finished run's last message and nothing of
+                            one that did not finish, and both asking for the decision and keeping every such commit
+                            unpublished until a valid report describes it. An Antigravity command left unfinished
+                            publishes nothing and keeps its own `agent_execution_failed` park, whose
+                            `/orchestrator continue` replays the feedback on a fresh session, with the hold
+                            recorded beside it; whether a round
                             that committed nothing may publish onto the head its pull request already carries, on
                             the affirmative proof that the head read, never moved, is the one the pull request is
                             STANDING on, and left a tree proved clean.

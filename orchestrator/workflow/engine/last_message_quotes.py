@@ -4,64 +4,78 @@
 
 A run that committed and handed over no usable report is parked for a human,
 by `report_delivery` (its notice worded by `report_refusal_notices`) and by the
-fixing stage's own holds, and the prompt tells
-a developer that cannot finish to end on its question: the decision it is
-waiting on, and the choices it offered, are what the reply has to answer. So
-the notice quotes that message, in the blockquote form every agent output an
-issue carries is quoted in (`messages._as_blockquote`).
+fixing stage's own holds, and the prompt tells a developer that cannot finish
+to end on its question: the decision it is waiting on, and the choices it
+offered, are what the reply has to answer. So the notice quotes that message,
+in the blockquote form every agent output an issue carries is quoted in
+(`messages._as_blockquote`), with every line ending made the line feed that
+form prefixes: markdown also ends a line on a bare carriage return, and a line
+left without its prefix falls out of the quote.
 
 Quoted whole wherever one comment carries it beside the notice's own words and
 the marker every comment of ours ends on, since a notice GitHub refuses parks
 nothing. Past that ceiling the head goes and the end stays, because the prompt
-puts the question last -- the longest end whose QUOTED length fits, counted
-character by character, since a line break spends its blockquote prefix too.
+puts the question last: the longest end that fits once quoted.
 
-A whole message renders as the developer wrote it. A cut one is fenced: the
-head the cut drops can hold the opening of a code block, and the end kept
-would then expose what that block protected -- an HTML comment opener above
-all, which swallows every line after it, the question and its choices
-included. Inside a fence no line of the message can close, nothing of it is
-read as anything but text.
+Markdown hides text only through raw HTML, and raw HTML always opens on `<`:
+an HTML comment opener nothing closes swallows every line after it, the
+question and its choices included. So a message carrying `<` is quoted inside
+a code fence, where nothing reads as anything but text, and one without it
+renders as the developer wrote it. A cut one is always fenced, since the head
+the cut drops can hold the opening of a code block whose content the end kept
+would then expose.
+
+A fence ends only on a line that is a run of its own character at least as
+long, so it is made one longer than every such line it holds, and of whichever
+character -- backtick or tilde -- that leaves shorter: a message holding a
+long run of one is fenced in the other, rather than spending the room its
+question needed on two fences. A cut quote's first line, the one the cut went
+through, opens on a mark that says so and leaves it unable to close a fence.
+Only the lines the cut kept whole size the fence then, and they only grow as
+the end kept lengthens, so the longest end that fits is found by bisection.
 
 A receipt marker inside the message is kept out of the raw comment by escaping
 its opening bracket as an HTML entity. Receipts are found by searching raw
 comment text, and a comment of ours carrying one would read as the step it
 names; escaped, no search reads it, and the developer's words around it are
-still quoted.
+still quoted -- rendered as written outside code, and as the entity typed
+inside a fence or a code span, where markdown reads nothing.
 """
 from __future__ import annotations
 
-import itertools
-from collections.abc import Callable
+import bisect
+from collections.abc import Callable, Sequence
 
 from orchestrator.github import comments as _github_comments, pinned_state as _pinned_state
 from orchestrator.workflow.engine import comments as _comments, messages as _messages
 
 _QUOTED = (
-    "\n\nThe developer's last message{cut}, with any question it is waiting on "
+    "\n\nThe developer's last message{how}, with any question it is waiting on "
     "and the choices it offered:\n\n{quoted}"
 )
 
-_QUOTED_CUT = (
-    ", cut to the end of it that fits in this comment and shown as plain text"
-)
+# How the heading names a quote fenced as text, whole and cut.
+_QUOTED_AS_TEXT = ", shown as plain text"
 
-# The blockquote prefix a quote's first line opens on.
-_QUOTE_PREFIX = _messages._as_blockquote("")
+_QUOTED_CUT = ", cut to the end of it that fits in this comment and shown as plain text"
 
-# What one line break of the message spends once quoted: the break and the
-# blockquote prefix the next line opens on. Every other character spends one.
-_QUOTED_LINE_BREAK = len(_messages._as_blockquote("\n")) - len(_QUOTE_PREFIX)
+# What the first line of a cut quote opens on: the line the cut went through.
+_CUT_MARK = "..."
 
-# The receipt prefix with its opening bracket escaped: what GitHub renders as
-# the developer wrote it outside code (inside code the entity shows as typed),
-# and what no search of raw comment text reads as ours.
+# What every raw HTML construct markdown reads opens on.
+_HTML_OPENER = "<"
+
+# The line endings markdown reads beside the line feed.
+_CARRIAGE_RETURN = "\r"
+
+_CRLF = "\r\n"
+
+# The receipt prefix with its opening bracket escaped, which no search of raw
+# comment text reads as ours.
 _ESCAPED_RECEIPT_PREFIX = _github_comments.RECEIPT_MARKER_PREFIX.replace("<", "&lt;", 1)
 
-# The character a cut quote is fenced with, and the shortest fence markdown
-# has. A fence ends only on a line that is a run of its own character at least
-# as long, so it is made one longer than every such line the quote carries.
-_FENCE_CHARACTER = "`"
+# The characters a fence is built of, and the shortest fence markdown has.
+_FENCE_CHARACTERS = ("`", "~")
 
 _SHORTEST_FENCE = 3
 
@@ -74,53 +88,71 @@ def quoting_the_last_message(render: Callable[[str], str], message: str) -> str:
     sentence. A run that said nothing gets no quote at all.
 
     Measured over the body the post sends -- the notice's own words, the
-    quote's blockquote prefixes and fences, and the comment marker appended
-    to it -- so nothing is cut that the comment had room for. The fence a cut
-    quote needs depends on the end it keeps, so the end is chosen twice: under
-    the shortest fence, then under the fence that end needs. The second end
-    is part of the first, so no line of it can close that fence either.
+    quote's blockquote prefixes, fences and cut mark, and the comment marker
+    appended to it -- so nothing is cut that the comment had room for.
     """
-    said = message.strip().replace(_github_comments.RECEIPT_MARKER_PREFIX, _ESCAPED_RECEIPT_PREFIX)
+    lines = message.replace(_CRLF, "\n").replace(_CARRIAGE_RETURN, "\n")
+    said = lines.strip().replace(_github_comments.RECEIPT_MARKER_PREFIX, _ESCAPED_RECEIPT_PREFIX)
     if not said:
         return render("")
     room = _pinned_state.MAX_PINNED_BODY - len(_comments._with_orch_marker(render("")))
-    quoted = _QUOTED.format(cut="", quoted=_messages._as_blockquote(said))
+    quoted = _whole_quote(said)
     if len(quoted) <= room:
         return render(quoted)
-    fence = _fence_for(_end_within(said, room, _FENCE_CHARACTER * _SHORTEST_FENCE))
-    kept = _end_within(said, room, fence)
-    return render(_cut_quote(kept, fence) if kept else "")
+    return render(_cut_quote_within(said, room))
 
 
-def _end_within(said: str, room: int, fence: str) -> str:
-    """The longest end of `said` whose cut quote, inside `fence`, takes no more than `room`.
+def _whole_quote(said: str) -> str:
+    """The quote of the whole of `said`: as written, or as text where raw HTML could hide part of it."""
+    if _HTML_OPENER not in said:
+        return _QUOTED.format(how="", quoted=_messages._as_blockquote(said))
+    return _QUOTED.format(how=_QUOTED_AS_TEXT, quoted=_fenced(said, said.split("\n")))
 
-    Counted from the last character back, each at what it costs once quoted.
+
+def _cut_quote_within(said: str, room: int) -> str:
+    """The quote of the longest end of `said` that takes no more than `room`, or "" where none does.
+
+    Every character an end keeps costs at least one, so no end longer than
+    the room is asked about; and the cost of an end only grows as it
+    lengthens, so the ends that fit are the shortest ones. Their starts are
+    asked shortest end first, the empty one among them, which is no quote.
     """
-    spent = itertools.accumulate(
-        _QUOTED_LINE_BREAK if character == "\n" else 1 for character in reversed(said)
+    tail = said[max(0, len(said) - room):]
+    starts = range(len(tail), -1, -1)
+    fitting = bisect.bisect_right(
+        starts, room, key=lambda start: len(_cut_quote(tail[start:])),
     )
-    budget = room - len(_cut_quote("", fence))
-    kept = sum(1 for total in spent if total <= budget)
-    return said[len(said) - kept:]
+    if fitting <= 1:
+        return ""
+    return _cut_quote(tail[starts[fitting - 1]:])
 
 
-def _fence_for(text: str) -> str:
-    """The shortest fence no line of `text` can close.
+def _cut_quote(end: str) -> str:
+    """The quote of a cut message's `end`, marked as cut and fenced as text.
+
+    The mark opens the line the cut went through, so only the lines after it
+    can close a fence, and only they size it.
+    """
+    return _QUOTED.format(
+        how=_QUOTED_CUT, quoted=_fenced(f"{_CUT_MARK}{end}", end.split("\n")[1:]),
+    )
+
+
+def _fenced(text: str, lines: Sequence[str]) -> str:
+    """`text` quoted inside the shortest fence of either character that none of `lines` can close."""
+    fence = min((_fence_of(character, lines) for character in _FENCE_CHARACTERS), key=len)
+    return _messages._as_blockquote(f"{fence}\n{text}\n{fence}")
+
+
+def _fence_of(character: str, lines: Sequence[str]) -> str:
+    """The shortest fence of `character` that none of `lines` can close.
 
     A line closes a fence only by being a run of the fence character and
     nothing else, surrounding whitespace aside, so only such lines lengthen it.
     """
-    runs = (line.strip(" \t") for line in text.splitlines())
+    runs = (line.strip(" \t") for line in lines)
     longest = max(
-        (len(run) for run in runs if run and not run.strip(_FENCE_CHARACTER)),
+        (len(run) for run in runs if run and not run.strip(character)),
         default=0,
     )
-    return _FENCE_CHARACTER * max(_SHORTEST_FENCE, longest + 1)
-
-
-def _cut_quote(kept: str, fence: str) -> str:
-    """The quote of a cut message's `kept` end, fenced so nothing in it reads as markdown."""
-    return _QUOTED.format(
-        cut=_QUOTED_CUT, quoted=_messages._as_blockquote(f"{fence}\n{kept}\n{fence}"),
-    )
+    return character * max(_SHORTEST_FENCE, longest + 1)

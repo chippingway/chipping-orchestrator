@@ -5,9 +5,9 @@
 A developer that committed part of the work and needs a human's decision on the
 rest ends on its question with no report, so the run's last message is what the
 reply to that park has to answer. It is quoted whole wherever one comment
-carries it, and held to the rule every comment of this orchestrator's keeps: no
-receipt marker in its raw text, since a comment of ours carrying one reads as
-the step it names.
+carries it, as text wherever markdown could hide part of it, and held to the
+rule every comment of this orchestrator's keeps: no receipt marker in its raw
+text, since a comment of ours carrying one reads as the step it names.
 """
 
 from __future__ import annotations
@@ -25,10 +25,13 @@ _QUOTE_HEADING = "The developer's last message"
 
 _CUT = "cut to the end of it that fits in this comment and shown as plain text"
 
-# What a fence is built out of, and the shortest one markdown has.
-_FENCE_CHARACTER = "`"
+_AS_TEXT = "shown as plain text"
 
-_SHORTEST_FENCE = _FENCE_CHARACTER * 3
+# What a fence is built out of, either character, and the shortest one
+# markdown has.
+_FENCE_CHARACTERS = ("`", "~")
+
+_SHORTEST_FENCE = 3
 
 # A decision whose question and first choice open the message and whose second
 # choice closes it, with an account between them far longer than the budget a
@@ -68,8 +71,24 @@ _QUOTED_MESSAGES = (
     ),
 )
 
-# The decision an oversized message ends on, as the prompt asks.
+# The decision an oversized message ends on, as the prompt asks, and the
+# lines a human has to read of it.
 _DECISION = f"{_ASKED}\n\n{_FIRST_CHOICE}\n{_SECOND_CHOICE}"
+
+_DECISION_LINES = (_ASKED, _FIRST_CHOICE, _SECOND_CHOICE)
+
+# A decision behind an HTML comment opener nothing closes, which as markdown
+# would swallow every line after it.
+_BEHIND_AN_OPENER = f"The template begins with this line:\n\n<!-- release notes\n\n{_DECISION}"
+
+# Messages that fit whole, and whether each is quoted as text: one carrying
+# raw HTML is, its line endings made the ones the blockquote prefixes even
+# where they are bare carriage returns, and plain markdown renders as written.
+_RENDERED_MESSAGES = (
+    ("an HTML comment opener", _BEHIND_AN_OPENER, True),
+    ("that opener on bare carriage returns", _BEHIND_AN_OPENER.replace("\n", "\r"), True),
+    ("plain markdown", _DECISION, False),
+)
 
 # A code example whose opening fence the cut drops: what that fence kept as
 # text -- an HTML comment opener above all -- would otherwise be read again,
@@ -78,16 +97,24 @@ _LOG_LINES = "log line\n" * (MAX_PINNED_BODY // len("log line\n"))
 
 _FENCED_EXAMPLE = f"```text\n{_LOG_LINES}<!-- example opener\n```"
 
+# A run of backticks too long for two backtick fences to fit in one comment
+# beside anything else, which the decision still has to fit after.
+_LONG_RUN = "`" * (MAX_PINNED_BODY // 2 + 1)
+
 # Heads one comment cannot carry before that decision, and how short of the
 # ceiling the cut notice may fall. With no line breaks every character cut
 # shortens the comment by exactly one, so the cut is exact; across many short
 # lines the character just past the cut may be a break, which spends its
 # blockquote prefix too -- and counted as one character apiece, those breaks
-# would cut the decision away with the head.
+# would cut the decision away with the head. The line a cut goes through is
+# marked as cut, so a run of the fence's own character it leaves cannot end
+# the fence early.
 _OVERSIZED_HEADS = (
     ("no line breaks", "x" * MAX_PINNED_BODY, 1),
     ("many short lines", "x\n" * (MAX_PINNED_BODY // 2), len("\n> ")),
     ("a fenced example cut open", _FENCED_EXAMPLE, len("\n> ")),
+    ("a backtick run longer than half the comment", f"{_LOG_LINES}{_LONG_RUN}", len("\n> ")),
+    ("a backtick run the cut goes through", "`" * MAX_PINNED_BODY, 1),
 )
 
 
@@ -120,18 +147,39 @@ class UnreportedRunNoticeTest(unittest.TestCase):
         # comment marker counted, so nothing is dropped that the comment had
         # room for. The end kept is fenced, so whatever the cut opened -- a
         # code example's HTML comment opener among it -- reads as text and
-        # the decision after it stays on screen.
+        # the decision after it stays on screen; and the fence is of the
+        # character that leaves it shorter, so a long run of backticks before
+        # the decision is fenced in tildes rather than leaving no room for it.
         for described, head, slack in _OVERSIZED_HEADS:
             with self.subTest(head=described):
                 notice = _notice(self, f"{head}\n{_DECISION}")
 
                 self.assertEqual(
                     (
-                        [line for line in _DECISION.splitlines() if line and line not in _fenced_quote(notice)],
+                        [line for line in _DECISION_LINES if line not in _fenced_quote(notice)],
                         _CUT in notice,
                         MAX_PINNED_BODY - len(notice) in range(slack),
                     ),
                     ([], True, True),
+                )
+
+    def test_raw_html_is_quoted_as_text(self) -> None:
+        # Markdown hides text only through raw HTML: an HTML comment opener
+        # nothing closes swallows every line after it, the decision included,
+        # however short the message. A message carrying any is quoted inside a
+        # fence, where the decision reads as the text it is; one without any
+        # renders as the developer wrote it.
+        for described, message, as_text in _RENDERED_MESSAGES:
+            with self.subTest(message=described):
+                notice = _notice(self, message)
+
+                self.assertEqual(
+                    (
+                        [line for line in _DECISION_LINES if line in _fenced_quote(notice)],
+                        _AS_TEXT in notice,
+                        _CUT in notice,
+                    ),
+                    (list(_DECISION_LINES) if as_text else [], as_text, False),
                 )
 
 
@@ -145,17 +193,23 @@ def _fenced_quote(notice: str) -> list[str]:
     quoted = [_unquoted(line) for line in notice.splitlines() if line.startswith(">")]
     fence = quoted[0] if quoted else ""
     inside = quoted[1:-1]
-    if not _closes(fence, _SHORTEST_FENCE) or quoted[-1] != fence:
+    if not _opens_a_fence(fence) or quoted[-1] != fence:
         return []
     if any(_closes(line, fence) for line in inside):
         return []
     return inside
 
 
+def _opens_a_fence(line: str) -> bool:
+    """Whether `line` is a fence: a run of one fence character alone, at least the shortest one long."""
+    character = line[:1]
+    return character in _FENCE_CHARACTERS and _closes(line, character * _SHORTEST_FENCE)
+
+
 def _closes(line: str, fence: str) -> bool:
     """Whether `line` ends `fence`: a run of its character alone, at least as long, whitespace aside."""
     run = line.strip()
-    if not run or run.strip(_FENCE_CHARACTER):
+    if not run or run.strip(fence[0]):
         return False
     return len(run) >= len(fence)
 

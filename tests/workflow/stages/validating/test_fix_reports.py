@@ -19,8 +19,10 @@ from __future__ import annotations
 
 import unittest
 from types import MappingProxyType
+from unittest.mock import MagicMock
 
 from orchestrator import config
+from orchestrator.agents.models import ToolLifecycle
 from orchestrator.workflow.engine import report_delivery as _report_delivery
 from tests.workflow import (
     drift_reports as _drift_world,
@@ -142,6 +144,32 @@ NEXT_ROUNDS = (
         {**dict.fromkeys((*HELD_WORDS, UNDESCRIBED_WORDS), True), f"> {CUT_OFF}": False},
     ),
 )
+
+
+# A first round that commits nothing and asks first, the answer to it, and
+# the next question of the round after the one that answer resumes.
+FIRST_ASK = "May I commit the first fix?"
+
+FIRST_ANSWER = "Yes, commit the first fix."
+
+LATER_ASK = "Should the follow-up also change the documentation?"
+
+# What a round answering under a fenced example of the report block leaves the
+# checkout on: a head that moved, or one nobody could read, which may carry a
+# commit all the same.
+MISREAD_HEADS = (("a new commit", world.FIXED_HEAD), ("an unread head", ""))
+
+# An Antigravity round that leaves a command running, so nothing can say what
+# it finished, and the operator's retry of the park that earns.
+UNFINISHED_COMMAND = _agent(
+    session_id=world.DEV_SESSION,
+    exit_code=1,
+    unfinished_steps=(ToolLifecycle(step_index=1, tool_name="run_command", state="ACTIVE"),),
+)
+
+RETRY = "/orchestrator continue"
+
+EXECUTION_FAILED = "agent_execution_failed"
 
 
 # Rounds that committed and did not finish, beside the park each takes and the
@@ -307,6 +335,48 @@ class RequestedFixReportTest(unittest.TestCase, world._FixReportMixin):
                 )
 
 
+    def test_an_unfinished_command_keeps_its_retry(self) -> None:
+        # A round resumed over held work that leaves an Antigravity command
+        # unfinished publishes nothing, and its own park is the one whose
+        # retry replays the reviewer's feedback on a fresh session instead of
+        # resuming the session that failed. So it parks there, its work still
+        # recorded as undescribed, and the report that retry writes is the
+        # one that hands the held commit over.
+        self.seeded(ISSUE, PR, LABEL_VALIDATING, dev_agent="agy")
+        self.requested_fix(FIX_QUESTION)
+        world.replied(self, FIX_DECISION)
+
+        failed = self._ticked(
+            self._run_fixing, MagicMock(return_value=UNFINISHED_COMMAND), **_drift_world.STRANDED,
+        )
+
+        failed[PUSH_BRANCH].assert_not_called()
+        self.assertEqual(
+            (
+                self.pinned()[PARK_REASON],
+                self.pinned()[_report_delivery.UNREPORTED_WORK],
+                self.pull_request.head.sha,
+            ),
+            (EXECUTION_FAILED, True, world.PUBLISHED_HEAD),
+        )
+        world.replied(self, RETRY)
+
+        retried = self.parked_resume(world.reported(), **_drift_world.STRANDED)
+
+        retried[RUN_AGENT].assert_called_once()
+        attempt = retried[RUN_AGENT].call_args
+        self.assertEqual(
+            (
+                attempt.kwargs["options"].resume_session_id,
+                world.REPORT_ONLY_FEEDBACK in attempt.args[1],
+                retried[PUSH_BRANCH].call_count,
+                self.pull_request.head.sha,
+                self.pinned().get(_report_delivery.UNREPORTED_WORK),
+            ),
+            (None, True, 1, world.FIXED_HEAD, None),
+        )
+
+
 class RequestedFixRefusalTest(unittest.TestCase, world._FixReportMixin):
     """The rounds that publish nothing, and what each of them leaves."""
 
@@ -373,6 +443,33 @@ class RequestedFixRefusalTest(unittest.TestCase, world._FixReportMixin):
                     (True, _report_delivery.UNDELIVERABLE_REPORT, True, 0, world.PUBLISHED_HEAD),
                 )
                 self.assertEqual(_carried(self, quoted), quoted)
+
+    def test_a_misread_holds_a_possible_commit(self) -> None:
+        # A round the first answer resumed, with nothing held yet, answers
+        # under a fenced example of the report block: a misread, parked for a
+        # human whatever it left. A head that moved, or one nobody could read,
+        # may carry a commit, so that work is recorded as undescribed: with
+        # nothing held, the round the next answer resumes reads the head
+        # again, asks another question, and pushes the commit with no report.
+        for described, after in MISREAD_HEADS:
+            with self.subTest(head=described):
+                self.seeded(ISSUE, PR, LABEL_VALIDATING)
+                self.requested_fix(FIRST_ASK, committed=False)
+                world.replied(self, FIRST_ANSWER)
+                self.parked_resume(NEXT_MISREAD, **{world.HEAD_SHAS: (world.PUBLISHED_HEAD, after)})
+                world.replied(self, FIX_DECISION)
+
+                mocks = self.parked_resume(LATER_ASK, **_drift_world.STRANDED)
+
+                mocks[PUSH_BRANCH].assert_not_called()
+                self.assertEqual(
+                    (
+                        self.pinned()[PARK_REASON],
+                        self.pinned()[_report_delivery.UNREPORTED_WORK],
+                        self.pull_request.head.sha,
+                    ),
+                    (_report_delivery.UNDELIVERABLE_REPORT, True, world.PUBLISHED_HEAD),
+                )
 
     def test_an_unfinished_round_parks_for_a_report(self) -> None:
         # The engine exempts a run that did not COMPLETE from the report

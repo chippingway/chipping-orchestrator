@@ -56,6 +56,10 @@ _UNDESCRIBED_PHRASE = "branch carries committed work no report describes"
 
 _STALLED_PHRASE = "no road left on this workflow can get it there"
 
+# Whether a report was owed, and the head a misread round left: one that
+# moved, over a debt and over none, and one nobody could read.
+_MISREAD_COMMITS = ((True, support.MOVED_SHA), (False, support.MOVED_SHA), (False, ""))
+
 # The park reason somebody else's question left standing.
 _ASKED_A_QUESTION = "agent_question"
 
@@ -157,15 +161,14 @@ class ReportedRoundContractTest(unittest.TestCase, support.FixingReportCase):
         # and over none, the round the reply resumes would push it as a
         # stranded commit the moment it asked its next question with no new
         # commit -- while the notice promises it is held for a valid report.
-        for owed in (True, False):
-            with self.subTest(owed=owed):
+        # A head nobody could read may carry such a commit as well.
+        for owed, head in _MISREAD_COMMITS:
+            with self.subTest(owed=owed, head=head):
                 self.setUp()
                 if owed:
                     self.state.set(_report_delivery.OWED_REPORT, True)
 
-                self.assertTrue(
-                    self._holds(support.MISREAD_MESSAGE, after_sha=support.MOVED_SHA),
-                )
+                self.assertTrue(self._holds(support.MISREAD_MESSAGE, after_sha=head))
 
                 self.assertTrue(posted_comment_contains(self.gh, _MISREAD_PHRASE))
                 self.assertTrue(self.pinned().get(_report_delivery.UNREPORTED_WORK))

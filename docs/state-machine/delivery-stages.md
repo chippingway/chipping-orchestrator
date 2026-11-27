@@ -6910,8 +6910,11 @@ of those recoverable without telling a human twice
      record describes the branch before that commit -- or that brings no report while work a park over committed work
      with no report holds is still undescribed, committed or not, which is how a round resumed on a decision that asks
      the next question reads. Left to the stranded-commit push below, a round that committed nothing would publish the
-     very commit that park held. A misread that committed raises the same undescribed-work flag, report owed or not,
-     so the round its reply resumes is held the same way. Both notices quote a finished run's last message, so that
+     very commit that park held. A misread whose head moved or could not be read raises the same undescribed-work flag,
+     report owed or not, so the round its reply resumes is held the same way. An Antigravity command left unfinished is
+     the exception: it publishes nothing, so it keeps its own `agent_execution_failed` park, whose
+     `/orchestrator continue` replays the feedback on a fresh session, with the flag recorded beside it so a retry that
+     brings no report is held. Both notices quote a finished run's last message, so that
      next question and its choices reach the human, and both ask for the decision and keep the committed work
      unpublished until the resumed session supplies a valid report; a run that did not finish, a timeout among them,
      is quoted nothing, since its last words are where it was cut off rather than a question it asked. The head is

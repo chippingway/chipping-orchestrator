@@ -323,18 +323,24 @@ needs a decision on the rest ends on that question, as above. So the notice quot
 question and any choices it offered reach the human. A blank message is not quoted. The rest is quoted whole wherever
 one GitHub comment carries it beside the notice's own words and the comment marker, and only past that ceiling is the
 head cut, keeping the longest end that fits once quoted -- every line break spends its blockquote prefix too -- so the
-question at the end stays. That end is shown as plain text, inside a code fence longer than any fence line it keeps:
-the cut can drop the opening fence of a code example, and an HTML comment opener the example held would otherwise hide
-the question and choices after it. The receipt prefix is quoted with its opening bracket escaped as an
-HTML entity, so the raw comment carries no receipt while the developer's words still render. A reply carrying the
-decision resumes the developer session, and the commit stays held in the worktree until that session supplies a valid
-report.
+question at the end stays, with the line the cut went through marked by a leading `...`. Markdown hides text only
+through raw HTML, and raw HTML opens on `<`: an HTML comment opener nothing closes swallows every line after it. So a
+message carrying `<`, and every cut end, is shown as plain text inside a code fence. The cut can also drop the opening
+fence of a code example, and the fence keeps what that example held from being read as markdown. The fence is made one
+longer than any line inside it that could close it, from backticks or tildes, whichever is shorter, so a long run of
+one fence character before the question does not use up the room the question needs. The receipt prefix is quoted with
+its opening bracket escaped as an HTML entity, so the raw comment carries no receipt while the developer's words still
+read; inside a fence or a code span the entity shows as typed. A reply carrying the decision resumes the developer
+session, and the commit stays held in the worktree until that session supplies a valid report.
 
 The fixing stage holds the rounds that reply resumes the same way. Until a report describes the held work, a round
 that answers with no report is parked under `report_undeliverable` with nothing pushed, whether it committed again or
 only asked the next question; a round that committed nothing would otherwise publish the held commit as a stranded
 one. A message that reached for the report contract and missed, such as a fenced example of a report block above the
-question, parks under its own notice, and a commit it made is held as undescribed work too. Each of these notices
+question, parks under its own notice, and a commit it may have made -- the head moved, or could not be read -- is held
+as undescribed work too. An Antigravity round that leaves a command unfinished publishes nothing and keeps its own
+`agent_execution_failed` park, whose `/orchestrator continue` replays the reviewer's feedback on a fresh session; the
+held work stays recorded as undescribed, so a retry that brings no report is held again. Each of these notices
 quotes the run's last message the same way, so the next question and its choices reach the human, asks for the
 decision, and says the committed work stays held until a valid report describes it. A round that did not finish, such
 as one the timeout cut off after committing, parks the same way with nothing quoted: its last words are where it

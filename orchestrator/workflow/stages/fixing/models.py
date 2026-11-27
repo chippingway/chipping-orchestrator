@@ -286,3 +286,12 @@ class _FixingResumeRun:
     after_sha: str | None
     reported: bool = False
     requirements_revision: str = ""
+
+    @property
+    def may_have_committed(self) -> bool:
+        """Whether the head moved over this run, or could not be read after it.
+
+        Either may carry a commit: a probe that answered nothing says only that
+        nobody could tell, never that nothing was committed.
+        """
+        return not self.after_sha or self.after_sha != self.before_sha

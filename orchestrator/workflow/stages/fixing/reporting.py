@@ -237,6 +237,14 @@ def _holds_for_a_human(
     not finish is held too, a timeout among them: the timeout park's
     recovery is a push as well.
 
+    One that did not finish is left to its own park only where nothing it
+    leaves can publish: a command execution it left unfinished. That run
+    publishes nothing -- no road behind this pushes past an unfinished step
+    -- and its park is the one whose `/orchestrator continue` replays the
+    reviewer's feedback on a fresh session, which a park here would turn into
+    a resume of the session that failed. Its work is recorded as undescribed
+    all the same, so the retry that answers with no report is held here.
+
     The work is then recorded as UNDESCRIBED, which is what stops every later
     road binding over it, and the reply the park earns resumes the developer:
     the report that session writes describes the branch as it stands and
@@ -264,22 +272,26 @@ def _holds_for_a_human(
     work even with no report owed: the debt-free round a question park
     resumed has a commit no report describes all the same, and with the flag
     down the round the reply resumes, asking its next question with no new
-    commit, would push it through the same stranded-commit tail. The notice
-    is the misread one there, since the reply is what the human has to fix
-    and the report their reply earns retires both.
+    commit, would push it through the same stranded-commit tail. A misread
+    whose head nobody could read is undescribed as well, unlike the second
+    reading's: it parks here whatever the head was, and the round its reply
+    resumes reads the head afresh and would push whatever this one left. The
+    notice is the misread one there, since the reply is what the human has
+    to fix and the report their reply earns retires both.
     """
-    misread = not run.reported and _report_outcomes._reached_for_a_report(
-        run.dev_result,
-    )
-    committed = bool(run.after_sha) and run.after_sha != run.before_sha
-    undescribed = not run.reported and (
-        bool(ctx.state.get(_report_delivery.UNREPORTED_WORK))
-        or (committed and (misread or _report_delivery.owes_a_report(ctx.state)))
+    if run.reported:
+        return False
+    misread = _report_outcomes._reached_for_a_report(run.dev_result)
+    undescribed = bool(ctx.state.get(_report_delivery.UNREPORTED_WORK)) or (
+        run.may_have_committed
+        and (misread or (bool(run.after_sha) and _report_delivery.owes_a_report(ctx.state)))
     )
     if not misread and not undescribed:
         return False
     if undescribed:
         ctx.state.set(_report_delivery.UNREPORTED_WORK, True)
+    if run.dev_result.unfinished_steps:
+        return False
     if _dev_session_read._is_session_limit(run.dev_result):
         # The quota stopped this run, and the quota is what a human waits
         # out: the same debt, under the session limit a bare continue retries.

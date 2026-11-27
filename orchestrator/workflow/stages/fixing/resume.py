@@ -305,7 +305,7 @@ def _fixing_ack_fast_path(
         return False
     if _report_delivery.owes_a_report(ctx.state):
         return False
-    if not run.after_sha or run.after_sha != run.before_sha:
+    if run.may_have_committed:
         return False
     ack_reason = _messages._drift_ack_reason(run.dev_result.last_message or "")
     if not ack_reason or not _stranded._stranded_evidence(
