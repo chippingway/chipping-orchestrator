@@ -11,6 +11,12 @@ from orchestrator.config import credentials
 _REDACTION_MARKER = "***"
 _CONFIGURED_TOKENS = "orchestrator.config.GITHUB_TOKENS"
 
+# A secret-shaped environment value a configured token repeats.
+_ENVIRONMENT_SECRET = "sk-environment-value-1"
+
+# A secret value ending on the mask, which a replacement can complete.
+_COMPLETED_BY_MASK = f"fixture-prefix{_REDACTION_MARKER}"
+
 
 def _patched_env(**env_values: str):
     return patch.dict(os.environ, env_values, clear=False)
@@ -98,3 +104,30 @@ class RedactionBoundaryTest(unittest.TestCase):
 
     def test_empty_input_passthrough(self) -> None:
         self.assertEqual(credentials.redact_secrets(""), "")
+
+
+class SecretSelectionTest(unittest.TestCase):
+    """The one selection of values the redactor masks, which every credential search reads."""
+
+    def test_environment_secrets_come_before_tokens(self) -> None:
+        # Secret-shaped environment values first, then each configured token
+        # long enough to mask; a value both hold is a pass of each. Nothing else.
+        tokens = ("ghp_configuredtokenvalue", "short", _ENVIRONMENT_SECRET)
+        environment = _patched_env(SELECTION_TEST_TOKEN=_ENVIRONMENT_SECRET, SELECTION_TEST_NAME="not-a-secret-value")
+        with environment, patch(_CONFIGURED_TOKENS, tokens):
+            selected = credentials.secret_values()
+        self.assertEqual(selected[-2:], ("ghp_configuredtokenvalue", _ENVIRONMENT_SECRET))
+        self.assertIn(_ENVIRONMENT_SECRET, selected[:-2])
+        self.assertNotIn("short", selected)
+        self.assertNotIn("not-a-secret-value", selected)
+
+    def test_a_repeated_value_masks_again(self) -> None:
+        # The second pass completes the first value with its mask, and the
+        # third pass, holding that value again, masks the result.
+        environment = {
+            "SELECTION_TEST_FIRST_PASSWORD": _COMPLETED_BY_MASK,
+            "SELECTION_TEST_SECOND_PASSWORD": "fixture-replacement",
+            "SELECTION_TEST_MIRRORED_PASSWORD": _COMPLETED_BY_MASK,
+        }
+        with patch.dict(os.environ, environment, clear=True), patch(_CONFIGURED_TOKENS, ()):
+            self.assertEqual(credentials.redact_secrets("fixture-prefixfixture-replacement"), _REDACTION_MARKER)

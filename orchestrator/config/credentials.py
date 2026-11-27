@@ -6,7 +6,9 @@ Redaction lives beside the token resolver because the two answer one
 question -- which strings in this process are credentials -- and because it
 belongs below every consumer that needs it: agent-stderr diagnostics, verify
 output, and the analytics trajectory sink all mask secrets, and reaching a
-workflow-layer helper for that would point the dependency edge upwards.
+workflow-layer helper for that would point the dependency edge upwards. Which
+values are credentials is chosen once (`secret_values`): the redactor masks by
+that selection, and the analytics observation search reads it too.
 """
 from __future__ import annotations
 
@@ -75,28 +77,28 @@ def is_secret_environment_value(key: str, env_value: str) -> bool:
     )
 
 
-def redact_environment_secrets(text: str) -> str:
-    """Replace every secret-shaped process environment value."""
-    redacted = text
-    for key, env_value in os.environ.items():
-        if is_secret_environment_value(key, env_value):
-            redacted = redacted.replace(env_value, "***")
-    return redacted
+def secret_values() -> tuple[str, ...]:
+    """Every replacement pass the redactor makes, in its order: the value each one masks.
 
-
-def redact_configured_github_tokens(text: str) -> str:
-    """Redact every configured repository's PAT, file-backed ones included."""
+    The process environment's secret-shaped values first, then every
+    configured repository's token long enough to mask, file-backed ones
+    included. A value two sources hold is listed for each: one replacement
+    can complete a value an earlier pass found nothing of, so a later pass
+    for it still masks the result. This is the one selection: anything
+    searching text for credentials beside the redactor reads it here, so a
+    source added to it reaches every search at once.
+    """
     # The resolved tokens are read off `orchestrator.config` at call time, not
     # bound at import: this leaf is imported while that module is still
     # building its namespace, and the setting stays an independently
     # patchable module attribute that a settings reload rebinds.
     from orchestrator import config
 
-    redacted = text
-    for token in config.GITHUB_TOKENS:
-        if len(token) >= _REDACT_MIN_VALUE_LEN:
-            redacted = redacted.replace(token, "***")
-    return redacted
+    found = [
+        env_value for key, env_value in os.environ.items() if is_secret_environment_value(key, env_value)
+    ]
+    found.extend(token for token in config.GITHUB_TOKENS if len(token) >= _REDACT_MIN_VALUE_LEN)
+    return tuple(found)
 
 
 def redact_secrets(text: str) -> str:
@@ -116,4 +118,7 @@ def redact_secrets(text: str) -> str:
     # process env, in which case the environment scan never sees it. The
     # explicit token pass also covers git/gh stderr that quotes a file-backed
     # credential.
-    return redact_configured_github_tokens(redact_environment_secrets(text))
+    redacted = text
+    for secret in secret_values():
+        redacted = redacted.replace(secret, "***")
+    return redacted

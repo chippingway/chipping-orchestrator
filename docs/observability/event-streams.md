@@ -791,6 +791,117 @@ vocabulary) or serialized, and anything unexpected — and reports it on `orches
 issue and the failure's *type*, never the exception's own words, which are the same unbounded content the record is
 bounded against. Either way one candidate's record is the whole cost: every candidate behind it is still recorded.
 
+### Task snapshot records
+
+A developer's own short description of its task, bound to the requirements revision its conversation was handed, and
+the reason a reply yielded none. The recorder that writes them, `observations/recorder.py`, is complete and tested, but
+no producer calls it yet, so no current build writes either kind: this section is the format and the guarantees that
+writer keeps. Two event kinds share one payload version, `observation_version` (currently `1`), which moves whenever a
+field here changes meaning. Nothing in the workflow reads either back
+([C-12](../contracts.md#c-12-observation-and-the-audit-recovery-exception)).
+
+**The attachment.** A reply carries a snapshot as one line: the `ANALYTICS:` prefix, the kind, the version, and a JSON
+object, `ANALYTICS: task-snapshot v1 {"description": "..."}`. A JSON string escapes its line breaks, so nothing inside
+the line can open another a workflow reader reacts to. The caller hands the reply exactly as the agent wrote it, with
+where its report outcome begins (its length where it has none) and which lines a code fence may enclose. A line
+opening on the prefix that no fence encloses is an attachment line, running to the next line feed as the report and
+fence readers frame a line, its own every carriage return but the one before that line feed; a fenced one
+is code the reply quotes, neither read nor counted. Exactly one such line ending before the outcome, of the current
+kind and version over an object of one non-blank `description` written once, is the snapshot. Nothing is redacted or
+repaired first, so a key written twice is `malformed` rather than the last of its values, and a credential's line break
+written raw inside the JSON leaves the line as malformed as it was written.
+
+**Fields both kinds carry.** The `ts` / `repo` / `issue` / `event` / `stage` envelope, and:
+
+- `observation_version` — `1`.
+- `source` — the invocation the reply came back from, every field of its `AgentInvocation` identity whole: `repo`,
+  `issue`, `comment` (the pinned comment its charge was written on), `cycle` (`0` where the record named none, `null`
+  where it was damaged), `ordinal` (the lifetime charge it was started under), and `nonce`. That is what joins the
+  record to its run's own records, since a session id is shared by every resume and a round counter resets.
+- `route` — the road the run came down, as its caller names it.
+- `report_outcome` — the verdict the caller's report reader reaches on the reply: `ready`, `verified`, `malformed`,
+  or `no_marker`. Dropped where the recording failed before framing the reply.
+- `requirements_revision` — the requirements fingerprint the conversation that wrote the reply was handed, as its
+  caller hands it. Dropped where it holds none.
+- `task_ref` — `<repo>#<issue>@<revision>`, the reference a later reader names the snapshot by, spelled by the one
+  formatter (`records.task_reference`) from the revision the run's report is stamped with. Dropped where the
+  repository or that revision is unknown.
+
+`task_snapshot` adds `attachment_version` (`1`, the attachment format it was read from) and `description`.
+`observation_diagnostic` adds `item` (`task-snapshot`), `category`, `counts` — `found`, the attachment lines in the
+reply, and `readable`, how many of them read as a snapshot (`0` or `1`), which says nothing about what reached the
+sink; empty where the recording failed before it read any — an `excerpt` of the refused lines where there are any, and
+`error`, the failed step's exception type, where the recorder itself failed. A reply yields either one snapshot or one
+diagnostic:
+
+| `category` | What it means |
+| --- | --- |
+| `missing` | No attachment line in the reply at all, whatever it ends on. |
+| `malformed` | The line is not the prefix, kind, and version over a JSON object of one non-blank `description`. |
+| `unsupported` | Another attachment kind or version than the one this build reads. |
+| `misplaced` | The one line reaches past where the outcome begins; it is never read there. |
+| `duplicate` | Two or more lines anywhere in the reply; none is read, since which was meant is a guess. |
+| `oversized` | The line is past 4,000 characters, refused before its JSON is decoded. |
+| `parse_failed` | Framing the reply against its report outcome or reading the attachment raised. |
+| `redaction_failed` | Redaction raised; nothing is excerpted. |
+| `serialization_failed` | A record would not serialize, or its line was still refused with its texts dropped. |
+
+**Bounded text.** `description` and `excerpt` are objects: `text`, the head kept; `chars`, the whole length; and
+`truncated`, whether `text` is less than that. Only these telemetry copies are redacted, and before anything cuts or
+serializes them. Each value the redactor masks is searched for as every spelling a JSON string can give it: the
+text is read one piece at a time — a character as written, or an escape starting there, whatever escape came before
+it — every place each prefix of the credential's spelling can reach is kept, and every piece on some complete
+spelling is traced back. So a credential escaped once is found whatever escape its first character sits behind, and
+every spelling is found whole, from each start to each end, overlapping ones included, before any text is replaced,
+since the redactor replaces one value at a time and a credential inside or overlapping another would leave the
+other's ends behind; each match is widened over every escape either end of it sits inside. The places kept are
+bounded by a fixed amount per character searched, a search stops once no place can continue a spelling, and past the
+bound the whole text counts as the credential. A character's escape is itself read the same way, nested up to eight
+levels, so a credential inside JSON a description quotes — escaped once more — is found wherever each level's escapes
+start, whatever came before them, and each place one sits is kept as a span of the reply. Each of a credential's line
+breaks is read as any line break — a carriage return, a line feed, or the two in turn, written or escaped — since a
+reply's line breaks need not be the credential's: an agent may write CRLF, and a backend may read the reply back with
+universal newlines, as Codex's last-message file is. Only the search reads them alike; the reply is never normalized,
+so the reader's offsets and categories stand. The reply is also read for an escape nested past those eight levels, by
+the same rule: tried wherever it may start, whatever came before it, so a backslash written as it is before one cannot
+shift how deep it reads. A credential could continue from a shown text into such an escape, so a reply holding one
+shows no text — `text` gone, `chars` kept, `truncated` true, the category kept — and neither does one whose reading for
+it runs past the work bound. A reply with no text to show is not searched at all. An excerpt
+shows every part of a span it covers as the redactor's mask, and a description is decoded again from where the reply
+writes its JSON string, every character decoded from inside a span masked. Each text is then searched once more as
+assembled and unmasked, since joining refused lines can bring a credential's parts together; what both searches found is
+masked at once, and the credential redactor runs over it. The whole text is then searched in the sink's own encoding,
+since serializing can spell a credential out of characters it escapes and a cut would leave only its first part for the
+line's check: a text that spells one there keeps its length alone. All of this happens before the text is cut.
+Serializing can still make a credential of what was none — a value spelled in the escapes the sink writes, or
+holding the quotes a text is written between — so the line the sink would
+write is searched last, whole and two levels deeper than the reply, and a record whose line still holds one, or holds
+an escape nested deeper still, keeps no text: `text` gone, `chars` kept, `truncated` true. A fallback diagnostic is
+searched the same way, and one whose line holds a credential is not written. Only once every credential is
+masked as written is a NUL character or a surrogate code point, which the database's `jsonb` refuses and whose one
+value would roll back the replay of every record beside it, written as the replacement character, one for one: a
+credential holding one — a byte the environment carried as a lone surrogate — is masked whole first. A description
+keeps 1,000 characters and an excerpt 500; a record past 8,192 bytes drops its text whole — `text` gone, `chars` kept,
+`truncated` true — and never cuts an identifier, and one still past it is a `serialization_failed` diagnostic. Only the
+telemetry copy is bounded: nothing shortens what an agent was handed or what the workflow publishes. Each line is the
+sink's own canonical encoding, so the sync replays it into `analytics_events` — `stage` in its column and every other
+field in `extras` — with no schema change. The credentials searched for are the redactor's own selection
+(`config.credentials.secret_values`): secret-shaped environment values and the configured GitHub tokens, not issue or
+repository content, so a description is a developer's words in cleartext.
+
+**Best effort, behind one boundary.** Where the sink is is read first, behind a guard of its own: settings that will not
+read are one warning, and nothing is recorded. With the sink off — `ANALYTICS_LOG_PATH` empty or `off` / `disabled` /
+`none` — nothing is framed, read, redacted, or written. The whole path then — the caller's framing of the reply, handed
+over as a callable so it runs inside the guard, reading the attachment, redacting, bounding, serializing, and
+appending — runs inside one guard, and the lines go to disk through `sink.write_jsonl_lines` under the sink's own lock
+so a refused append reaches that guard instead of the sink's `log.warning`. A step that fails before the append becomes
+a diagnostic. A refused append — the snapshot or a refused reply's diagnostic lost with it — and a diagnostic that
+cannot be written either each become one warning on `orchestrator.analytics`, naming the issue, the invocation's
+charge ordinal, and the failures' types — no field a refused line could have held a credential in — and nothing more
+is written or tried again. The warning is attempted once inside the recorder's guard: a logger that fails loses it
+with the observation, never the caller's run. A lost record owes no export queue, checkpoint, or agent
+run, and the recorder needs no usage parse, no trajectory sink, and no database.
+
 ## Agent-run budget records (both sinks)
 
 The per-issue lifetime agent-run ledger writes to **both** streams, deliberately: the audit copy has to answer offline
