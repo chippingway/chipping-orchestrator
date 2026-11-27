@@ -1966,12 +1966,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the fences of the whole reply or, where those do not read, of its report body, and, where
                             neither reads and the report body holds such a line, every one held by the placeholder and
                             the report refused by a line past its outcome, with one warning; and the framing the
-                            recorder is told -- where the outcome begins, the lines a fence may enclose, and the
+                            recorder is told -- where the outcome begins, at the first marker line no fence may
+                            enclose, the lines a fence may enclose, and the
                             verdict the workflow reaches on that reply
     task_snapshots.py       which developer attempts are asked for a task snapshot -- every one on the first
                             implementation's road or an implementing resume's, and none else -- the request appended to
                             the prompt each is handed, and the receipt of each return on those roads: with the analytics
-                            sink on, a genuine one -- judged by the run's status, its provider's own verdict, and the
+                            sink on, a genuine one -- judged by the run's status, a Codex turn's closing event ahead
+                            of the reply's prose, its provider's own verdict, and the
                             road's reading of a CLI refusal (`completion_roads.Attempt.refused`) -- handed to the
                             analytics recorder with its invocation, the requirements its conversation was handed
                             (`task_snapshot_grounding.py`), the repository and revision its report is published under
@@ -4752,9 +4754,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             delivered, so a launch the run circuit refused, a shutdown kill, and a live pause
                             consume nothing while a timeout, an empty result, and a question park all do
       resume_batch.py       the frozen reply batch every `implementing` and `validating` awaiting-human resume
-                            reads: ONE whole-thread fetch, by the pinned comment's id, from which the quoted
-                            followup, the delivery record naming exactly the quoted ids, the whole and the retry
-                            re-grounding conversations, and command ownership are all cut. Each stage's handler
+                            reads: ONE whole-thread fetch, by the pinned comment's id, each comment copied as it is
+                            read, from which the quoted followup, the delivery record naming exactly the quoted
+                            ids, the whole and the retry re-grounding conversations, the fingerprints a resume's
+                            task snapshot is bound to, and command ownership are all cut, so a comment edited
+                            before the launch or mid-run moves none of them. Each stage's handler
                             freezes it once per parked tick and hands it to every road that tick takes. The
                             measurement retry is asked of the delivered replies, and so is the parked-continue
                             classifier where a caller says it looked at an earlier read (`continue_claimed`,

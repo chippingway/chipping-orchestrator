@@ -99,7 +99,7 @@ def _line(description: str) -> str:
 
 def _attached(reply: str, line: str) -> str:
     """`reply` with `line` on a line of its own just above its outcome."""
-    at = _replies._outcome_start(reply)
+    at = _replies._outcome_start(reply, _fences._fenced_line_starts(reply))
     head, tail = reply[:at], reply[at:]
     opened = head if not head or head.endswith("\n") else f"{head}\n"
     return f"{opened}{line}\n{tail}"

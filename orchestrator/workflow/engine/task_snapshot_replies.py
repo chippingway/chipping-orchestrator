@@ -25,9 +25,11 @@ how it is kept out never moves the reply's framing:
 
 The verdict the workflow reaches is the report reader's reading of that
 reply, and so is the one the recorder is told (`framing`): where the
-outcome begins in the reply as written, which lines a fence may enclose, and
-what the reply the workflow reads ends on -- `ready`, `verified`, or the
-refusal's own spelling. The recorder asks it inside its own failure boundary.
+outcome begins in the reply as written -- its first marker line no fence may
+enclose, since a fenced one is an example the reply quotes -- which lines a
+fence may enclose, and what the reply the workflow reads ends on -- `ready`,
+`verified`, or the refusal's own spelling. The recorder asks it inside its
+own failure boundary.
 
 A reply those readers fail on is never read as written. With one warning,
 its attachment lines are found by a pattern of this owner's own -- every line
@@ -113,13 +115,21 @@ def framing(message: str) -> _recorder.Framing:
     fenced = _fences._fenced_line_starts(message)
     outcome = _outcomes._parse_report_outcome(_read_as(message, fenced))
     kind = _OUTCOME_KINDS.get(type(outcome)) or outcome.value
-    return _recorder.Framing(_outcome_start(message), kind, fenced)
+    return _recorder.Framing(_outcome_start(message, fenced), kind, fenced)
 
 
-def _outcome_start(message: str) -> int:
-    """Where `message`'s report outcome begins: its first line opening on the report prefix, else its end."""
-    marker = _outcomes._MARKER_LINE_RE.search(message)
-    return len(message) if marker is None else marker.start()
+def _outcome_start(message: str, fenced: frozenset[int]) -> int:
+    """Where `message`'s report outcome begins: its first line opening on the report prefix that starts at no `fenced`.
+
+    Its end where it has none. A marker line a fence may enclose is an
+    example the reply quotes, which the report reader refuses beside the
+    outcome but never takes for its start, so an attachment line between such
+    an example and the outcome still sits above the outcome.
+    """
+    unfenced = (
+        marker.start() for marker in _outcomes._MARKER_LINE_RE.finditer(message) if marker.start() not in fenced
+    )
+    return next(unfenced, len(message))
 
 
 def _read_as(message: str, fenced: frozenset[int]) -> str:

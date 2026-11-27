@@ -1018,8 +1018,9 @@ the usage parser refuses still writes no `agent_exit` record and publishes no to
 recorded, on a trajectory record marked `stream_refused`. A task snapshot and its diagnostics are observation alone:
 no usage total, accounting, completion capture, report settlement, or workflow decision reads one. They are collected
 wherever the analytics sink is on, needing no usage parse, trajectory sink, or database, from a genuine developer
-return alone, judged by the run's status, the stream's terminal evidence -- a provider's refusal, a Codex turn ending
-on `turn.failed` -- read off the records that decode at all and so on no usage parse, and the implementing stage's
+return alone, judged by the run's status, the stream's terminal evidence -- a Codex turn closing on `turn.completed`
+is the agent's whatever its reply opens with, and otherwise a provider's refusal or a Codex turn ending on
+`turn.failed` is none -- read off the records that decode at all and so on no usage parse, and the implementing stage's
 reading of a CLI's refusal (a conversation it could not open or that overflowed, an exhausted quota), off stderr less
 any attachment line the CLI echoed there -- so neither a
 turn the provider or the CLI refused nor the recovery that finishes a captured report records one, and

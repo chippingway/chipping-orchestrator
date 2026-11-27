@@ -19,12 +19,14 @@ attempt is handed. Receiving a return reads where the analytics sink is first
 grounding. With it on, a genuine return -- a run the tracked spawn started
 and stamped that reached the agent, and completed on its own terms -- is
 handed to the analytics recorder. Reaching the agent means invoked, with
-neither the provider nor the CLI refusing the turn: not a provider refusal
-(`provider_failures.is_provider_refusal`, which settles that from the
-backend's own verdict where there is one) nor a Codex turn that ended on
-`turn.failed`, both read off the stream's records that decode at all, so a
-record the usage parser refuses hides no closing event and the observation
-stands on no usage parse; and not a return the launching stage reads as its
+neither the provider nor the CLI refusing the turn: a Codex turn that closed
+on `turn.completed` is the agent's whatever its reply opens with, and
+otherwise not a provider refusal (`provider_failures.is_provider_refusal`,
+which settles that from Claude's own verdict where there is one) nor a Codex
+turn that ended on `turn.failed`, all read off the stream's records that
+decode at all, so a record the usage parser refuses hides no closing event
+and the observation stands on no usage parse; and not a return the
+launching stage reads as its
 CLI's own refusal -- a conversation the CLI could not open or whose
 transcript overflowed, or an exhausted quota -- which that stage classifies
 with the readers it parks and retries on and hands in as `refused`, asked
@@ -198,17 +200,22 @@ def _reached(
 ) -> bool:
     """Whether `agent_result`'s launch reached the agent: a process started, its turn neither refused nor failed.
 
-    Refused by its CLI as the launching stage reads that (`refused`), by the
-    provider as the backend's own verdict says
-    (`provider_failures.is_provider_refusal`), or a Codex turn that ended on
-    `turn.failed`, whatever its code (`codex_events.codex_turn_failure`) --
-    all read off the return's own evidence (`_evidence`).
+    Refused by its CLI as the launching stage reads that (`refused`); a
+    Codex turn that closed on `turn.completed` reached it, which is the
+    backend's own terminal verdict and is read ahead of any prose the reply
+    opens with (`codex_events.codex_turn_completed`); else refused by the
+    provider as the reply reads (`provider_failures.is_provider_refusal`),
+    or a Codex turn that ended on `turn.failed`, whatever its code
+    (`codex_events.codex_turn_failure`) -- all read off the return's own
+    evidence (`_evidence`).
     """
     if not agent_result.invoked:
         return False
     # A turn the CLI refused reached no agent, so nothing about it is observed.
     if refused(agent_result):
         return False
+    if _codex_events.codex_turn_completed(agent_result.stdout):
+        return True
     return not (
         _provider_failures.is_provider_refusal(agent_result) or _codex_events.codex_turn_failure(agent_result.stdout)
     )

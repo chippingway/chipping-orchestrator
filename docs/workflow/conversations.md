@@ -342,11 +342,13 @@ Where the contract is carried:
   publication, and the receipt restriction are restated; and the outcome is the one the task below the preamble
   describes — that preamble also precedes tasks that close on markers of their own. Its conversation block is the
   caller's FROZEN, classified thread read wherever the caller holds one — the awaiting-human resumes and the explicit
-  `/orchestrator continue` retries (less the commands they consume) take it from `implementing/resume_batch.py`, and
-  the conflict stage's reply to a park that owes a report takes the frozen drift read its prompt is cut from, less a
-  retry's commands too and with every reply past the watermark kept whole, its replies marked read by that read's
-  record rather than ahead of it — so the preamble and the record of what the prompt delivered come off one reading
-  and one filter. A caller with no frozen read gets the read `_build_dev_spawn_prompt` takes for itself.
+  `/orchestrator continue` retries (less the commands they consume) take it from `implementing/resume_batch.py`, whose
+  read copies each comment as it is taken, so the preamble, the followup beside it, and a task snapshot's fingerprint
+  quote one version of a comment edited before the launch or while the run is out, and the conflict stage's reply to
+  a park that owes a report takes the frozen drift read its prompt is cut from, less a retry's commands too and with
+  every reply past the watermark kept whole, its replies marked read by that read's record rather than ahead of it —
+  so the preamble and the record of what the prompt delivered come off one reading and one filter. A caller with no
+  frozen read gets the read `_build_dev_spawn_prompt` takes for itself.
 - **Absent** from the documentation, review, and conflict-resolution prompts, which close on markers of their own, and
   from the conflict stage's own reply resume and bare-continue retry, which stays on the plain
   `_CONTINUE_RETRY_PROMPT` — except over a park that left a report owed, where the reply resumes on the drift prompt
@@ -597,16 +599,18 @@ opening on the prefix left out, the analytics sink on or off, so an echoed attac
 
 The attachment is read on its own terms and decides nothing. With the analytics sink on, `task_snapshots.py` hands a
 genuine return — invoked under a tracked charge; its turn refused neither by the provider (the backend's own verdict
-deciding where it gives one, so a clean exit carrying Claude's `is_error` refusal is none), nor ending on a Codex
-`turn.failed` — both read off the stream's records that decode at all, so a record the usage parser refuses hides no
-closing event — nor refused by the CLI, as the implementing stage reads that with the readers it parks and retries on
+deciding where it gives one, so a clean exit carrying Claude's `is_error` refusal is none, and a Codex turn closing on
+`turn.completed` is the agent's whatever its reply opens with), nor ending on a Codex `turn.failed` — all read off the
+stream's records that decode at all, so a record the usage parser refuses hides no closing event — nor refused by the
+CLI, as the implementing stage reads that with the readers it parks and retries on
 (`session_read`: a conversation the CLI could not open or whose transcript overflowed the context, or an exhausted
 quota, each on a clean exit too), off its stderr less every attachment line the CLI echoed there, which is the
 developer's text and never the CLI's diagnostic — a reading asked inside the snapshot's failure boundary; neither
 interrupted nor timed out, exiting 0, with no tool step unfinished or failure normalized — to the one reader and
 recorder under `observability/analytics/observations/`, with the invocation the run came from, the requirements revision
-the attempt's conversation was handed, and the framing of the reply the workflow reads — where its outcome begins, which
-lines a fence may enclose, and the verdict the report reader reaches on it — which the recorder asks inside its failure
+the attempt's conversation was handed, and the framing of the reply the workflow reads — where its outcome begins (its
+first marker line no fence may enclose, since a fenced one is an example it quotes), which lines a fence may enclose,
+and the verdict the report reader reaches on it — which the recorder asks inside its failure
 boundary. That revision is the one the road froze before the launch on a road that hands the developer requirements: the
 first implementation, and a human reply whose batch it delivers and settles to the conversation it resumes. An
 `/orchestrator continue` retry hands none, so a retry that opens a fresh conversation — and a reply's run that does, its

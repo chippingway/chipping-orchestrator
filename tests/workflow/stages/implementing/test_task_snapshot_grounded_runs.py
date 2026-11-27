@@ -7,8 +7,11 @@ batch's read of the thread, rendered before the launch. A trusted human's
 comment edited while that run is out is in neither that prompt nor the
 requirements its snapshot is bound to: the fingerprint is taken over the
 comments as the road froze them, never over the live objects they were read
-as. A human reply whose session is gone opens a fresh conversation the same
-way: its snapshot, and the grounding kept for it, are bound to the issue as
+as. A reply revised after its batch was read, as the resume prepares its
+checkout, is quoted as read -- by the conversation resumed, and by a fresh
+replacement's preamble and followup alike -- and the snapshot is bound to
+that read. A human reply whose session is gone opens a fresh conversation
+the same way: its snapshot, and the grounding kept for it, are bound to the issue as
 the replacement prompt quoted it -- a body edit landed as the stale run
 failed included -- under the reference the reply's report is stamped with.
 That grounding is kept beside the baseline the reply settles, so the
@@ -27,13 +30,14 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 from types import MappingProxyType
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from orchestrator import config
 from orchestrator.scheduler import writer_claims
 from orchestrator.workflow.engine import content_hash as _content_hash, task_snapshot_grounding as _grounding
+from orchestrator.workflow.stages.implementing import worktree as _worktree
 from tests.support.fakes import FakeComment, FakeUser
-from tests.workflow.fixtures import _agent, accounted
+from tests.workflow.fixtures import _FAKE_WT, _agent, accounted
 from tests.workflow.stages.implementing import (
     held_capture_test_support as _held,
     task_snapshot_test_support as _support,
@@ -67,6 +71,9 @@ _REPLY = FakeComment(id=1000, body=_GUIDANCE, user=FakeUser(_ALICE))
 _UNMOVED = MappingProxyType({"has_new_commits": False, "head_shas": _held.UNMOVED})
 
 _REPLACEMENT = "replacement-session"
+
+# What the CLI answers a resume of a conversation it no longer has with.
+_STALE = "No conversation found with session ID: asked-session"
 
 # What a reply's launches resume: the stale conversation, a fresh one, then the retry's of that.
 _LAUNCHES = (_ASKED["dev_session_id"], None, _REPLACEMENT)
@@ -105,7 +112,19 @@ class _StaleThenFresh:
             return _agent(session_id=_REPLACEMENT, last_message=_support.SNAPSHOT)
         body = self._issue.body
         self._issue.body = f"{body}\n{_EDIT}"
-        return _agent(last_message="", exit_code=1, stderr="No conversation found with session ID: asked-session")
+        return _agent(last_message="", exit_code=1, stderr=_STALE)
+
+
+class _EditedAtCheckout:
+    """The checkout a reply's resume prepares once its batch is read, revising the reply as it does."""
+
+    def __init__(self, comment: FakeComment) -> None:
+        self._comment = comment
+
+    def __call__(self, *_checkout):
+        """Revise the reply, and hand back the issue's checkout."""
+        self._comment.body = _REVISED
+        return _FAKE_WT
 
 
 def _grounding_of(github) -> Path:
@@ -137,6 +156,23 @@ class GroundedRunTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
         self.assertIn(_GUIDANCE, run.prompt)
         self.assertNotIn(_REVISED, run.prompt)
         self.assertEqual(self.only(_support.SNAPSHOT_EVENT)[_support.REVISION], handed)
+
+    def test_an_edit_at_checkout_moves_nothing(self) -> None:
+        # The conversation the reply resumes, then one gone and replaced by a
+        # fresh one: every prompt quotes the reply as the batch read it, and
+        # the snapshot is bound to that read.
+        self.enterContext(patch.object(config, "ALLOWED_ISSUE_AUTHORS", (_ALICE,)))
+        stale = _agent(last_message="", exit_code=1, stderr=_STALE)
+        for launched in (
+            (_agent(session_id=_ASKED["dev_session_id"], last_message=_support.SNAPSHOT),),
+            (stale, _agent(session_id=_REPLACEMENT, last_message=_support.SNAPSHOT)),
+        ):
+            prompts, read = self._edited_at_checkout(launched)
+            quoted = {(_GUIDANCE in prompt, _REVISED in prompt) for prompt in prompts}
+            with self.subTest(launches=len(launched)):
+                self.assertEqual(len(prompts), len(launched))
+                self.assertEqual(quoted, {(True, False)})
+                self.assertEqual(self.only(_support.SNAPSHOT_EVENT)[_support.REVISION], read)
 
     def test_a_fresh_reply_keeps_the_edit(self) -> None:
         # The reply's tick, then the operator's retry of the silence it
@@ -171,6 +207,19 @@ class GroundedRunTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
         self.assertEqual(record[_held.CAPTURED]["stage"], _held.HANDED_OFF)
         self.assertEqual(self.observations(), [])
         self.assertEqual(len(warned), 1, warned)
+
+    def _edited_at_checkout(self, launched: tuple) -> tuple[list[str], str]:
+        """Dispatch a reply the resume's checkout revises, run as `launched`: their prompts, and the read before."""
+        self.sink.unlink(missing_ok=True)
+        github, issue = self.seeded(**_ASKED)
+        reply = FakeComment(id=_REPLY.id, body=_GUIDANCE, user=FakeUser(_ALICE))
+        issue.comments.append(reply)
+        read = _content_hash._compute_user_content_hash(issue, set())
+        runs = MagicMock(side_effect=launched)
+        with patch.object(_worktree, "_ensure_resume_worktree", _EditedAtCheckout(reply)):
+            self.dispatch(github, issue, runs, **self.sunk, **_UNMOVED)
+        self.assertEqual(reply.body, _REVISED)
+        return [called.args[1] for called in runs.call_args_list], read
 
 
 if __name__ == "__main__":

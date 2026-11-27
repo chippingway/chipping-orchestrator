@@ -149,7 +149,8 @@ class CompletionRoad:
     `regrounding` is the reply batch a FRESH session's prompt on this road is
     re-grounded beside: a replacement session's preamble quotes the issue as
     it reads then beside the batch's read of the thread, which the batch
-    keeps as copies so a comment edited mid-run moves nothing -- not what the
+    took as copies, so a comment edited before the launch or mid-run moves
+    nothing, the followup quoting the same copies -- not what the
     handoff fingerprints, where the issue was edited since the batch was
     read. None on the first implementation, whose fresh prompt is the road's
     own. `quoted` is the one read of the issue a fresh prompt on it was

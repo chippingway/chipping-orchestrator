@@ -7,10 +7,11 @@ its lines a fence may enclose, and the verdict the report reader reaches on
 the reply the workflow reads. A line past the outcome is held by the
 placeholder, so the reply is still refused and no notice quotes the line. A
 fenced example is code the report quotes and stays in it, beside the
-snapshot read above. A line a fence encloses is never taken out, so it can
-never close the fence before the markers and make a refused report
-publishable; and a READY block holding nothing else is the empty block the
-reader refuses -- the verdict the recorder is told too.
+snapshot read above, and a marker line a fence encloses is an example
+rather than where the outcome begins. A line a fence encloses is never
+taken out, so it can never close the fence before the markers and make a
+refused report publishable; and a READY block holding nothing else is the
+empty block the reader refuses -- the verdict the recorder is told too.
 """
 from __future__ import annotations
 
@@ -62,7 +63,7 @@ class ReportFramingTest(unittest.TestCase):
         for reply, outcome in _FRAMED:
             with self.subTest(outcome=outcome):
                 fenced = _fences._fenced_line_starts(reply)
-                expected = _recorder.Framing(_replies._outcome_start(reply), outcome, fenced)
+                expected = _recorder.Framing(_replies._outcome_start(reply, fenced), outcome, fenced)
                 self.assertEqual(_replies.framing(reply), expected)
 
     def test_text_after_an_outcome_stays_refused(self) -> None:
@@ -79,6 +80,17 @@ class ReportFramingTest(unittest.TestCase):
         framing = _replies.framing(reply)
         reading = attachments.read_task_snapshot(reply, framing.outcome_at, framing.fenced)
         self.assertEqual((reading.found, reading.problems), (1, ()))
+
+    def test_a_fenced_marker_is_no_outcome(self) -> None:
+        # A report example the reply quotes above the snapshot leaves the
+        # outcome malformed, never the snapshot misplaced: the outcome begins
+        # at the first marker line no fence may enclose.
+        reply = f"The format reads:\n```text\nREPORT: READY\n```\n{_LINE}\n{_READY_REPLY}"
+        framing = _replies.framing(reply)
+        self.assertEqual(framing.outcome_at, reply.rindex("REPORT: READY"))
+        self.assertEqual(framing.report_outcome, _MALFORMED)
+        reading = attachments.read_task_snapshot(reply, framing.outcome_at, framing.fenced)
+        self.assertEqual(reading.description, "Add a foo flag so users can turn foo on.")
 
     def test_no_line_moves_a_fence(self) -> None:
         # Taken out, the line would let the fence close above the markers,

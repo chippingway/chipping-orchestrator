@@ -778,7 +778,9 @@ orchestrator/
                         either serialized shape when the CLI printed one -- read off stdout, since a failed
                         turn leaves the `-o` file empty. A last turn that completed or never closed, its
                         closing line undecodable included, reports no failure, mid-turn `error` events never
-                        decide, and lines that are not JSON objects are skipped wherever they sit
+                        decide, and lines that are not JSON objects are skipped wherever they sit; and whether
+                        that last turn closed on `turn.completed`, the CLI's own word that the agent answered it,
+                        which a task snapshot reads ahead of a reply opening on a provider's error line
     provider_failures.py
                         the transient-provider verdict every stage that reads a final message as the agent's
                         own asks first: the backend's `is_error` flag where the run gave one, and the

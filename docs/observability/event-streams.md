@@ -810,20 +810,21 @@ line in every finished reply, above its report outcome where it ends on one
 ([the reply contract](../workflow/conversations.md#the-task-snapshot-attachment)). No other road asks, and no other run
 is recorded. Only a genuine return is: a run the tracked spawn started under a charge and stamped with its
 invocation, which was invoked; whose turn the provider did not refuse — the backend's own verdict deciding where it
-gives one, so a clean exit carrying Claude's `is_error` refusal is none — and that did not end on a Codex `turn.failed`
-whatever its code, both read off the stream's records that decode at all, so a record the usage parser refuses hides
-no closing event; that the CLI did not refuse either, as the implementing stage reads that with the readers it parks
-and retries on: a conversation the CLI could not open or whose transcript overflowed the context, or an exhausted
-quota, each on a clean exit too; and which was neither interrupted
-nor timed out, exited 0, and left no tool step unfinished or failure normalized. A question and a malformed report
-outcome are included. Any other writes nothing — a poisoned conversation's fresh retry is recorded, the stale attempt
-before it not — nor does a result a stage synthesized or the recovery that finishes a captured report from its record,
-since no developer ran.
+gives one, so a clean exit carrying Claude's `is_error` refusal is none, and a Codex turn closing on `turn.completed` is
+the agent's whatever its reply opens with — and that did not end on a Codex `turn.failed` whatever its code, all read
+off the stream's records that decode at all, so a record the usage parser refuses hides no closing event; that the
+CLI did not refuse either, as the implementing stage reads that with the readers it parks and retries on: a
+conversation the CLI could not open or whose transcript overflowed the context, or an exhausted quota, each on a clean
+exit too; and which was neither interrupted nor timed out, exited 0, and left no tool step unfinished or failure
+normalized. A question and a malformed report outcome are included. Any other writes nothing — a poisoned
+conversation's fresh retry is recorded, the stale attempt before it not — nor does a result a stage synthesized or the
+recovery that finishes a captured report from its record, since no developer ran.
 
 **The attachment.** A reply carries a snapshot as one line: the `ANALYTICS:` prefix, the kind, the version, and a JSON
 object, `ANALYTICS: task-snapshot v1 {"description": "..."}`. A JSON string escapes its line breaks, so nothing inside
 the line can open another a workflow reader reacts to. The caller hands the reply exactly as the agent wrote it, with
-where its report outcome begins (its length where it has none) and which lines a code fence may enclose. A line
+where its report outcome begins (its first report marker line no fence may enclose, its length where it has none) and
+which lines a code fence may enclose. A line
 opening on the prefix that no fence encloses is an attachment line, running to the next line feed as the report and
 fence readers frame a line, its own every carriage return but the one before that line feed; a fenced one
 is code the reply quotes, neither read nor counted. Exactly one such line ending before the outcome, of the current

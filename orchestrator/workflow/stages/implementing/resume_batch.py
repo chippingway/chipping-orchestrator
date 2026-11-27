@@ -83,7 +83,7 @@ _PASSTHROUGH = "passthrough"
 class _ReplyBatch:
     """The replies one resume delivers, and the record of that delivery.
 
-    `comments` are the comment objects the prompt quotes and `delivery` is the
+    `comments` are the comments the prompt quotes and `delivery` is the
     snapshot naming the same ids; they are produced together and neither is
     re-derived, which is what makes "what the developer saw" and "what the
     issue records as answered" one fact rather than two readings that agree.
@@ -107,12 +107,15 @@ class _ReplyBatch:
     hands the developer the orchestrator's retry prompt instead, so quoting
     them would hand the agent the command as the last thing a human said.
 
-    `read` is that one read itself, each comment copied as it was read, and
-    `floor` the watermark it was bounded by, kept for the drift check a
-    parked tick asks before any road spends the batch (`answered`) and for
-    the fingerprint a retry's fresh conversation is bound to, taken only
-    once its run is back (`completion_roads.retry_road`): a comment edited
-    while that run is out moves neither.
+    `read` is that one read itself and `floor` the watermark it was bounded
+    by, kept for the drift check a parked tick asks before any road spends
+    the batch (`answered`) and for the fingerprints a resume's snapshot is
+    bound to (`completion_roads`). Every comment here -- in `read`, in
+    `comments`, and behind both conversations -- is the copy `_freeze` took
+    as the thread was read, so the prompt a resume renders, a fresh
+    replacement's preamble, and the fingerprint its snapshot is bound to
+    quote one version of each comment: one edited before the launch or
+    while the run is out moves none of them.
     """
 
     state: PinnedState
@@ -203,7 +206,7 @@ class _ReplyBatch:
             quoted,
             regrounding,
             retrying=retrying,
-            read=tuple(map(copy.copy, thread)),
+            read=tuple(thread),
             floor=state.get(_state._LAST_ACTION_COMMENT_ID),
         )
 
@@ -243,11 +246,12 @@ def _freeze(
 ) -> _ReplyBatch:
     """Read this parked thread once and freeze what a resume may do with it.
 
-    ONE fetch, for the whole thread, and everything below is cut from it: the
-    fresh replies past the watermark, the conversations a fresh spawn is
-    re-grounded with, and the record the settlement is taken from. The
-    pinned state comment is taken out of that read by its IDENTITY, so a reply
-    quoting its marker is a reply like any other.
+    ONE fetch, for the whole thread, each comment copied as it is read, and
+    everything below is cut from those copies: the fresh replies past the
+    watermark, the conversations a fresh spawn is re-grounded with, and the
+    record the settlement is taken from. The pinned state comment is taken
+    out of that read by its IDENTITY, so a reply quoting its marker is a
+    reply like any other.
 
     The delivery is cut FIRST, and the reservations are asked of it. Which
     batch a command road owns is the same question as which batch a developer
@@ -271,7 +275,10 @@ def _freeze(
     acted on nor delivered as prose.
     """
     ours = frozenset(_comments._orchestrator_ids(state))
-    thread = gh.comments_after(issue, None, state_comment_id=state.comment_id)
+    thread = [
+        copy.copy(seen)
+        for seen in gh.comments_after(issue, None, state_comment_id=state.comment_id)
+    ]
     unclaimed = [
         seen for seen in filter_trusted(_since(thread, state))
         if seen.id not in ours
@@ -290,7 +297,7 @@ def _freeze(
     ):
         return _ReplyBatch(
             state, _DELIVERED_NOTHING, (), reserved=True,
-            read=tuple(map(copy.copy, thread)), floor=state.get(_state._LAST_ACTION_COMMENT_ID),
+            read=tuple(thread), floor=state.get(_state._LAST_ACTION_COMMENT_ID),
         )
     return _ReplyBatch.delivering(
         state, delivery, quoted, thread=thread, issue=issue,
