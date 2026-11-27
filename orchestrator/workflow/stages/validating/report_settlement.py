@@ -23,6 +23,15 @@ before it posts anything.
 The drift callers ask this once their own bookkeeping is written, and the
 review hold in `report_hold` asks it for a delivery an earlier tick left. A
 refusal no retry changes parks here, once, under `report_undeliverable`.
+
+A fix is pushed BEFORE the report recorded for it is bound, so a verified
+report is asked here first, by both seams that push one (`dev_fix`'s and the
+transient recovery's): whether the binding would take it -- a report on this
+issue's own pull request, and not on a description that pull request needs for
+its closing reference and attribution -- and whether it still reads back where
+it points. Pushed first, a refusal of either kind arrives with the commit
+already out, and a recorded verification the comment has since moved off
+would publish it on the strength of a reading taken before the push failed.
 """
 from __future__ import annotations
 
@@ -40,6 +49,8 @@ from orchestrator.workflow.engine import (
     report_delivery as _report_delivery,
     report_delivery_state as _delivery_state,
     report_locations as _report_locations,
+    report_minting as _report_minting,
+    report_records as _report_records,
     report_transaction as _report_transaction,
 )
 from orchestrator.workflow.stages.implementing import (
@@ -59,6 +70,38 @@ _UNDELIVERED_PARK = (
     "and nothing was discarded. Reply and the orchestrator resumes the "
     "session; the report it writes then is the one that gets published, and "
     "it needs no new commit to deliver it."
+)
+
+# What a push under a verified report the binding would refuse, or that no
+# longer reads back, is held under. Nothing is pushed: the work stays in the
+# worktree, recorded as undescribed, until the reply's resume writes a report
+# it can go out under.
+_UNVERIFIED_PARK = (
+    "{mentions} the developer's report for this issue's committed work is a "
+    "verification of a report already on GitHub, and the work cannot be "
+    "published under it: {detail}. Nothing was published: the commit is "
+    "still in the worktree, the branch is untouched, and PR #{pr} stands on "
+    "the commit it already carried. Reply -- with your decision, where the "
+    "developer asked for one -- and the orchestrator resumes the developer "
+    "session on your reply. The committed work stays held in the worktree "
+    "until that session supplies a valid completion report; the report it "
+    "writes then is the one that gets published."
+)
+
+_ANOTHER_PULL_REQUEST = (
+    "it names a report on PR #{named}, not on the pull request this work goes "
+    "onto"
+)
+
+_NEEDED_DESCRIPTION = (
+    "it names this pull request's own description, which carries no reference "
+    "closing this issue or no line naming the session that wrote the branch "
+    "-- and this orchestrator rewrites no description"
+)
+
+_DOES_NOT_READ_BACK = (
+    "the report it names is gone, was edited since it was verified, was "
+    "written by an author this deployment does not trust, or could not be read"
 )
 
 _UNPUBLISHED = (
@@ -209,3 +252,58 @@ def _parks(
             detail=detail,
         ),
     )
+
+
+def _holds_the_push(
+    gh: _client.GitHubClient, issue: Issue, state: _pinned_state.PinnedState,
+) -> bool:
+    """Whether the fix about to be pushed may not go out under the verified report recorded for it; True is a push held.
+
+    Asked of a verification alone, because it is the one report whose worth
+    is somewhere else: a report written out is posted by this orchestrator
+    and carried by the record, while a verification names a place the
+    binding may refuse and a human may edit. The binding's two refusals no
+    retry changes -- a report on another pull request, and one on the
+    description this pull request needs -- and the reading the settlement
+    takes again are asked of it before the push rather than after, since
+    the commits a report lets out are not taken back by its refusal.
+
+    A refusal parks for a human with the work recorded as UNDESCRIBED, so no
+    road behind publishes it under the record still standing, and the reply
+    resumes the developer to write a report it can go out under. A reading
+    nobody could take holds without parking, and the next tick asks again.
+    The description is fetched only for a verification that names it.
+    """
+    delivered = _delivery_state.read_delivered_report(state)
+    if delivered is None or delivered.mode is not _report_records.ReportMode.VERIFY:
+        return False
+    pr_number = state.get(_PR_NUMBER)
+    detail = ""
+    try:
+        if delivered.location.pr_number != pr_number:
+            detail = _ANOTHER_PULL_REQUEST.format(named=delivered.location.pr_number)
+        elif delivered.location.comment_id is None and not _report_locations.describes_the_issue(
+            gh.get_pr(pr_number), issue.number, _dev_pr._dev_pr_attribution(state), gh.repo_slug,
+        ):
+            detail = _NEEDED_DESCRIPTION
+        elif not _report_minting.stands_where_it_points(gh, delivered):
+            detail = _DOES_NOT_READ_BACK
+    except Exception:
+        log.exception(
+            "issue=#%d could not read the pull request its verified developer "
+            "report names; holding the push for the next tick", issue.number,
+        )
+        return True
+    if not detail:
+        return False
+    log.warning(
+        "issue=#%d holds a push under the verified developer report it "
+        "recorded: %s", issue.number, detail,
+    )
+    state.set(_report_delivery.UNREPORTED_WORK, True)
+    _report_delivery.parks_an_undeliverable_report(
+        gh, issue, state, _UNVERIFIED_PARK.format(
+            mentions=config.HITL_MENTIONS, pr=pr_number, detail=detail,
+        ),
+    )
+    return True

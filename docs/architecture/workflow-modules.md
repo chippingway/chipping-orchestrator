@@ -1088,11 +1088,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `minted_report` is that minting alone, from what one outcome contributes, and
                             `outcome_fields` that contribution unchecked, for a captured completion's transfer and the
                             room its capture reserves (`completion_handoff.py`). `stands_where_it_points` is the
-                            reading a caller holding work no report describes asks of a record before recording it:
-                            a written-out report stands, and a verification only where its location reads back
-                            PRESENT under a trusted author -- every other answer, an unread one included, holds the
-                            work, since recording it lets the roads behind publish that work ahead of the
-                            settlement's own re-read
+                            reading a caller asks of a record before work goes out on its word -- the recording of a
+                            report over work no report describes, and the push of a fix under a verification already
+                            recorded (`stages/validating/report_settlement.py`): a written-out report stands, and a
+                            verification only where its location reads back PRESENT under a trusted author -- every
+                            other answer, an unread one included, holds the work, since the settlement's own re-read
+                            comes after the push
     report_delivery.py      the report one finished run earns, recorded before its code is published, as minted by
                             `report_minting.py`. The write is this owner's, because being durable before the size
                             gate and the push is the whole of what makes the report recoverable, and it is a
@@ -4486,8 +4487,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             unpublished until a valid report describes it. An Antigravity command a run ended on by
                             itself publishes nothing and keeps its own `agent_execution_failed` park, whose
                             `/orchestrator continue` replays the feedback on a fresh session, with the hold
-                            recorded beside it; one the timeout killed with a command still running is held like
-                            any timeout, whose own park's recovery is a push; whether a round
+                            recorded beside it; one the timeout killed with a command still running over held work
+                            is held like any timeout, whose own park's recovery is a push, its feedback settled so the
+                            next poll does not resume the session on it -- over work nothing held it keeps the timeout
+                            park and its feedback stays unread for the next poll to replay; whether a round
                             that committed nothing may publish onto the head its pull request already carries, on
                             the affirmative proof that the head read, never moved, is the one the pull request is
                             STANDING on, and left a tree proved clean.
@@ -6328,7 +6331,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the resumed run and an edit made during it exists only on the new object. Asked by both
                             drift callers behind their own bookkeeping and by the hold, so a delivery a later push
                             carried (a recovered failed push, a settled adjudication) is bound on the first tick
-                            that proves it; a refusal no retry changes parks once under `report_undeliverable`
+                            that proves it; a refusal no retry changes parks once under `report_undeliverable`.
+                            `_holds_the_push` is asked by `dev_fix.py`'s publication and the transient recovery's
+                            before either pushes a fix under a recorded verification: the binding's two refusals no
+                            retry changes -- a report on another pull request, one on the description this pull
+                            request needs -- and the settlement's re-read
+                            (`engine/report_minting.stands_where_it_points`) are taken before the push, so neither
+                            arrives with the commit already out. A refusal parks with the work recorded as
+                            undescribed; a reading nobody could take holds the push without parking
       report_hold.py        the hold that keeps the reviewer off while the issue still owes a report, settling what
                             it can through `report_settlement.py` first and parking for what no retry settles: a
                             report written against requirements the issue has moved past, a receipt naming another

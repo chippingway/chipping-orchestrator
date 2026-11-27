@@ -263,24 +263,26 @@ def stands_where_it_points(gh: _client.GitHubClient, delivered: _records.Deliver
     a valid report describes it, and a report found gone, edited off the
     revision named, or written by somebody this deployment does not trust only
     stands down once the commits are out. So such a caller asks first, over
-    the same reading the settlement takes. A reading nobody could take answers
-    False too, as the repository's does: nothing recorded, and the run held for
-    a human.
+    the same reading the settlement takes: the recording of a report over held
+    work, and the push of a fix under a verification already recorded
+    (`stages/validating/report_settlement._holds_the_push`). A reading nobody
+    could take answers False too, as the repository's does: nothing recorded,
+    and the run held for a human.
     """
     if delivered.mode is not _records.ReportMode.VERIFY:
         return True
     lookup = gh.reread_report_location(delivered.location, content_sha256=delivered.content_revision)
     if lookup.presence is not ReportPresence.PRESENT:
         log.error(
-            "a developer verified a report that reads %s at %s; recording no "
-            "report for the work it would publish", lookup.presence.value, delivered.location,
+            "a developer verified a report that reads %s at %s; no work is "
+            "published on its word", lookup.presence.value, delivered.location,
         )
         return False
     if not lookup.author_trusted():
         log.error(
             "a developer verified a report at %s whose author this deployment "
-            "does not trust, or could not read; recording no report for the "
-            "work it would publish", delivered.location,
+            "does not trust, or could not read; no work is published on its "
+            "word", delivered.location,
         )
         return False
     return True

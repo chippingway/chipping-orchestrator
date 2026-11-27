@@ -6914,13 +6914,19 @@ of those recoverable without telling a human twice
      report owed or not, so the round its reply resumes is held the same way. An Antigravity command a run ended on by
      itself is the exception: it publishes nothing, so it keeps its own `agent_execution_failed` park, whose
      `/orchestrator continue` replays the feedback on a fresh session, with the flag recorded beside it so a retry that
-     brings no report is held. A run the timeout killed with a command still running is no exception: the timeout
-     park's recovery is a push, so it is held like any timeout, and the feedback it consumed is settled as any
-     timeout's is, so the next poll does not take that feedback for a reply and resume the session. While the flag
-     stands, a `REPORT: VERIFIED` is read where it points before it is recorded
-     (`report_minting.stands_where_it_points`): recording it retires the flag, and the push behind would publish the
-     held work ahead of the settlement's own re-read, so one that does not read back PRESENT under a trusted author
-     is held as no report at all. Both notices quote a finished run's last message, so that
+     brings no report is held. A run the timeout killed with a command still running over held work is no exception:
+     the timeout park's recovery is a push, so it is held like any timeout, and the feedback it consumed is settled,
+     so the next poll does not take that feedback for a reply and resume the session. Over work nothing held, such a
+     run keeps the `agent_timeout` park and leaves its feedback unread for the next poll to replay, as before. While
+     the flag stands, a `REPORT: VERIFIED` is read where it points before it is recorded
+     (`report_minting.stands_where_it_points`): recording it retires the flag, so one that does not read back PRESENT
+     under a trusted author is held as no report at all. And every push of a fix under a verification already
+     recorded -- the round's own, and the transient recovery's retry of a failed push or a timeout -- asks first what
+     the binding would (`validating/report_settlement._holds_the_push`): a report on this issue's own pull request,
+     not on a description that pull request needs for its closing reference and attribution, that still reads back.
+     A refusal keeps the commit in the worktree and parks under `report_undeliverable` with the flag raised; pushed
+     first, the binding's refusal or a comment edited since the first attempt would arrive with the commit already
+     out. Both notices quote a finished run's last message, so that
      next question and its choices reach the human, and both ask for the decision and keep the committed work
      unpublished until the resumed session supplies a valid report; a run that did not finish, a timeout among them,
      is quoted nothing, since its last words are where it was cut off rather than a question it asked. The head is

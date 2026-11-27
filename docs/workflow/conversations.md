@@ -341,10 +341,13 @@ question, parks under its own notice, and a commit it may have made -- the head 
 as undescribed work too. An Antigravity round that ends on its own with a command unfinished publishes nothing and
 keeps its own `agent_execution_failed` park, whose `/orchestrator continue` replays the reviewer's feedback on a fresh
 session; the held work stays recorded as undescribed, so a retry that brings no report is held again. One the timeout
-kills with a command still running is held like any other timeout, since the timeout park's recovery would push. A
-`REPORT: VERIFIED` over held work is read where it points before it is recorded: a report that is gone, edited since,
-written by an author this deployment does not trust, or that could not be read is no valid report, and the work stays
-held. Each of these notices
+kills with a command still running over held work is held like any other timeout, since the timeout park's recovery
+would push. A `REPORT: VERIFIED` over held work is read where it points before it is recorded: a report that is gone,
+edited since, written by an author this deployment does not trust, or that could not be read is no valid report, and
+the work stays held. A fix is pushed under a recorded verification only once it is asked again, both on the round's
+own push and on a retry of a push that failed: it has to name a report on this issue's own pull request, not that pull
+request's description unless the description closes the issue and names the session, and it has to still read back.
+Otherwise the commit stays in the worktree and the issue parks for a reply. Each of these notices
 quotes the run's last message the same way, so the next question and its choices reach the human, asks for the
 decision, and says the committed work stays held until a valid report describes it. A round that did not finish, such
 as one the timeout cut off after committing, parks the same way with nothing quoted: its last words are where it

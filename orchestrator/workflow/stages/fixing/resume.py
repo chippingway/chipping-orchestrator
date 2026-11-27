@@ -513,16 +513,17 @@ def _resume_fixing_and_dispatch_result(
     # on the park path (the next fixing tick's `awaiting_human and not
     # new_feedback` gate would drop it). A run that DID write one records
     # nothing here at all -- both groups ride that report's record, frozen
-    # here before anything applies them. A run that ended by itself on an
-    # unfinished command execution leaves watermarks unsettled, so review
-    # context remains intact until publication; one the timeout killed with a
-    # command still running settles as any timeout does, since the park it
-    # earns -- held for a report, or the timeout's own -- waits on a reply
-    # that unread feedback would otherwise stand in for on the next poll.
+    # here before anything applies them. An unfinished command execution
+    # (`unfinished_steps`) leaves watermarks unsettled so review context
+    # remains intact until publication -- unless the timeout killed it over
+    # work a park held, which is held again for a human's reply: unread, the
+    # feedback would stand in for that reply on the next poll.
     consumed = ()
     if run.reported:
         consumed = _feedback._consumed_delivery(ctx.state, delivered).consumed_pairs(ctx.state)
-    elif not run.ended_on_a_running_command:
+    elif not run.dev_result.unfinished_steps or (
+        run.dev_result.timed_out and ctx.state.get(_report_delivery.UNREPORTED_WORK)
+    ):
         _feedback._settle_consumed_feedback(ctx.state, delivered)
     _finishes_the_run(ctx, run, consumed, owed, routed=pending_fix_at_was_set)
 
