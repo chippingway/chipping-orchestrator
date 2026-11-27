@@ -18,7 +18,7 @@ from __future__ import annotations
 import unittest
 from dataclasses import replace
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 from orchestrator.config import credentials as _credentials
 from orchestrator.observability.analytics.observations import recorder as _recorder
@@ -39,6 +39,9 @@ _TRAILING_PROSE = "One more thing."
 
 # What the reviewer of a report is told its task reference is.
 _TOLD = "Task snapshot reference for this report: `{reference}`."
+
+# What GitHub names the repository by once it is renamed after a report settled.
+_RENAMED = "chippingway/renamed-orchestrator"
 
 
 class _EditsMidRun:
@@ -72,7 +75,8 @@ class DispatchedSnapshotTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
 
     The repository is configured cased otherwise than GitHub spells it, which
     GitHub answers all the same: the identity a snapshot and its reviewer name
-    is GitHub's own.
+    is the one the settled report records it was published under, as
+    configured.
     """
 
     configured = replace(_TEST_SPEC, slug=_TEST_SPEC.slug.upper())
@@ -80,9 +84,10 @@ class DispatchedSnapshotTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
     def test_the_first_implementation_is_recorded(self) -> None:
         # The prompt closes on the request; the snapshot names the run's own
         # charge, the road, and the description it returned, under the
-        # reference the settled report's stamp spells, which the reviewer
-        # that report is handed is told however the configuration cases the
-        # repository; the pull request carries no attachment.
+        # reference the settled report's repository and stamp spell, which
+        # the reviewer that report is handed is told however the
+        # configuration cases the repository and whatever GitHub renames it
+        # to since; the pull request carries no attachment.
         github, issue = self.seeded()
         ran = self.dispatch(github, issue, _support.returning(), **self.committing)
         snapshot = self.only(_support.SNAPSHOT_EVENT)
@@ -96,12 +101,11 @@ class DispatchedSnapshotTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
     def test_a_mid_run_edit_is_never_bound(self) -> None:
         github, issue = self.seeded()
         handed = _content_hash._compute_user_content_hash(issue, set())
-        edits = MagicMock(side_effect=_EditsMidRun(issue))
-        self.dispatch(github, issue, edits, **self.sunk)
+        self.dispatch(github, issue, _EditsMidRun(issue), **self.sunk)
         snapshot = self.only(_support.SNAPSHOT_EVENT)
         self.assertNotEqual(_content_hash._compute_user_content_hash(issue, set()), handed)
-        self.assertEqual(snapshot[_support.REVISION], handed)
-        self.assertEqual(snapshot[_support.TASK_REF], _support.reference(handed))
+        named = (snapshot[_support.REVISION], snapshot[_support.TASK_REF])
+        self.assertEqual(named, (handed, _support.reference(handed, self.configured.slug)))
 
     def test_it_needs_no_usage_parse(self) -> None:
         # No usage parse, so no `agent_exit`; the trajectory sink and the
@@ -168,18 +172,25 @@ def _named(snapshot: dict) -> tuple:
 
 
 def _named_by(record: dict) -> tuple:
-    """What the snapshot of the first implementation `record` settled names: its own charge, road, stage, and report."""
+    """What the snapshot of the first implementation `record` settled names: its own charge, road, stage, and report.
+
+    The report is named by the repository it records it was published under
+    and the revision it is stamped with.
+    """
     ordinal, nonce = record["issue_usage_receipts"]["recent"][0]
-    revision = record["developer_report_current"]["requirements"]
-    return (ordinal, "implementation", nonce, "implementing", _support.reference(revision))
+    report = record["developer_report_current"]
+    reference = f"{report['repo']}#{_held.ISSUE}@{report['requirements']}"
+    return (ordinal, "implementation", nonce, "implementing", reference)
 
 
 def _reviewed(case: DispatchedSnapshotTest, github, issue) -> str:
-    """The prompt the next tick hands the reviewer of the report `github` published."""
+    """The prompt the next tick hands the reviewer of the report `github` published, GitHub having renamed it since."""
     # The fake pull request stays where it opened; a real one stands on the
     # commit the push carried, which is the one the report is about.
     github.get_pr(_held.OPENED_PR).head.sha = _held.SOURCE
-    ran = case.dispatch(github, issue, _support.returning(""), **case.sunk)
+    renamed = patch.object(type(github), "repo_slug", new_callable=PropertyMock, return_value=_RENAMED)
+    with renamed:
+        ran = case.dispatch(github, issue, _support.returning(""), **case.sunk)
     return _support.prompt_of(ran)
 
 

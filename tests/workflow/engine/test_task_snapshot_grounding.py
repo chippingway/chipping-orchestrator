@@ -32,7 +32,7 @@ _REPO_ID = 7
 _ISSUE = 42
 
 
-def _kept(baseline: str = _BASELINE) -> _grounding.Grounding:
+def _kept(baseline: str | None = _BASELINE) -> _grounding.Grounding:
     """The issue's record on this host, read beside `baseline`."""
     state = PinnedState(comment_id=1, state_data={"user_content_hash": baseline})
     return _grounding.Grounding.of(_REPO_ID, _ISSUE, state)
@@ -49,6 +49,13 @@ _SILENT_RECORDS = (
     ("a settled baseline", json.dumps(_grounded(baseline=_ROAD))),
     ("a damaged record", '{"session_id": '),
     ("a record without requirements", json.dumps({"session_id": _SESSION, "baseline": _BASELINE})),
+)
+
+# On an issue recording no baseline: records of any shape but the whole one,
+# which a missing `baseline` would otherwise pass for.
+_UNSHAPED_RECORDS = (
+    ("a record without a baseline", json.dumps({"session_id": _SESSION, "requirements": _EDITED})),
+    ("a record with a member too many", json.dumps({**_grounded(baseline=None), "extra": True})),
 )
 
 
@@ -89,6 +96,17 @@ class HandedTest(_HostRecord):
             with self.subTest(record=name):
                 self.recorded(spelled)
                 self.assertEqual(self.kept.handed(_SESSION, _EDITED, _ROAD), _ROAD)
+
+    def test_only_a_whole_record_speaks(self) -> None:
+        # On an issue recording no baseline, the whole record -- its baseline
+        # null -- speaks for the conversation, and no other shape does.
+        unset = _kept(baseline=None)
+        self.recorded(json.dumps(_grounded(baseline=None)))
+        self.assertEqual(unset.handed(_SESSION, _OTHER, _ROAD), _EDITED)
+        for name, spelled in _UNSHAPED_RECORDS:
+            with self.subTest(record=name):
+                self.recorded(spelled)
+                self.assertEqual(unset.handed(_SESSION, _OTHER, _ROAD), _ROAD)
 
 
 class RememberTest(_HostRecord):

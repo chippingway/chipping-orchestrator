@@ -116,6 +116,7 @@ from orchestrator.workflow.engine import (
     completion_verdicts as _completion_verdicts,
     guards as _guards,
     prompt_context as _prompt_context,
+    report_settlement_state as _report_settlement,
     review_prompts as _review_prompts,
     run_charge_state as _run_charge_state,
     usage as _usage,
@@ -334,19 +335,22 @@ def _review_prompt(
 ) -> str:
     """The prompt one round's reviewer is handed, over the subject and evidence the round resolved.
 
-    The repository is named as `state`, the round's pinned reading, names it --
-    GitHub's own spelling, which every invocation is minted with -- so the task
-    snapshot reference the reviewer is told is the one the developer's
-    snapshot was recorded under, however the configuration cases the slug.
+    The repository is named as the settled report's own record names it
+    (`report_settlement_state.read_current_report`): the one that report was
+    published under, which the developer's snapshot spelled its task
+    reference with, so the reference the reviewer is told is the one that
+    snapshot was recorded under, whatever GitHub has renamed the repository
+    to since. A record that will not read names none, and no reference is told.
     """
     _, dev_backend, _, _ = _dev_session_read._read_dev_session(state)
+    current = _report_settlement.read_current_report(state)
     return _review_prompts._build_review_prompt(
         spec, issue, thread_text, config.default_repo_specs(),
         _review_prompts.ReviewHandover(
             dev_backend=dev_backend,
             subject=handover.subject,
             evidence=handover.evidence,
-            repository=state.repo_slug,
+            repository=None if current is None else current.subject.repo_slug,
         ),
     )
 

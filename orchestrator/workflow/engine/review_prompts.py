@@ -14,8 +14,9 @@ subject, where there is any, arrives beside it and is quoted whole by
 layout each failure its numbered findings rest on is entered in. Beside the
 report goes the task snapshot reference it answers to, spelled by the analytics
 owner the developer's description was recorded under over the repository the
-handover names -- the pinned reading's, as every invocation is minted with --
-so a reviewer can name the task it reviews. Every marker it teaches is the one `completion_verdicts` or
+handover names -- the one the settled report records it was published under,
+which the snapshot spelled its reference with -- so a reviewer can name the
+task it reviews. Every marker it teaches is the one `completion_verdicts` or
 `review_verification` parses; it teaches none of the developer's report
 outcomes.
 """
@@ -44,11 +45,11 @@ class ReviewHandover:
     caller resolved for this round, the report included. None is a reviewer
     handed no subject, which is told no report is recorded. `evidence` is the
     workflow verification evidence the caller proved current for that very
-    subject, or None where none is. `repository` is the repository as the
-    pinned reading the round was resolved over names it (`PinnedState.repo_slug`),
-    GitHub's own spelling, which every invocation's records are minted under
-    (`invocations.minted`) rather than the configured slug; None names no task
-    reference.
+    subject, or None where none is. `repository` is the repository the
+    settled report records it was published under -- the identity the
+    developer's task snapshot spelled its reference with, kept on the pinned
+    record rather than read from GitHub again, so a rename since changes
+    nothing -- and None names no task reference.
     """
 
     dev_backend: str = "agent"
@@ -115,8 +116,7 @@ def _task_reference(issue: Issue, handover: ReviewHandover) -> str | None:
 
     Spelled by the one owner the snapshot records are written by
     (`observations.records.task_reference`), over the repository the handover
-    names -- the identity the developer's invocation was minted with, never
-    the configured slug an operator may have cased otherwise -- the issue, and
+    names -- the one the settled report was published under -- the issue, and
     the requirements revision the report is stamped with, so the reviewer
     names exactly the reference the developer's description of the task was
     recorded under.

@@ -70,7 +70,7 @@ from pathlib import Path
 
 from github.Issue import Issue
 
-from orchestrator.agents.models import AgentResult
+from orchestrator.agents import models as _agent_models, provider_failures as _provider_failures
 from orchestrator.git.verification import probes as _probes
 from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
@@ -110,7 +110,7 @@ class Attempt:
     one, a continuation of that one included.
     """
 
-    agent_result: AgentResult
+    agent_result: _agent_models.AgentResult
     command: str
     prompt: str
     resumed: str | None
@@ -120,14 +120,17 @@ class Attempt:
     def refused(self) -> bool:
         """Whether the attempt's CLI answered it with a refusal of its own rather than the agent's turn.
 
-        Read as this stage reads such a return everywhere else
-        (`session_read`): a conversation the CLI could not open or whose
-        transcript overflowed the context -- the two a poisoned-session retry
-        is bought by -- or an exhausted account quota.
+        Read as the workflow reads such a return everywhere else: a
+        conversation the CLI could not open or whose transcript overflowed the
+        context -- the two a poisoned-session retry is bought by -- or an
+        exhausted account quota (`session_read`), Codex's coded usage-limit
+        stop on the turn it ended on included, which leaves the final message
+        empty however the CLI exits (`provider_failures.codex_usage_limit_failure`).
         """
         returned = self.agent_result
         return (
             _session_read._is_session_limit(returned)
+            or _provider_failures.codex_usage_limit_failure(returned) is not None
             or _session_read._is_stale_session_failure(self.backend, returned)
             or _session_read._is_context_overflow_failure(self.backend, returned)
         )
@@ -143,12 +146,16 @@ class CompletionRoad:
     quotes the issue as it now reads. Only a task snapshot is bound to it --
     that of an attempt that opened a fresh conversation, and of a later retry
     resuming that conversation; the capture and the report keep the
-    handoff's.
+    handoff's. `repository` is the repository as configured, the one a report
+    a return finishes on is published under and its settled record keeps:
+    with the handoff's revision, it spells the task reference a snapshot of
+    an attempt on this road is recorded under and its reviewer is told.
     """
 
     handoff: _records.CompletionHandoff
     checkout: RoadCheckout
     fresh_requirements: str | None = None
+    repository: str = ""
 
     def captures(
         self, gh: _client.GitHubClient, issue: Issue, state: _pinned_state.PinnedState, attempt: Attempt,
@@ -222,10 +229,12 @@ class CompletionRoad:
         recording raises nothing, and no disposition, capture, or accounting
         reads it back; the pinned comment carries none of it.
         """
-        conversation = _task_snapshots.Conversation(gh.repo_id, issue.number, attempt.resumed, self.fresh_requirements)
+        conversation = _task_snapshots.Conversation(
+            gh.repo_id, issue.number, attempt.resumed, self.fresh_requirements, self.repository,
+        )
         _task_snapshots.receive(self.handoff, attempt.agent_result, state, conversation, refused=attempt.refused)
 
-    def source(self, agent_result: AgentResult) -> str | None:
+    def source(self, agent_result: _agent_models.AgentResult) -> str | None:
         """The head `agent_result`'s report is about, read off the checkout as it returns; None where none qualifies.
 
         Every road here takes the head the run left, whatever it is, and
@@ -241,6 +250,7 @@ def implementation_road(
     state: _pinned_state.PinnedState,
     delivered: _prompt_delivery.PromptDeliverySnapshot,
     checkout: RoadCheckout,
+    repository: str,
 ) -> CompletionRoad:
     """The first implementation's road, frozen over the thread `delivered` is the prompt's record of.
 
@@ -257,20 +267,24 @@ def implementation_road(
         requirements_revision=revision,
         watermarks=delivered.consumed_pairs(state) if owed else (),
         delivered=_thread_delivery.DeliveredThread.quoted(delivered).recorded(),
-    ), checkout)
+    ), checkout, repository=repository)
 
 
-def reply_road(issue: Issue, batch: _resume_batch._ReplyBatch, checkout: RoadCheckout) -> CompletionRoad:
+def reply_road(
+    issue: Issue, batch: _resume_batch._ReplyBatch, checkout: RoadCheckout, repository: str,
+) -> CompletionRoad:
     """A human reply's resume, frozen over the one read its batch was cut from: it settles the batch it delivers."""
     return CompletionRoad(_records.CompletionHandoff(
         route=_routes.CompletionRoute.RESUME,
         origin=_IMPLEMENTING,
         requirements_revision=_requirements(issue, batch),
         watermarks=batch.delivery.consumed_pairs(batch.state),
-    ), checkout)
+    ), checkout, repository=repository)
 
 
-def retry_road(issue: Issue, batch: _resume_batch._ReplyBatch, checkout: RoadCheckout) -> CompletionRoad:
+def retry_road(
+    issue: Issue, batch: _resume_batch._ReplyBatch, checkout: RoadCheckout, repository: str,
+) -> CompletionRoad:
     """An operator's `/orchestrator continue` retry, frozen over its batch: it consumes the commands it answered.
 
     A retry hands the developer no requirements: a resumed conversation reads
@@ -293,7 +307,7 @@ def retry_road(issue: Issue, batch: _resume_batch._ReplyBatch, checkout: RoadChe
         origin=_IMPLEMENTING,
         requirements_revision=baseline if isinstance(baseline, str) else "",
         watermarks=((_prompt_delivery.PINNED_LAST_ACTION_COMMENT_ID, consumed),),
-    ), checkout, fresh_requirements=_requirements(issue, batch))
+    ), checkout, fresh_requirements=_requirements(issue, batch), repository=repository)
 
 
 def _requirements(issue: Issue, batch: _resume_batch._ReplyBatch) -> str:

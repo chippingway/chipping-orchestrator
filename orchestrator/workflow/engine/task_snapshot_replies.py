@@ -31,15 +31,20 @@ refusal's own spelling. The recorder asks it inside its own failure boundary.
 
 A reply those readers fail on is never read as written. With one warning,
 its attachment lines are found by a pattern of this owner's own -- every line
-opening on `ANALYTICS:` outside the fences the fence reader read, or every one
-where that reader is what failed -- and kept out by the marker lines alone,
-which the report reader's pattern finds without parsing anything: taken out
-whole where the reply has no marker line, and between its first and last,
-which is where a READY block's report sits; replaced by `PLACEHOLDER`
-everywhere else. So a READY report reads as written without the lines, its
-digest with it, and a block holding nothing else stays the empty block the
-report reader refuses; a fenced example stays wherever the fences were read;
-and no attachment text reaches a report, a digest, or a notice. Taking a line
+opening on `ANALYTICS:` that no fence the fence reader could read may enclose
+-- and kept out by the marker lines alone, which the report reader's pattern
+finds without parsing anything: taken out whole where the reply has no marker
+line, and between its first and last, which is where a READY block's report
+sits; replaced by `PLACEHOLDER` everywhere else. The fences are the whole
+reply's where they read; where they do not, the report body's alone -- the
+text between those markers, which holds every fence of a READY report, since
+one open at either marker would leave the outcome unreadable -- every line
+outside the body then read as no code; and where neither reads, no line of
+the body is taken out at all, so nothing leaves a report on a guess and the
+report reader, which reads the same fences, decides what it is. So a READY
+report reads as written without the lines, its digest with it, a block
+holding nothing else stays the empty block the report reader refuses, a
+fenced example stays, and no attachment text reaches a notice. Taking a line
 out between the markers of an outcome that does not read changes no marker,
 fence, or acknowledgement line, so no outcome the report reader refuses is
 made one it accepts.
@@ -82,7 +87,7 @@ _Span = tuple[int, int]
 
 
 def workflow_reply(message: str) -> str:
-    """`message` as the workflow reads it; kept out by the marker lines alone where its readers fail (`_held`)."""
+    """`message` as the workflow reads it; kept out by the marker lines alone where its readers fail."""
     try:
         return _read_as(message, _fences._fenced_line_starts(message))
     except Exception as error:  # noqa: BLE001 - a reply its readers fail on is kept out by its marker lines instead
@@ -91,7 +96,7 @@ def workflow_reply(message: str) -> str:
             "keeping them out by the reply's marker lines alone",
             type(error).__name__,
         )
-        return _held(message)
+        return _MarkerReading(message).held()
 
 
 def framing(message: str) -> _recorder.Framing:
@@ -121,20 +126,53 @@ def _read_as(message: str, fenced: frozenset[int]) -> str:
     return _rewritten(message, lines, _in_the_block(message, lines))
 
 
-def _held(message: str) -> str:
-    """`message` with every line opening on the prefix outside its fences kept out by the marker lines alone.
+class _MarkerReading:
+    """A reply its readers failed on, its attachment lines kept out by the marker lines alone (`workflow_reply`).
 
-    The fences are the fence reader's where it answers, and none where it is
-    what failed, so every such line is kept out then, a fenced one included.
+    Its lines are those opening on the prefix that may be no code, read the
+    best way the fence reader answers, each reading below replacing the one
+    before where it does: every prefixed line of the report body -- between
+    the first and last marker lines -- taken for code, so none is removed on a
+    guess; the body's own fences, every line outside it read as no code; and
+    the whole reply's fences.
     """
-    fenced = _attachments.NOTHING_FENCED
-    with contextlib.suppress(Exception):
-        fenced = _fences._fenced_line_starts(message)
-    prefixed = (line.span() for line in _ANY_PREFIXED_LINE_RE.finditer(message))
-    lines = tuple(line for line in prefixed if line[0] not in fenced)
-    if _outcomes._MARKER_LINE_RE.search(message) is None:
-        return _rewritten(message, lines, frozenset(lines))
-    return _rewritten(message, lines, _in_the_block(message, lines))
+
+    def __init__(self, message: str) -> None:
+        self._message = message
+        self._markers = tuple(_outcomes._MARKER_LINE_RE.finditer(message))
+        self._prefixed = tuple(line.span() for line in _ANY_PREFIXED_LINE_RE.finditer(message))
+
+    def held(self) -> str:
+        """The reply, its lines taken out with no marker line or between the markers, held by the placeholder else."""
+        code = self._code()
+        lines = tuple(line for line in self._prefixed if line[0] not in code)
+        if not self._markers:
+            return _rewritten(self._message, lines, frozenset(lines))
+        return _rewritten(self._message, lines, _in_the_block(self._message, lines))
+
+    def _code(self) -> frozenset[int]:
+        """The start of every line that may be code, in the best reading the fence reader answers."""
+        code = self._body_lines()
+        with contextlib.suppress(Exception):
+            code = self._body_fences()
+        with contextlib.suppress(Exception):
+            code = _fences._fenced_line_starts(self._message)
+        return code
+
+    def _body_lines(self) -> frozenset[int]:
+        """Every prefixed line of the report body, each taken for code."""
+        if not self._markers:
+            return frozenset()
+        return frozenset(line[0] for line in _in_the_block(self._message, self._prefixed))
+
+    def _body_fences(self) -> frozenset[int]:
+        """The fences of the report body read alone, at the offsets the reply holds them; none without a marker line."""
+        if not self._markers:
+            return frozenset()
+        opening = self._markers[0].end()
+        closing = self._markers[-1].start()
+        fenced = _fences._fenced_line_starts(self._message[opening:closing])
+        return frozenset(opening + start for start in fenced)
 
 
 def _in_the_block(message: str, lines: tuple[_Span, ...]) -> frozenset[_Span]:

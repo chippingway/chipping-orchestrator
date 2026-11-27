@@ -1920,8 +1920,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             between the issue and the inspection commands, named by revision and location, and a note
                             where the requirements have moved on since it was written, and the task snapshot reference
                             the report answers to, spelled by the analytics owner its description was recorded under
-                            over the repository the handover names -- the round's pinned reading's, as every invocation
-                            is minted with; a subject with no report says none is recorded. The verification block
+                            over the repository the handover names -- the one the settled report records it was
+                            published under; a subject with no report says none is recorded. The verification block
                             follows the inspection commands, and the closing instructions put the declaration it teaches
                             above the verdict line and each failure a numbered finding rests on under it, in the layout
                             that block teaches
@@ -1960,20 +1960,22 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             else -- so no park, notice, or published report quotes one, a fenced example stays, text
                             past an outcome is still refused, and a block of nothing else is refused as empty; a reply
                             those readers fail on never read as written but kept out by its marker lines alone, outside
-                            the fences still read, with one warning; and the framing the recorder is told -- where the
-                            outcome begins, the lines a fence may enclose, and the verdict the workflow reaches on that
-                            reply
+                            the fences of the whole reply or, where those do not read, of its report body, and taking
+                            nothing out of a report where neither reads, with one warning; and the framing the recorder
+                            is told -- where the outcome begins, the lines a fence may enclose, and the verdict the
+                            workflow reaches on that reply
     task_snapshots.py       which developer attempts are asked for a task snapshot -- every one on the first
                             implementation's road or an implementing resume's, and none else -- the request appended to
                             the prompt each is handed, and the receipt of each return on those roads: with the analytics
                             sink on, a genuine one -- judged by the run's status, its provider's own verdict, and the
                             road's reading of a CLI refusal (`completion_roads.Attempt.refused`) -- handed to the
                             analytics recorder with its invocation, the requirements its conversation was handed
-                            (`task_snapshot_grounding.py`), the revision its report is stamped with -- which spells the
-                            task reference -- and the framing of the reply the workflow reads
-                            (`task_snapshot_replies.py`), which the recorder asks inside its failure boundary, and the
-                            grounding of every attempt that reached the agent kept current; and, sink on or off, every
-                            one left as the workflow reads it. Nothing a workflow decides reads the observation back
+                            (`task_snapshot_grounding.py`), the repository and revision its report is published under
+                            and stamped with -- which spell the task reference -- and the framing of the reply the
+                            workflow reads (`task_snapshot_replies.py`), which the recorder asks inside its failure
+                            boundary, and the grounding of every attempt that reached the agent kept current; and, sink
+                            on or off, every one left as the workflow reads it. Nothing a workflow decides reads the
+                            observation back
     review_subjects.py      what one review is of -- pull request, head, requirements revision, and report revision and
                             digest -- recorded as `review_subject` before the spawn, as `review_returned_subject` once a
                             reviewer returns, and as `review_approved_subject` once an approval passes the verify gate,

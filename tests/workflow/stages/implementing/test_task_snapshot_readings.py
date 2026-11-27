@@ -13,9 +13,11 @@ for one, so a reply without it -- with no report outcome either -- is a
 missing snapshot. The reply is framed inside the recorder's own boundary, so a
 framing that fails, once or every time it is asked, is a diagnostic and the
 report it spares is published as ever -- with no attachment line in it, even
-where the scan for those lines is what failed. That scan failing, with the
-sink on or off, a fenced example is still the report's own text under the
-same digest, and a block holding nothing but the line is still refused.
+where the scan for those lines is what failed. That scan or the fence reader
+failing on the reply as written, with the sink on or off, a fenced example is
+still the report's own text under the same digest -- the report body's own
+fences read in place of the reply's -- and a block holding nothing but the
+line is still refused.
 
 An `/orchestrator continue` retry beside a body edit hands a resumed
 conversation nothing, so its snapshot keeps the baseline that conversation
@@ -36,6 +38,7 @@ from orchestrator.github import developer_reports as _developer_reports
 from orchestrator.observability.analytics.observations import attachments as _attachments
 from orchestrator.workflow.engine import (
     content_hash as _content_hash,
+    report_fences as _fences,
     report_outcomes as _outcomes,
     task_snapshot_replies as _replies,
 )
@@ -95,12 +98,17 @@ def _unavailable() -> MagicMock:
     return MagicMock(side_effect=ValueError("framing unavailable"))
 
 
+# The readers of a reply that may fail on it, by name, and their owners.
+_SCAN = "attachment_lines"
+_FENCES = "_fenced_line_starts"
+_READERS = MappingProxyType({_SCAN: _attachments, _FENCES: _fences})
+
 # Where a framing fails, and how: the report reader once, the outcome's start
 # and the scan for attachment lines always.
 _FRAMING_FAILURES = (
     (_outcomes, "_parse_report_outcome", _ParsesAfterOneFailure),
     (_replies, "_outcome_start", _unavailable),
-    (_attachments, "attachment_lines", _unavailable),
+    (_attachments, _SCAN, _unavailable),
 )
 
 # A READY report carrying the attachment line inside its block, where it is misplaced.
@@ -123,24 +131,43 @@ _UNPUBLISHABLE = (
     (_ALONE, "misplaced"),
 )
 
-# Whether the scan for attachment lines fails, and whether the sink is on: it
-# answering with the sink on, then failing with the sink on and off.
-_SCANS = ((False, True), (True, True), (True, False))
+# Which reader fails on the reply as written, if any, and whether the sink is
+# on: every reader answering with the sink on, then the attachment scan and
+# the fence reader each failing with the sink on and off.
+_SCANS = (
+    (None, True),
+    (_SCAN, True),
+    (_SCAN, False),
+    (_FENCES, True),
+    (_FENCES, False),
+)
 
 
-def _scanned(case: ReplyReadingTest, reply: str, failing: bool, sink: bool):
-    """A fresh issue dispatched over `reply`, its attachment scan `failing` or not, its sink on or off; its client."""
+class _FailsOn:
+    """A reader failing on one reply as written, and reading every other text as it does."""
+
+    def __init__(self, reply: str, read) -> None:
+        self._reply = reply
+        self._read = read
+
+    def __call__(self, text: str, *args, **kwargs):
+        """Fail on the reply; read anything else."""
+        if text == self._reply:
+            raise ValueError("unreadable reply")
+        return self._read(text, *args, **kwargs)
+
+
+def _scanned(case: ReplyReadingTest, reply: str, failing: str | None, sink: bool):
+    """A fresh issue dispatched over `reply`, the reader `failing` names failing on it, its sink on or off."""
     github, issue = case.seeded()
     seams = {**case.committing, _SINK: case.sink if sink else None}
-    scanning = patch.object(_attachments, "attachment_lines", _unavailable()) if failing else contextlib.nullcontext()
+    scanning = contextlib.nullcontext()
+    if failing:
+        owner = _READERS[failing]
+        scanning = patch.object(owner, failing, _FailsOn(reply, getattr(owner, failing)))
     with scanning:
         case.dispatch(github, issue, _support.returning(reply), **seams)
     return github
-
-
-def _fingerprint(issue) -> str:
-    """The requirements fingerprint the issue reads as now."""
-    return _content_hash._compute_user_content_hash(issue, set())
 
 
 def _replaced():
@@ -258,7 +285,7 @@ class RetrySnapshotTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
         github, issue, baseline = self._edited()
         ran = self.dispatch(github, issue, _support.returning(), **self._committed())
         self.assertIn(_EDITED, _support.prompt_of(ran))
-        edited = _fingerprint(issue)
+        edited = _content_hash._compute_user_content_hash(issue, set())
         self.assertNotEqual(edited, baseline)
         self.assertEqual(self._bound(), (edited, _support.reference(baseline)))
 
@@ -271,7 +298,7 @@ class RetrySnapshotTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
         issue.comments.append(_SECOND_RETRY)
         self.dispatch(github, issue, runner, **self._committed(commits=False))
         self.assertEqual(runner.call_args.kwargs["options"].resume_session_id, _REPLACEMENT)
-        edited = _fingerprint(issue)
+        edited = _content_hash._compute_user_content_hash(issue, set())
         self.assertEqual(self._revisions(), [edited, edited])
 
     def _edited(self, **record):

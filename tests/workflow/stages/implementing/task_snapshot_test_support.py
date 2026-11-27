@@ -52,9 +52,9 @@ def prompt_of(ran: dict) -> str:
     return called.args[1]
 
 
-def reference(revision: str) -> str:
-    """The task reference a snapshot bound to `revision` is named by."""
-    return f"{_TEST_SPEC.slug}#{_held.ISSUE}@{revision}"
+def reference(revision: str, repository: str = _TEST_SPEC.slug) -> str:
+    """The task reference a snapshot bound to `revision` is named by, its report published under `repository`."""
+    return f"{repository}#{_held.ISSUE}@{revision}"
 
 
 def posted_attachments(github) -> list[str]:

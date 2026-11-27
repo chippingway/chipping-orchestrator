@@ -146,7 +146,7 @@ def _prepare_awaiting_dev_run(
         _verification_probes._head_sha(worktree),
     )
     resumed = _resume._resume_developer_on_human_reply(
-        gh, spec, issue, batch, completion=_completion_roads.reply_road(issue, batch, checkout),
+        gh, spec, issue, batch, completion=_completion_roads.reply_road(issue, batch, checkout, spec.slug),
     )
     if resumed is None:
         return None

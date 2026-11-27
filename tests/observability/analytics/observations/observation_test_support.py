@@ -41,7 +41,9 @@ REPORTED = "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
 
 STAGE = "implementing"
 
-RUN = records.ObservedRun(INVOCATION, STAGE, "implementation", HANDED, report_requirements=REPORTED)
+RUN = records.ObservedRun(
+    INVOCATION, STAGE, "implementation", HANDED, report_requirements=REPORTED, report_repository=REPO,
+)
 
 TASK_REF = f"{REPO}#{ISSUE}@{REPORTED}"
 

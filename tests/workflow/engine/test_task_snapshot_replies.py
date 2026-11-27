@@ -19,8 +19,8 @@ fence may enclose is code a report quotes, and stays. A reply the attachment
 scan fails on is never read as written: its lines are kept out by the marker
 lines alone, which reads every reply here exactly as the full reading does --
 a block holding nothing else still empty, a fenced example kept -- and where
-the fence reader fails too, every line opening on the prefix is kept out and
-no outcome moves. Where a line sits beside the outcome, and the verdict the
+no fence reads at all, no line is taken out of a report on a guess while
+every one outside it is still kept out. Where a line sits beside the outcome, and the verdict the
 recorder is told, are `test_task_snapshot_framing`.
 """
 from __future__ import annotations
@@ -198,16 +198,19 @@ class ProtocolIsolationTest(unittest.TestCase):
                 self.assertEqual(_replies.workflow_reply(reply), read)
                 self.assertEqual(len(logged.output), 1)
 
-    def test_a_failed_fence_reading_keeps_all_out(self) -> None:
-        # No fence is known, so a fenced line is kept out too: no attachment
-        # text is left, and the outcome reads as the full reading's does.
+    def test_a_failed_fence_reading_guesses_nothing(self) -> None:
+        # No fence reads, of the reply or of its report: no line of a report
+        # is taken out on a guess -- the report reader, reading the same
+        # fences, decides what it is -- so every outcome reads as written,
+        # and every line outside the report is still kept out.
         for reply in _HELD_REPLIES:
             with patch.object(_fences, "_fenced_line_starts", side_effect=_UNREADABLE):
                 held = _replies.workflow_reply(reply)
-            outcome = type(_outcomes._parse_report_outcome(_replies.workflow_reply(reply)))
+            written = _outcomes._parse_report_outcome(held)
+            outside = held.replace(getattr(written, "report", ""), "", 1)
             with self.subTest(reply=reply):
-                self.assertNotIn(attachments.PREFIX, held)
-                self.assertIs(type(_outcomes._parse_report_outcome(held)), outcome)
+                self.assertEqual(written, _outcomes._parse_report_outcome(reply))
+                self.assertNotIn(attachments.PREFIX, outside)
 
 
 if __name__ == "__main__":

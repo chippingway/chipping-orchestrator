@@ -18,8 +18,9 @@ verdict the workflow reached on the reply it reads -- `ready`, `verified`,
 * `task_snapshot` is a developer's description of its task, bounded, beside
   the requirements revision its conversation was handed and the task
   reference (`task_reference`) a later reader names it by: spelled from the
-  revision the run's report is stamped with, which the caller hands beside
-  the first, so the reference names the report a reader is handed.
+  repository the run's report is published under and the revision it is
+  stamped with, which the caller hands beside the first, so the reference
+  names the report a reader is handed.
 * `observation_diagnostic` is why a reply yielded no observation: the item
   it is about, the category, the counts the collection reached -- the
   attachment lines `found`, and how many were `readable` as a snapshot, which
@@ -60,9 +61,10 @@ class ObservedRun:
     `invocation` is the process the reply came back from, `stage` the bare
     stage tag its records are attributed to, `route` the road it ran on, and
     `requirements_revision` the requirements the conversation the attempt ran
-    in was handed -- None where the road holds none. `report_requirements`
-    is the revision the run's report is stamped with, and spells the task
-    reference. `report_outcome` is the verdict the workflow reached on the
+    in was handed -- None where the road holds none. `report_repository` and
+    `report_requirements` are the repository the run's report is published
+    under and the revision it is stamped with, and spell the task reference
+    between them. `report_outcome` is the verdict the workflow reached on the
     reply it reads, set once the recorder has framed it and None before.
     """
 
@@ -72,6 +74,7 @@ class ObservedRun:
     requirements_revision: str | None
     report_requirements: str | None = None
     report_outcome: str | None = None
+    report_repository: str | None = None
 
 
 def source_fields(invocation: AgentInvocation) -> dict:
@@ -162,6 +165,6 @@ def _observation(run: ObservedRun, event: str, **fields: object) -> dict:
         route=run.route,
         report_outcome=run.report_outcome,
         requirements_revision=run.requirements_revision,
-        task_ref=task_reference(invocation.repo, invocation.issue, run.report_requirements),
+        task_ref=task_reference(run.report_repository or "", invocation.issue, run.report_requirements),
         **fields,
     )

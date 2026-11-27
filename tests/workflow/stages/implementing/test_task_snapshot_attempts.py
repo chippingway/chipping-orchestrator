@@ -10,7 +10,8 @@ under none. A run frozen on no road, or on a road other than the
 implementing two, is neither asked nor observed, and an attempt that
 returned no finished reply -- timed out, left a command running, or answered
 on a clean exit by its provider's refusal or its CLI's own, an exhausted
-quota or an overflowed transcript -- records nothing.
+quota -- Codex's coded usage-limit stop included -- or an overflowed
+transcript -- records nothing.
 """
 from __future__ import annotations
 
@@ -30,6 +31,7 @@ from orchestrator.workflow.stages.implementing import (
     resume as _resume,
     resume_request as _resume_request,
 )
+from tests.agents.codex_stream_cases import codex_jsonl, turn_failed, turn_started
 from tests.support.fakes import FakeGitHubClient, make_issue
 from tests.workflow.fixtures import _FAKE_WT, _TEST_SPEC, _agent
 from tests.workflow.stages.implementing import (
@@ -51,9 +53,15 @@ _COMPLETION = "completion"
 # Claude's own verdict on a turn its provider refused, beside a clean exit.
 _REFUSED = json.dumps({"type": "result", "is_error": True, "result": "API Error: 529 Overloaded."})
 
+# A Codex turn its account's usage limit stopped, coded as such, beside a clean exit and no final message.
+_CODEX_STOPPED = codex_jsonl(turn_started(), turn_failed("Quota exhausted.", codex_error_info="usage_limit_exceeded"))
+
 # What a poisoned resume and the fresh retry behind it record: nothing for the
 # conversation the CLI could not open, the snapshot under the second charge.
 _RETRIED = ((_support.SNAPSHOT_EVENT, (2, "resume")),)
+
+# The result field a run's final message is returned in.
+_SAID = "last_message"
 
 _IMPLEMENTATION = _routes.CompletionRoute.IMPLEMENTATION
 _RESUME = _routes.CompletionRoute.RESUME
@@ -67,8 +75,9 @@ _UNRECORDED = (
     ("a fix round", {}, _routes.CompletionRoute.REQUESTED_CHANGES, _PROMPT, False),
     ("a timed-out attempt", {"timed_out": True}, _IMPLEMENTATION, _ASKED, True),
     ("a refused turn", {"stdout": f"{_REFUSED}\n"}, _IMPLEMENTATION, _ASKED, False),
-    ("an exhausted quota", {"last_message": "You've hit your 5-hour limit"}, _RESUME, _ASKED, False),
-    ("an overflowed transcript", {"last_message": "Prompt is too long"}, _RESUME, _ASKED, False),
+    ("an exhausted quota", {_SAID: "You've hit your 5-hour limit"}, _RESUME, _ASKED, False),
+    ("an overflowed transcript", {_SAID: "Prompt is too long"}, _RESUME, _ASKED, False),
+    ("a Codex usage limit", {_SAID: "", "stdout": _CODEX_STOPPED}, _RESUME, _ASKED, False),
 )
 
 
@@ -150,7 +159,7 @@ class CoordinatedAttemptTest(_support.SinkOfItsOwn):
         """One run that returns `failure` on `route`'s road: handed `prompt`, and observed nowhere."""
         _grounding_of(self).unlink(missing_ok=True)
         self.state = self.github.read_pinned_state(self.issue)
-        returned = _agent(**{"last_message": _support.ATTACHED, **failure})
+        returned = _agent(**{_SAID: _support.ATTACHED, **failure})
         runner = self._coordinated([returned], route=route)
         self.assertEqual(runner.call_args.args[1], prompt)
         self.assertEqual(self.observations(), [])

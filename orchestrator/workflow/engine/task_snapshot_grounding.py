@@ -33,9 +33,11 @@ it saying nothing, and the attempt is bound to what its road hands it.
 It is analytics alone: read and written only while the analytics sink is on,
 only by a snapshot, and only under the issue's writer claim. The pinned
 comment never carries it, so no settlement, park, or capture measures or
-reads it. A record that will not read is nothing, and one the host will not
-take is warned of and lost: a later retry's snapshot is then bound to the
-baseline. Another host sees none of it.
+reads it. A record is read only whole, in the one shape written here: one
+that will not read, or that holds any other set of members -- a `baseline`
+missing, which would otherwise read as an issue recording none, included --
+is nothing, and one the host will not take is warned of and lost: a later
+retry's snapshot is then bound to the baseline. Another host sees none of it.
 """
 from __future__ import annotations
 
@@ -58,6 +60,9 @@ _SESSION = "session_id"
 _REQUIREMENTS = "requirements"
 
 _BASELINE = "baseline"
+
+# Every member a record carries, and nothing else.
+_MEMBERS = frozenset((_SESSION, _REQUIREMENTS, _BASELINE))
 
 
 @dataclass(frozen=True)
@@ -111,11 +116,11 @@ class Grounding:
         except (OSError, ValueError) as error:
             log.warning("could not read the task snapshot grounding at %s (%s)", self.path, type(error).__name__)
             return None
-        if not isinstance(record, dict) or record.get(_SESSION) != resumed:
+        if not isinstance(record, dict) or set(record) != _MEMBERS:
             return None
-        if record.get(_BASELINE) != self.baseline:
+        if record[_SESSION] != resumed or record[_BASELINE] != self.baseline:
             return None
-        requirements = record.get(_REQUIREMENTS)
+        requirements = record[_REQUIREMENTS]
         return requirements if isinstance(requirements, str) and requirements else None
 
     def _changed(self, change: Callable[[], object]) -> None:

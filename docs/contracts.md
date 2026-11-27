@@ -248,11 +248,13 @@ lines anywhere, or none at all is a diagnostic naming why, never a guessed, repa
 `AgentInvocation` identity whole; a text says how long it was and whether it was cut, a character `jsonb` refuses is
 written as the replacement character, a record past its limit drops its texts rather than cutting an identifier, and
 nothing backfills a snapshot for a run that recorded none. A snapshot's `task_ref` is spelled by the one task-reference
-formatter from the revision its run's report is stamped with, and its `requirements_revision` names what its
-conversation was handed. A host record beside the issue's writer claim, `repo-<id>-issue-<n>.task-snapshot-grounding`
-spelling `{"session_id", "requirements", "baseline"}`, carries a retry's re-grounding to a later retry resuming that
+formatter from the repository its run's report is published under -- the configured slug its settled record keeps --
+and the revision that report is stamped with, and its `requirements_revision` names what its conversation was handed.
+A host record beside the issue's writer claim, `repo-<id>-issue-<n>.task-snapshot-grounding` spelling exactly
+`{"session_id", "requirements", "baseline"}`, carries a retry's re-grounding to a later retry resuming that
 conversation only while its baseline stands; it is written only with the analytics sink on, never on the pinned
-comment, and one that will not read is nothing, so its loss needs no migration and binds that snapshot to the baseline.
+comment, and one that will not read or holds any other set of members -- a missing `baseline` included -- is nothing,
+so its loss needs no migration and binds that snapshot to the baseline.
 A recorded requirements fingerprint
 (`user_content_hash`, `observed_user_content_hash`) is compared with the current fingerprint alone, which leaves bare
 operator controls out: a value no current reading reproduces -- one an earlier producer wrote counting a bare
@@ -765,15 +767,16 @@ without moving its framing -- taken out where the reply has no report marker and
 a placeholder line elsewhere -- so it is outside the published report and its digest, no park or notice quotes it, a
 fenced example stays where it was, text after an outcome is still refused, a block holding nothing else is refused as
 empty, and the verdict the workflow reaches is the one the snapshot's record names; a reply those readers fail on is
-never read as written, its lines opening on the prefix outside the fences still read kept out by its marker lines
-alone -- taken out where it has none and between its first and last, held by the placeholder elsewhere -- so a READY
-report and its digest read as without them, a block holding nothing else stays refused, and a fenced example stays
-wherever the fences were read. A missing,
+never read as written, its lines opening on the prefix that no readable fence may enclose kept out by its marker
+lines alone -- taken out where it has none and between its first and last, held by the placeholder elsewhere -- the
+fences read off the whole reply, else off its report body alone, and where neither reads no line of the report taken
+out on a guess; so a READY report and its digest read as without them, a block holding nothing else stays refused, and
+a fenced example stays. A missing,
 malformed, duplicated, or misplaced attachment earns a diagnostic and nothing else -- no retry, correction, park, or
 refusal -- and never makes an invalid report outcome valid. A reviewer handed a report is told the task snapshot
-reference that report's stamped requirements revision spells over the repository as the round's pinned reading names
-it, the identity every invocation is minted with rather than the configured slug: the one the snapshot of the reply
-that wrote it was recorded under.
+reference that report's stamped requirements revision spells over the repository its settled record names it
+published under -- kept on the pinned record, so neither a configured slug cased otherwise than GitHub's nor a rename
+since moves it -- the one the snapshot of the reply that wrote it was recorded under.
 
 **Specs:** [reply protocols](workflow.md), [task snapshots](workflow/conversations.md#the-task-snapshot-attachment).
 
@@ -1009,7 +1012,8 @@ recorded, on a trajectory record marked `stream_refused`. A task snapshot and it
 no usage total, accounting, completion capture, report settlement, or workflow decision reads one. They are collected
 wherever the analytics sink is on, needing no usage parse, trajectory sink, or database, from a genuine developer
 return alone, judged by the run's status, its provider's own verdict, and the implementing stage's reading of a CLI's
-refusal (a conversation it could not open or that overflowed, an exhausted quota) -- so neither a turn the provider or
+refusal (a conversation it could not open or that overflowed, an exhausted quota -- Codex's coded usage-limit stop
+included) -- so neither a turn the provider or
 the CLI refused nor the recovery that finishes a captured report records one, and only an attempt that reached the
 agent moves the host's grounding record -- and behind
 one failure boundary from the framing of the reply the workflow reads through the append, behind a guarded read of

@@ -812,7 +812,8 @@ is recorded. Only a genuine return is: a run the tracked spawn started under a c
 invocation, which was invoked; whose turn the provider did not refuse — the backend's own verdict deciding where it
 gives one, so a clean exit carrying Claude's `is_error` refusal is none — and the CLI did not refuse either, as the
 implementing stage reads that with the readers it parks and retries on: a conversation the CLI could not open or whose
-transcript overflowed the context, or an exhausted quota, each on a clean exit too; and which was neither interrupted
+transcript overflowed the context, or an exhausted quota — Codex's coded usage-limit stop included — each on a clean
+exit too; and which was neither interrupted
 nor timed out, exited 0, and left no tool step unfinished or failure normalized. A question and a malformed report
 outcome are included. Any other writes nothing — a poisoned conversation's fresh retry is recorded, the stale attempt
 before it not — nor does a result a stage synthesized or the recovery that finishes a captured report from its record,
@@ -850,9 +851,10 @@ written raw inside the JSON leaves the line as malformed as it was written.
   ([the task snapshot attachment](../workflow/conversations.md#the-task-snapshot-attachment)), never by the pinned
   comment. Dropped where the road held none.
 - `task_ref` — `<repo>#<issue>@<revision>`, the reference a later reader names the snapshot by, spelled by the one
-  formatter (`records.task_reference`) from the repository as GitHub spells it, which the invocation was minted with
-  whatever casing the configuration uses, and the revision the run's report is stamped with: the reviewer handed that
-  report is told exactly this reference, beside the quoted report. Dropped where the repository or that revision is
+  formatter (`records.task_reference`) from the repository the run's report is published under — the configured slug,
+  which the settled report keeps on its pinned record, and which can differ from the `repo` beside it in casing or
+  after a rename — and the revision that report is stamped with: the reviewer handed that report is told exactly this
+  reference, read off the same record, beside the quoted report. Dropped where the repository or that revision is
   unknown.
 
 `task_snapshot` adds `attachment_version` (`1`, the attachment format it was read from) and `description`.

@@ -28,11 +28,12 @@ classifies with the readers it parks and retries on and hands in as
 `refused`. Completing on its own terms means neither interrupted nor timed
 out, exiting 0, and leaving no tool step unfinished or failure normalized.
 The recorder is handed it with its invocation, the requirements its
-conversation was handed (`task_snapshot_grounding`), the revision the run's
-report is stamped with -- the road's own, which spells the task reference a
-reviewer of that report is told -- and the framing of the reply the workflow
-reads (`task_snapshot_replies.framing`), which the recorder asks inside its
-own failure boundary; nothing about the reply is read here first. A run that
+conversation was handed (`task_snapshot_grounding`), the repository the run's
+report is published under and the revision it is stamped with -- the road's
+own, which spell the task reference a reviewer of that report is told -- and
+the framing of the reply the workflow reads
+(`task_snapshot_replies.framing`), which the recorder asks inside its own
+failure boundary; nothing about the reply is read here first. A run that
 never started, a synthesized result, and the recovery that finishes a
 captured report from its record are no return and record nothing. Every
 attempt that reached the agent, genuine or not, then keeps the host's
@@ -82,13 +83,17 @@ class Conversation:
     `repo_id` and `issue_number` name the issue whose host records keep its
     grounding; `resumed` is the conversation the coordinated run resumed,
     None for a fresh one; `fresh_requirements` is what a retry's road
-    re-grounds a fresh conversation with, None on a road that hands its own.
+    re-grounds a fresh conversation with, None on a road that hands its own;
+    and `repository` is the repository as configured -- the one the run's
+    report is published under, which its settled record keeps -- and spells
+    the task reference.
     """
 
     repo_id: int
     issue_number: int
     resumed: str | None
     fresh_requirements: str | None
+    repository: str
 
 
 def asked(handoff: _completion_records.CompletionHandoff, prompt: str) -> str:
@@ -156,6 +161,7 @@ def _observe(
             route=handoff.route.value,
             requirements_revision=handed or None,
             report_requirements=handoff.requirements_revision or None,
+            report_repository=conversation.repository or None,
         )
         reply = _recorder.ObservedReply(agent_result.last_message or "", _replies.framing)
         _recorder.record_task_snapshot(run, reply, path)
