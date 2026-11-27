@@ -23,7 +23,12 @@ from tests.workflow.fixtures import _agent
 # where only the end of that message fits.
 _QUOTE_HEADING = "The developer's last message"
 
-_CUT = "cut to the end of it that fits in this comment"
+_CUT = "cut to the end of it that fits in this comment and shown as plain text"
+
+# What a fence is built out of, and the shortest one markdown has.
+_FENCE_CHARACTER = "`"
+
+_SHORTEST_FENCE = _FENCE_CHARACTER * 3
 
 # A decision whose question and first choice open the message and whose second
 # choice closes it, with an account between them far longer than the budget a
@@ -66,6 +71,13 @@ _QUOTED_MESSAGES = (
 # The decision an oversized message ends on, as the prompt asks.
 _DECISION = f"{_ASKED}\n\n{_FIRST_CHOICE}\n{_SECOND_CHOICE}"
 
+# A code example whose opening fence the cut drops: what that fence kept as
+# text -- an HTML comment opener above all -- would otherwise be read again,
+# and an opener left standing swallows every line after it.
+_LOG_LINES = "log line\n" * (MAX_PINNED_BODY // len("log line\n"))
+
+_FENCED_EXAMPLE = f"```text\n{_LOG_LINES}<!-- example opener\n```"
+
 # Heads one comment cannot carry before that decision, and how short of the
 # ceiling the cut notice may fall. With no line breaks every character cut
 # shortens the comment by exactly one, so the cut is exact; across many short
@@ -75,6 +87,7 @@ _DECISION = f"{_ASKED}\n\n{_FIRST_CHOICE}\n{_SECOND_CHOICE}"
 _OVERSIZED_HEADS = (
     ("no line breaks", "x" * MAX_PINNED_BODY, 1),
     ("many short lines", "x\n" * (MAX_PINNED_BODY // 2), len("\n> ")),
+    ("a fenced example cut open", _FENCED_EXAMPLE, len("\n> ")),
 )
 
 
@@ -103,20 +116,53 @@ class UnreportedRunNoticeTest(unittest.TestCase):
     def test_a_message_past_the_comment_keeps_its_end(self) -> None:
         # Past what GitHub accepts in one comment, the head goes and the end
         # the prompt puts the decision in stays -- cut to the ceiling, the
-        # notice's own words, the blockquote prefixes, and the comment marker
-        # counted, so nothing is dropped that the comment had room for.
+        # notice's own words, the blockquote prefixes, the fences, and the
+        # comment marker counted, so nothing is dropped that the comment had
+        # room for. The end kept is fenced, so whatever the cut opened -- a
+        # code example's HTML comment opener among it -- reads as text and
+        # the decision after it stays on screen.
         for described, head, slack in _OVERSIZED_HEADS:
             with self.subTest(head=described):
                 notice = _notice(self, f"{head}\n{_DECISION}")
 
                 self.assertEqual(
                     (
-                        [line for line in _DECISION.splitlines() if line and f"> {line}" not in notice],
+                        [line for line in _DECISION.splitlines() if line and line not in _fenced_quote(notice)],
                         _CUT in notice,
                         MAX_PINNED_BODY - len(notice) in range(slack),
                     ),
                     ([], True, True),
                 )
+
+
+def _fenced_quote(notice: str) -> list[str]:
+    """The lines of the notice's quote inside the one fence that walls it off, or none where no fence does.
+
+    The quote's first and last lines are that fence, and no line between them
+    is a run of its character as long as it, which is the only line that could
+    end it early.
+    """
+    quoted = [_unquoted(line) for line in notice.splitlines() if line.startswith(">")]
+    fence = quoted[0] if quoted else ""
+    inside = quoted[1:-1]
+    if not _closes(fence, _SHORTEST_FENCE) or quoted[-1] != fence:
+        return []
+    if any(_closes(line, fence) for line in inside):
+        return []
+    return inside
+
+
+def _closes(line: str, fence: str) -> bool:
+    """Whether `line` ends `fence`: a run of its character alone, at least as long, whitespace aside."""
+    run = line.strip()
+    if not run or run.strip(_FENCE_CHARACTER):
+        return False
+    return len(run) >= len(fence)
+
+
+def _unquoted(line: str) -> str:
+    """One line of a blockquote as the text it quotes."""
+    return line.removeprefix(">").removeprefix(" ")
 
 
 def _notice(case: unittest.TestCase, message: str) -> str:

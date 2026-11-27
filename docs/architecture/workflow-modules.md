@@ -1118,7 +1118,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and has no pull request yet, while a resume under review has one that stands on the
                             commit it stood on, so the initial wording there would deny an open pull request its
                             human is reading. The no-report notice also quotes the run's last message
-                            (`report_refusal_notices.quoting_the_last_message`): a developer that committed part of
+                            (`report_refusal_notices.explains_the_unreported_run`): a developer that committed part of
                             the work and needs a decision on the rest ends on its question with no report, and a
                             notice asking only for a report buys one that sends the work to review with the
                             decision unmade. A run that did
@@ -1376,12 +1376,18 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             room, its log line naming the route and the requirements revision the record was
                             stamped with for an operator to look for. Size is named only where a size was measured
                             and failed, and every recovery is the same resume: a reply whose session needs no new
-                            commit to deliver the report. It also quotes a run's last message into the notices
-                            over a run that committed and reported nothing -- `report_delivery.py`'s and the fixing
-                            stage's -- nothing for a blank message, the whole of it wherever one comment carries it
-                            beside the notice's own words and the comment marker, only the longest end that fits
-                            once quoted past that ceiling, and the receipt prefix with its opening bracket escaped,
-                            so the raw comment carries no receipt while the developer's words still render
+                            commit to deliver the report. It also words `report_delivery.py`'s notice over a run
+                            that committed and reported nothing (`explains_the_unreported_run`), which has no
+                            refusal to name and quotes the run's last message instead
+    last_message_quotes.py  what a park notice over a run that committed and reported nothing quotes of the message
+                            the run ended on -- `report_delivery.py`'s notice and the fixing stage's -- since the
+                            prompt has a developer that cannot finish end on its question: nothing for a blank
+                            message, the whole of it wherever one comment carries it beside the notice's own words
+                            and the comment marker, and past that ceiling only the longest end that fits once
+                            quoted, fenced longer than any fence line it keeps, so an opener whose fence the cut
+                            dropped -- an HTML comment above all -- cannot hide the question and choices after it.
+                            The receipt prefix is quoted with its opening bracket escaped, so the raw comment
+                            carries no receipt while the developer's words still render
     report_settlement_state.py the current report and the handoff receipt, written in the one durable write that
                             drops the pending record, each refused rather than stored when this owner's own reader
                             would not hand it back. The handoff also names the workflow LABEL the issue was carrying
@@ -4463,8 +4469,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             the debt the missing-report parks would record. Which reply this is -- a report, an
                             ordinary answer, or one that reached for the contract and missed, an `ACK:` beside a
                             report, which is held for a human rather than acted on by either half, as is a commit
-                            over a report still owed, both notices quoting a finished run's last message and
-                            nothing of one that did not finish; whether a round
+                            over a report still owed and any round with no report while work no report describes
+                            is held, committed or not -- a misread that committed raising that hold itself -- both
+                            notices quoting a finished run's last message and nothing of one that did not finish,
+                            and both asking for the decision and keeping every such commit unpublished until a
+                            valid report describes it; whether a round
                             that committed nothing may publish onto the head its pull request already carries, on
                             the affirmative proof that the head read, never moved, is the one the pull request is
                             STANDING on, and left a tree proved clean.

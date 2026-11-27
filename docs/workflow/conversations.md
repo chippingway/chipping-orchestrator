@@ -323,12 +323,20 @@ needs a decision on the rest ends on that question, as above. So the notice quot
 question and any choices it offered reach the human. A blank message is not quoted. The rest is quoted whole wherever
 one GitHub comment carries it beside the notice's own words and the comment marker, and only past that ceiling is the
 head cut, keeping the longest end that fits once quoted -- every line break spends its blockquote prefix too -- so the
-question at the end stays. The receipt prefix is quoted with its opening bracket escaped as an
+question at the end stays. That end is shown as plain text, inside a code fence longer than any fence line it keeps:
+the cut can drop the opening fence of a code example, and an HTML comment opener the example held would otherwise hide
+the question and choices after it. The receipt prefix is quoted with its opening bracket escaped as an
 HTML entity, so the raw comment carries no receipt while the developer's words still render. A reply carrying the
 decision resumes the developer session, and the commit stays held in the worktree until that session supplies a valid
-report. The fixing stage's own park over a later round's commit quotes it the same way: a decision answered, a further
-commit, and the next question with no report leave the report the first park asked for still owed, so that commit
-reads as undescribed work, and its notice shows the next question and its choices. A round that did not finish, such
+report.
+
+The fixing stage holds the rounds that reply resumes the same way. Until a report describes the held work, a round
+that answers with no report is parked under `report_undeliverable` with nothing pushed, whether it committed again or
+only asked the next question; a round that committed nothing would otherwise publish the held commit as a stranded
+one. A message that reached for the report contract and missed, such as a fenced example of a report block above the
+question, parks under its own notice, and a commit it made is held as undescribed work too. Each of these notices
+quotes the run's last message the same way, so the next question and its choices reach the human, asks for the
+decision, and says the committed work stays held until a valid report describes it. A round that did not finish, such
 as one the timeout cut off after committing, parks the same way with nothing quoted: its last words are where it
 stopped, not a decision it asked for.
 

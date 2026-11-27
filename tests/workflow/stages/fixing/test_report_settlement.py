@@ -52,7 +52,7 @@ _UNDELIVERABLE = _report_delivery.UNDELIVERABLE_REPORT
 # A phrase out of each notice, enough to say which of the three a park took.
 _MISREAD_PHRASE = "reaches for the completion-report contract"
 
-_UNDESCRIBED_PHRASE = "committed work while the pull request is still owed a report"
+_UNDESCRIBED_PHRASE = "branch carries committed work no report describes"
 
 _STALLED_PHRASE = "no road left on this workflow can get it there"
 
@@ -117,6 +117,7 @@ class ReportedRoundContractTest(unittest.TestCase, support.FixingReportCase):
         self.assertEqual(self.pinned().get(support.PARK_REASON), _UNDELIVERABLE)
         self.assertTrue(posted_comment_contains(self.gh, _MISREAD_PHRASE))
         self.assertIsNone(_delivery_state.read_delivered_report(self.state))
+        self.assertIsNone(self.pinned().get(_report_delivery.UNREPORTED_WORK))
 
     def test_an_ordinary_reply_is_left_alone(self) -> None:
         # A question, a disagreement, a plain `ACK:` -- every stage already
@@ -151,16 +152,23 @@ class ReportedRoundContractTest(unittest.TestCase, support.FixingReportCase):
     def test_a_misread_over_a_commit_names_it(self) -> None:
         # Both readings hold and only the notice picks: the reply is what the
         # human has to fix, and the report their reply earns retires both. The
-        # undescribed flag still goes down, or the commit would later get the
-        # earlier round's report published over it.
-        self.state.set(_report_delivery.OWED_REPORT, True)
+        # undescribed flag is still raised, owed report or not: over one, the
+        # commit would later get the earlier round's report published over it,
+        # and over none, the round the reply resumes would push it as a
+        # stranded commit the moment it asked its next question with no new
+        # commit -- while the notice promises it is held for a valid report.
+        for owed in (True, False):
+            with self.subTest(owed=owed):
+                self.setUp()
+                if owed:
+                    self.state.set(_report_delivery.OWED_REPORT, True)
 
-        self.assertTrue(
-            self._holds(support.MISREAD_MESSAGE, after_sha=support.MOVED_SHA),
-        )
+                self.assertTrue(
+                    self._holds(support.MISREAD_MESSAGE, after_sha=support.MOVED_SHA),
+                )
 
-        self.assertTrue(posted_comment_contains(self.gh, _MISREAD_PHRASE))
-        self.assertTrue(self.pinned().get(_report_delivery.UNREPORTED_WORK))
+                self.assertTrue(posted_comment_contains(self.gh, _MISREAD_PHRASE))
+                self.assertTrue(self.pinned().get(_report_delivery.UNREPORTED_WORK))
 
     def _holds(self, message: str, **run_fields) -> bool:
         """Ask the hold about one reply that wrote no usable report."""

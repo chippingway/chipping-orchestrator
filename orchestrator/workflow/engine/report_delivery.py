@@ -96,7 +96,6 @@ import logging
 
 from github.Issue import Issue
 
-from orchestrator import config
 from orchestrator.agents.models import AgentResult
 from orchestrator.github import client as _client, pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
@@ -122,7 +121,7 @@ from orchestrator.workflow.engine.report_record_room import (
 )
 from orchestrator.workflow.engine.report_refusal_notices import (
     explains_the_refusal as _explains_the_refusal,
-    quoting_the_last_message as _quoting_the_last_message,
+    explains_the_unreported_run as _explains_the_unreported_run,
 )
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -241,23 +240,6 @@ INCOMPLETE_RUNS = frozenset((
     _outcome_models._ReportRefusal.PROVIDER_FAILURE,
     _outcome_models._ReportRefusal.NONZERO_EXIT,
 ))
-
-_UNREPORTED_PARK = (
-    "{mentions} this issue's developer run finished with committed work and "
-    "no completion report this orchestrator can publish -- no report outcome "
-    "at all, one that reached for the contract and missed, or one naming a "
-    "report this orchestrator cannot hold against its own repository, whether "
-    "because it is somebody else's or because the reading that would have "
-    "proved it could not be taken. Nothing was published: {withheld}. "
-    "Handing this work to review would send a reviewer an "
-    "implementation nobody described, with no record of what was done and no "
-    "session left to ask.{said}\n\n"
-    "Reply -- with your decision, where the developer asked for one -- and "
-    "the orchestrator resumes the developer session on your reply. The "
-    "committed work stays held in the worktree until that session supplies a "
-    "valid completion report; the report it writes then is the one that gets "
-    "published, and it needs no new commit to deliver it."
-)
 
 
 def owes_a_report(state: _pinned_state.PinnedState) -> bool:
@@ -484,7 +466,7 @@ def _unreported_run_holds(
     reading the debt alone would publish them under it.
 
     The notice quotes the run's last message
-    (`report_refusal_notices.quoting_the_last_message`), because a run often
+    (`report_refusal_notices.explains_the_unreported_run`), because a run often
     reaches here by ending on a question: a developer that committed part of
     what it was asked and needs a human's decision on the rest ends on that
     question with no report, as every developer prompt asks. Told only
@@ -516,11 +498,8 @@ def _unreported_run_holds(
     staged = commit.staging()
     staged.set(UNREPORTED_WORK, True)
     handed.retired_onto(staged)
-    withheld = _NOTHING_ADDED if handed.route in _UNDER_REVIEW else _NOTHING_OPENED
-    parks_the_debt(commit, staged, _quoting_the_last_message(
-        lambda said: _UNREPORTED_PARK.format(
-            mentions=config.HITL_MENTIONS, withheld=withheld, said=said,
-        ),
+    parks_the_debt(commit, staged, _explains_the_unreported_run(
+        _NOTHING_ADDED if handed.route in _UNDER_REVIEW else _NOTHING_OPENED,
         agent_result.last_message,
     ), handed.watermarks, parking=PARKING.behind(handed))
     return True

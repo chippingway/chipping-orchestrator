@@ -40,33 +40,21 @@ was measured beside -- so an operator reading the log reads what the notice
 says rather than a second guess at it.
 
 A run that committed and handed over no usable report at all has no refusal to
-name, and the notices that park it are `report_delivery`'s and the fixing
-stage's own. What each owes the human is the run's last message
-(`quoting_the_last_message`), because the prompt tells a developer that cannot
-finish to end on its question: a decision it is waiting on, and the choices it
-offered, are what the reply has to answer. The message is quoted whole wherever
-one comment carries it beside the notice's own words and the marker every
-comment of ours ends on, and cut to the tail that fits only past that ceiling,
-since a notice GitHub refuses parks nothing and the prompt puts the question
-last. A receipt marker inside it is kept out of the raw comment, which is what
-the rule above protects, by escaping its opening bracket as an HTML entity: no
-receipt search reads it as ours, and the developer's words around it -- the
-question and its choices -- are still quoted.
+name, and is told apart from one that does (`explains_the_unreported_run`): its
+notice quotes what the run said instead (`last_message_quotes`), since the
+prompt tells a developer that cannot finish to end on its question, and the
+decision that question waits on is what the reply has to bring.
 """
 from __future__ import annotations
 
-import itertools
 import json
 import logging
-from collections.abc import Callable
 from dataclasses import dataclass, replace
 from types import MappingProxyType
 
 from orchestrator import config
-from orchestrator.github import comments as _github_comments, pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
-    comments as _comments,
-    messages as _messages,
+    last_message_quotes as _last_message_quotes,
     report_record_room as _room,
     report_record_values as _record_values,
     report_records as _records,
@@ -93,27 +81,24 @@ _RESUMED = (
 
 _LOGGED = "issue=#%d %s; publishing nothing and holding for a human"
 
-_QUOTED = (
-    "\n\nThe developer's last message{cut}, with any question it is waiting on "
-    "and the choices it offered:\n\n{quoted}"
+# What a finished run that committed and handed over no usable report is held
+# under, with what it said instead quoted where `{said}` stands.
+_UNREPORTED_PARK = (
+    "{mentions} this issue's developer run finished with committed work and "
+    "no completion report this orchestrator can publish -- no report outcome "
+    "at all, one that reached for the contract and missed, or one naming a "
+    "report this orchestrator cannot hold against its own repository, whether "
+    "because it is somebody else's or because the reading that would have "
+    "proved it could not be taken. Nothing was published: {withheld}. "
+    "Handing this work to review would send a reviewer an "
+    "implementation nobody described, with no record of what was done and no "
+    "session left to ask.{said}\n\n"
+    "Reply -- with your decision, where the developer asked for one -- and "
+    "the orchestrator resumes the developer session on your reply. The "
+    "committed work stays held in the worktree until that session supplies a "
+    "valid completion report; the report it writes then is the one that gets "
+    "published, and it needs no new commit to deliver it."
 )
-
-_QUOTED_CUT = ", cut to the end of it that fits in this comment"
-
-# The blockquote prefix a quote's first line opens on.
-_QUOTE_PREFIX = _messages._as_blockquote("")
-
-# What a cut quote spends before the message: its heading and that prefix.
-_CUT_QUOTE_OPENING = len(_QUOTED.format(cut=_QUOTED_CUT, quoted=_QUOTE_PREFIX))
-
-# What one line break of the message spends once quoted: the break and the
-# blockquote prefix the next line opens on. Every other character spends one.
-_QUOTED_LINE_BREAK = len(_messages._as_blockquote("\n")) - len(_QUOTE_PREFIX)
-
-# The receipt prefix with its opening bracket escaped: what GitHub renders as
-# the developer wrote it outside code (inside code the entity shows as typed),
-# and what no search of raw comment text reads as ours.
-_ESCAPED_RECEIPT_PREFIX = _github_comments.RECEIPT_MARKER_PREFIX.replace("<", "&lt;", 1)
 
 
 @dataclass(frozen=True)
@@ -266,37 +251,19 @@ def explains_the_refusal(
     )
 
 
-def quoting_the_last_message(render: Callable[[str], str], message: str) -> str:
-    """The notice `render` words, with as much of a run's last `message` quoted into it as one comment carries.
+def explains_the_unreported_run(withheld: str, last_message: str) -> str:
+    """The notice over a finished run that committed and handed over no usable report.
 
-    `render` takes the quote, "" included, and answers the whole notice: the
-    quote opens on its own blank line, so a notice places it straight after a
-    sentence. A run that said nothing gets no quote at all.
-
-    Measured over the body the post sends -- the notice's own words, the
-    quote's blockquote prefixes, and the comment marker appended to it -- so
-    nothing is cut that the comment had room for. Past that room the end kept
-    is the longest one whose QUOTED length fits, counted character by
-    character from the end: a line break spends its blockquote prefix as well,
-    so a message of many short lines quotes far fewer characters than its
-    length alone would allow, and a cut counted in raw characters would take
-    the question with it.
+    `withheld` is what the road that held it kept back, as for a refusal, and
+    `last_message` is what the run ended on, quoted into the notice
+    (`last_message_quotes.quoting_the_last_message`).
     """
-    said = message.strip().replace(_github_comments.RECEIPT_MARKER_PREFIX, _ESCAPED_RECEIPT_PREFIX)
-    if not said:
-        return render("")
-    room = _pinned_state.MAX_PINNED_BODY - len(_comments._with_orch_marker(render("")))
-    quoted = _QUOTED.format(cut="", quoted=_messages._as_blockquote(said))
-    if len(quoted) > room:
-        spent = itertools.accumulate(
-            _QUOTED_LINE_BREAK if character == "\n" else 1 for character in reversed(said)
-        )
-        kept = sum(1 for total in spent if total <= room - _CUT_QUOTE_OPENING)
-        if not kept:
-            return render("")
-        said = said[len(said) - kept:]
-        quoted = _QUOTED.format(cut=_QUOTED_CUT, quoted=_messages._as_blockquote(said))
-    return render(quoted)
+    return _last_message_quotes.quoting_the_last_message(
+        lambda said: _UNREPORTED_PARK.format(
+            mentions=config.HITL_MENTIONS, withheld=withheld, said=said,
+        ),
+        last_message,
+    )
 
 
 def _reading_of(

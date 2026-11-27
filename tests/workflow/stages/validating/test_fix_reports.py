@@ -18,6 +18,7 @@ a shutdown keep the roads they always had.
 from __future__ import annotations
 
 import unittest
+from types import MappingProxyType
 
 from orchestrator import config
 from orchestrator.workflow.engine import report_delivery as _report_delivery
@@ -78,47 +79,67 @@ FIX_QUESTION = (
     "2. You land it there yourself and I rebase onto it."
 )
 
-# The human's decision on that question, and the round it resumes: another
-# commit, and the next question the decision raised, again with no report.
+# The human's decision on that question, and the next question it raises,
+# again with no report. The resumed round may ask it over a further commit,
+# with the first round's commit still the newest, or under a fenced example of
+# the report block, which reaches for the report contract without keeping it.
 FIX_DECISION = "Open a separate pull request for the retry change."
 
-NEXT_QUESTION = (
-    "Committed the follow-up the decision needed. Which base branch should "
-    "the separate pull request use?\n\n"
+NEXT_ASK = (
+    "Which base branch should the separate pull request use?\n\n"
     "1. Use the release branch.\n"
     "2. Use main."
 )
 
-# Where the resumed round leaves the checkout: past the commit the first round
-# left, which the pull request has not got either.
+NEXT_QUESTION = f"Committed the follow-up the decision needed.\n\n{NEXT_ASK}"
+
+NEXT_MISREAD = (
+    "Committed the follow-up. The review asks about this docs example:\n\n"
+    f"```text\nREPORT: READY\n```\n\n{NEXT_ASK}"
+)
+
+# Where a resumed round that commits again leaves the checkout: past the
+# commit the first round left, which the pull request has not got either.
 NEXT_HEAD = "a" * SHA_LENGTH
+
+ON_NEXT_HEAD = MappingProxyType({world.HEAD_SHAS: (world.FIXED_HEAD, NEXT_HEAD)})
 
 # Where a resumed round the orchestrator's timeout cut off had got to, which is
 # no question it asked.
 CUT_OFF = "The next choice is still being investigated."
 
-# What every notice over those rounds says of the reply and the commits.
+# What every notice over those rounds says of the reply and the commits: the
+# decision the reply brings resumes the session, and nothing committed is
+# published before a report describes it.
 HELD_WORDS = (
+    "with your decision",
     "resumes the developer session on your reply",
-    "committed work stays held in the worktree",
+    "stays held in the worktree until that session supplies a valid completion report",
 )
 
-# The lines of the next question and its choices, as a quote of them reads.
-NEXT_QUESTION_QUOTED = tuple(f"> {line}" for line in NEXT_QUESTION.splitlines() if line)
+# Which of the fixing stage's two notices a park took.
+UNDESCRIBED_WORDS = "branch carries committed work no report describes"
 
-# The rounds a decision resumes that commit again with no report, and whether
-# the notice quotes each fragment: the next question and its choices, and
-# nothing of the timed-out round's last words.
+MISREAD_WORDS = "reaches for the completion-report contract"
+
+# The notice over a round that asked the next question: the hold, and the
+# question and its choices as a quote of them reads.
+NEXT_ASKED = dict.fromkeys(
+    (*HELD_WORDS, *(f"> {line}" for line in NEXT_ASK.splitlines() if line)), True,
+)
+
+# The rounds a decision resumes with no report, the checkout each leaves, and
+# whether its notice carries each fragment: the next question and its choices,
+# and nothing of the timed-out round's last words.
 NEXT_ROUNDS = (
-    (
-        "the next question",
-        NEXT_QUESTION,
-        dict.fromkeys((*HELD_WORDS, *NEXT_QUESTION_QUOTED), True),
-    ),
+    ("the next question over a new commit", NEXT_QUESTION, ON_NEXT_HEAD, {**NEXT_ASKED, UNDESCRIBED_WORDS: True}),
+    ("the next question with no new commit", NEXT_ASK, _drift_world.STRANDED, {**NEXT_ASKED, UNDESCRIBED_WORDS: True}),
+    ("the next question under a report example", NEXT_MISREAD, ON_NEXT_HEAD, {**NEXT_ASKED, MISREAD_WORDS: True}),
     (
         "a timeout",
         _agent(session_id=world.DEV_SESSION, last_message=CUT_OFF, timed_out=True),
-        {**dict.fromkeys(HELD_WORDS, True), f"> {CUT_OFF}": False},
+        ON_NEXT_HEAD,
+        {**dict.fromkeys((*HELD_WORDS, UNDESCRIBED_WORDS), True), f"> {CUT_OFF}": False},
     ),
 )
 
@@ -315,32 +336,29 @@ class RequestedFixRefusalTest(unittest.TestCase, world._FixReportMixin):
         )
         self.assertNotIn((ISSUE, LABEL_VALIDATING), self.github.label_history)
         notice = _park_notice(self)
-        for said in (
-            *(f"> {line}" for line in FIX_QUESTION.splitlines() if line),
-            "resumes the developer session on your reply",
-            "committed work stays held in the worktree",
-        ):
+        for said in (*(f"> {line}" for line in FIX_QUESTION.splitlines() if line), *HELD_WORDS):
             self.assertIn(said, notice)
 
     def test_the_next_question_parks_with_its_choices(self) -> None:
-        # The human answers the first question and the resumed session commits
-        # again and asks the next one, still with no report. The debt the first
-        # park recorded is what reads that commit as undescribed, so this park
-        # is the fixing stage's own -- and its notice quotes the new question
-        # and its choices as the first did, with both commits held unpublished
-        # until a report describes the branch they leave. A round the timeout
-        # cut off after committing parks the same way, but its last words are
-        # where it stopped rather than a decision it asked for, so none of
-        # them is quoted.
-        for described, reply, quoted in NEXT_ROUNDS:
+        # The human answers the first question and the resumed session asks
+        # the next one, still with no report. The work the first park held is
+        # still undescribed, so this park is the fixing stage's own -- whether
+        # the round committed again or not, since a round that committed
+        # nothing would otherwise publish the held commit as a stranded one.
+        # Its notice quotes the new question and its choices as the first did,
+        # asks for the decision, and says every commit stays unpublished until
+        # a report describes the branch they leave; under a fenced example of
+        # the report block it is the misread notice, saying the same. A round
+        # the timeout cut off after committing parks the same way, but its
+        # last words are where it stopped rather than a decision it asked
+        # for, so none of them is quoted.
+        for described, reply, checkout, quoted in NEXT_ROUNDS:
             with self.subTest(round=described):
                 self.seeded(ISSUE, PR, LABEL_VALIDATING)
                 self.requested_fix(FIX_QUESTION)
                 world.replied(self, FIX_DECISION)
 
-                mocks = self.parked_resume(
-                    reply, **{world.HEAD_SHAS: (world.FIXED_HEAD, NEXT_HEAD)},
-                )
+                mocks = self.parked_resume(reply, **checkout)
 
                 mocks[RUN_AGENT].assert_called_once()
                 mocks[PUSH_BRANCH].assert_not_called()
@@ -354,8 +372,7 @@ class RequestedFixRefusalTest(unittest.TestCase, world._FixReportMixin):
                     ),
                     (True, _report_delivery.UNDELIVERABLE_REPORT, True, 0, world.PUBLISHED_HEAD),
                 )
-                notice = _park_notice(self)
-                self.assertEqual({fragment: fragment in notice for fragment in quoted}, quoted)
+                self.assertEqual(_carried(self, quoted), quoted)
 
     def test_an_unfinished_round_parks_for_a_report(self) -> None:
         # The engine exempts a run that did not COMPLETE from the report
@@ -524,6 +541,12 @@ def _handover(case) -> tuple:
 def _round(case) -> int:
     """The reviewer round this issue's pinned comment says it has spent."""
     return case.pinned()[REVIEW_ROUND]
+
+
+def _carried(case, fragments) -> dict:
+    """Which of `fragments` the notice this round's park posted carries."""
+    notice = _park_notice(case)
+    return {fragment: fragment in notice for fragment in fragments}
 
 
 def _park_notice(case) -> str:
