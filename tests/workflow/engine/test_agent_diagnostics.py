@@ -152,6 +152,17 @@ class AttachmentLineTest(unittest.TestCase):
                 self.assertNotIn(_CUT_INTO, block)
                 self.assertEqual(echoed.stderr, stderr)
 
+    def test_a_credential_above_it_is_masked_too(self) -> None:
+        # A multi-line credential ending on the line break right above the
+        # line: masked whole, and the line still taken out -- the mask joining
+        # the two would otherwise leave the line opening on no prefix.
+        secret = "-----BEGIN PRIVATE KEY-----\nAAAABBBBCCCCDDDD\n"
+        with patch.dict(os.environ, {"SSH_PRIVATE_KEY": secret}, clear=False):
+            block = agent_diagnostics._format_stderr_diagnostics(_agent_result(f"{secret}{_ATTACHMENT}\n"))
+        self.assertNotIn("AAAABBBBCCCCDDDD", block)
+        self.assertNotIn(attachments.PREFIX, block)
+        self.assertIn(f"{_REDACTION_MARKER}{attachments.TAKEN_OUT}", block)
+
 
 class UsageLimitDiagnosticsTest(unittest.TestCase):
     """A usage-limit stop's provider message is redacted whole, then bounded,

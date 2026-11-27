@@ -98,11 +98,13 @@ def workflow_reply(message: str) -> str:
     try:
         return _read_as(message, _fences._fenced_line_starts(message))
     except Exception as error:  # noqa: BLE001 - a reply its readers fail on is kept out by its marker lines instead
-        log.warning(
-            "could not read a developer reply's task snapshot attachment lines (%s); "
-            "keeping them out by the reply's marker lines alone",
-            type(error).__name__,
-        )
+        # Attempted once: a logger that fails costs the warning, never the reply.
+        with contextlib.suppress(Exception):
+            log.warning(
+                "could not read a developer reply's task snapshot attachment lines (%s); "
+                "keeping them out by the reply's marker lines alone",
+                type(error).__name__,
+            )
         return _MarkerReading(message).held()
 
 

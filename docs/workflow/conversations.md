@@ -589,8 +589,8 @@ such a line, which of its lines are code is unknown: every one is held by the pl
 attachment lines could not be told from code in this report, so it is not published)` follows the outcome, so the report
 reader refuses it and nothing is published on a guess. No notice quotes an attachment line on any reading, nor does the
 stderr a park quotes: a CLI can echo the reply it wrote there, so every line opening on the prefix is replaced by a note
-before the tail is cut (`workflow/engine/agent_diagnostics.py`), while the stderr a run is classified by stays as
-written.
+on the stderr as written, before the redactor runs and before the tail is cut (`workflow/engine/agent_diagnostics.py`),
+while the stderr a run is classified by stays as written.
 
 The attachment is read on its own terms and decides nothing. With the analytics sink on, `task_snapshots.py` hands a
 genuine return — invoked under a tracked charge; its turn refused neither by the provider (the backend's own verdict

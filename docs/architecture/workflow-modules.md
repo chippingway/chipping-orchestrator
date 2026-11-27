@@ -72,16 +72,17 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             own return and the normalized failure code where the result carries a failure record -- the
                             return named not captured where the timeout killed the run -- and left the plain code where
                             it does not; every analytics attachment line in the stderr a comment quotes replaced by a
-                            note before the trim, since a CLI can echo the reply it wrote there, the stderr a run is
-                            classified by left as written. The shared redactor runs over the RAW stderr before either
-                            trim, since a secret sliced by the cut survives as a fragment the redactor no longer
-                            matches, and that fragment is what leaks; the same ordering puts it ahead of the `rstrip`,
-                            so a multi-line env value ending in a newline still matches verbatim. A Codex usage-limit
-                            stop gets a block of its own -- the reset the provider named, then its message -- redacted
-                            whole before a 1KB budget cuts the message, the reset read off that redacted text under a
-                            budget of its own. An account-quota stop a failure record names gets the reset interval that
-                            record kept, under the same budget, above the stderr block. Each block is quoted through
-                            `messages.py`'s blockquote, so it reads as the last-message body it is appended under
+                            note on the stderr as written, before the redactor and the trim, since a CLI can echo the
+                            reply it wrote there, the stderr a run is classified by left as written. The shared redactor
+                            runs over the RAW stderr before either trim, since a secret sliced by the cut survives as a
+                            fragment the redactor no longer matches, and that fragment is what leaks; the same ordering
+                            puts it ahead of the `rstrip`, so a multi-line env value ending in a newline still matches
+                            verbatim. A Codex usage-limit stop gets a block of its own -- the reset the provider named,
+                            then its message -- redacted whole before a 1KB budget cuts the message, the reset read off
+                            that redacted text under a budget of its own. An account-quota stop a failure record names
+                            gets the reset interval that record kept, under the same budget, above the stderr block.
+                            Each block is quoted through `messages.py`'s blockquote, so it reads as the last-message
+                            body it is appended under
     comments.py             the orchestrator marker, bound from the GitHub trust owner, and the bounded id ledger
                             shared by issue and pull-request comment posts; a developer report enters the ledger on
                             whichever reading finds it on the thread, since a post whose response was lost hands

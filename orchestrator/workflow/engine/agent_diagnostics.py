@@ -34,9 +34,13 @@ block reads the same as the last-message body it is appended under.
 No comment quotes an analytics attachment line (`ANALYTICS:` opening a line):
 a CLI can echo the reply it wrote on stderr, the task snapshot an
 implementing developer is asked for included, so every such line of the
-stderr a comment quotes is replaced by a note before the tail is cut, where a
-line cut short would no longer open on the prefix. The stderr a run is
-classified by stays as the CLI wrote it.
+stderr as the CLI wrote it is replaced by a note -- before the redactor runs,
+since a multi-line credential masked across the line break above one would
+leave it no longer opening a line, and before the tail is cut, where a line
+cut short would not open on the prefix either. An attachment is one JSON line
+whose own line breaks are escaped, so no credential's line breaks run into
+it and the redactor still finds every credential around it as written. The
+stderr a run is classified by stays as the CLI wrote it.
 """
 from __future__ import annotations
 
@@ -66,13 +70,14 @@ def _format_stderr_diagnostics(
     block beginning with two newlines so it slots cleanly after an existing
     `_Last … message:_` body.
 
-    Redaction happens on the raw stderr before any trimming: a multi-line
+    Redaction happens on the stderr as written, its attachment lines aside,
+    before any trimming: a multi-line
     secret env value (e.g. an SSH/PEM key whose env-var value ends in `\\n`)
     echoed at the end of stderr would otherwise have its trailing newline
     stripped first, so `str.replace` would no longer find the env value
     verbatim and the secret would leak.
     """
-    tail = _without_attachments(_credentials.redact_secrets(agent_result.stderr or "")).rstrip()
+    tail = _credentials.redact_secrets(_without_attachments(agent_result.stderr or "")).rstrip()
     if not tail:
         return ""
     if len(tail) > _STDERR_TAIL_BUDGET:

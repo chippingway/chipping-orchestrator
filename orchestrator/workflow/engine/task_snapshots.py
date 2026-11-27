@@ -53,14 +53,18 @@ recording one raises nothing into the attempt it observes.
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-from orchestrator.agents import codex_events as _codex_events, provider_failures as _provider_failures
-from orchestrator.agents.models import AgentResult
+from orchestrator.agents import (
+    codex_events as _codex_events,
+    models as _agent_models,
+    provider_failures as _provider_failures,
+)
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.observability.analytics.observations import (
     recorder as _recorder,
@@ -111,7 +115,7 @@ def asked(handoff: _completion_records.CompletionHandoff, prompt: str) -> str:
 
 def receive(
     handoff: _completion_records.CompletionHandoff,
-    agent_result: AgentResult,
+    agent_result: _agent_models.AgentResult,
     state: PinnedState,
     conversation: Conversation,
     *,
@@ -126,7 +130,9 @@ def receive(
     answered the attempt with a refusal of its own: such a return is observed
     nowhere and moves no grounding. It is asked inside the failure boundary,
     and only once the road asks for a snapshot and the sink is on, so a
-    reading that fails is a lost observation like any other.
+    reading that fails is a lost observation like any other: warned of once,
+    that warning attempted best-effort, so nothing here keeps the reply from
+    the workflow.
     """
     if handoff.route not in _DESCRIBING:
         return
@@ -139,17 +145,20 @@ def receive(
                     conversation.repo_id, conversation.issue_number, state,
                 ), path)
         except Exception as error:  # noqa: BLE001 - an observation is lost, never the run that returned it
-            log.warning(
-                "issue=#%d could not observe a developer reply's task snapshot (%s)",
-                conversation.issue_number, type(error).__name__,
-            )
+            # Attempted once: a logger that fails loses the warning with the
+            # observation, never the reply's settlement below.
+            with contextlib.suppress(Exception):
+                log.warning(
+                    "issue=#%d could not observe a developer reply's task snapshot (%s)",
+                    conversation.issue_number, type(error).__name__,
+                )
     if agent_result.last_message:
         agent_result.last_message = _replies.workflow_reply(agent_result.last_message)
 
 
 def _observe(
     handoff: _completion_records.CompletionHandoff,
-    agent_result: AgentResult,
+    agent_result: _agent_models.AgentResult,
     conversation: Conversation,
     grounding: _grounding.Grounding,
     path: Path,
@@ -177,7 +186,7 @@ def _observe(
     grounding.remember(agent_result.session_id or conversation.resumed, handed)
 
 
-def _reached(agent_result: AgentResult) -> bool:
+def _reached(agent_result: _agent_models.AgentResult) -> bool:
     """Whether `agent_result`'s launch reached the agent: a process started, its turn neither refused nor failed.
 
     Refused by the provider as the backend's own verdict says
@@ -211,7 +220,7 @@ def _decodable(stdout: str) -> str:
     return "\n".join(decoded)
 
 
-def _returned(agent_result: AgentResult) -> bool:
+def _returned(agent_result: _agent_models.AgentResult) -> bool:
     """Whether `agent_result`, which reached the agent, is a reply a tracked run finished, by the run's status."""
     shortfalls = (
         agent_result.invocation is None,

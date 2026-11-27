@@ -253,7 +253,8 @@ and the revision that report is stamped with, and its `requirements_revision` na
 A host record beside the issue's writer claim, `repo-<id>-issue-<n>.task-snapshot-grounding` spelling exactly
 `{"session_id", "requirements", "baseline"}`, carries a retry's re-grounding to a later retry resuming that
 conversation only while its baseline stands; it is written only with the analytics sink on, never on the pinned
-comment, and one that will not read or holds any other set of members -- a missing `baseline` included -- is nothing,
+comment, and one that will not read or holds any other set of members -- a missing `baseline` or a member written
+twice included -- is nothing,
 so its loss needs no migration and binds that snapshot to the baseline.
 A recorded requirements fingerprint
 (`user_content_hash`, `observed_user_content_hash`) is compared with the current fingerprint alone, which leaves bare

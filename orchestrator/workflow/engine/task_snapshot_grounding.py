@@ -35,8 +35,8 @@ only by a snapshot, and only under the issue's writer claim. The pinned
 comment never carries it, so no settlement, park, or capture measures or
 reads it. A record is read only whole, in the one shape written here: one
 that will not read, or that holds any other set of members -- a `baseline`
-missing, which would otherwise read as an issue recording none, included --
-is nothing, and one the host will not take is warned of and lost: a later
+missing, which would otherwise read as an issue recording none, or a member
+written twice included -- is nothing, and one the host will not take is warned of and lost: a later
 retry's snapshot is then bound to the baseline. Another host sees none of it.
 """
 from __future__ import annotations
@@ -114,15 +114,22 @@ class Grounding:
             self._changed(lambda: self.path.unlink(missing_ok=True))
 
     def _grounded(self, resumed: str) -> str | None:
-        """What the record says `resumed` was grounded on, where it still speaks for that conversation."""
+        """What the record says `resumed` was grounded on, where it still speaks for that conversation.
+
+        Read as the pairs it was written with, so a member written twice is
+        two pairs rather than the last of them, and no record of that shape
+        speaks.
+        """
         try:
-            record = json.loads(self.path.read_bytes())
+            pairs = json.loads(self.path.read_bytes(), object_pairs_hook=tuple)
         except FileNotFoundError:
             return None
-        except (OSError, ValueError) as error:
+        except (OSError, ValueError, RecursionError) as error:
             log.warning("could not read the task snapshot grounding at %s (%s)", self.path, type(error).__name__)
             return None
-        if not isinstance(record, dict) or set(record) != _MEMBERS:
+        members = pairs if isinstance(pairs, tuple) else ()
+        record = dict(members)
+        if len(record) != len(members) or set(record) != _MEMBERS:
             return None
         if record[_SESSION] != resumed or record[_BASELINE] != self.baseline:
             return None

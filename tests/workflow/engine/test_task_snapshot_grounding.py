@@ -56,11 +56,18 @@ _SILENT_RECORDS = (
     ("a record without requirements", json.dumps({"session_id": _SESSION, "baseline": _BASELINE})),
 )
 
+# A whole record but for its requirements written twice, which a decoder would settle as the last.
+_TWICE = (
+    f'{{"session_id": "{_SESSION}", "requirements": "{_OTHER}", '
+    f'"requirements": "{_EDITED}", "baseline": null}}'
+)
+
 # On an issue recording no baseline: records of any shape but the whole one,
 # which a missing `baseline` would otherwise pass for.
 _UNSHAPED_RECORDS = (
     ("a record without a baseline", json.dumps({"session_id": _SESSION, "requirements": _EDITED})),
     ("a record with a member too many", json.dumps({**_grounded(baseline=None), "extra": True})),
+    ("a record with a member written twice", _TWICE),
 )
 
 
