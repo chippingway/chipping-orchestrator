@@ -13,7 +13,9 @@ for one, so a reply without it -- with no report outcome either -- is a
 missing snapshot. The reply is framed inside the recorder's own boundary, so a
 framing that fails, once or every time it is asked, is a diagnostic and the
 report it spares is published as ever -- with no attachment line in it, even
-where the scan for those lines is what failed.
+where the scan for those lines is what failed. That scan failing, with the
+sink on or off, a fenced example is still the report's own text under the
+same digest, and a block holding nothing but the line is still refused.
 
 An `/orchestrator continue` retry beside a body edit hands a resumed
 conversation nothing, so its snapshot keeps the baseline that conversation
@@ -25,6 +27,7 @@ baseline a reviewer handed that report is told.
 """
 from __future__ import annotations
 
+import contextlib
 import unittest
 from types import MappingProxyType
 from unittest.mock import MagicMock, patch
@@ -111,11 +114,28 @@ _QUOTING_REPORT = f"Updated the example in the docs.\n\n```text\n{_EXAMPLE}\n```
 # That report, the snapshot above it.
 _FENCED_EXAMPLE = f"{_support.SNAPSHOT}\n\nREPORT: READY\n{_QUOTING_REPORT}\nREPORT: END"
 
+# A READY block holding nothing but the attachment line.
+_ALONE = f"REPORT: READY\n{_support.SNAPSHOT}\nREPORT: END"
+
 # Replies whose report no attachment line may make publishable, and what their snapshot reads as.
 _UNPUBLISHABLE = (
     (f"- ```text\n{_support.SNAPSHOT}\n  ```\nREPORT: READY\nImplemented.\nREPORT: END", "missing"),
-    (f"REPORT: READY\n{_support.SNAPSHOT}\nREPORT: END", "misplaced"),
+    (_ALONE, "misplaced"),
 )
+
+# Whether the scan for attachment lines fails, and whether the sink is on: it
+# answering with the sink on, then failing with the sink on and off.
+_SCANS = ((False, True), (True, True), (True, False))
+
+
+def _scanned(case: ReplyReadingTest, reply: str, failing: bool, sink: bool):
+    """A fresh issue dispatched over `reply`, its attachment scan `failing` or not, its sink on or off; its client."""
+    github, issue = case.seeded()
+    seams = {**case.committing, _SINK: case.sink if sink else None}
+    scanning = patch.object(_attachments, "attachment_lines", _unavailable()) if failing else contextlib.nullcontext()
+    with scanning:
+        case.dispatch(github, issue, _support.returning(reply), **seams)
+    return github
 
 
 def _fingerprint(issue) -> str:
@@ -179,30 +199,37 @@ class ReplyReadingTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
         self.assertEqual(self.diagnosed(), [("missing", False), ("misplaced", True)])
 
     def test_a_fenced_example_is_published(self) -> None:
-        # Code the report quotes is the report's own text, the snapshot above it read.
-        github, issue = self.seeded()
-        self.dispatch(github, issue, _support.returning(_FENCED_EXAMPLE), **self.committing)
-        settled = self.published(github)["developer_report_current"]
-        quoting = _support.published_attachments(github)
-        self.assertEqual(len(quoting), 1)
-        self.assertIn(_EXAMPLE, quoting[0])
-        self.assertEqual(settled["content"], _developer_reports.content_digest(_QUOTING_REPORT))
+        # Code the report quotes is the report's own text, published under
+        # the same digest whether the scan for attachment lines answers or
+        # fails, the sink on or off; the snapshot above it is read where the
+        # scan answers.
+        for scan in _SCANS:
+            github = _scanned(self, _FENCED_EXAMPLE, *scan)
+            settled = self.published(github)["developer_report_current"]
+            quoting = _support.published_attachments(github)
+            with self.subTest(scan=scan):
+                self.assertEqual([_EXAMPLE in body for body in quoting], [True])
+                self.assertEqual(settled["content"], _developer_reports.content_digest(_QUOTING_REPORT))
         snapshot = self.only(_support.SNAPSHOT_EVENT)
         self.assertEqual(snapshot["description"]["text"], _support.DESCRIPTION)
 
     def test_no_line_makes_a_report_publishable(self) -> None:
         # A fence the line sits in, which taking it out would close above the
         # markers, and a block of nothing else: each refused, and recorded
-        # as the verdict the workflow reached.
+        # as the verdict the workflow reached -- and the block of nothing
+        # else refused still where the scan for attachment lines fails, the
+        # sink on or off.
         for reply, category in _UNPUBLISHABLE:
             self.sink.unlink(missing_ok=True)
-            github, issue = self.seeded()
-            self.dispatch(github, issue, _support.returning(reply), **self.committing)
+            github = _scanned(self, reply, *_SCANS[0])
             diagnostic = self.only(_support.DIAGNOSTIC_EVENT)
             with self.subTest(category=category):
                 self.assertEqual(github.opened_prs, [])
                 self.assertEqual(diagnostic[_support.CATEGORY], category)
                 self.assertEqual(diagnostic["report_outcome"], "malformed")
+        for scan in _SCANS[1:]:
+            with self.subTest(scan=scan):
+                self.assertEqual(_scanned(self, _ALONE, *scan).opened_prs, [])
 
     def _published_digest(self, inside: str, **seams) -> str:
         """The digest of the report a fresh issue publishes for a READY block carrying `inside`; none quotes a line."""

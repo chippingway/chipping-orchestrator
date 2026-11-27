@@ -24,8 +24,8 @@ the conversation is known, the id it returned or the one it resumed: written
 where what it was handed is not the baseline, and taken away where it is. A
 conversation that returned no id and resumed none changes nothing, so the
 record of whichever conversation stays pinned stands, and neither does a
-launch refused before it started or a turn its provider refused, which handed
-the conversation nothing. A retry resuming that same conversation is
+launch refused before it started or a turn its provider or CLI refused,
+which handed the conversation nothing. A retry resuming that same conversation is
 bound to what the record says while the baseline is the one it was written
 beside; another conversation, or a baseline a road has since settled, leaves
 it saying nothing, and the attempt is bound to what its road hands it.

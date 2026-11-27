@@ -373,6 +373,7 @@ class _DevRunCoordinator:
             str(self._options.get("agent_spec") or ""),
             prompt,
             self._options.get(_RESUMED),
+            str(self._options[_BACKEND]),
         )
         if road is not None:
             road.received(self._gh, self._issue(), attempt, self._state())

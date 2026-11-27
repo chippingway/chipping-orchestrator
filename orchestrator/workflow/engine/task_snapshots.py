@@ -13,27 +13,32 @@ handed the request (`asked`), and every return on them is received
 (`receive`). A fix round, a drift resume, a refresh, a late revision, a
 documentation pass, and every run that freezes no road are neither.
 
-The request is `prompt_notes._TASK_SNAPSHOT_NOTE`, appended to the prompt
-the attempt is handed. Receiving a return reads where the analytics sink is
-first (`recorder.sink_path`), and with the sink off records nothing and
-keeps no grounding. With it on, a genuine return -- a run the tracked spawn
-started and stamped that reached the agent, its turn not refused by the
-provider (`provider_failures.is_provider_refusal`, which settles that from the
-backend's own verdict where there is one), and completed on its own terms by
-its status alone: neither interrupted nor timed out, exiting 0, and leaving no
-tool step unfinished or failure normalized -- is handed to the analytics recorder
-with its invocation, the requirements its conversation was handed
-(`task_snapshot_grounding`), the revision the run's report is stamped with
--- the road's own, which spells the task reference a reviewer of that report
-is told -- and the framing of the reply the workflow reads
-(`task_snapshot_replies.framing`), which the recorder asks inside its own
-failure boundary; nothing about the reply is read here first. A run that
+The request is `prompt_notes._TASK_SNAPSHOT_NOTE`, appended to the prompt the
+attempt is handed. Receiving a return reads where the analytics sink is first
+(`recorder.sink_path`), and with the sink off records nothing and keeps no
+grounding. With it on, a genuine return -- a run the tracked spawn started
+and stamped that reached the agent, and completed on its own terms -- is
+handed to the analytics recorder. Reaching the agent means invoked, with
+neither the provider nor the CLI refusing the turn: not a provider refusal
+(`provider_failures.is_provider_refusal`, which settles that from the
+backend's own verdict where there is one), and not a return the launching
+stage reads as its CLI's own refusal -- a conversation the CLI could not open
+or whose transcript overflowed, or an exhausted quota -- which that stage
+classifies with the readers it parks and retries on and hands in as
+`refused`. Completing on its own terms means neither interrupted nor timed
+out, exiting 0, and leaving no tool step unfinished or failure normalized.
+The recorder is handed it with its invocation, the requirements its
+conversation was handed (`task_snapshot_grounding`), the revision the run's
+report is stamped with -- the road's own, which spells the task reference a
+reviewer of that report is told -- and the framing of the reply the workflow
+reads (`task_snapshot_replies.framing`), which the recorder asks inside its
+own failure boundary; nothing about the reply is read here first. A run that
 never started, a synthesized result, and the recovery that finishes a
 captured report from its record are no return and record nothing. Every
 attempt that reached the agent, genuine or not, then keeps the host's
 grounding record current for the retries that may resume its conversation; a
-launch refused before it started, or a turn the provider refused, handed the
-conversation nothing, and leaves the record as it stands.
+launch refused before it started, or a turn the provider or the CLI refused,
+handed the conversation nothing, and leaves the record as it stands.
 
 And every return on these roads, with the sink on or off, leaves the
 workflow the reply it reads (`task_snapshot_replies.workflow_reply`): its
@@ -98,17 +103,22 @@ def receive(
     agent_result: AgentResult,
     state: PinnedState,
     conversation: Conversation,
+    *,
+    refused: bool,
 ) -> None:
     """Record the task snapshot a genuine return on `handoff`'s road carries, and leave the workflow its reply.
 
     The snapshot is bound to what `conversation` was handed
     (`task_snapshot_grounding.Grounding.handed`) and attributed to the stage
     the road reports under; the result's message becomes the reply the
-    workflow reads.
+    workflow reads. `refused` is the launching stage's reading that the CLI
+    answered the attempt with a refusal of its own: such a return is observed
+    nowhere and moves no grounding.
     """
     if handoff.route not in _DESCRIBING:
         return
-    path = _recorder.sink_path()
+    # A turn the CLI refused reached no agent, so nothing about it is observed.
+    path = None if refused else _recorder.sink_path()
     if path is not None:
         try:
             _observe(handoff, agent_result, conversation, _grounding.Grounding.of(
@@ -153,7 +163,11 @@ def _observe(
 
 
 def _reached(agent_result: AgentResult) -> bool:
-    """Whether `agent_result`'s launch reached the agent: a process started, its turn not refused by the provider."""
+    """Whether `agent_result`'s launch reached the agent: a process started, its turn not refused by the provider.
+
+    The CLI's own refusals are the launching stage's to read, and arrive as
+    `receive`'s `refused`.
+    """
     return agent_result.invoked and not _provider_failures.is_provider_refusal(agent_result)
 
 

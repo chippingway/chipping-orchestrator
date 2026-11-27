@@ -4,11 +4,13 @@
 
 A poisoned session's fresh retry and an Antigravity command recovery are
 continuations of the request they retry, so each is asked as the attempt
-before it was, and each genuine return is recorded under its own charge.
-A run frozen on no road, or on a road other than the implementing two, is
-neither asked nor observed, and an attempt that returned no finished reply
--- timed out, left a command running, or answered by its provider's refusal
-on a clean exit -- records nothing.
+before it was, and each genuine return is recorded under its own charge --
+the stale conversation the retry replaces, which its CLI could not open,
+under none. A run frozen on no road, or on a road other than the
+implementing two, is neither asked nor observed, and an attempt that
+returned no finished reply -- timed out, left a command running, or answered
+on a clean exit by its provider's refusal or its CLI's own, an exhausted
+quota or an overflowed transcript -- records nothing.
 """
 from __future__ import annotations
 
@@ -18,7 +20,11 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator.agents.models import ToolLifecycle
 from orchestrator.observability.usage import protocol as _protocol
-from orchestrator.workflow.engine import completion_routes as _routes, prompt_notes as _notes
+from orchestrator.workflow.engine import (
+    completion_routes as _routes,
+    prompt_notes as _notes,
+    task_snapshot_grounding as _grounding,
+)
 from orchestrator.workflow.stages.implementing import (
     execution as _execution,
     resume as _resume,
@@ -45,22 +51,30 @@ _COMPLETION = "completion"
 # Claude's own verdict on a turn its provider refused, beside a clean exit.
 _REFUSED = json.dumps({"type": "result", "is_error": True, "result": "API Error: 529 Overloaded."})
 
-# What a poisoned resume and the fresh retry behind it record, in order: the
-# empty reply's missing snapshot under the first charge, the snapshot under
-# the second.
-_RETRIED = (
-    (_support.DIAGNOSTIC_EVENT, (1, "resume")),
-    (_support.SNAPSHOT_EVENT, (2, "resume")),
+# What a poisoned resume and the fresh retry behind it record: nothing for the
+# conversation the CLI could not open, the snapshot under the second charge.
+_RETRIED = ((_support.SNAPSHOT_EVENT, (2, "resume")),)
+
+_IMPLEMENTATION = _routes.CompletionRoute.IMPLEMENTATION
+_RESUME = _routes.CompletionRoute.RESUME
+
+# Runs nothing records: what each returned, the road it was frozen on, the
+# prompt it was handed, and whether it reached the agent, so that the road's
+# grounding of its conversation is kept -- none where the provider or the CLI
+# refused the turn.
+_UNRECORDED = (
+    ("no road", {}, None, _PROMPT, False),
+    ("a fix round", {}, _routes.CompletionRoute.REQUESTED_CHANGES, _PROMPT, False),
+    ("a timed-out attempt", {"timed_out": True}, _IMPLEMENTATION, _ASKED, True),
+    ("a refused turn", {"stdout": f"{_REFUSED}\n"}, _IMPLEMENTATION, _ASKED, False),
+    ("an exhausted quota", {"last_message": "You've hit your 5-hour limit"}, _RESUME, _ASKED, False),
+    ("an overflowed transcript", {"last_message": "Prompt is too long"}, _RESUME, _ASKED, False),
 )
 
-# Runs nothing records: what each returned, the road it was frozen on, and
-# the prompt it was handed.
-_UNRECORDED = (
-    ("no road", {}, None, _PROMPT),
-    ("a fix round", {}, _routes.CompletionRoute.REQUESTED_CHANGES, _PROMPT),
-    ("a timed-out attempt", {"timed_out": True}, _routes.CompletionRoute.IMPLEMENTATION, _ASKED),
-    ("a refused turn", {"stdout": f"{_REFUSED}\n"}, _routes.CompletionRoute.IMPLEMENTATION, _ASKED),
-)
+
+def _grounding_of(case: CoordinatedAttemptTest):
+    """Where this host keeps the grounding of `case`'s issue."""
+    return _grounding.Grounding.of(case.github.repo_id, _held.ISSUE, case.state).path
 
 
 def _recorded_as(record: dict) -> tuple:
@@ -80,9 +94,9 @@ class CoordinatedAttemptTest(_support.SinkOfItsOwn):
         self.state = self.github.read_pinned_state(self.issue)
 
     def test_a_fresh_retry_is_asked_and_observed(self) -> None:
-        # The poisoned attempt completed on an empty reply, so it is a missing
-        # snapshot under the first charge; the fresh retry it buys is asked
-        # again and recorded under the second.
+        # The poisoned attempt exited 0 on a conversation its CLI could not
+        # open, so it reached no agent and is recorded nowhere; the fresh
+        # retry it buys is asked again and recorded under the second charge.
         attempts = MagicMock(side_effect=[
             _agent(session_id="", last_message="", stderr=f"No conversation found with session ID: {_POISONED}"),
             _agent(session_id="fresh-sess", last_message=_support.ATTACHED),
@@ -114,9 +128,10 @@ class CoordinatedAttemptTest(_support.SinkOfItsOwn):
         self.assertEqual(_support.charged(snapshot), (2, "implementation"))
 
     def test_no_other_run_is_recorded(self) -> None:
-        for name, failure, route, prompt in _UNRECORDED:
+        for name, failure, route, prompt, grounds in _UNRECORDED:
             with self.subTest(case=name):
                 self._records_nothing(failure, route, prompt)
+                self.assertEqual(_grounding_of(self).exists(), grounds)
 
     def _coordinated(self, attempts: list, route: _routes.CompletionRoute | None = None, **options) -> MagicMock:
         """Coordinate one developer run on `route`'s road, its processes coming back as `attempts`; the runner."""
@@ -133,8 +148,9 @@ class CoordinatedAttemptTest(_support.SinkOfItsOwn):
 
     def _records_nothing(self, failure: dict, route: _routes.CompletionRoute | None, prompt: str) -> None:
         """One run that returns `failure` on `route`'s road: handed `prompt`, and observed nowhere."""
+        _grounding_of(self).unlink(missing_ok=True)
         self.state = self.github.read_pinned_state(self.issue)
-        returned = _agent(last_message=_support.ATTACHED, **failure)
+        returned = _agent(**{"last_message": _support.ATTACHED, **failure})
         runner = self._coordinated([returned], route=route)
         self.assertEqual(runner.call_args.args[1], prompt)
         self.assertEqual(self.observations(), [])

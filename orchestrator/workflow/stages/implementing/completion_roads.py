@@ -104,16 +104,33 @@ class RoadCheckout:
 class Attempt:
     """One actual attempt the coordinator made: what it returned, and what it ran as.
 
-    `command` is the full developer command it ran under, `prompt` the text
-    it was handed, and `resumed` the conversation the coordinated run
-    resumed -- None where it opened a fresh one, a continuation of that one
-    included.
+    `command` is the full developer command it ran under and `backend` the
+    CLI that command names, `prompt` the text it was handed, and `resumed` the
+    conversation the coordinated run resumed -- None where it opened a fresh
+    one, a continuation of that one included.
     """
 
     agent_result: AgentResult
     command: str
     prompt: str
     resumed: str | None
+    backend: str
+
+    @property
+    def refused(self) -> bool:
+        """Whether the attempt's CLI answered it with a refusal of its own rather than the agent's turn.
+
+        Read as this stage reads such a return everywhere else
+        (`session_read`): a conversation the CLI could not open or whose
+        transcript overflowed the context -- the two a poisoned-session retry
+        is bought by -- or an exhausted account quota.
+        """
+        returned = self.agent_result
+        return (
+            _session_read._is_session_limit(returned)
+            or _session_read._is_stale_session_failure(self.backend, returned)
+            or _session_read._is_context_overflow_failure(self.backend, returned)
+        )
 
 
 @dataclass(frozen=True)
@@ -199,12 +216,14 @@ class CompletionRoad:
         conversation, and what a resumed one was grounded on where this
         host's record still says (`task_snapshot_grounding`), the handoff's
         otherwise -- and the result's message is left as the workflow reads
-        it, its attachment lines kept out without moving its framing. The
+        it, its attachment lines kept out without moving its framing. A
+        return its CLI refused (`Attempt.refused`) is no turn of the agent's,
+        so it is neither recorded nor lets the grounding move. The
         recording raises nothing, and no disposition, capture, or accounting
         reads it back; the pinned comment carries none of it.
         """
         conversation = _task_snapshots.Conversation(gh.repo_id, issue.number, attempt.resumed, self.fresh_requirements)
-        _task_snapshots.receive(self.handoff, attempt.agent_result, state, conversation)
+        _task_snapshots.receive(self.handoff, attempt.agent_result, state, conversation, refused=attempt.refused)
 
     def source(self, agent_result: AgentResult) -> str | None:
         """The head `agent_result`'s report is about, read off the checkout as it returns; None where none qualifies.

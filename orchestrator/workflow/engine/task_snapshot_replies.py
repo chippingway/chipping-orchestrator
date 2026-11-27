@@ -29,17 +29,24 @@ outcome begins in the reply as written, which lines a fence may enclose, and
 what the reply the workflow reads ends on -- `ready`, `verified`, or the
 refusal's own spelling. The recorder asks it inside its own failure boundary.
 
-A reply those readers fail on is never read as written: with one warning,
-every line opening on `ANALYTICS:` -- fenced or not, since which lines a fence
-encloses is what could not be read -- is replaced by `PLACEHOLDER` at its own
-indentation, by a pattern no reader is asked for. Every
-line stays a line of the same kind, so the framing is as written and no
-attachment text reaches a report, its digest, or a notice; a READY report
-then carries the placeholder wherever such a line stood, a fenced example's
-included.
+A reply those readers fail on is never read as written. With one warning,
+its attachment lines are found by a pattern of this owner's own -- every line
+opening on `ANALYTICS:` outside the fences the fence reader read, or every one
+where that reader is what failed -- and kept out by the marker lines alone,
+which the report reader's pattern finds without parsing anything: taken out
+whole where the reply has no marker line, and between its first and last,
+which is where a READY block's report sits; replaced by `PLACEHOLDER`
+everywhere else. So a READY report reads as written without the lines, its
+digest with it, and a block holding nothing else stays the empty block the
+report reader refuses; a fenced example stays wherever the fences were read;
+and no attachment text reaches a report, a digest, or a notice. Taking a line
+out between the markers of an outcome that does not read changes no marker,
+fence, or acknowledgement line, so no outcome the report reader refuses is
+made one it accepts.
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 import re
 from types import MappingProxyType
@@ -67,27 +74,24 @@ _INDENT_RE = re.compile("[ \t]*")
 # the attachment reader frames a line: to the next line feed, the carriage
 # return before it the break's.
 _ANY_PREFIXED_LINE_RE = re.compile(
-    rf"^(?P<indent>[ \t]*){re.escape(_attachments.PREFIX)}[^\n]*?(?=\r?\n|\Z)", re.MULTILINE,
+    rf"^[ \t]*{re.escape(_attachments.PREFIX)}[^\n]*?(?=\r?\n|\Z)", re.MULTILINE,
 )
-
-# What stands in such a line's place: the placeholder, at the line's own indentation.
-_HELD = rf"\g<indent>{PLACEHOLDER}"
 
 # Where a line sits in a reply: `(start, end)`, its break aside.
 _Span = tuple[int, int]
 
 
 def workflow_reply(message: str) -> str:
-    """`message` as the workflow reads it; every prefixed line held by the placeholder where its readers fail."""
+    """`message` as the workflow reads it; kept out by the marker lines alone where its readers fail (`_held`)."""
     try:
         return _read_as(message, _fences._fenced_line_starts(message))
-    except Exception as error:  # noqa: BLE001 - a reply its readers fail on is held line by line instead
+    except Exception as error:  # noqa: BLE001 - a reply its readers fail on is kept out by its marker lines instead
         log.warning(
             "could not read a developer reply's task snapshot attachment lines (%s); "
-            "holding every line opening on their prefix",
+            "keeping them out by the reply's marker lines alone",
             type(error).__name__,
         )
-        return _ANY_PREFIXED_LINE_RE.sub(_HELD, message)
+        return _held(message)
 
 
 def framing(message: str) -> _recorder.Framing:
@@ -117,8 +121,24 @@ def _read_as(message: str, fenced: frozenset[int]) -> str:
     return _rewritten(message, lines, _in_the_block(message, lines))
 
 
+def _held(message: str) -> str:
+    """`message` with every line opening on the prefix outside its fences kept out by the marker lines alone.
+
+    The fences are the fence reader's where it answers, and none where it is
+    what failed, so every such line is kept out then, a fenced one included.
+    """
+    fenced = _attachments.NOTHING_FENCED
+    with contextlib.suppress(Exception):
+        fenced = _fences._fenced_line_starts(message)
+    prefixed = (line.span() for line in _ANY_PREFIXED_LINE_RE.finditer(message))
+    lines = tuple(line for line in prefixed if line[0] not in fenced)
+    if _outcomes._MARKER_LINE_RE.search(message) is None:
+        return _rewritten(message, lines, frozenset(lines))
+    return _rewritten(message, lines, _in_the_block(message, lines))
+
+
 def _in_the_block(message: str, lines: tuple[_Span, ...]) -> frozenset[_Span]:
-    """Which of `lines` sit inside the READY block `message` ends on, between its two marker lines."""
+    """Which of `lines` sit between `message`'s first and last marker lines: inside the READY block it ends on."""
     markers = tuple(_outcomes._MARKER_LINE_RE.finditer(message))
     opening = markers[0].end()
     closing = markers[-1].start()
@@ -126,26 +146,20 @@ def _in_the_block(message: str, lines: tuple[_Span, ...]) -> frozenset[_Span]:
 
 
 def _rewritten(message: str, lines: tuple[_Span, ...], taken_out: frozenset[_Span]) -> str:
-    """`message` with each of `lines` taken out whole where `taken_out` holds it, the placeholder in its place else."""
+    """`message` with each of `lines` taken out whole where `taken_out` holds it, the placeholder in its place else.
+
+    A line taken out takes its break with it; the placeholder keeps the
+    line's own indentation and its break.
+    """
     pieces = []
     cursor = 0
-    for line in lines:
-        pieces.append(message[cursor:line[0]])
-        shown, cursor = _in_place_of(message, line, taken_out)
-        pieces.append(shown)
+    for start, end in lines:
+        pieces.append(message[cursor:start])
+        cursor = end
+        if (start, end) in taken_out:
+            ended = _BREAK_RE.match(message, end)
+            cursor = end if ended is None else ended.end()
+        else:
+            pieces.extend((_INDENT_RE.match(message, start, end).group(), PLACEHOLDER))
     pieces.append(message[cursor:])
     return "".join(pieces)
-
-
-def _in_place_of(message: str, line: _Span, taken_out: frozenset[_Span]) -> tuple[str, int]:
-    """What stands where `line` of `message` was, and where the text after it resumes.
-
-    Nothing, past the line's break, where `taken_out` holds it; the
-    placeholder at the line's own indentation otherwise.
-    """
-    start, end = line
-    if line in taken_out:
-        ended = _BREAK_RE.match(message, end)
-        return "", end if ended is None else ended.end()
-    indentation = _INDENT_RE.match(message, start, end)
-    return f"{indentation.group()}{PLACEHOLDER}", end

@@ -1959,22 +1959,21 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             report marker and inside a READY block, a placeholder line holding its place everywhere
                             else -- so no park, notice, or published report quotes one, a fenced example stays, text
                             past an outcome is still refused, and a block of nothing else is refused as empty; a reply
-                            those readers fail on never read as written, every line opening on the prefix held by the
-                            placeholder instead, with one warning; and the framing the recorder is
-                            told -- where the outcome begins, the lines a fence may enclose, and the verdict the
-                            workflow reaches on that reply
+                            those readers fail on never read as written but kept out by its marker lines alone, outside
+                            the fences still read, with one warning; and the framing the recorder is told -- where the
+                            outcome begins, the lines a fence may enclose, and the verdict the workflow reaches on that
+                            reply
     task_snapshots.py       which developer attempts are asked for a task snapshot -- every one on the first
-                            implementation's road or an implementing resume's, and none else -- the request appended
-                            to the prompt each is handed, and the receipt of each return on those roads: with the
-                            analytics sink on, a genuine one, judged by the run's status and its provider's own
-                            verdict, handed to the
+                            implementation's road or an implementing resume's, and none else -- the request appended to
+                            the prompt each is handed, and the receipt of each return on those roads: with the analytics
+                            sink on, a genuine one -- judged by the run's status, its provider's own verdict, and the
+                            road's reading of a CLI refusal (`completion_roads.Attempt.refused`) -- handed to the
                             analytics recorder with its invocation, the requirements its conversation was handed
-                            (`task_snapshot_grounding.py`), the revision its report is stamped with -- which spells
-                            the task reference -- and the framing of the reply the workflow reads
-                            (`task_snapshot_replies.py`), which the recorder asks inside its failure boundary, and
-                            the grounding of every attempt that reached the agent kept current; and, sink on or off,
-                            every one left as the
-                            workflow reads it. Nothing a workflow decides reads the observation back
+                            (`task_snapshot_grounding.py`), the revision its report is stamped with -- which spells the
+                            task reference -- and the framing of the reply the workflow reads
+                            (`task_snapshot_replies.py`), which the recorder asks inside its failure boundary, and the
+                            grounding of every attempt that reached the agent kept current; and, sink on or off, every
+                            one left as the workflow reads it. Nothing a workflow decides reads the observation back
     review_subjects.py      what one review is of -- pull request, head, requirements revision, and report revision and
                             digest -- recorded as `review_subject` before the spawn, as `review_returned_subject` once a
                             reviewer returns, and as `review_approved_subject` once an approval passes the verify gate,

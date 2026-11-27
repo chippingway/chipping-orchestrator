@@ -577,14 +577,20 @@ empty block the report reader refuses. Every other one — above an outcome, pas
 is replaced by the line `(analytics attachment line taken out)` at its own indentation, so every line stays a line of
 the same kind: a fence opens and closes where it did, text after an outcome is still refused, and a malformed outcome
 stays malformed. No park, notice, or published report quotes an attachment line. A reply those readers fail on is never
-read as written: with one warning, every line opening on `ANALYTICS:`, fenced or not, is replaced by that placeholder
-line at its own indentation by a pattern no reader is asked for, so the framing stays as written and the published
-report carries the placeholder where such a line stood.
+read as written. With one warning, its attachment lines are found by a pattern of the owner's own — every line opening
+on `ANALYTICS:` outside the fences the fence reader read, or every such line where that reader is what failed — and kept
+out by the marker lines alone, which the report reader's pattern finds without parsing anything: taken out whole where
+the reply has no marker line and between its first and last, where a READY block's report sits, and replaced by the
+placeholder everywhere else. So a READY report reads as written without them, under the same digest, a block holding
+nothing else stays the empty block the report reader refuses, a fenced example stays wherever the fences were read, and
+no outcome the report reader refuses is made one it accepts.
 
 The attachment is read on its own terms and decides nothing. With the analytics sink on, `task_snapshots.py` hands a
-genuine return — invoked under a tracked charge, its turn not refused by the provider (the backend's own verdict
-deciding where it gives one, so a clean exit carrying Claude's `is_error` refusal is none), neither interrupted nor
-timed out, exiting 0, with no tool step unfinished or failure normalized — to the one reader and recorder under
+genuine return — invoked under a tracked charge; its turn refused neither by the provider (the backend's own verdict
+deciding where it gives one, so a clean exit carrying Claude's `is_error` refusal is none) nor by the CLI, as the
+implementing stage reads that with the readers it parks and retries on (`session_read`: a conversation the CLI could not
+open or whose transcript overflowed the context, or an exhausted quota, each on a clean exit too); neither interrupted
+nor timed out, exiting 0, with no tool step unfinished or failure normalized — to the one reader and recorder under
 `observability/analytics/observations/`, with the invocation the run came from, the requirements revision the attempt's
 conversation was handed, and the framing of the reply the workflow reads — where its outcome begins, which lines a fence
 may enclose, and the verdict the report reader reaches on it — which the recorder asks inside its failure boundary. That
@@ -595,8 +601,8 @@ retry resuming that same conversation to what it was last handed. This host keep
 as `repo-<id>-issue-<n>.task-snapshot-grounding`, only while the analytics sink is on and never on the pinned comment,
 so no settlement measures it (`workflow/engine/task_snapshot_grounding.py`); it speaks while the conversation and the
 issue's baseline stand, an attempt that names no conversation leaves it as it is, as does a launch refused before it
-started or a turn its provider refused, which hand the conversation nothing, and a lost one binds the retry to the
-baseline. The task reference is spelled from the revision the run's report is stamped with instead, which is what a
+started or a turn its provider or CLI refused, which hand the conversation nothing, and a lost one binds the retry to
+the baseline. The task reference is spelled from the revision the run's report is stamped with instead, which is what a
 reviewer is handed. The reader reads the reply as written: exactly one attachment line above the outcome is a snapshot;
 none is missing, two or more anywhere are a duplicate, the one line reaching past where the outcome begins is misplaced,
 and a line out of shape — a key written twice included — is malformed. Each of those is recorded as a diagnostic and

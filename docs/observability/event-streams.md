@@ -809,11 +809,14 @@ poisoned session's fresh retry, and an Antigravity command recovery behind any o
 line in every finished reply, above its report outcome where it ends on one
 ([the reply contract](../workflow/conversations.md#the-task-snapshot-attachment)). No other road asks, and no other run
 is recorded. Only a genuine return is: a run the tracked spawn started under a charge and stamped with its
-invocation, which was invoked, whose turn the provider did not refuse — the backend's own verdict deciding where it
-gives one, so a clean exit carrying Claude's `is_error` refusal is none — neither interrupted nor timed out, exited 0,
-and left no tool step unfinished or failure normalized; a question and a malformed report outcome are included. Any
-other writes nothing, nor does a result a stage synthesized or the recovery that finishes a captured report from its
-record, since no developer ran.
+invocation, which was invoked; whose turn the provider did not refuse — the backend's own verdict deciding where it
+gives one, so a clean exit carrying Claude's `is_error` refusal is none — and the CLI did not refuse either, as the
+implementing stage reads that with the readers it parks and retries on: a conversation the CLI could not open or whose
+transcript overflowed the context, or an exhausted quota, each on a clean exit too; and which was neither interrupted
+nor timed out, exited 0, and left no tool step unfinished or failure normalized. A question and a malformed report
+outcome are included. Any other writes nothing — a poisoned conversation's fresh retry is recorded, the stale attempt
+before it not — nor does a result a stage synthesized or the recovery that finishes a captured report from its record,
+since no developer ran.
 
 **The attachment.** A reply carries a snapshot as one line: the `ANALYTICS:` prefix, the kind, the version, and a JSON
 object, `ANALYTICS: task-snapshot v1 {"description": "..."}`. A JSON string escapes its line breaks, so nothing inside
