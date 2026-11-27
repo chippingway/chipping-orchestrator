@@ -6907,7 +6907,10 @@ of those recoverable without telling a human twice
      answered for a report no reviewer has is the reading that fork refuses. Then the two replies this round may act
      on no half of, held for a human ahead of every road below (`stages/fixing/reporting.py`): a message that reached
      for the report contract and MISSED, and a round that COMMITTED over a report an earlier tick recorded, whose
-     record describes the branch before that commit. The head is read on every finished run for that second one, a
+     record describes the branch before that commit -- or that still owes the report a park over committed work with
+     no report asked for, which is how a round resumed on a decision that commits again and asks the next question
+     reads. Both notices quote the run's last message, so that next question and its choices reach the human whose
+     reply resumes the session. The head is read on every finished run for that second one, a
      timed-out one included: a timeout is a way to commit like any other, and the park it earns has a recovery that
      PUSHES what the run left -- read as a run that committed nothing, that work reaches the pull request under a
      report written before it existed, since the road that publishes it reads only the debt the earlier report still

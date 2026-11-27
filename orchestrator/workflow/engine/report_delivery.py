@@ -122,7 +122,7 @@ from orchestrator.workflow.engine.report_record_room import (
 )
 from orchestrator.workflow.engine.report_refusal_notices import (
     explains_the_refusal as _explains_the_refusal,
-    quotes_the_last_message as _quotes_the_last_message,
+    quoting_the_last_message as _quoting_the_last_message,
 )
 from orchestrator.workflow.state import WorkflowLabel
 
@@ -484,7 +484,7 @@ def _unreported_run_holds(
     reading the debt alone would publish them under it.
 
     The notice quotes the run's last message
-    (`report_refusal_notices.quotes_the_last_message`), because a run often
+    (`report_refusal_notices.quoting_the_last_message`), because a run often
     reaches here by ending on a question: a developer that committed part of
     what it was asked and needs a human's decision on the rest ends on that
     question with no report, as every developer prompt asks. Told only
@@ -516,13 +516,12 @@ def _unreported_run_holds(
     staged = commit.staging()
     staged.set(UNREPORTED_WORK, True)
     handed.retired_onto(staged)
-    parks_the_debt(commit, staged, _UNREPORTED_PARK.format(
-        mentions=config.HITL_MENTIONS,
-        withheld=(
-            _NOTHING_ADDED if handed.route in _UNDER_REVIEW
-            else _NOTHING_OPENED
+    withheld = _NOTHING_ADDED if handed.route in _UNDER_REVIEW else _NOTHING_OPENED
+    parks_the_debt(commit, staged, _quoting_the_last_message(
+        lambda said: _UNREPORTED_PARK.format(
+            mentions=config.HITL_MENTIONS, withheld=withheld, said=said,
         ),
-        said=_quotes_the_last_message(agent_result.last_message),
+        agent_result.last_message,
     ), handed.watermarks, parking=PARKING.behind(handed))
     return True
 

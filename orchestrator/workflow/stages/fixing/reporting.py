@@ -55,6 +55,7 @@ from orchestrator.workflow.engine import (
     report_delivery as _report_delivery,
     report_outcomes as _report_outcomes,
     report_records as _report_records,
+    report_refusal_notices as _refusal_notices,
 )
 from orchestrator.workflow.stages.fixing import (
     models as _models,
@@ -117,8 +118,9 @@ _MISREAD_PARK = (
     "and no report went onto the pull request. Read either half alone this "
     "would be wrong in a way nothing later could undo -- the `ACK:` returns "
     "the pull request to review as needing no change, and the report claims "
-    "work nobody published. Reply and the orchestrator resumes the session; "
-    "the answer it gives then is the one that counts."
+    "work nobody published.{said}\n\n"
+    "Reply and the orchestrator resumes the session; the answer it gives then "
+    "is the one that counts."
 )
 
 # What a round that committed and did not FINISH is held under. The engine's
@@ -157,19 +159,24 @@ _STALLED_PARK = (
 # What a round that committed over a report the issue still owes is held
 # under. The run is over, so what this asks for is a fresh report written over
 # the branch as it now stands -- which the reply's resume writes and which
-# supersedes the record nothing could bind.
+# supersedes the record nothing could bind. The debt may be one nobody ever
+# wrote: the round a park over committed work with no report resumed, which
+# commits again and asks again, owes the report that park asked for.
 _UNDESCRIBED_PARK = (
-    "{mentions} this issue's developer run committed work while a report an "
-    "earlier run wrote is still owed to the pull request, and answered the "
-    "feedback with no report of its own. Nothing was published: the commit is "
-    "still in the worktree, the branch is untouched, and the earlier report is "
-    "still on the pinned comment exactly as it was. That report describes the "
+    "{mentions} this issue's developer run committed work while the pull "
+    "request is still owed a report, and answered the feedback with no report "
+    "of its own. Nothing was published: the commit is still in the worktree, "
+    "the branch is untouched, and any report an earlier run recorded is still "
+    "on the pinned comment exactly as it was. Such a report describes the "
     "branch as it stood before this commit, so publishing it against the new "
     "head would hand a reviewer a description of work it does not cover -- and "
-    "a report is the one thing this orchestrator cannot write for itself. "
-    "Reply and the orchestrator resumes the session; the report it writes then "
-    "describes the branch as it stands, supersedes the one that could not, and "
-    "is the one that gets published."
+    "a report is the one thing this orchestrator cannot write for itself.{said}\n\n"
+    "Reply -- with your decision, where the developer asked for one -- and "
+    "the orchestrator resumes the developer session on your reply. The "
+    "committed work stays held in the worktree until that session supplies a "
+    "valid completion report; the report it writes then describes the branch "
+    "as it stands, supersedes the one that could not, and is the one that "
+    "gets published."
 )
 
 
@@ -220,6 +227,14 @@ def _holds_for_a_human(
     the report that session writes describes the branch as it stands and
     supersedes the one that could not.
 
+    Either notice quotes the run's last message
+    (`report_refusal_notices.quoting_the_last_message`). A round resumed on a
+    human's answer to a park over a committed fix with no report reaches the
+    second of them when the developer commits more and asks the next
+    question: the debt that first park recorded is what reads the new commit
+    as undescribed. Told only that a report is owed, the human asks for one,
+    and the report it buys goes to review with the next decision unmade.
+
     The two are asked INDEPENDENTLY and only the notice picks between them,
     because a reply can be both: a malformed message is no report, so a run
     that wrote one and committed has left work over a standing record exactly
@@ -252,10 +267,11 @@ def _holds_for_a_human(
         ))
         ctx.gh.write_pinned_state(ctx.issue, ctx.state)
         return True
+    notice = _MISREAD_PARK if misread else _UNDESCRIBED_PARK
     _report_delivery.parks_an_undeliverable_report(
-        ctx.gh, ctx.issue, ctx.state,
-        (_MISREAD_PARK if misread else _UNDESCRIBED_PARK).format(
-            mentions=_config.HITL_MENTIONS,
+        ctx.gh, ctx.issue, ctx.state, _refusal_notices.quoting_the_last_message(
+            lambda said: notice.format(mentions=_config.HITL_MENTIONS, said=said),
+            run.dev_result.last_message,
         ),
     )
     return True

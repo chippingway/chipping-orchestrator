@@ -27,7 +27,7 @@ from tests.workflow import (
     fix_reports as world,
 )
 from tests.workflow.agent_failure_values import agy_quota_stop
-from tests.workflow.fixtures import LABEL_FIXING, LABEL_VALIDATING, _agent
+from tests.workflow.fixtures import LABEL_FIXING, LABEL_VALIDATING, SHA_LENGTH, _agent
 
 ISSUE = 1_794
 
@@ -77,6 +77,21 @@ FIX_QUESTION = (
     "1. I open a separate pull request against the base branch.\n"
     "2. You land it there yourself and I rebase onto it."
 )
+
+# The human's decision on that question, and the round it resumes: another
+# commit, and the next question the decision raised, again with no report.
+FIX_DECISION = "Open a separate pull request for the retry change."
+
+NEXT_QUESTION = (
+    "Committed the follow-up the decision needed. Which base branch should "
+    "the separate pull request use?\n\n"
+    "1. Use the release branch.\n"
+    "2. Use main."
+)
+
+# Where the resumed round leaves the checkout: past the commit the first round
+# left, which the pull request has not got either.
+NEXT_HEAD = "a" * SHA_LENGTH
 
 
 # Rounds that committed and did not finish, beside the park each takes and the
@@ -273,6 +288,41 @@ class RequestedFixRefusalTest(unittest.TestCase, world._FixReportMixin):
         notice = _park_notice(self)
         for said in (
             *(f"> {line}" for line in FIX_QUESTION.splitlines() if line),
+            "resumes the developer session on your reply",
+            "committed work stays held in the worktree",
+        ):
+            self.assertIn(said, notice)
+
+    def test_the_next_question_parks_with_its_choices(self) -> None:
+        # The human answers the first question and the resumed session commits
+        # again and asks the next one, still with no report. The debt the first
+        # park recorded is what reads that commit as undescribed, so this park
+        # is the fixing stage's own -- and its notice quotes the new question
+        # and its choices as the first did, with both commits held unpublished
+        # until a report describes the branch they leave.
+        self.seeded(ISSUE, PR, LABEL_VALIDATING)
+        self.requested_fix(FIX_QUESTION)
+        world.replied(self, FIX_DECISION)
+
+        mocks = self.parked_resume(
+            NEXT_QUESTION, **{world.HEAD_SHAS: (world.FIXED_HEAD, NEXT_HEAD)},
+        )
+
+        mocks[RUN_AGENT].assert_called_once()
+        mocks[PUSH_BRANCH].assert_not_called()
+        self.assertEqual(
+            (
+                self.pinned()[AWAITING_HUMAN],
+                self.pinned()[PARK_REASON],
+                self.pinned()[_report_delivery.UNREPORTED_WORK],
+                self.pinned()[REVIEW_ROUND],
+                self.pull_request.head.sha,
+            ),
+            (True, _report_delivery.UNDELIVERABLE_REPORT, True, 0, world.PUBLISHED_HEAD),
+        )
+        notice = _park_notice(self)
+        for said in (
+            *(f"> {line}" for line in NEXT_QUESTION.splitlines() if line),
             "resumes the developer session on your reply",
             "committed work stays held in the worktree",
         ):

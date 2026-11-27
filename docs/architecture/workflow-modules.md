@@ -1118,7 +1118,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             and has no pull request yet, while a resume under review has one that stands on the
                             commit it stood on, so the initial wording there would deny an open pull request its
                             human is reading. The no-report notice also quotes the run's last message
-                            (`report_refusal_notices.quotes_the_last_message`): a developer that committed part of
+                            (`report_refusal_notices.quoting_the_last_message`): a developer that committed part of
                             the work and needs a decision on the rest ends on its question with no report, and a
                             notice asking only for a report buys one that sends the work to review with the
                             decision unmade. A run that did
@@ -1376,10 +1376,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             room, its log line naming the route and the requirements revision the record was
                             stamped with for an operator to look for. Size is named only where a size was measured
                             and failed, and every recovery is the same resume: a reply whose session needs no new
-                            commit to deliver the report. It also words what `report_delivery.py`'s park over a run
-                            that reported nothing quotes of that run's last message: nothing for a message that is
-                            blank, its tail within the report body budget the developer prompt sets for one past
-                            it, and prose instead of a quote for one carrying a receipt marker
+                            commit to deliver the report. It also quotes a run's last message into the notices
+                            over a run that committed and reported nothing -- `report_delivery.py`'s and the fixing
+                            stage's -- nothing for a blank message, the whole of it wherever one comment carries it
+                            beside the notice's own words and the comment marker, only the end that fits past that
+                            ceiling, and the receipt prefix with its opening bracket escaped, so the raw comment
+                            carries no receipt while the developer's words still render
     report_settlement_state.py the current report and the handoff receipt, written in the one durable write that
                             drops the pending record, each refused rather than stored when this owner's own reader
                             would not hand it back. The handoff also names the workflow LABEL the issue was carrying
@@ -4460,7 +4462,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             reported round through, a run an account quota stopped parked as the session limit over
                             the debt the missing-report parks would record. Which reply this is -- a report, an
                             ordinary answer, or one that reached for the contract and missed, an `ACK:` beside a
-                            report, which is held for a human rather than acted on by either half; whether a round
+                            report, which is held for a human rather than acted on by either half, as is a commit
+                            over a report still owed, both notices quoting the run's last message; whether a round
                             that committed nothing may publish onto the head its pull request already carries, on
                             the affirmative proof that the head read, never moved, is the one the pull request is
                             STANDING on, and left a tree proved clean.

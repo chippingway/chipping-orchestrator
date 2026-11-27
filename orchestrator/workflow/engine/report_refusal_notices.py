@@ -40,28 +40,32 @@ was measured beside -- so an operator reading the log reads what the notice
 says rather than a second guess at it.
 
 A run that committed and handed over no usable report at all has no refusal to
-name, and its notice is `report_delivery`'s own. What that notice owes the
-human is the run's last message (`quotes_the_last_message`), because the
-prompt tells a developer that cannot finish to end on its question: a decision
-it is waiting on, and the choices it offered, are what the reply has to
-answer. The quote is held to the rule above -- a message carrying a receipt
-marker is described rather than quoted -- and to a budget, since nothing
-bounds a message the way a recorded report is bounded and a notice GitHub
-refuses parks nothing. The budget keeps the tail, where that prompt puts the
-question.
+name, and the notices that park it are `report_delivery`'s and the fixing
+stage's own. What each owes the human is the run's last message
+(`quoting_the_last_message`), because the prompt tells a developer that cannot
+finish to end on its question: a decision it is waiting on, and the choices it
+offered, are what the reply has to answer. The message is quoted whole wherever
+one comment carries it beside the notice's own words and the marker every
+comment of ours ends on, and cut to the tail that fits only past that ceiling,
+since a notice GitHub refuses parks nothing and the prompt puts the question
+last. A receipt marker inside it is kept out of the raw comment, which is what
+the rule above protects, by escaping its opening bracket as an HTML entity: no
+receipt search reads it as ours, and the developer's words around it -- the
+question and its choices -- are still quoted.
 """
 from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, replace
 from types import MappingProxyType
 
 from orchestrator import config
-from orchestrator.github import comments as _github_comments
+from orchestrator.github import comments as _github_comments, pinned_state as _pinned_state
 from orchestrator.workflow.engine import (
+    comments as _comments,
     messages as _messages,
-    prompt_notes as _prompt_notes,
     report_record_room as _room,
     report_record_values as _record_values,
     report_records as _records,
@@ -88,24 +92,17 @@ _RESUMED = (
 
 _LOGGED = "issue=#%d %s; publishing nothing and holding for a human"
 
-# The most of a run's last message the notice quotes: the report body the
-# developer prompt asks for, which a question and its choices fit in too.
-_QUOTED_BUDGET = _prompt_notes._DEVELOPER_REPORT_CHAR_BUDGET
-
 _QUOTED = (
     "\n\nThe developer's last message{cut}, with any question it is waiting on "
     "and the choices it offered:\n\n{quoted}"
 )
 
-_QUOTED_CUT = f", cut to its last {_QUOTED_BUDGET:,} characters"
+_QUOTED_CUT = ", cut to the end of it that fits in this comment"
 
-_UNQUOTED = (
-    "\n\nThe developer's last message is not quoted here: it carries the "
-    "literal text that opens every hidden receipt this orchestrator records "
-    "its own steps with, which a comment of this orchestrator's own would read "
-    "as the step it names. Reply asking for it again with that text described "
-    "in prose."
-)
+# The receipt prefix with its opening bracket escaped: what GitHub renders as
+# the developer wrote it outside code (inside code the entity shows as typed),
+# and what no search of raw comment text reads as ours.
+_ESCAPED_RECEIPT_PREFIX = _github_comments.RECEIPT_MARKER_PREFIX.replace("<", "&lt;", 1)
 
 
 @dataclass(frozen=True)
@@ -258,24 +255,30 @@ def explains_the_refusal(
     )
 
 
-def quotes_the_last_message(message: str) -> str:
-    """The paragraph a notice quotes a run's last message in, or "" for a run that said nothing.
+def quoting_the_last_message(render: Callable[[str], str], message: str) -> str:
+    """The notice `render` words, with as much of a run's last `message` quoted into it as one comment carries.
 
-    Opens on its own blank line, so a caller appends it to a sentence. The
-    budget is applied before the marker is looked for, so a receipt marker the
-    cut dropped refuses nothing.
+    `render` takes the quote, "" included, and answers the whole notice: the
+    quote opens on its own blank line, so a notice places it straight after a
+    sentence. A run that said nothing gets no quote at all.
+
+    Measured over the body the post sends -- the notice's own words, the
+    quote's blockquote prefixes, and the comment marker appended to it -- so
+    nothing is cut that the comment had room for. Cutting characters off the
+    head shortens that body by at least as many, so one cut past the overflow
+    always fits.
     """
-    said = message.strip()
+    said = message.strip().replace(_github_comments.RECEIPT_MARKER_PREFIX, _ESCAPED_RECEIPT_PREFIX)
     if not said:
-        return ""
-    cut = len(said) > _QUOTED_BUDGET
-    if cut:
-        said = said[-_QUOTED_BUDGET:]
-    if _github_comments.carries_reserved_marker(said):
-        return _UNQUOTED
-    return _QUOTED.format(
-        cut=_QUOTED_CUT if cut else "", quoted=_messages._as_blockquote(said),
-    )
+        return render("")
+    room = _pinned_state.MAX_PINNED_BODY - len(_comments._with_orch_marker(render("")))
+    quoted = _QUOTED.format(cut="", quoted=_messages._as_blockquote(said))
+    if len(quoted) > room:
+        tail = said[len(quoted) + len(_QUOTED_CUT) - room:]
+        if not tail:
+            return render("")
+        quoted = _QUOTED.format(cut=_QUOTED_CUT, quoted=_messages._as_blockquote(tail))
+    return render(quoted)
 
 
 def _reading_of(

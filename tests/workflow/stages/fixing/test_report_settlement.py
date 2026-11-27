@@ -52,7 +52,7 @@ _UNDELIVERABLE = _report_delivery.UNDELIVERABLE_REPORT
 # A phrase out of each notice, enough to say which of the three a park took.
 _MISREAD_PHRASE = "reaches for the completion-report contract"
 
-_UNDESCRIBED_PHRASE = "committed work while a report an"
+_UNDESCRIBED_PHRASE = "committed work while the pull request is still owed a report"
 
 _STALLED_PHRASE = "no road left on this workflow can get it there"
 

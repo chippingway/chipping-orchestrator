@@ -4,58 +4,82 @@
 
 A developer that committed part of the work and needs a human's decision on the
 rest ends on its question with no report, so the run's last message is what the
-reply to that park has to answer. The quote is bounded and held to the rule
-every notice of this orchestrator's keeps: a receipt marker is described, never
-quoted, since a comment of ours carrying one reads as the step it names.
+reply to that park has to answer. It is quoted whole wherever one comment
+carries it, and held to the rule every comment of this orchestrator's keeps: no
+receipt marker in its raw text, since a comment of ours carrying one reads as
+the step it names.
 """
 
 from __future__ import annotations
 
 import unittest
 
-from orchestrator.github.pinned_state import PinnedState
-from tests.workflow import report_refusals as _refusals
+from orchestrator.github.comments import ORCHESTRATOR_COMMENT_MARKER, RECEIPT_MARKER_PREFIX
+from orchestrator.github.pinned_state import MAX_PINNED_BODY, PinnedState
 from tests.workflow.engine import report_commit_test_support as commit_support
 from tests.workflow.fixtures import _agent
 
-# How the notice opens its quote of the run's last message, and the question a
-# quoted message ends on.
+# How the notice opens its quote of the run's last message, and what it says
+# where only the end of that message fits.
 _QUOTE_HEADING = "The developer's last message"
 
-_ASKED = "Which of the two fixes should land on the base branch first?"
+_CUT = "cut to the end of it that fits in this comment"
 
-# A message's head long enough that the question after it is past the budget.
-_PADDING = "x" * _refusals.WRITING_BUDGET
+# A decision whose question and first choice open the message and whose second
+# choice closes it, with an account between them far longer than the budget a
+# report body is asked to keep under, and still far inside one comment.
+_ASKED = "Who should land the retry fix?"
 
-_CUT = f"cut to its last {_refusals.WRITING_BUDGET:,} characters"
+_FIRST_CHOICE = "1. I can open a separate pull request."
 
-# What the notice quotes of each last message, and what it may not: nothing for
-# a run that said nothing, prose rather than a receipt, and the tail of a
-# message past the budget a report body is asked to keep under.
+_SECOND_CHOICE = "2. You can land it directly and I can rebase."
+
+_ACCOUNT_SENTENCES = 80
+
+_ACCOUNT = "The retry change is independent of the validation fix. " * _ACCOUNT_SENTENCES
+
+# A choice naming the receipt prefix, which the raw comment may not carry and
+# the human still has to read.
+_MARKER_CHOICE = f"1. Keep matching `{RECEIPT_MARKER_PREFIX}` as it is."
+
+# What the notice quotes of each last message, and what it may not.
 _QUOTED_MESSAGES = (
     ("nothing at all", " \n ", (), (_QUOTE_HEADING,)),
     (
-        "a receipt",
-        f"Keep `{_refusals.QUOTED_RECEIPT}` as it is? {_ASKED}",
-        ("is not quoted here", "described in prose"),
-        (_refusals.QUOTED_RECEIPT, _ASKED),
+        "a decision around a long account",
+        f"{_ASKED}\n\n{_FIRST_CHOICE}\n\n{_ACCOUNT}\n\n{_SECOND_CHOICE}",
+        (f"> {_ASKED}", f"> {_FIRST_CHOICE}", f"> {_SECOND_CHOICE}"),
+        (_CUT,),
     ),
     (
-        "a message past the budget",
-        f"{_PADDING}\n{_ASKED}",
-        (f"> {_ASKED}", _CUT),
-        (_PADDING,),
+        "a choice naming the receipt prefix",
+        f"{_ASKED}\n\n{_MARKER_CHOICE}\n{_SECOND_CHOICE}",
+        (
+            f"> {_ASKED}",
+            "> 1. Keep matching `&lt;!--orchestrator-` as it is.",
+            f"> {_SECOND_CHOICE}",
+        ),
+        (),
     ),
 )
+
+# A message one comment cannot carry: a head with no line breaks, so every
+# character cut from it shortens the comment by exactly one, and the question
+# it ends on.
+_OVERSIZED_HEAD = "x" * MAX_PINNED_BODY
+
+_OVERSIZED = f"{_OVERSIZED_HEAD}\n{_ASKED}"
 
 
 class UnreportedRunNoticeTest(unittest.TestCase):
     """The quote of the run's last message, at its edges."""
 
-    def test_the_last_message_is_quoted_within_bounds(self) -> None:
-        # A run that said nothing gets no empty quote; a message carrying a
-        # receipt is described rather than quoted; and a message past the
-        # budget keeps its tail, where the prompt puts the question.
+    def test_the_last_message_is_quoted_whole(self) -> None:
+        # A run that said nothing gets no empty quote. A decision is quoted
+        # whole wherever the comment carries it, however long the account
+        # between its choices. A receipt prefix is escaped rather than
+        # dropped, so the choice naming it still reads while the raw comment
+        # carries no receipt of ours.
         for described, message, said, unsaid in _QUOTED_MESSAGES:
             with self.subTest(message=described):
                 notice = _notice(self, message)
@@ -64,13 +88,26 @@ class UnreportedRunNoticeTest(unittest.TestCase):
                     (
                         [fragment for fragment in said if fragment not in notice],
                         [fragment for fragment in unsaid if fragment in notice],
+                        RECEIPT_MARKER_PREFIX in notice.replace(ORCHESTRATOR_COMMENT_MARKER, ""),
                     ),
-                    ([], []),
+                    ([], [], False),
                 )
+
+    def test_a_message_past_the_comment_keeps_its_end(self) -> None:
+        # Past what GitHub accepts in one comment, the head goes and the end
+        # the prompt puts the question in stays -- cut exactly to the ceiling,
+        # the notice's own words and the comment marker counted, so nothing
+        # is dropped that the comment had room for.
+        notice = _notice(self, _OVERSIZED)
+
+        self.assertEqual(
+            (len(notice), f"> {_ASKED}" in notice, _CUT in notice),
+            (MAX_PINNED_BODY, True, True),
+        )
 
 
 def _notice(case: unittest.TestCase, message: str) -> str:
-    """The notice the park over a finished run ending on `message` posts."""
+    """The comment the park over a finished run ending on `message` posts, as posted."""
     stopped, _github, issue = commit_support.records(
         PinnedState(), _agent(last_message=message),
     )
