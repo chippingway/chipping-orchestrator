@@ -383,6 +383,7 @@ class _DevRunCoordinator:
             prompt,
             self._options.get(_RESUMED),
             str(self._options[_BACKEND]),
+            resume_session_id,
         )
         if road is not None:
             road.received(self._gh, self._issue(), attempt, self._state())

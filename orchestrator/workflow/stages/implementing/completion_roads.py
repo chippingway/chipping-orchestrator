@@ -107,7 +107,9 @@ class Attempt:
     `command` is the full developer command it ran under and `backend` the
     CLI that command names, `prompt` the text it was handed, and `resumed` the
     conversation the coordinated run resumed -- None where it opened a fresh
-    one, a continuation of that one included.
+    one, a continuation of that one included. `launched` is the conversation
+    this very launch resumed, which an Antigravity command recovery takes off
+    the attempt before it: the one a task snapshot is grounded in.
     """
 
     agent_result: _agent_models.AgentResult
@@ -115,6 +117,7 @@ class Attempt:
     prompt: str
     resumed: str | None
     backend: str
+    launched: str | None = None
 
     def refused(self) -> bool:
         """Whether the attempt's CLI answered it with a refusal of its own rather than the agent's turn.
@@ -262,7 +265,7 @@ class CompletionRoad:
         """
         regrounds = None if self.regrounding is None else self.fresh_requirements
         conversation = _task_snapshots.Conversation(
-            gh.repo_id, issue.number, attempt.resumed, regrounds, self.repository,
+            gh.repo_id, issue.number, attempt.launched, regrounds, self.repository,
         )
         _task_snapshots.receive(self.handoff, attempt.agent_result, state, conversation, refused=attempt.refused)
 

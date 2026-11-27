@@ -1695,7 +1695,7 @@ need the isolation described under
   retry re-grounded on an edit beside the command -- written in place under the claim and taken away once the
   conversation is handed the baseline. Only the task snapshot of a later retry resuming that conversation reads it,
   while the baseline it names stands; it is analytics alone, never on the pinned comment, and a write the host refuses
-  is warned of and lost.
+  is warned of and lost, the record it would have replaced taken away with it.
 - **Release.** A claim ends when the dispatch or base-refresh route that took it ends, however it ends, and the kernel
   drops it when a process dies, so a crashed poller leaves nothing held; its descriptor is closed with it and is not
   inherited by an agent the holder spawns. The files stay: never delete the directory or a file in it while any poller

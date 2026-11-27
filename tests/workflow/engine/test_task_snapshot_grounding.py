@@ -11,12 +11,14 @@ road has since settled, or a record no reading parses says nothing, and the
 road's own answers. The record is kept where the conversation was last
 handed something other than the baseline and taken away where it was handed
 the baseline; an unknown conversation leaves it as it stands, and a record
-the host will not take is warned of and lost.
+the host will not take is warned of and lost, the one it would have replaced
+taken away with it.
 """
 from __future__ import annotations
 
 import json
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from orchestrator.github.pinned_state import PinnedState
@@ -140,11 +142,16 @@ class RememberTest(_HostRecord):
         self.assertEqual(self.kept.handed(_SESSION, _regrounding, _ROAD), _EDITED)
 
     def test_a_refused_write_is_warned_of(self) -> None:
-        refused = patch.object(_grounding, "_written", side_effect=OSError("read-only"))
+        # The record the write would have replaced is taken away with it, so
+        # a superseded grounding never speaks for the conversation: a retry
+        # resuming it falls back to the road's own.
+        self.kept.remember(_SESSION, _OTHER)
+        refused = patch.object(Path, "write_text", side_effect=PermissionError("read-only"))
         with refused, self.assertLogs("orchestrator.workflow", level="WARNING") as logged:
             self.kept.remember(_SESSION, _EDITED)
             self.assertEqual(len(logged.output), 1)
         self.assertFalse(self.path.exists())
+        self.assertEqual(self.kept.handed(_SESSION, _regrounding, _ROAD), _ROAD)
 
 
 if __name__ == "__main__":

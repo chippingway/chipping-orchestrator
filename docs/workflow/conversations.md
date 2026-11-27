@@ -588,9 +588,11 @@ no outcome the report reader refuses is made one it accepts. Where neither readi
 such a line, which of its lines are code is unknown: every one is held by the placeholder, and the line `(analytics
 attachment lines could not be told from code in this report, so it is not published)` follows the outcome, so the report
 reader refuses it and nothing is published on a guess. No notice quotes an attachment line on any reading, nor does the
-stderr a park quotes: a CLI can echo the reply it wrote there, so every line opening on the prefix is replaced by a note
-on the stderr as written, before the redactor runs and before the tail is cut (`workflow/engine/agent_diagnostics.py`),
-while the stderr a run is classified by stays as written.
+stderr a park quotes: a CLI can echo the reply it wrote there, so the stderr a park quotes is rendered from what is
+found in it as written — every line opening on the prefix and every place a credential sits, overlapping ones hidden as
+one and a join holding such a line shown as the note — before the redactor runs and the tail is cut
+(`workflow/engine/agent_diagnostics.py`); a stderr whose reading fails is withheld behind a note of its own, so the park
+still settles, and the stderr a run is classified by stays as written.
 
 The attachment is read on its own terms and decides nothing. With the analytics sink on, `task_snapshots.py` hands a
 genuine return — invoked under a tracked charge; its turn refused neither by the provider (the backend's own verdict
@@ -608,7 +610,8 @@ implementation, and a human reply whose batch it delivers and settles. An `/orch
 a retry that opens a fresh conversation is bound to the issue as the replacement session's prompt quoted it — the one
 read of the issue that prompt was rendered from, beside the retry's own read of the thread, fingerprinted only as the
 snapshot is recorded, inside its failure boundary — and a later retry resuming that same conversation to what it was
-last handed. This host keeps that beside the issue's writer claim, as `repo-<id>-issue-<n>.task-snapshot-grounding`,
+last handed — an Antigravity command recovery to what the conversation it resumes, under the id the attempt before it
+returned, was. This host keeps that beside the issue's writer claim, as `repo-<id>-issue-<n>.task-snapshot-grounding`,
 only while the analytics sink is on and never on the pinned comment, so no settlement measures it
 (`workflow/engine/task_snapshot_grounding.py`); it speaks while the conversation and the issue's baseline stand, an
 attempt that names no conversation leaves it as it is, as does a launch refused before it started or a turn its provider

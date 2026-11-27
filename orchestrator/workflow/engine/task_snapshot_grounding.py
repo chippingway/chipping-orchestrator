@@ -36,8 +36,11 @@ comment never carries it, so no settlement, park, or capture measures or
 reads it. A record is read only whole, in the one shape written here: one
 that will not read, or that holds any other set of members -- a `baseline`
 missing, which would otherwise read as an issue recording none, or a member
-written twice included -- is nothing, and one the host will not take is warned of and lost: a later
-retry's snapshot is then bound to the baseline. Another host sees none of it.
+written twice included -- is nothing, and one the host will not take is
+warned of and lost, the record it would have replaced taken away with it: a
+later retry's snapshot is then bound to the baseline -- unless the host
+refuses taking that record away too, when the superseded record can still
+speak. Another host sees none of it.
 """
 from __future__ import annotations
 
@@ -145,6 +148,14 @@ class Grounding:
 
 
 def _written(path: Path, spelled: str) -> None:
-    """`spelled` over the record at `path`, in place, the namespace made where it is missing."""
+    """`spelled` over the record at `path`, in place, the namespace made where it is missing.
+
+    A write the host refuses takes the record it would have replaced away, so
+    a superseded grounding never speaks for the conversation in its place.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(spelled, encoding="utf-8")
+    try:
+        path.write_text(spelled, encoding="utf-8")
+    except OSError:
+        path.unlink(missing_ok=True)
+        raise

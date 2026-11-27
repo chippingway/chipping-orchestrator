@@ -929,20 +929,23 @@ record for a retry's snapshot, while the reply the workflow reads still has its 
 `ANALYTICS_RETENTION_DAYS` — `90` by default, `0` or any negative value keeping records indefinitely — prunes it with
 every other record.
 
-**Best effort, behind one boundary.** Where the sink is is read first, behind a guard of its own: settings that will not
-read are one warning, and nothing is recorded. The whole path then — the implementing stage's reading of whether the
-CLI refused the turn, the framing of the reply the workflow reads, handed over as a callable so it runs inside the
-guard, reading the attachment, redacting, bounding, serializing, and appending — runs inside one guard
-(`task_snapshots.receive`, then `observations/recorder.py`); the workflow asks nothing of the reply before handing
-it over, and the lines go to disk through `sink.write_jsonl_lines` under the sink's own lock
-so a refused append reaches that guard instead of the sink's `log.warning`. A step that fails before the append becomes
-a diagnostic. A refused append — the snapshot or a refused reply's diagnostic lost with it — and a diagnostic that
-cannot be written either each become one warning on `orchestrator.analytics`, naming the issue, the invocation's
-charge ordinal, and the failures' types — no field a refused line could have held a credential in — and nothing more
-is written or tried again. The warning is attempted once inside the recorder's guard: a logger that fails loses it
-with the observation, never the caller's run. A crash between a return and its record loses the record: there is no
-export queue, checkpoint, or agent run owed for it, and usage accounting, a completion capture, and the report's
-settlement each stand on their own evidence. Collection needs no usage parse, no trajectory sink, and no database.
+**Best effort, behind two boundaries.** Where the sink is is read first, behind a guard of its own: settings that will
+not read are one warning, and nothing is recorded. The producer's guard (`task_snapshots.receive`) then covers what
+decides whether and how a return is recorded — the run's status and the stream's terminal evidence, the implementing
+stage's reading of whether the CLI refused the turn, and the grounding's read, fingerprint, and write. A failure there
+is one warning on `orchestrator.workflow` naming the issue and the failure's type, and no record at all: neither a
+snapshot nor a diagnostic. The recorder's guard (`observations/recorder.py`) covers the rest — the framing of the reply
+the workflow reads, handed over as a callable so it runs inside the guard, reading the attachment, redacting, bounding,
+serializing, and appending; the workflow asks nothing of the reply before handing it over, and the lines go to disk
+through `sink.write_jsonl_lines` under the sink's own lock so a refused append reaches that guard instead of the sink's
+`log.warning`. A step there that fails before the append becomes a diagnostic. A refused append — the snapshot or a
+refused reply's diagnostic lost with it — and a diagnostic that cannot be written either each become one warning on
+`orchestrator.analytics`, naming the issue, the invocation's charge ordinal, and the failures' types — no field a
+refused line could have held a credential in — and nothing more is written or tried again. Every warning is attempted
+once inside its guard: a logger that fails loses it with the observation, never the caller's run. A crash between a
+return and its record loses the record: there is no export queue, checkpoint, or agent run owed for it, and usage
+accounting, a completion capture, and the report's settlement each stand on their own evidence. Collection needs no
+usage parse, no trajectory sink, and no database.
 
 ## Agent-run budget records (both sinks)
 

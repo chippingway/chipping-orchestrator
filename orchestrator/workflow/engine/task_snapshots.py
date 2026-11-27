@@ -90,8 +90,9 @@ class Conversation:
     """The conversation one attempt ran in, as its road knows it.
 
     `repo_id` and `issue_number` name the issue whose host records keep its
-    grounding; `resumed` is the conversation the coordinated run resumed,
-    None for a fresh one; `fresh_requirements` fingerprints what a retry's
+    grounding; `resumed` is the conversation the attempt's own launch
+    resumed -- an Antigravity command recovery's the one the attempt before
+    it returned -- None for a fresh one; `fresh_requirements` fingerprints what a retry's
     road re-grounds a fresh conversation with, asked only for such an
     attempt, None on a road that hands its own; and `repository` is the
     repository as configured -- the one the run's

@@ -163,6 +163,26 @@ class AttachmentLineTest(unittest.TestCase):
         self.assertNotIn(attachments.PREFIX, block)
         self.assertIn(f"{_REDACTION_MARKER}{attachments.TAKEN_OUT}", block)
 
+    def test_a_credential_inside_it_is_hidden_whole(self) -> None:
+        # A malformed line holding a multi-line credential's first line: the
+        # line and the credential are hidden as one, so no line of the
+        # credential is quoted past the note.
+        secret = "example-secret-first-line\nexample-secret-second-line"
+        stderr = f'{attachments.PREFIX} task-snapshot v1 {{"description": "{secret}"}}\n'
+        with patch.dict(os.environ, {"SSH_PRIVATE_KEY": secret}, clear=False):
+            block = agent_diagnostics._format_stderr_diagnostics(_agent_result(stderr))
+        self.assertNotIn("example-secret", block)
+        self.assertIn(attachments.TAKEN_OUT, block)
+
+    def test_an_unreadable_stderr_is_withheld(self) -> None:
+        # A reading that fails withholds the stderr behind a note of its own
+        # rather than failing the park that quotes it.
+        unreadable = patch.object(attachments, "attachment_lines", side_effect=ValueError("scan unavailable"))
+        with unreadable:
+            block = agent_diagnostics._format_stderr_diagnostics(_agent_result(_ECHOED[0]))
+        self.assertIn(agent_diagnostics._WITHHELD, block)
+        self.assertNotIn(attachments.PREFIX, block)
+
 
 class UsageLimitDiagnosticsTest(unittest.TestCase):
     """A usage-limit stop's provider message is redacted whole, then bounded,

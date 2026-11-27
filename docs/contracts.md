@@ -766,7 +766,8 @@ vocabulary the one analytics attachment reader reads, and asks every finished re
 outcome where there is one. The workflow reads the reply with every such line outside a code fence kept out of it
 without moving its framing -- taken out where the reply has no report marker and inside a READY block, and replaced by
 a placeholder line elsewhere -- so it is outside the published report and its digest, no park or notice quotes it --
-nor the stderr a park quotes, the CLI echoing the reply there included, where a note stands in its place -- a
+nor the stderr a park quotes, the CLI echoing the reply there included, where a note stands in its place and hides
+any credential overlapping the line with it, a stderr nothing can tell apart being withheld instead -- a
 fenced example stays where it was, text after an outcome is still refused, a block holding nothing else is refused as
 empty, and the verdict the workflow reaches is the one the snapshot's record names; a reply those readers fail on is
 never read as written, its lines opening on the prefix that no readable fence may enclose kept out by its marker
@@ -1018,11 +1019,14 @@ return alone, judged by the run's status, the stream's terminal evidence -- a pr
 on `turn.failed` -- read off the records that decode at all and so on no usage parse, and the implementing stage's
 reading of a CLI's refusal (a conversation it could not open or that overflowed, an exhausted quota) -- so neither a
 turn the provider or the CLI refused nor the recovery that finishes a captured report records one, and
-only an attempt that reached the agent moves the host's grounding record -- and behind one failure boundary from that
-reading of the CLI's refusal and the framing of the reply the workflow reads through the append, behind a guarded read
-of where the sink is:
-settings that will not read, a refused append, or a diagnostic that cannot be written is one warning, a step that
-fails before the append is a diagnostic, and a lost observation owes no export, checkpoint, or agent run. Only the
+only an attempt that reached the agent moves the host's grounding record -- behind a guarded read of where the sink
+is, whose settings that will not read are one warning, and two failure boundaries. The producer's covers what decides
+whether and how a return is recorded -- the run's status and terminal evidence, the reading of a CLI's refusal, and
+the grounding's read, fingerprint, and write -- and a failure there is one warning and no record at all, neither a
+snapshot nor a diagnostic. The recorder's covers the reply from the framing the workflow reads it by through the append:
+a step that fails before the append is a diagnostic, and a refused append, or a diagnostic that cannot be written, is
+one warning. Every warning is attempted once and cannot fail its caller, and a lost observation owes no export,
+checkpoint, or agent run. Only the
 telemetry copy is redacted, with the credential redactor, before it is made storable, cut, or serialized: every
 spelling of a credential is found, from each place it starts to each place it ends, overlapping ones included, before
 any text is replaced, in work bounded by a fixed amount per character searched -- a search stops once nothing can

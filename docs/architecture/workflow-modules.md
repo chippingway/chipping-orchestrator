@@ -71,10 +71,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             line still fits a screen -- and the exit code beside the first, split into the subprocess's
                             own return and the normalized failure code where the result carries a failure record -- the
                             return named not captured where the timeout killed the run -- and left the plain code where
-                            it does not; every analytics attachment line in the stderr a comment quotes replaced by a
-                            note on the stderr as written, before the redactor and the trim, since a CLI can echo the
-                            reply it wrote there, the stderr a run is classified by left as written. The shared redactor
-                            runs over the RAW stderr before either trim, since a secret sliced by the cut survives as a
+                            it does not; the stderr a comment quotes rendered from what is found in it as written --
+                            every analytics attachment line and every place a credential sits, overlapping ones hidden
+                            as one, a join holding a line shown as a note -- before the redactor and the trim, a stderr
+                            whose reading fails withheld behind a note of its own, since a CLI can echo the reply it
+                            wrote there, the stderr a run is classified by left as written. The shared redactor runs
+                            over the RAW stderr before either trim, since a secret sliced by the cut survives as a
                             fragment the redactor no longer matches, and that fragment is what leaks; the same ordering
                             puts it ahead of the `rstrip`, so a multi-line env value ending in a newline still matches
                             verbatim. A Codex usage-limit stop gets a block of its own -- the reset the provider named,
@@ -4848,8 +4850,9 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             an attempt that opened a fresh conversation on a retry's road, to the issue as that
                             conversation's prompt quoted it -- the one read the prompt was rendered from, kept on the
                             road (`regrounded`) and fingerprinted only as the snapshot is recorded
-                            (`fresh_requirements`) -- and for a later retry resuming it, to what this host's grounding
-                            record says (`engine/task_snapshot_grounding.py`)
+                            (`fresh_requirements`) -- and for a later retry resuming it -- or a command recovery
+                            resuming the id its attempt before returned (`Attempt.launched`) -- to what this host's
+                            grounding record says (`engine/task_snapshot_grounding.py`)
       captured_report.py    the run's own pending capture handed to the report delivery where the disposition records
                             a report -- what the tick settled around the run riding the transfer's own commit, so the
                             two land together or not at all; one refused for the report itself withdrawn and the run

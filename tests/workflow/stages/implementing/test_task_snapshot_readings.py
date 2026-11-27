@@ -82,7 +82,6 @@ _NEW_COMMITS = "has_new_commits"
 _SINK = "analytics_log_path"
 
 # A reply with nothing but the attachment, or nothing at all, and whether the sink is on as it returns.
-_SILENT_REPLIES = (("", True), (_support.SNAPSHOT, True), (_support.SNAPSHOT, False))
 
 # A session failure an operator retries.
 _SILENT = MappingProxyType({
@@ -142,6 +141,18 @@ class _EditedWhilePoisoned:
 _SCAN = "attachment_lines"
 _FENCES = "_fenced_line_starts"
 _READERS = MappingProxyType({_SCAN: _attachments, _FENCES: _fences})
+
+# A reply with nothing but the attachment, or nothing at all, whether the sink
+# is on as it returns, and how the attachment scan reads: answering, or failing
+# on every text.
+_SCANNING = contextlib.nullcontext
+_SCAN_FAILING = partial(patch.object, _attachments, _SCAN, side_effect=ValueError("scan unavailable"))
+_SILENT_REPLIES = (
+    ("", True, _SCANNING),
+    (_support.SNAPSHOT, True, _SCANNING),
+    (_support.SNAPSHOT, False, _SCANNING),
+    (_support.SNAPSHOT, False, _SCAN_FAILING),
+)
 
 # Where a framing fails, and how: the report reader once, the outcome's start
 # and the scan for attachment lines always.
@@ -227,16 +238,16 @@ class ReplyReadingTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
     def test_an_attachment_alone_reads_as_silence(self) -> None:
         # Parked as the silent failure an empty reply is, with no notice
         # quoting the line -- not the reply, nor the stderr the CLI echoed it
-        # on -- the sink on or off, and the description recorded only where
-        # it is on.
-        for message, sink in _SILENT_REPLIES:
+        # on -- the sink on or off, the attachment scan answering or failing,
+        # and the description recorded only where the sink is on.
+        for message, sink, scanning in _SILENT_REPLIES:
             github, issue = self.seeded()
-            echoed = _agent(last_message=message, stderr=f"The CLI echoed its reply:\n{message}")
-            self.dispatch(
-                github, issue, echoed,
-                analytics_log_path=self.sink if sink else None, has_new_commits=False,
-            )
-            with self.subTest(message=message, sink=sink):
+            with scanning():
+                self.dispatch(
+                    github, issue, _agent(last_message=message, stderr=f"The CLI echoed its reply:\n{message}"),
+                    analytics_log_path=self.sink if sink else None, has_new_commits=False,
+                )
+            with self.subTest(message=message, sink=sink, scanning=scanning):
                 self.assertEqual(github.pinned_data(_held.ISSUE).get("park_reason"), "agent_silent")
                 self.assertEqual(_support.posted_attachments(github), [])
         self.assertEqual(self.only(_support.SNAPSHOT_EVENT)["report_outcome"], "no_marker")
