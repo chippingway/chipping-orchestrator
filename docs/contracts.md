@@ -253,9 +253,10 @@ and the revision that report is stamped with, and its `requirements_revision` na
 A host record beside the issue's writer claim, `repo-<id>-issue-<n>.task-snapshot-grounding` spelling exactly
 `{"session_id", "requirements", "baseline"}`, carries a retry's re-grounding to a later retry resuming that
 conversation only while its baseline stands; it is written only with the analytics sink on, never on the pinned
-comment, and one that will not read or holds any other set of members -- a missing `baseline` or a member written
+comment, and one that will not decode or holds any other set of members -- a missing `baseline` or a member written
 twice included -- is nothing,
-so its loss needs no migration and binds that snapshot to the baseline.
+so its loss needs no migration and binds that snapshot to the baseline. One the host will not let be read, or a change
+to it the host will not take, instead records nothing for the snapshot that asked.
 A recorded requirements fingerprint
 (`user_content_hash`, `observed_user_content_hash`) is compared with the current fingerprint alone, which leaves bare
 operator controls out: a value no current reading reproduces -- one an earlier producer wrote counting a bare
@@ -1022,11 +1023,11 @@ turn the provider or the CLI refused nor the recovery that finishes a captured r
 only an attempt that reached the agent moves the host's grounding record -- behind a guarded read of where the sink
 is, whose settings that will not read are one warning, and two failure boundaries. The producer's covers what decides
 whether and how a return is recorded -- the run's status and terminal evidence, the reading of a CLI's refusal, and
-the grounding's read, fingerprint, and write -- and a failure there is one warning and no record at all, neither a
-snapshot nor a diagnostic. The recorder's covers the reply from the framing the workflow reads it by through the append:
-a step that fails before the append is a diagnostic, and a refused append, or a diagnostic that cannot be written, is
-one warning. Every warning is attempted once and cannot fail its caller, and a lost observation owes no export,
-checkpoint, or agent run. Only the
+the grounding's read, fingerprint, and write, kept before the snapshot is recorded -- and a failure there is one
+warning and no record at all, neither a snapshot nor a diagnostic. The recorder's covers the reply from the framing the
+workflow reads it by through the append: a step that fails before the append is a diagnostic, and a refused append, or a
+diagnostic that cannot be written, is one warning. Every warning is attempted once and cannot fail its caller, and a
+lost observation owes no export, checkpoint, or agent run. Only the
 telemetry copy is redacted, with the credential redactor, before it is made storable, cut, or serialized: every
 spelling of a credential is found, from each place it starts to each place it ends, overlapping ones included, before
 any text is replaced, in work bounded by a fixed amount per character searched -- a search stops once nothing can
@@ -1062,6 +1063,7 @@ kept only with the sink on, and never on the pinned comment, so no settlement me
 [trajectory parsing](../tests/observability/usage/test_usage.py),
 [task snapshot isolation](../tests/workflow/stages/implementing/test_task_snapshot_dispatch.py),
 [task snapshot receipt](../tests/workflow/engine/test_task_snapshot_receipt.py),
+[task snapshot grounded runs](../tests/workflow/stages/implementing/test_task_snapshot_grounded_runs.py),
 [observation failures](../tests/observability/analytics/observations/test_failures.py),
 [observation redaction](../tests/observability/analytics/observations/test_redaction.py).
 

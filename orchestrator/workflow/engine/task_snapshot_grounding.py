@@ -34,18 +34,21 @@ It is analytics alone: read and written only while the analytics sink is on,
 only by a snapshot, and only under the issue's writer claim. The pinned
 comment never carries it, so no settlement, park, or capture measures or
 reads it. A record is read only whole, in the one shape written here: one
-that will not read, or that holds any other set of members -- a `baseline`
+that will not decode, or that holds any other set of members -- a `baseline`
 missing, which would otherwise read as an issue recording none, or a member
-written twice included -- is nothing, and one the host will not take is
-warned of and lost, the record it would have replaced taken away with it: a
-later retry's snapshot is then bound to the baseline -- unless the host
-refuses taking that record away too, when the superseded record can still
-speak. Another host sees none of it.
+written twice included -- is nothing. A record the host will not let be
+read, or a change to it the host will not take, fails the snapshot that
+asked, inside that snapshot's failure boundary (`task_snapshots.receive`):
+one warning and nothing recorded, since a record left unread or unkept could
+bind this or a later snapshot to requirements its conversation was never
+handed. A write the host refuses takes the record it would have replaced
+away with it, so a later retry's snapshot is bound to the baseline -- unless
+the host refuses taking that record away too, when the superseded record can
+still speak. Another host sees none of it.
 """
 from __future__ import annotations
 
 import json
-import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -53,8 +56,6 @@ from pathlib import Path
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.scheduler import writer_claims as _writer_claims
 from orchestrator.workflow.engine import prompt_delivery as _prompt_delivery
-
-log = logging.getLogger("orchestrator.workflow")
 
 GROUNDING_SUFFIX = ".task-snapshot-grounding"
 
@@ -106,29 +107,30 @@ class Grounding:
     def remember(self, session_id: str | None, requirements: str) -> None:
         """Keep what `session_id` was last handed where it is not the baseline; take the record away where it is.
 
-        No conversation changes nothing.
+        No conversation changes nothing. A change the host will not take
+        raises its `OSError` to the snapshot that asked, which records
+        nothing over it.
         """
         if not session_id:
             return
         if requirements and requirements != self.baseline:
             spelled = json.dumps({_SESSION: session_id, _REQUIREMENTS: requirements, _BASELINE: self.baseline})
-            self._changed(lambda: _written(self.path, spelled))
+            _written(self.path, spelled)
         else:
-            self._changed(lambda: self.path.unlink(missing_ok=True))
+            self.path.unlink(missing_ok=True)
 
     def _grounded(self, resumed: str) -> str | None:
         """What the record says `resumed` was grounded on, where it still speaks for that conversation.
 
         Read as the pairs it was written with, so a member written twice is
         two pairs rather than the last of them, and no record of that shape
-        speaks.
+        speaks. A missing record and one that will not decode say nothing; a
+        record the host will not let be read raises its `OSError` to the
+        snapshot that asked.
         """
         try:
             pairs = json.loads(self.path.read_bytes(), object_pairs_hook=tuple)
-        except FileNotFoundError:
-            return None
-        except (OSError, ValueError, RecursionError) as error:
-            log.warning("could not read the task snapshot grounding at %s (%s)", self.path, type(error).__name__)
+        except (FileNotFoundError, ValueError, RecursionError):
             return None
         members = pairs if isinstance(pairs, tuple) else ()
         record = dict(members)
@@ -138,13 +140,6 @@ class Grounding:
             return None
         requirements = record[_REQUIREMENTS]
         return requirements if isinstance(requirements, str) and requirements else None
-
-    def _changed(self, change: Callable[[], object]) -> None:
-        """Make `change` to the record, warned of and lost where the host will not take it."""
-        try:
-            change()
-        except OSError as error:
-            log.warning("could not keep the task snapshot grounding at %s (%s)", self.path, type(error).__name__)
 
 
 def _written(path: Path, spelled: str) -> None:

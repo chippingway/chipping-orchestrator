@@ -62,8 +62,8 @@ _STDERR_TAIL_BUDGET = 1024
 # attachment line is among it, the redactor's own mask for a credential alone.
 _SHOWN = MappingProxyType({True: _attachments.TAKEN_OUT, False: "***"})
 
-# What a comment quotes of a stderr it cannot tell credentials and attachment lines apart in.
-_WITHHELD = "(stderr withheld: its credentials and analytics attachment lines could not be told apart)"
+# What a comment or a log line quotes of a stderr it cannot find what it must hide in.
+_WITHHELD = "(stderr withheld: what in it may not be shown could not be found)"
 
 # The provider's message a usage-limit park quotes, and the reset a quota
 # park names -- a Codex date or an Antigravity interval. The provider writes a
@@ -177,9 +177,14 @@ def _stderr_log_tail(agent_result: AgentResult, max_chars: int = 400) -> str:
 
     Redact before trimming for the same reason as `_format_stderr_diagnostics`:
     a multi-line secret value ending in `\\n` would not match `str.replace`
-    if `rstrip` ate the trailing newline first.
+    if `rstrip` ate the trailing newline first. A stderr the redactor fails
+    on is withheld from the line, as from the comment, so the park the line
+    reports is still recorded.
     """
-    tail = _credentials.redact_secrets(agent_result.stderr or "").rstrip()
+    try:
+        tail = _credentials.redact_secrets(agent_result.stderr or "").rstrip()
+    except Exception:  # noqa: BLE001 - a stderr that cannot be redacted is withheld, never the park it logs
+        return _WITHHELD
     if len(tail) > max_chars:
         tail = tail[-max_chars:]
     return tail

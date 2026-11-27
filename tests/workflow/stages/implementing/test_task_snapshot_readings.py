@@ -143,15 +143,20 @@ _FENCES = "_fenced_line_starts"
 _READERS = MappingProxyType({_SCAN: _attachments, _FENCES: _fences})
 
 # A reply with nothing but the attachment, or nothing at all, whether the sink
-# is on as it returns, and how the attachment scan reads: answering, or failing
-# on every text.
+# is on as it returns, and how its stderr is read: the attachment scan
+# answering or failing on every text, and the credential redactor failing on
+# every text.
 _SCANNING = contextlib.nullcontext
 _SCAN_FAILING = partial(patch.object, _attachments, _SCAN, side_effect=ValueError("scan unavailable"))
+_REDACTION_FAILING = partial(
+    patch, "orchestrator.config.credentials.redact_secrets", side_effect=ValueError("redactor unavailable"),
+)
 _SILENT_REPLIES = (
     ("", True, _SCANNING),
     (_support.SNAPSHOT, True, _SCANNING),
     (_support.SNAPSHOT, False, _SCANNING),
     (_support.SNAPSHOT, False, _SCAN_FAILING),
+    (_support.SNAPSHOT, False, _REDACTION_FAILING),
 )
 
 # Where a framing fails, and how: the report reader once, the outcome's start
@@ -239,7 +244,8 @@ class ReplyReadingTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
         # Parked as the silent failure an empty reply is, with no notice
         # quoting the line -- not the reply, nor the stderr the CLI echoed it
         # on -- the sink on or off, the attachment scan answering or failing,
-        # and the description recorded only where the sink is on.
+        # the redactor failing on every text, and the description
+        # recorded only where the sink is on.
         for message, sink, scanning in _SILENT_REPLIES:
             github, issue = self.seeded()
             with scanning():

@@ -38,6 +38,7 @@ touches no field it did not deliver against.
 """
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass, replace
 
 from github.Issue import Issue
@@ -106,9 +107,12 @@ class _ReplyBatch:
     hands the developer the orchestrator's retry prompt instead, so quoting
     them would hand the agent the command as the last thing a human said.
 
-    `read` is that one read itself and `floor` the watermark it was bounded
-    by, kept for the drift check a parked tick asks before any road spends
-    the batch (`answered`).
+    `read` is that one read itself, each comment copied as it was read, and
+    `floor` the watermark it was bounded by, kept for the drift check a
+    parked tick asks before any road spends the batch (`answered`) and for
+    the fingerprint a retry's fresh conversation is bound to, taken only
+    once its run is back (`completion_roads.retry_road`): a comment edited
+    while that run is out moves neither.
     """
 
     state: PinnedState
@@ -199,7 +203,7 @@ class _ReplyBatch:
             quoted,
             regrounding,
             retrying=retrying,
-            read=tuple(thread),
+            read=tuple(map(copy.copy, thread)),
             floor=state.get(_state._LAST_ACTION_COMMENT_ID),
         )
 
@@ -286,7 +290,7 @@ def _freeze(
     ):
         return _ReplyBatch(
             state, _DELIVERED_NOTHING, (), reserved=True,
-            read=tuple(thread), floor=state.get(_state._LAST_ACTION_COMMENT_ID),
+            read=tuple(map(copy.copy, thread)), floor=state.get(_state._LAST_ACTION_COMMENT_ID),
         )
     return _ReplyBatch.delivering(
         state, delivery, quoted, thread=thread, issue=issue,

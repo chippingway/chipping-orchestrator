@@ -135,6 +135,14 @@ class DiagnosticsRedactionTest(unittest.TestCase):
             tail = agent_diagnostics._stderr_log_tail(_agent_result(f"leaked: {secret}"))
         self.assertNotIn("line2-of-secret-value", tail)
 
+    def test_log_tail_withholds_what_it_cannot_redact(self) -> None:
+        # A redactor that fails withholds the stderr from the log line rather
+        # than failing the park the line reports.
+        unredacted = patch.object(agent_diagnostics._credentials, "redact_secrets", side_effect=OSError("unavailable"))
+        with unredacted:
+            tail = agent_diagnostics._stderr_log_tail(_agent_result("auth failed for sk-proj-loglinevaluexyz"))
+        self.assertEqual(tail, agent_diagnostics._WITHHELD)
+
 
 class AttachmentLineTest(unittest.TestCase):
     """A task snapshot line a CLI echoed on stderr, kept out of the block a park comment quotes."""

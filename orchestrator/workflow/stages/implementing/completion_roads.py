@@ -147,7 +147,8 @@ class CompletionRoad:
     `regrounding` is the reply batch a FRESH session's prompt on this road is
     re-grounded beside, where that is not the handoff's own: a retry hands a
     resumed conversation nothing, while a replacement session's preamble
-    quotes the issue beside the batch's read of the thread. None on a road
+    quotes the issue beside the batch's read of the thread, which the batch
+    keeps as copies so a comment edited mid-run moves nothing. None on a road
     that hands its own. `quoted` is the one read of the issue a fresh prompt
     on it was built from (`regrounded`), which `fresh_requirements`
     fingerprints. Only a task snapshot is bound to that -- that of an attempt
@@ -334,7 +335,9 @@ def retry_road(batch: _resume_batch._ReplyBatch, checkout: RoadCheckout, reposit
     beside the command included, so the task snapshot of such an attempt is
     bound to that fingerprint instead: of the one read the prompt was built
     from (`CompletionRoad.regrounded`), taken only as that snapshot is
-    recorded (`CompletionRoad.fresh_requirements`).
+    recorded (`CompletionRoad.fresh_requirements`) over the batch's own copy
+    of the thread, as the prompt rendered it: an edit landing on a comment
+    while the run is out moves neither.
     """
     consumed = max(seen.id for seen in batch.comments)
     baseline = batch.state.get(_prompt_delivery.PINNED_USER_CONTENT_HASH)

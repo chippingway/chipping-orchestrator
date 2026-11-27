@@ -164,15 +164,18 @@ def _observe(
     grounding: _grounding.Grounding,
     path: Path,
 ) -> None:
-    """Record a genuine return's snapshot on the sink at `path`, and keep the conversation's grounding current.
+    """Keep the conversation's grounding current, then record a genuine return's snapshot on the sink at `path`.
 
     Only an attempt that reached the agent touches the grounding: one that
     never did was handed nothing, so the conversation it named is grounded
-    where it was.
+    where it was. The grounding is kept first, so a record the host will not
+    read or a change it will not take fails the observation before anything
+    is recorded.
     """
     if not _reached(agent_result):
         return
     handed = grounding.handed(conversation.resumed, conversation.fresh_requirements, handoff.requirements_revision)
+    grounding.remember(agent_result.session_id or conversation.resumed, handed)
     if _returned(agent_result):
         run = _observation_records.ObservedRun(
             invocation=agent_result.invocation,
@@ -184,7 +187,6 @@ def _observe(
         )
         reply = _recorder.ObservedReply(agent_result.last_message or "", _replies.framing)
         _recorder.record_task_snapshot(run, reply, path)
-    grounding.remember(agent_result.session_id or conversation.resumed, handed)
 
 
 def _reached(agent_result: _agent_models.AgentResult) -> bool:

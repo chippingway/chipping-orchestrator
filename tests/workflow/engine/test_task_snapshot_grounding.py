@@ -8,11 +8,12 @@ re-grounds it with, and a resumed one holds what the host's record says it
 was grounded on -- while that record still speaks for it: the same
 conversation, under the same baseline. Another conversation, a baseline a
 road has since settled, or a record no reading parses says nothing, and the
-road's own answers. The record is kept where the conversation was last
+road's own answers; a record the host will not let be read fails the
+snapshot that asked. The record is kept where the conversation was last
 handed something other than the baseline and taken away where it was handed
-the baseline; an unknown conversation leaves it as it stands, and a record
-the host will not take is warned of and lost, the one it would have replaced
-taken away with it.
+the baseline; an unknown conversation leaves it as it stands, and a change
+the host will not take fails the snapshot that asked, the record a refused
+write would have replaced taken away with it.
 """
 from __future__ import annotations
 
@@ -141,17 +142,25 @@ class RememberTest(_HostRecord):
         self.kept.remember(None, _BASELINE)
         self.assertEqual(self.kept.handed(_SESSION, _regrounding, _ROAD), _EDITED)
 
-    def test_a_refused_write_is_warned_of(self) -> None:
-        # The record the write would have replaced is taken away with it, so
+    def test_a_refused_write_fails_its_snapshot(self) -> None:
+        # Raised to the snapshot that asked, which records nothing over it;
+        # the record the write would have replaced is taken away with it, so
         # a superseded grounding never speaks for the conversation: a retry
         # resuming it falls back to the road's own.
         self.kept.remember(_SESSION, _OTHER)
         refused = patch.object(Path, "write_text", side_effect=PermissionError("read-only"))
-        with refused, self.assertLogs("orchestrator.workflow", level="WARNING") as logged:
+        with refused, self.assertRaises(PermissionError):
             self.kept.remember(_SESSION, _EDITED)
-            self.assertEqual(len(logged.output), 1)
         self.assertFalse(self.path.exists())
         self.assertEqual(self.kept.handed(_SESSION, _regrounding, _ROAD), _ROAD)
+
+    def test_an_unreadable_record_fails_its_snapshot(self) -> None:
+        # A record the host will not let be read might speak for the
+        # conversation, so it binds no snapshot to the road's own.
+        self.recorded(json.dumps(_grounded()))
+        unreadable = patch.object(Path, "read_bytes", side_effect=PermissionError("unreadable"))
+        with unreadable, self.assertRaises(PermissionError):
+            self.kept.handed(_SESSION, _regrounding, _ROAD)
 
 
 if __name__ == "__main__":
