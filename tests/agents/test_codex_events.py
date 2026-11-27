@@ -1,6 +1,6 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Codex terminal-turn reader tests: which turn decides, and what its error said."""
+"""Codex terminal-turn reader tests: which turn decides, whether it completed, and what its error said."""
 
 from __future__ import annotations
 
@@ -94,6 +94,32 @@ class CodexTurnFailureTest(unittest.TestCase):
                     _codex_events.codex_turn_failure(stdout),
                     _codex_events.CodexTurnFailure("", None),
                 )
+
+
+class CodexTurnCompletedTest(unittest.TestCase):
+    """A Codex turn that completed is the agent's, read off the event the run closed its last turn on."""
+
+    def test_only_a_completed_last_turn_counts(self) -> None:
+        completed = (
+            _streams.codex_jsonl(_streams.turn_started(), _streams.turn_completed()),
+            # A failed turn a later one in the same stream completed, noise around it.
+            "\n".join((*_NOISE_LINES, _streams.codex_jsonl(
+                _streams.turn_failed(_LIMIT), _streams.turn_started(), _streams.turn_completed(),
+            ), "trailing-noise")),
+        )
+        not_completed = (
+            "",
+            _streams.CAPTURED_LIMIT_STDOUT,
+            # A completed turn a later one failed, or set aside without ever closing.
+            _streams.codex_jsonl(_streams.turn_completed(), _streams.turn_failed(_LIMIT)),
+            _streams.codex_jsonl(_streams.turn_completed(), _streams.turn_started()),
+        )
+        for stdout in completed:
+            with self.subTest(stdout=stdout):
+                self.assertTrue(_codex_events.codex_turn_completed(stdout))
+        for stdout in not_completed:
+            with self.subTest(stdout=stdout):
+                self.assertFalse(_codex_events.codex_turn_completed(stdout))
 
 
 if __name__ == "__main__":

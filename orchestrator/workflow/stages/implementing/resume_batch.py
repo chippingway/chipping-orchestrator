@@ -38,6 +38,7 @@ touches no field it did not deliver against.
 """
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass, replace
 
 from github.Issue import Issue
@@ -82,7 +83,7 @@ _PASSTHROUGH = "passthrough"
 class _ReplyBatch:
     """The replies one resume delivers, and the record of that delivery.
 
-    `comments` are the comment objects the prompt quotes and `delivery` is the
+    `comments` are the comments the prompt quotes and `delivery` is the
     snapshot naming the same ids; they are produced together and neither is
     re-derived, which is what makes "what the developer saw" and "what the
     issue records as answered" one fact rather than two readings that agree.
@@ -108,7 +109,13 @@ class _ReplyBatch:
 
     `read` is that one read itself and `floor` the watermark it was bounded
     by, kept for the drift check a parked tick asks before any road spends
-    the batch (`answered`).
+    the batch (`answered`) and for the fingerprints a resume's snapshot is
+    bound to (`completion_roads`). Every comment here -- in `read`, in
+    `comments`, and behind both conversations -- is the copy `_freeze` took
+    as the thread was read, so the prompt a resume renders, a fresh
+    replacement's preamble, and the fingerprint its snapshot is bound to
+    quote one version of each comment: one edited before the launch or
+    while the run is out moves none of them.
     """
 
     state: PinnedState
@@ -239,11 +246,12 @@ def _freeze(
 ) -> _ReplyBatch:
     """Read this parked thread once and freeze what a resume may do with it.
 
-    ONE fetch, for the whole thread, and everything below is cut from it: the
-    fresh replies past the watermark, the conversations a fresh spawn is
-    re-grounded with, and the record the settlement is taken from. The
-    pinned state comment is taken out of that read by its IDENTITY, so a reply
-    quoting its marker is a reply like any other.
+    ONE fetch, for the whole thread, each comment copied as it is read, and
+    everything below is cut from those copies: the fresh replies past the
+    watermark, the conversations a fresh spawn is re-grounded with, and the
+    record the settlement is taken from. The pinned state comment is taken
+    out of that read by its IDENTITY, so a reply quoting its marker is a
+    reply like any other.
 
     The delivery is cut FIRST, and the reservations are asked of it. Which
     batch a command road owns is the same question as which batch a developer
@@ -267,7 +275,10 @@ def _freeze(
     acted on nor delivered as prose.
     """
     ours = frozenset(_comments._orchestrator_ids(state))
-    thread = gh.comments_after(issue, None, state_comment_id=state.comment_id)
+    thread = [
+        copy.copy(seen)
+        for seen in gh.comments_after(issue, None, state_comment_id=state.comment_id)
+    ]
     unclaimed = [
         seen for seen in filter_trusted(_since(thread, state))
         if seen.id not in ours

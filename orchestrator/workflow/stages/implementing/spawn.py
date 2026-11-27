@@ -137,7 +137,7 @@ def _spawn_implementer(
         review_round=state.get("review_round", 0),
         retry_count=state.get(_state._RETRY_COUNT),
         pause_guard=True,
-        completion=implementation_road(state, delivered, checkout),
+        completion=implementation_road(state, delivered, checkout, spec.slug),
     )
     # The persistence every developer run's id goes through, so a spawn that
     # hands a retired conversation's id back -- the one its own quota stop just

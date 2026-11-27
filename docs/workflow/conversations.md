@@ -342,11 +342,13 @@ Where the contract is carried:
   publication, and the receipt restriction are restated; and the outcome is the one the task below the preamble
   describes — that preamble also precedes tasks that close on markers of their own. Its conversation block is the
   caller's FROZEN, classified thread read wherever the caller holds one — the awaiting-human resumes and the explicit
-  `/orchestrator continue` retries (less the commands they consume) take it from `implementing/resume_batch.py`, and
-  the conflict stage's reply to a park that owes a report takes the frozen drift read its prompt is cut from, less a
-  retry's commands too and with every reply past the watermark kept whole, its replies marked read by that read's
-  record rather than ahead of it — so the preamble and the record of what the prompt delivered come off one reading
-  and one filter. A caller with no frozen read gets the read `_build_dev_spawn_prompt` takes for itself.
+  `/orchestrator continue` retries (less the commands they consume) take it from `implementing/resume_batch.py`, whose
+  read copies each comment as it is taken, so the preamble, the followup beside it, and a task snapshot's fingerprint
+  quote one version of a comment edited before the launch or while the run is out, and the conflict stage's reply to
+  a park that owes a report takes the frozen drift read its prompt is cut from, less a retry's commands too and with
+  every reply past the watermark kept whole, its replies marked read by that read's record rather than ahead of it —
+  so the preamble and the record of what the prompt delivered come off one reading and one filter. A caller with no
+  frozen read gets the read `_build_dev_spawn_prompt` takes for itself.
 - **Absent** from the documentation, review, and conflict-resolution prompts, which close on markers of their own, and
   from the conflict stage's own reply resume and bare-continue retry, which stays on the plain
   `_CONTINUE_RETRY_PROMPT` — except over a park that left a report owed, where the reply resumes on the drift prompt
@@ -539,6 +541,102 @@ the transaction are guarded commits over the comment as it stands (`workflow/eng
 settlement prepared before the report is posted and committed behind the post: one GitHub took and never confirmed stops
 the tick, and the next tick finds that same record, transaction or settlement and carries it on with no second run, no
 second revision, and no second report.
+
+### The task snapshot attachment
+
+The initial implementation request and its ordinary continuations ask the developer for one thing beside the report:
+a short description of the task in its own words, for analytics. Which attempts are asked is decided by the road the
+shared developer coordinator was handed (`workflow/stages/implementing/completion_roads.py`): every attempt on the first
+implementation's road and on an implementing resume's — a human's reply, an operator's `/orchestrator continue`, a
+poisoned session's fresh retry, and an Antigravity command recovery behind any of them — is handed its prompt with
+`_TASK_SNAPSHOT_NOTE` (`workflow/engine/prompt_notes.py`) appended last, by `workflow/engine/task_snapshots.py`. A fix
+round, a drift resume, a report refresh, a late revision, a documentation pass, and every run that freezes no road are
+not asked.
+
+The note teaches one line, spelled from the vocabulary `observability/analytics/observations/attachments.py` reads it
+with, so what a developer is told to write and what the reader accepts cannot drift apart:
+
+```text
+ANALYTICS: task-snapshot v1 {"description": "<one or two sentences>"}
+```
+
+It is asked of every finished reply, a question included, exactly once: the description in one or two sentences, at
+most 300 characters, with no secrets. Where the reply ends on a report outcome the line goes above it — never inside
+the report block or after the outcome, which still ends the message. One line is the whole framing on purpose: a report
+marker, an `ACK:`, and a code fence each have to open a line, and a JSON string escapes its line breaks, so nothing a
+description says can open a line another reader sees. Above the outcome, the line is outside the `REPORT: READY` block
+and so outside the report that is published and the digest it is identified by; a `REPORT: VERIFIED` line names a
+report already on the pull request, which the attachment never touches.
+
+The workflow reads the reply without it (`workflow/engine/task_snapshot_replies.py`). An attachment line is a line
+opening on `ANALYTICS:` that no code fence may enclose, as the report reader's own fence reading
+(`workflow/engine/report_fences.py`) decides; one inside a fence is code — an example a report quotes — and stays. Every
+return on those two roads has its attachment lines kept out of the message before any stage reads it, in a way that
+never moves the reply's framing. A reply with no report marker line has them taken out whole, so a reply carrying
+nothing else is the silent failure an empty one is. A `REPORT: READY` block has them taken out whole, so the report
+published, with the digest it is identified by, is the one written without them, and a block holding nothing else is the
+empty block the report reader refuses. Every other one — above an outcome, past it, or beside markers that do not read —
+is replaced by the line `(analytics attachment line taken out)` at its own indentation, so every line stays a line of
+the same kind: a fence opens and closes where it did, text after an outcome is still refused, and a malformed outcome
+stays malformed. No park, notice, or published report quotes an attachment line. A reply those readers fail on is never
+read as written. With one warning, its attachment lines are found by a pattern of the owner's own — every line opening
+on `ANALYTICS:` that no fence the fence reader can read may enclose — and kept out by the marker lines alone, which the
+report reader's pattern finds without parsing anything: taken out whole where the reply has no marker line and between
+its first and last, where a READY block's report sits, and replaced by the placeholder everywhere else. The fences are
+the whole reply's where they read; where they do not, the report body's alone, which holds every fence of a READY
+report, every line outside the body then read as no code. So a READY report reads as written without them, under the
+same digest, a block holding nothing else stays the empty block the report reader refuses, a fenced example stays, and
+no outcome the report reader refuses is made one it accepts. Where neither reading answers and the report body holds
+such a line, which of its lines are code is unknown: every one is held by the placeholder, and the line `(analytics
+attachment lines could not be told from code in this report, so it is not published)` follows the outcome, so the report
+reader refuses it and nothing is published on a guess. No notice quotes an attachment line on any reading, nor does the
+stderr a park quotes or the warning it logs: a CLI can echo the reply it wrote there, so the stderr a park quotes and
+logs is rendered from what is found in it as written — every line opening on the prefix and every place a credential
+sits, overlapping ones hidden as one and a join holding such a line shown as the note — before the redactor runs and the
+tail is cut (`workflow/engine/agent_diagnostics.py`); a stderr whose reading fails is withheld behind a note of its own,
+so the park still settles. The stage's own poisoned-session and overflow readers search the stderr with every line
+opening on the prefix left out, the analytics sink on or off, so an echoed attachment buys no retry.
+
+The attachment is read on its own terms and decides nothing. With the analytics sink on, `task_snapshots.py` hands a
+genuine return — invoked under a tracked charge; its turn refused neither by the provider (the backend's own verdict
+deciding where it gives one, so a clean exit carrying Claude's `is_error` refusal is none, and a Codex turn closing on
+`turn.completed` is the agent's whatever its reply opens with), nor ending on a Codex `turn.failed` — all read off the
+stream's records that decode at all, so a record the usage parser refuses hides no closing event — nor refused by the
+CLI, as the implementing stage reads that with the readers it parks and retries on
+(`session_read`: a conversation the CLI could not open or whose transcript overflowed the context, or an exhausted
+quota, each on a clean exit too), off its stderr less every attachment line the CLI echoed there, which is the
+developer's text and never the CLI's diagnostic — a reading asked inside the snapshot's failure boundary; neither
+interrupted nor timed out, exiting 0, with no tool step unfinished or failure normalized — to the one reader and
+recorder under `observability/analytics/observations/`, with the invocation the run came from, the requirements revision
+the attempt's conversation was handed, and the framing of the reply the workflow reads — where its outcome begins (its
+first marker line no fence may enclose, since a fenced one is an example it quotes), which lines a fence may enclose,
+and the verdict the report reader reaches on it — which the recorder asks inside its failure
+boundary. That revision is the one the road froze before the launch on a road that hands the developer requirements: the
+first implementation, and a human reply whose batch it delivers and settles to the conversation it resumes. An
+`/orchestrator continue` retry hands none, so a retry that opens a fresh conversation — and a reply's run that does, its
+session gone — is bound to the issue as the replacement session's prompt quoted it — the one read of the issue that
+prompt was rendered from, beside the batch's own read of the thread, fingerprinted only as the snapshot is recorded,
+inside its failure boundary — and a later retry resuming that same conversation to what it was last handed — an
+Antigravity command recovery to what the conversation it resumes, under the id the attempt before it returned, was. This
+host keeps that beside the issue's writer claim, as `repo-<id>-issue-<n>.task-snapshot-grounding`, only while the
+analytics sink is on and never on the pinned comment, so no settlement measures it
+(`workflow/engine/task_snapshot_grounding.py`), keyed to the baseline the issue records once the road that grounded it
+settles — so a reply whose fresh conversation took an edit leaves it speaking for the retry that resumes that
+conversation after the reply settled; it speaks while the conversation and that baseline stand, an
+attempt that names no conversation leaves it as it is, as does a launch refused before it started or a turn its provider
+or CLI refused, which hand the conversation nothing, and a lost one binds the retry to the baseline. The task reference
+is spelled instead from the report the run finished on: the repository it is published under — the configured slug the
+settled report keeps on its pinned record — and the revision it is stamped with, which is what a reviewer is handed. The
+reader reads the reply as written: exactly one attachment line above the outcome is a snapshot; none is missing, two or
+more anywhere are a duplicate, the one line reaching past where the outcome begins is misplaced, and a line out of shape
+— a key written twice included — is malformed. Each of those is recorded as a diagnostic and nothing else: no retry,
+correction, park, or refusal follows from it, and a valid report outcome beside it stays valid, while an invalid one is
+not rescued by it. The reviewer later handed the report is told, beside the quoted report
+(`workflow/engine/review_prompts.py`), the reference the snapshot was recorded under: the repository the settled report
+records it was published under, read off that record rather than from GitHub, so neither a configured slug cased
+otherwise than GitHub's nor a rename since moves it, the issue, and the report's stamped revision. What the records hold
+is in
+[`../observability/event-streams.md#task-snapshot-records`](../observability/event-streams.md#task-snapshot-records).
 
 ### The developer report lifecycle
 

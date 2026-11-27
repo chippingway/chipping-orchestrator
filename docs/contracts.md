@@ -248,8 +248,16 @@ lines anywhere, or none at all is a diagnostic naming why, never a guessed, repa
 `AgentInvocation` identity whole; a text says how long it was and whether it was cut, a character `jsonb` refuses is
 written as the replacement character, a record past its limit drops its texts rather than cutting an identifier, and
 nothing backfills a snapshot for a run that recorded none. A snapshot's `task_ref` is spelled by the one task-reference
-formatter from the revision its run's report is stamped with, and its `requirements_revision` names what its
-conversation was handed. No producer calls the recorder yet, so no current build writes either record.
+formatter from the repository its run's report is published under -- the configured slug its settled record keeps --
+and the revision that report is stamped with, and its `requirements_revision` names what its conversation was handed.
+A host record beside the issue's writer claim, `repo-<id>-issue-<n>.task-snapshot-grounding` spelling exactly
+`{"session_id", "requirements", "baseline"}`, carries what a retry's or a reply's fresh conversation was
+re-grounded on to a later retry resuming that conversation only while its baseline -- the one the issue records once
+the road that grounded it settles -- stands; it is written only with
+the analytics sink on, never on the pinned comment, and one that will not decode or holds any other set of members --
+a missing `baseline` or a member written twice included -- is nothing,
+so its loss needs no migration and binds that snapshot to the baseline. One the host will not let be read, or a change
+to it the host will not take, instead records nothing for the snapshot that asked.
 A recorded requirements fingerprint
 (`user_content_hash`, `observed_user_content_hash`) is compared with the current fingerprint alone, which leaves bare
 operator controls out: a value no current reading reproduces -- one an earlier producer wrote counting a bare
@@ -755,15 +763,42 @@ manifest the parser refuses with a concrete error, from a completed, accounted, 
 asked under the very output contract the decompose prompt closes on, beside that exact error, and the correction's
 answer is read by the same parser and earns none of its own; a question, silence, or a failed, incomplete, timed-out,
 interrupted, or dirty run earns none, and no dependency list is inferred from a child's prose. Session identity is
-covered by [C-14].
+covered by [C-14]. The task snapshot request the implementing roads append to every attempt is spelled from the
+vocabulary the one analytics attachment reader reads, and asks every finished reply for its line, above the report
+outcome where there is one. The workflow reads the reply with every such line outside a code fence kept out of it
+without moving its framing -- taken out where the reply has no report marker and inside a READY block, and replaced by
+a placeholder line elsewhere -- so it is outside the published report and its digest, no park or notice quotes it --
+nor the stderr a park quotes or logs, the CLI echoing the reply there included, where a note stands in its place and
+hides any credential overlapping the line with it, a stderr nothing can tell apart being withheld instead -- a
+fenced example stays where it was, text after an outcome is still refused, a block holding nothing else is refused as
+empty, and the verdict the workflow reaches is the one the snapshot's record names; a reply those readers fail on is
+never read as written, its lines opening on the prefix that no readable fence may enclose kept out by its marker
+lines alone -- taken out where it has none and between its first and last, held by the placeholder elsewhere -- the
+fences read off the whole reply, else off its report body alone; so a READY report and its digest read as without
+them, a block holding nothing else stays refused, and a fenced example stays. Where neither reads and the body holds
+such a line, every one is held by the placeholder and a line past the outcome refuses the report, which is published
+on no guess, and no attachment text reaches a notice on any reading, nor buys a retry: the implementing stage's
+poisoned-session and overflow readers search stderr with every line opening on the prefix left out. A missing,
+malformed, duplicated, or misplaced attachment earns a diagnostic and nothing else -- no retry, correction, park, or
+refusal -- and never makes an invalid report outcome valid. A reviewer handed a report is told the task snapshot
+reference that report's stamped requirements revision spells over the repository its settled record names it
+published under -- kept on the pinned record, so neither a configured slug cased otherwise than GitHub's nor a rename
+since moves it -- the one the snapshot of the reply that wrote it was recorded under.
 
-**Specs:** [reply protocols](workflow.md).
+**Specs:** [reply protocols](workflow.md), [task snapshots](workflow/conversations.md#the-task-snapshot-attachment).
 
 **Checks:** [report prompts](../tests/workflow/engine/test_prompts_developer_report.py),
 [manifest contract](../tests/workflow/stages/decomposition/test_manifest.py),
 [correction eligibility](../tests/workflow/stages/decomposition/test_correction_eligibility.py),
 [manifest corrections](../tests/workflow/stages/decomposition/test_correction_road.py),
-[fuzzed manifests](../tests/repository/test_fuzz_targets.py).
+[fuzzed manifests](../tests/repository/test_fuzz_targets.py),
+[task snapshot replies](../tests/workflow/engine/test_task_snapshot_replies.py),
+[task snapshot framing](../tests/workflow/engine/test_task_snapshot_framing.py),
+[task snapshot attempts](../tests/workflow/stages/implementing/test_task_snapshot_attempts.py),
+[task snapshot readings](../tests/workflow/stages/implementing/test_task_snapshot_readings.py),
+[task snapshot grounding](../tests/workflow/engine/test_task_snapshot_grounding.py),
+[task snapshot continuations](../tests/workflow/stages/implementing/test_task_snapshot_continuations.py),
+[reviewer task reference](../tests/workflow/engine/test_prompts_review_report.py).
 
 ## C-09: Reports, review subjects, and verification
 
@@ -981,11 +1016,22 @@ behind a fail-open guard, changing nothing the CLI is launched with; with the tr
 observed, no native log is looked up or read, and no collector runs. A stream
 the usage parser refuses still writes no `agent_exit` record and publishes no total; its request usage alone is
 recorded, on a trajectory record marked `stream_refused`. A task snapshot and its diagnostics are observation alone:
-no usage total, accounting, completion capture, report settlement, or workflow decision reads one. Their recorder
-writes only where the analytics sink is on, needing no usage parse, trajectory sink, or database, behind one failure
-boundary from the caller's framing of the reply through the append, behind a guarded read of where the sink is:
-settings that will not read, a refused append, or a diagnostic that cannot be written is one warning, a step that
-fails before the append is a diagnostic, and a lost observation owes no export, checkpoint, or agent run. Only the
+no usage total, accounting, completion capture, report settlement, or workflow decision reads one. They are collected
+wherever the analytics sink is on, needing no usage parse, trajectory sink, or database, from a genuine developer
+return alone, judged by the run's status, the stream's terminal evidence -- a Codex turn closing on `turn.completed`
+is the agent's whatever its reply opens with, and otherwise a provider's refusal or a Codex turn ending on
+`turn.failed` is none -- read off the records that decode at all and so on no usage parse, and the implementing stage's
+reading of a CLI's refusal (a conversation it could not open or that overflowed, an exhausted quota), off stderr less
+any attachment line the CLI echoed there -- so neither a
+turn the provider or the CLI refused nor the recovery that finishes a captured report records one, and
+only an attempt that reached the agent moves the host's grounding record -- behind a guarded read of where the sink
+is, whose settings that will not read are one warning, and two failure boundaries. The producer's covers what decides
+whether and how a return is recorded -- the run's status and terminal evidence, the reading of a CLI's refusal, and
+the grounding's read, fingerprint, and write, kept before the snapshot is recorded -- and a failure there is one
+warning and no record at all, neither a snapshot nor a diagnostic. The recorder's covers the reply from the framing the
+workflow reads it by through the append: a step that fails before the append is a diagnostic, and a refused append, or a
+diagnostic that cannot be written, is one warning. Every warning is attempted once and cannot fail its caller, and a
+lost observation owes no export, checkpoint, or agent run. Only the
 telemetry copy is redacted, with the credential redactor, before it is made storable, cut, or serialized: every
 spelling of a credential is found, from each place it starts to each place it ends, overlapping ones included, before
 any text is replaced, in work bounded by a fixed amount per character searched -- a search stops once nothing can
@@ -1003,7 +1049,8 @@ before it -- shows no text, its record kept, as does one whose reading for such 
 reply with no text to show is not searched, and a record or fallback diagnostic whose serialized line holds such an
 escape or still holds a credential keeps no text, or is not written. The one
 warning a lost observation earns names only the issue number, the charge ordinal, and the failures' types, never a text
-field of the run, and cannot fail its caller. No producer calls that recorder yet.
+field of the run, and cannot fail its caller. The host's task snapshot grounding record is read by the snapshot alone,
+kept only with the sink on, and never on the pinned comment, so no settlement measures it and it decides nothing.
 
 **Specs:** [audit recovery](observability/event-streams.md#audit-event-log-event_log_path),
 [request usage](observability/usage.md#request-usage-observations),
@@ -1018,6 +1065,10 @@ field of the run, and cannot fail its caller. No producer calls that recorder ye
 [Claude request records](../tests/observability/analytics/trajectories/test_request_usage_claude.py),
 [Codex request records](../tests/observability/analytics/trajectories/test_request_usage_codex.py),
 [trajectory parsing](../tests/observability/usage/test_usage.py),
+[task snapshot isolation](../tests/workflow/stages/implementing/test_task_snapshot_dispatch.py),
+[task snapshot receipt](../tests/workflow/engine/test_task_snapshot_receipt.py),
+[task snapshot grounded runs](../tests/workflow/stages/implementing/test_task_snapshot_grounded_runs.py),
+[task snapshot echoes](../tests/workflow/stages/implementing/test_task_snapshot_echoes.py),
 [observation failures](../tests/observability/analytics/observations/test_failures.py),
 [observation redaction](../tests/observability/analytics/observations/test_redaction.py).
 

@@ -1689,13 +1689,23 @@ need the isolation described under
   over such a record launches nothing even where it is written again or settled before the launch. Settling the
   record by hand drops the obligation, and the next run may resume the conversation the quota stopped; deleting it
   does too, except that a poller still holding the resolution in memory writes it again.
+- **A task snapshot grounding.** With the analytics sink on, `repo-<id>-issue-<n>.task-snapshot-grounding` beside the
+  claim file holds `{"session_id", "requirements", "baseline"}`: the requirements the issue's developer conversation
+  was last handed where they are not the baseline the issue records once that run's road settles -- a fresh
+  conversation an `/orchestrator continue`
+  retry, or a human reply whose session was gone, re-grounded on an edit -- written in place under the claim and taken
+  away once the conversation is handed the baseline. Only the task snapshot of a later retry resuming that conversation
+  reads it, while the baseline it names stands; it is analytics alone, never on the pinned comment. A record the host
+  will not let be read, or a write it refuses, costs that run its task snapshot -- one warning, nothing recorded -- and
+  a refused write takes the record it would have replaced away with it.
 - **Release.** A claim ends when the dispatch or base-refresh route that took it ends, however it ends, and the kernel
   drops it when a process dies, so a crashed poller leaves nothing held; its descriptor is closed with it and is not
   inherited by an agent the holder spawns. The files stay: never delete the directory or a file in it while any poller
   runs, since a recreated file is a new inode another process can lock beside a holder of the old one. The claim files
   are small, one per issue key ever claimed, and safe to remove once every poller has stopped; a `.quota-retirement`
   record beside one is not, unless it reads `{}` — removing one that is armed or owes a retirement drops that
-  obligation, as [An owed quota retirement](#running-more-than-one-poller) describes.
+  obligation, as [An owed quota retirement](#running-more-than-one-poller) describes. A `.task-snapshot-grounding`
+  record is safe to remove at any time: a later retry's task snapshot is then recorded against the issue's baseline.
 - **Not covered.** Pollers on different hosts, or on one host with different `WORKTREES_DIR` values, are not
   coordinated at all and are not supported against the same repository. And the claim is separate from the artifact
   presence on `WORKTREES_DIR/.artifact-maintenance.lock`: a maintenance pass neither takes nor reads a writer claim, and

@@ -10,10 +10,9 @@ fills that target from the JSONL; ``trajectories`` owns the opt-in
 per-run reasoning sink beside the analytics one; and ``observations`` owns
 what an agent reply carries for analytics beside its workflow outcome -- the
 attachment vocabulary, its reader, and the best-effort recorder that writes a
-task snapshot or why there is none, which no producer calls yet.
-``recording`` and ``trajectories`` are here in full, the write paths the
-orchestrator process itself runs, ``observations`` is here in full ahead of
-its producer, and ``query`` holds the connection half: what a read dials with, the
+task snapshot or why there is none. ``recording``, ``trajectories``, and
+``observations`` are here in full, the write paths the orchestrator process
+itself runs, and ``query`` holds the connection half: what a read dials with, the
 socket a thread reuses, and the single SELECT run over it. Beside them sit the
 owners neither sink may answer separately: ``sink``, the record envelope, the
 JSONL line, both files' locks, and the log channel a refused write is reported

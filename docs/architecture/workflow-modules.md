@@ -66,22 +66,25 @@ workflow/                   publishes labels, transition guards, and the lazy pe
   transition_guard.py       the same-label allowance and off/warn/enforce write guard, with strict rejection details and
                             the literal `orchestrator.state_machine` channel operators filter on
   engine/                   what every stage is driven by
-    agent_diagnostics.py    what a park comment and a WARNING say about a run that left no usable message: the
-                            agent's stderr under two budgets -- 1KB for the human who came to the issue, 400
-                            characters so a log line still fits a screen -- and the exit code beside the first,
-                            split into the subprocess's own return and the normalized failure code where the
-                            result carries a failure record -- the return named not captured where the timeout
-                            killed the run -- and left the plain code where it does not.
-                            The shared redactor runs over the RAW stderr before either trim, since a secret sliced
-                            by the cut survives as a fragment the redactor no longer matches, and that fragment is
-                            what leaks; the same ordering puts it ahead of the `rstrip`, so a multi-line env value
-                            ending in a newline still matches verbatim. A Codex usage-limit stop gets a block of
-                            its own -- the reset the provider named, then its message -- redacted whole before a
-                            1KB budget cuts the message, the reset read off that redacted text under a budget of
-                            its own. An account-quota stop a failure record names gets the reset interval that
-                            record kept, under the same budget, above the stderr block. Each block is quoted
-                            through `messages.py`'s blockquote, so it reads as the last-message body it is
-                            appended under
+    agent_diagnostics.py    what a park comment and a WARNING say about a run that left no usable message: the agent's
+                            stderr under two budgets -- 1KB for the human who came to the issue, 400 characters so a log
+                            line still fits a screen -- and the exit code beside the first, split into the subprocess's
+                            own return and the normalized failure code where the result carries a failure record -- the
+                            return named not captured where the timeout killed the run -- and left the plain code where
+                            it does not; the stderr a comment quotes rendered from what is found in it as written --
+                            every analytics attachment line and every place a credential sits, overlapping ones hidden
+                            as one, a join holding a line shown as a note -- before the redactor and the trim, a stderr
+                            whose reading fails withheld behind a note of its own, since a CLI can echo the reply it
+                            wrote there, the stderr a run is classified by left as written. The shared redactor runs
+                            over the RAW stderr before either trim, since a secret sliced by the cut survives as a
+                            fragment the redactor no longer matches, and that fragment is what leaks; the same ordering
+                            puts it ahead of the `rstrip`, so a multi-line env value ending in a newline still matches
+                            verbatim. A Codex usage-limit stop gets a block of its own -- the reset the provider named,
+                            then its message -- redacted whole before a 1KB budget cuts the message, the reset read off
+                            that redacted text under a budget of its own. An account-quota stop a failure record names
+                            gets the reset interval that record kept, under the same budget, above the stderr block.
+                            Each block is quoted through `messages.py`'s blockquote, so it reads as the last-message
+                            body it is appended under
     comments.py             the orchestrator marker, bound from the GitHub trust owner, and the bounded id ledger
                             shared by issue and pull-request comment posts; a developer report enters the ledger on
                             whichever reading finds it on the thread, since a post whose response was lost hands
@@ -1906,8 +1909,8 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             never one of them -- the developer report contract spelled from the report vocabulary with
                             its fresh-respawn counterpart, both scoping the report to the final change, its rationale,
                             and unresolved risks with verification left out and forbidding the receipt prefix
-                            `github/comments.py` refuses anywhere in a report, and the continuation notes for a
-                            session-limit retry
+                            `github/comments.py` refuses anywhere in a report, the task snapshot request spelled from
+                            the analytics attachment vocabulary, and the continuation notes for a session-limit retry
     prompts.py              implementation, documentation, fixing, conflict-resolution, fresh-session, and
                             report-refresh prompt builders; each response marker agrees with the parser that settles
                             its stage, and the report refresh asks for a `REPORT: READY` report of the rewritten head
@@ -1918,10 +1921,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             implemented the work, the subject the validating stage resolved, and the verification
                             evidence it proved current for that subject -- with the developer report quoted whole
                             between the issue and the inspection commands, named by revision and location, and a note
-                            where the requirements have moved on since it was written; a subject with no report says
-                            none is recorded. The verification block follows the inspection commands, and the closing
-                            instructions put the declaration it teaches above the verdict line and each failure a
-                            numbered finding rests on under it, in the layout that block teaches
+                            where the requirements have moved on since it was written, and the task snapshot reference
+                            the report answers to, spelled by the analytics owner its description was recorded under
+                            over the repository the handover names -- the one the settled report records it was
+                            published under; a subject with no report says none is recorded. The verification block
+                            follows the inspection commands, and the closing instructions put the declaration it teaches
+                            above the verdict line and each failure a numbered finding rests on under it, in the layout
+                            that block teaches
     review_evidence_prompts.py
                             what a reviewer is told about verification, which the reviewer prompt renders: the current
                             evidence handed for its subject (`HandedEvidence`, the settled record and its artifact
@@ -1943,6 +1949,39 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             it, then `Error:`, `Expected:` and `Observed:` where needed, `Reproduce:` -- a
                             self-contained snippet for a probe, since a stdin command alone reproduces nothing -- and
                             `Unavailable:` for each diagnostic not obtained, every entry outside the declaration
+    task_snapshot_grounding.py
+                            what an implementing developer conversation was handed, for its task snapshot: on a road
+                            that hands requirements, the road's own; on a retry, a fresh conversation the read it was
+                            re-grounded on, and a resumed one what this host's record says it was grounded on while
+                            the conversation and the baseline stand, the road's revision otherwise; and that record,
+                            `repo-<id>-issue-<n>.task-snapshot-grounding` beside the issue's writer claim, kept only
+                            with the analytics sink on and never on the pinned comment. Only the snapshot reads it
+    task_snapshot_replies.py
+                            the reply the workflow reads where a snapshot was asked for: every attachment line outside
+                            a code fence kept out of it without moving its framing -- taken out where the reply has no
+                            report marker and inside a READY block, a placeholder line holding its place everywhere
+                            else -- so no park, notice, or published report quotes one, a fenced example stays, text
+                            past an outcome is still refused, and a block of nothing else is refused as empty; a reply
+                            those readers fail on never read as written but kept out by its marker lines alone, outside
+                            the fences of the whole reply or, where those do not read, of its report body, and, where
+                            neither reads and the report body holds such a line, every one held by the placeholder and
+                            the report refused by a line past its outcome, with one warning; and the framing the
+                            recorder is told -- where the outcome begins, at the first marker line no fence may
+                            enclose, the lines a fence may enclose, and the
+                            verdict the workflow reaches on that reply
+    task_snapshots.py       which developer attempts are asked for a task snapshot -- every one on the first
+                            implementation's road or an implementing resume's, and none else -- the request appended to
+                            the prompt each is handed, and the receipt of each return on those roads: with the analytics
+                            sink on, a genuine one -- judged by the run's status, a Codex turn's closing event ahead
+                            of the reply's prose, its provider's own verdict, and the
+                            road's reading of a CLI refusal (`completion_roads.Attempt.refused`) -- handed to the
+                            analytics recorder with its invocation, the requirements its conversation was handed
+                            (`task_snapshot_grounding.py`), the repository and revision its report is published under
+                            and stamped with -- which spell the task reference -- and the framing of the reply the
+                            workflow reads (`task_snapshot_replies.py`), which the recorder asks inside its failure
+                            boundary, and the grounding of every attempt that reached the agent kept current; and, sink
+                            on or off, every one left as the workflow reads it. Nothing a workflow decides reads the
+                            observation back
     review_subjects.py      what one review is of -- pull request, head, requirements revision, and report revision and
                             digest -- recorded as `review_subject` before the spawn, as `review_returned_subject` once a
                             reviewer returns, and as `review_approved_subject` once an approval passes the verify gate,
@@ -4715,9 +4754,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             delivered, so a launch the run circuit refused, a shutdown kill, and a live pause
                             consume nothing while a timeout, an empty result, and a question park all do
       resume_batch.py       the frozen reply batch every `implementing` and `validating` awaiting-human resume
-                            reads: ONE whole-thread fetch, by the pinned comment's id, from which the quoted
-                            followup, the delivery record naming exactly the quoted ids, the whole and the retry
-                            re-grounding conversations, and command ownership are all cut. Each stage's handler
+                            reads: ONE whole-thread fetch, by the pinned comment's id, each comment copied as it is
+                            read, from which the quoted followup, the delivery record naming exactly the quoted
+                            ids, the whole and the retry re-grounding conversations, the fingerprints a resume's
+                            task snapshot is bound to, and command ownership are all cut, so a comment edited
+                            before the launch or mid-run moves none of them. Each stage's handler
                             freezes it once per parked tick and hands it to every road that tick takes. The
                             measurement retry is asked of the delivered replies, and so is the parked-continue
                             classifier where a caller says it looked at an earlier read (`continue_claimed`,
@@ -4760,7 +4801,10 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             retired never launched, and no launch made at all while a capture nothing has decided
                             stands; each attempt, behind its accounting, quota retirement, and live-pause reading,
                             asked of the road its caller froze, which captures a return that finished on its report
-                            and holds the tick where that capture did not settle;
+                            and holds the tick where that capture did not settle; the same road handing each attempt
+                            its prompt (`asked`) and receiving its return (`received`) before anything reads it, so an
+                            implementing road's every attempt is asked for its task snapshot, recorded, and read by
+                            the workflow with its attachment lines kept out;
                             and the identity an attempt is charged under, spelled once
                             (`_launch_identity`), so the fingerprint a resume's first attempt would be charged under is
                             read without resuming (`_first_launch_fingerprint`) -- how a handed change request's
@@ -4795,16 +4839,24 @@ workflow/                   publishes labels, transition guards, and the lazy pe
       completion_roads.py   what a report-producing implementing road freezes before its launch -- the route, the
                             requirements its run is handed (for a retry, which hands none, the baseline the issue
                             records, so an edit beside the command never stamps its report), the input its prompt
-                            delivers (the first implementation's thread stretch and an edit it answers, a reply
-                            batch's consumed pairs, a retry's consumed commands), and the checkout, branch, and head
-                            it launches from -- and
-                            the capture an attempt on it earns: asked by `execution.py` of every attempt, it captures
-                            only a return the road's contract takes, at the head it left (`source`, which a road
-                            asking more of the checkout a run returns over answers None for where that was not met
-                            -- `stages/validating/refresh_road.py`) -- and the road the late developer revision
-                            freezes (`stages/decomposition/late_revision_road.py`), with the command, prompt digest, and
-                            conversation it ran as and still pinned, and answers held where that capture left the
-                            state withheld
+                            delivers (the first implementation's thread stretch and an edit it answers, a reply batch's
+                            consumed pairs, a retry's consumed commands), and the checkout, branch, and head it
+                            launches from -- and the capture an attempt on it earns: asked by `execution.py` of every
+                            attempt, it captures only a return the road's contract takes, at the head it left
+                            (`source`, which a road asking more of the checkout a run returns over answers None for
+                            where that was not met -- `stages/validating/refresh_road.py`) -- and the road the late
+                            developer revision freezes (`stages/decomposition/late_revision_road.py`), with the
+                            command, prompt digest, and conversation it ran as and still pinned, and answers held where
+                            that capture left the state withheld; and, through `engine/task_snapshots.py`, the task
+                            snapshot request an attempt on it is handed and the receipt of its return, which only the
+                            first implementation's road and an implementing resume's ask for, record, and keep out of
+                            the reply the workflow reads -- the snapshot bound to the handoff's requirements, or, for
+                            an attempt that opened a fresh conversation on a retry's road, to the issue as that
+                            conversation's prompt quoted it -- the one read the prompt was rendered from, kept on the
+                            road (`regrounded`) and fingerprinted only as the snapshot is recorded
+                            (`fresh_requirements`) -- and for a later retry resuming it -- or a command recovery
+                            resuming the id its attempt before returned (`Attempt.launched`) -- to what this host's
+                            grounding record says (`engine/task_snapshot_grounding.py`)
       captured_report.py    the run's own pending capture handed to the report delivery where the disposition records
                             a report -- what the tick settled around the run riding the transfer's own commit, so the
                             two land together or not at all; one refused for the report itself withdrawn and the run

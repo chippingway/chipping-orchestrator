@@ -9,8 +9,9 @@ the full configured agent command string as the durable role identity, so a
 that never ran on it. `_pinned_session_id` reads the pinned conversation off
 the comment whatever command that read resolves, for the retirement guard that
 must name every pin it clears. The three classifiers beside them read the other
-direction -- the CLI's own words -- and each answers exactly one recovery
-question: was the session GC'd, did its transcript outgrow the context window,
+direction -- the CLI's own words, never an analytics attachment line the
+CLI echoed onto stderr, which is the developer's text -- and each answers
+exactly one recovery question: was the session GC'd, did its transcript outgrow the context window,
 is the account out of quota. The last is asked of both places a quota stop
 arrives: the final message a Claude notice takes, and the failure record a
 backend that keeps one classified its failure channels into. They sit with the reads because all are
@@ -25,6 +26,7 @@ from __future__ import annotations
 from orchestrator import config
 from orchestrator.agents.models import AgentResult
 from orchestrator.github.pinned_state import PinnedState
+from orchestrator.workflow.engine import task_snapshot_replies as _replies
 from orchestrator.workflow.stages.implementing import state as _state
 
 
@@ -103,11 +105,13 @@ def _is_stale_session_failure(
 
     Only claude is matched today: codex's resume CLI does not expose a
     comparable stable stderr marker, so codex still relies on the silent-
-    park-count fallback. If/when codex grows one, add it here.
+    park-count fallback. If/when codex grows one, add it here. Matched on
+    the stderr less every line opening on the analytics attachment prefix,
+    as `_is_context_overflow_failure` is.
     """
     if backend != "claude":
         return False
-    stderr = (agent_result.stderr or "").lower()
+    stderr = _replies._ANY_PREFIXED_LINE_RE.sub("", agent_result.stderr or "").lower()
     if not stderr:
         return False
     return any(marker in stderr for marker in _state._CLAUDE_STALE_SESSION_STDERR_MARKERS)
@@ -123,14 +127,18 @@ def _is_context_overflow_failure(
     stripped, lowercased last agent message -- so an agent that merely
     mentions the phrase mid-answer is not misclassified -- and as a substring
     of stderr, where the CLI may print the same diagnostic when it produces
-    no result event at all.
+    no result event at all. Every line of stderr opening on the analytics
+    attachment prefix is left out of that search, with the analytics sink on
+    or off: a CLI may echo the developer's reply there, and a task
+    description quoting the diagnostic is the developer's text, so it never
+    buys a retry.
     """
     if backend != "claude":
         return False
     msg = (agent_result.last_message or "").strip().lower()
     if any(msg.startswith(marker) for marker in _state._CLAUDE_CONTEXT_OVERFLOW_MARKERS):
         return True
-    stderr = (agent_result.stderr or "").lower()
+    stderr = _replies._ANY_PREFIXED_LINE_RE.sub("", agent_result.stderr or "").lower()
     return any(marker in stderr for marker in _state._CLAUDE_CONTEXT_OVERFLOW_MARKERS)
 
 

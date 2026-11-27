@@ -116,7 +116,7 @@ def _retry_parked_dev_session(
         gh, spec, issue, state, _prompt_notes._DEVELOPER_CONTINUE_RETRY_PROMPT,
         pause_guard=True,
         thread_text=batch.retry_thread_text,
-        completion=retry_road(batch, checkout),
+        completion=retry_road(batch, checkout, spec.slug),
     ))
     state.set("last_agent_action_at", _usage._now_iso())
     state.set(_state._BRANCH, checkout.branch)

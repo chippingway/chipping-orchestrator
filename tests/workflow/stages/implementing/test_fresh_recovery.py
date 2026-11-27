@@ -91,9 +91,11 @@ class _RecoveryBase(unittest.TestCase, _PatchedWorkflowMixin):
         self.assertEqual(mocks[_RUN_AGENT].call_count, count)
 
     def _assert_recovery_call(self, agent_call: unittest.mock._Call) -> None:
+        # The recovery continues the first implementation, so its road asks
+        # for the task snapshot after it as it asked the spawn.
         self.assertEqual(
             agent_call.args[1],
-            _prompt_notes._DEVELOPER_AGY_RECOVERY_PROMPT,
+            f"{_prompt_notes._DEVELOPER_AGY_RECOVERY_PROMPT}\n\n{_prompt_notes._TASK_SNAPSHOT_NOTE}",
         )
         self.assertEqual(
             agent_call.kwargs["options"].resume_session_id,

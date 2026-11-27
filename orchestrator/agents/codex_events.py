@@ -6,8 +6,9 @@ A failed Codex turn writes no final message, so the `-o` file the backend
 reads `last_message` from stays empty while stdout still carries the JSONL
 event stream. Whether the run ended on a failure, and what that failure said,
 is therefore asked of stdout, and this owner answers it: the turn the run
-ended on and the error it closed with, named field by field as the CLI emits
-them. What the error means for the provider behind the run is the
+ended on -- whether it completed, which is the CLI's own word that the agent
+answered it -- and the error it closed with, named field by field as the CLI
+emits them. What the error means for the provider behind the run is the
 `provider_failures` owner's question, the same split the `sessions` parsers
 keep for Claude.
 """
@@ -19,8 +20,9 @@ from orchestrator.observability.usage import event_stream
 
 _TYPE_FIELD = "type"
 _TURN_STARTED = "turn.started"
+_TURN_COMPLETED = "turn.completed"
 _TURN_FAILED = "turn.failed"
-_TERMINAL_TURN_EVENTS = ("turn.completed", _TURN_FAILED)
+_TERMINAL_TURN_EVENTS = (_TURN_COMPLETED, _TURN_FAILED)
 _ERROR_INFO_FIELD = "codex_error_info"
 
 
@@ -51,18 +53,16 @@ def _error_code(error_payload: dict[str, Any]) -> str | None:
     return None
 
 
-def codex_turn_failure(jsonl_output: str) -> CodexTurnFailure | None:
-    """Return the failure the run's LAST turn ended on, or None.
+def _closing_event(jsonl_output: str) -> dict[str, Any] | None:
+    """Return the `turn.completed` / `turn.failed` event closing the LAST turn the stream started, or None.
 
-    Only the `turn.completed` / `turn.failed` event closing the last turn the
-    stream started decides. A `turn.started` sets aside whatever an earlier
-    turn closed on, so a final turn left unfinished -- no closing event, or a
-    closing line that did not decode -- reports none, as does a stream that
-    closed no turn at all. The standalone `error` events the CLI streams
-    mid-turn never decide, since they include reconnect notices a later
-    success recovers from, and a turn that completed is no failure whatever
-    its items quoted. A line that is not a JSON object is skipped wherever it
-    sits, so noise printed after the closing event leaves that event standing.
+    A `turn.started` sets aside whatever an earlier turn closed on, so a
+    final turn left unfinished -- no closing event, or a closing line that
+    did not decode -- has none, as does a stream that closed no turn at all.
+    The standalone `error` events the CLI streams mid-turn never close one,
+    since they include reconnect notices a later success recovers from. A
+    line that is not a JSON object is skipped wherever it sits, so noise
+    printed after the closing event leaves that event standing.
     """
     closing_event: dict[str, Any] | None = None
     for event_payload in event_stream.iter_events(jsonl_output):
@@ -71,6 +71,29 @@ def codex_turn_failure(jsonl_output: str) -> CodexTurnFailure | None:
             closing_event = None
         elif event_type in _TERMINAL_TURN_EVENTS:
             closing_event = event_payload
+    return closing_event
+
+
+def codex_turn_completed(jsonl_output: str) -> bool:
+    """Whether the run's LAST turn closed on `turn.completed`: the CLI's own word that the agent answered it.
+
+    That closing event settles the turn whatever its items quoted, so a
+    reply opening on a provider's error line is still the agent's own. A
+    last turn that failed or never closed is no completion (`_closing_event`).
+    """
+    closing_event = _closing_event(jsonl_output)
+    return closing_event is not None and closing_event.get(_TYPE_FIELD) == _TURN_COMPLETED
+
+
+def codex_turn_failure(jsonl_output: str) -> CodexTurnFailure | None:
+    """Return the failure the run's LAST turn ended on, or None.
+
+    Only the event closing the last turn the stream started decides
+    (`_closing_event`), so a final turn left unfinished, or a stream that
+    closed no turn at all, reports none, and a turn that completed is no
+    failure whatever its items quoted.
+    """
+    closing_event = _closing_event(jsonl_output)
     if closing_event is None or closing_event.get(_TYPE_FIELD) != _TURN_FAILED:
         return None
     error_payload = closing_event.get("error")

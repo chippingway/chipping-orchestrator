@@ -46,8 +46,12 @@ _ENSURE_WORKTREE = "orchestrator.git.worktrees.creation._ensure_worktree"
 _FINISHED = _reported()
 _UNFINISHED = (ToolLifecycle(step_index=1, tool_name="run_command", state="ACTIVE"),)
 
-# The digest of the prompt an Antigravity continuation is handed.
-_RECOVERY_PROMPT = hashlib.sha256(_prompt_notes._DEVELOPER_AGY_RECOVERY_PROMPT.encode()).hexdigest()
+# The digest of the prompt an Antigravity continuation on the first
+# implementation's road is handed: the recovery, and the task snapshot request
+# that road asks every attempt.
+_RECOVERY_PROMPT = hashlib.sha256(
+    f"{_prompt_notes._DEVELOPER_AGY_RECOVERY_PROMPT}\n\n{_prompt_notes._TASK_SNAPSHOT_NOTE}".encode(),
+).hexdigest()
 
 
 class CapturedAttemptTest(unittest.TestCase):

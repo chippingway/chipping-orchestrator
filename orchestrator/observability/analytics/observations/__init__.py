@@ -13,12 +13,11 @@ snapshot is the family recorded today: a developer's short description of its
 task, bound to the requirements revision its prompt was handed and the
 invocation that returned it.
 
-Nothing here reads or decides workflow state. A producer hands the recorder
-the run it observed and the reply it read, and the observations land on the
-analytics sink as records of their own; nothing a workflow decides reads one
-back, and a lost observation owes nobody a retry. No producer calls the
-recorder yet: the package is complete and tested on its own, and nothing the
-orchestrator runs writes a record through it.
+Nothing here reads or decides workflow state. A producer in the workflow
+layer (`workflow/engine/task_snapshots`) hands the recorder the run it
+observed and the reply it read, and the observations land on the analytics
+sink as records of their own; nothing a workflow decides reads one back, and
+a lost observation owes nobody a retry.
 
 Callers import the owner they need, so this initializer binds nothing.
 """

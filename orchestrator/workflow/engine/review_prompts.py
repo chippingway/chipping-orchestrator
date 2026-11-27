@@ -11,9 +11,14 @@ thread alone, and a reviewer left to fetch the pull request reads whichever
 report it finds. The workflow verification evidence current for that same
 subject, where there is any, arrives beside it and is quoted whole by
 `review_evidence_prompts`, with the declaration the reviewer closes on and the
-layout each failure its numbered findings rest on is entered in. Every
-marker it teaches is the one `completion_verdicts` or `review_verification`
-parses; it teaches none of the developer's report outcomes.
+layout each failure its numbered findings rest on is entered in. Beside the
+report goes the task snapshot reference it answers to, spelled by the analytics
+owner the developer's description was recorded under over the repository the
+handover names -- the one the settled report records it was published under,
+which the snapshot spelled its reference with -- so a reviewer can name the
+task it reviews. Every marker it teaches is the one `completion_verdicts` or
+`review_verification` parses; it teaches none of the developer's report
+outcomes.
 """
 from __future__ import annotations
 
@@ -22,6 +27,7 @@ from dataclasses import dataclass
 from github.Issue import Issue
 
 from orchestrator.config import models as _config_models
+from orchestrator.observability.analytics.observations import records as _observation_records
 from orchestrator.workflow.engine import (
     messages as _messages,
     prompt_context as _prompt_context,
@@ -39,12 +45,17 @@ class ReviewHandover:
     caller resolved for this round, the report included. None is a reviewer
     handed no subject, which is told no report is recorded. `evidence` is the
     workflow verification evidence the caller proved current for that very
-    subject, or None where none is.
+    subject, or None where none is. `repository` is the repository the
+    settled report records it was published under -- the identity the
+    developer's task snapshot spelled its reference with, kept on the pinned
+    record rather than read from GitHub again, so a rename since changes
+    nothing -- and None names no task reference.
     """
 
     dev_backend: str = "agent"
     subject: _review_subjects.ReviewSubject | None = None
     evidence: _evidence_prompts.HandedEvidence | None = None
+    repository: str | None = None
 
 
 _NOTHING_HANDED = ReviewHandover()
@@ -78,7 +89,7 @@ def _build_review_prompt(
         f"Issue body:\n{body}\n\n"
         f"Conversation so far:\n{convo}\n\n"
         f"{tracked_block}"
-        f"{_review_report_block(handover.subject)}\n\n"
+        f"{_review_report_block(handover.subject, _task_reference(issue, handover))}\n\n"
         "Inspect the change with:\n"
         f"  git log --oneline {base_ref}..HEAD\n"
         f"  git diff {base_ref}...HEAD\n\n"
@@ -100,7 +111,25 @@ def _build_review_prompt(
     )
 
 
-def _review_report_block(subject: _review_subjects.ReviewSubject | None) -> str:
+def _task_reference(issue: Issue, handover: ReviewHandover) -> str | None:
+    """The task snapshot reference the report a reviewer is handed answers to, or None where there is none.
+
+    Spelled by the one owner the snapshot records are written by
+    (`observations.records.task_reference`), over the repository the handover
+    names -- the one the settled report was published under -- the issue, and
+    the requirements revision the report is stamped with, so the reviewer
+    names exactly the reference the developer's description of the task was
+    recorded under.
+    """
+    subject = handover.subject
+    if subject is None or subject.report is None:
+        return None
+    return _observation_records.task_reference(
+        handover.repository or "", issue.number, subject.report.requirements_revision,
+    )
+
+
+def _review_report_block(subject: _review_subjects.ReviewSubject | None, reference: str | None) -> str:
     """The developer report a reviewer is handed, or the note that there is none.
 
     Quoted whole and never cut: a subject's report is the text its caller
@@ -109,7 +138,8 @@ def _review_report_block(subject: _review_subjects.ReviewSubject | None) -> str:
     revision exactly. Where the subject's requirements are not the ones the
     report was written against -- a reply on the thread since, which bought
     this round -- the reviewer is told the issue has moved on rather than left
-    to infer it from two hashes.
+    to infer it from two hashes. The task snapshot `reference` the report
+    answers to is named beside it, outside the quotation, where there is one.
     """
     if subject is None or subject.report is None:
         return (
@@ -118,6 +148,8 @@ def _review_report_block(subject: _review_subjects.ReviewSubject | None) -> str:
         )
     report = subject.report
     notes = [_review_report_heading(report)]
+    if reference is not None:
+        notes.append(f"Task snapshot reference for this report: `{reference}`.")
     if (
         subject.requirements_revision
         and subject.requirements_revision != report.requirements_revision

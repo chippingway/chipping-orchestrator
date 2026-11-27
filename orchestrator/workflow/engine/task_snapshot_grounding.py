@@ -1,0 +1,169 @@
+# Copyright 2026 Geser Dugarov
+# SPDX-License-Identifier: Apache-2.0
+"""What an implementing developer's conversation was grounded on, kept on this host for the snapshots of its retries.
+
+A task snapshot names the requirements the conversation that wrote it was
+handed. A road that hands the developer requirements -- the first
+implementation, and a human reply whose batch it delivers -- hands its own,
+which that road settles as the baseline the issue records
+(`user_content_hash`). An `/orchestrator continue` retry hands none: a
+resumed conversation reads its own transcript, and the baseline, which
+stamps the retry's report, stays where it was. Where a reply's or a retry's
+run opens a fresh conversation instead, it is re-grounded on the read of
+the issue its preamble quoted -- an edit landed since the road was frozen
+included, owed to the drift road all the same. So a retry that resumes a
+conversation is the one attempt whose requirements nothing on the issue
+says once the conversation was last handed something other than the
+baseline.
+
+This host keeps that beside the issue's writer claim
+(`writer_claims.claim_path`), as `repo-<id>-issue-<n>.task-snapshot-grounding`:
+`{"session_id", "requirements", "baseline"}` -- the conversation, what it was
+last handed, and the baseline the issue records once the road that handed it
+settles: the revision a reply's settlement writes as `user_content_hash`, and
+the baseline as it stands on a road whose settlement writes none, a retry's.
+So a reply whose stale session a fresh conversation replaced, settled since,
+leaves that conversation's grounding speaking for the retry that resumes it.
+Every attempt on a road that asks for a snapshot that reached the agent keeps
+it current where the conversation is known, the id it returned or the one it
+resumed: written where what it was handed is not that baseline, and taken
+away where it is. A
+conversation that returned no id and resumed none changes nothing, so the
+record of whichever conversation stays pinned stands, and neither does a
+launch refused before it started or a turn its provider or CLI refused,
+which handed the conversation nothing. A retry resuming that same conversation is
+bound to what the record says while the baseline is the one it was written
+beside; another conversation, or a baseline a road has since settled, leaves
+it saying nothing, and the attempt is bound to what its road hands it.
+
+It is analytics alone: read and written only while the analytics sink is on,
+only by a snapshot, and only under the issue's writer claim. The pinned
+comment never carries it, so no settlement, park, or capture measures or
+reads it. A record is read only whole, in the one shape written here: one
+that will not decode, or that holds any other set of members -- a `baseline`
+missing, which would otherwise read as an issue recording none, or a member
+written twice included -- is nothing. A record the host will not let be
+read, or a change to it the host will not take, fails the snapshot that
+asked, inside that snapshot's failure boundary (`task_snapshots.receive`):
+one warning and nothing recorded, since a record left unread or unkept could
+bind this or a later snapshot to requirements its conversation was never
+handed. A write the host refuses takes the record it would have replaced
+away with it, so a later retry's snapshot is bound to the baseline -- unless
+the host refuses taking that record away too, when the superseded record can
+still speak. Another host sees none of it.
+"""
+from __future__ import annotations
+
+import json
+from collections.abc import Callable
+from dataclasses import dataclass
+from pathlib import Path
+
+from orchestrator.github.pinned_state import PinnedState
+from orchestrator.scheduler import writer_claims as _writer_claims
+from orchestrator.workflow.engine import prompt_delivery as _prompt_delivery
+
+GROUNDING_SUFFIX = ".task-snapshot-grounding"
+
+_SESSION = "session_id"
+
+_REQUIREMENTS = "requirements"
+
+_BASELINE = "baseline"
+
+# What fingerprints the requirements a fresh conversation was re-grounded with, asked only once one opened.
+Fingerprint = Callable[[], str]
+
+# Every member a record carries, and nothing else.
+_MEMBERS = frozenset((_SESSION, _REQUIREMENTS, _BASELINE))
+
+
+@dataclass(frozen=True)
+class Grounding:
+    """One issue's grounding record on this host, beside the baseline the issue records once its road settles."""
+
+    path: Path
+    baseline: str | None
+
+    @classmethod
+    def of(cls, repo_id: int, issue_number: int, state: PinnedState, settles: tuple = ()) -> Grounding:
+        """The record of the issue `repo_id` and `issue_number` name, read beside the baseline its road settles.
+
+        That is the `user_content_hash` the road's `settles` pairs write --
+        the pinned fields its settlement moves forward -- and `state`'s own
+        where they write none.
+        """
+        claim = _writer_claims.claim_path(repo_id, issue_number)
+        field = _prompt_delivery.PINNED_USER_CONTENT_HASH
+        baseline = dict(settles).get(field, state.get(field))
+        return cls(claim.with_suffix(GROUNDING_SUFFIX), baseline if isinstance(baseline, str) else None)
+
+    def handed(
+        self, resumed: str | None, fresh_requirements: Fingerprint | None, road_requirements: str,
+    ) -> str:
+        """The requirements an attempt's conversation was handed.
+
+        `fresh_requirements` fingerprints what the road re-grounded a
+        conversation the run opened fresh with, None where the conversation
+        is handed the road's own (`road_requirements`). Where given, a fresh
+        conversation (`resumed` None) is handed those -- the one case they
+        are asked for -- and a resumed one -- a retry's, or a command recovery
+        of a fresh one -- what this record says it was grounded on, the
+        road's own where it says nothing.
+        """
+        if fresh_requirements is None:
+            return road_requirements
+        if resumed is None:
+            return fresh_requirements()
+        return self._grounded(resumed) or road_requirements
+
+    def remember(self, session_id: str | None, requirements: str) -> None:
+        """Keep what `session_id` was last handed where it is not the baseline; take the record away where it is.
+
+        No conversation changes nothing. A change the host will not take
+        raises its `OSError` to the snapshot that asked, which records
+        nothing over it.
+        """
+        if not session_id:
+            return
+        if requirements and requirements != self.baseline:
+            spelled = json.dumps({_SESSION: session_id, _REQUIREMENTS: requirements, _BASELINE: self.baseline})
+            _written(self.path, spelled)
+        else:
+            self.path.unlink(missing_ok=True)
+
+    def _grounded(self, resumed: str) -> str | None:
+        """What the record says `resumed` was grounded on, where it still speaks for that conversation.
+
+        Read as the pairs it was written with, so a member written twice is
+        two pairs rather than the last of them, and no record of that shape
+        speaks. A missing record and one that will not decode say nothing; a
+        record the host will not let be read raises its `OSError` to the
+        snapshot that asked.
+        """
+        try:
+            pairs = json.loads(self.path.read_bytes(), object_pairs_hook=tuple)
+        except (FileNotFoundError, ValueError, RecursionError):
+            return None
+        members = pairs if isinstance(pairs, tuple) else ()
+        record = dict(members)
+        if len(record) != len(members) or set(record) != _MEMBERS:
+            return None
+        if record[_SESSION] != resumed or record[_BASELINE] != self.baseline:
+            return None
+        requirements = record[_REQUIREMENTS]
+        return requirements if isinstance(requirements, str) and requirements else None
+
+
+def _written(path: Path, spelled: str) -> None:
+    """`spelled` over the record at `path`, in place, the namespace made where it is missing.
+
+    A write the host refuses takes the record it would have replaced away, so
+    a superseded grounding never speaks for the conversation in its place.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        path.write_text(spelled, encoding="utf-8")
+    except OSError:
+        path.unlink(missing_ok=True)
+        raise
