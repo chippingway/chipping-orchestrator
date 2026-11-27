@@ -13,8 +13,9 @@ subject, where there is any, arrives beside it and is quoted whole by
 `review_evidence_prompts`, with the declaration the reviewer closes on and the
 layout each failure its numbered findings rest on is entered in. Beside the
 report goes the task snapshot reference it answers to, spelled by the analytics
-owner the developer's description was recorded under, so a reviewer can name
-the task it reviews. Every marker it teaches is the one `completion_verdicts` or
+owner the developer's description was recorded under over the repository the
+handover names -- the pinned reading's, as every invocation is minted with --
+so a reviewer can name the task it reviews. Every marker it teaches is the one `completion_verdicts` or
 `review_verification` parses; it teaches none of the developer's report
 outcomes.
 """
@@ -43,12 +44,17 @@ class ReviewHandover:
     caller resolved for this round, the report included. None is a reviewer
     handed no subject, which is told no report is recorded. `evidence` is the
     workflow verification evidence the caller proved current for that very
-    subject, or None where none is.
+    subject, or None where none is. `repository` is the repository as the
+    pinned reading the round was resolved over names it (`PinnedState.repo_slug`),
+    GitHub's own spelling, which every invocation's records are minted under
+    (`invocations.minted`) rather than the configured slug; None names no task
+    reference.
     """
 
     dev_backend: str = "agent"
     subject: _review_subjects.ReviewSubject | None = None
     evidence: _evidence_prompts.HandedEvidence | None = None
+    repository: str | None = None
 
 
 _NOTHING_HANDED = ReviewHandover()
@@ -82,7 +88,7 @@ def _build_review_prompt(
         f"Issue body:\n{body}\n\n"
         f"Conversation so far:\n{convo}\n\n"
         f"{tracked_block}"
-        f"{_review_report_block(handover.subject, _task_reference(spec, issue, handover.subject))}\n\n"
+        f"{_review_report_block(handover.subject, _task_reference(issue, handover))}\n\n"
         "Inspect the change with:\n"
         f"  git log --oneline {base_ref}..HEAD\n"
         f"  git diff {base_ref}...HEAD\n\n"
@@ -104,20 +110,23 @@ def _build_review_prompt(
     )
 
 
-def _task_reference(
-    spec: _config_models.RepoSpec, issue: Issue, subject: _review_subjects.ReviewSubject | None,
-) -> str | None:
+def _task_reference(issue: Issue, handover: ReviewHandover) -> str | None:
     """The task snapshot reference the report a reviewer is handed answers to, or None where there is none.
 
     Spelled by the one owner the snapshot records are written by
-    (`observations.records.task_reference`), over the repository, the issue,
-    and the requirements revision the report is stamped with -- the revision
-    its developer's run was handed -- so the reviewer names exactly the
-    reference the developer's description of the task was recorded under.
+    (`observations.records.task_reference`), over the repository the handover
+    names -- the identity the developer's invocation was minted with, never
+    the configured slug an operator may have cased otherwise -- the issue, and
+    the requirements revision the report is stamped with, so the reviewer
+    names exactly the reference the developer's description of the task was
+    recorded under.
     """
+    subject = handover.subject
     if subject is None or subject.report is None:
         return None
-    return _observation_records.task_reference(spec.slug, issue.number, subject.report.requirements_revision)
+    return _observation_records.task_reference(
+        handover.repository or "", issue.number, subject.report.requirements_revision,
+    )
 
 
 def _review_report_block(subject: _review_subjects.ReviewSubject | None, reference: str | None) -> str:

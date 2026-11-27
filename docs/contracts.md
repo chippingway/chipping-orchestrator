@@ -764,10 +764,13 @@ outcome where there is one. The workflow reads the reply with every such line ou
 without moving its framing -- taken out where the reply has no report marker and inside a READY block, and replaced by
 a placeholder line elsewhere -- so it is outside the published report and its digest, no park or notice quotes it, a
 fenced example stays where it was, text after an outcome is still refused, a block holding nothing else is refused as
-empty, and the verdict the workflow reaches is the one the snapshot's record names. A missing, malformed, duplicated, or
-misplaced attachment earns a diagnostic and nothing else -- no retry, correction, park, or refusal -- and never makes
-an invalid report outcome valid. A reviewer handed a report is told the task snapshot reference that report's stamped
-requirements revision spells, the one the snapshot of the reply that wrote it was recorded under.
+empty, and the verdict the workflow reaches is the one the snapshot's record names; a reply those readers fail on is
+never read as written, every line opening on the prefix, fenced or not, held by the placeholder instead. A missing,
+malformed, duplicated, or misplaced attachment earns a diagnostic and nothing else -- no retry, correction, park, or
+refusal -- and never makes an invalid report outcome valid. A reviewer handed a report is told the task snapshot
+reference that report's stamped requirements revision spells over the repository as the round's pinned reading names
+it, the identity every invocation is minted with rather than the configured slug: the one the snapshot of the reply
+that wrote it was recorded under.
 
 **Specs:** [reply protocols](workflow.md), [task snapshots](workflow/conversations.md#the-task-snapshot-attachment).
 
@@ -1002,7 +1005,9 @@ the usage parser refuses still writes no `agent_exit` record and publishes no to
 recorded, on a trajectory record marked `stream_refused`. A task snapshot and its diagnostics are observation alone:
 no usage total, accounting, completion capture, report settlement, or workflow decision reads one. They are collected
 wherever the analytics sink is on, needing no usage parse, trajectory sink, or database, from a genuine developer
-return alone, judged by the run's status -- so the recovery that finishes a captured report records none -- and behind
+return alone, judged by the run's status and its provider's own verdict -- so neither a turn the provider refused nor
+the recovery that finishes a captured report records one, and only an attempt that reached the agent moves the
+host's grounding record -- and behind
 one failure boundary from the framing of the reply the workflow reads through the append, behind a guarded read of
 where the sink is:
 settings that will not read, a refused append, or a diagnostic that cannot be written is one warning, a step that

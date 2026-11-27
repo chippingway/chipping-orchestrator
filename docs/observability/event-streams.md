@@ -808,11 +808,12 @@ implementation's road or an implementing resume's — a human's reply, an operat
 poisoned session's fresh retry, and an Antigravity command recovery behind any of them — is asked for one attachment
 line in every finished reply, above its report outcome where it ends on one
 ([the reply contract](../workflow/conversations.md#the-task-snapshot-attachment)). No other road asks, and no other run
-is recorded. Only a genuine return is, judged by the run's status alone: a run the tracked spawn started under a charge
-and stamped with its invocation, which was invoked, neither interrupted nor timed out, exited 0, and left no tool step
-unfinished or failure normalized — a question and a malformed report outcome included. Any other writes nothing, nor
-does a result a stage synthesized or the recovery that finishes a captured report from its record, since no developer
-ran.
+is recorded. Only a genuine return is: a run the tracked spawn started under a charge and stamped with its
+invocation, which was invoked, whose turn the provider did not refuse — the backend's own verdict deciding where it
+gives one, so a clean exit carrying Claude's `is_error` refusal is none — neither interrupted nor timed out, exited 0,
+and left no tool step unfinished or failure normalized; a question and a malformed report outcome are included. Any
+other writes nothing, nor does a result a stage synthesized or the recovery that finishes a captured report from its
+record, since no developer ran.
 
 **The attachment.** A reply carries a snapshot as one line: the `ANALYTICS:` prefix, the kind, the version, and a JSON
 object, `ANALYTICS: task-snapshot v1 {"description": "..."}`. A JSON string escapes its line breaks, so nothing inside
@@ -846,7 +847,8 @@ written raw inside the JSON leaves the line as malformed as it was written.
   ([the task snapshot attachment](../workflow/conversations.md#the-task-snapshot-attachment)), never by the pinned
   comment. Dropped where the road held none.
 - `task_ref` — `<repo>#<issue>@<revision>`, the reference a later reader names the snapshot by, spelled by the one
-  formatter (`records.task_reference`) from the revision the run's report is stamped with: the reviewer handed that
+  formatter (`records.task_reference`) from the repository as GitHub spells it, which the invocation was minted with
+  whatever casing the configuration uses, and the revision the run's report is stamped with: the reviewer handed that
   report is told exactly this reference, beside the quoted report. Dropped where the repository or that revision is
   unknown.
 

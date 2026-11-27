@@ -7,11 +7,13 @@ continuations of the request they retry, so each is asked as the attempt
 before it was, and each genuine return is recorded under its own charge.
 A run frozen on no road, or on a road other than the implementing two, is
 neither asked nor observed, and an attempt that returned no finished reply
--- timed out, or left a command running -- records nothing.
+-- timed out, left a command running, or answered by its provider's refusal
+on a clean exit -- records nothing.
 """
 from __future__ import annotations
 
 import contextlib
+import json
 from unittest.mock import MagicMock, patch
 
 from orchestrator.agents.models import ToolLifecycle
@@ -40,6 +42,9 @@ _CONVERSATION = "agy-convo"
 _UNFINISHED = (ToolLifecycle(step_index=1, tool_name="run_command", state="ACTIVE"),)
 _COMPLETION = "completion"
 
+# Claude's own verdict on a turn its provider refused, beside a clean exit.
+_REFUSED = json.dumps({"type": "result", "is_error": True, "result": "API Error: 529 Overloaded."})
+
 # What a poisoned resume and the fresh retry behind it record, in order: the
 # empty reply's missing snapshot under the first charge, the snapshot under
 # the second.
@@ -54,6 +59,7 @@ _UNRECORDED = (
     ("no road", {}, None, _PROMPT),
     ("a fix round", {}, _routes.CompletionRoute.REQUESTED_CHANGES, _PROMPT),
     ("a timed-out attempt", {"timed_out": True}, _routes.CompletionRoute.IMPLEMENTATION, _ASKED),
+    ("a refused turn", {"stdout": f"{_REFUSED}\n"}, _routes.CompletionRoute.IMPLEMENTATION, _ASKED),
 )
 
 

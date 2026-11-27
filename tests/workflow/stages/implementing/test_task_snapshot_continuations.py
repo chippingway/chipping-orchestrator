@@ -9,14 +9,17 @@ resuming that conversation hands it the requirements its batch delivers,
 which the reply settles as the issue's baseline, so its snapshot is bound to
 those. A retry that times out without naming its conversation leaves the
 grounding of the one still pinned, so the next retry resuming it is bound to
-the edit still. With the analytics sink off, the host keeps nothing.
+the edit still, and a reply whose launch the run budget refuses hands the
+conversation nothing and leaves the grounding as it was. With the analytics
+sink off, the host keeps nothing.
 """
 from __future__ import annotations
 
 import unittest
 from types import MappingProxyType
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
+from orchestrator import config
 from orchestrator.scheduler import writer_claims
 from orchestrator.workflow.engine import task_snapshot_grounding as _grounding
 from tests.support.fakes import FakeComment, FakeUser
@@ -61,6 +64,11 @@ def _resumed(called) -> str | None:
     return called.kwargs["options"].resume_session_id
 
 
+def _revisions(case: _support.SinkOfItsOwn) -> list[str]:
+    """The requirements revision of every snapshot on `case`'s sink, in order."""
+    return [snapshot[_support.REVISION] for snapshot in case.events(_support.SNAPSHOT_EVENT)]
+
+
 class ContinuationTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
     """A replacement conversation's continuations, dispatched as a poll does."""
 
@@ -79,7 +87,7 @@ class ContinuationTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
         ran = self._ticked(_replying(f"Which label?\n{_support.SNAPSHOT}"), _said(_GUIDANCE, _SECOND))
         self.assertEqual(_resumed(ran[_held.RUN_AGENT].call_args), _SESSION)
         self.assertIn(_GUIDANCE, _support.prompt_of(ran))
-        retried, guided = self._revisions()
+        retried, guided = _revisions(self)
         settled = self.github.pinned_data(_held.ISSUE)["user_content_hash"]
         self.assertEqual((retried == settled, guided), (False, settled))
 
@@ -96,10 +104,25 @@ class ContinuationTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
             self._ticked(runner, _said(_CONTINUE, comment_id))
         resumed = [_resumed(called) for called in runner.call_args_list]
         self.assertEqual(resumed, [None, _SESSION, _SESSION])
-        first, third = self._revisions()
+        first, third = _revisions(self)
         self.assertEqual(third, first)
         self.assertTrue(self._kept().exists())
         self.assertNotIn("task_snapshot_grounding", self.github.pinned_data(_held.ISSUE))
+
+    def test_a_refused_launch_keeps_it(self) -> None:
+        # The reply that would hand the conversation new requirements is
+        # never launched: the run budget refuses it, so nothing is recorded
+        # and the grounding the retry kept stands.
+        self._ticked(_replying(_support.SNAPSHOT), _said(_CONTINUE, _FIRST))
+        kept = self._kept().read_text(encoding="utf-8")
+        self.issue.body = self.issue.body.removesuffix(f"\n{_EDIT}")
+        refused = MagicMock()
+        with patch.object(config, "MAX_AGENT_RUNS_PER_ISSUE", 1):
+            self._ticked(refused, _said(_GUIDANCE, _SECOND))
+        refused.assert_not_called()
+        self.assertEqual(self.github.pinned_data(_held.ISSUE)["park_reason"], "agent_run_limit")
+        self.assertEqual(len(self.observations()), 1)
+        self.assertEqual(self._kept().read_text(encoding="utf-8"), kept)
 
     def test_a_sink_that_is_off_keeps_nothing(self) -> None:
         self._ticked(_replying(_support.SNAPSHOT), _said(_CONTINUE, _FIRST), analytics_log_path=None)
@@ -110,10 +133,6 @@ class ContinuationTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
         self.issue.comments.append(said)
         ticked = {**self.sunk, **_UNMOVED, **seams}
         return self.dispatch(self.github, self.issue, runner, **ticked)
-
-    def _revisions(self) -> list[str]:
-        """The requirements revision of every snapshot on the sink, in order."""
-        return [snapshot[_support.REVISION] for snapshot in self.events(_support.SNAPSHOT_EVENT)]
 
     def _kept(self):
         """Where this host keeps the issue's grounding."""

@@ -17,9 +17,11 @@ The request is `prompt_notes._TASK_SNAPSHOT_NOTE`, appended to the prompt
 the attempt is handed. Receiving a return reads where the analytics sink is
 first (`recorder.sink_path`), and with the sink off records nothing and
 keeps no grounding. With it on, a genuine return -- a run the tracked spawn
-started and stamped, which completed on its own terms by its status alone:
-invoked, neither interrupted nor timed out, exiting 0, and leaving no tool
-step unfinished or failure normalized -- is handed to the analytics recorder
+started and stamped that reached the agent, its turn not refused by the
+provider (`provider_failures.is_provider_refusal`, which settles that from the
+backend's own verdict where there is one), and completed on its own terms by
+its status alone: neither interrupted nor timed out, exiting 0, and leaving no
+tool step unfinished or failure normalized -- is handed to the analytics recorder
 with its invocation, the requirements its conversation was handed
 (`task_snapshot_grounding`), the revision the run's report is stamped with
 -- the road's own, which spells the task reference a reviewer of that report
@@ -28,8 +30,10 @@ is told -- and the framing of the reply the workflow reads
 failure boundary; nothing about the reply is read here first. A run that
 never started, a synthesized result, and the recovery that finishes a
 captured report from its record are no return and record nothing. Every
-attempt, genuine or not, then keeps the host's grounding record current for
-the retries that may resume its conversation.
+attempt that reached the agent, genuine or not, then keeps the host's
+grounding record current for the retries that may resume its conversation; a
+launch refused before it started, or a turn the provider refused, handed the
+conversation nothing, and leaves the record as it stands.
 
 And every return on these roads, with the sink on or off, leaves the
 workflow the reply it reads (`task_snapshot_replies.workflow_reply`): its
@@ -44,6 +48,7 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
+from orchestrator.agents import provider_failures as _provider_failures
 from orchestrator.agents.models import AgentResult
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.observability.analytics.observations import (
@@ -125,7 +130,14 @@ def _observe(
     grounding: _grounding.Grounding,
     path: Path,
 ) -> None:
-    """Record a genuine return's snapshot on the sink at `path`, and keep the conversation's grounding current."""
+    """Record a genuine return's snapshot on the sink at `path`, and keep the conversation's grounding current.
+
+    Only an attempt that reached the agent touches the grounding: one that
+    never did was handed nothing, so the conversation it named is grounded
+    where it was.
+    """
+    if not _reached(agent_result):
+        return
     handed = grounding.handed(conversation.resumed, conversation.fresh_requirements, handoff.requirements_revision)
     if _returned(agent_result):
         run = _observation_records.ObservedRun(
@@ -140,11 +152,15 @@ def _observe(
     grounding.remember(agent_result.session_id or conversation.resumed, handed)
 
 
+def _reached(agent_result: AgentResult) -> bool:
+    """Whether `agent_result`'s launch reached the agent: a process started, its turn not refused by the provider."""
+    return agent_result.invoked and not _provider_failures.is_provider_refusal(agent_result)
+
+
 def _returned(agent_result: AgentResult) -> bool:
-    """Whether `agent_result` is a reply a tracked run finished, by the run's status alone."""
+    """Whether `agent_result`, which reached the agent, is a reply a tracked run finished, by the run's status."""
     shortfalls = (
         agent_result.invocation is None,
-        not agent_result.invoked,
         agent_result.interrupted,
         agent_result.timed_out,
         agent_result.exit_code != 0,

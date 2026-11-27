@@ -28,8 +28,15 @@ reply, and so is the one the recorder is told (`framing`): where the
 outcome begins in the reply as written, which lines a fence may enclose, and
 what the reply the workflow reads ends on -- `ready`, `verified`, or the
 refusal's own spelling. The recorder asks it inside its own failure boundary.
-A reply nothing can take the lines out of is read as written, with one
-warning.
+
+A reply those readers fail on is never read as written: with one warning,
+every line opening on `ANALYTICS:` -- fenced or not, since which lines a fence
+encloses is what could not be read -- is replaced by `PLACEHOLDER` at its own
+indentation, by a pattern no reader is asked for. Every
+line stays a line of the same kind, so the framing is as written and no
+attachment text reaches a report, its digest, or a notice; a READY report
+then carries the placeholder wherever such a line stood, a fenced example's
+included.
 """
 from __future__ import annotations
 
@@ -56,20 +63,31 @@ _OUTCOME_KINDS = MappingProxyType({_report_models._ReadyReport: "ready", _report
 _BREAK_RE = re.compile(r"\r?\n")
 _INDENT_RE = re.compile("[ \t]*")
 
+# Every line opening on the attachment prefix, whatever encloses it, framed as
+# the attachment reader frames a line: to the next line feed, the carriage
+# return before it the break's.
+_ANY_PREFIXED_LINE_RE = re.compile(
+    rf"^(?P<indent>[ \t]*){re.escape(_attachments.PREFIX)}[^\n]*?(?=\r?\n|\Z)", re.MULTILINE,
+)
+
+# What stands in such a line's place: the placeholder, at the line's own indentation.
+_HELD = rf"\g<indent>{PLACEHOLDER}"
+
 # Where a line sits in a reply: `(start, end)`, its break aside.
 _Span = tuple[int, int]
 
 
 def workflow_reply(message: str) -> str:
-    """`message` as the workflow reads it; as written, where nothing can take its attachment lines out."""
+    """`message` as the workflow reads it; every prefixed line held by the placeholder where its readers fail."""
     try:
         return _read_as(message, _fences._fenced_line_starts(message))
-    except Exception as error:  # noqa: BLE001 - a reply the attachment cannot be taken out of is read as written
+    except Exception as error:  # noqa: BLE001 - a reply its readers fail on is held line by line instead
         log.warning(
-            "could not take a task snapshot attachment out of a developer reply (%s); reading it as written",
+            "could not read a developer reply's task snapshot attachment lines (%s); "
+            "holding every line opening on their prefix",
             type(error).__name__,
         )
-        return message
+        return _ANY_PREFIXED_LINE_RE.sub(_HELD, message)
 
 
 def framing(message: str) -> _recorder.Framing:

@@ -1918,12 +1918,13 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             implemented the work, the subject the validating stage resolved, and the verification
                             evidence it proved current for that subject -- with the developer report quoted whole
                             between the issue and the inspection commands, named by revision and location, and a note
-                            where the requirements have moved on since it was written, and the task snapshot
-                            reference the report answers to, spelled by the analytics owner its description was
-                            recorded under; a subject with no report says none is recorded. The verification block
-                            follows the inspection commands, and the closing instructions put the declaration it
-                            teaches above the verdict line and each failure a numbered finding rests on under it, in
-                            the layout that block teaches
+                            where the requirements have moved on since it was written, and the task snapshot reference
+                            the report answers to, spelled by the analytics owner its description was recorded under
+                            over the repository the handover names -- the round's pinned reading's, as every invocation
+                            is minted with; a subject with no report says none is recorded. The verification block
+                            follows the inspection commands, and the closing instructions put the declaration it teaches
+                            above the verdict line and each failure a numbered finding rests on under it, in the layout
+                            that block teaches
     review_evidence_prompts.py
                             what a reviewer is told about verification, which the reviewer prompt renders: the current
                             evidence handed for its subject (`HandedEvidence`, the settled record and its artifact
@@ -1958,18 +1959,21 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             report marker and inside a READY block, a placeholder line holding its place everywhere
                             else -- so no park, notice, or published report quotes one, a fenced example stays, text
                             past an outcome is still refused, and a block of nothing else is refused as empty; a reply
-                            nothing can rewrite read as written, with one warning; and the framing the recorder is
+                            those readers fail on never read as written, every line opening on the prefix held by the
+                            placeholder instead, with one warning; and the framing the recorder is
                             told -- where the outcome begins, the lines a fence may enclose, and the verdict the
                             workflow reaches on that reply
     task_snapshots.py       which developer attempts are asked for a task snapshot -- every one on the first
                             implementation's road or an implementing resume's, and none else -- the request appended
                             to the prompt each is handed, and the receipt of each return on those roads: with the
-                            analytics sink on, a genuine one, judged by the run's status alone, handed to the
+                            analytics sink on, a genuine one, judged by the run's status and its provider's own
+                            verdict, handed to the
                             analytics recorder with its invocation, the requirements its conversation was handed
                             (`task_snapshot_grounding.py`), the revision its report is stamped with -- which spells
                             the task reference -- and the framing of the reply the workflow reads
                             (`task_snapshot_replies.py`), which the recorder asks inside its failure boundary, and
-                            every attempt's grounding kept current; and, sink on or off, every one left as the
+                            the grounding of every attempt that reached the agent kept current; and, sink on or off,
+                            every one left as the
                             workflow reads it. Nothing a workflow decides reads the observation back
     review_subjects.py      what one review is of -- pull request, head, requirements revision, and report revision and
                             digest -- recorded as `review_subject` before the spawn, as `review_returned_subject` once a

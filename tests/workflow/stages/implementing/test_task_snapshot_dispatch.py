@@ -16,13 +16,14 @@ nothing new.
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from orchestrator.config import credentials as _credentials
 from orchestrator.observability.analytics.observations import recorder as _recorder
 from orchestrator.workflow.engine import content_hash as _content_hash, prompt_notes as _notes
-from tests.workflow.fixtures import _agent, accounted
+from tests.workflow.fixtures import _TEST_SPEC, _agent, accounted
 from tests.workflow.report_values import _FINISHED_REPORT
 from tests.workflow.stages.implementing import (
     held_capture_test_support as _held,
@@ -36,9 +37,8 @@ _EDIT = "Require the red variant rather than blue."
 # What a reply leaves past its outcome, beside the snapshot itself.
 _TRAILING_PROSE = "One more thing."
 
-
-def _fingerprint(issue) -> str:
-    return _content_hash._compute_user_content_hash(issue, set())
+# What the reviewer of a report is told its task reference is.
+_TOLD = "Task snapshot reference for this report: `{reference}`."
 
 
 class _EditsMidRun:
@@ -68,29 +68,38 @@ class _FailsOnTheDescription:
 
 
 class DispatchedSnapshotTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
-    """Whole dispatches of a first implementation whose developer describes its task."""
+    """Whole dispatches of a first implementation whose developer describes its task.
+
+    The repository is configured cased otherwise than GitHub spells it, which
+    GitHub answers all the same: the identity a snapshot and its reviewer name
+    is GitHub's own.
+    """
+
+    configured = replace(_TEST_SPEC, slug=_TEST_SPEC.slug.upper())
 
     def test_the_first_implementation_is_recorded(self) -> None:
         # The prompt closes on the request; the snapshot names the run's own
         # charge, the road, and the description it returned, under the
-        # reference the settled report's stamp spells; the pull request
-        # carries no attachment.
+        # reference the settled report's stamp spells, which the reviewer
+        # that report is handed is told however the configuration cases the
+        # repository; the pull request carries no attachment.
         github, issue = self.seeded()
         ran = self.dispatch(github, issue, _support.returning(), **self.committing)
-        record = self.published(github)
         snapshot = self.only(_support.SNAPSHOT_EVENT)
         self.assertTrue(_support.prompt_of(ran).endswith(_notes._TASK_SNAPSHOT_NOTE))
-        self.assertEqual(_named(snapshot), _named_by(record))
+        self.assertEqual(_named(snapshot), _named_by(self.published(github)))
         self.assertEqual(snapshot["description"]["text"], _support.DESCRIPTION)
         self.assertEqual(_support.published_attachments(github), [])
+        told = _TOLD.format(reference=snapshot[_support.TASK_REF])
+        self.assertIn(told, _reviewed(self, github, issue))
 
     def test_a_mid_run_edit_is_never_bound(self) -> None:
         github, issue = self.seeded()
-        handed = _fingerprint(issue)
+        handed = _content_hash._compute_user_content_hash(issue, set())
         edits = MagicMock(side_effect=_EditsMidRun(issue))
         self.dispatch(github, issue, edits, **self.sunk)
         snapshot = self.only(_support.SNAPSHOT_EVENT)
-        self.assertNotEqual(_fingerprint(issue), handed)
+        self.assertNotEqual(_content_hash._compute_user_content_hash(issue, set()), handed)
         self.assertEqual(snapshot[_support.REVISION], handed)
         self.assertEqual(snapshot[_support.TASK_REF], _support.reference(handed))
 
@@ -163,6 +172,15 @@ def _named_by(record: dict) -> tuple:
     ordinal, nonce = record["issue_usage_receipts"]["recent"][0]
     revision = record["developer_report_current"]["requirements"]
     return (ordinal, "implementation", nonce, "implementing", _support.reference(revision))
+
+
+def _reviewed(case: DispatchedSnapshotTest, github, issue) -> str:
+    """The prompt the next tick hands the reviewer of the report `github` published."""
+    # The fake pull request stays where it opened; a real one stands on the
+    # commit the push carried, which is the one the report is about.
+    github.get_pr(_held.OPENED_PR).head.sha = _held.SOURCE
+    ran = case.dispatch(github, issue, _support.returning(""), **case.sunk)
+    return _support.prompt_of(ran)
 
 
 def _malformed_outcome(case: DispatchedSnapshotTest, trailer: str) -> tuple:

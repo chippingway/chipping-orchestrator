@@ -568,20 +568,23 @@ report already on the pull request, which the attachment never touches.
 
 The workflow reads the reply without it (`workflow/engine/task_snapshot_replies.py`). An attachment line is a line
 opening on `ANALYTICS:` that no code fence may enclose, as the report reader's own fence reading
-(`workflow/engine/report_fences.py`) decides; one inside a fence is code — an example a report quotes — and stays.
-Every return on those two roads has its attachment lines kept out of the message before any stage reads it, in a way
-that never moves the reply's framing. A reply with no report marker line has them taken out whole, so a reply carrying
+(`workflow/engine/report_fences.py`) decides; one inside a fence is code — an example a report quotes — and stays. Every
+return on those two roads has its attachment lines kept out of the message before any stage reads it, in a way that
+never moves the reply's framing. A reply with no report marker line has them taken out whole, so a reply carrying
 nothing else is the silent failure an empty one is. A `REPORT: READY` block has them taken out whole, so the report
-published, with the digest it is identified by, is the one written without them, and a block holding nothing else is
-the empty block the report reader refuses. Every other one — above an outcome, past it, or beside markers that do not
-read — is replaced by the line `(analytics attachment line taken out)` at its own indentation, so every line stays a
-line of the same kind: a fence opens and closes where it did, text after an outcome is still refused, and a malformed
-outcome stays malformed. No park, notice, or published report quotes an attachment line. A reply nothing can take the
-lines out of is read as written, with one warning.
+published, with the digest it is identified by, is the one written without them, and a block holding nothing else is the
+empty block the report reader refuses. Every other one — above an outcome, past it, or beside markers that do not read —
+is replaced by the line `(analytics attachment line taken out)` at its own indentation, so every line stays a line of
+the same kind: a fence opens and closes where it did, text after an outcome is still refused, and a malformed outcome
+stays malformed. No park, notice, or published report quotes an attachment line. A reply those readers fail on is never
+read as written: with one warning, every line opening on `ANALYTICS:`, fenced or not, is replaced by that placeholder
+line at its own indentation by a pattern no reader is asked for, so the framing stays as written and the published
+report carries the placeholder where such a line stood.
 
 The attachment is read on its own terms and decides nothing. With the analytics sink on, `task_snapshots.py` hands a
-genuine return — judged by the run's status alone: invoked under a tracked charge, neither interrupted nor timed out,
-exiting 0, with no tool step unfinished or failure normalized — to the one reader and recorder under
+genuine return — invoked under a tracked charge, its turn not refused by the provider (the backend's own verdict
+deciding where it gives one, so a clean exit carrying Claude's `is_error` refusal is none), neither interrupted nor
+timed out, exiting 0, with no tool step unfinished or failure normalized — to the one reader and recorder under
 `observability/analytics/observations/`, with the invocation the run came from, the requirements revision the attempt's
 conversation was handed, and the framing of the reply the workflow reads — where its outcome begins, which lines a fence
 may enclose, and the verdict the report reader reaches on it — which the recorder asks inside its failure boundary. That
@@ -591,15 +594,17 @@ a retry that opens a fresh conversation is bound to the read the replacement ses
 retry resuming that same conversation to what it was last handed. This host keeps that beside the issue's writer claim,
 as `repo-<id>-issue-<n>.task-snapshot-grounding`, only while the analytics sink is on and never on the pinned comment,
 so no settlement measures it (`workflow/engine/task_snapshot_grounding.py`); it speaks while the conversation and the
-issue's baseline stand, an attempt that names no conversation leaves it as it is, and a lost one binds the retry to the
+issue's baseline stand, an attempt that names no conversation leaves it as it is, as does a launch refused before it
+started or a turn its provider refused, which hand the conversation nothing, and a lost one binds the retry to the
 baseline. The task reference is spelled from the revision the run's report is stamped with instead, which is what a
 reviewer is handed. The reader reads the reply as written: exactly one attachment line above the outcome is a snapshot;
 none is missing, two or more anywhere are a duplicate, the one line reaching past where the outcome begins is misplaced,
 and a line out of shape — a key written twice included — is malformed. Each of those is recorded as a diagnostic and
 nothing else: no retry, correction, park, or refusal follows from it, and a valid report outcome beside it stays valid,
-while an invalid one is not rescued by it. The reviewer later handed the report is told the task snapshot reference its
-stamped revision spells, beside the quoted report (`workflow/engine/review_prompts.py`), which is the reference the
-snapshot was recorded under. What the records hold is in
+while an invalid one is not rescued by it. The reviewer later handed the report is told, beside the quoted report
+(`workflow/engine/review_prompts.py`), the reference the snapshot was recorded under: the repository as the round's
+pinned reading names it — GitHub's own spelling, which every invocation is minted with, however the configuration cases
+it — the issue, and the report's stamped revision. What the records hold is in
 [`../observability/event-streams.md#task-snapshot-records`](../observability/event-streams.md#task-snapshot-records).
 
 ### The developer report lifecycle

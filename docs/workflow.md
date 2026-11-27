@@ -214,8 +214,8 @@ text past the outcome is still refused and a fenced example stays. It decides no
 genuine return's attachment is read as written and recorded by the analytics observation owners as a `task_snapshot`
 bound to the run's invocation and the requirements its conversation was handed, and a missing, malformed, duplicated,
 or misplaced one is a diagnostic, never a retry, a park, or a rescued outcome. The reviewer
-handed the report is told the task snapshot reference its stamped revision spells, the one the snapshot was recorded
-under. No other road asks. Full contract:
+handed the report is told the task snapshot reference its stamped revision spells over the repository as GitHub spells
+it, the one the snapshot was recorded under. No other road asks. Full contract:
 [`workflow/conversations.md#the-task-snapshot-attachment`](workflow/conversations.md#the-task-snapshot-attachment).
 
 ## Reviewer verification contract in reviewer prompts

@@ -12,7 +12,8 @@ recorded as the verdict the workflow reached. Every finished reply was asked
 for one, so a reply without it -- with no report outcome either -- is a
 missing snapshot. The reply is framed inside the recorder's own boundary, so a
 framing that fails, once or every time it is asked, is a diagnostic and the
-report it spares is published as ever.
+report it spares is published as ever -- with no attachment line in it, even
+where the scan for those lines is what failed.
 
 An `/orchestrator continue` retry beside a body edit hands a resumed
 conversation nothing, so its snapshot keeps the baseline that conversation
@@ -29,6 +30,7 @@ from types import MappingProxyType
 from unittest.mock import MagicMock, patch
 
 from orchestrator.github import developer_reports as _developer_reports
+from orchestrator.observability.analytics.observations import attachments as _attachments
 from orchestrator.workflow.engine import (
     content_hash as _content_hash,
     report_outcomes as _outcomes,
@@ -90,11 +92,16 @@ def _unavailable() -> MagicMock:
     return MagicMock(side_effect=ValueError("framing unavailable"))
 
 
-# Where a framing fails, and how: the report reader once, the outcome's start always.
+# Where a framing fails, and how: the report reader once, the outcome's start
+# and the scan for attachment lines always.
 _FRAMING_FAILURES = (
     (_outcomes, "_parse_report_outcome", _ParsesAfterOneFailure),
     (_replies, "_outcome_start", _unavailable),
+    (_attachments, "attachment_lines", _unavailable),
 )
+
+# A READY report carrying the attachment line inside its block, where it is misplaced.
+_MISPLACED = f"REPORT: READY\nImplemented the requested flag.\n{_support.SNAPSHOT}\nREPORT: END"
 
 
 # A report quoting an attachment line as code, which a fence encloses.
@@ -145,15 +152,18 @@ class ReplyReadingTest(_support.SinkOfItsOwn, _held.HeldCaptureTicks):
 
     def test_a_failed_framing_spares_the_report(self) -> None:
         # The recorder asks the report reader first, inside its boundary --
-        # the reader failing once, or the outcome's start failing every time.
+        # the reader failing once, or the outcome's start or the attachment
+        # scan failing every time -- and the report is published without the
+        # line misplaced inside it, its readers failing or not.
         for owner, name, failing in _FRAMING_FAILURES:
             self.sink.unlink(missing_ok=True)
             github, issue = self.seeded()
             with patch.object(owner, name, failing()):
-                self.dispatch(github, issue, _support.returning(), **self.committing)
+                self.dispatch(github, issue, _support.returning(_MISPLACED), **self.committing)
             with self.subTest(failing=name):
                 self.assertEqual(self.diagnosed(), [("parse_failed", False)])
                 self.published(github)
+                self.assertEqual(_support.published_attachments(github), [])
 
     def test_a_line_inside_the_report_stays_out_of_it(self) -> None:
         # Published as the same report, under the same digest, as the reply

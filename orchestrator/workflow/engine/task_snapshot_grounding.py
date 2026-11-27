@@ -19,11 +19,13 @@ This host keeps that beside the issue's writer claim
 (`writer_claims.claim_path`), as `repo-<id>-issue-<n>.task-snapshot-grounding`:
 `{"session_id", "requirements", "baseline"}` -- the conversation, what it was
 last handed, and the baseline the issue recorded then. Every attempt on a
-road that asks for a snapshot keeps it current where the conversation is
-known, the id it returned or the one it resumed: written where what it was
-handed is not the baseline, and taken away where it is. A conversation that
-returned no id and resumed none changes nothing, so the record of whichever
-conversation stays pinned stands. A retry resuming that same conversation is
+road that asks for a snapshot that reached the agent keeps it current where
+the conversation is known, the id it returned or the one it resumed: written
+where what it was handed is not the baseline, and taken away where it is. A
+conversation that returned no id and resumed none changes nothing, so the
+record of whichever conversation stays pinned stands, and neither does a
+launch refused before it started or a turn its provider refused, which handed
+the conversation nothing. A retry resuming that same conversation is
 bound to what the record says while the baseline is the one it was written
 beside; another conversation, or a baseline a road has since settled, leaves
 it saying nothing, and the attempt is bound to what its road hands it.

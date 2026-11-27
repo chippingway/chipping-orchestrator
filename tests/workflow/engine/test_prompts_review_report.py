@@ -66,8 +66,11 @@ _EDITED_NOTE = "The issue has changed since this report was written"
 
 _NO_REPORT = "No developer report is recorded for this pull request"
 
+# The repository as the round's pinned reading names it, cased otherwise than the configured slug.
+_REPOSITORY = "Owner-Org/Widget-Repo"
+
 # The task snapshot reference the report this prompt hands answers to.
-_REFERENCE = f"Task snapshot reference for this report: `{_TEST_SPEC.slug}#{_ISSUE_NUMBER}@{_REQUIREMENTS}`."
+_REFERENCE = f"Task snapshot reference for this report: `{_REPOSITORY}#{_ISSUE_NUMBER}@{_REQUIREMENTS}`."
 
 
 def _subject(
@@ -91,13 +94,13 @@ def _subject(
     )
 
 
-def _prompt(subject: review_subjects.ReviewSubject | None) -> str:
+def _prompt(subject: review_subjects.ReviewSubject | None, repository: str | None = _REPOSITORY) -> str:
     return review_prompts._build_review_prompt(
         _TEST_SPEC,
         make_issue(_ISSUE_NUMBER, title="add a foo flag", body=_ISSUE_BODY),
         "",
         [_TEST_SPEC],
-        review_prompts.ReviewHandover(subject=subject),
+        review_prompts.ReviewHandover(subject=subject, repository=repository),
     )
 
 
@@ -152,13 +155,16 @@ class ReviewPromptReportTest(unittest.TestCase):
 
     def test_it_names_the_task_reference(self) -> None:
         # Named on a line of its own between the heading and the quotation,
-        # over the report's own revision -- an edit since moves it nowhere --
-        # in a prompt that lists no other repository.
+        # over the repository the handover names, never the configured slug,
+        # and the report's own revision -- an edit since moves it nowhere --
+        # in a prompt that lists no other repository; a handover naming no
+        # repository names no reference.
         for requirements in (_REQUIREMENTS, _EDITED_REQUIREMENTS):
             prompt = _prompt(_subject(requirements=requirements))
             with self.subTest(requirements=requirements):
                 self.assertIn(f"\n\n{_REFERENCE}\n\n", prompt)
                 self.assertTrue(_ordered(prompt, _COMPLETE_AND_CURRENT, _REFERENCE, f"> {_REPORT_LINES[0]}"))
+        self.assertNotIn("Task snapshot reference", _prompt(_subject(), repository=None))
 
     def test_no_report_is_said_to_be_none(self) -> None:
         no_report = review_subjects.ReviewSubject(

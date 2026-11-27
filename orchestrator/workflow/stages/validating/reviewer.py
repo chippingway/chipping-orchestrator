@@ -332,12 +332,21 @@ def _review_prompt(
     thread_text: str,
     handover: _review_comment._ResolvedSubject,
 ) -> str:
-    """The prompt one round's reviewer is handed, over the subject and evidence the round resolved."""
+    """The prompt one round's reviewer is handed, over the subject and evidence the round resolved.
+
+    The repository is named as `state`, the round's pinned reading, names it --
+    GitHub's own spelling, which every invocation is minted with -- so the task
+    snapshot reference the reviewer is told is the one the developer's
+    snapshot was recorded under, however the configuration cases the slug.
+    """
     _, dev_backend, _, _ = _dev_session_read._read_dev_session(state)
     return _review_prompts._build_review_prompt(
         spec, issue, thread_text, config.default_repo_specs(),
         _review_prompts.ReviewHandover(
-            dev_backend=dev_backend, subject=handover.subject, evidence=handover.evidence,
+            dev_backend=dev_backend,
+            subject=handover.subject,
+            evidence=handover.evidence,
+            repository=state.repo_slug,
         ),
     )
 

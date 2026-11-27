@@ -15,9 +15,10 @@ an acknowledgement, or a fence would need.
 The workflow reads the reply with every attachment line kept out of it and
 its framing unmoved: taken out of a reply with no marker line and out of a
 READY block, and replaced by a placeholder line everywhere else. A line a
-fence may enclose is code a report quotes, and stays. A reply nothing can
-take the lines out of is read as written. Where a line sits beside the
-outcome, and the verdict the recorder is told, are `test_task_snapshot_framing`.
+fence may enclose is code a report quotes, and stays. A reply those readers
+fail on is never read as written: every line opening on the prefix is held by
+the placeholder. Where a line sits beside the outcome, and the verdict the
+recorder is told, are `test_task_snapshot_framing`.
 """
 from __future__ import annotations
 
@@ -32,6 +33,7 @@ from orchestrator.workflow.engine import (
     completion_routes as _routes,
     messages as _messages,
     prompt_notes as _prompt_notes,
+    report_fences as _fences,
     report_outcomes as _outcomes,
     task_snapshot_replies as _replies,
     task_snapshots as _task_snapshots,
@@ -85,6 +87,10 @@ _DESCRIPTIONS = (
 )
 
 
+# The readers the workflow's reading of a reply asks, each of which may fail.
+_READERS = ((attachments, "attachment_lines"), (_fences, "_fenced_line_starts"))
+
+
 def _line(description: str) -> str:
     payload = json.dumps({attachments.DESCRIPTION: description})
     return f"{attachments.PREFIX} {attachments.TASK_SNAPSHOT} v1 {payload}"
@@ -96,6 +102,10 @@ def _attached(reply: str, line: str) -> str:
     head, tail = reply[:at], reply[at:]
     opened = head if not head or head.endswith("\n") else f"{head}\n"
     return f"{opened}{line}\n{tail}"
+
+
+# A READY reply carrying the attachment line inside its block.
+_INSIDE = f"Done.\n\nREPORT: READY\n{_REPORT}\n{_line(_DESCRIPTION)}\nREPORT: END\n"
 
 
 def _snapshot_read(reply: str) -> attachments.SnapshotReading:
@@ -166,15 +176,17 @@ class ProtocolIsolationTest(unittest.TestCase):
     def test_a_line_inside_the_report_is_taken_out(self) -> None:
         # The report the workflow publishes, and its digest, are the ones the
         # reply without the line would have.
-        inside = f"Done.\n\nREPORT: READY\n{_REPORT}\n{_line(_DESCRIPTION)}\nREPORT: END\n"
-        self.assertEqual(_replies.workflow_reply(inside), _REPLIES[_READY])
+        self.assertEqual(_replies.workflow_reply(_INSIDE), _REPLIES[_READY])
 
-    def test_an_unstrippable_reply_reads_as_written(self) -> None:
-        attached = _attached(_REPLIES[_READY], _line(_DESCRIPTION))
-        failing = patch.object(attachments, "attachment_lines", side_effect=ValueError("unreadable"))
-        with failing, self.assertLogs("orchestrator.workflow", level="WARNING") as logged:
-            self.assertEqual(_replies.workflow_reply(attached), attached)
-            self.assertEqual(len(logged.output), 1)
+    def test_a_reply_its_readers_fail_on_is_held(self) -> None:
+        # Whichever reader fails, no line opening on the prefix reaches the
+        # report: the one inside it is held by the placeholder, with one warning.
+        held = _INSIDE.replace(_line(_DESCRIPTION), _replies.PLACEHOLDER)
+        for owner, reader in _READERS:
+            failing = patch.object(owner, reader, side_effect=ValueError("unreadable"))
+            with self.subTest(reader=reader), failing, self.assertLogs("orchestrator.workflow") as logged:
+                self.assertEqual(_replies.workflow_reply(_INSIDE), held)
+                self.assertEqual(len(logged.output), 1)
 
 
 if __name__ == "__main__":

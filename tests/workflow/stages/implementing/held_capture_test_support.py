@@ -108,7 +108,12 @@ def retirement() -> dict:
 
 
 class HeldCaptureTicks(_PatchedWorkflowMixin):
-    """Whole dispatches of one implementing issue, its developer's run paused under it or not."""
+    """Whole dispatches of one implementing issue, its developer's run paused under it or not.
+
+    `configured` is the repository as every dispatch's configuration spells it.
+    """
+
+    configured = _TEST_SPEC
 
     def seeded(self, **record):
         """The issue on `workflow:implementing`, pinned with `record` beside the requirements it reads as."""
@@ -123,7 +128,7 @@ class HeldCaptureTicks(_PatchedWorkflowMixin):
     def dispatch(self, github, issue, run_agent, **seams):
         """Dispatch the issue once, as a poll does; the seams it ran over."""
         return self._run(
-            partial(_issue_processing._process_issue, github, _TEST_SPEC, issue),
+            partial(_issue_processing._process_issue, github, self.configured, issue),
             run_agent=run_agent,
             **{**_CHECKOUT, **seams},
         )
