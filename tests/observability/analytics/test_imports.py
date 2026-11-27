@@ -65,8 +65,9 @@ _KNOBS = (
 # nothing but what that parse returned. Retention is the three entry points one
 # caller each reaches -- the per-tick wrapper and the two sinks' by-age prunes
 # -- over a scan that decides what is expired and a rewrite that swaps the file
-# out from under it. The `sink` owner is what both write packages share: the
-# record envelope and the JSONL line under it.
+# out from under it. The `sink` owner is what every write path shares: the
+# record envelope, the JSONL line under it, and the locked write of lines a
+# writer serialized inside its own failure boundary.
 _SURFACES = MappingProxyType({
     _CONFIG_OWNER: (
         "Settings",
@@ -105,6 +106,7 @@ _SURFACES = MappingProxyType({
     _SINK_OWNER: (
         "append_jsonl_record",
         "build_record",
+        "write_jsonl_lines",
     ),
 })
 

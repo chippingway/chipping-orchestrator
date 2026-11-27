@@ -6,10 +6,14 @@ Destination for the project-local JSONL sink and everything downstream of it.
 ``recording`` owns the append side -- the event families a tick, a stage
 evaluation, and a tracked agent run write; ``query`` owns the read models the
 pages ask the operator's Postgres target for; ``sync`` owns the ingestion that
-fills that target from the JSONL; and ``trajectories`` owns the opt-in
-per-run reasoning sink beside the analytics one. ``recording`` and
-``trajectories`` are here in full, the pair the orchestrator process itself
-runs, and ``query`` holds the connection half: what a read dials with, the
+fills that target from the JSONL; ``trajectories`` owns the opt-in
+per-run reasoning sink beside the analytics one; and ``observations`` owns
+what an agent reply carries for analytics beside its workflow outcome -- the
+attachment vocabulary, its reader, and the best-effort recorder that writes a
+task snapshot or why there is none, which no producer calls yet.
+``recording`` and ``trajectories`` are here in full, the write paths the
+orchestrator process itself runs, ``observations`` is here in full ahead of
+its producer, and ``query`` holds the connection half: what a read dials with, the
 socket a thread reuses, and the single SELECT run over it. Beside them sit the
 owners neither sink may answer separately: ``sink``, the record envelope, the
 JSONL line, both files' locks, and the log channel a refused write is reported

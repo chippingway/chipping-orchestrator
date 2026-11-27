@@ -239,6 +239,17 @@ earlier build counted keep no evidence and read as one record without it, their 
 completeness and their overlap unknown, nothing inferred from `issue_cost_sources`; the first run counted over them
 folds that reading in once and keeps their number in `issue_unevidenced_runs`, so no later run makes them known, and no
 posted receipt is rewritten.
+A task snapshot attachment is read only in its current form, off the reply exactly as written: one
+`ANALYTICS: task-snapshot v1` line outside any code fence, running to the next line feed, ending before the report
+outcome its caller locates, over a JSON object holding one non-blank `description` written once. Another kind, version,
+or shape, a key written twice, a line past 4,000 characters, the line reaching past where the outcome begins, two
+lines anywhere, or none at all is a diagnostic naming why, never a guessed, repaired, or merged observation. The
+`task_snapshot` and `observation_diagnostic` records carry `observation_version: 1` and their source invocation's
+`AgentInvocation` identity whole; a text says how long it was and whether it was cut, a character `jsonb` refuses is
+written as the replacement character, a record past its limit drops its texts rather than cutting an identifier, and
+nothing backfills a snapshot for a run that recorded none. A snapshot's `task_ref` is spelled by the one task-reference
+formatter from the revision its run's report is stamped with, and its `requirements_revision` names what its
+conversation was handed. No producer calls the recorder yet, so no current build writes either record.
 A recorded requirements fingerprint
 (`user_content_hash`, `observed_user_content_hash`) is compared with the current fingerprint alone, which leaves bare
 operator controls out: a value no current reading reproduces -- one an earlier producer wrote counting a bare
@@ -352,6 +363,7 @@ or lost write interrupted are current state, not historical compatibility.
 [usage evidence](observability/usage.md#usage-parser),
 [request usage](observability/usage.md#request-usage-observations),
 [trajectory records](observability/trajectories.md#trajectory-sink-trajectory_log_path),
+[task snapshot records](observability/event-streams.md#task-snapshot-records),
 [requirements baselines](state-machine/delivery-stages.md#user-content-drift-detection),
 [watermark initialization](state-machine/delivery-stages.md#_handle_in_review-label-in_review),
 [replay batches](state-machine/labels-and-state.md#pinned-state),
@@ -411,6 +423,9 @@ or lost write interrupted are current state, not historical compatibility.
 [request usage records](../tests/observability/analytics/trajectories/test_request_usage.py),
 [Claude request records](../tests/observability/analytics/trajectories/test_request_usage_claude.py),
 [Codex request records](../tests/observability/analytics/trajectories/test_request_usage_codex.py),
+[task snapshot attachments](../tests/observability/analytics/observations/test_attachments.py),
+[task snapshot records](../tests/observability/analytics/observations/test_recording.py),
+[task snapshot bounds](../tests/observability/analytics/observations/test_bounds.py),
 [verification artifacts](../tests/github/test_verification_artifacts.py),
 [requirements baselines](../tests/workflow/engine/test_drift.py),
 [late first baselines](../tests/workflow/stages/decomposition/test_late_first_baseline.py),
@@ -965,11 +980,35 @@ run's accounting. The tracked spawn observes a Codex launch for that collection 
 behind a fail-open guard, changing nothing the CLI is launched with; with the trajectory sink off no launch is
 observed, no native log is looked up or read, and no collector runs. A stream
 the usage parser refuses still writes no `agent_exit` record and publishes no total; its request usage alone is
-recorded, on a trajectory record marked `stream_refused`.
+recorded, on a trajectory record marked `stream_refused`. A task snapshot and its diagnostics are observation alone:
+no usage total, accounting, completion capture, report settlement, or workflow decision reads one. Their recorder
+writes only where the analytics sink is on, needing no usage parse, trajectory sink, or database, behind one failure
+boundary from the caller's framing of the reply through the append, behind a guarded read of where the sink is:
+settings that will not read, a refused append, or a diagnostic that cannot be written is one warning, a step that
+fails before the append is a diagnostic, and a lost observation owes no export, checkpoint, or agent run. Only the
+telemetry copy is redacted, with the credential redactor, before it is made storable, cut, or serialized: every
+spelling of a credential is found, from each place it starts to each place it ends, overlapping ones included, before
+any text is replaced, in work bounded by a fixed amount per character searched -- a search stops once nothing can
+continue a spelling, and past the bound the whole text counts as a credential -- and widened over any escape its ends
+sit inside. A credential is found written as itself or with any of its characters JSON-escaped, nested up to eight
+levels deep, wherever each level's escapes start, whatever came before them, and each of its line breaks as any line
+break -- a carriage return, a line feed, or the two in turn -- so a reply written with other line breaks, or read back
+with universal newlines, still has it masked, while the reply the attachment is read from is never normalized. The
+credentials searched for are the redactor's own selection, `config.credentials.secret_values`, which lists every
+replacement pass the redactor makes, in its order, a value held twice listed twice. A shown text is searched
+again as assembled, what that search and the reply's find in it are masked together before the redactor runs, and the
+whole text is searched in the sink's encoding before it is cut, a text spelling a credential there keeping its length
+alone. A reply holding an escape nested deeper, judged by the same rule -- tried wherever it may start, whatever came
+before it -- shows no text, its record kept, as does one whose reading for such an escape runs past the work bound; a
+reply with no text to show is not searched, and a record or fallback diagnostic whose serialized line holds such an
+escape or still holds a credential keeps no text, or is not written. The one
+warning a lost observation earns names only the issue number, the charge ordinal, and the failures' types, never a text
+field of the run, and cannot fail its caller. No producer calls that recorder yet.
 
 **Specs:** [audit recovery](observability/event-streams.md#audit-event-log-event_log_path),
 [request usage](observability/usage.md#request-usage-observations),
-[request collection](observability/trajectories.md#trajectory-sink-trajectory_log_path).
+[request collection](observability/trajectories.md#trajectory-sink-trajectory_log_path),
+[task snapshot records](observability/event-streams.md#task-snapshot-records).
 
 **Checks:** [rewrite events](../tests/workflow/engine/test_rewrite_finish_event_stream.py),
 [rotation](../tests/github/test_event_log.py),
@@ -978,7 +1017,9 @@ recorded, on a trajectory record marked `stream_refused`.
 [request usage records](../tests/observability/analytics/trajectories/test_request_usage.py),
 [Claude request records](../tests/observability/analytics/trajectories/test_request_usage_claude.py),
 [Codex request records](../tests/observability/analytics/trajectories/test_request_usage_codex.py),
-[trajectory parsing](../tests/observability/usage/test_usage.py).
+[trajectory parsing](../tests/observability/usage/test_usage.py),
+[observation failures](../tests/observability/analytics/observations/test_failures.py),
+[observation redaction](../tests/observability/analytics/observations/test_redaction.py).
 
 ## C-13: Module ownership and public surfaces
 
