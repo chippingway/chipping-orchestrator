@@ -152,11 +152,6 @@ _NO_USAGE = codex.event(codex.TOKEN_COUNT, info=None)
 _ROLLBACK = codex.event("thread_rolled_back", num_turns=1)
 # A repeat of the appended request's running sum giving half its usage.
 _HALVED_REPEAT = codex.token_count(codex.NEXT_RUNNING, (500, 250, 0, 5, 1, 505))
-_REPEATS_OF_ONE = (
-    ("notifications repeating one report", (_OPENING, _NO_USAGE, _NEXT, _NEXT, _COMPACTED, _ESTIMATE), {}),
-    ("a repeat giving other usage", (_NEXT, _HALVED_REPEAT), {coverage.CONFLICTING_COUNTERS: 1}),
-    ("a repeat giving other usage after a reset", (_NEXT, _ROLLBACK, _HALVED_REPEAT), {}),
-)
 _THREAD_ONLY = MappingProxyType({_TOTAL_USAGE: codex.counters(codex.NEXT_RUNNING)})
 # A report repeating the captured log's last running sum, its own request usage left out, or carrying a negative count.
 _LAST_ONLY = MappingProxyType({_TOTAL_USAGE: codex.counters(codex.LAST_RUNNING)})
@@ -724,9 +719,7 @@ _REFUSED = (
     ("usage in an earlier invocation's open turn", _AFTER_INTERRUPTED, _INTRUDING, _UNATTRIBUTED),
 )
 _OBSERVED = ("observed_samples", "observed_markers", "observed_checkpoints")
-# Reports never taken for a new request: one in the turn after a line no reading could place -- which could repeat the
-# one that line held, an earlier invocation's included -- one whose running sum moves by anything but its own counters,
-# and one in a child turn after its parent turn closed with a request recorded and unreported, which it could report.
+# The thread records a request and closes before its report arrives in the child's turn.
 _THREAD_RECORD = codex.line(_RECORD_KIND, {codex.TURN_ID: codex.APPENDED_TURN, _USAGE: _NEXT_USAGE})
 _PARENT_LATE_IN_CHILD = (_STARTED, _THREAD_RECORD, _CHILD_STARTED, _CHILD_CONTEXT, _COMPLETE, _CHILD_REQUEST)
 # A report its own counts cannot prove new: two of them negative, and its total below its output.
@@ -738,11 +731,6 @@ _UNPROVEN_REPORTS = (
     ("moving by another request", (_STARTED, _WRONG, _COMPLETE), set()),
     ("moving backward", (_STARTED, _BACKWARD, _COMPLETE), {_CONFLICTING}),
     ("its own counts unusable", (_STARTED, _UNUSABLE_OWN, _COMPLETE), {_INVALID, _CONFLICTING}),
-    (
-        "the parent's recorded request after its turn closed",
-        (*_PARENT_LATE_IN_CHILD, _CHILD_COMPLETE),
-        {coverage.UNSUPPORTED_USAGE_SOURCE, coverage.SUBAGENT_USAGE_UNAVAILABLE},
-    ),
 )
 _UNREADABLE = (
     ("info no object", codex.event(codex.TOKEN_COUNT, info=[1]), coverage.MALFORMED_USAGE),
@@ -900,6 +888,26 @@ _MALFORMED_RECORDS = (
 # proven request either.
 _CHILD_RECORDS = (_CHILD_STARTED, _CHILD_CONTEXT, _CHILD_RECORD, _CHILD_REQUEST, _CHILD_RECORD, _CHILD_COMPLETE, _NEXT)
 _ONE_UNOBSERVED = MappingProxyType({coverage.UNSUPPORTED_USAGE_SOURCE: 1})
+_TWO_THREAD_RECORDS = (_STARTED, _THREAD_RECORD, _NEXT, _THREAD_RECORD)
+# Expected sample positions are offsets into the appended lines. Each unanswered record contributes one gap.
+_SETTLEMENT_TRACES = (
+    ("repeated notification", (*_TWO_THREAD_RECORDS, _NEXT, _COMPLETE), (2,), _ONE_UNOBSERVED),
+    ("two requests with equal counts", (*_TWO_THREAD_RECORDS, _NEXT_AGAIN, _COMPLETE), (2, 4), {}),
+    (
+        "delayed parent report during a child turn",
+        (*_PARENT_LATE_IN_CHILD, _CHILD_COMPLETE),
+        (),
+        {**_LATE_IN_CHILD_GAPS, **_ONE_UNOBSERVED},
+    ),
+    (
+        "opening, rate limit, and compaction notifications",
+        (_STARTED, _OPENING, _NO_USAGE, _NEXT, _NEXT, _COMPACTED, _ESTIMATE, _COMPLETE),
+        (3,),
+        {},
+    ),
+    ("a repeat giving other usage", (_STARTED, _NEXT, _HALVED_REPEAT, _COMPLETE), (1,), {_CONFLICTING: 1}),
+    ("a repeat giving other usage after a reset", (_STARTED, _NEXT, _ROLLBACK, _HALVED_REPEAT, _COMPLETE), (1,), {}),
+)
 _CHILD_RECORDS_GAPS = MappingProxyType({**_ONE_UNOBSERVED, coverage.UNRECONCILED_USAGE: 1})
 # Two child turns open at once, each on a model of its own: told apart by the record before each report, or not.
 _SECOND_CHILD = "01a1d020-0000-7000-8000-000000000003"
@@ -1204,14 +1212,18 @@ class UnattributedCollectionTest(unittest.TestCase):
 class RequestIdentityTest(unittest.TestCase):
     """A repeated report is one request, and a report not proven new is none, so nothing is copied or doubled."""
 
-    def test_repeated_notifications_are_one_request(self) -> None:
-        # The turn opening with the last running sum, the request's report printed twice, the context estimate after a
-        # compaction, whose running sum does not move, and a notification with no usage: one request. A repeat giving
-        # other request usage than the report it repeats contradicts it, unless a reset came between.
-        for name, lines, gaps in _REPEATS_OF_ONE:
+    def test_report_settlement(self) -> None:
+        for name, lines, offsets, gaps in _SETTLEMENT_TRACES:
             with self.subTest(name):
-                collection = _appended_with(*lines)
-                self.assertEqual(len(collection.samples), 1)
+                collection = codex.appended(*lines)
+                self.assertEqual(
+                    [sample[_POSITION] - capture.LAST.end for sample in collection.samples],
+                    list(offsets),
+                )
+                self.assertEqual(
+                    tuple(cases.column(collection.samples, cases.RAW)),
+                    (_NEXT_USAGE,) * len(offsets),
+                )
                 self.assertEqual(collection.reasons, gaps)
 
     def test_unchanged_zeros_prove_no_request(self) -> None:

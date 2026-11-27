@@ -24,7 +24,6 @@ from orchestrator.git.measurement import (
 from orchestrator.git.publication import (
     commits as _publication_commits,
     probes as _publication_probes,
-    squash as _squash,
     titles as _publication_titles,
 )
 from orchestrator.git.snapshots import refs as _snapshot_refs
@@ -92,7 +91,6 @@ GIT_SEAM_OWNERS = MappingProxyType({
     "_resolve_branch_name": _naming,
     "_revision_contains_path": _verification_probes,
     "_run_verify_commands": _verify_runner,
-    "_squash_and_force_push": _squash,
     "_standing_on_the_remote_base": _rewrite_facts,
     "_tree_sha": _verification_probes,
     "_worktree_dirty_files": _worktree_status,

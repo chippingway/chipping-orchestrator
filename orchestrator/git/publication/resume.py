@@ -1,89 +1,11 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""The squash a process died part way through, finished or put back.
+"""Git evidence for an interrupted squash.
 
-A squash is the one rewrite here that leaves the branch unable to say what
-happened to it. It replaces the commits a reviewer approved with a single
-object carrying the same tree, so the branch it leaves behind and the branch a
-developer simply made one commit on read identically -- and read identically,
-the interrupted one takes the nothing-to-rewrite road and is reported as a
-success nobody counted and nothing published, with reviewer-approved work
-reaching the merge button neither measured nor on the remote.
-
-That is true of the smallest rewrite as much as of the largest. A branch of
-one commit whose subject was rewritten to reference its pull request is one
-commit before and one commit after, so the branch cannot say even that its
-shape changed.
-
-What tells them apart is the record the squash wrote before it ran: the head
-it was replacing, the base it was rewriting over, and how many commits went
-in. This owner is what reads it back, and what it answers is which of seven
-states the branch is actually in.
-
-* An UNTOUCHED original branch. The head the record names is the head the
-  checkout is on over the commits it counted, so the reset never landed -- the
-  record went down and the process died before anything destructive ran.
-  Nothing is owed: the record is dropped and the ordinary squash runs over the
-  commits that are still there.
-* A branch something MOVED while the collapse was outstanding. The head is no
-  longer the one the record names and the branch carries more than one commit,
-  so work nobody here made is on it: the recovery owns the tick from the
-  moment a record goes down, so no route in this workflow put it there.
-  Squashing afresh would collapse that work in with the rest and force-push it
-  onto the pull request as history a reviewer approved, so it refuses and
-  keeps the claim -- saying which way the branch went, since an operator
-  looking for the approved commits finds them under the stray work where the
-  recorded head is still reachable and only in the reflog where it is not.
-* A branch carrying NOTHING over its base, which is the one shape that road
-  could not be trusted with. There is no rewrite left to finish and no history
-  left to rewrite, so the retry would report success having measured and
-  published nothing while the remote still carries the history the record says
-  was replaced. It refuses instead.
-* A squash COMPLETED locally and never pushed. The publication is resumed:
-  entered on the recorded head, leased against it, and handed the pair the
-  record holds so the transfer that carries an adjudication's exemption is
-  decided on the same evidence the interrupted tick would have offered.
-* A squash the gate AUTHORIZED -- a permission and a debt naming it -- whose
-  push never went out. The same resume, and the permit behind it is re-asked
-  in full rather than believed: nothing is remeasured and nothing is
-  readjudicated, but nothing is taken on trust either.
-* A squash ALREADY PUBLISHED. A durable receipt says this issue's own push put
-  the pull request where it stands, so the resume is entered on the rewritten
-  commit itself and the publication is the leased no-op it should be -- which
-  is what lets the receipt, the debt, and the exemption settle without the
-  work being measured or adjudicated a second time.
-* A settled receipt whose HANDOFF never finished. The same state one step on,
-  and the same answer: the count the record still holds is what the notice and
-  the relabel behind this call are owed, and nothing else on the issue has it.
-
-No road here is taken over a tree this host cannot PROVE clean, the one that
-hands the branch back to the ordinary squash included. The probes that ran
-before this call refuse on what git NAMED, so a status that established
-nothing reads to them as a clean tree -- and an install with `DECOMPOSE=off`
-freezes no entry either, so nothing behind this would prove a tree before the
-rewrite and the push. The barrier that does read the recorded pull request on
-every install reads only whether it has ended, which proves no tree.
-
-Nothing is resumed on a record's SHAPE alone. A whole-looking record is one
-somebody could have written, not one this repository ever produced, so the
-three things it claims are proved against the objects before any of it is
-acted on: both recorded ends peel to commits this host really holds, the
-history between them really is the number of commits the record counts, and
-the commit on the branch carries the tree the recorded head left -- which is
-what a squash produces, exactly and by construction.
-A record that fails any of them leaves the branch untouched and refuses:
-every other refusal here knows what the branch is standing on and can put it
-back, while this one is the answer to not knowing.
-
-Everything else refuses, and refuses without inventing a repair. A remote
-somebody else moved, a pull request a human closed, and a tree that stopped
-being provably clean each come back from the publication as the refusal that
-reading took, and the branch is put back only where nothing durable names what
-is on it -- the same rule a fresh squash's own hold is answered by. A record
-this build cannot read WHOLE is refused rather than ignored: a comment
-claiming a collapse it cannot produce describes a branch nobody can account
-for, and waving it past is precisely the nothing-to-squash road this owner
-exists to close.
+Before workflow can resume or discard a collapse claim, the checkout must be
+clean and the recorded history must exist with the recorded ancestry and count.
+A recovered squash also needs the original tree and the recorded base as its
+sole parent.
 """
 from __future__ import annotations
 
@@ -92,7 +14,7 @@ from pathlib import Path
 
 from orchestrator.git import commands
 from orchestrator.git.measurement import commits as _measurement_commits
-from orchestrator.git.publication import models, planning, rewrite
+from orchestrator.git.publication import planning
 from orchestrator.git.verification import status as _worktree_status
 
 # Which recorded end a reading could not produce, so an operator told the
@@ -103,21 +25,6 @@ _RECORDED_BASE = "the base it says it collapsed over"
 
 # Why a resumed collapse could not be finished, spelled as the park comment
 # reads it: what an operator has to reconcile differs by which of them it is.
-_UNREADABLE_COLLAPSE = (
-    "this issue records a squash it may not have finished and the record of "
-    "it is not one this build can read, so the branch cannot be told from one "
-    "with nothing to squash"
-)
-
-
-_OFF_THE_RECEIPT = (
-    "this issue's receipt proves only `{receipted}` already published, and no "
-    "approval stands behind publishing anything else -- but the checkout "
-    "stands on `{head}`, or the record of the squash no longer reads, so "
-    "nothing here is the no-op that receipt allows"
-)
-
-
 _VANISHED_COLLAPSE = (
     "this issue records a squash of `{head}` and the branch carries nothing "
     "over its base at all, so there is no rewrite here to finish and no "
@@ -188,107 +95,7 @@ _BURIED_COLLAPSE = (
 )
 
 
-def _resumed_squash(
-    gate, branch: str, plan: planning._SquashPlan,
-) -> models._SquashOutcome | None:
-    """Finish the squash this issue began, or None where none is outstanding.
-
-    Asked BEFORE what is on the branch is read as a verdict, because a
-    rewritten branch and a branch with nothing left to rewrite carry the same
-    one commit under the same kind of subject, and only the record tells them
-    apart.
-
-    None is the ordinary answer and means the branch is this call's to squash,
-    and it is only ever reached over a record this repository can still show.
-    Nothing is decided by comparing the record to the branch first: the ends
-    it names are peeled, the pair it claims is proved to be one, the history
-    between them is walked against the count, and the tree the classification
-    would be made over has to be provably clean. Every road past that -- the
-    one that DROPS the record and hands the branch back to the ordinary
-    squash included -- rests on it.
-
-    That order is the whole of the safety. A record whose head was edited to
-    the commit a finished collapse left reads as a rewrite that never
-    happened, so the shortcut for one would drop it and hand on a branch of
-    ONE commit -- which is the nothing-to-rewrite road reporting success over
-    a remote still carrying the history the record names. Proved first, the
-    same record is refused: the walk between its ends does not come to the
-    number it counts. What is left over past that proof is answered by the
-    entry rather than here -- a branch handed back is entered on its
-    publication before it is handed on, so a remote still carrying what the
-    record named refuses there.
-
-    The claim this build cannot read whole is the other refusal, and it comes
-    first because it is the one thing the proof cannot be taken over. The
-    branch it is about may be a completed collapse, and there is no reading
-    here that could say: waved past, it is reported as a success that measured
-    and published nothing.
-
-    A gate handed the one commit it may publish as a no-op (`no_op_of`) is
-    held to it before anything else: no approval stands behind publishing any
-    other commit, so a checkout standing anywhere else -- or a record that no
-    longer reads, which would hand the branch to a fresh squash -- refuses
-    with the branch as it is, and only the finish of that very commit is left.
-
-    The tree is part of the same proof for a reason the probes ahead of this
-    call cannot cover: they refuse on what git NAMED, so a status that
-    established nothing reads to them as a clean tree -- and handing on from
-    there is what puts an unreadable worktree into a rewrite, since
-    `DECOMPOSE=off` freezes no entry and so nothing behind it proves a tree
-    either. The barrier that reads the recorded pull request on every install
-    reads only whether it has ended, which is no tree proof.
-    """
-    from orchestrator.workflow.stages.implementing import late_collapse_state
-
-    recorded = late_collapse_state._recorded_collapse(gate.state)
-    if gate.no_op_of and (recorded is None or plan.original_head != gate.no_op_of):
-        return rewrite._squash_failure(
-            _OFF_THE_RECEIPT.format(receipted=gate.no_op_of, head=plan.original_head),
-        )
-    if recorded is None:
-        if late_collapse_state._claims_a_collapse(gate.state):
-            return rewrite._squash_failure(_UNREADABLE_COLLAPSE)
-        return None
-    unprovable = _unprovable_claim(gate, recorded)
-    if unprovable:
-        return rewrite._squash_failure(unprovable)
-    return _outstanding_collapse(gate, branch, plan, recorded)
-
-
-def _outstanding_collapse(
-    gate, branch: str, plan: planning._SquashPlan, recorded,
-) -> models._SquashOutcome | None:
-    """What a proved record is owed over the branch in front of it.
-
-    One commit the checkout has MOVED onto is the rewrite this record is
-    about, and finishing it is the whole of the recovery -- whether that
-    rewrite replaced a history or only the subject over it, since both leave
-    exactly one commit the branch cannot account for. The one branch the
-    record may simply be DROPPED over is the one it still describes exactly --
-    untouched, on the head it names, over the commits it counted -- which is
-    the tick that died before the reset ever ran. Everything else is a branch
-    this record cannot account for, and refuses.
-
-    The drop rides the caller's own durable write, since a process dying
-    before that write comes back to the same branch and the same answer. It is
-    safe to hand on because the branch is the one the record was written over:
-    the ordinary squash collapses exactly the commits an approval was given
-    for, and it cannot report success without pushing them -- it goes through
-    the entry, the rewrite, and the push, and refuses if any of them will not
-    have it.
-    """
-    from orchestrator.workflow.stages.implementing import late_collapse_state
-
-    if plan.count == 1 and plan.original_head != recorded.head:
-        return _finished_collapse(gate, branch, plan.original_head, recorded)
-    unaccountable = _unaccountable_branch(gate, plan, recorded)
-    if unaccountable:
-        return rewrite._squash_failure(unaccountable)
-    late_collapse_state._forgets_the_collapse(gate.state)
-    return None
-
-
-def _unaccountable_branch(gate, plan: planning._SquashPlan, recorded) -> str:
+def _unaccountable_branch(worktree: Path, plan: planning._SquashPlan, recorded) -> str:
     """Why this branch is not one the record may simply be dropped over.
 
     Four shapes reach here and only ONE of them is stale, which is the branch
@@ -329,7 +136,7 @@ def _unaccountable_branch(gate, plan: planning._SquashPlan, recorded) -> str:
         )
     if not plan.count:
         return _VANISHED_COLLAPSE.format(head=recorded.head)
-    if not _is_ancestor(gate.worktree, recorded.head, plan.original_head):
+    if not _is_ancestor(worktree, recorded.head, plan.original_head):
         return _UNBURIED_COLLAPSE.format(
             head=recorded.head, standing=plan.original_head,
         )
@@ -338,55 +145,7 @@ def _unaccountable_branch(gate, plan: planning._SquashPlan, recorded) -> str:
     )
 
 
-def _finished_collapse(
-    gate, branch: str, squashed: str, recorded,
-) -> models._SquashOutcome:
-    """Publish the commit an interrupted squash left, or put the branch back.
-
-    The publication is the one a fresh squash makes, reached through the same
-    tail: the entry is frozen over the head this collapse accounts for, the
-    commit already on the branch is what goes out, and the record supplies
-    exactly what the plan behind an uninterrupted squash would have -- the
-    pair the transfer is decided on and the count the handoff announces. So an
-    already-landed collapse costs a leased no-op rather than a fresh reading,
-    and the receipt, the debt, and the exemption settle without the work being
-    measured or adjudicated a second time.
-
-    An entry that REFUSED is the one answer that tail never sees, because it
-    happens before there is a publication to make: a pull request a human
-    closed while the process was down, a remote off both heads this collapse
-    accounts for, a tree that stopped being provably clean. It is answered
-    here on the same rule the tail answers a refused publication by, so an
-    operator gets one shape for "this collapse could not be finished"
-    whichever reading found it. Where something durable names the commit on
-    the branch -- a receipt, a debt, a live generation -- the reset is the
-    destructive step and the branch is left exactly as this call found it, and
-    a human reconciles the remote. Where nothing does, the collapse is a local
-    commit nobody measured and nobody published, so the branch goes back onto
-    the head the record named and the record goes with it -- which is what
-    leaves the retry the approved commits to squash afresh rather than one
-    commit it would report as having nothing to squash.
-    """
-    from orchestrator.workflow.stages.implementing import late_squash_proof
-
-    unrecovered = _unrecovered_collapse(gate, recorded, squashed)
-    if unrecovered:
-        return rewrite._squash_failure(unrecovered)
-    gated = rewrite._gated_rewrite()
-    entry = gated._resumed_entry(gate, recorded, squashed)
-    if entry.is_frozen:
-        return rewrite._published_squash(
-            gate, branch, entry, squashed, recorded,
-        )
-    if late_squash_proof._rewrite_stands(gate, squashed):
-        return rewrite._squash_failure(entry.refusal)
-    return rewrite._rollback_squash(
-        gate, recorded.head,
-        "a publication the size gate refused", entry.refusal,
-    )
-
-
-def _unrecovered_collapse(gate, recorded, squashed: str) -> str:
+def _unrecovered_collapse(worktree: Path, recorded, squashed: str) -> str:
     """Why the commit on the branch is not the collapse recorded, or "".
 
     Asked once the record has proved its own claims, and it is the other half
@@ -412,11 +171,11 @@ def _unrecovered_collapse(gate, recorded, squashed: str) -> str:
     """
     made = commands._git_hardened(
         "log", "-1", "--format=%T %P", "--end-of-options", squashed,
-        cwd=gate.worktree,
+        cwd=worktree,
     )
     replaced = commands._git_hardened(
         "rev-parse", "--verify", "--end-of-options",
-        f"{recorded.head}^{{tree}}", cwd=gate.worktree,
+        f"{recorded.head}^{{tree}}", cwd=worktree,
     )
     shape = (made.stdout or "").split()
     carried = (replaced.stdout or "").strip()
@@ -434,7 +193,7 @@ def _unrecovered_collapse(gate, recorded, squashed: str) -> str:
     return ""
 
 
-def _unprovable_claim(gate, recorded) -> str:
+def _unprovable_claim(worktree: Path, recorded) -> str:
     """Why this repository cannot show the record's own claims, or "".
 
     What a whole-looking record has to earn before ANY road acts on it, the
@@ -467,17 +226,17 @@ def _unprovable_claim(gate, recorded) -> str:
     would catch a value somebody edited -- and what it becomes is the number a
     human is told their history was collapsed from.
     """
-    if not _worktree_status._worktree_status(gate.worktree).is_clean:
+    if not _worktree_status._worktree_status(worktree).is_clean:
         return _UNPROVABLE_TREE
     for side, end in (
         (_RECORDED_HEAD, recorded.head), (_RECORDED_BASE, recorded.base_sha),
     ):
         proved = _measurement_commits._prove_candidate_commit(
-            gate.worktree, end,
+            worktree, end,
         )
         if not proved.is_frozen:
             return _ABSENT_END.format(side=side, end=end)
-    if not _is_ancestor(gate.worktree, recorded.base_sha, recorded.head):
+    if not _is_ancestor(worktree, recorded.base_sha, recorded.head):
         return _UNRELATED_PAIR.format(
             base=recorded.base_sha, head=recorded.head,
         )
@@ -486,7 +245,7 @@ def _unprovable_claim(gate, recorded) -> str:
     # otherwise agree with a record claiming nothing was collapsed.
     walked = commands._git_hardened(
         "rev-list", "--count",
-        f"{recorded.base_sha}..{recorded.head}", cwd=gate.worktree,
+        f"{recorded.base_sha}..{recorded.head}", cwd=worktree,
     )
     counted = None
     if walked.returncode == 0:

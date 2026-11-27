@@ -5179,7 +5179,7 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             seam's checkout proof too (`creation._proven_checkout`), last before the push, since a
                             tree switched onto the flat branch at the accepted commit passes both probes
       late_collapse_state.py
-                            immutable pre-squash values and durable head/base/count claims written before reset;
+                            durable head/base/count claims written before reset;
                             failed writes restore in-memory state, and handoff or proved rollback clears the claim
       late_squash_proof.py  prove the checkout still holds the squash, decide whether approval, receipt, generation,
                             or a changed checkout keeps it standing, and choose the receipt-proved retry lease -- and
@@ -5965,6 +5965,14 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             approval notice: the round's checkout still on the head the approval was of and clean
                             (`checkout_stands`), since the branch is handed on from it, and the evidence its verdict
                             was proved over (`evidence_stands`)
+      squash.py             plan the approved branch, check for an interrupted collapse before interpreting the commit
+                            count, and enter and record a fresh rewrite before the reset. SQUASH_ON_APPROVAL controls
+                            fresh rewrites. A recorded squash still runs through recovery with the switch off
+      squash_publication.py publish fresh and recovered squash commits through the same size gate, leasing each push
+                            to the frozen PR head. Keep a held commit where its approval, receipt, live generation,
+                            or a moved checkout requires it. A failed retry of an already-landed push keeps the
+                            commit and its claim. An unowned refusal or a rejected fresh push restores the original
+                            history and clears its abandoned records only after Git confirms the mixed reset
       squash_approval.py    what a recorded squash may publish under the approval it was begun under, asked by the
                             recovery (`allowance`, from `collapse.py`: nothing, anything that approval covers, or the
                             one commit a receipt proves, which the recovery is then bound to) and by the dispatcher

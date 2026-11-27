@@ -19,8 +19,8 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.git.verification import probes as _probes
-from tests.git.publication import squash_git_support as squash_support
-from tests.git.publication.squash_recovery_support import SquashRecoveryMixin
+from tests.workflow.stages.validating import squash_git_support as squash_support
+from tests.workflow.stages.validating.squash_recovery_support import SquashRecoveryMixin
 
 PR_REF_IN_SUBJECT = "PR_REF_IN_SUBJECT"
 

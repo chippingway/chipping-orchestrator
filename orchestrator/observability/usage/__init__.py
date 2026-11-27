@@ -27,13 +27,13 @@ with its step fold and conversation attribution, the Claude collector with
 its stream fold, request fold, counter reading, and process reports, and the
 Codex collector over the native session log lines it is handed, with the
 scope proving which of them one invocation wrote and the turns they open and
-settle usage in, its log fold, and its counter reading (``request_models``,
+settle usage in, its log fold, report settlement, and counter reading (``request_models``,
 ``request_normalization``, ``request_coverage``, ``request_scan``,
 ``request_agy``, ``request_agy_steps``, ``request_agy_branches``,
 ``request_claude``, ``request_claude_stream``, ``request_claude_messages``,
 ``request_claude_counters``, ``request_claude_reports``, ``request_codex``,
 ``request_codex_scope``, ``request_codex_turns``, ``request_codex_fold``,
-``request_codex_counters``). The request collectors are dispatched beside
+``request_codex_settlement``, ``request_codex_counters``). The request collectors are dispatched beside
 the trajectory parsers on ``trajectory``, the Codex one reading only the lines
 the trajectory sink's native reader hands it. None of them is published here,
 and none reads a file.

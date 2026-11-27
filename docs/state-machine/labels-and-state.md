@@ -1126,11 +1126,11 @@ leaves the owner on `workflow:umbrella` with the resolution recorded, which the 
 ### Pinned state
 
 Per-issue durable state lives in a single **pinned comment** on the issue (`<!--orchestrator-state {...json...}-->`).
-The schema is defined by `read_pinned_state` / `write_pinned_state` (see `github.pinned_state.PINNED_STATE_MARKER` /
-`PINNED_STATE_RE`). `read_pinned_state` trusts a comment as state only when it is authored by the account backing the
-orchestrator's token AND its whole body is the marker, so neither a third party's forged marker nor an ordinary
-bot-authored comment that embeds the marker in prose can preempt state (see
-[pinned-state authentication](../security.md#pinned-state-authentication)).
+`github.pinned_state` defines the wire format (`pinned_state_body`) and admission rules (`admit_pinned_comment`).
+`GitHubStateMixin` in `github.pinned_comments` reads and writes the comment. Its reader trusts a comment as state
+only when it is authored by the account backing the orchestrator's token AND its whole body is the marker, so neither
+a third party's forged marker nor an ordinary bot-authored comment that embeds the marker in prose can preempt state
+(see [pinned-state authentication](../security.md#pinned-state-authentication)).
 
 The payload is written with the wrapper's own terminator escaped — `-->` inside it is serialized as `--\u003e`, the
 JSON escape every reader decodes back to what was stored. Values reaching the record are not the writer's to

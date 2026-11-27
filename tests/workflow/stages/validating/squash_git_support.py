@@ -17,9 +17,10 @@ from unittest import mock
 
 from orchestrator import config
 from orchestrator.git import branch_transport
-from orchestrator.git.publication import rewrite as _rewrite, squash
 from orchestrator.workflow.late_split import payloads as _payloads
-from tests.git.publication.squash_gate_support import (
+from orchestrator.workflow.stages.validating import squash
+from tests.support import checkout_identity as _checkout_identity, fakes as _fakes
+from tests.workflow.stages.validating.squash_gate_support import (
     SQUASH_PR_NUMBER,
     PublicationSeed,
     SquashRun,
@@ -27,7 +28,6 @@ from tests.git.publication.squash_gate_support import (
     _InterruptsTheRewrite,
     _squash_gate,
 )
-from tests.support import checkout_identity as _checkout_identity, fakes as _fakes
 
 BASE_BRANCH_NAME = "main"
 GIT_AUTHOR_NAME = "GIT_AUTHOR_NAME"
@@ -56,7 +56,7 @@ PINNED_PR_NUMBER = "pr_number"
 # The seam `_InterruptsTheRewrite` is hung on, which is the step between the
 # two entry readings: the first answered while the branch was intact, and
 # the second is taken once this has run.
-_SQUASH_COMMIT_HELPER = "_create_squash_commit"
+_SQUASH_COMMIT_HELPER = "orchestrator.git.publication.rewrite._create_squash_commit"
 
 # What the one commit a rebuilt single-commit branch carries says by default,
 # and the reference this fixture's pull request would end it in.
@@ -313,8 +313,7 @@ class _SquashScenarioMixin:
         `_squashes` is what each fixture binds those with, and what a case
         about this window varies is what arrives in it.
         """
-        with mock.patch.object(
-            _rewrite,
+        with mock.patch(
             _SQUASH_COMMIT_HELPER,
             _InterruptsTheRewrite(
                 squashed.gh.get_pr(SQUASH_PR_NUMBER), **settlement,

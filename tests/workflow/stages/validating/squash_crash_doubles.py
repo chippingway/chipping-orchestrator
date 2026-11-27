@@ -6,7 +6,7 @@ from __future__ import annotations
 from unittest import mock
 
 from orchestrator.git.publication import rewrite as _rewrite
-from tests.git.publication.squash_gate_support import (
+from tests.workflow.stages.validating.squash_gate_support import (
     SQUASH_PR_NUMBER,
 )
 

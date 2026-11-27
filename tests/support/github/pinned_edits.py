@@ -13,7 +13,8 @@ from __future__ import annotations
 
 import copy
 
-from orchestrator.github.pinned_state import GitHubStateMixin, PinnedState, pinned_state_from_comment
+from orchestrator.github.pinned_comments import GitHubStateMixin
+from orchestrator.github.pinned_state import PinnedState, pinned_state_from_comment
 from tests.support.github.models import FakeComment, FakeIssue, FakeUser
 from tests.support.github.state import _FakePinnedFailures
 

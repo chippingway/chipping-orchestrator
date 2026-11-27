@@ -1,12 +1,12 @@
 # Copyright 2026 Geser Dugarov
 # SPDX-License-Identifier: Apache-2.0
-"""Commit identity, git hardening, and rollback on the `rewrite` owner."""
+"""Commit identity, Git hardening, and rollback during squash publication."""
 
 from __future__ import annotations
 
 import unittest
 
-from tests.git.publication import squash_git_support as squash_support
+from tests.workflow.stages.validating import squash_git_support as squash_support
 
 EXECUTABLE_MODE = 0o755
 GIT_LOG = "log"
@@ -44,15 +44,15 @@ class SquashRewriteRealGitTest(
         )
         # All three original commits still on the branch.
         self.assertEqual(self._commits_on_branch(), original_subjects)
-        # Working tree clean (rollback used --hard, but pre-reset tree
-        # already matched HEAD's tree, so no file diffs should remain).
+        # The mixed reset restores the index, and the working tree already
+        # matched the original HEAD, so the checkout should be clean.
         status = squash_support.run_git("status", "--porcelain", cwd=self.work)
         self.assertEqual(status.strip(), "")
 
     def test_never_executes_planted_fsmonitor(self) -> None:
         # Every index-refreshing git command in the squash helper -- the
         # pre-rewrite dirty check, the soft reset, the squash commit, and the
-        # post-push rollback `reset --hard` -- runs inside a worktree whose
+        # mixed reset after a refused push -- runs inside a worktree whose
         # `.git/config` the agent can write. A planted `core.fsmonitor` helper
         # would run during any of them with the orchestrator's process
         # environment (ambient secrets) attached, so each must go through the

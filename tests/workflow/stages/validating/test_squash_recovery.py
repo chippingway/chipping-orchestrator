@@ -19,13 +19,13 @@ from __future__ import annotations
 
 import unittest
 
-from tests.git.publication import (
+from tests.workflow.stages.validating import (
     squash_crash_doubles as _squash_crashes,
     squash_git_support as squash_support,
     squash_recovery_support as _support,
 )
-from tests.git.publication.squash_gate_support import SQUASH_PR_NUMBER
-from tests.git.publication.squash_recovery_support import SquashRecoveryMixin
+from tests.workflow.stages.validating.squash_gate_support import SQUASH_PR_NUMBER
+from tests.workflow.stages.validating.squash_recovery_support import SquashRecoveryMixin
 
 
 class RecordedCollapseRealGitTest(
@@ -45,6 +45,38 @@ class RecordedCollapseRealGitTest(
         self.assertEqual(pinned[_support.KEY_COLLAPSE_HEAD], accepted)
         self.assertEqual(pinned[_support.KEY_COLLAPSE_BASE_SHA], self._base_sha())
         self.assertEqual(pinned[_support.KEY_COLLAPSE_COUNT], _support.APPROVED_COMMITS)
+
+    def test_a_refused_reset_leaves_history_intact(self) -> None:
+        gate = self._gate_subject()
+        accepted = self._head_sha()
+        # A clean index during a merge still prevents a soft reset.
+        (self.work / ".git" / "MERGE_HEAD").write_text(f"{accepted}\n")
+
+        squash_run = self._squashes(gate)
+
+        self.assertIn("reset --soft failed", squash_run.error or "")
+        squash_run.push_mock.assert_not_called()
+        self.assertEqual(self._head_sha(), accepted)
+        self.assertNotIn(_support.KEY_COLLAPSE_HEAD, gate.state.state_data)
+        # The caller persists this drop with its park. A crash first leaves the original claim for recovery.
+        self.assertEqual(self._pinned(gate)[_support.KEY_COLLAPSE_HEAD], accepted)
+
+    def test_a_failed_commit_restores_the_branch(self) -> None:
+        # The two commits have the base tree, so the soft reset succeeds and git commit finds an empty index diff.
+        self._discards_the_branch()
+        for subject in ("first empty commit", "second empty commit"):
+            squash_support.run_git(
+                "commit", "--allow-empty", "-m", subject, cwd=self.work, env_extra=squash_support.author_env(),
+            )
+        accepted = self._head_sha()
+        gate = self._gate_subject()
+
+        squash_run = self._squashes(gate)
+
+        self.assertIn("squash commit failed", squash_run.error or "")
+        squash_run.push_mock.assert_not_called()
+        self.assertEqual(self._head_sha(), accepted)
+        self.assertNotIn(_support.KEY_COLLAPSE_HEAD, self._pinned(gate))
 
     def test_a_landed_push_leaves_the_claim(self) -> None:
         # The push is not the end of the collapse: the count on this record is

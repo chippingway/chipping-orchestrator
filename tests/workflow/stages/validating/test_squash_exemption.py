@@ -31,8 +31,8 @@ from orchestrator.workflow.late_split import (
     rewrite_reading as _rewrite_reading,
     rewrite_values as _rewrite_values,
 )
-from tests.git.publication import squash_git_support as squash_support
-from tests.git.publication.squash_exemption_support import (
+from tests.workflow.stages.validating import squash_git_support as squash_support
+from tests.workflow.stages.validating.squash_exemption_support import (
     GRANT_WRITE,
     LABEL_DECOMPOSING,
     RECEIPT_WRITE,
@@ -41,7 +41,7 @@ from tests.git.publication.squash_exemption_support import (
     _RecordsEachWrite,
     _RefusesOneWrite,
 )
-from tests.git.publication.squash_gate_support import (
+from tests.workflow.stages.validating.squash_gate_support import (
     MOVED_HEAD,
     TRACKED_EDIT,
     TRACKED_FILE,

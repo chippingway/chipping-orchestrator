@@ -15,8 +15,8 @@ from __future__ import annotations
 
 import unittest
 
-from tests.git.publication import squash_git_support as squash_support
-from tests.git.publication.squash_recovery_support import (
+from tests.workflow.stages.validating import squash_git_support as squash_support
+from tests.workflow.stages.validating.squash_recovery_support import (
     APPROVED_COMMITS,
     KEY_COLLAPSE_COUNT,
     SquashRecoveryMixin,

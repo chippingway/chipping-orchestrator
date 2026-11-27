@@ -4317,11 +4317,10 @@ the checkout is re-proved — proven the issue's own last before the push, again
 immediately before the label, behind the report debt a taken-over replay writes, since one switched onto the flat
 branch at the accepted commit stands on it cleanly — the push is named and leased from the record, and the debt is
 spent exactly as it is here.
-`git/publication/squash` is not one of them: the squash-on-approval goes through the whole gate, through
-`late_rewrite`. What it publishes is a NEW object — a squash collapses the approved commits into one commit that did
-not exist when any earlier push was measured — so that commit is the candidate, proved, frozen against the base the
-remote names now, counted, and either pushed or held. Measuring the head it replaces would gate one commit and
-publish another. The count it earns is ordinarily the one the last gated push already answered, because the tree is
+`validating/squash_publication` sends both fresh and recovered squashes through the whole gate via
+`implementing/late_rewrite`. The candidate is the commit the squash produced. The gate proves that commit,
+freezes the current remote base, counts the contribution, and either pushes the commit or holds it.
+The count it earns is ordinarily the one the last gated push already answered, because the tree is
 the same tree; ordinarily is not always, since the BASE moves, and this is the last push before a human is asked to
 merge. A **routed** candidate is deliberately not rolled back: the squashed commit is what a settled verdict
 publishes from the branch, so restoring the pre-squash head would leave the record naming a commit this host no

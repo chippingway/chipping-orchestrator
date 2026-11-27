@@ -6,8 +6,8 @@ from __future__ import annotations
 import unittest
 
 from orchestrator.workflow.late_split import rewrite_values as _rewrite_values
+from orchestrator.workflow.late_split.collapses import LateCollapse
 from orchestrator.workflow.stages.implementing import (
-    late_collapse_state as _late_collapse_state,
     late_gate_models as _late_gate_models,
     late_rewrite as _rewrite,
 )
@@ -71,7 +71,5 @@ class RewriteEvidenceTest(unittest.TestCase):
                 published_sha=standing,
             ),
             SQUASHED_SHA,
-            _late_collapse_state._Collapsed(
-                head=COLLAPSED_SHA, base_sha=MERGE_BASE_SHA,
-            ),
+            LateCollapse(head=COLLAPSED_SHA, base_sha=MERGE_BASE_SHA, count=3),
         )

@@ -58,13 +58,10 @@ last is held by the loader itself rather than by a check.
   publication of a rebase, the crash recovery's retry of an unpublished replay, and its settlement and finish of a
   push already landed enter the gate and the finish from the workflow (`workflow/engine/rewrite_publication.py`,
   `rewrite_retry.py`, `rewrite_landed.py`, `rewrite_finish.py`), so no git owner reaches up for either.
-  `publication/rewrite.py` reaches `late_rewrite.py` to enter a squash on its existing publication and publish through
-  the size gate. Its reset and push steps also load
-  `late_collapse_state.py` and `late_squash_proof.py`; `publication/resume.py` reads both, and `squash.py` and
-  `standing.py` read the collapse state. These preserve the claim written before a destructive reset and prove
-  whether a resumed squash may publish or roll back. Each import waits for the call that needs it. The same check
-  declares them per module: an undeclared hop fails wherever it is written, and one of these fails if it is bound
-  at module scope after all — where it would be a cycle, since the workflow imports the Git owners back.
+  Squash publication follows the same dependency direction. `workflow/stages/validating/squash_publication.py`
+  reads the collapse claim, enters the size gate, and decides whether to keep or restore the rewrite.
+  `git/publication/rewrite.py` performs the checked resets and commit. The gate sends the exact revision and
+  expected remote head to `git/branch_transport.py` for the leased push.
 - **Package boundaries.** Most initializers are markers; declared publishers retain explicit `__all__` surfaces.
   Other operations are reached on their defining modules. `config/__init__.py` binds each resolved setting and is
   the reload and patch target. Package import checks and `tests/config/test_surface.py` hold those boundaries;
@@ -576,36 +573,32 @@ orchestrator/
                         recursion limit, a bound of the reader's own -- and non-object payloads; answers one of four
                         outcomes (`AdmissionStatus`: no comment, supported, unsupported, malformed), a refusal carrying
                         the comment id, repository, issue number, found and supported versions, and reason for a caller
-                        to report locally; preserves the original comment unchanged on GitHub rather than overwriting
-                        it; stamps genuinely new pins with version 1 on first write; states the payload rule once
+                        to report locally. It states the payload rule once
                         (`PinnedAdmission.payload_refusal`: the version, no value JSON cannot spell, no nesting past the
                         recursion limit) for a reader or writer holding a payload rather than a comment, and its value
                         half (`PinnedAdmission.spellable`) for a caller spelling a payload a value at a time; and
                         authenticates nothing where the client does not know whose token it holds --
                         and keeps the one carrying no readable state, whether it would not parse or parsed into an
                         unsupported record, apart from an issue that recorded nothing, since both read back as `{}`, and
-                        never takes a state built as unparsed for a supported one, wherever it was built --
-                        and the comment watermarks beside it, whose thread read tells the pinned
-                        comment by the ID a caller can name where it has one and by the marker in a body
-                        otherwise: the marker also hides every comment merely QUOTING it, which is right for a
-                        reader after conversation and wrong for one after a receipt it posted itself. That cut is
-                        taken over a read the CALLER already holds wherever one is handed in, and over a read of
-                        its own otherwise, because a stage deriving several answers from one batch -- the prompt,
-                        the watermarks that batch settles, the requirements it fingerprints -- owes every one of
-                        them to the same read: a second read is newer, so a comment landing between the two enters
-                        some of those answers and not the others. A field is
+                        never takes a state built as unparsed for a supported one, wherever it was built. A field is
                         asked about two ways and the model answers both -- what one HOLDS, and whether the
                         comment CARRIES it at all -- because every fail-closed reader in this repository turns a
                         value nothing can act on into an absence, so a caller asking whether the record CLAIMS
                         something could not otherwise tell an issue that never wrote a field from one whose
-                        field a hand edit truncated. The record is written two ways. The legacy write lands a state
-                        wherever it can -- in place, or as a new comment where none is named or the named one is
-                        gone or no longer state -- which every caller owning the whole record relies on. Neither sends
-                        a state the next reading would refuse, and neither writes over a record refused admission:
-                        both decide on one walk of the thread that admits every comment it passes, the one rewritten
-                        included, and land from that same read, so a stale id never steers either onto a refused
-                        record or past one. The legacy write RAISES over such a record (`pinned_refusal.py`) rather
-                        than answering, so a caller stops before whatever the write was for. The strict edit
+                        field a hand edit truncated.
+    pinned_comments.py  `GitHubStateMixin` reads the first authenticated record on an issue and supplies the comment
+                        watermarks. `comments_after` identifies the pin by ID when the caller supplies one. Otherwise
+                        it filters by marker, which also hides comments quoting the marker. Receipt readers supply
+                        the ID so those comments stay visible. A caller can pass a thread it has already read to
+                        derive its prompt, watermarks, and requirements fingerprint from the same comments.
+                        The whole-state write edits the named comment in place or creates a pin when none is named
+                        or the named one is gone or no longer state. It stamps a new pin with version 1 on its
+                        first write. Both the whole-state write and the strict edit preserve refused records and
+                        send only states the next read would admit. Each checks admission for every comment it
+                        visits, including the one it would edit, and writes from that same walk of the thread.
+                        A stale ID therefore cannot steer either writer onto or past a refused record.
+                        The whole-state write raises `pinned_refusal.RecordRefused` on such a record, stopping
+                        the caller before it takes any action that depends on the write. The strict edit
                         a guarded commit lands through rewrites the named comment in place only while the walk that
                         finds it still reads it, parsed, as the payload the rewrite was derived over, compared as the
                         comment's JSON spells both (`PinnedState.reads_as`); it never recreates a comment that is
@@ -634,8 +627,7 @@ orchestrator/
                         never confirmed -- or
                         whose report post or re-read left its transaction owed over a comment another road wrote
                         meanwhile, or whose approval tail's records the comment moved, is marked `withheld`, and
-                        the legacy write
-                        writes nothing for it, since written whole it would put back what another road wrote past it
+                        the whole-state write skips it to preserve intervening changes.
     pull_request_reads.py
                         PR status, open and commit-pinned lookup, branch enumeration, and unreadable-publication
                         evidence; a caller choosing its publication thread can narrow to a base, while a caller
@@ -1257,128 +1249,15 @@ orchestrator/
                         the replay lands. An unfetched base, a revision this host does not hold, and two histories
                         with no ancestor between them each answer "" -- evidence the caller cannot produce, never a
                         base to fingerprint over
-      rewrite.py        the soft reset, the orchestrator-identity commit -- made only once the checkout is proven
-                        the issue's own again behind that reset (`creation._proven_checkout`), so a tree switched
-                        while it ran keeps its staged index and branch and the collapse record stands -- the gated
-                        publication of the commit it just made -- measured, then named against it and pinned to the head the entry froze, with
-                        the plan's pre-squash head and merge base handed over beside it, since a rewrite of the
-                          exact commit an authorized settlement accepted may carry that exemption over and both ends
-  of both
-                        contributions are what says so -- and
-                        the rollback a post-reset failure takes -- made only once the checkout is proven the
-                        issue's own again (`creation._proven_checkout`), since the gate's refusing reading came
-                        after the squash's own proof -- the ref and the index, never the working tree,
-                        since a squash has the same tree as the head it replaces and the only thing taking the
-                        worktree too would restore is an edit somebody made while the rewrite ran -- which drops the
-                        approval it abandons, and the permission a granted transfer will never spend, only once the
-                        reset has actually landed -- a reset that failed may
-                        leave the branch still standing on the approved commit, and the approval is the only record
-                        naming the one commit this issue may publish. A push that did not go out is rolled back
-                        with ONE exception, and it is the resumed collapse the pull request already carries: that
-                        push sends nothing, so a request that fails there is a transport failure over work the
-                        remote has, and a reset would take the checkout off it, the count the handoff still owes
-                        a notice with it, and leave the next tick a remote that moved for reasons nothing on the
-                        comment explains. Two readings say so and the ENTRY is the stronger, since it is a
-                        reading of the pull request taken this tick -- a tip it froze equal to the commit about
-                        to be pushed, which it admits only where a durable record accounts for it, so it covers
-                        the crash between a push and its receipt where the receipt is exactly what is missing;
-                        the receipt dated to this attempt is asked beside it for the road that read no remote at
-                        all. Neither can fire on a fresh squash, whose entry was frozen before the commit
-                        existed. The approval the gate wrote before the push, and the permission a transfer
-                          held, are records a reset is SUPPOSED to drop, so neither is asked there. A HELD candidate
-  is spared that rollback only
-                        where the squash is somebody's: a
-                        live record naming it -- oversized, or a pair still owed its count -- already on the remote,
-                        named by the approval as a push this issue still owes -- a reset there leaves the
-                        reconciliation ahead of every later handler asking for a commit only the reflog has, and it
-                        is where a transfer whose grant landed and whose push the remote took ends up, its receipt
-                        still naming the head the squash replaced -- or under a commit something else made. A hold
-                        the gate REFUSED is none of those, and froze
-                        nothing to say otherwise -- a pull request closed or moved in the window the reset and the
-                        commit sit in -- and the branch goes back there, since a squash nobody measured, published,
-                        or recorded is the one commit a retry finds, and one commit is the nothing-to-squash road
-                        reporting success
-      resume.py         the squash an earlier tick did not finish, told apart from a branch with nothing to
-                        squash by the record that squash wrote before it ran. Nothing is decided by comparing
-                        that record to the branch until the record has proved itself, the road that DROPS it
-                        included: a head edited onto the commit a finished collapse left reads as a rewrite that
-                        never happened, so a shortcut for one would drop the record and hand on a branch of ONE
-                        commit -- the nothing-to-squash road reporting success over a remote still carrying the
-                        history the record names. Proved first, exactly ONE branch drops it and lets the ordinary
-                        squash run: the one the record still describes exactly, standing on the head it names
-                        over the commits it counted, which is safe to hand on because that road cannot report
-                        success without pushing the very commits an approval was given for. A branch carrying
-                        NOTHING over its base refuses, since that is the shape the nothing-to-squash road would
-                        call success over a remote still holding the history the record names -- and so does one
-                        that MOVED off the recorded head, whichever way it went: this recovery owns the tick from
-                        the moment a record goes down, ahead of every route that could resume a developer, so
-                        work committed over the collapse is work nobody here made and squashing afresh would
-                        force-push it onto the pull request as history a reviewer approved. The two are still
-                        told apart in the notice, since a recorded head still REACHABLE has the approved commits
-                          under the stray work and one the branch REPLACED has them only in the reflog. A collapse
-  that landed locally, one the
-                        gate authorized, one the remote already carries, and one whose handoff never finished are
-                        all finished through the same leased publication -- entered on the head the record names,
-                        or on the rewritten commit itself where a receipt dates that tip to this attempt, so an
-                        already-landed collapse is a leased no-op rather than a fresh reading. A gate bound to the
-                        one commit it may publish (`no_op_of`) refuses a checkout off that commit, or a record
-                        that no longer reads, before any road -- and is entered and leased on that commit alone.
-                        Nothing is resumed on the record's SHAPE, and none of the roads above is either: the tree
-                        is proved clean, both recorded ends are peeled as objects
-                        this host really holds, the base has to be one the head was really built on -- a walk
-                        between two histories that never met reports a number like any other, so the count is no
-                        ancestry proof -- the history between them is walked against the recorded count, and the
-                        commit on the branch has to carry both the TREE the recorded head left and that base as
-                        its ONE parent, which is what a squash produces by construction: the same tree re-parented
-                        onto a base that has since advanced is a commit that REVERTS whatever that base added, and
-                        a tree comparison alone would publish it. A record failing any of those leaves the branch
-                        untouched and refuses, since a reset would be a guess taken with a destructive step; and
-                        one this build cannot read WHOLE refuses rather than being waved past, since the branch
-                        behind it is exactly the one commit that reads as nothing to squash
-      squash.py         the plan-then-resume-then-enter-then-record-then-rewrite entry point a stage handler
-                        calls, over the gate subject that handler builds and the pull request number it hands in --
-                        which the plan's message is normalized against, together with the tracked issue that gate
-                        carries, only while `PR_REF_IN_SUBJECT` is on, and which on a one-commit branch is what
-                        decides whether there is a rewrite at all, for `count=1` and no
-                        `:package:` notice -- and the owner
-                        of `SQUASH_ON_APPROVAL`:
-                        the switch decides whether a NEW rewrite is made, and one an earlier tick already made
-                        is finished either way, since the commits are off the branch and the remote either has
-                        the object that replaced them or does not. An issue with nothing recorded costs an
-                        install with the switch off no probe, no reading, and no write -- but one that CLAIMED a
-                        collapse still owes the entry the rewrite would have taken, since the recovery may drop
-                        that record on the way past and with the switch off there is no rewrite behind the drop
-                        to read the pull request: a tick that engaged the recovery, found the reset never ran,
-                        threw the only evidence away, and reported success would hand `documenting` a branch
-                        whose remote had moved out from under it. That reading is taken whatever `DECOMPOSE` says,
-                        which is the one place the size gate's switch does not reach: everywhere else a push
-                        follows and the lease answers a moved remote, and here nothing does. The checkout is then
-                        proved AGAIN once the reading comes back, because the read is a REQUEST and the worktree
-                        is writable for the whole of it -- a commit landing there is work no reviewer saw, and
-                        this road reports the head it planned over. The resume is asked
-                        before what is on the branch is read as a verdict, since a rewritten branch and a branch
-                        with nothing left to rewrite carry the same one commit under the same kind of subject;
-                        the record goes down between the entry and
-                        the reset, so no write is spent on a publication the entry refuses and none is owed once
-                        the evidence is gone -- and a write GitHub refuses stops the squash rather than leaving a
-                        rewrite nothing could account for. Past that write the checkout is proven the issue's
-                        own last of all (`creation._proven_checkout`), since a tree switched onto the flat branch
-                        at the planned head passes the tree and head proofs, so the soft reset never collapses
-                        another branch's history. Every failure is stamped on the way out with WHERE
-                        it left the branch, which `standing` beside it reads
-      standing.py       which of the four places a refused squash left the branch in, read off the pinned
-                        record AND the checkout rather than assumed. The terms go down before the reset, so an
-                        outstanding record whose head is the head the checkout stands on is a rewrite that did
-                        not happen and the approved commits are exactly where a human will look for them. A
-                        recorded head the branch moved OFF is two answers rather than one, and the ancestry
-                        separates them: still reachable from HEAD it is buried, so the notice sends an operator
-                        into the branch's own history under the stray work rather than past it to the reflog,
-                        and one the branch REPLACED is the collapse a reflog entry resolves. A record this
-                        build cannot read whole, a recorded head no object here answers to, and a checkout that
-                        would not report its own head are none of them shown. The same owner answers whether a
-                        collapse is CLAIMED at all -- the reading the stamp is gated on, and the one an install
-                        with the switch off decides its entry from. Nothing here resets, writes, or pushes, so
-                        the classification costs a publication that succeeded nothing
+      rewrite.py        prove the issue checkout before the soft reset, prove it again before committing the
+                        index under the orchestrator identity, and return the new SHA; on a rollback requested by
+                        workflow, prove the checkout again and restore the original head and index with a mixed reset
+                        so edits in the working tree survive. Report whether that reset landed
+      resume.py         verify the recorded head, base, ancestry, and commit count against a clean checkout.
+                        An intact history still stands on its original head over the recorded count. A recovered
+                        squash must carry that original tree and have the recorded base as its sole parent
+      standing.py       locate the original commits after a refusal using the recorded head, the checkout's HEAD,
+                        and their ancestry: intact, collapsed, buried under later commits, or unknown
       titles.py         everything a published subject line turns on: the Conventional type list and the
                         compiled prefix patterns, the two predicates read against them, the first-commit and
                         recent-base subject reads those predicates are applied to, and the prefix inference and
@@ -1685,10 +1564,9 @@ off a facade:
 
 - `publication/` — `pr_references` calls nothing; `commits` and `probes` each call `commands` and none calls
   another; `titles` calls `commands` and `pr_references`, for the tracked-issue strip its selection borrows;
-  `planning` calls `commands`, `titles`, `pr_references`, and the verification probes; `rewrite` calls
-  `commands`, `commits`, `branch_transport`, and those same verification probes; `resume` calls `rewrite` and reaches
-  the gate through the one hop that owner spells; `standing` calls `resume` for the ancestry read and reaches the gate
-  through that same hop; `squash` calls `planning`, `resume`, `rewrite`, and `standing`.
+  `planning` calls `commands`, `titles`, `pr_references`, and the verification probes. `rewrite` uses
+  `worktrees/creation`, `commands`, `commits`, and the HEAD probe. `resume` reads checkout status and Git history.
+  `standing` uses its ancestry check to locate the original commits. The validating stage calls these owners.
 - `verification/` — `objects` calls `commands` alone, `output` calls `models`, `process` calls `output`, `probes`, and
   `status`, and `runner` calls
   `process`, `probes`, `status`, and `models`: the baseline commit, tree, and clean status before the first command,

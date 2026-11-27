@@ -104,9 +104,9 @@ _STILL_OPEN = "still_open"
 # push to. The payload is JSON, so a hand edit or an older write can leave any
 # of these, and each reads absent through the fail-closed reader every
 # identity here goes through -- which is what a barrier standing in front of a
-# force-push may not mistake for having nothing to check. What such a record
-# does to a whole run is `tests/git/publication/test_squash_switched_off.py`'s,
-# on the one road that reaches this push holding its own pull request.
+# force-push may not mistake for having nothing to check. The path that reaches
+# this push with its own pull request is covered end to end in
+# `tests/workflow/stages/validating/test_squash_switched_off.py`.
 _UNUSABLE_RECORDS = MappingProxyType({
     "absent": None,
     "not positive": 0,

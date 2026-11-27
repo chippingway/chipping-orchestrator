@@ -9,7 +9,6 @@ rollback clears it in its own durable write.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 
 from orchestrator.github import pinned_refusal as _pinned_refusal
 from orchestrator.workflow.late_split import (
@@ -21,26 +20,6 @@ from orchestrator.workflow.stages.implementing import (
 )
 
 log = logging.getLogger("orchestrator.workflow")
-
-
-
-@dataclass(frozen=True)
-class _Collapsed:
-    """What the plan taken before the reset says this squash replaced.
-
-    The two facts the rewrite destroys and nothing past it can recover: the
-    head that was replaced, and the merge base it was read over. They travel
-    together because they are one reading -- the plan takes both while the
-    branch is still intact -- and as a record rather than as two arguments so
-    the seam that hands them over cannot transpose them.
-
-    Empty for a caller with no plan behind it, which is what a squash the
-    switch kept out of the gate has: nothing is measured there and no transfer
-    is decided, so there is no before-state for either to be about.
-    """
-
-    head: str = ""
-    base_sha: str = ""
 
 
 def _records_the_collapse(
@@ -136,20 +115,3 @@ def _forgets_the_collapse(state) -> None:
     build a gate around: past the push there is nothing left to decide about.
     """
     _collapses.clear_pending_collapse(state)
-
-
-def _collapse_of(
-    head: str, base_sha: str, count: int,
-) -> _collapses.LateCollapse:
-    """The three facts a squash destroys, as the record every owner holds one.
-
-    Built here rather than by the caller that took them, so the plan a fresh
-    squash makes and the record a resumed one reads back are the same shape
-    all the way down: the head that is being replaced, the base it is
-    rewritten over, and how many commits go in. The publication tail past the
-    reset is handed one of these whichever of the two produced it, and nothing
-    below has to know which -- or how much history the rewrite replaced.
-    """
-    return _collapses.LateCollapse(
-        head=head, base_sha=base_sha, count=count,
-    )

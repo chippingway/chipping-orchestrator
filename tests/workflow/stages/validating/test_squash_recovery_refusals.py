@@ -20,12 +20,12 @@ from unittest.mock import MagicMock, patch
 
 from orchestrator.git.verification import status as _worktree_status
 from orchestrator.workflow.late_split import collapses as _collapses
-from tests.git.publication import squash_git_support as squash_support, squash_recovery_support as _support
-from tests.git.publication.squash_gate_support import (
+from tests.workflow.stages.validating import squash_git_support as squash_support, squash_recovery_support as _support
+from tests.workflow.stages.validating.squash_gate_support import (
     SQUASH_PR_NUMBER,
     TRACKED_FILE,
 )
-from tests.git.publication.squash_recovery_support import SquashRecoveryMixin
+from tests.workflow.stages.validating.squash_recovery_support import SquashRecoveryMixin
 
 # A count no history in these fixtures has, which is what a hand-edited or
 # foreign record's own reads back as.

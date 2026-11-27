@@ -130,7 +130,7 @@ def _publishes_rewrite(
     branch: str,
     entry: _PublicationEntry,
     squashed: str,
-    collapsed: _late_collapse_state._Collapsed,
+    collapsed: _collapses.LateCollapse,
 ) -> _push._PushedCandidate:
     """Measure the squashed commit, then publish what it earned.
 
@@ -189,7 +189,7 @@ def _publishes_rewrite(
 def _rewritten(
     entry: _PublicationEntry,
     squashed: str,
-    collapsed: _late_collapse_state._Collapsed,
+    collapsed: _collapses.LateCollapse,
 ) -> _rewrite_values.LateRewrite:
     """What this squash replaced, and the publication it replaced it on.
 

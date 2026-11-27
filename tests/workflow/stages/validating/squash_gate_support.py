@@ -102,7 +102,7 @@ class SquashRun:
 
     @property
     def standing(self) -> str:
-        """Which of the three places this failure left the branch in."""
+        """Where the refusal left the approved commits."""
         return self.outcome.standing
 
 

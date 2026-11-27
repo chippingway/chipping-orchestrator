@@ -17,8 +17,8 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from orchestrator.workflow.engine import base_refresh as _base_refresh, base_rewrite as _base_rewrite
-from tests.git.publication import squash_git_support as squash_support
-from tests.git.publication.squash_recovery_support import (
+from tests.workflow.stages.validating import squash_git_support as squash_support
+from tests.workflow.stages.validating.squash_recovery_support import (
     APPROVED_COMMITS,
     SquashRecoveryMixin,
 )

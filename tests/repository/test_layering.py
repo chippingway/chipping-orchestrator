@@ -97,12 +97,6 @@ _LATE_RECORDS = f"{PACKAGE}.workflow.stages.implementing.late_records"
 
 _LATE_ENTRY = f"{PACKAGE}.workflow.stages.implementing.late_gate_models._Entered"
 
-_LATE_REWRITE = f"{PACKAGE}.workflow.stages.implementing.late_rewrite"
-
-_LATE_COLLAPSE = f"{PACKAGE}.workflow.stages.implementing.late_collapse_state"
-
-_LATE_SQUASH_PROOF = f"{PACKAGE}.workflow.stages.implementing.late_squash_proof"
-
 _LATE_TRANSFER = f"{PACKAGE}.workflow.stages.implementing.late_transfer"
 
 _LATE_TELEMETRY = f"{PACKAGE}.workflow.stages.implementing.late_transfer_telemetry"
@@ -116,8 +110,6 @@ _REWRITES = f"{PACKAGE}.workflow.late_split.rewrite_reading"
 
 _REWRITE_VALUES = f"{PACKAGE}.workflow.late_split.rewrite_values"
 
-_PUBLICATION = f"{PACKAGE}.git.publication"
-
 # Every upward reach made inside a call, declared per module, and each one a
 # responsibility the workflow has not taken over. A base sync runs under a
 # git-layer owner but reports to the issue it was started for: a rebase that
@@ -130,12 +122,6 @@ _PUBLICATION = f"{PACKAGE}.git.publication"
 # found already landed -- are the workflow's own, so nothing here enters the
 # size gate or the finish from below: the debt a landing leaves, its notice,
 # its event, and its route are reached from nowhere in this layer.
-#
-# The squash on approval reaches the stage for the publication it rewrites: it
-# force-pushes onto a pull request the remote already carries, so it is
-# entered on that publication before it rewrites anything and pushes through
-# the gate's own call, and the collapse records and squash proof it reads are
-# the stage's.
 #
 # The rebase is also a rewrite of whatever the branch stood on, so the transfer
 # seam is reached from two places: the owners that assemble the evidence a
@@ -213,10 +199,6 @@ _CALL_TIME_HOPS = MappingProxyType({
         f"{PACKAGE}.workflow.stages.implementing.late_approval_reading",
         f"{PACKAGE}.workflow.stages.implementing.late_publication_state",
     ),
-    f"{_PUBLICATION}.rewrite": (_LATE_REWRITE, _LATE_COLLAPSE, _LATE_SQUASH_PROOF),
-    f"{_PUBLICATION}.resume": (_LATE_COLLAPSE, _LATE_SQUASH_PROOF),
-    f"{_PUBLICATION}.squash": (_LATE_COLLAPSE,),
-    f"{_PUBLICATION}.standing": (_LATE_COLLAPSE,),
 })
 
 

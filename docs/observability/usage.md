@@ -44,10 +44,10 @@ the Antigravity collector, its step fold, and its conversation attribution, and 
 `request_claude_stream.py`, `request_claude_messages.py`, `request_claude_counters.py`, and `request_claude_reports.py`
 the Claude collector, its stream fold, its request fold, the counters a usage block is read for, and what the stream
 reports of its process, and `request_codex.py` with `request_codex_scope.py`, `request_codex_turns.py`,
-`request_codex_fold.py`, and `request_codex_counters.py` the Codex collector over the native session log lines the
-trajectory sink's reader hands it, the scope proving which of them an invocation wrote, the turns it follows, the fold
-reading what those lines report, and the counters a usage block is read for, as
-[request usage observations](#request-usage-observations) describes. The
+`request_codex_fold.py`, `request_codex_settlement.py`, and `request_codex_counters.py` the Codex collector over the
+native session log lines the trajectory sink hands it. Those owners place the invocation's lines and turns, fold the
+log, decide which reports prove requests and which records they answer, and read the counters in each usage block.
+See [request usage observations](#request-usage-observations). The
 trajectory classifier reuses the same event decoder, pricing path, and skill evidence owners, so the resilience and
 cost-precedence contracts are defined once. Tests intercept parsers on the module their caller imports. The package
 initializer re-exports the public parsers and result types; callers name the defining owner so patches reach it.
@@ -1070,7 +1070,9 @@ object per line carrying a `timestamp`, a `type`, and a `payload`. `request_code
 request the invocation's own lines of that log settled, on a sanitized codex-cli 0.167.1 capture of one session written
 by a fresh run and five resumes: `request_codex_scope.py` proves which lines one invocation wrote,
 `request_codex_turns.py` follows the turns they open and the turn each usage line settles in, `request_codex_fold.py`
-folds what the lines report, and `request_codex_counters.py` reads a usage block. It reads `session_meta`,
+applies each report's settlement, and `request_codex_counters.py` reads a usage block.
+`request_codex_settlement.py` decides what request a report proves and which pending record it answers, using the
+branch histories before the fold consumes the record. The collector reads `session_meta`,
 `turn_context`, and `compacted` lines, and `event_msg` lines naming `task_started`, `task_complete`, `turn_aborted`,
 `token_count`, `thread_rolled_back`, an `item_completed` subagent activity, or a legacy `sub_agent_activity`, and counts
 `token_usage_record` lines (below); a response item, the world state, and the settings lines are never read.

@@ -24,12 +24,12 @@ from orchestrator.workflow.late_split import collapses as _collapses
 from orchestrator.workflow.stages.implementing import (
     late_records as _late_records,
 )
-from tests.git.publication import (
+from tests.workflow.stages.validating import (
     squash_crash_doubles as _squash_crashes,
     squash_git_support as squash_support,
     squash_race_doubles as _squash_races,
 )
-from tests.git.publication.squash_gate_support import (
+from tests.workflow.stages.validating.squash_gate_support import (
     PublicationSeed,
     _squash_gate,
 )
