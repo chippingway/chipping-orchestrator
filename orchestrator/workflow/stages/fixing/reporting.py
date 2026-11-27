@@ -238,12 +238,15 @@ def _holds_for_a_human(
     recovery is a push as well.
 
     One that did not finish is left to its own park only where nothing it
-    leaves can publish: a command execution it left unfinished. That run
-    publishes nothing -- no road behind this pushes past an unfinished step
-    -- and its park is the one whose `/orchestrator continue` replays the
-    reviewer's feedback on a fresh session, which a park here would turn into
-    a resume of the session that failed. Its work is recorded as undescribed
-    all the same, so the retry that answers with no report is held here.
+    leaves can publish: a command execution it left unfinished and ended on
+    by itself. That run publishes nothing -- no road behind this pushes past
+    an unfinished step -- and its park is the one whose `/orchestrator
+    continue` replays the reviewer's feedback on a fresh session, which a
+    park here would turn into a resume of the session that failed. Its work
+    is recorded as undescribed all the same, so the retry that answers with
+    no report is held here. One the timeout killed with a command still
+    running is a timeout like any other: the timeout park is where it would
+    go, and that park's recovery is a push.
 
     The work is then recorded as UNDESCRIBED, which is what stops every later
     road binding over it, and the reply the park earns resumes the developer:
@@ -290,7 +293,7 @@ def _holds_for_a_human(
         return False
     if undescribed:
         ctx.state.set(_report_delivery.UNREPORTED_WORK, True)
-    if run.dev_result.unfinished_steps:
+    if run.ended_on_a_running_command:
         return False
     if _dev_session_read._is_session_limit(run.dev_result):
         # The quota stopped this run, and the quota is what a human waits

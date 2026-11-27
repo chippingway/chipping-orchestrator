@@ -340,6 +340,12 @@ def recording_stops_the_tick(
     existed; only a report written over the branch as it stands retires it,
     which is the report the reply to either notice brings.
 
+    While that flag stands, a `REPORT: VERIFIED` is read where it points
+    before it is recorded (`report_minting.stands_where_it_points`), since
+    recording it retires the flag and the roads behind publish the held work
+    ahead of the re-read that settles it. One that does not read back is no
+    usable report, and the run is held as one that brought none.
+
     And both carry the input the caller said this run's prompt delivered into
     the park's own write, so an issue left awaiting a human is never left
     awaiting one over feedback that still reads as unanswered.
@@ -347,7 +353,9 @@ def recording_stops_the_tick(
     handed = route if isinstance(route, _records.HandedRun) else _records.HandedRun(route)
     commit = _commits.ReportCommit(gh, issue, state)
     delivered = _minting.delivered_report(gh, issue, state, agent_result, handed)
-    if delivered is None:
+    if delivered is None or (
+        state.get(UNREPORTED_WORK) and not _minting.stands_where_it_points(gh, delivered)
+    ):
         return _unreported_run_holds(commit, agent_result, handed)
     refusal = records_the_report(commit, delivered, handed)
     if refusal is None:

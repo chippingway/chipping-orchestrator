@@ -1087,7 +1087,12 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             `MINTED_FROM` names the records all of that is read from, which recording it is decided on.
                             `minted_report` is that minting alone, from what one outcome contributes, and
                             `outcome_fields` that contribution unchecked, for a captured completion's transfer and the
-                            room its capture reserves (`completion_handoff.py`)
+                            room its capture reserves (`completion_handoff.py`). `stands_where_it_points` is the
+                            reading a caller holding work no report describes asks of a record before recording it:
+                            a written-out report stands, and a verification only where its location reads back
+                            PRESENT under a trusted author -- every other answer, an unread one included, holds the
+                            work, since recording it lets the roads behind publish that work ahead of the
+                            settlement's own re-read
     report_delivery.py      the report one finished run earns, recorded before its code is published, as minted by
                             `report_minting.py`. The write is this owner's, because being durable before the size
                             gate and the push is the whole of what makes the report recoverable, and it is a
@@ -4478,10 +4483,11 @@ workflow/                   publishes labels, transition guards, and the lazy pe
                             is held, committed or not -- a misread whose head moved or could not be read raising
                             that hold itself -- both notices quoting a finished run's last message and nothing of
                             one that did not finish, and both asking for the decision and keeping every such commit
-                            unpublished until a valid report describes it. An Antigravity command left unfinished
-                            publishes nothing and keeps its own `agent_execution_failed` park, whose
+                            unpublished until a valid report describes it. An Antigravity command a run ended on by
+                            itself publishes nothing and keeps its own `agent_execution_failed` park, whose
                             `/orchestrator continue` replays the feedback on a fresh session, with the hold
-                            recorded beside it; whether a round
+                            recorded beside it; one the timeout killed with a command still running is held like
+                            any timeout, whose own park's recovery is a push; whether a round
                             that committed nothing may publish onto the head its pull request already carries, on
                             the affirmative proof that the head read, never moved, is the one the pull request is
                             STANDING on, and left a tree proved clean.

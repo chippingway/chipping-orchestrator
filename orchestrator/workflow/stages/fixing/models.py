@@ -295,3 +295,12 @@ class _FixingResumeRun:
         nobody could tell, never that nothing was committed.
         """
         return not self.after_sha or self.after_sha != self.before_sha
+
+    @property
+    def ended_on_a_running_command(self) -> bool:
+        """Whether the run ended on its own with a command still running.
+
+        A run the timeout killed is not one, whatever it left running: the
+        timeout is what ended it.
+        """
+        return bool(self.dev_result.unfinished_steps) and not self.dev_result.timed_out

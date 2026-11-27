@@ -93,6 +93,26 @@ class ReportLookup:
             identity = None
         object.__setattr__(self, "landed_id", identity)
 
+    def author_trusted(self) -> bool | None:
+        """Whether this deployment trusts who wrote what was found, or None if that would not read.
+
+        The author is two lazy reads deep -- the `user` off what was found,
+        and the login off that -- so on a worker that has not completed the
+        object either is a request that can fail. Left outside a boundary they
+        leave a caller by an exception rather than by an answer, which is the
+        one thing no reading on a report's road may do.
+
+        None is that failure and it is NOT "untrusted". An author this
+        deployment refuses is a definite answer about a location a human owns;
+        an author nobody could read is a reading that did not happen, and each
+        caller answers it as it answers the content read beside it.
+        """
+        try:
+            return _comments.is_trusted_author(getattr(self.found, "user", None))
+        except Exception:
+            log.exception("the author of a developer report would not read")
+            return None
+
 
 @dataclass(frozen=True)
 class ReportLocation:

@@ -30,7 +30,6 @@ from orchestrator.github import (
 from orchestrator.github.client import GitHubClient
 from orchestrator.github.pinned_state import PinnedState
 from orchestrator.workflow.engine import (
-    report_publishing as _publishing,
     report_records as _records,
     report_settlement_state as _settlement,
 )
@@ -126,10 +125,10 @@ def _reading(
         return _Reading(lookup.presence)
     rendered = None
     if _settled_as(current) is _records.ReportMode.VERIFY:
-        authored = _publishing._trusts_the_author(lookup.found)
+        authored = lookup.author_trusted()
         carried = lookup.presence is _pr_reports.ReportPresence.PRESENT
     else:
-        authored = _wrote_it_ourselves(gh, lookup.found)
+        authored = _wrote_it_ourselves(gh, lookup)
         # The parse reads the comment's body again, and on a lazily completed
         # GitHub object that read is a request of its own: one that fails is
         # a reading nobody could take, not a report that left.
@@ -191,7 +190,7 @@ def _settled_rendering(
     return published.text if settled else None
 
 
-def _wrote_it_ourselves(gh: GitHubClient, found: Any) -> bool | None:
+def _wrote_it_ourselves(gh: GitHubClient, lookup: _pr_reports.ReportLookup) -> bool | None:
     """Whether a published report is still this orchestrator's, or None unread.
 
     Ours by the login the client posts under, not by the allowlist: a
@@ -201,9 +200,9 @@ def _wrote_it_ourselves(gh: GitHubClient, found: Any) -> bool | None:
     """
     bot_login = getattr(gh, "_bot_login", None)
     if bot_login is None:
-        return _publishing._trusts_the_author(found)
+        return lookup.author_trusted()
     try:
-        return _trust.authored_by_us(found, bot_login=bot_login)
+        return _trust.authored_by_us(lookup.found, bot_login=bot_login)
     except Exception:
         log.exception("the author of a published developer report would not read")
         return None
